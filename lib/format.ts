@@ -1,4 +1,6 @@
-export type MoneyCurrency = "CLP" | "USD";
+import type { Currency } from "@/lib/types";
+
+export type MoneyCurrency = Currency;
 
 export const clpFormat = {
   style: "currency",
@@ -53,4 +55,34 @@ export function formatPercent(value: number): string {
 /** Hasta 6 decimales, con sufijo de unidad. */
 export function formatShares(value: number): string {
   return `${sharesFormatter.format(value)} acc.`;
+}
+
+const relativeFormatter = new Intl.RelativeTimeFormat("es-CL", { numeric: "auto" });
+
+const RELATIVE_UNITS: readonly [Intl.RelativeTimeFormatUnit, number][] = [
+  ["year", 60 * 60 * 24 * 365],
+  ["month", 60 * 60 * 24 * 30],
+  ["week", 60 * 60 * 24 * 7],
+  ["day", 60 * 60 * 24],
+  ["hour", 60 * 60],
+  ["minute", 60],
+];
+
+/**
+ * Fecha relativa en español de Chile. Pasado: "hace 3 horas". Futuro: "dentro de 2 días".
+ * `input` es un ISO, unix ms o Date.
+ */
+export function formatRelative(input: string | number | Date, now = Date.now()): string {
+  const time = input instanceof Date ? input.getTime() : typeof input === "number" ? input : Date.parse(input);
+  if (Number.isNaN(time)) return "fecha desconocida";
+
+  const diffSec = Math.round((time - now) / 1000);
+  const abs = Math.abs(diffSec);
+  if (abs < 45) return relativeFormatter.format(diffSec, "second");
+
+  for (const [unit, seconds] of RELATIVE_UNITS) {
+    if (abs >= seconds) return relativeFormatter.format(Math.round(diffSec / seconds), unit);
+  }
+
+  return relativeFormatter.format(0, "second");
 }
