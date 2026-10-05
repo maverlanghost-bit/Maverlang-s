@@ -88,3 +88,21 @@
 .ticker-marquee-motion:hover .animate-marquee {
   animation-play-state: paused;
 }
+
+.reveal-wait {
+  opacity: 0;
+  transform: translateY(16px);
+}
+
+.reveal-in {
+  animation: reveal 600ms var(--ease-spring) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal-wait,
+  .reveal-in {
+    opacity: 1 !important;
+    transform: none !important;
+    animation: none !important;
+  }
+}

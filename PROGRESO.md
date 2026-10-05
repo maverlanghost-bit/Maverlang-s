@@ -1,9 +1,16 @@
 # PROGRESO — Maverlang
 
 ## Estado
-T03 hecha. Modo de datos: mock. Siguiente: T04.
+T04 hecha. Modo de datos: mock. Siguiente: T05.
 
 ## Tareas hechas
+
+### T04 — Landing B (2026-10-05, T04: landing secciones)
+- Hecho: HowItWorks, ProductMock, FeatureGrid, CostsSection, SecuritySection y `useReveal`. `npx tsc --noEmit` y `npm run lint` ok. Sin servidor.
+- Archivos clave: `components/landing/{how-it-works,product-mock,feature-grid,costs-section,security-section,reveal,section}.tsx`, `lib/hooks/{use-reveal,reveal-motion}.ts`, `app/(marketing)/page.tsx`, `app/globals.css`.
+- Decisiones: reveal visible en SSR/sin JS; con motion, lo que está fuera de vista entra al hacer scroll (600ms, stagger 80ms, 16px). Lo ya visible no se oculta. Reduced-motion queda estático. Comprar del mock no es un control. Precios ilustrativos. No se dice «emisor regulado» ni que la clave ya se exporta (TODO-VERIFICAR, Privy). «Sin papeleo» = sin cuenta en un broker de EE.UU.; sí hay términos. Red: orden de centavos de dólar, monto al confirmar. Rent ≈0,0016 SOL no se pasa a USD (patrocinio [POR DECIDIR]). Grilla 2×2 desde `sm`.
+- Pendiente: mirar `/` a 360/768/1280 (reveal, tabs, tabla). `/legal/comisiones` y `/legal/riesgos` llegan en T05. Cerrar redacción de emisor y autocustodia.
+- Próximo: T05.
 
 ### T03 — Landing A (2026-10-05, T03: landing hero)
 - Hecho: header fijo (blur al scroll, menú en Sheet), hero centrado, card ivory con TickerRows y cinta infinita. `npx tsc --noEmit` y `npm run lint` ok. Sin servidor.
@@ -35,4 +42,4 @@ T03 hecha. Modo de datos: mock. Siguiente: T04.
 - Ubicación definitiva del repo (OneDrive vs C:\dev).
 - Textos legales: [REVISIÓN ABOGADO].
 - Verificar mints contra xstocks.fi antes de producción.
-- Confirmar en el navegador el hero a 360/768/1280 (blur del header y marquee) y que `/dev/ui` se ve bien a 360px.
+- Confirmar en el navegador el hero a 360/768/1280 (blur del header y marquee), las secciones de T04 (reveal, tabs, tabla) y que `/dev/ui` se ve bien a 360px.
