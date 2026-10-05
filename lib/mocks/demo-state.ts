@@ -1,6 +1,7 @@
 import "server-only";
 
 import { USDC_MINT } from "@/config/tickers";
+import { DEMO_USER_ID, DEMO_WALLET_ADDRESS } from "@/lib/auth/demo-user";
 import { serverEnv } from "@/lib/env";
 import { DomainError } from "@/lib/api/result";
 import { mockFx } from "@/lib/mocks/fx";
@@ -25,8 +26,7 @@ import type {
  * no es una cuenta con fondos reales.
  * SOL a 150 USD es relleno para mostrar la fila de red: no es una cotización.
  */
-export const DEMO_USER_ID = "did:privy:mock-demo";
-export const DEMO_WALLET_ADDRESS = "8MydrPjqgPoNBXrRNPdbX1WCcNvBioNL2E9e2XQ4pQNT";
+export { DEMO_USER_ID, DEMO_WALLET_ADDRESS };
 
 const SOL_MINT = "So11111111111111111111111111111111111111112";
 const MOCK_SOL_PRICE_USD = 150;

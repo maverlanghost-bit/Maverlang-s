@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 
 import { ToastProvider } from "@/components/ui/toast";
+import { AuthProvider } from "@/lib/auth";
 
 function makeQueryClient() {
   return new QueryClient({
@@ -25,11 +26,13 @@ function getQueryClient() {
   return browserQueryClient;
 }
 
-/** QueryClient + toasts (`ToastProvider` del catálogo; no hay dependencia nueva). */
+/** QueryClient, sesión (mock o Privy) y toasts. */
 export function Providers({ children }: { children: ReactNode }) {
   return (
     <QueryClientProvider client={getQueryClient()}>
-      <ToastProvider>{children}</ToastProvider>
+      <AuthProvider>
+        <ToastProvider>{children}</ToastProvider>
+      </AuthProvider>
     </QueryClientProvider>
   );
 }
