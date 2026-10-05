@@ -7,6 +7,7 @@ import {
   consentSchema,
   fxRateSchema,
   historyResponseSchema,
+  marketStatusSchema,
   onrampSessionSchema,
   portfolioSchema,
   preferencesSchema,
@@ -25,6 +26,7 @@ import type {
   Balance,
   Consent,
   FxRate,
+  MarketStatus,
   OnrampSession,
   OnrampSessionRequest,
   Portfolio,
@@ -103,6 +105,10 @@ export function getPrices(symbols?: readonly string[]): Promise<Quote[]> {
 
 export function getFx(): Promise<FxRate> {
   return request("/api/fx/usdclp", fxRateSchema, { cache: "no-store" });
+}
+
+export function getMarketStatus(): Promise<MarketStatus> {
+  return request("/api/market/status", marketStatusSchema, { cache: "no-store" });
 }
 
 export function getHistory(symbol: string, range: Range = "1M"): Promise<PricePoint[]> {

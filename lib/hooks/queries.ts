@@ -1,12 +1,13 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useQueries, useQuery } from "@tanstack/react-query";
 
 import {
   getActivity,
   getBalances,
   getFx,
   getHistory,
+  getMarketStatus,
   getMe,
   getPortfolio,
   getPrefs,
@@ -43,6 +44,32 @@ export function useHistory(symbol: string, range: Range = "1M") {
     queryKey: ["history", trimmed, range],
     queryFn: () => getHistory(trimmed, range),
     enabled: trimmed.length > 0,
+  });
+}
+
+const HISTORY_MS = 5 * 60_000;
+
+/** Una serie por símbolo. Misma clave que `useHistory`, para compartir caché. */
+export function useHistories(symbols: readonly string[], range: Range = "1W") {
+  return useQueries({
+    queries: symbols.map((symbol) => {
+      const trimmed = symbol.trim();
+      return {
+        queryKey: ["history", trimmed, range] as const,
+        queryFn: () => getHistory(trimmed, range),
+        enabled: trimmed.length > 0,
+        staleTime: HISTORY_MS,
+      };
+    }),
+  });
+}
+
+export function useMarketStatus() {
+  return useQuery({
+    queryKey: ["market-status"],
+    queryFn: getMarketStatus,
+    staleTime: 60_000,
+    refetchInterval: 60_000,
   });
 }
 

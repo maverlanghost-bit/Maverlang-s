@@ -1,9 +1,16 @@
 # PROGRESO — Maverlang
 
 ## Estado
-T10 hecha. Modo de datos: mock. Siguiente: T11.
+T11 hecha. Modo de datos: mock. Siguiente: T12.
 
 ## Tareas hechas
+
+### T11 — Mercado (2026-10-05, T11: mercado)
+- Hecho: `/app` lista las acciones habilitadas. Buscador (símbolo, nombre, subyacente; sin acentos; debounce 150 ms; `/` en ≥1024px). Chips Todas · Tecnología · ETFs · Fintech · Consumo · Favoritas. Orden Popular (config) · Mayor alza · Mayor baja · A–Z. "Más movidas hoy" = top 3 por |variación|. TickerRow con sparkline 1W, precio en la moneda de preferencia (CLP = USD×FX) y estrella. MarketStatusPill desde `/api/market/status`. Skeletons, vacío y error con reintento. `npx tsc --noEmit` y `npm run lint` ok. El filtro "app" → solo AAPLx se probó en Node. Sin `next dev`.
+- Archivos clave: `app/(platform)/app/{page,market-screen}.tsx`, `components/domain/{ticker-card,ticker-row,market-status-pill,favorite-button}.tsx`, `lib/market/browse.ts`, `lib/hooks/{queries,use-favorites}.ts`, `lib/api/client.ts`, `content/i18n/{es-CL,en}.ts`.
+- Decisiones: query `q`, `filtro` (`tech|etf|fintech|consumer|favorites`) y `orden` (`gain|loss|az`). Popular y Todas no se escriben. Favoritos en `localStorage` `a24_favorites` (`{v:1,symbols}`). HOODx y MSTRx no se listan. "Más movidas" usa el filtro activo, no la búsqueda, y se oculta mientras hay texto: "app" deja solo Apple. No es una recomendación. La estrella va fuera del link. Historial 1W por símbolo, sparkline de 32 puntos.
+- Pendiente: mirar `/app` a 360 y 1280 (buscar "app", chips, orden, estrella, pill, vacío y error). `/app/accion/[symbol]` sigue sin página (T12).
+- Próximo: T12.
 
 ### T10 — Shell de la plataforma (2026-10-05, T10: shell plataforma)
 - Hecho: AppShell en `/app`. ≥lg sidebar 240px; <lg TopBar y BottomTabs de 64px con safe-area. Item activo resaltado. Mercado, Cartera, Billetera y Perfil son placeholders con PageHeader y EmptyState. `npx tsc --noEmit` y `npm run lint` ok. Sin `next dev`.
@@ -85,4 +92,4 @@ T10 hecha. Modo de datos: mock. Siguiente: T11.
 - Ubicación definitiva del repo (OneDrive vs C:\dev).
 - Textos legales: [REVISIÓN ABOGADO].
 - Verificar mints contra xstocks.fi antes de producción.
-- Confirmar en el navegador el hero (360/768/1280), T04 (reveal, tabs, tabla), T05 (FAQ, CTA, footer, legales, bloqueado), `/dev/ui` a 360px, las rutas `/api/tickers`, `/api/prices` e historial, T08 (`/app` sin sesión, login demo, `?country=US`), T09 (wizard completo, sin saltar pasos) y T10 (4 secciones a 360 y 1280, saldo y ojo).
+- Confirmar en el navegador el hero (360/768/1280), T04 (reveal, tabs, tabla), T05 (FAQ, CTA, footer, legales, bloqueado), `/dev/ui` a 360px, las rutas `/api/tickers`, `/api/prices` e historial, T08 (`/app` sin sesión, login demo, `?country=US`), T09 (wizard completo, sin saltar pasos), T10 (4 secciones a 360 y 1280, saldo y ojo) y T11 (mercado a 360 y 1280).

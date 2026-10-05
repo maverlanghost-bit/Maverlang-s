@@ -102,6 +102,29 @@ export function IconEyeOff(props: IconProps) {
   );
 }
 
+export function IconSearch(props: IconProps) {
+  return (
+    <svg viewBox="0 0 16 16" fill="none" {...base(props)}>
+      <circle cx="7" cy="7" r="4" stroke="currentColor" strokeWidth="1.5" />
+      <path d="M10.2 10.2 13.5 13.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+export function IconStar({ filled = false, ...props }: IconProps & { filled?: boolean }) {
+  return (
+    <svg viewBox="0 0 16 16" {...base(props)}>
+      <path
+        d="M8 1.75 9.55 5.35l3.85.35-2.95 2.55.9 3.75L8 10.15 4.65 12l.9-3.75L2.6 5.7l3.85-.35L8 1.75Z"
+        fill={filled ? "currentColor" : "none"}
+        stroke="currentColor"
+        strokeWidth="1.25"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 export function IconArrow({ direction = "up", ...props }: IconProps & { direction?: "up" | "down" | "flat" }) {
   const rotate = direction === "down" ? "rotate-180" : direction === "flat" ? "rotate-90" : "";
   return (
