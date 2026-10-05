@@ -9,7 +9,7 @@ const points: { title: string; body: string; extra?: "risks" }[] = [
   {
     // TODO-VERIFICAR: autocustodia vía billetera embebida. Exportar la clave está marcado [según Privy].
     title: "Billetera embebida",
-    body: "Tus acciones quedan en una billetera embebida de tu cuenta. La idea es que las controles tú; falta confirmar cómo se exporta la clave.",
+    body: "El token es tuyo y queda en una billetera embebida de tu cuenta. La idea es que lo controles tú; falta confirmar cómo se exporta la clave.",
   },
   {
     // TODO-VERIFICAR: no usar «emisor regulado» hasta cerrar la redacción. El catálogo dice issuer "Backed (xStocks)".
@@ -18,7 +18,7 @@ const points: { title: string; body: string; extra?: "risks" }[] = [
   },
   {
     title: "Qué no es",
-    body: "No te dan derechos de accionista. El emisor puede restringir el activo. Puedes perder lo que invertiste. [REVISIÓN ABOGADO]",
+    body: "El token es tuyo, en tu billetera, y sigue el precio de la acción. No te convierte en accionista registrado ni te da voto. El emisor puede restringir el activo. Puedes perder lo que invertiste. [REVISIÓN ABOGADO]",
     extra: "risks",
   },
 ];
@@ -28,7 +28,7 @@ export function SecuritySection() {
     <LandingSection id="seguridad" titleId="seguridad-title">
       <Reveal>
         <SectionIntro id="seguridad-title" label="07 — Seguridad" title="Qué tienes y qué no">
-          {site.name} no es un broker de EE.UU. Compras una acción tokenizada y queda en la billetera de tu cuenta.
+          {site.name} no es un broker de EE.UU. El token es tuyo y queda en tu billetera. Sigue el precio de la acción.
         </SectionIntro>
       </Reveal>
       <div className="mt-10 grid gap-4 md:mt-14 md:grid-cols-3">

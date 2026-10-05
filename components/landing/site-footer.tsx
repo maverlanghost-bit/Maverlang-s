@@ -80,7 +80,7 @@ export function SiteFooter() {
 
         <div className="mt-12 space-y-3 border-t border-border pt-8 text-sm leading-relaxed">
           <p className="text-fg-body">
-            Las acciones tokenizadas no otorgan derechos de accionista. Invertir implica riesgos.{" "}
+            El token es tuyo y está en tu billetera. No te convierte en accionista registrado ni te da derecho a voto. Invertir implica riesgos.{" "}
             <span className="font-medium text-warn">[REVISIÓN ABOGADO]</span>
           </p>
           <p className="font-medium text-fg">No disponible para personas de EE.UU.</p>

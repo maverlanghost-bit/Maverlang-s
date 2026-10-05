@@ -16,7 +16,7 @@ const features: { title: string; body: string; visual: ReactNode }[] = [
   {
     // TODO-VERIFICAR: autocustodia. Exportar la clave está en el diseño de perfil, marcado [según Privy].
     title: "Tú controlas tus activos (autocustodia)",
-    body: "Quedan en una billetera embebida de tu cuenta. El modelo exacto de la clave sigue en revisión.",
+    body: "El token es tuyo y queda en una billetera embebida de tu cuenta. El modelo exacto de la clave sigue en revisión.",
     visual: <p className="text-sm font-medium text-fg">Billetera embebida</p>,
   },
   {

@@ -8,9 +8,9 @@ updated: 2026-10-05
 
 El precio baja y puedes perder parte o todo lo que pusiste. Nada en {{brand}} promete un resultado.
 
-## No eres accionista
+## No eres accionista registrado
 
-El token no te hace dueño de la acción. No votas, no recibes convocatorias y no ejerces los derechos de quien tiene el papel en una corredora.
+El token es tuyo y está en tu billetera. Tenerlo no te convierte en accionista registrado de la empresa. No votas, no recibes convocatorias y no ejerces los derechos de quien tiene el papel en una corredora. El token sigue el precio de la acción.
 
 ## El precio puede no coincidir
 

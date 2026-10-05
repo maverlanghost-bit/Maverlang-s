@@ -10,7 +10,7 @@ updated: 2026-10-05
 
 ## Qué compras
 
-Compras un token que busca replicar el precio de una acción o un ETF. No compras la acción a tu nombre. No obtienes voto ni otros derechos de accionista.
+Compras un token que sigue el precio de una acción o un ETF. El token es tuyo y queda en tu billetera. No compras la acción a tu nombre: no te convierte en accionista registrado ni te da derecho a voto.
 
 ## Quién puede abrir una cuenta
 

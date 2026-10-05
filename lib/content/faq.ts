@@ -21,7 +21,7 @@ export function getFaq(brand: string): FaqEntry[] {
         [
           {
             kind: "text",
-            value: `Es un activo digital, en Solana, que busca seguir el precio de una acción o un ETF de Estados Unidos. En ${brand} la compras por fracciones y pagas con pesos. No queda inscrita a tu nombre en una corredora de EE.UU.`,
+            value: `Es un token en Solana que sigue el precio de una acción o un ETF de Estados Unidos. En ${brand} lo compras por fracciones, pagas con pesos y queda en tu billetera. No queda inscrito a tu nombre en una corredora de EE.UU.`,
           },
         ],
       ],
@@ -29,13 +29,13 @@ export function getFaq(brand: string): FaqEntry[] {
     {
       id: "dueno",
       home: true,
-      question: "¿Soy dueño de la acción?",
+      question: "¿El token es mío?",
       paragraphs: [
         [
           {
             kind: "text",
             value:
-              "No. Tienes un token que busca replicar el precio. No te da derecho a voto ni los demás derechos de un accionista.",
+              "Sí. El token es tuyo y está en tu billetera. Tenerlo no te convierte en accionista registrado de la empresa ni te da derecho a voto. El token sigue el precio de la acción.",
           },
         ],
         [

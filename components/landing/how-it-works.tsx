@@ -29,8 +29,8 @@ const steps: { kicker: string; title: string; body: string; mock: ReactNode }[] 
   },
   {
     kicker: "03",
-    title: "Listo: es tuya, en tu billetera",
-    body: "La fracción queda en la billetera de tu cuenta.",
+    title: "Listo: el token es tuyo, en tu billetera",
+    body: "Queda en tu billetera y sigue el precio de la acción.",
     mock: <OwnedMock />,
   },
 ];
@@ -86,7 +86,7 @@ export function HowItWorks() {
     <LandingSection id="como-funciona" titleId="como-funciona-title">
       <Reveal>
         <SectionIntro id="como-funciona-title" label="03 — Cómo funciona" title="Tres pasos, en pesos">
-          Depositas, eliges la acción y queda en tu billetera. Los montos de abajo son ejemplos.
+          Depositas, eliges la acción y el token queda en tu billetera. Los montos de abajo son ejemplos.
         </SectionIntro>
       </Reveal>
       <div className="mt-10 grid gap-4 md:mt-14 md:grid-cols-3">
