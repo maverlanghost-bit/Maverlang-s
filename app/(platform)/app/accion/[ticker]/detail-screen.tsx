@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type RefObject } from "react";
+import { useEffect, useRef, useState, type ReactNode, type RefObject } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -10,18 +10,21 @@ import { TickerLogo } from "@/components/domain/ticker-logo";
 import { TradeSheet } from "@/components/domain/trade-sheet";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { CopyButton } from "@/components/ui/copy-button";
 import { ErrorState } from "@/components/ui/error-state";
 import { IconButton } from "@/components/ui/icon-button";
 import { IconShare } from "@/components/ui/icons";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/components/ui/toast";
 import { site } from "@/config/site";
-import { formatClp, formatMoney, formatMultiplier, formatShares, formatUsd } from "@/lib/format";
-import { useFx, usePortfolio, usePrices } from "@/lib/hooks/queries";
+import { cn } from "@/lib/cn";
+import { formatMoney, formatMultiplier, formatShares, formatUsd } from "@/lib/format";
+import { useFx, useHistory, useMarketStatus, usePortfolio, usePrices } from "@/lib/hooks/queries";
 import { useFavorites } from "@/lib/hooks/use-favorites";
 import { useT } from "@/lib/hooks/use-t";
 import { displayPrice } from "@/lib/market/browse";
-import type { Currency, Position, Ticker } from "@/lib/types";
+import { rangeBounds, rangeMove } from "@/lib/market/series";
+import type { Currency, Position, Quote, Range, Ticker } from "@/lib/types";
 
 import { PricePanel } from "./price-panel";
 
@@ -241,6 +244,127 @@ function TradeActions({
   );
 }
 
+function categoryName(
+  category: Ticker["category"],
+  labels: { tech: string; etf: string; fintech: string; consumer: string },
+) {
+  switch (category) {
+    case "tech":
+      return labels.tech;
+    case "etf":
+      return labels.etf;
+    case "fintech":
+      return labels.fintech;
+    case "consumer":
+      return labels.consumer;
+  }
+}
+
+function FactChip({ children }: { children: ReactNode }) {
+  return (
+    <li className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-border bg-surface-1 px-2 py-0.5 text-xs leading-4 font-medium text-fg-body">
+      {children}
+    </li>
+  );
+}
+
+function MissingFigure({ label }: { label: string }) {
+  return (
+    <span className="num text-sm text-fg-muted">
+      <span aria-hidden>—</span>
+      <span className="sr-only">{label}</span>
+    </span>
+  );
+}
+
+function StatCell({ label, pending, children }: { label: string; pending: boolean; children: ReactNode }) {
+  return (
+    <div className="min-w-0 bg-surface-1 px-3 py-3" aria-busy={pending || undefined}>
+      <dt className="text-xs text-fg-muted">{label}</dt>
+      <dd className="mt-1">{pending ? <Skeleton className="h-5 w-20" /> : children}</dd>
+    </div>
+  );
+}
+
+function moneyText(usd: number, currency: Currency, rate: number | undefined) {
+  const value = displayPrice(usd, currency, rate);
+  if (value === null) return null;
+  return formatMoney(value, currency);
+}
+
+function KeyStats({
+  quote,
+  quotePending,
+  points,
+  historyPending,
+  historyError,
+  range,
+  currency,
+  rate,
+  fxPending,
+}: {
+  quote: Quote | null;
+  quotePending: boolean;
+  points: readonly { p: number }[];
+  historyPending: boolean;
+  historyError: boolean;
+  range: Range;
+  currency: Currency;
+  rate: number | undefined;
+  fxPending: boolean;
+}) {
+  const { t } = useT();
+  const caption = t.detail.rangeCaption[range];
+  const fxKnown = typeof rate === "number" && Number.isFinite(rate) && rate > 0;
+  const shownCurrency: Currency = currency === "CLP" && fxKnown ? "CLP" : "USD";
+  const clp = quote ? displayPrice(quote.priceUsd, "CLP", fxKnown ? rate : undefined) : null;
+  const move = historyPending || historyError ? null : rangeMove(points);
+  const bounds = historyPending || historyError ? null : rangeBounds(points);
+  const rangeMissing = historyError ? t.detail.chartError : t.detail.chartEmpty;
+  const quoteCellPending = quotePending && quote === null;
+  const clpPending = quote !== null && !fxKnown && fxPending;
+  const high = bounds ? moneyText(bounds.high, shownCurrency, rate) : null;
+  const low = bounds ? moneyText(bounds.low, shownCurrency, rate) : null;
+
+  return (
+    <Card className="p-5 md:p-6">
+      <h2 className="text-lg">{t.detail.stats}</h2>
+      <dl className="mt-4 grid grid-cols-2 gap-px overflow-hidden rounded-xl bg-border lg:grid-cols-3">
+        <StatCell label={t.detail.priceUsd} pending={quoteCellPending}>
+          {quote && Number.isFinite(quote.priceUsd) ? (
+            <span className="num text-sm text-fg">{formatUsd(quote.priceUsd)}</span>
+          ) : (
+            <MissingFigure label={t.detail.unavailable} />
+          )}
+        </StatCell>
+        <StatCell label={t.detail.priceClp} pending={quoteCellPending || clpPending}>
+          {quote && clp !== null ? (
+            <span className="num text-sm text-fg">{formatMoney(clp, "CLP")}</span>
+          ) : (
+            <MissingFigure label={quote ? t.detail.fxMissing : t.detail.unavailable} />
+          )}
+        </StatCell>
+        <StatCell label={t.detail.change24h} pending={quoteCellPending}>
+          {quote && Number.isFinite(quote.change24hPct) ? (
+            <ChangeBadge value={quote.change24hPct} />
+          ) : (
+            <MissingFigure label={t.detail.unavailable} />
+          )}
+        </StatCell>
+        <StatCell label={fill(t.detail.rangeChange, { range: caption })} pending={historyPending}>
+          {move === null ? <MissingFigure label={rangeMissing} /> : <ChangeBadge value={move} />}
+        </StatCell>
+        <StatCell label={fill(t.detail.rangeHigh, { range: caption })} pending={historyPending}>
+          {high === null ? <MissingFigure label={rangeMissing} /> : <span className="num text-sm text-fg">{high}</span>}
+        </StatCell>
+        <StatCell label={fill(t.detail.rangeLow, { range: caption })} pending={historyPending}>
+          {low === null ? <MissingFigure label={rangeMissing} /> : <span className="num text-sm text-fg">{low}</span>}
+        </StatCell>
+      </dl>
+    </Card>
+  );
+}
+
 export function DetailScreen({
   ticker,
   about,
@@ -255,7 +379,10 @@ export function DetailScreen({
   const prices = usePrices([ticker.symbol]);
   const fx = useFx();
   const portfolio = usePortfolio();
+  const status = useMarketStatus();
   const { symbols, toggle } = useFavorites();
+  const [range, setRange] = useState<Range>("1M");
+  const history = useHistory(ticker.symbol, range);
   const [operar, setOperar] = useState(() => parseOperar(initialOperar));
   const pushed = useRef(false);
 
@@ -275,7 +402,13 @@ export function DetailScreen({
   const favoriteLabel = fill(saved ? t.market.favoriteOn : t.market.favoriteOff, { name: ticker.name });
   const aboutText = about ? (language === "en" ? about.en : about.es) : null;
   const rate = fx.data?.rate;
-  const clp = quote ? displayPrice(quote.priceUsd, "CLP", rate) : null;
+  const category = categoryName(ticker.category, t.market);
+  const marketOpen = status.data?.underlyingOpen === true;
+  const marketNote = status.isSuccess
+    ? marketOpen
+      ? (status.data.note ?? "")
+      : (status.data.note ?? t.detail.marketExtendedNote)
+    : "";
 
   function openOperar(next: "comprar" | "vender" | null) {
     const params = new URLSearchParams(window.location.search);
@@ -308,23 +441,44 @@ export function DetailScreen({
     <>
     <div data-ticker={ticker.symbol} className="lg:grid lg:grid-cols-[minmax(0,1fr)_17.5rem] lg:items-start lg:gap-8">
       <div className="flex min-w-0 flex-col gap-8">
-        <header className="flex items-start gap-3">
-          <TickerLogo symbol={ticker.symbol} name={ticker.name} logoUrl={ticker.logo} size={48} decorative />
-          <div className="min-w-0 flex-1">
-            <h1 className="text-2xl text-balance">{ticker.name}</h1>
-            <p className="mt-1 text-sm text-fg-muted">
-              <span className="num text-fg">{ticker.symbol}</span>
-              <span aria-hidden> · </span>
-              <span>
-                <span className="sr-only">{t.detail.underlying} </span>
-                {ticker.underlying}
-              </span>
-            </p>
+        <header className="flex flex-col gap-3">
+          <div className="flex items-start gap-3">
+            <TickerLogo symbol={ticker.symbol} name={ticker.name} logoUrl={ticker.logo} size={56} decorative />
+            <div className="min-w-0 flex-1">
+              <h1 className="text-2xl text-balance">{ticker.name}</h1>
+              <p className="mt-1 text-sm text-fg-muted">
+                <span className="num text-fg">{ticker.symbol}</span>
+                <span aria-hidden> · </span>
+                <span>
+                  <span className="sr-only">{t.detail.underlying} </span>
+                  {ticker.underlying}
+                </span>
+              </p>
+            </div>
+            <div className="flex shrink-0">
+              <FavoriteButton pressed={saved} label={favoriteLabel} onToggle={() => toggle(ticker.symbol)} />
+              <ShareButton name={ticker.name} />
+            </div>
           </div>
-          <div className="flex shrink-0">
-            <FavoriteButton pressed={saved} label={favoriteLabel} onToggle={() => toggle(ticker.symbol)} />
-            <ShareButton name={ticker.name} />
-          </div>
+          <ul className="flex list-none flex-wrap gap-1.5 p-0" aria-label={t.detail.chips}>
+            {category ? <FactChip>{category}</FactChip> : null}
+            <FactChip>{t.detail.tokenOnSolana}</FactChip>
+            {/* El mock sólo distingue horario regular. Fuera de ese horario el token sigue operable. */}
+            {status.isPending ? (
+              <li>
+                <Skeleton className="h-5 w-28 rounded-full" />
+              </li>
+            ) : status.isSuccess ? (
+              <FactChip>
+                <span className={cn("size-1.5 shrink-0 rounded-full", marketOpen ? "bg-up" : "bg-warn")} aria-hidden />
+                {marketOpen ? t.detail.marketOpen : t.detail.marketExtended}
+                {marketOpen && marketNote ? <span className="sr-only">. {marketNote}</span> : null}
+              </FactChip>
+            ) : null}
+          </ul>
+          {status.isSuccess && !marketOpen ? (
+            <p className="text-xs leading-relaxed text-fg-muted">{marketNote}</p>
+          ) : null}
         </header>
 
         <PricePanel
@@ -335,6 +489,20 @@ export function DetailScreen({
           onRetry={() => {
             void prices.refetch();
           }}
+          currency={currency}
+          rate={rate}
+          fxPending={fx.isPending}
+          range={range}
+          onRangeChange={setRange}
+        />
+
+        <KeyStats
+          quote={quote}
+          quotePending={prices.isPending}
+          points={history.data ?? []}
+          historyPending={history.isPending}
+          historyError={history.isError}
+          range={range}
           currency={currency}
           rate={rate}
           fxPending={fx.isPending}
@@ -351,32 +519,6 @@ export function DetailScreen({
           rate={rate}
         />
 
-        <Card className="p-5 md:p-6">
-          <h2 className="text-lg">{t.detail.stats}</h2>
-          <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-5">
-            <div>
-              <dt className="label">{t.detail.priceUsd}</dt>
-              <dd className="num mt-1 text-sm text-fg">{quote ? formatUsd(quote.priceUsd) : "—"}</dd>
-            </div>
-            <div>
-              <dt className="label">{t.detail.priceClp}</dt>
-              <dd className="num mt-1 text-sm text-fg">{clp === null ? t.detail.fxMissing : formatClp(clp)}</dd>
-            </div>
-            <div>
-              <dt className="label">{t.detail.change24h}</dt>
-              <dd className="mt-1">{quote ? <ChangeBadge value={quote.change24hPct} /> : <span className="text-sm text-fg-muted">—</span>}</dd>
-            </div>
-            <div>
-              <dt className="label">{t.detail.multiplier}</dt>
-              <dd className="num mt-1 text-sm text-fg">{quote ? formatMultiplier(quote.multiplier) : "—"}</dd>
-            </div>
-            <div className="col-span-2">
-              <dt className="label">{t.detail.issuer}</dt>
-              <dd className="mt-1 text-sm text-fg">{ticker.issuer}</dd>
-            </div>
-          </dl>
-        </Card>
-
         <section className="flex flex-col gap-3">
           <h2 className="text-lg">{t.detail.aboutTitle}</h2>
           <p className="text-sm leading-relaxed text-fg-muted">{t.detail.aboutNote}</p>
@@ -388,27 +530,38 @@ export function DetailScreen({
           <p className="text-sm leading-relaxed text-fg-body">
             {fill(t.detail.tokenLead, { issuer: ticker.issuer, brand: site.name, name: ticker.name })}
           </p>
-          <dl className="grid gap-4">
+          <dl className="grid gap-4 border-t border-border pt-4">
+            <div>
+              <dt className="label">{t.detail.issuer}</dt>
+              <dd className="mt-1 text-sm text-fg">{ticker.issuer}</dd>
+            </div>
             <div>
               <dt className="label">{t.detail.mint}</dt>
               <dd className="mt-1">
                 <p className="text-sm text-fg-muted">{t.detail.mintHint}</p>
-                <a
-                  href={solscanMintUrl(ticker.mint)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="mt-1 inline-flex max-w-full flex-col items-start gap-1 text-sm text-fg"
-                >
-                  <span className="num break-all underline underline-offset-4">{ticker.mint}</span>
-                  <span className="underline underline-offset-4">{t.detail.explorer}</span>
-                  <span className="sr-only">{t.detail.explorerNew}</span>
-                </a>
+                <p className="num mt-2 break-all text-sm text-fg">{ticker.mint}</p>
+                <div className="mt-3 flex flex-wrap items-center gap-3">
+                  <CopyButton value={ticker.mint} label={t.detail.copy} copiedLabel={t.detail.copied} />
+                  <a
+                    href={solscanMintUrl(ticker.mint)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm font-medium text-fg underline underline-offset-4"
+                  >
+                    {t.detail.explorer}
+                    <span className="sr-only">. {t.detail.explorerNew}</span>
+                  </a>
+                </div>
               </dd>
             </div>
             <div>
               <dt className="label">{t.detail.multiplier}</dt>
               <dd className="mt-1 text-sm leading-relaxed text-fg-body">
-                <span className="num text-fg">{quote ? formatMultiplier(quote.multiplier) : "—"}</span>
+                {quote && Number.isFinite(quote.multiplier) ? (
+                  <span className="num text-fg">{formatMultiplier(quote.multiplier)}</span>
+                ) : (
+                  <MissingFigure label={t.detail.unavailable} />
+                )}
                 {". "}
                 {t.detail.multiplierHint}
               </dd>

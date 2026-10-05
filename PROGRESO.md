@@ -1,9 +1,16 @@
 # PROGRESO — Maverlang
 
 ## Estado
-M22 hecha. En el celular la barra de compra no tapa el detalle y Vender se abre por link. Modo mock. Siguiente: M23 (fuera de esta tarea).
+M23 hecha. El detalle muestra monograma, chips y cifras del historial. Modo mock. Siguiente: M24 (fuera de esta tarea).
 
 ## Tareas hechas
+
+### M23 — Detalle premium: logos, chips y stats (2026-10-05, M23: detalle premium logos chips y stats)
+- Hecho: si no hay archivo en `public/logos`, monograma circular (símbolo sin la "x", color estable, borde). Header 56px; filas 36px. Chips: categoría, "Token en Solana" y horario (abierto o mercado ampliado, con la nota del API). Grilla 2 columnas en celular y 3 en escritorio: precio USD y CLP, variación 24 h, variación, máximo y mínimo del rango. Mint con copiar y Solscan. Emisor y aviso de congelamiento, con link a riesgos. `npx tsc --noEmit` y `npm run lint` ok. Sin `next dev`.
+- Archivos clave: `components/domain/ticker-logo.tsx`, `app/(platform)/app/accion/[ticker]/{detail-screen,price-panel}.tsx`, `lib/market/series.ts`, `content/i18n/{es-CL,en}.ts`, `components/domain/position-row.tsx`, `app/(platform)/app/billetera/wallet-screen.tsx`.
+- Decisiones: no se copian logos de marcas (TODO-VERIFICAR). Sin capitalización ni volumen en los datos: no se muestran. El mock no tiene cierre total, así que fuera del horario regular el chip dice "Mercado ampliado" y sigue el aviso de precio. No se dice "24/7". El multiplicador queda en "Sobre el token". La barra y `?operar=vender` no se tocaron.
+- Pendiente: mirar `/app/accion/AAPLx` a 360 y en escritorio (chips, grilla, copiar, barra, `?operar=vender`). Mercado, cartera y billetera heredan el monograma.
+- Próximo: M24.
 
 ### M22 — Detalle en celular: padding del CTA y deep-link de vender (2026-10-05, M22: detalle mobile padding CTA y deep-link vender)
 - Hecho: la barra queda sobre las tabs, con safe-area, sin solaparse. El scroll reserva el alto medido de las tabs (ya incluye el safe-area) + el alto real del CTA + 16px. `--app-detail-cta` usa ese alto y se borra al salir. Botones de la barra: mínimo 44px, padding 16–20px, gap y texto entero a 360px. `?operar=vender|comprar` abre la hoja al cargar; atrás la cierra; cerrar quita el parámetro sin recarga. En la cartera, cada posición con saldo tiene Vender hacia `/app/accion/XXX?operar=vender`, fuera del enlace de la fila. Sin saldo, la hoja dice «No tienes XXX para vender». `npx tsc --noEmit` y `npm run lint` ok. Sin `next dev`.

@@ -16,6 +16,21 @@ export function rangeMove(points: readonly Pick<PricePoint, "p">[]): number | nu
   return (last - first) / first;
 }
 
+/** Máximo y mínimo del historial ya cargado. null si no hay precios finitos. */
+export function rangeBounds(points: readonly Pick<PricePoint, "p">[]): { high: number; low: number } | null {
+  let high = Number.NEGATIVE_INFINITY;
+  let low = Number.POSITIVE_INFINITY;
+  let count = 0;
+  for (const point of points) {
+    if (!Number.isFinite(point.p)) continue;
+    count += 1;
+    if (point.p > high) high = point.p;
+    if (point.p < low) low = point.p;
+  }
+  if (count === 0) return null;
+  return { high, low };
+}
+
 export type ChartTone = "up" | "down" | "flat";
 
 export function toneOf(move: number | null): ChartTone {

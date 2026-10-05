@@ -3,13 +3,12 @@
 import { useCallback, useState, type ReactNode } from "react";
 
 import { ChangeBadge } from "@/components/domain/change-badge";
-import { MarketStatusPill } from "@/components/domain/market-status-pill";
 import { PriceChart } from "@/components/domain/price-chart";
 import { PriceText } from "@/components/domain/price-text";
 import { ErrorState } from "@/components/ui/error-state";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useHistory, useMarketStatus } from "@/lib/hooks/queries";
+import { useHistory } from "@/lib/hooks/queries";
 import { useT } from "@/lib/hooks/use-t";
 import { displayPrice } from "@/lib/market/browse";
 import { DETAIL_RANGES, isDetailRange, rangeMove, toneOf } from "@/lib/market/series";
@@ -30,6 +29,8 @@ export function PricePanel({
   currency,
   rate,
   fxPending,
+  range,
+  onRangeChange,
 }: {
   symbol: string;
   name: string;
@@ -39,11 +40,11 @@ export function PricePanel({
   currency: Currency;
   rate: number | undefined;
   fxPending: boolean;
+  range: Range;
+  onRangeChange: (range: Range) => void;
 }) {
   const { t } = useT();
-  const [range, setRange] = useState<Range>("1M");
   const history = useHistory(symbol, range);
-  const status = useMarketStatus();
   const points = history.data ?? [];
   const move = rangeMove(points);
   const tone = toneOf(move);
@@ -106,13 +107,6 @@ export function PricePanel({
           <ChangeBadge value={move} />
         )}
         <span className="text-sm text-fg-muted">{t.detail.rangeCaption[range]}</span>
-        {status.isSuccess ? (
-          <MarketStatusPill open={status.data.underlyingOpen} label={status.data.underlyingOpen ? t.market.open : t.market.closed} />
-        ) : status.isError ? (
-          <span className="text-sm text-fg-muted">{t.market.statusError}</span>
-        ) : (
-          <Skeleton className="h-6 w-28 rounded-full" />
-        )}
       </div>
 
       <SegmentedControl
@@ -121,7 +115,7 @@ export function PricePanel({
         value={range}
         fullWidth
         onChange={(value) => {
-          if (isDetailRange(value)) setRange(value);
+          if (isDetailRange(value)) onRangeChange(value);
         }}
       />
 
