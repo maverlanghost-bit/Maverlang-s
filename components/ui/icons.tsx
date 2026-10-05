@@ -48,6 +48,60 @@ export function IconCheck(props: IconProps) {
   );
 }
 
+export function IconChart(props: IconProps) {
+  return (
+    <svg viewBox="0 0 16 16" fill="none" {...base(props)}>
+      <path d="M2.5 13.5h11M4.5 13.5v-4M8 13.5V3.5M11.5 13.5V7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+export function IconPortfolio(props: IconProps) {
+  return (
+    <svg viewBox="0 0 16 16" fill="none" {...base(props)}>
+      <rect x="2.5" y="4.5" width="11" height="8.5" rx="1.5" stroke="currentColor" strokeWidth="1.5" />
+      <path d="M6 4.5V3.8A1.3 1.3 0 0 1 7.3 2.5h1.4A1.3 1.3 0 0 1 10 3.8v.7" stroke="currentColor" strokeWidth="1.5" />
+    </svg>
+  );
+}
+
+export function IconWallet(props: IconProps) {
+  return (
+    <svg viewBox="0 0 16 16" fill="none" {...base(props)}>
+      <rect x="2.5" y="4" width="11" height="8.5" rx="1.5" stroke="currentColor" strokeWidth="1.5" />
+      <path d="M2.5 7h11" stroke="currentColor" strokeWidth="1.5" />
+      <circle cx="11" cy="9.5" r="0.75" fill="currentColor" />
+    </svg>
+  );
+}
+
+export function IconUser(props: IconProps) {
+  return (
+    <svg viewBox="0 0 16 16" fill="none" {...base(props)}>
+      <circle cx="8" cy="5.5" r="2" stroke="currentColor" strokeWidth="1.5" />
+      <path d="M3.5 13.2c.7-2 2.4-3.2 4.5-3.2s3.8 1.2 4.5 3.2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+export function IconEye(props: IconProps) {
+  return (
+    <svg viewBox="0 0 16 16" fill="none" {...base(props)}>
+      <path d="M1.5 8S3.8 4.2 8 4.2 14.5 8 14.5 8 12.2 11.8 8 11.8 1.5 8 1.5 8Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+      <circle cx="8" cy="8" r="1.6" stroke="currentColor" strokeWidth="1.5" />
+    </svg>
+  );
+}
+
+export function IconEyeOff(props: IconProps) {
+  return (
+    <svg viewBox="0 0 16 16" fill="none" {...base(props)}>
+      <path d="M2.5 3.5 13.5 12.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      <path d="M6.3 6.5A2 2 0 0 0 9.6 9.7M4.2 5.4C2.9 6.4 1.5 8 1.5 8s2.3 3.8 6.5 3.8c1 0 2-.3 2.8-.7M6.7 4.3c.4-.1.8-.1 1.3-.1 4.2 0 6.5 3.8 6.5 3.8s-.6 1-1.6 1.8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 export function IconArrow({ direction = "up", ...props }: IconProps & { direction?: "up" | "down" | "flat" }) {
   const rotate = direction === "down" ? "rotate-180" : direction === "flat" ? "rotate-90" : "";
   return (

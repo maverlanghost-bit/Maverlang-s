@@ -45,7 +45,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   return (
     <ToastContext.Provider value={{ toast, dismiss }}>
       {children}
-      <div className="pointer-events-none fixed inset-x-4 bottom-4 z-[60] flex flex-col gap-2 md:inset-x-auto md:right-4 md:w-80">
+      <div className="pointer-events-none fixed inset-x-4 bottom-[calc(1rem+var(--app-chrome-bottom,0px))] z-[60] flex flex-col gap-2 md:inset-x-auto md:right-4 md:w-80">
         <div aria-live="polite" aria-relevant="additions" className="flex flex-col gap-2">
           {items.map((item) => (
             <div

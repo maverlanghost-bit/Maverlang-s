@@ -1,9 +1,16 @@
 # PROGRESO — Maverlang
 
 ## Estado
-T09 hecha. Modo de datos: mock. Siguiente: T10.
+T10 hecha. Modo de datos: mock. Siguiente: T11.
 
 ## Tareas hechas
+
+### T10 — Shell de la plataforma (2026-10-05, T10: shell plataforma)
+- Hecho: AppShell en `/app`. ≥lg sidebar 240px; <lg TopBar y BottomTabs de 64px con safe-area. Item activo resaltado. Mercado, Cartera, Billetera y Perfil son placeholders con PageHeader y EmptyState. `npx tsc --noEmit` y `npm run lint` ok. Sin `next dev`.
+- Archivos clave: `app/(platform)/app/{layout,page,cartera,billetera,perfil}`, `components/app-shell/*`, `components/domain/balance-header.tsx`, `components/ui/{page-header,loading-state,error-state}.tsx`, `content/i18n/{es-CL,en}.ts`, `lib/hooks/{use-t,queries}.ts`.
+- Decisiones: ingresar y onboarding siguen en su carpeta; AppShell no les monta el chrome (un layout en `app/(platform)/app` envuelve cualquier route group hijo). Saldo = `totalUsd` de la cartera, en la moneda de `usePrefs`; CLP usa `GET /api/fx/usdclp` (`getFx`/`useFx`, 1 h en el cliente). Ocultar saldo en `localStorage` (`a24_hide_balance:<userId>`). Sin preferencias: es-CL y CLP. Los montos siguen en formato es-CL. Disclaimer de §4, [REVISIÓN ABOGADO]. El toast usa `--app-chrome-bottom` para no quedar bajo las tabs.
+- Pendiente: mirar 360 y 1280 (sidebar, tabs, saldo, ojo, disclaimer y las 4 secciones). `/app/billetera/depositar` sigue sin página (T16).
+- Próximo: T11.
 
 ### T09 — Onboarding (2026-10-05, T09: onboarding)
 - Hecho: `/app/onboarding` es un wizard de 5 pasos, mobile-first, sin AppShell. País (si `US`, no disponible), declaración US person, 3 consentimientos versionados, billetera y “Todo listo”. `npx tsc --noEmit` y `npm run lint` ok. Sin `next dev`.
@@ -78,4 +85,4 @@ T09 hecha. Modo de datos: mock. Siguiente: T10.
 - Ubicación definitiva del repo (OneDrive vs C:\dev).
 - Textos legales: [REVISIÓN ABOGADO].
 - Verificar mints contra xstocks.fi antes de producción.
-- Confirmar en el navegador el hero (360/768/1280), T04 (reveal, tabs, tabla), T05 (FAQ, CTA, footer, legales, bloqueado), `/dev/ui` a 360px, las rutas `/api/tickers`, `/api/prices` e historial, T08 (`/app` sin sesión, login demo, `?country=US`) y T09 (wizard completo, sin saltar pasos).
+- Confirmar en el navegador el hero (360/768/1280), T04 (reveal, tabs, tabla), T05 (FAQ, CTA, footer, legales, bloqueado), `/dev/ui` a 360px, las rutas `/api/tickers`, `/api/prices` e historial, T08 (`/app` sin sesión, login demo, `?country=US`), T09 (wizard completo, sin saltar pasos) y T10 (4 secciones a 360 y 1280, saldo y ojo).

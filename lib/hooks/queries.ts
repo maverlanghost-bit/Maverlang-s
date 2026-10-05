@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import {
   getActivity,
   getBalances,
+  getFx,
   getHistory,
   getMe,
   getPortfolio,
@@ -77,5 +78,14 @@ export function usePrefs() {
   return useQuery({
     queryKey: ["prefs"],
     queryFn: getPrefs,
+  });
+}
+
+/** USDCLP. El route es no-store; el cliente lo retiene 1 h. */
+export function useFx() {
+  return useQuery({
+    queryKey: ["fx", "USDCLP"],
+    queryFn: getFx,
+    staleTime: HOUR_MS,
   });
 }

@@ -5,6 +5,7 @@ import {
   apiResultSchema,
   balancesResponseSchema,
   consentSchema,
+  fxRateSchema,
   historyResponseSchema,
   onrampSessionSchema,
   portfolioSchema,
@@ -23,6 +24,7 @@ import type {
   Activity,
   Balance,
   Consent,
+  FxRate,
   OnrampSession,
   OnrampSessionRequest,
   Portfolio,
@@ -97,6 +99,10 @@ export function getPrices(symbols?: readonly string[]): Promise<Quote[]> {
   const list = (symbols ?? []).map((symbol) => symbol.trim()).filter((symbol) => symbol.length > 0);
   const query = list.length > 0 ? `?symbols=${encodeURIComponent(list.join(","))}` : "";
   return request(`/api/prices${query}`, quotesResponseSchema, { cache: "no-store" });
+}
+
+export function getFx(): Promise<FxRate> {
+  return request("/api/fx/usdclp", fxRateSchema, { cache: "no-store" });
 }
 
 export function getHistory(symbol: string, range: Range = "1M"): Promise<PricePoint[]> {
