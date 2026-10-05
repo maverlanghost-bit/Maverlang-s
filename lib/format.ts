@@ -57,6 +57,13 @@ export function formatShares(value: number): string {
   return `${sharesFormatter.format(value)} acc.`;
 }
 
+const multiplierFormatter = new Intl.NumberFormat("es-CL", { maximumFractionDigits: 6 });
+
+/** Multiplicador vigente del emisor. No es una cantidad de tokens. */
+export function formatMultiplier(value: number): string {
+  return multiplierFormatter.format(value);
+}
+
 const relativeFormatter = new Intl.RelativeTimeFormat("es-CL", { numeric: "auto" });
 
 const RELATIVE_UNITS: readonly [Intl.RelativeTimeFormatUnit, number][] = [

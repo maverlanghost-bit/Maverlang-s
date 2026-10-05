@@ -22,13 +22,16 @@ function SyncDocumentLanguage({ language }: { language: "es-CL" | "en" }) {
   return null;
 }
 
-/** Deja el toast por encima de la barra de 64px. En ≥lg la barra no está. */
+/** Deja el toast por encima de las tabs y, en el detalle, de la barra de compra. En ≥lg no hay barra. */
 function SyncToastOffset() {
   useEffect(() => {
     const root = document.documentElement;
     const query = window.matchMedia("(min-width: 1024px)");
     const apply = () => {
-      root.style.setProperty("--app-chrome-bottom", query.matches ? "0px" : "calc(4rem + env(safe-area-inset-bottom))");
+      root.style.setProperty(
+        "--app-chrome-bottom",
+        query.matches ? "0px" : "calc(4rem + env(safe-area-inset-bottom) + var(--app-detail-cta, 0px))",
+      );
     };
     apply();
     query.addEventListener("change", apply);
@@ -61,7 +64,7 @@ function ShellFrame({ children }: { children: ReactNode }) {
             <main id="contenido" tabIndex={-1} className="flex-1 scroll-mt-16 outline-none">
               {children}
             </main>
-            <footer className="pb-[calc(4rem+env(safe-area-inset-bottom)+1.5rem)] pt-10 lg:pb-8">
+            <footer className="pb-[calc(4rem+env(safe-area-inset-bottom)+1.5rem+var(--app-detail-cta,0px))] pt-10 lg:pb-8">
               <p className="border-t border-border pt-4 text-sm leading-relaxed text-fg-muted">{t.disclaimer}</p>
             </footer>
           </div>

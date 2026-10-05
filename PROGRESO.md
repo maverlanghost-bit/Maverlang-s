@@ -1,9 +1,16 @@
 # PROGRESO — Maverlang
 
 ## Estado
-T11 hecha. Modo de datos: mock. Siguiente: T12.
+T12 hecha. Modo de datos: mock. Siguiente: T13.
 
 ## Tareas hechas
+
+### T12 — Detalle de acción (2026-10-05, T12: detalle accion)
+- Hecho: `/app/accion/[ticker]` con header, precio, gráfico por rango, posición, datos, empresa y token, y CTA. Fuera del catálogo operable → 404 de la app. `npx tsc --noEmit` ok. ESLint de los archivos tocados ok. Sin `next dev`.
+- Archivos clave: `app/(platform)/app/accion/[ticker]/*`, `components/domain/price-chart.tsx`, `content/tickers/*`, `app/not-found.tsx`, `content/i18n/{es-CL,en}.ts`.
+- Decisiones: el server usa `tradableTicker` (HOODx y MSTRx también 404). Rangos `1S 1M 3M 1A Todo` = `1W 1M 3M 1Y ALL`; parte en 1M. El área es verde, roja o gris según el signo del rango. El crosshair cambia el precio grande. `?operar=comprar|vender` abre un Sheet vacío (el TradeSheet es T13). Vender queda deshabilitado sin acciones. Textos de empresa sin cifras. El mint abre Solscan. Se dice que el emisor puede congelar el token, con link a `/legal/riesgos`. En móvil, `--app-detail-cta` deja el aviso y el toast sobre la barra. `lightweight-charts` se carga al dibujar y conserva el logo de atribución.
+- Pendiente: mirar `/app/accion/AAPLx` a 360 y 1280 (rangos, crosshair, favorito, compartir, comprar y vender). Con sesión, `/app/accion/FAKE` y `/app/accion/HOODx` deben ser la 404; sin cookie el middleware manda a ingresar. La posición demo está en AAPL, NVDA y TSLA.
+- Próximo: T13.
 
 ### T11 — Mercado (2026-10-05, T11: mercado)
 - Hecho: `/app` lista las acciones habilitadas. Buscador (símbolo, nombre, subyacente; sin acentos; debounce 150 ms; `/` en ≥1024px). Chips Todas · Tecnología · ETFs · Fintech · Consumo · Favoritas. Orden Popular (config) · Mayor alza · Mayor baja · A–Z. "Más movidas hoy" = top 3 por |variación|. TickerRow con sparkline 1W, precio en la moneda de preferencia (CLP = USD×FX) y estrella. MarketStatusPill desde `/api/market/status`. Skeletons, vacío y error con reintento. `npx tsc --noEmit` y `npm run lint` ok. El filtro "app" → solo AAPLx se probó en Node. Sin `next dev`.
@@ -92,4 +99,4 @@ T11 hecha. Modo de datos: mock. Siguiente: T12.
 - Ubicación definitiva del repo (OneDrive vs C:\dev).
 - Textos legales: [REVISIÓN ABOGADO].
 - Verificar mints contra xstocks.fi antes de producción.
-- Confirmar en el navegador el hero (360/768/1280), T04 (reveal, tabs, tabla), T05 (FAQ, CTA, footer, legales, bloqueado), `/dev/ui` a 360px, las rutas `/api/tickers`, `/api/prices` e historial, T08 (`/app` sin sesión, login demo, `?country=US`), T09 (wizard completo, sin saltar pasos), T10 (4 secciones a 360 y 1280, saldo y ojo) y T11 (mercado a 360 y 1280).
+- Confirmar en el navegador el hero (360/768/1280), T04 (reveal, tabs, tabla), T05 (FAQ, CTA, footer, legales, bloqueado), `/dev/ui` a 360px, las rutas `/api/tickers`, `/api/prices` e historial, T08 (`/app` sin sesión, login demo, `?country=US`), T09 (wizard completo, sin saltar pasos), T10 (4 secciones a 360 y 1280, saldo y ojo), T11 (mercado a 360 y 1280) y T12 (detalle a 360 y 1280; con sesión, FAKE y HOODx en 404).

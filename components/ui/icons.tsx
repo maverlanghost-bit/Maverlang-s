@@ -125,6 +125,21 @@ export function IconStar({ filled = false, ...props }: IconProps & { filled?: bo
   );
 }
 
+export function IconShare(props: IconProps) {
+  return (
+    <svg viewBox="0 0 16 16" fill="none" {...base(props)}>
+      <path d="M6.2 9.1 13.2 2.8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      <path d="M8.6 2.6h4.8V7.4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      <path
+        d="M13.2 9v2.4a1.6 1.6 0 0 1-1.6 1.6H4.2a1.6 1.6 0 0 1-1.6-1.6V4.4a1.6 1.6 0 0 1 1.6-1.6H6.6"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
 export function IconArrow({ direction = "up", ...props }: IconProps & { direction?: "up" | "down" | "flat" }) {
   const rotate = direction === "down" ? "rotate-180" : direction === "flat" ? "rotate-90" : "";
   return (
