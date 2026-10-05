@@ -86,10 +86,37 @@ function liveOnramp(): Services["onramp"] {
   return serverEnv.ONRAMP_PROVIDER === "onramper" ? onramperOnramp : koyweOnramp;
 }
 
+/**
+ * `PRICES_MODE=mock` (default) no consulta Jupiter ni el RPC.
+ * Con `live`, sólo el precio actual sale de la red. El historial del gráfico sigue en mock.
+ * `DATA_MODE` sigue eligiendo el resto. Con live y el flag de precios apagado, la lista
+ * también queda en mock para no abrir la red.
+ */
+function priceServices(): Services["prices"] {
+  const dataLive = serverEnv.DATA_MODE === "live";
+  const pricesLive = serverEnv.PRICES_MODE === "live";
+  if (!pricesLive && !dataLive) return mockPrices;
+  if (!pricesLive) {
+    return {
+      list: (symbols) => mockPrices.list(symbols),
+      history: (symbol, range) => mockPrices.history(symbol, range),
+      fx: () => livePrices.fx(),
+      market: () => livePrices.market(),
+    };
+  }
+  const rest = dataLive ? livePrices : mockPrices;
+  return {
+    list: (symbols) => livePrices.list(symbols),
+    history: (symbol, range) => mockPrices.history(symbol, range),
+    fx: () => rest.fx(),
+    market: () => rest.market(),
+  };
+}
+
 export function getServices(): Services {
   if (serverEnv.DATA_MODE === "live") {
     return {
-      prices: livePrices,
+      prices: priceServices(),
       trade: liveTrade,
       portfolio: livePortfolio,
       onramp: liveOnramp(),
@@ -98,7 +125,7 @@ export function getServices(): Services {
     };
   }
   return {
-    prices: mockPrices,
+    prices: priceServices(),
     trade: mockTrade,
     portfolio: mockPortfolio,
     onramp: mockOnramp,

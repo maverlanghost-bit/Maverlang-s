@@ -99,6 +99,7 @@ export const esCL = {
     chartLibError: "No pudimos dibujar el gráfico.",
     priceError: "No pudimos cargar el precio.",
     fxFallback: "Mostramos dólares porque no hay tipo de cambio a pesos.",
+    referencePrice: "Precio de referencia",
     position: "Tu posición",
     shares: "Acciones",
     value: "Valor",

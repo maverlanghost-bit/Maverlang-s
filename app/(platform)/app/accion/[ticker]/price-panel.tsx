@@ -92,6 +92,9 @@ export function PricePanel({
     priceNode = (
       <div className="flex flex-col gap-2">
         <PriceText value={shown} currency={priceCurrency} size="lg" live={point === null} />
+        {point === null && quote.reference ? (
+          <p className="text-sm text-fg-muted">{t.detail.referencePrice}</p>
+        ) : null}
         {showFxNote ? <p className="text-sm text-fg-muted">{t.detail.fxFallback}</p> : null}
       </div>
     );

@@ -96,6 +96,7 @@ export const en = {
     chartLibError: "We couldn't draw the chart.",
     priceError: "We couldn't load the price.",
     fxFallback: "Showing dollars because the peso rate isn't available.",
+    referencePrice: "Reference price",
     position: "Your position",
     shares: "Shares",
     value: "Value",

@@ -53,6 +53,7 @@ export const quoteSchema = z.object({
   multiplier: z.number().positive(),
   updatedAt: isoTimeSchema,
   source: z.enum(["jupiter", "mock"]),
+  reference: z.boolean().optional(),
 });
 
 export const pricePointSchema = z.object({

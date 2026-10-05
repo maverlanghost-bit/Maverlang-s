@@ -1,9 +1,17 @@
 # PROGRESO — Maverlang
 
 ## Estado
-M24 hecha. El gráfico se crea una vez; el crosshair muestra precio y hora. Modo mock. Siguiente: M25 (fuera de esta tarea).
+M25 hecha. Precio actual real sólo con PRICES_MODE=live. Por defecto mock, sin red. Siguiente: fuera de esta tarea.
 
 ## Tareas hechas
+
+### M25 — Precios reales detrás de un flag (2026-10-05, M25: precios reales detras de flag (mock por defecto))
+- Hecho: `PRICES_MODE=mock` por defecto. Con `live`, el precio actual sale de Jupiter Price v3 (`JUPITER_BASE_URL/price/v3`). `JUPITER_API_KEY` es opcional y no va en el código. Timeout 2,5 s, cache 10 s. Se descartan precios ≤ 0 o no numéricos. Si falla la red o falta un ticker, se usa la ancla y `reference: true` (en el detalle, «Precio de referencia»). Historial, dólar y horario siguen en mock. Con el flag apagado no hay red. `npx tsc --noEmit`, `npm run lint` y `npm test` (23) ok. Sin `next dev`.
+- Activar: `PRICES_MODE=live` en el servidor (no hace falta `DATA_MODE=live`) y reiniciar el proceso. La clave de Jupiter es opcional.
+- Archivos clave: `lib/market/live-quotes.ts`, `lib/services/{prices.live,index}.ts`, `lib/env.ts`, `.env.example`, `tests/unit/live-prices.test.ts`, `app/(platform)/app/accion/[ticker]/price-panel.tsx`.
+- Decisiones: flag propio, para no encender trade, cartera ni auth. El multiplicador on-chain se intenta con tope de 0,8 s y cache de 5 min; si el RPC no llega, queda 1. `PRICE_DEVIATION_MAX_BPS` sigue sólo en la cotización de la orden. Cartera y orden mock siguen en la ancla. El aviso no sale en el modo mock.
+- Pendiente: mirar `/app` y `/app/accion/AAPLx` con el flag (precio, aviso si falta un ticker, gráfico, barra, `?operar=vender`). Sin RPC privado el multiplicador puede quedar en 1.
+- Próximo: fuera de esta tarea.
 
 ### M24 — Gráfico UX: crosshair y sin recrear (2026-10-05, M24: grafico UX crosshair y sin recrear chart)
 - Hecho: lightweight-charts se crea al montar y se destruye al salir. El rango hace `setData` y `fitContent`; el color (sube, baja o plano) entra con `applyOptions`. `autoSize` redimensiona. Crosshair en imán, líneas punteadas. Cursor o arrastre horizontal: precio y fecha es-CL (`formatDateTime`); al salir, último precio y variación del rango. Rangos con `aria-pressed` y foco visible. La caja no cambia de alto: skeleton encima mientras carga. El arrastre vertical sigue siendo de la página. `npx tsc --noEmit` y `npm run lint` ok. Sin `next dev`.
@@ -192,4 +200,4 @@ M24 hecha. El gráfico se crea una vez; el crosshair muestra precio y hora. Modo
 - Textos legales: [REVISIÓN ABOGADO]. Mints contra xstocks.fi, mínimo y métodos de on-ramp, dividendos, emisor, autocustodia Privy, patrocinio [POR DECIDIR] y firma del webhook de Onramper: [VERIFICAR] antes de producción.
 - El smoke de T20 cubre el flujo mock a 1280×800. Sigue sin mirarse 360/768 (landing, mercado, detalle, compra, cartera, billetera, depositar, perfil) ni `?country=US`, `?mockError=`, FAKE/HOODx en 404 y el ojo del saldo.
 - Borrar `t18-check.ts` (sigue en el disco; `.gitignore` evita commitearlo).
-- Fase live: Jupiter, Privy server, Koywe, Onramper y Supabase siguen en stub.
+- Fase live: el precio actual de Jupiter está detrás de `PRICES_MODE` (default mock). Historial, trade, cartera, Privy server, Koywe, Onramper y Supabase siguen en stub.

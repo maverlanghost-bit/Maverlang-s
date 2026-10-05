@@ -27,7 +27,10 @@ export interface Quote {
   change24hPct: number;
   multiplier: number;
   updatedAt: string;
+  /** `jupiter` es el precio de la fuente. `mock` es la ancla, también cuando el live no llegó. */
   source: "jupiter" | "mock";
+  /** true sólo cuando el modo live no obtuvo este ticker y se mostró la ancla. */
+  reference?: boolean;
 }
 
 /** `t` en unix ms. `p` es USD por acción. */

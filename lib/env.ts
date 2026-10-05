@@ -102,6 +102,8 @@ const publicSchema = z.object({
 
 const serverSchema = publicSchema.extend({
   DATA_MODE: dataModeEnv(),
+  /** Precio actual. `mock` no llama a Jupiter ni al RPC. El historial no usa este flag. */
+  PRICES_MODE: dataModeEnv(),
   PRIVY_APP_SECRET: optionalText(),
   SOLANA_RPC_URL: optionalText(),
   JUPITER_BASE_URL: urlEnv("https://api.jup.ag"),

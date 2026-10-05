@@ -1,27 +1,99 @@
 import "server-only";
 
-import type { FxRate, MarketStatus, PricePoint, Quote } from "@/lib/types";
+import type { Connection } from "@solana/web3.js";
+
+import { serverEnv } from "@/lib/env";
+import { createLivePriceCache, listLiveQuotes, type LivePriceCache } from "@/lib/market/live-quotes";
+import { getServerConnection } from "@/lib/solana/connection";
+import { fetchMintMultiplier } from "@/lib/solana/scaled-ui";
+import type { FxRate, MarketStatus, PricePoint, Quote, Ticker } from "@/lib/types";
 
 /**
- * Precios live. No llama a la red: cada método lanza NOT_IMPLEMENTED.
- * El contrato de la fase siguiente está en los TODO (ARQUITECTURA §10).
+ * Precio actual real. El historial, el dólar y el horario siguen sin proveedor live.
+ * `PRICE_DEVIATION_MAX_BPS` no filtra esta lista: un precio real puede alejarse
+ * de la ancla del demo. Esa guardia sigue en la cotización de la orden.
  */
+
+const cache: LivePriceCache = createLivePriceCache();
+const multiplierCache = new Map<string, { at: number; value: number; ttl: number }>();
+const MULTIPLIER_TTL_MS = 5 * 60 * 1000;
+const MULTIPLIER_MISS_TTL_MS = 60_000;
+const MULTIPLIER_TIMEOUT_MS = 800;
+
+function priceUrl(): string {
+  const base = serverEnv.JUPITER_BASE_URL.replace(/\/$/, "");
+  if (base.endsWith("/price/v3")) return base;
+  return `${base}/price/v3`;
+}
+
+async function withTimeout(work: Promise<unknown>, ms: number): Promise<void> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<void>((resolve) => {
+    timer = setTimeout(resolve, ms);
+  });
+  const settled = work.then(
+    () => undefined,
+    () => undefined,
+  );
+  try {
+    await Promise.race([settled, timeout]);
+  } finally {
+    if (timer !== undefined) clearTimeout(timer);
+  }
+}
+
+/**
+ * Lee el multiplicador Token-2022. Si el RPC no responde a tiempo, queda 1
+ * y la lectura sigue en segundo plano para la próxima consulta.
+ */
+async function readMultipliers(tickers: readonly Ticker[]): Promise<ReadonlyMap<string, number>> {
+  const now = Date.now();
+  const out = new Map<string, number>();
+  const pending: Ticker[] = [];
+  for (const ticker of tickers) {
+    const hit = multiplierCache.get(ticker.mint);
+    if (hit && now - hit.at < hit.ttl) out.set(ticker.symbol, hit.value);
+    else pending.push(ticker);
+  }
+  if (pending.length === 0) return out;
+
+  let connection: Connection;
+  try {
+    connection = getServerConnection();
+  } catch {
+    return out;
+  }
+
+  const reads = Promise.all(
+    pending.map(async (ticker) => {
+      try {
+        const value = await fetchMintMultiplier(connection, ticker.mint);
+        if (!Number.isFinite(value) || value <= 0) return;
+        multiplierCache.set(ticker.mint, { at: Date.now(), value, ttl: MULTIPLIER_TTL_MS });
+        out.set(ticker.symbol, value);
+      } catch {
+        multiplierCache.set(ticker.mint, { at: Date.now(), value: 1, ttl: MULTIPLIER_MISS_TTL_MS });
+        out.set(ticker.symbol, 1);
+      }
+    }),
+  );
+  await withTimeout(reads, MULTIPLIER_TIMEOUT_MS);
+  return new Map(out);
+}
+
 export const livePrices = {
   /**
-   * TODO Jupiter Price API v3.
-   * Endpoint: GET {JUPITER_BASE_URL}/price/v3?ids={mints}
-   *   ids: hasta 50 mints de la allowlist, separados por coma. Header `x-api-key`: JUPITER_API_KEY.
-   * Respuesta: `{ [mint]: { usdPrice, priceChange24h, blockId, decimals, createdAt, liquidity } }`.
-   *   `usdPrice` es el precio del token crudo. `priceChange24h` es un porcentaje (1,29 = +1,29 %), no un ratio.
-   *   Si Jupiter no confía en el precio, omite esa clave.
-   * Mapeo a Quote: symbol con `tickerByMint`; priceUsd = `rawPriceToSharePrice(usdPrice, multiplicador)`;
-   *   change24hPct = priceChange24h / 100; multiplier = `fetchMintMultiplier` (Token-2022);
-   *   updatedAt = ahora; source = "jupiter". Mint ausente en la respuesta: no inventar Quote.
-   * Errores: red, 401 o 429 → UPSTREAM. Mint fuera de la allowlist → MINT_NOT_ALLOWED. Sin API key → INTERNAL.
-   * Cache: 15 s en memoria por mint. `/api/prices` sigue en no-store.
+   * Jupiter Price v3, con cache corta. Un ticker ausente o inválido vuelve a la ancla
+   * (`source: "mock"`, `reference: true`). El caller sólo entra con `PRICES_MODE=live`.
    */
-  async list(): Promise<Quote[]> {
-    throw new Error("NOT_IMPLEMENTED: Jupiter Price API v3");
+  async list(symbols: string[]): Promise<Quote[]> {
+    return listLiveQuotes(symbols, {
+      fetchImpl: fetch,
+      priceUrl: priceUrl(),
+      apiKey: serverEnv.JUPITER_API_KEY,
+      cache,
+      prepareMultipliers: readMultipliers,
+    });
   },
 
   /**
@@ -31,6 +103,7 @@ export const livePrices = {
    *   Si el proveedor no guarda el multiplicador de ese día, usar el vigente y dejarlo anotado.
    * Errores: símbolo no operable → MINT_NOT_ALLOWED. Proveedor caído → UPSTREAM.
    * Cache: por symbol y range, unos minutos, cuando exista proveedor. Hoy no hay endpoint.
+   * `getServices` sigue sirviendo el historial mock.
    */
   async history(): Promise<PricePoint[]> {
     throw new Error("NOT_IMPLEMENTED: historial de precios (proveedor por definir)");
