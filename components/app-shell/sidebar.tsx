@@ -35,7 +35,7 @@ export function Sidebar() {
                   href={item.href}
                   aria-current={active ? "page" : undefined}
                   className={cn(
-                    "flex min-h-11 items-center gap-3 rounded-xl px-3 text-sm transition-colors duration-[140ms] ease-[cubic-bezier(0.25,1,0.5,1)]",
+                    "flex min-h-11 items-center gap-3 rounded-xl px-3 text-sm transition duration-[140ms] ease-spring active:scale-[0.98]",
                     active ? "bg-surface-2 font-medium text-fg" : "text-fg-body hover:bg-surface-2",
                   )}
                 >

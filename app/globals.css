@@ -9,18 +9,20 @@
   --color-bg: #ffffff;
   --color-fg: #0a0a0a;
   --color-fg-body: #252525;
-  --color-fg-muted: #7d8188;
+  /* Más oscuro que el gris del sistema: #7d8188 queda en 3,9:1. Este pasa 4,5:1 sobre blanco y sobre las cards. */
+  --color-fg-muted: #6c6f75;
   --color-fg-subtle: #a3a7ad;
   --color-surface-1: #f8f7f5;
   --color-surface-2: #f2f2f2;
   --color-surface-3: #e1e1e1;
   --color-border: #ebebeb;
   --color-border-strong: #d5dae3;
-  --color-up: #1f8a65;
+  /* Mismo matiz, un paso más oscuro, para llegar a 4,5:1 en precios chicos y en el badge. */
+  --color-up: #1c7c5b;
   --color-up-bg: #e8f5ef;
-  --color-down: #cf2d56;
+  --color-down: #cc2c55;
   --color-down-bg: #fbecef;
-  --color-warn: #b7791f;
+  --color-warn: #99651a;
   --color-warn-bg: #fdf5e6;
   --color-info: #2b7fd9;
   --color-info-bg: #eaf3fd;
@@ -42,6 +44,7 @@
   --animate-pop-in: pop-in 240ms var(--ease-spring) both;
   --animate-sheet-up: sheet-up 240ms var(--ease-spring) both;
   --animate-sheet-side: sheet-side 240ms var(--ease-spring) both;
+  --animate-tab: tab-in 240ms var(--ease-spring) both;
 
   @keyframes marquee {
     from { transform: translateX(0); }
@@ -67,11 +70,15 @@
     from { transform: translateX(100%); }
     to { transform: translateX(0); }
   }
+  @keyframes tab-in {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
 }
 
 @layer base {
   html { color-scheme: light; -webkit-font-smoothing: antialiased; scroll-padding-top: 4rem; }
-  body { @apply bg-bg text-fg-body font-sans; }
+  body { @apply overflow-x-clip bg-bg font-sans text-fg-body; }
   h1, h2, h3 { @apply text-fg font-display font-medium tracking-tight; }
   .num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
   .label { @apply font-mono text-[11px] uppercase tracking-[0.08em] text-fg-muted; }

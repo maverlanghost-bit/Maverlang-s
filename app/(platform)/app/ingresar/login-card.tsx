@@ -76,17 +76,17 @@ export function LoginCard() {
   const busy = status !== "unauthenticated";
 
   return (
-    <Card className="w-full max-w-md shadow-float">
+    <Card className="w-full max-w-md">
       <Link href="/" className="flex w-fit items-center gap-2 rounded-full text-fg">
         <span className="size-2 shrink-0 rounded-full bg-brand" aria-hidden />
         <span className="text-sm font-medium">{site.name}</span>
       </Link>
       <h1 className="mt-6 text-3xl text-balance">Ingresa o crea tu cuenta</h1>
-      <p className="mt-3 text-sm leading-relaxed text-fg-body">Con tu email o con Google.</p>
+      <p className="mt-3 text-sm leading-relaxed text-fg-body">Con tu correo o con Google.</p>
       <div className="mt-6 flex flex-col gap-3">
         <Button className="w-full" size="lg" disabled={busy} onClick={() => void enter("email")}>
           <MailIcon />
-          Continuar con email
+          Continuar con correo
         </Button>
         <Button
           className="w-full"
@@ -100,7 +100,7 @@ export function LoginCard() {
         </Button>
       </div>
       {demo ? (
-        <p className="mt-4 text-center text-xs leading-relaxed text-fg-muted">
+        <p className="mt-4 text-center text-sm leading-relaxed text-fg-muted">
           En este entorno los dos botones abren la cuenta demo.
         </p>
       ) : null}
@@ -109,7 +109,7 @@ export function LoginCard() {
           {error}
         </p>
       ) : null}
-      <p className="mt-6 text-center text-xs leading-relaxed text-fg-muted">
+      <p className="mt-6 text-center text-sm leading-relaxed text-fg-muted">
         Al continuar aceptas los{" "}
         <Link
           href="/legal/terminos"

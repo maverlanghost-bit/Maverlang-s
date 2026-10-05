@@ -29,7 +29,7 @@ import type { Activity, Currency, OrderStatus, Position, Range, Ticker } from "@
 const DEPOSIT_HREF = "/app/billetera/depositar";
 const MARKET_HREF = "/app";
 
-const POSITION_COLORS = ["#0a0a0a", "#ff6a08", "#1f8a65", "#2b7fd9", "#b7791f", "#6b4c9a", "#cf2d56", "#3d6b58"] as const;
+const POSITION_COLORS = ["#0a0a0a", "#ff6a08", "#1c7c5b", "#2b7fd9", "#99651a", "#5c6570", "#cc2c55", "#3d6b58"] as const;
 const CASH_COLOR = "#c5cad3";
 
 const STATUS_TONE: Record<OrderStatus, BadgeTone> = {
@@ -266,7 +266,7 @@ export function PortfolioScreen() {
         <section className="flex flex-col gap-4">
           <div>
             <p className="label">{t.portfolio.total}</p>
-            <div className="mt-1" aria-live="polite">
+            <div className="mt-1">
               {masked ? (
                 <Masked label={t.shell.balanceHidden} className="text-4xl tracking-tight sm:text-5xl" />
               ) : pendingFx ? (

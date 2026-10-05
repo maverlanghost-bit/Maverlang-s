@@ -11,7 +11,7 @@ const columns: { title: string; links: { href: string; label: string }[] }[] = [
       { href: "/#seguridad", label: "Seguridad" },
       { href: "/#preguntas", label: "Preguntas" },
       { href: "/ayuda", label: "Ayuda" },
-      { href: "/app", label: "Abrir app" },
+      { href: "/app", label: "Entrar" },
     ],
   },
   {

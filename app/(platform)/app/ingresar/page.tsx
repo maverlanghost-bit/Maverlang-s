@@ -14,7 +14,7 @@ export const metadata: Metadata = {
 
 function LoginFallback() {
   return (
-    <Card className="w-full max-w-md shadow-float" aria-hidden>
+    <Card className="w-full max-w-md" aria-hidden>
       <div className="flex items-center gap-2">
         <span className="size-2 rounded-full bg-brand" />
         <span className="text-sm font-medium text-fg">{site.name}</span>

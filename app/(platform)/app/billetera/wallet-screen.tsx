@@ -176,18 +176,18 @@ export function WalletScreen() {
 
       <Card>
         <p className="label">{t.wallet.usdcLabel}</p>
-        <div className="mt-2">
+        <div className="mt-2" aria-live="polite">
           {masked ? (
             <Masked label={t.shell.balanceHidden} className="text-4xl sm:text-5xl" />
           ) : (
             <PriceText value={usdcUi} currency="USD" size="lg" />
           )}
+          {masked ? null : pendingFx ? (
+            <Skeleton className="mt-2 h-5 w-28" />
+          ) : clp !== null ? (
+            <p className="num mt-2 text-sm text-fg-muted">{fill(t.wallet.clpApprox, { amount: formatMoney(clp, "CLP") })}</p>
+          ) : null}
         </div>
-        {masked ? null : pendingFx ? (
-          <Skeleton className="mt-2 h-5 w-28" />
-        ) : clp !== null ? (
-          <p className="num mt-2 text-sm text-fg-muted">{fill(t.wallet.clpApprox, { amount: formatMoney(clp, "CLP") })}</p>
-        ) : null}
         <p className="mt-1 text-sm text-fg-muted">{t.wallet.usdcHint}</p>
 
         <div className="mt-6 border-t border-border pt-4">

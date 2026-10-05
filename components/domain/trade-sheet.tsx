@@ -431,7 +431,9 @@ function TradeFlow({ side, ticker }: { side: Side; ticker: Ticker }) {
       <div className="flex flex-col gap-5">
         {fresh && quote && estimate ? (
           <div>
-            <p className="text-center text-2xl text-balance text-fg">{estimate}</p>
+            <p className="text-center text-2xl text-balance text-fg" aria-live="polite">
+              {estimate}
+            </p>
             {sub ? <p className="mt-2 text-center text-sm text-fg-muted">{sub}</p> : null}
           </div>
         ) : null}
@@ -510,7 +512,9 @@ function TradeFlow({ side, ticker }: { side: Side; ticker: Ticker }) {
         </p>
       ) : null}
       {fresh && estimate && !quoteError ? (
-        <p className="text-center text-sm text-balance text-fg-body">{estimate}</p>
+        <p className="text-center text-sm text-balance text-fg-body" aria-live="polite">
+          {estimate}
+        </p>
       ) : null}
       {fresh && quote ? (
         <p className="text-center text-sm text-fg-muted">{fill(t.trade.expiresIn, { time: countdownLabel(remainingMs) })}</p>

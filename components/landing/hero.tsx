@@ -68,10 +68,10 @@ export function Hero() {
       </div>
 
       <Reveal delay={400} className="mx-auto mt-12 w-full max-w-xl md:mt-16 md:max-w-2xl">
-        <Card className="p-4 sm:p-6 md:p-8">
+        <Card>
           <div className="mb-2 flex items-baseline justify-between gap-3 px-2">
             <p className="label">Ejemplo</p>
-            <p className="text-xs text-fg-muted">{ILLUSTRATIVE_NOTICE}</p>
+            <p className="text-sm text-fg-muted">{ILLUSTRATIVE_NOTICE}</p>
           </div>
           <ul>
             {landingHeroQuotes.map((quote) => (

@@ -59,7 +59,7 @@ function PickMock() {
         change={sampleQuote.change}
         sparkline={sampleQuote.sparkline}
       />
-      <p className="px-3 pb-3 text-xs text-fg-muted">{ILLUSTRATIVE_NOTICE}</p>
+      <p className="px-3 pb-3 text-sm text-fg-muted">{ILLUSTRATIVE_NOTICE}</p>
     </div>
   );
 }

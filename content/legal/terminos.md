@@ -22,7 +22,7 @@ El precio se confirma en la orden. Puede diferir del precio de la acción en la 
 
 ## Costos
 
-La comisión de la plataforma es 0% en el lanzamiento. Otros costos —spread, red, proveedor de depósito y, la primera vez, la cuenta del activo en Solana— se muestran antes de confirmar. El detalle está en [Comisiones](/legal/comisiones).
+La comisión de la plataforma es 0% en el lanzamiento. Otros costos —diferencia de precio, red, proveedor de depósito y, la primera vez, la cuenta del activo en Solana— se muestran antes de confirmar. El detalle está en [Comisiones](/legal/comisiones).
 
 ## Billetera
 

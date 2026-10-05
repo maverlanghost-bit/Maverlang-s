@@ -65,7 +65,7 @@ export function getFaq(brand: string): FaqEntry[] {
         [
           {
             kind: "text",
-            value: `La comisión de ${brand} es 0% en el lanzamiento. El spread, la red Solana y el proveedor de depósito no son un número fijo: el monto se muestra antes de confirmar. La red es del orden de centavos de dólar.`,
+            value: `La comisión de ${brand} es 0% en el lanzamiento. La diferencia de precio, la red Solana y el proveedor de depósito no son un número fijo: el monto se muestra antes de confirmar. La red es del orden de centavos de dólar.`,
           },
         ],
         [

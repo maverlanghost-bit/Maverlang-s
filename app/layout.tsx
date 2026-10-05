@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
-import { GeistMono } from "geist/font/mono";
-import { GeistSans } from "geist/font/sans";
 import { site, siteOrigin } from "@/config/site";
+import { geistMono, geistSans } from "./fonts";
 import { Providers } from "./providers";
 import "./globals.css";
 
@@ -38,7 +37,7 @@ export default function RootLayout({
   return (
     <html
       lang="es-CL"
-      className={`${GeistSans.variable} ${GeistMono.variable}`}
+      className={`${geistSans.variable} ${geistMono.variable}`}
     >
       <body>
         <Providers>{children}</Providers>

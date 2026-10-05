@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { site } from "@/config/site";
 
+export const dynamic = "force-static";
+
 export const metadata: Metadata = {
   title: "Región no disponible",
   description: `${site.name} no está disponible en esta región.`,

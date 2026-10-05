@@ -16,8 +16,8 @@ const features: { title: string; body: string; visual: ReactNode }[] = [
   {
     // TODO-VERIFICAR: autocustodia. Exportar la clave está en el diseño de perfil, marcado [según Privy].
     title: "Tú controlas tus activos (autocustodia)",
-    body: "El token es tuyo y queda en una billetera embebida de tu cuenta. El modelo exacto de la clave sigue en revisión.",
-    visual: <p className="text-sm font-medium text-fg">Billetera embebida</p>,
+    body: "El token es tuyo y queda en la billetera de tu cuenta. El modelo exacto de la clave sigue en revisión.",
+    visual: <p className="text-sm font-medium text-fg">Billetera de tu cuenta</p>,
   },
   {
     // ARQUITECTURA §6.3: la comisión se muestra siempre en el desglose, antes de confirmar.
@@ -38,9 +38,9 @@ const features: { title: string; body: string; visual: ReactNode }[] = [
   },
   {
     // Hay onboarding (país, declaración y términos). No hay cuenta en un broker de EE.UU.
-    title: "Sin papeleo de broker extranjero",
-    body: "No abres una cuenta en un broker de EE.UU. Sí aceptas términos al crear la tuya.",
-    visual: <p className="text-sm text-fg-body">Sin cuenta en un broker de EE.UU.</p>,
+    title: "Sin cuenta en una corredora de EE.UU.",
+    body: "No abres una cuenta en una corredora de Estados Unidos. Sí aceptas términos al crear la tuya.",
+    visual: <p className="text-sm text-fg-body">Sin cuenta en una corredora de EE.UU.</p>,
   },
 ];
 

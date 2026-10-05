@@ -35,7 +35,7 @@ function QuotePreview({ quote }: { quote: LandingQuote }) {
         <span className={buttonClasses({ size: "md", className: "pointer-events-none min-h-11" })} aria-hidden>
           Comprar
         </span>
-        <p className="text-xs text-fg-muted">Botón de ejemplo. No envía una orden.</p>
+        <p className="text-sm text-fg-muted">Botón de ejemplo. No envía una orden.</p>
       </div>
     </div>
   );

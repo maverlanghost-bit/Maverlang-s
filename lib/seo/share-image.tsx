@@ -48,7 +48,7 @@ export function ShareImage() {
         <div style={{ display: "flex", fontSize: 28, color: "#252525" }}>
           Fracciones tokenizadas, pagando con pesos.
         </div>
-        <div style={{ display: "flex", fontSize: 24, color: "#7d8188", marginTop: 12 }}>
+        <div style={{ display: "flex", fontSize: 24, color: "#6c6f75", marginTop: 12 }}>
           No otorgan derechos de accionista.
         </div>
       </div>

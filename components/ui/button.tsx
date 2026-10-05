@@ -18,7 +18,7 @@ const sizeClass: Record<ButtonSize, string> = {
 };
 
 export const buttonBase =
-  "inline-flex items-center justify-center rounded-full font-normal transition duration-[140ms] ease-[cubic-bezier(0.25,1,0.5,1)] active:scale-[0.98] focus-visible:ring-4 focus-visible:ring-fg/20 disabled:pointer-events-none disabled:opacity-40";
+  "inline-flex items-center justify-center rounded-full font-normal transition duration-[140ms] ease-spring active:scale-[0.98] focus-visible:ring-4 focus-visible:ring-fg/20 disabled:pointer-events-none disabled:opacity-40";
 
 export function buttonClasses({
   variant = "primary",

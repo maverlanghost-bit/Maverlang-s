@@ -11,7 +11,7 @@ const rows: { concept: string; detail: string }[] = [
     detail: "0% en el lanzamiento.",
   },
   {
-    concept: "Spread e impacto de mercado",
+    concept: "Diferencia de precio",
     detail: "Variable. Se muestra antes de confirmar.",
   },
   {

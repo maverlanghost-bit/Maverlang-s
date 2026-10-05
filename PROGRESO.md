@@ -1,9 +1,16 @@
 # PROGRESO — Maverlang
 
 ## Estado
-T18 hecha. Modo de datos: mock. Siguiente: T19.
+T19 hecha. Modo de datos: mock. Siguiente: T20.
 
 ## Tareas hechas
+
+### T19 — Pulido visual, accesibilidad y rendimiento (2026-10-05, T19: pulido)
+- Hecho: checklist en landing y `/app`. Tabs con `animate-tab` y `--ease-spring` (el Sheet ya lo usaba), press `active:scale-[0.98]`, NumberFlow en el saldo del shell. Cierre de Sheet/Dialog a 44px. `aria-live` en el USDC de la billetera y en la cotización; el countdown no se anuncia. Contraste a 4,5:1. Copy es-CL sin "app", "slippage", "spread", "exchange", "SDK" ni "broker". Fuentes con `display: swap`. QR y `lightweight-charts` en import dinámico. Logo con `next/image`. Landing y `/bloqueado` en `force-static`. `overflow-x-clip` en el body. `npx tsc --noEmit` y `npm run lint` ok. Sin `next dev`.
+- Archivos clave: `app/fonts.ts`, `app/globals.css`, `components/ui/{tabs,qr-code,qr-mark,overlay}.tsx`, `components/domain/{balance-header,ticker-logo,price-chart}.tsx`, `content/i18n/es-CL.ts`, landing y legales.
+- Decisiones: gris `#6c6f75`, sube `#1c7c5b`, baja `#cc2c55`, aviso `#99651a`. El placeholder sigue en `fg-subtle`. La lista del mercado no anuncia cada precio (refresco de 15 s); sí el precio grande, los totales y la cotización. "Deslizamiento máx." y "Diferencia de precio". El dólar sigue el Intl es-CL (`US$1.234,56`, sin espacio). Sin archivos en `public/logos`: si el logo falla, quedan las iniciales.
+- Pendiente: mirar 360/768/1280 (landing, mercado, detalle, compra, cartera, billetera, depositar, perfil, ingresar y onboarding). No se corrió `next build`, así que `force-static` no quedó confirmado ahí.
+- Próximo: T20.
 
 ### T18 — Librería Solana y stubs live (2026-10-05, T18: solana backend stubs)
 - Hecho: multiplicador Token-2022, comisión USDC, dirección, allowlist, conexión y sponsor. TODOs de Jupiter, cartera, Privy, Koywe y Onramper. Queries de Supabase escritas, sólo si `DATA_MODE=live`. `0001_init.sql` presente. `npx tsc --noEmit` y `npm run lint` ok. Sin `next dev`. Las funciones puras se probaron con un script local.
@@ -146,5 +153,5 @@ T18 hecha. Modo de datos: mock. Siguiente: T19.
 - Ubicación definitiva del repo (OneDrive vs C:\dev).
 - Textos legales: [REVISIÓN ABOGADO].
 - Verificar mints contra xstocks.fi antes de producción.
-- Confirmar en el navegador el hero (360/768/1280), T04 (reveal, tabs, tabla), T05 (FAQ, CTA, footer, legales, bloqueado), `/dev/ui` a 360px, las rutas `/api/tickers`, `/api/prices` e historial, T08 (`/app` sin sesión, login demo, `?country=US`), T09 (wizard completo, sin saltar pasos), T10 (4 secciones a 360 y 1280, saldo y ojo), T11 (mercado a 360 y 1280), T12 (detalle a 360 y 1280; con sesión, FAKE y HOODx en 404), T13 (compra y venta a 360 y 1280; `?mockError=`), T14 (cartera a 360 y 1280; rangos, hover, asignación, ojo y vacío), T15 (billetera, recibir y enviar a 360 y 1280; dirección inválida, propia, máx. y actividad), T16 (depositar a 360 y 1280; chips, mínimo, widget, actividad y saldo) y T17 (perfil y ajustes a 360 y 1280; nombre, baja, clave, switches, idioma y tabla).
+- Confirmar en el navegador el hero (360/768/1280), T04 (reveal, tabs, tabla), T05 (FAQ, CTA, footer, legales, bloqueado), `/dev/ui` a 360px, las rutas `/api/tickers`, `/api/prices` e historial, T08 (`/app` sin sesión, login demo, `?country=US`), T09 (wizard completo, sin saltar pasos), T10 (4 secciones a 360 y 1280, saldo y ojo), T11 (mercado a 360 y 1280), T12 (detalle a 360 y 1280; con sesión, FAKE y HOODx en 404), T13 (compra y venta a 360 y 1280; `?mockError=`), T14 (cartera a 360 y 1280; rangos, hover, asignación, ojo y vacío), T15 (billetera, recibir y enviar a 360 y 1280; dirección inválida, propia, máx. y actividad), T16 (depositar a 360 y 1280; chips, mínimo, widget, actividad y saldo), T17 (perfil y ajustes a 360 y 1280; nombre, baja, clave, switches, idioma y tabla) y T19 (360/768/1280 sin scroll horizontal; Sheet, tabs, saldo y cotización).
 - Borrar `t18-check.ts` (script local de T18; no va en el commit).

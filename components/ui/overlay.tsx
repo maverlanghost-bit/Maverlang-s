@@ -140,7 +140,7 @@ export function OverlayPanel({
           className={cn("relative z-10 outline-none", panelClassName)}
         >
           {grabber ? <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-surface-3 md:hidden" aria-hidden /> : null}
-          <h2 id={titleId} className="pr-14 text-lg font-medium text-fg">
+          <h2 id={titleId} className="pr-16 text-lg font-medium text-fg">
             {title}
           </h2>
           {description ? (
@@ -149,7 +149,7 @@ export function OverlayPanel({
             </p>
           ) : null}
           <div className="mt-4">{children}</div>
-          <IconButton label="Cerrar" size="sm" className="absolute top-3 right-3" onClick={onClose}>
+          <IconButton label="Cerrar" size="md" className="absolute top-3 right-3" onClick={onClose}>
             <IconClose />
           </IconButton>
         </div>

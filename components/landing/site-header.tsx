@@ -32,7 +32,7 @@ function scrolledServerSnapshot() {
 }
 
 const linkClass =
-  "whitespace-nowrap rounded-full px-2 py-2 text-sm text-fg-body transition duration-[140ms] hover:text-fg";
+  "whitespace-nowrap rounded-full px-2 py-2 text-sm text-fg-body transition duration-[140ms] ease-spring hover:text-fg active:scale-[0.98]";
 
 export function SiteHeader() {
   const [open, setOpen] = useState(false);
@@ -41,7 +41,7 @@ export function SiteHeader() {
   return (
     <header
       className={cn(
-        "fixed inset-x-0 top-0 z-40 h-16 border-b transition-[background-color,border-color,backdrop-filter] duration-[240ms] ease-[cubic-bezier(0.25,1,0.5,1)]",
+        "fixed inset-x-0 top-0 z-40 h-16 border-b transition-[background-color,border-color,backdrop-filter] duration-[240ms] ease-spring",
         scrolled ? "border-border bg-bg/80 backdrop-blur-md" : "border-transparent bg-transparent",
       )}
     >
@@ -61,7 +61,7 @@ export function SiteHeader() {
 
         <div className="ml-auto flex shrink-0 items-center gap-2 md:ml-4">
           <Button asChild size="md" className="min-h-11 px-4">
-            <Link href="/app">Abrir app</Link>
+            <Link href="/app">Entrar</Link>
           </Button>
           <IconButton
             label={open ? "Cerrar menú" : "Abrir menú"}
@@ -81,7 +81,7 @@ export function SiteHeader() {
             <Link
               key={item.href}
               href={item.href}
-              className="flex h-12 items-center rounded-xl px-3 text-base text-fg hover:bg-surface-2"
+              className="flex h-12 items-center rounded-xl px-3 text-base text-fg transition duration-[140ms] ease-spring hover:bg-surface-2 active:scale-[0.98]"
               onClick={() => setOpen(false)}
             >
               {item.label}
@@ -89,7 +89,7 @@ export function SiteHeader() {
           ))}
           <Button asChild className="mt-4 min-h-11 w-full">
             <Link href="/app" onClick={() => setOpen(false)}>
-              Abrir app
+              Entrar
             </Link>
           </Button>
         </nav>

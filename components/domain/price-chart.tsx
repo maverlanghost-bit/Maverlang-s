@@ -7,9 +7,9 @@ import type { ChartTone } from "@/lib/market/series";
 import type { PricePoint } from "@/lib/types";
 
 const PALETTE: Record<ChartTone, { line: string; top: string; bottom: string }> = {
-  up: { line: "#1f8a65", top: "rgba(31, 138, 101, 0.28)", bottom: "rgba(31, 138, 101, 0)" },
-  down: { line: "#cf2d56", top: "rgba(207, 45, 86, 0.22)", bottom: "rgba(207, 45, 86, 0)" },
-  flat: { line: "#7d8188", top: "rgba(125, 129, 136, 0.22)", bottom: "rgba(125, 129, 136, 0)" },
+  up: { line: "#1c7c5b", top: "rgba(28, 124, 91, 0.28)", bottom: "rgba(28, 124, 91, 0)" },
+  down: { line: "#cc2c55", top: "rgba(204, 44, 85, 0.22)", bottom: "rgba(204, 44, 85, 0)" },
+  flat: { line: "#6c6f75", top: "rgba(108, 111, 117, 0.22)", bottom: "rgba(108, 111, 117, 0)" },
 };
 
 function toAreaData(points: readonly PricePoint[]): { time: UTCTimestamp; value: number }[] {
@@ -74,7 +74,7 @@ function PriceChartBase({
           autoSize: true,
           layout: {
             background: { type: charts.ColorType.Solid, color: "transparent" },
-            textColor: "#7d8188",
+            textColor: "#6c6f75",
             fontFamily,
             fontSize: 12,
             attributionLogo: true,

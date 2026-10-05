@@ -56,8 +56,8 @@ export function SegmentedControl({
             tabIndex={selected ? 0 : -1}
             onClick={() => onChange(option.value)}
             className={cn(
-              "min-h-11 rounded-full px-3 text-sm transition duration-[140ms]",
-              fullWidth && "min-w-0 flex-1 px-1 text-xs sm:px-3 sm:text-sm",
+              "min-h-11 rounded-full px-3 text-sm transition duration-[140ms] ease-spring active:scale-[0.98]",
+              fullWidth && "min-w-0 flex-1 px-1 sm:px-3",
               selected ? "bg-surface-3 text-fg" : "text-fg-muted hover:text-fg",
             )}
           >

@@ -47,7 +47,7 @@ export function StepProgress({ step }: { step: OnboardingStep }) {
         aria-valuetext={`Paso ${step} de 5`}
       >
         <div
-          className="h-full rounded-full bg-fg transition-[width] duration-[240ms] ease-[cubic-bezier(0.25,1,0.5,1)]"
+          className="h-full rounded-full bg-fg transition-[width] duration-[240ms] ease-spring"
           style={{ width: `${(step / 5) * 100}%` }}
         />
       </div>
@@ -280,7 +280,7 @@ export function DocumentsStep({
           />
         ))}
       </div>
-      <p className="text-xs leading-relaxed text-fg-muted">Borrador. [REVISIÓN ABOGADO]</p>
+      <p className="text-sm leading-relaxed text-fg-muted">Borrador. [REVISIÓN ABOGADO]</p>
     </div>
   );
 }
@@ -382,7 +382,7 @@ export function DoneStep({
           Explorar acciones
         </Button>
       </div>
-      <p className="mt-4 text-xs leading-relaxed text-fg-muted">
+      <p className="mt-4 text-sm leading-relaxed text-fg-muted">
         Las acciones tokenizadas no otorgan derechos de accionista. Invertir implica riesgos.
       </p>
     </div>

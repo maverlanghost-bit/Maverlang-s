@@ -11,7 +11,7 @@ La comisión de {{brand}} es 0% en el lanzamiento. Lo demás no es un número fi
 | Concepto | Qué pagas |
 | --- | --- |
 | Comisión {{brand}} | 0% en el lanzamiento. |
-| Spread e impacto de mercado | Variable. Se muestra antes de confirmar. |
+| Diferencia de precio | Variable. Se muestra antes de confirmar. |
 | Red Solana | Del orden de centavos de dólar. El monto se muestra antes de confirmar. |
 | Cuenta del activo, la primera vez | Costo de red por abrir la cuenta del token. Se muestra en el desglose. Este texto no lo convierte a pesos ni a dólares. |
 | Proveedor de depósito | Según el proveedor. Lo ves al depositar. |

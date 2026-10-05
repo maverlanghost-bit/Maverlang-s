@@ -67,7 +67,7 @@ export function Tabs({
               disabled={tab.disabled}
               onClick={() => select(tab.value)}
               className={cn(
-                "min-h-11 shrink-0 border-b-2 px-3 text-sm transition duration-[140ms]",
+                "min-h-11 shrink-0 border-b-2 px-3 text-sm transition duration-[240ms] ease-spring active:scale-[0.98]",
                 active ? "border-fg text-fg" : "border-transparent text-fg-muted hover:text-fg",
               )}
             >
@@ -81,8 +81,8 @@ export function Tabs({
           role="tabpanel"
           id={`${baseId}-panel-${current.value}`}
           aria-labelledby={`${baseId}-tab-${current.value}`}
-          tabIndex={0}
-          className="pt-4 text-sm leading-relaxed text-fg-body outline-none"
+          key={current.value}
+          className="animate-tab pt-4 text-sm leading-relaxed text-fg-body outline-none"
         >
           {current.content}
         </div>

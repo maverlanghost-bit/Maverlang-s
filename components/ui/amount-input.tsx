@@ -149,7 +149,7 @@ export function AmountInput({
       ) : (
         <span className="text-sm text-fg-muted">{labels?.[currency] ?? defaultLabels[currency]}</span>
       )}
-      <div className="flex max-w-full items-baseline justify-center gap-2">
+      <div className="flex min-w-0 max-w-full items-baseline justify-center gap-2">
         {symbol ? <span className="font-mono text-2xl text-fg-muted tabular-nums">{symbol}</span> : null}
         <input
           id={id}
@@ -163,7 +163,7 @@ export function AmountInput({
           value={display}
           onChange={onInput}
           style={{ width: `${Math.max(display.length, 1) + 1}ch` }}
-          className="max-w-full overflow-x-auto bg-transparent text-center font-mono text-4xl text-fg tabular-nums outline-none placeholder:text-fg-subtle sm:text-5xl"
+          className="min-w-0 max-w-full overflow-x-auto bg-transparent text-center font-mono text-4xl text-fg tabular-nums outline-none placeholder:text-fg-subtle sm:text-5xl"
         />
         {suffix ? <span className="text-sm text-fg-muted">{suffix}</span> : null}
       </div>
@@ -179,7 +179,7 @@ export function AmountInput({
               disabled={chip.value === "max" && max === undefined}
               onClick={() => applyQuick(chip.value)}
               className={cn(
-                "min-h-11 rounded-full px-3 text-sm transition duration-[140ms] disabled:opacity-40",
+                "min-h-11 rounded-full px-3 text-sm transition duration-[140ms] ease-spring active:scale-[0.98] disabled:opacity-40",
                 pressed ? "bg-surface-3 text-fg" : "bg-surface-2 text-fg hover:bg-surface-3",
               )}
             >

@@ -1,10 +1,11 @@
 import Link from "next/link";
+import { Reveal } from "@/components/landing/reveal";
 import { Button } from "@/components/ui/button";
 
 export function FinalCTA() {
   return (
     <section aria-labelledby="cta-final-title" className="bg-surface-1 px-5 py-20 md:py-28 lg:py-32">
-      <div className="mx-auto flex w-full max-w-3xl flex-col items-center text-center">
+      <Reveal className="mx-auto flex w-full max-w-3xl flex-col items-center text-center">
         <span className="size-2 rounded-full bg-brand" aria-hidden />
         <h2 id="cta-final-title" className="mt-6 text-4xl text-balance sm:text-5xl lg:text-6xl">
           Abre tu cuenta en 2 minutos
@@ -17,7 +18,7 @@ export function FinalCTA() {
             <Link href="/app">Crear cuenta</Link>
           </Button>
         </div>
-      </div>
+      </Reveal>
     </section>
   );
 }

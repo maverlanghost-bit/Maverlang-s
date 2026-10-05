@@ -91,7 +91,7 @@ export function ProfileScreen({ version }: { version: string }) {
           </li>
         </ul>
       </nav>
-      <p className="text-center text-xs text-fg-muted">{fill(t.profile.version, { version })}</p>
+      <p className="text-center text-sm text-fg-muted">{fill(t.profile.version, { version })}</p>
     </div>
   );
 }

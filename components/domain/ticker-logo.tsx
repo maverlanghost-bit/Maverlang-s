@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import { cn } from "@/lib/cn";
 
 function initials(name: string | undefined, symbol: string) {
@@ -40,11 +41,12 @@ export function TickerLogo({
       style={{ width: size, height: size, fontSize: Math.max(10, Math.round(size * 0.34)) }}
     >
       {showImage && logoUrl ? (
-        // Si el archivo no existe, el círculo queda con las iniciales.
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
+        <Image
           src={logoUrl}
           alt={decorative ? "" : (name ?? symbol)}
+          width={size}
+          height={size}
+          unoptimized
           className="size-full object-cover"
           onError={() => setFailedSrc(logoUrl)}
         />

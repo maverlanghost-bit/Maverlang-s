@@ -117,7 +117,7 @@ function ChipGroup<T extends string>({
             tabIndex={selected ? 0 : -1}
             onClick={() => onChange(option.value)}
             className={cn(
-              "h-11 shrink-0 rounded-full px-3 text-sm transition duration-[140ms]",
+              "h-11 shrink-0 rounded-full px-3 text-sm transition duration-[140ms] ease-spring active:scale-[0.98]",
               selected ? "bg-surface-3 text-fg" : "bg-surface-2 text-fg-muted hover:text-fg",
             )}
           >

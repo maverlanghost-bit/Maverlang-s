@@ -2,11 +2,11 @@
 
 import type { ReactNode } from "react";
 
+import { PriceText } from "@/components/domain/price-text";
 import { IconButton } from "@/components/ui/icon-button";
 import { IconEye, IconEyeOff } from "@/components/ui/icons";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/cn";
-import { formatMoney } from "@/lib/format";
 import { useHideBalance } from "@/lib/hooks/use-hide-balance";
 import { useFx, usePortfolio } from "@/lib/hooks/queries";
 import { useT } from "@/lib/hooks/use-t";
@@ -42,7 +42,7 @@ export function BalanceHeader({
       </>
     );
   } else if (amount !== null) {
-    value = <span className="num block truncate text-sm text-fg">{formatMoney(amount, currency)}</span>;
+    value = <PriceText value={amount} currency={currency} size="sm" className="block truncate" />;
   } else if (portfolio.isError || (currency === "CLP" && fx.isError)) {
     value = <span className="text-sm text-fg-muted">{t.shell.balanceUnavailable}</span>;
   } else {
