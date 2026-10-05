@@ -7,7 +7,8 @@ import { DomainError } from "@/lib/api/result";
 import { mockFx } from "@/lib/mocks/fx";
 import { roundDigits } from "@/lib/mocks/number";
 import { quoteFor } from "@/lib/mocks/prices";
-import { tickerBySymbol, tradableTicker } from "@/lib/solana/allowlist";
+import { addressesEqual } from "@/lib/solana/address";
+import { tickerByMint, tickerBySymbol, tradableTicker } from "@/lib/solana/allowlist";
 import type {
   Activity,
   Balance,
@@ -18,6 +19,7 @@ import type {
   Position,
   Preferences,
   TradeQuote,
+  TradeSubmitResponse,
   UserProfile,
 } from "@/lib/types";
 
@@ -28,7 +30,7 @@ import type {
  */
 export { DEMO_USER_ID, DEMO_WALLET_ADDRESS };
 
-const SOL_MINT = "So11111111111111111111111111111111111111112";
+export const SOL_MINT = "So11111111111111111111111111111111111111112";
 const MOCK_SOL_PRICE_USD = 150;
 const MOCK_SOL_UI = 0.05;
 
@@ -50,6 +52,17 @@ export type StoredBuild = {
   orderId: string | null;
 };
 
+/** Envío armado y todavía no firmado. El débito ocurre en `settleSend`. */
+export type StoredSend = {
+  requestId: string;
+  to: string;
+  mint: string;
+  amountUi: number;
+  userPublicKey: string;
+  expiresAt: string;
+  orderId: string | null;
+};
+
 type DemoState = {
   seq: number;
   cashUsdc: number;
@@ -61,6 +74,7 @@ type DemoState = {
   consents: Consent[];
   quotes: Map<string, StoredQuote>;
   builds: Map<string, StoredBuild>;
+  sends: Map<string, StoredSend>;
   orders: Map<string, Order>;
 };
 
@@ -155,6 +169,7 @@ function createState(): DemoState {
     ],
     quotes: new Map(),
     builds: new Map(),
+    sends: new Map(),
     orders: new Map(),
   };
 }
@@ -406,4 +421,98 @@ export function recallOrder(id: string): Order | undefined {
 
 export function fxRate(): number {
   return mockFx().rate;
+}
+
+export function saveSend(send: StoredSend): void {
+  state.sends.set(send.requestId, send);
+}
+
+function symbolForMint(mint: string): string {
+  if (mint === USDC_MINT) return "USDC";
+  if (mint === SOL_MINT) return "SOL";
+  const ticker = tickerByMint(mint);
+  if (!ticker?.enabled) throw new DomainError("MINT_NOT_ALLOWED");
+  return ticker.symbol;
+}
+
+/**
+ * Resta USDC o acciones. El SOL de la red no se descuenta en la demo.
+ * Si el destino es la propia billetera, el saldo no cambia: el token no sale.
+ */
+export function applySend(mint: string, amountUi: number, debit = true): { symbol: string; valueUsd: number } {
+  const symbol = symbolForMint(mint);
+  if (mint === USDC_MINT) {
+    if (state.cashUsdc + 1e-9 < amountUi) throw new DomainError("INSUFFICIENT_FUNDS");
+    if (debit) state.cashUsdc = roundDigits(state.cashUsdc - amountUi, 6);
+    return { symbol, valueUsd: roundDigits(amountUi, 2) };
+  }
+  if (mint === SOL_MINT) throw new DomainError("MINT_NOT_ALLOWED");
+  const lot = state.positions.get(symbol);
+  if (!lot || lot.shares + 1e-9 < amountUi) throw new DomainError("INSUFFICIENT_FUNDS");
+  if (debit) {
+    const nextShares = roundDigits(lot.shares - amountUi, 8);
+    if (nextShares <= 1e-8) state.positions.delete(symbol);
+    else state.positions.set(symbol, { shares: nextShares, avgCostUsd: lot.avgCostUsd });
+  }
+  return { symbol, valueUsd: roundDigits(amountUi * quoteFor(symbol).priceUsd, 2) };
+}
+
+/**
+ * Cierra un envío firmado. `null` si ese id no es un envío.
+ * §2.4 no tiene submit propio: lo llama `POST /api/trade/submit`.
+ * La orden sólo sirve para el polling. Lo que se ve es la actividad `send`.
+ */
+export function settleSend(
+  requestId: string,
+  signedTransactionBase64: string,
+  userId: string,
+): TradeSubmitResponse | null {
+  const send = state.sends.get(requestId);
+  if (!send) return null;
+  if (send.orderId) {
+    const existing = recallOrder(send.orderId);
+    if (!existing) throw new DomainError("NOT_FOUND", "No encontramos ese envío.");
+    return { orderId: existing.id, signature: existing.signature, status: existing.status };
+  }
+  if (signedTransactionBase64.trim() === "") {
+    throw new DomainError("VALIDATION", "Falta la transacción firmada.");
+  }
+  if (Date.now() > Date.parse(send.expiresAt)) throw new DomainError("QUOTE_EXPIRED");
+
+  const orderId = nextDemoId("order");
+  const createdAt = new Date().toISOString();
+  const symbol = symbolForMint(send.mint);
+  const base = {
+    id: orderId,
+    userId,
+    side: "sell" as const,
+    symbol,
+    inAmountUi: send.amountUi,
+    outAmountUi: send.amountUi,
+    feeBps: 0,
+    createdAt,
+  };
+
+  try {
+    const moved = applySend(send.mint, send.amountUi, !addressesEqual(send.to, send.userPublicKey));
+    const signature = `mock-sig-${orderId}`;
+    saveOrder({ ...base, symbol: moved.symbol, status: "confirmed", signature });
+    state.sends.set(requestId, { ...send, orderId });
+    pushActivity({
+      id: nextDemoId("act"),
+      kind: "send",
+      symbol: moved.symbol,
+      amountUi: send.amountUi,
+      valueUsd: moved.valueUsd,
+      status: "confirmed",
+      signature,
+      at: createdAt,
+    });
+    return { orderId, signature, status: "confirmed" };
+  } catch (error) {
+    const message = error instanceof DomainError ? error.message : "No se pudo enviar.";
+    saveOrder({ ...base, status: "failed", signature: null, error: message });
+    state.sends.set(requestId, { ...send, orderId });
+    return { orderId, signature: null, status: "failed" };
+  }
 }

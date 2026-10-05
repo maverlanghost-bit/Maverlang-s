@@ -159,8 +159,8 @@ export function getActivity(): Promise<Activity[]> {
   return request("/api/wallet/activity", activityResponseSchema, { cache: "no-store" });
 }
 
-export function buildSend(body: SendBuildRequest): Promise<TradeBuildResponse> {
-  return send("POST", "/api/wallet/send/build", tradeBuildResponseSchema, body);
+export function buildSend(body: SendBuildRequest, mockError?: string | null): Promise<TradeBuildResponse> {
+  return send("POST", withMockQuery("/api/wallet/send/build", mockError), tradeBuildResponseSchema, body);
 }
 
 export function createOnrampSession(body: OnrampSessionRequest): Promise<OnrampSession> {

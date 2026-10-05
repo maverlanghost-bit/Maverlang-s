@@ -17,12 +17,14 @@ import {
   saveBuild,
   saveOrder,
   saveQuote,
+  settleSend,
 } from "@/lib/mocks/demo-state";
 import { simulateMock } from "@/lib/mocks/latency";
 import { roundDigits } from "@/lib/mocks/number";
 import { hashSeed } from "@/lib/mocks/prng";
 import { quoteFor } from "@/lib/mocks/prices";
 import { tickerBySymbol, tradableTicker } from "@/lib/solana/allowlist";
+import { NETWORK_FEE_SOL, TOKEN_ACCOUNT_RENT_SOL } from "@/lib/wallet/send-cost";
 import type {
   Order,
   TradeBuildRequest,
@@ -34,10 +36,6 @@ import type {
 } from "@/lib/types";
 
 const QUOTE_TTL_MS = 60_000;
-/** Tarifa base de Solana: 5000 lamports. No es una comisión de la plataforma. */
-const NETWORK_FEE_SOL = 0.000005;
-/** Rent de una cuenta de token nueva, según ARQUITECTURA §6. */
-const TOKEN_ACCOUNT_RENT_SOL = 0.0016;
 
 function requireTradable(symbol: string) {
   const ticker = tradableTicker(symbol);
@@ -168,6 +166,8 @@ export const mockTrade = {
 
   async submit(request: TradeSubmitRequest, userId: string): Promise<TradeSubmitResponse> {
     return simulateMock(`submit:${request.requestId}`, () => {
+      const sent = settleSend(request.requestId, request.signedTransactionBase64, userId);
+      if (sent) return sent;
       const build = recallBuild(request.requestId);
       if (!build) throw new DomainError("NOT_FOUND", "No encontramos esa orden.");
       if (build.orderId) {

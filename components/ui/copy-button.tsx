@@ -4,7 +4,15 @@ import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { IconCheck, IconCopy } from "@/components/ui/icons";
 
-export function CopyButton({ value, label = "Copiar" }: { value: string; label?: string }) {
+export function CopyButton({
+  value,
+  label = "Copiar",
+  copiedLabel = "Copiado",
+}: {
+  value: string;
+  label?: string;
+  copiedLabel?: string;
+}) {
   const [copied, setCopied] = useState(false);
   const timer = useRef<number | null>(null);
 
@@ -28,7 +36,7 @@ export function CopyButton({ value, label = "Copiar" }: { value: string; label?:
   return (
     <Button variant="secondary" size="sm" onClick={onClick} aria-live="polite">
       {copied ? <IconCheck /> : <IconCopy />}
-      {copied ? "Copiado" : label}
+      {copied ? copiedLabel : label}
     </Button>
   );
 }

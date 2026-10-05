@@ -1,9 +1,16 @@
 # PROGRESO — Maverlang
 
 ## Estado
-T14 hecha. Modo de datos: mock. Siguiente: T15.
+T15 hecha. Modo de datos: mock. Siguiente: T16.
 
 ## Tareas hechas
+
+### T15 — Billetera (2026-10-05, T15: billetera)
+- Hecho: `/app/billetera` con USDC grande, SOL de red (explicación y aviso si no alcanza rent + red), Depositar · Enviar · Recibir, activos, dirección con copiar y actividad de todas las clases agrupada por día en Santiago. `/recibir` con QR, copiar, compartir y los avisos de red y de tokens. `/enviar` bloquea una dirección que no es base58 de 32 bytes, avisa si es la propia, monto con máx., revisión con red y rent mock, y confirma con `buildSend`, firma y los estados de T13. El envío mock queda en la actividad. `npx tsc --noEmit` y `npm run lint` ok. Sin `next dev`.
+- Archivos clave: `app/(platform)/app/billetera/**`, `lib/solana/address.ts`, `lib/wallet/{send-cost,days,display,explorer}.ts`, `lib/mocks/demo-state.ts`, `lib/services/{portfolio.mock,trade.mock}.ts`, `content/i18n/{es-CL,en}.ts`.
+- Decisiones: SOL no se envía (`MINT_NOT_ALLOWED`). La rent mock (0,0016 SOL) aparece si el destino no es la propia dirección; no se pasa a pesos. Enviar a la propia dirección no cambia el saldo. El débito y la actividad `kind: send` ocurren en `POST /api/trade/submit` al firmar, porque §2.4 no tiene submit de envío. La orden interna sólo sirve para el polling. Depositar sigue en T16. `address.ts` queda para T18.
+- Pendiente: mirar `/app/billetera`, `/recibir` y `/enviar` a 360 y 1280 (dirección inválida, propia, máx., confirmar y actividad). Solscan no tiene las firmas `mock-sig-…`. Con 0,05 SOL de la demo el aviso de SOL bajo no se ve.
+- Próximo: T16.
 
 ### T14 — Cartera (2026-10-05, T14: cartera)
 - Hecho: `/app/cartera` con valor total (CLP/USD), P&L en monto y % ("—" si es null), rangos y gráfico de valor, AllocationBar, PositionRow, USDC con Depositar, historial buy/sell y vacío. La demo cuadra: 228,40 + 65,58 + 199,12 + 250 USDC = 743,10 USD. `npx tsc --noEmit` y `npm run lint` ok. Sin `next dev`.
@@ -118,4 +125,4 @@ T14 hecha. Modo de datos: mock. Siguiente: T15.
 - Ubicación definitiva del repo (OneDrive vs C:\dev).
 - Textos legales: [REVISIÓN ABOGADO].
 - Verificar mints contra xstocks.fi antes de producción.
-- Confirmar en el navegador el hero (360/768/1280), T04 (reveal, tabs, tabla), T05 (FAQ, CTA, footer, legales, bloqueado), `/dev/ui` a 360px, las rutas `/api/tickers`, `/api/prices` e historial, T08 (`/app` sin sesión, login demo, `?country=US`), T09 (wizard completo, sin saltar pasos), T10 (4 secciones a 360 y 1280, saldo y ojo), T11 (mercado a 360 y 1280), T12 (detalle a 360 y 1280; con sesión, FAKE y HOODx en 404), T13 (compra y venta a 360 y 1280; `?mockError=`) y T14 (cartera a 360 y 1280; rangos, hover, asignación, ojo y vacío).
+- Confirmar en el navegador el hero (360/768/1280), T04 (reveal, tabs, tabla), T05 (FAQ, CTA, footer, legales, bloqueado), `/dev/ui` a 360px, las rutas `/api/tickers`, `/api/prices` e historial, T08 (`/app` sin sesión, login demo, `?country=US`), T09 (wizard completo, sin saltar pasos), T10 (4 secciones a 360 y 1280, saldo y ojo), T11 (mercado a 360 y 1280), T12 (detalle a 360 y 1280; con sesión, FAKE y HOODx en 404), T13 (compra y venta a 360 y 1280; `?mockError=`), T14 (cartera a 360 y 1280; rangos, hover, asignación, ojo y vacío) y T15 (billetera, recibir y enviar a 360 y 1280; dirección inválida, propia, máx. y actividad).

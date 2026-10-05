@@ -2,14 +2,18 @@ import "server-only";
 
 import { DomainError } from "@/lib/api/result";
 import {
+  SOL_MINT,
   balanceForMint,
   buildDemoActivity,
   buildDemoBalances,
   buildDemoPortfolio,
   nextDemoId,
+  saveSend,
 } from "@/lib/mocks/demo-state";
 import { simulateMock } from "@/lib/mocks/latency";
+import { isSolanaAddress } from "@/lib/solana/address";
 import { isOfficialMint } from "@/lib/solana/allowlist";
+import { sendNetworkCost, solCoversFee } from "@/lib/wallet/send-cost";
 import type { Activity, Balance, Portfolio, SendBuildRequest, TradeBuildResponse } from "@/lib/types";
 
 function encodeMockTx(label: string): string {
@@ -33,30 +37,43 @@ export const mockPortfolio = {
   },
 
   /**
-   * Arma el envío mock. No mueve saldo: §2.4 no tiene submit de envío.
-   * El débito queda para cuando exista esa confirmación.
+   * Arma el envío. No mueve saldo: el débito y la actividad quedan en
+   * `settleSend`, cuando la firma pasa por `POST /api/trade/submit`.
    */
   async sendBuild(request: SendBuildRequest): Promise<TradeBuildResponse> {
-    return simulateMock(`send:${request.mint}:${request.amountUi}`, () => {
+    return simulateMock(`send:${request.mint}:${request.amountUi}:${request.to}`, () => {
       if (!isOfficialMint(request.mint)) throw new DomainError("MINT_NOT_ALLOWED");
-      if (!(request.amountUi > 0) || !Number.isFinite(request.amountUi)) {
-        throw new DomainError("VALIDATION", "El monto tiene que ser mayor que cero.");
-      }
-      if (request.to.trim().length < 32) {
+      if (!isSolanaAddress(request.to)) {
         throw new DomainError("VALIDATION", "La dirección de destino no es válida.");
       }
-      if (request.userPublicKey.trim().length < 32) {
+      if (!isSolanaAddress(request.userPublicKey)) {
         throw new DomainError("VALIDATION", "Falta la billetera de origen.");
+      }
+      if (!(request.amountUi > 0) || !Number.isFinite(request.amountUi)) {
+        throw new DomainError("VALIDATION", "El monto tiene que ser mayor que cero.");
       }
       const balance = balanceForMint(request.userPublicKey, request.mint);
       if (!balance || balance.uiAmount + 1e-9 < request.amountUi) {
         throw new DomainError("INSUFFICIENT_FUNDS");
       }
+      const cost = sendNetworkCost(request.to, request.userPublicKey);
+      const sol = balanceForMint(request.userPublicKey, SOL_MINT);
+      if (!sol || !solCoversFee(sol.uiAmount, cost)) throw new DomainError("INSUFFICIENT_FUNDS");
       const requestId = nextDemoId("send");
+      const expiresAt = new Date(Date.now() + 60_000).toISOString();
+      saveSend({
+        requestId,
+        to: request.to.trim(),
+        mint: request.mint,
+        amountUi: request.amountUi,
+        userPublicKey: request.userPublicKey.trim(),
+        expiresAt,
+        orderId: null,
+      });
       return {
         requestId,
         transactionBase64: encodeMockTx(`mock-send:${requestId}`),
-        expiresAt: new Date(Date.now() + 60_000).toISOString(),
+        expiresAt,
       };
     });
   },
