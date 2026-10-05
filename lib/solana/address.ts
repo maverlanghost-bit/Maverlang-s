@@ -33,11 +33,16 @@ export function decodeBase58(value: string): Uint8Array | null {
 }
 
 /** Acepta espacios al borde. El resto tiene que decodificar a 32 bytes. */
-export function isSolanaAddress(value: string): boolean {
+export function isValidSolanaAddress(value: string): boolean {
   const trimmed = value.trim();
   if (!trimmed) return false;
   const decoded = decodeBase58(trimmed);
   return decoded !== null && decoded.length === 32;
+}
+
+/** Mismo chequeo. Lo usan envío y on-ramp desde T15. */
+export function isSolanaAddress(value: string): boolean {
+  return isValidSolanaAddress(value);
 }
 
 /** Misma clave, aunque el texto traiga espacios. Si alguna no es dirección, false. */

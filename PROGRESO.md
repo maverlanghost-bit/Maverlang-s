@@ -1,9 +1,16 @@
 # PROGRESO — Maverlang
 
 ## Estado
-T17 hecha. Modo de datos: mock. Siguiente: T18.
+T18 hecha. Modo de datos: mock. Siguiente: T19.
 
 ## Tareas hechas
+
+### T18 — Librería Solana y stubs live (2026-10-05, T18: solana backend stubs)
+- Hecho: multiplicador Token-2022, comisión USDC, dirección, allowlist, conexión y sponsor. TODOs de Jupiter, cartera, Privy, Koywe y Onramper. Queries de Supabase escritas, sólo si `DATA_MODE=live`. `0001_init.sql` presente. `npx tsc --noEmit` y `npm run lint` ok. Sin `next dev`. Las funciones puras se probaron con un script local.
+- Archivos clave: `lib/solana/{scaled-ui,fee,address,allowlist,connection,sponsor}.ts`, `lib/services/{prices,trade,portfolio}.live.ts`, `users.supabase.ts`, `auth.privy.ts`, `onramp.{koywe,onramper}.ts`.
+- Decisiones: se instalaron `@solana/web3.js` 1.99 y `@solana/spl-token` 0.4.15 (stack §1; no estaban). El helper es `getScaledUiAmountConfig`. Sin literales `0n`: el target es ES2017. `connection.ts` no importa `serverEnv`, para que el cliente use sólo la URL pública. La baja live va a `audit_log`: `profiles` no tiene columna. Idioma y moneda siguen en `profiles`. USDC usa el programa clásico. Ningún componente cliente importa `serverEnv`, `sponsor` ni servicios (`onboarding/page.tsx` es de servidor). PostgREST, sin `@supabase/supabase-js`.
+- Pendiente: borrar `t18-check.ts` (queda en el disco, fuera del commit). No se corrió `next build`. En live faltan las llamadas, `@privy-io/server-auth`, orgId de Koywe y el secret de webhook de Onramper. `npm` bloqueó el install-script de `bigint-buffer`; web3.js usó el fallback JS.
+- Próximo: T19.
 
 ### T17 — Perfil y ajustes (2026-10-05, T17: perfil ajustes)
 - Hecho: `/app/perfil` con avatar, correo, país, menú y versión. Cuenta (nombre con `PATCH /api/me`, correo de sólo lectura, país, ID con copiar, solicitud de baja). Seguridad (métodos, exportar clave sin mostrarla, sesiones y 2FA en Próximamente). Notificaciones e idioma/moneda con `setPrefs` optimista. Legal con versión, fecha y links. `npx tsc --noEmit` y `npm run lint` ok. Sin `next dev`.
@@ -140,3 +147,4 @@ T17 hecha. Modo de datos: mock. Siguiente: T18.
 - Textos legales: [REVISIÓN ABOGADO].
 - Verificar mints contra xstocks.fi antes de producción.
 - Confirmar en el navegador el hero (360/768/1280), T04 (reveal, tabs, tabla), T05 (FAQ, CTA, footer, legales, bloqueado), `/dev/ui` a 360px, las rutas `/api/tickers`, `/api/prices` e historial, T08 (`/app` sin sesión, login demo, `?country=US`), T09 (wizard completo, sin saltar pasos), T10 (4 secciones a 360 y 1280, saldo y ojo), T11 (mercado a 360 y 1280), T12 (detalle a 360 y 1280; con sesión, FAKE y HOODx en 404), T13 (compra y venta a 360 y 1280; `?mockError=`), T14 (cartera a 360 y 1280; rangos, hover, asignación, ojo y vacío), T15 (billetera, recibir y enviar a 360 y 1280; dirección inválida, propia, máx. y actividad), T16 (depositar a 360 y 1280; chips, mínimo, widget, actividad y saldo) y T17 (perfil y ajustes a 360 y 1280; nombre, baja, clave, switches, idioma y tabla).
+- Borrar `t18-check.ts` (script local de T18; no va en el commit).
