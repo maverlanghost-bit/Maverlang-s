@@ -3,8 +3,11 @@ import "server-only";
 import { DomainError } from "@/lib/api/result";
 import {
   addDemoConsent,
+  demoConsents,
+  getDemoDeletion,
   getDemoPrefs,
   getDemoProfile,
+  requestDemoDeletion,
   setDemoPrefs,
   updateDemoProfile,
 } from "@/lib/mocks/demo-state";
@@ -22,6 +25,18 @@ export const mockUsers = {
 
   async addConsent(row: Consent): Promise<Consent> {
     return simulateMock(`consent:${row.userId}:${row.doc}:${row.version}`, () => addDemoConsent(row));
+  },
+
+  async listConsents(id: string): Promise<Consent[]> {
+    return simulateMock(`consents:${id}`, () => demoConsents(id));
+  },
+
+  async deletionStatus(id: string): Promise<{ requestedAt: string | null }> {
+    return simulateMock(`deletion:${id}`, () => getDemoDeletion(id));
+  },
+
+  async requestDeletion(id: string): Promise<{ requestedAt: string }> {
+    return simulateMock(`deletion-request:${id}`, () => requestDemoDeletion(id));
   },
 
   async prefs(id: string): Promise<Preferences> {

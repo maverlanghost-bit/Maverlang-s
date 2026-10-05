@@ -4,7 +4,9 @@ import {
   activityResponseSchema,
   apiResultSchema,
   balancesResponseSchema,
+  consentsResponseSchema,
   consentSchema,
+  deletionStatusSchema,
   fxRateSchema,
   historyResponseSchema,
   marketStatusSchema,
@@ -20,6 +22,7 @@ import {
   tradeSubmitResponseSchema,
   userProfileSchema,
   type ConsentRequest,
+  type DeletionStatus,
   type ProfileUpdate,
 } from "@/lib/api/contracts";
 import { httpStatusFor, type ApiErrorCode } from "@/lib/api/result";
@@ -187,6 +190,18 @@ export function updateMe(body: ProfileUpdate): Promise<UserProfile> {
 
 export function addConsent(body: ConsentRequest): Promise<Consent> {
   return send("POST", "/api/me/consents", consentSchema, body);
+}
+
+export function getConsents(): Promise<Consent[]> {
+  return request("/api/me/consents", consentsResponseSchema, { cache: "no-store" });
+}
+
+export function getDeletionStatus(): Promise<DeletionStatus> {
+  return request("/api/me/deletion", deletionStatusSchema, { cache: "no-store" });
+}
+
+export function requestDeletion(): Promise<DeletionStatus> {
+  return send("POST", "/api/me/deletion", deletionStatusSchema, {});
 }
 
 export function getPrefs(): Promise<Preferences> {

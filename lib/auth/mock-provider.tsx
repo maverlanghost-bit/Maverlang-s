@@ -11,9 +11,10 @@ import {
 } from "@/lib/auth/browser-cookies";
 import { MOCK_ONBOARDING_COOKIE, MOCK_SESSION_COOKIE } from "@/lib/auth/cookies";
 import { DEMO_SESSION_USER } from "@/lib/auth/demo-user";
+import { ExportWalletProvider, exportMockWallet } from "@/lib/auth/export-wallet";
 import { SessionProvider } from "@/lib/auth/session-context";
 import { SignerProvider, signMockTransaction } from "@/lib/auth/sign-transaction";
-import type { SessionStatus, SessionUser, SessionValue } from "@/lib/auth/types";
+import type { LinkedLogin, SessionStatus, SessionUser, SessionValue } from "@/lib/auth/types";
 
 type Snapshot = { status: SessionStatus; user: SessionUser | null };
 
@@ -47,19 +48,27 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
     router.refresh();
   }, [router]);
 
+  const linkedLogins = useMemo<LinkedLogin[]>(() => {
+    const email = snapshot.user?.email ?? null;
+    return email ? [{ method: "email", detail: email }] : [];
+  }, [snapshot.user]);
+
   const value = useMemo<SessionValue>(
     () => ({
       status: snapshot.status,
       user: snapshot.user,
       login,
       logout,
+      linkedLogins,
     }),
-    [snapshot, login, logout],
+    [snapshot, login, logout, linkedLogins],
   );
 
   return (
     <SessionProvider value={value}>
-      <SignerProvider sign={signMockTransaction}>{children}</SignerProvider>
+      <SignerProvider sign={signMockTransaction}>
+        <ExportWalletProvider exportWallet={exportMockWallet}>{children}</ExportWalletProvider>
+      </SignerProvider>
     </SessionProvider>
   );
 }

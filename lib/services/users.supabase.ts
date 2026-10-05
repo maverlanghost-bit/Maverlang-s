@@ -17,6 +17,15 @@ export const supabaseUsers = {
   async addConsent(): Promise<Consent> {
     throw new Error("NOT_IMPLEMENTED: Supabase consents");
   },
+  async listConsents(): Promise<Consent[]> {
+    throw new Error("NOT_IMPLEMENTED: Supabase consents");
+  },
+  async deletionStatus(): Promise<{ requestedAt: string | null }> {
+    throw new Error("NOT_IMPLEMENTED: Supabase profiles");
+  },
+  async requestDeletion(): Promise<{ requestedAt: string }> {
+    throw new Error("NOT_IMPLEMENTED: Supabase profiles");
+  },
   async prefs(): Promise<Preferences> {
     throw new Error("NOT_IMPLEMENTED: Supabase preferences");
   },

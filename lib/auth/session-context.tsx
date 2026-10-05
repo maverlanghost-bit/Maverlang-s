@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useMemo, type ReactNode } from "react";
 
+import { ExportWalletProvider, type ExportWallet } from "@/lib/auth/export-wallet";
 import { SignerProvider, type SignTrade } from "@/lib/auth/sign-transaction";
 import type { SessionValue } from "@/lib/auth/types";
 
@@ -12,6 +13,11 @@ const loadingSession: SessionValue = {
   user: null,
   login: async () => {},
   logout: async () => {},
+  linkedLogins: [],
+};
+
+const unavailableExport: ExportWallet = async () => {
+  throw new Error("NO_WALLET");
 };
 
 export function SessionProvider({ value, children }: { value: SessionValue; children: ReactNode }) {
@@ -27,7 +33,9 @@ export function LoadingSession({ children }: { children: ReactNode }) {
   const value = useMemo(() => loadingSession, []);
   return (
     <SessionProvider value={value}>
-      <SignerProvider sign={rejectSign}>{children}</SignerProvider>
+      <SignerProvider sign={rejectSign}>
+        <ExportWalletProvider exportWallet={unavailableExport}>{children}</ExportWalletProvider>
+      </SignerProvider>
     </SessionProvider>
   );
 }

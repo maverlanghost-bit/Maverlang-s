@@ -7,16 +7,18 @@ import {
   type User,
   type WalletWithMetadata,
 } from "@privy-io/react-auth";
+import { useExportWallet } from "@privy-io/react-auth/solana";
 import { useRouter } from "next/navigation";
-import { useMemo, type ReactNode } from "react";
+import { useCallback, useMemo, type ReactNode } from "react";
 
 import { clearClientCookie } from "@/lib/auth/browser-cookies";
 import { MOCK_ONBOARDING_COOKIE, MOCK_SESSION_COOKIE } from "@/lib/auth/cookies";
+import { ExportWalletProvider, type ExportWallet } from "@/lib/auth/export-wallet";
 import { privyAppId } from "@/lib/auth/mode";
 import { MockAuthProvider } from "@/lib/auth/mock-provider";
 import { PrivyTradeSigner } from "@/lib/auth/privy-signer";
 import { SessionProvider } from "@/lib/auth/session-context";
-import type { LoginMethod, SessionUser, SessionValue } from "@/lib/auth/types";
+import type { LinkedLogin, LoginMethod, SessionUser, SessionValue } from "@/lib/auth/types";
 
 /**
  * Nombres verificados en `@privy-io/react-auth` 3.47 (`PrivyClientConfig`):
@@ -53,6 +55,14 @@ function solanaAddress(user: User): string | null {
   return (embedded ?? wallets[0])?.address ?? null;
 }
 
+function toLinkedLogins(user: User | null): LinkedLogin[] {
+  if (!user) return [];
+  const rows: LinkedLogin[] = [];
+  if (user.email?.address) rows.push({ method: "email", detail: user.email.address });
+  if (user.google) rows.push({ method: "google", detail: user.google.email ?? user.google.name ?? null });
+  return rows;
+}
+
 function toSessionUser(user: User): SessionUser {
   return {
     id: user.id,
@@ -65,7 +75,15 @@ function toSessionUser(user: User): SessionUser {
 function PrivySession({ children }: { children: ReactNode }) {
   const router = useRouter();
   const { ready, authenticated, user, login, logout } = usePrivy();
+  const { exportWallet } = useExportWallet();
   const sessionUser = user ? toSessionUser(user) : null;
+  const linkedLogins = useMemo(() => (authenticated && user ? toLinkedLogins(user) : []), [authenticated, user]);
+  const address = sessionUser?.walletAddress ?? null;
+
+  const exportKey = useCallback<ExportWallet>(async () => {
+    await exportWallet(address ? { address } : undefined);
+    return "privy";
+  }, [address, exportWallet]);
 
   const value = useMemo<SessionValue>(() => {
     const open = (method?: LoginMethod) => {
@@ -87,12 +105,15 @@ function PrivySession({ children }: { children: ReactNode }) {
           router.refresh();
         }
       },
+      linkedLogins,
     };
-  }, [authenticated, login, logout, ready, router, sessionUser]);
+  }, [authenticated, linkedLogins, login, logout, ready, router, sessionUser]);
 
   return (
     <SessionProvider value={value}>
-      <PrivyTradeSigner>{children}</PrivyTradeSigner>
+      <PrivyTradeSigner>
+        <ExportWalletProvider exportWallet={exportKey}>{children}</ExportWalletProvider>
+      </PrivyTradeSigner>
     </SessionProvider>
   );
 }

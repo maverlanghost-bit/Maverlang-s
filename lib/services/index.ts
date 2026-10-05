@@ -70,6 +70,10 @@ export interface Services {
     get(id: string): Promise<UserProfile>;
     update(id: string, patch: Partial<UserProfile>): Promise<UserProfile>;
     addConsent(row: Consent): Promise<Consent>;
+    listConsents(id: string): Promise<Consent[]>;
+    /** La solicitud no borra la cuenta. En mock queda el instante; en live el stub no persiste. */
+    deletionStatus(id: string): Promise<{ requestedAt: string | null }>;
+    requestDeletion(id: string): Promise<{ requestedAt: string }>;
     prefs(id: string): Promise<Preferences>;
     setPrefs(id: string, prefs: Preferences): Promise<Preferences>;
   };

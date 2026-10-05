@@ -5,6 +5,8 @@ import { useQueries, useQuery } from "@tanstack/react-query";
 import {
   getActivity,
   getBalances,
+  getConsents,
+  getDeletionStatus,
   getFx,
   getHistory,
   getMarketStatus,
@@ -105,6 +107,20 @@ export function usePrefs() {
   return useQuery({
     queryKey: ["prefs"],
     queryFn: getPrefs,
+  });
+}
+
+export function useConsents() {
+  return useQuery({
+    queryKey: ["consents"],
+    queryFn: getConsents,
+  });
+}
+
+export function useDeletionStatus() {
+  return useQuery({
+    queryKey: ["deletion"],
+    queryFn: getDeletionStatus,
   });
 }
 

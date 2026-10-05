@@ -263,6 +263,15 @@ export const consentSchema = z.object({
   acceptedAt: isoTimeSchema,
 });
 
+export const consentsResponseSchema = z.array(consentSchema);
+
+/** POST /api/me/deletion. Cuerpo vacío: la sesión identifica a la persona. */
+export const deletionRequestSchema = z.object({}).strict();
+
+export const deletionStatusSchema = z.object({
+  requestedAt: isoTimeSchema.nullable(),
+});
+
 export const preferencesSchema = z
   .object({
     notifyOrders: z.boolean(),
@@ -344,6 +353,9 @@ export const apiContracts = {
   "GET /api/me": { response: userProfileSchema },
   "PATCH /api/me": { body: profileUpdateSchema, response: userProfileSchema },
   "POST /api/me/consents": { body: consentRequestSchema, response: consentSchema },
+  "GET /api/me/consents": { response: consentsResponseSchema },
+  "GET /api/me/deletion": { response: deletionStatusSchema },
+  "POST /api/me/deletion": { body: deletionRequestSchema, response: deletionStatusSchema },
   "GET /api/me/preferences": { response: preferencesSchema },
   "PUT /api/me/preferences": { body: preferencesSchema, response: preferencesSchema },
   "GET /api/geo": { response: geoResponseSchema },
@@ -351,6 +363,7 @@ export const apiContracts = {
 
 export type ProfileUpdate = z.infer<typeof profileUpdateSchema>;
 export type ConsentRequest = z.infer<typeof consentRequestSchema>;
+export type DeletionStatus = z.infer<typeof deletionStatusSchema>;
 export type GeoStatus = z.infer<typeof geoResponseSchema>;
 
 export function zodErrorMessage(error: z.ZodError): string {

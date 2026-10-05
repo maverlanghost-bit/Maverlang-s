@@ -1,9 +1,16 @@
 # PROGRESO — Maverlang
 
 ## Estado
-T16 hecha. Modo de datos: mock. Siguiente: T17.
+T17 hecha. Modo de datos: mock. Siguiente: T18.
 
 ## Tareas hechas
+
+### T17 — Perfil y ajustes (2026-10-05, T17: perfil ajustes)
+- Hecho: `/app/perfil` con avatar, correo, país, menú y versión. Cuenta (nombre con `PATCH /api/me`, correo de sólo lectura, país, ID con copiar, solicitud de baja). Seguridad (métodos, exportar clave sin mostrarla, sesiones y 2FA en Próximamente). Notificaciones e idioma/moneda con `setPrefs` optimista. Legal con versión, fecha y links. `npx tsc --noEmit` y `npm run lint` ok. Sin `next dev`.
+- Archivos clave: `app/(platform)/app/perfil/**`, `lib/auth/export-wallet.ts`, `lib/hooks/use-update-prefs.ts`, `app/api/me/{consents,deletion}`, `lib/mocks/demo-state.ts`, `content/i18n/{es-CL,en}.ts`.
+- Decisiones: subrutas de §2.2. `GET /api/me/consents` y `POST /api/me/deletion` no están en §2.4: la tabla y la baja los necesitan. La baja mock guarda la fecha y no mueve saldos ni borra la cuenta. La clave sale por adaptador: mock no tiene clave; live usa `useExportWallet` de Privy y esta app no la recibe. Privy 3.47 no lista sesiones y el alta de 2FA no está cableada: ambas dicen Próximamente. Idioma y moneda cambian al instante el `/app` que usa `useT`. Landing, `/ayuda`, ingresar y onboarding siguen en español. La versión sale de `package.json`.
+- Pendiente: mirar `/app/perfil` y las cinco pantallas a 360 y 1280 (nombre, copiar ID, diálogo de baja, exportar clave, switches, idioma y tabla). En live, baja y consentimientos siguen en el stub de Supabase.
+- Próximo: T18.
 
 ### T16 — Depositar pesos (2026-10-05, T16: deposito onramp)
 - Hecho: `/app/billetera/depositar` con Con pesos y Con USDC. Monto CLP, chips, mínimo, estimado y costo desde `createOnrampSession`. Continuar con Koywe abre el diálogo mock (pago → procesando → USDC acreditado); Otros métodos usa Onramper. Al pagar, el webhook mock suma USDC, deja un Depósito en la actividad, refresca saldos y muestra toast. `npx tsc --noEmit` y `npm run lint` ok. Sin `next dev`.
@@ -132,4 +139,4 @@ T16 hecha. Modo de datos: mock. Siguiente: T17.
 - Ubicación definitiva del repo (OneDrive vs C:\dev).
 - Textos legales: [REVISIÓN ABOGADO].
 - Verificar mints contra xstocks.fi antes de producción.
-- Confirmar en el navegador el hero (360/768/1280), T04 (reveal, tabs, tabla), T05 (FAQ, CTA, footer, legales, bloqueado), `/dev/ui` a 360px, las rutas `/api/tickers`, `/api/prices` e historial, T08 (`/app` sin sesión, login demo, `?country=US`), T09 (wizard completo, sin saltar pasos), T10 (4 secciones a 360 y 1280, saldo y ojo), T11 (mercado a 360 y 1280), T12 (detalle a 360 y 1280; con sesión, FAKE y HOODx en 404), T13 (compra y venta a 360 y 1280; `?mockError=`), T14 (cartera a 360 y 1280; rangos, hover, asignación, ojo y vacío), T15 (billetera, recibir y enviar a 360 y 1280; dirección inválida, propia, máx. y actividad) y T16 (depositar a 360 y 1280; chips, mínimo, widget, actividad y saldo).
+- Confirmar en el navegador el hero (360/768/1280), T04 (reveal, tabs, tabla), T05 (FAQ, CTA, footer, legales, bloqueado), `/dev/ui` a 360px, las rutas `/api/tickers`, `/api/prices` e historial, T08 (`/app` sin sesión, login demo, `?country=US`), T09 (wizard completo, sin saltar pasos), T10 (4 secciones a 360 y 1280, saldo y ojo), T11 (mercado a 360 y 1280), T12 (detalle a 360 y 1280; con sesión, FAKE y HOODx en 404), T13 (compra y venta a 360 y 1280; `?mockError=`), T14 (cartera a 360 y 1280; rangos, hover, asignación, ojo y vacío), T15 (billetera, recibir y enviar a 360 y 1280; dirección inválida, propia, máx. y actividad), T16 (depositar a 360 y 1280; chips, mínimo, widget, actividad y saldo) y T17 (perfil y ajustes a 360 y 1280; nombre, baja, clave, switches, idioma y tabla).

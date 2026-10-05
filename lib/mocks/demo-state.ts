@@ -86,6 +86,8 @@ type DemoState = {
   profile: UserProfile;
   prefs: Preferences;
   consents: Consent[];
+  /** ISO de la solicitud. Null si la persona no pidió borrar la cuenta. No borra nada. */
+  deletionRequestedAt: string | null;
   quotes: Map<string, StoredQuote>;
   builds: Map<string, StoredBuild>;
   sends: Map<string, StoredSend>;
@@ -182,6 +184,7 @@ function createState(): DemoState {
       consent("privacidad", serverEnv.PRIVACY_VERSION),
       consent("riesgos", serverEnv.RISKS_VERSION),
     ],
+    deletionRequestedAt: null,
     quotes: new Map(),
     builds: new Map(),
     sends: new Map(),
@@ -260,6 +263,18 @@ export function addDemoConsent(consentRow: Consent): Consent {
 export function demoConsents(userId: string): Consent[] {
   if (userId !== state.profile.id) throw new DomainError("NOT_FOUND", "No encontramos esa cuenta.");
   return state.consents.map((row) => ({ ...row }));
+}
+
+export function getDemoDeletion(id: string): { requestedAt: string | null } {
+  if (id !== state.profile.id) throw new DomainError("NOT_FOUND", "No encontramos esa cuenta.");
+  return { requestedAt: state.deletionRequestedAt };
+}
+
+/** Registra la solicitud una vez. No borra la cuenta ni mueve los activos. */
+export function requestDemoDeletion(id: string): { requestedAt: string } {
+  if (id !== state.profile.id) throw new DomainError("NOT_FOUND", "No encontramos esa cuenta.");
+  if (!state.deletionRequestedAt) state.deletionRequestedAt = new Date().toISOString();
+  return { requestedAt: state.deletionRequestedAt };
 }
 
 function positionFrom(symbol: string, lot: Lot, totalUsd: number): Position {
