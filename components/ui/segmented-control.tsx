@@ -12,12 +12,15 @@ export function SegmentedControl({
   value,
   onChange,
   fullWidth = false,
+  toggle = false,
 }: {
   label: string;
   options: SegmentOption[];
   value: string;
   onChange: (value: string) => void;
   fullWidth?: boolean;
+  /** Botones con aria-pressed. Sin esto sigue siendo un grupo de radio. */
+  toggle?: boolean;
 }) {
   const baseId = useId();
   const enabled = options.filter((option) => !option.disabled);
@@ -34,7 +37,7 @@ export function SegmentedControl({
 
   return (
     <div
-      role="radiogroup"
+      role={toggle ? "group" : "radiogroup"}
       aria-label={label}
       className={cn("inline-flex max-w-full rounded-full bg-surface-2 p-1", fullWidth && "flex w-full")}
       onKeyDown={(event) => {
@@ -50,13 +53,14 @@ export function SegmentedControl({
             key={option.value}
             id={`${baseId}-${option.value}`}
             type="button"
-            role="radio"
-            aria-checked={selected}
+            role={toggle ? undefined : "radio"}
+            aria-pressed={toggle ? selected : undefined}
+            aria-checked={toggle ? undefined : selected}
             disabled={option.disabled}
-            tabIndex={selected ? 0 : -1}
+            tabIndex={toggle || selected ? 0 : -1}
             onClick={() => onChange(option.value)}
             className={cn(
-              "min-h-11 rounded-full px-3 text-sm transition duration-[140ms] ease-spring active:scale-[0.98]",
+              "min-h-11 rounded-full px-3 text-sm transition duration-[140ms] ease-spring outline-none active:scale-[0.98] focus-visible:relative focus-visible:z-10 focus-visible:ring-4 focus-visible:ring-fg/20",
               fullWidth && "min-w-0 flex-1 px-1 sm:px-3",
               selected ? "bg-surface-3 text-fg" : "text-fg-muted hover:text-fg",
             )}

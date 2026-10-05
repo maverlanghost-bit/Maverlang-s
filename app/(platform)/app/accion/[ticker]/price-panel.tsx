@@ -8,11 +8,14 @@ import { PriceText } from "@/components/domain/price-text";
 import { ErrorState } from "@/components/ui/error-state";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { Skeleton } from "@/components/ui/skeleton";
+import { formatDateTime } from "@/lib/format";
 import { useHistory } from "@/lib/hooks/queries";
 import { useT } from "@/lib/hooks/use-t";
 import { displayPrice } from "@/lib/market/browse";
 import { DETAIL_RANGES, isDetailRange, rangeMove, toneOf } from "@/lib/market/series";
-import type { Currency, Quote, Range } from "@/lib/types";
+import type { Currency, PricePoint, Quote, Range } from "@/lib/types";
+
+const NO_POINTS: readonly PricePoint[] = [];
 
 function fill(template: string, values: Record<string, string>) {
   let next = template;
@@ -45,19 +48,19 @@ export function PricePanel({
 }) {
   const { t } = useT();
   const history = useHistory(symbol, range);
-  const points = history.data ?? [];
+  const points = history.data ?? NO_POINTS;
   const move = rangeMove(points);
   const tone = toneOf(move);
   const seriesKey = `${range}:${points.length}:${points[0]?.t ?? 0}:${points[points.length - 1]?.p ?? 0}`;
-  const [hover, setHover] = useState<{ key: string; usd: number } | null>(null);
-  const hoverUsd = hover && hover.key === seriesKey ? hover.usd : null;
+  const [hover, setHover] = useState<{ key: string; usd: number; timeMs: number } | null>(null);
+  const point = hover && hover.key === seriesKey ? hover : null;
 
   const onHover = useCallback(
-    (usd: number | null) => {
+    (usd: number | null, timeMs?: number | null) => {
       setHover((current) => {
-        if (usd === null) return current === null ? current : null;
-        if (current && current.key === seriesKey && current.usd === usd) return current;
-        return { key: seriesKey, usd };
+        if (usd === null || timeMs == null || !Number.isFinite(timeMs)) return current === null ? current : null;
+        if (current && current.key === seriesKey && current.usd === usd && current.timeMs === timeMs) return current;
+        return { key: seriesKey, usd, timeMs };
       });
     },
     [seriesKey],
@@ -66,9 +69,10 @@ export function PricePanel({
   const fxKnown = typeof rate === "number" && Number.isFinite(rate) && rate > 0;
   const waitingFx = currency === "CLP" && !fxKnown && fxPending;
   const priceCurrency = currency === "CLP" && fxKnown ? "CLP" : "USD";
-  const usd = hoverUsd ?? quote?.priceUsd ?? null;
+  const usd = point?.usd ?? quote?.priceUsd ?? null;
   const shown = usd === null || waitingFx ? null : displayPrice(usd, priceCurrency, rate);
   const showFxNote = Boolean(quote) && currency === "CLP" && !fxKnown && !fxPending;
+  const pointIso = point ? new Date(point.timeMs).toISOString() : null;
 
   const rangeOptions = DETAIL_RANGES.map((value) => ({ value, label: t.detail.rangeShort[value] }));
 
@@ -87,8 +91,7 @@ export function PricePanel({
   } else {
     priceNode = (
       <div className="flex flex-col gap-2">
-        <PriceText value={shown} currency={priceCurrency} size="lg" live={hoverUsd === null} />
-        {hoverUsd !== null ? <p className="text-sm text-fg-muted">{t.detail.onChart}</p> : null}
+        <PriceText value={shown} currency={priceCurrency} size="lg" live={point === null} />
         {showFxNote ? <p className="text-sm text-fg-muted">{t.detail.fxFallback}</p> : null}
       </div>
     );
@@ -98,18 +101,26 @@ export function PricePanel({
     <section className="flex flex-col gap-4" data-range={range} data-points={points.length}>
       {priceNode}
 
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex h-7 min-w-0 items-center gap-2 overflow-hidden">
         {history.isPending ? (
-          <Skeleton className="h-6 w-16 rounded-full" />
+          <Skeleton className="h-6 w-16 shrink-0 rounded-full" />
+        ) : pointIso ? (
+          <p className="num min-w-0 truncate text-sm text-fg-muted">
+            <span className="sr-only">{t.detail.onChart}. </span>
+            <time dateTime={pointIso}>{formatDateTime(pointIso)}</time>
+          </p>
         ) : move === null ? (
           <span className="num text-sm text-fg-muted">—</span>
         ) : (
-          <ChangeBadge value={move} />
+          <>
+            <ChangeBadge value={move} />
+            <span className="min-w-0 truncate text-sm text-fg-muted">{t.detail.rangeCaption[range]}</span>
+          </>
         )}
-        <span className="text-sm text-fg-muted">{t.detail.rangeCaption[range]}</span>
       </div>
 
       <SegmentedControl
+        toggle
         label={t.detail.rangesLabel}
         options={rangeOptions}
         value={range}
@@ -119,30 +130,35 @@ export function PricePanel({
         }}
       />
 
-      {history.isPending ? (
-        <div role="status" aria-live="polite" aria-busy="true">
-          <span className="sr-only">{t.states.loading}</span>
-          <Skeleton className="h-56 w-full rounded-xl lg:h-72" />
-        </div>
-      ) : history.isError ? (
-        <ErrorState
-          title={t.detail.chartError}
-          label={t.states.error}
-          retryLabel={t.states.retry}
-          onRetry={() => {
-            void history.refetch();
-          }}
-        />
-      ) : (
+      <div className="relative">
         <PriceChart
           points={points}
           tone={tone}
+          quiet={history.isPending || history.isError}
           label={fill(t.detail.chartLabel, { name, range: t.detail.rangeCaption[range] })}
           emptyLabel={t.detail.chartEmpty}
           errorLabel={t.detail.chartLibError}
           onHover={onHover}
         />
-      )}
+        {history.isPending ? (
+          <div className="absolute inset-0 z-10 bg-bg" role="status" aria-live="polite" aria-busy="true">
+            <span className="sr-only">{t.states.loading}</span>
+            <Skeleton className="size-full rounded-xl" />
+          </div>
+        ) : null}
+        {history.isError ? (
+          <div className="absolute inset-0 z-10 overflow-y-auto bg-bg">
+            <ErrorState
+              title={t.detail.chartError}
+              label={t.states.error}
+              retryLabel={t.states.retry}
+              onRetry={() => {
+                void history.refetch();
+              }}
+            />
+          </div>
+        ) : null}
+      </div>
     </section>
   );
 }

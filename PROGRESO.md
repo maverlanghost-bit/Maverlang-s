@@ -1,9 +1,16 @@
 # PROGRESO — Maverlang
 
 ## Estado
-M23 hecha. El detalle muestra monograma, chips y cifras del historial. Modo mock. Siguiente: M24 (fuera de esta tarea).
+M24 hecha. El gráfico se crea una vez; el crosshair muestra precio y hora. Modo mock. Siguiente: M25 (fuera de esta tarea).
 
 ## Tareas hechas
+
+### M24 — Gráfico UX: crosshair y sin recrear (2026-10-05, M24: grafico UX crosshair y sin recrear chart)
+- Hecho: lightweight-charts se crea al montar y se destruye al salir. El rango hace `setData` y `fitContent`; el color (sube, baja o plano) entra con `applyOptions`. `autoSize` redimensiona. Crosshair en imán, líneas punteadas. Cursor o arrastre horizontal: precio y fecha es-CL (`formatDateTime`); al salir, último precio y variación del rango. Rangos con `aria-pressed` y foco visible. La caja no cambia de alto: skeleton encima mientras carga. El arrastre vertical sigue siendo de la página. `npx tsc --noEmit` y `npm run lint` ok. Sin `next dev`.
+- Archivos clave: `components/domain/price-chart.tsx`, `app/(platform)/app/accion/[ticker]/price-panel.tsx`, `components/ui/segmented-control.tsx`.
+- Decisiones: no hay rango 1D; siguen 1S, 1M, 3M, 1A y Todo. La hora usa `lib/format.ts` (America/Santiago). Sólo un gesto claramente horizontal elige un punto; si no, la página se desplaza. Al soltar el dedo vuelve el precio. No se tocó la barra, los chips, `?operar=vender` ni la cartera. Datos mock.
+- Pendiente: mirar `/app/accion/AAPLx` a 360 y en escritorio (crosshair, rangos, scroll vertical, skeleton, barra y `?operar=vender`).
+- Próximo: M25.
 
 ### M23 — Detalle premium: logos, chips y stats (2026-10-05, M23: detalle premium logos chips y stats)
 - Hecho: si no hay archivo en `public/logos`, monograma circular (símbolo sin la "x", color estable, borde). Header 56px; filas 36px. Chips: categoría, "Token en Solana" y horario (abierto o mercado ampliado, con la nota del API). Grilla 2 columnas en celular y 3 en escritorio: precio USD y CLP, variación 24 h, variación, máximo y mínimo del rango. Mint con copiar y Solscan. Emisor y aviso de congelamiento, con link a riesgos. `npx tsc --noEmit` y `npm run lint` ok. Sin `next dev`.
