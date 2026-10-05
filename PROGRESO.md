@@ -1,9 +1,16 @@
 # PROGRESO — Maverlang
 
 ## Estado
-T04 hecha. Modo de datos: mock. Siguiente: T05.
+T05 hecha. Modo de datos: mock. Siguiente: T06.
 
 ## Tareas hechas
+
+### T05 — Landing C (2026-10-05, T05: landing legal y SEO)
+- Hecho: FAQ (6 en `/`, 8 en `/ayuda`), FinalCTA, SiteFooter, `/legal/[doc]` desde markdown, `/bloqueado`, metadata, OG, robots, sitemap e iconos. `npx tsc --noEmit`, `npm run lint` y `npm run build` ok (rutas estáticas). Sin `next dev`.
+- Archivos clave: `components/landing/{faq,final-cta,site-footer,legal-document}.tsx`, `lib/content/{faq,legal}.ts`, `content/legal/*.md`, `app/{layout,robots,sitemap,icon,apple-icon,opengraph-image,twitter-image}.tsx`, `app/bloqueado/page.tsx`, `app/(marketing)/{layout,page,ayuda,legal}`.
+- Decisiones: sin dependencia nueva; el servidor parsea el md y reemplaza `{{brand}}` por `site.name`. Banner en la página. Comisión 0% como T04; dividendo y emisor [VERIFICAR]; no se afirma autorización de la CMF. Retiro a banco sin plazo prometido. `dynamicParams = false`. robots niega `/app`, `/api`, `/dev`, `/bloqueado`. `favicon.ico` reescrito (punto naranja), más `icon.tsx`.
+- Pendiente: mirar `/`, `/ayuda`, `/legal/*` y `/bloqueado` a 360/768/1280. El paso 3 dice «es tuya» y la FAQ dice que no eres accionista. Correo de soporte vacío.
+- Próximo: T06.
 
 ### T04 — Landing B (2026-10-05, T04: landing secciones)
 - Hecho: HowItWorks, ProductMock, FeatureGrid, CostsSection, SecuritySection y `useReveal`. `npx tsc --noEmit` y `npm run lint` ok. Sin servidor.
@@ -42,4 +49,4 @@ T04 hecha. Modo de datos: mock. Siguiente: T05.
 - Ubicación definitiva del repo (OneDrive vs C:\dev).
 - Textos legales: [REVISIÓN ABOGADO].
 - Verificar mints contra xstocks.fi antes de producción.
-- Confirmar en el navegador el hero a 360/768/1280 (blur del header y marquee), las secciones de T04 (reveal, tabs, tabla) y que `/dev/ui` se ve bien a 360px.
+- Confirmar en el navegador el hero (360/768/1280), T04 (reveal, tabs, tabla), T05 (FAQ, CTA, footer, legales, bloqueado) y `/dev/ui` a 360px.

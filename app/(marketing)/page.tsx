@@ -1,5 +1,7 @@
 import { CostsSection } from "@/components/landing/costs-section";
+import { FaqSection } from "@/components/landing/faq";
 import { FeatureGrid } from "@/components/landing/feature-grid";
+import { FinalCTA } from "@/components/landing/final-cta";
 import { Hero } from "@/components/landing/hero";
 import { HowItWorks } from "@/components/landing/how-it-works";
 import { ProductMock } from "@/components/landing/product-mock";
@@ -16,6 +18,8 @@ export default function HomePage() {
       <FeatureGrid />
       <CostsSection />
       <SecuritySection />
+      <FaqSection />
+      <FinalCTA />
     </main>
   );
 }
