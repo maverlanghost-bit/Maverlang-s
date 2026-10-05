@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { GeistMono } from "geist/font/mono";
 import { GeistSans } from "geist/font/sans";
 import { site, siteOrigin } from "@/config/site";
+import { Providers } from "./providers";
 import "./globals.css";
 
 const origin = siteOrigin();
@@ -39,7 +40,9 @@ export default function RootLayout({
       lang="es-CL"
       className={`${GeistSans.variable} ${GeistMono.variable}`}
     >
-      <body>{children}</body>
+      <body>
+        <Providers>{children}</Providers>
+      </body>
     </html>
   );
 }
