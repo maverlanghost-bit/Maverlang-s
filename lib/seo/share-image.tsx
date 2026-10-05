@@ -42,11 +42,11 @@ export function ShareImage() {
           maxWidth: 980,
         }}
       >
-        Acciones de EE.UU. desde $1.000
+        Acciones de EE.UU. tokenizadas, en tu billetera
       </div>
       <div style={{ display: "flex", flexDirection: "column" }}>
         <div style={{ display: "flex", fontSize: 28, color: "#252525" }}>
-          Fracciones tokenizadas, pagando con pesos.
+          Fracciones desde $1.000, en Solana, pagando con pesos.
         </div>
         <div style={{ display: "flex", fontSize: 24, color: "#6c6f75", marginTop: 12 }}>
           No otorgan derechos de accionista.

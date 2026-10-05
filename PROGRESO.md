@@ -1,9 +1,16 @@
 # PROGRESO — Maverlang
 
 ## Estado
-T20 hecha. Modo de datos: mock. Lint, typecheck, build, unitarios y e2e en verde. Siguiente: fase live (fuera de este paquete).
+M21 hecha. Hero vende tokenización, billetera propia y mercado ampliado. Modo mock. Siguiente: fase live (fuera de este paquete).
 
 ## Tareas hechas
+
+### M21 — Copy del hero (2026-10-05, M21: hero copy tokenizacion y mercado ampliado)
+- Hecho: H1 "Acciones de EE.UU. tokenizadas, en tu billetera"; subtítulo con fracciones desde $1.000, Solana, pesos y "casi a cualquier hora". Pill: token en billetera → `#como-funciona`. Tres chips bajo los CTAs. FeatureGrid #1 suma token y horario ampliado. OG alineado. `npx tsc --noEmit` y `npm run lint` ok. Sin `next dev`.
+- Archivos clave: `components/landing/{hero,announcement-pill,feature-grid}.tsx`, `components/ui/icons.tsx`, `lib/seo/share-image.tsx`, `e2e/smoke.spec.ts`.
+- Decisiones: 1 variante activa; 2 ALTERNATIVA en comentarios. No se dice 24/7 ni CMF ni accionista registrado. El chip del medio usa "wallet" como pide la tarea; el resto dice "billetera". i18n no se tocó: la landing no sale de ahí. Comisión 0% sigue en costos.
+- Pendiente: mirar `/` a 360/768/1280 (H1, wrap de chips, pill). El smoke no se corrió aquí.
+- Próximo: fase live, fuera de este paquete.
 
 ### T20 — Verificación final (2026-10-05, T20: verificacion final)
 - Hecho: `npm run lint`, `npm run typecheck`, `npm run build`, `npm test` (12) y `npm run e2e` en verde. Vitest cubre format, scaled-ui (newMultiplier con timestamp pasado y futuro), fee (0 bps no arma instrucción), allowlist (mint falso rechazado) y zod (request inválido → VALIDATION). El smoke mock recorre landing, `/app` sin sesión → ingresar, login, onboarding, mercado, AAPL, compra, cartera, dirección inválida bloqueada e idioma en inglés.

@@ -10,7 +10,7 @@ const features: { title: string; body: string; visual: ReactNode }[] = [
   {
     // Piso de producto, el mismo del hero. No es una cifra de mercado.
     title: "Fracciones desde $1.000",
-    body: "Puedes comprar una parte de la acción, no el papel entero.",
+    body: "Puedes comprar una parte de la acción, no el papel entero. El token queda en tu billetera y operas casi a cualquier hora.",
     visual: <PriceText value={1000} currency="CLP" size="md" />,
   },
   {

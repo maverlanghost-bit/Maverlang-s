@@ -2,7 +2,9 @@ import { expect, test } from "@playwright/test";
 
 test("smoke con datos mock", async ({ page }) => {
   await page.goto("/");
-  await expect(page.getByRole("heading", { level: 1, name: "Acciones de EE.UU. desde $1.000" })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { level: 1, name: "Acciones de EE.UU. tokenizadas, en tu billetera" }),
+  ).toBeVisible();
 
   await page.goto("/app");
   await expect(page).toHaveURL(/\/app\/ingresar/);

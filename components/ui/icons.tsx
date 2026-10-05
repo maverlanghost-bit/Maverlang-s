@@ -140,6 +140,35 @@ export function IconShare(props: IconProps) {
   );
 }
 
+export function IconClock(props: IconProps) {
+  return (
+    <svg viewBox="0 0 16 16" fill="none" {...base(props)}>
+      <circle cx="8" cy="8" r="5.5" stroke="currentColor" strokeWidth="1.5" />
+      <path
+        d="M8 5.2v3.1l2.2 1.4"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+export function IconGlobe(props: IconProps) {
+  return (
+    <svg viewBox="0 0 16 16" fill="none" {...base(props)}>
+      <circle cx="8" cy="8" r="5.5" stroke="currentColor" strokeWidth="1.5" />
+      <path d="M2.5 8h11" stroke="currentColor" strokeWidth="1.5" />
+      <path
+        d="M8 2.5c1.7 1.8 2.5 3.6 2.5 5.5S9.7 11.7 8 13.5C6.3 11.7 5.5 9.9 5.5 8S6.3 4.3 8 2.5Z"
+        stroke="currentColor"
+        strokeWidth="1.5"
+      />
+    </svg>
+  );
+}
+
 export function IconArrow({ direction = "up", ...props }: IconProps & { direction?: "up" | "down" | "flat" }) {
   const rotate = direction === "down" ? "rotate-180" : direction === "flat" ? "rotate-90" : "";
   return (
