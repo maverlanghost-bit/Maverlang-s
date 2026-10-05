@@ -345,8 +345,12 @@ function TradeFlow({ side, ticker }: { side: Side; ticker: Ticker }) {
     );
   }
 
-  if (side === "sell" && shares <= 0) {
-    return <p className="text-sm leading-relaxed text-fg-body">{t.detail.tradeNoPosition}</p>;
+  if (side === "sell" && !(shares > 0)) {
+    return (
+      <p className="text-sm leading-relaxed text-fg-body">
+        {fill(t.detail.tradeNoPosition, { symbol: ticker.symbol })}
+      </p>
+    );
   }
 
   if (phase === "signing" || phase === "submitting") {

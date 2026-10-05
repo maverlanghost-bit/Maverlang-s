@@ -30,7 +30,7 @@ function SyncToastOffset() {
     const apply = () => {
       root.style.setProperty(
         "--app-chrome-bottom",
-        query.matches ? "0px" : "calc(4rem + env(safe-area-inset-bottom) + var(--app-detail-cta, 0px))",
+        query.matches ? "0px" : "calc(var(--app-tabs-height) + var(--app-detail-cta))",
       );
     };
     apply();
@@ -64,7 +64,7 @@ function ShellFrame({ children }: { children: ReactNode }) {
             <main id="contenido" tabIndex={-1} className="flex-1 scroll-mt-16 outline-none">
               {children}
             </main>
-            <footer className="pb-[calc(4rem+env(safe-area-inset-bottom)+1.5rem+var(--app-detail-cta,0px))] pt-10 lg:pb-8">
+            <footer className="pb-[calc(var(--app-tabs-height)+1rem+var(--app-detail-cta))] pt-10 lg:pb-8">
               <p className="border-t border-border pt-4 text-sm leading-relaxed text-fg-muted">{t.disclaimer}</p>
             </footer>
           </div>

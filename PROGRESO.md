@@ -1,9 +1,16 @@
 # PROGRESO — Maverlang
 
 ## Estado
-M21 hecha. Hero vende tokenización, billetera propia y mercado ampliado. Modo mock. Siguiente: fase live (fuera de este paquete).
+M22 hecha. En el celular la barra de compra no tapa el detalle y Vender se abre por link. Modo mock. Siguiente: M23 (fuera de esta tarea).
 
 ## Tareas hechas
+
+### M22 — Detalle en celular: padding del CTA y deep-link de vender (2026-10-05, M22: detalle mobile padding CTA y deep-link vender)
+- Hecho: la barra queda sobre las tabs, con safe-area, sin solaparse. El scroll reserva el alto medido de las tabs (ya incluye el safe-area) + el alto real del CTA + 16px. `--app-detail-cta` usa ese alto y se borra al salir. Botones de la barra: mínimo 44px, padding 16–20px, gap y texto entero a 360px. `?operar=vender|comprar` abre la hoja al cargar; atrás la cierra; cerrar quita el parámetro sin recarga. En la cartera, cada posición con saldo tiene Vender hacia `/app/accion/XXX?operar=vender`, fuera del enlace de la fila. Sin saldo, la hoja dice «No tienes XXX para vender». `npx tsc --noEmit` y `npm run lint` ok. Sin `next dev`.
+- Archivos clave: `app/(platform)/app/accion/[ticker]/detail-screen.tsx`, `components/app-shell/{app-shell,bottom-tabs}.tsx`, `app/globals.css`, `app/(platform)/app/cartera/portfolio-screen.tsx`, `components/domain/{position-row,trade-sheet}.tsx`, `content/i18n/{es-CL,en}.ts`.
+- Decisiones: no se suma el safe-area dos veces. El respiro móvil del shell pasa de 24px a 16px. Desde `lg` la card lateral no cambia. Abrir desde el botón hace `pushState`; cerrar un deep link hace `replaceState` (no `router.replace`, para no refetch).
+- Pendiente: mirar `/app/accion/AAPLx` y `/app/cartera` a 360–430 (barra, scroll hasta el aviso, Vender, `?operar=vender` con y sin saldo, atrás y cerrar). Escritorio no se recorrió aquí.
+- Próximo: M23.
 
 ### M21 — Copy del hero (2026-10-05, M21: hero copy tokenizacion y mercado ampliado)
 - Hecho: H1 "Acciones de EE.UU. tokenizadas, en tu billetera"; subtítulo con fracciones desde $1.000, Solana, pesos y "casi a cualquier hora". Pill: token en billetera → `#como-funciona`. Tres chips bajo los CTAs. FeatureGrid #1 suma token y horario ampliado. OG alineado. `npx tsc --noEmit` y `npm run lint` ok. Sin `next dev`.

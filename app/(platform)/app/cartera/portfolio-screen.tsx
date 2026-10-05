@@ -50,6 +50,10 @@ function tickerHref(symbol: string) {
   return `/app/accion/${encodeURIComponent(symbol)}`;
 }
 
+function sellHref(symbol: string) {
+  return `/app/accion/${encodeURIComponent(symbol)}?operar=vender`;
+}
+
 function explorerTxUrl(signature: string) {
   return `https://solscan.io/tx/${encodeURIComponent(signature)}`;
 }
@@ -345,6 +349,20 @@ export function PortfolioScreen() {
                         hidden={masked}
                         hiddenLabel={t.shell.balanceHidden}
                         pending={pendingFx}
+                        action={
+                          position.shares > 0 ? (
+                            <div className="flex shrink-0 justify-end px-2 pb-2 sm:items-center sm:px-1 sm:pb-0">
+                              <Button asChild variant="secondary" size="sm" className="min-h-11 whitespace-nowrap px-4">
+                                <Link
+                                  href={sellHref(position.symbol)}
+                                  aria-label={fill(t.detail.tradeSell, { name: ticker?.name ?? position.symbol })}
+                                >
+                                  {t.detail.sell}
+                                </Link>
+                              </Button>
+                            </div>
+                          ) : null
+                        }
                       />
                     </li>
                   );

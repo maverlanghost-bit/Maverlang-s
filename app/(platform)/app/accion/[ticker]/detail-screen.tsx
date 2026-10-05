@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, type RefObject } from "react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 
 import { ChangeBadge } from "@/components/domain/change-badge";
 import { FavoriteButton } from "@/components/domain/favorite-button";
@@ -39,21 +39,34 @@ function solscanMintUrl(mint: string) {
   return `https://solscan.io/token/${encodeURIComponent(mint)}`;
 }
 
-/** Reserva sitio para la barra fija, encima de las tabs. En ≥lg la card va al costado. */
-function useDetailCtaOffset() {
+/** Reserva el alto real de la barra. En ≥lg queda en 0. Al salir de la página se limpia. */
+function useDetailCtaOffset(active: boolean, ref: RefObject<HTMLDivElement | null>) {
   useEffect(() => {
+    if (!active) return;
     const root = document.documentElement;
     const query = window.matchMedia("(min-width: 1024px)");
     const apply = () => {
-      root.style.setProperty("--app-detail-cta", query.matches ? "0px" : "4.75rem");
+      if (query.matches) {
+        root.style.setProperty("--app-detail-cta", "0px");
+        return;
+      }
+      const bar = ref.current;
+      if (!bar) return;
+      const height = bar.getBoundingClientRect().height;
+      if (height <= 0) return;
+      root.style.setProperty("--app-detail-cta", `${height}px`);
     };
     apply();
+    const bar = ref.current;
+    const observer = new ResizeObserver(apply);
+    if (bar) observer.observe(bar);
     query.addEventListener("change", apply);
     return () => {
+      observer.disconnect();
       query.removeEventListener("change", apply);
       root.style.removeProperty("--app-detail-cta");
     };
-  }, []);
+  }, [active, ref]);
 }
 
 function ShareButton({ name }: { name: string }) {
@@ -173,16 +186,18 @@ function TradeActions({
   const { t } = useT();
   const hintId = variant === "bar" ? "sell-hint-bar" : "sell-hint-card";
   const wide = variant === "card";
+  const barRef = useRef<HTMLDivElement>(null);
+  useDetailCtaOffset(variant === "bar", barRef);
 
   const buttons = (
     <div className={wide ? "flex flex-col gap-3" : "flex gap-3"}>
-      <Button size="lg" className={wide ? "w-full" : "min-w-0 flex-1"} onClick={onBuy}>
+      <Button size="lg" className={wide ? "w-full" : "h-auto min-h-11 flex-1 whitespace-nowrap px-4 text-base md:h-auto md:px-5"} onClick={onBuy}>
         {t.detail.buy}
       </Button>
       <Button
         size="lg"
         variant="secondary"
-        className={wide ? "w-full" : "min-w-0 flex-1"}
+        className={wide ? "w-full" : "h-auto min-h-11 flex-1 whitespace-nowrap px-4 text-base md:h-auto md:px-5"}
         disabled={!canSell}
         aria-describedby={canSell ? undefined : hintId}
         onClick={() => {
@@ -197,8 +212,9 @@ function TradeActions({
   if (variant === "bar") {
     return (
       <div
-        className="fixed inset-x-0 z-20 border-t border-border bg-bg px-5 py-3 lg:hidden"
-        style={{ bottom: "calc(4rem + env(safe-area-inset-bottom))" }}
+        ref={barRef}
+        className="fixed inset-x-0 z-20 border-t border-border bg-bg px-4 py-3 min-[400px]:px-5 lg:hidden"
+        style={{ bottom: "var(--app-tabs-height)" }}
       >
         <div className="mx-auto max-w-6xl">
           {buttons}
@@ -235,17 +251,19 @@ export function DetailScreen({
   initialOperar: string;
 }) {
   const { t, language, currency } = useT();
-  const router = useRouter();
   const pathname = usePathname();
   const prices = usePrices([ticker.symbol]);
   const fx = useFx();
   const portfolio = usePortfolio();
   const { symbols, toggle } = useFavorites();
   const [operar, setOperar] = useState(() => parseOperar(initialOperar));
-  useDetailCtaOffset();
+  const pushed = useRef(false);
 
   useEffect(() => {
-    const onPop = () => setOperar(parseOperar(new URLSearchParams(window.location.search).get("operar") ?? ""));
+    const onPop = () => {
+      pushed.current = false;
+      setOperar(parseOperar(new URLSearchParams(window.location.search).get("operar") ?? ""));
+    };
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
   }, []);
@@ -260,12 +278,30 @@ export function DetailScreen({
   const clp = quote ? displayPrice(quote.priceUsd, "CLP", rate) : null;
 
   function openOperar(next: "comprar" | "vender" | null) {
-    setOperar(next);
     const params = new URLSearchParams(window.location.search);
+    const current = parseOperar(params.get("operar") ?? "");
+    if (next === current) {
+      setOperar(next);
+      return;
+    }
+    if (!next && pushed.current) {
+      pushed.current = false;
+      setOperar(null);
+      window.history.back();
+      return;
+    }
     if (next) params.set("operar", next);
     else params.delete("operar");
     const search = params.toString();
-    router.replace(search ? `${pathname}?${search}` : pathname, { scroll: false });
+    const href = search ? `${pathname}?${search}` : pathname;
+    setOperar(next);
+    if (next && !current) {
+      pushed.current = true;
+      window.history.pushState(null, "", href);
+      return;
+    }
+    pushed.current = false;
+    window.history.replaceState(null, "", href);
   }
 
   return (

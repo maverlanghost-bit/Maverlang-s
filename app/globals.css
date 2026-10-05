@@ -77,7 +77,14 @@
 }
 
 @layer base {
-  html { color-scheme: light; -webkit-font-smoothing: antialiased; scroll-padding-top: 4rem; }
+  html {
+    color-scheme: light;
+    -webkit-font-smoothing: antialiased;
+    scroll-padding-top: 4rem;
+    /* Tabs: 4rem + safe-area. El detalle lo reemplaza con el alto medido y lo limpia al salir. */
+    --app-tabs-height: calc(4rem + env(safe-area-inset-bottom));
+    --app-detail-cta: 0px;
+  }
   body { @apply overflow-x-clip bg-bg font-sans text-fg-body; }
   h1, h2, h3 { @apply text-fg font-display font-medium tracking-tight; }
   .num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }

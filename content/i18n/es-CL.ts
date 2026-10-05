@@ -133,7 +133,7 @@ export const esCL = {
     actions: "Comprar o vender",
     tradeBuy: "Comprar {name}",
     tradeSell: "Vender {name}",
-    tradeNoPosition: "No tienes esta acción para vender.",
+    tradeNoPosition: "No tienes {symbol} para vender.",
   },
   trade: {
     amount: "Monto",

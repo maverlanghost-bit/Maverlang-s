@@ -130,7 +130,7 @@ export const en = {
     actions: "Buy or sell",
     tradeBuy: "Buy {name}",
     tradeSell: "Sell {name}",
-    tradeNoPosition: "You don't hold this stock to sell.",
+    tradeNoPosition: "You don't hold {symbol} to sell.",
   },
   trade: {
     amount: "Amount",
