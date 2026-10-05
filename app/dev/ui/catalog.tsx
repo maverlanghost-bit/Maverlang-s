@@ -183,6 +183,7 @@ function CatalogBody() {
             onChange={setAmount}
             currency={currency}
             onCurrencyChange={(next) => {
+              if (next !== "CLP" && next !== "USD") return;
               setCurrency(next);
               setAmount(next === "CLP" ? "10000" : "25");
             }}

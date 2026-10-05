@@ -13,6 +13,7 @@ import {
   preferencesSchema,
   quotesResponseSchema,
   tickersResponseSchema,
+  orderSchema,
   tradeBuildResponseSchema,
   tradeQuoteSchema,
   tradeSubmitResponseSchema,
@@ -32,6 +33,7 @@ import type {
   Portfolio,
   Preferences,
   PricePoint,
+  Order,
   Quote,
   Range,
   SendBuildRequest,
@@ -93,6 +95,13 @@ function send<T>(method: "POST" | "PUT" | "PATCH", path: string, schema: ZodType
   return request(path, schema, { method, body: JSON.stringify(body), cache: "no-store" });
 }
 
+/** `?mockError=` lo lee el route handler. Sirve para probar el flujo sin tocar el servicio. */
+function withMockQuery(path: string, mockError?: string | null): string {
+  if (!mockError) return path;
+  const join = path.includes("?") ? "&" : "?";
+  return `${path}${join}mockError=${encodeURIComponent(mockError)}`;
+}
+
 export function getTickers(): Promise<Ticker[]> {
   return request("/api/tickers", tickersResponseSchema, { next: { revalidate: 3600 } });
 }
@@ -120,16 +129,22 @@ export function getHistory(symbol: string, range: Range = "1M"): Promise<PricePo
   );
 }
 
-export function quoteTrade(body: TradeQuoteRequest): Promise<TradeQuote> {
-  return send("POST", "/api/trade/quote", tradeQuoteSchema, body);
+export function quoteTrade(body: TradeQuoteRequest, mockError?: string | null): Promise<TradeQuote> {
+  return send("POST", withMockQuery("/api/trade/quote", mockError), tradeQuoteSchema, body);
 }
 
-export function buildTrade(body: TradeBuildRequest): Promise<TradeBuildResponse> {
-  return send("POST", "/api/trade/build", tradeBuildResponseSchema, body);
+export function buildTrade(body: TradeBuildRequest, mockError?: string | null): Promise<TradeBuildResponse> {
+  return send("POST", withMockQuery("/api/trade/build", mockError), tradeBuildResponseSchema, body);
 }
 
-export function submitTrade(body: TradeSubmitRequest): Promise<TradeSubmitResponse> {
-  return send("POST", "/api/trade/submit", tradeSubmitResponseSchema, body);
+export function submitTrade(body: TradeSubmitRequest, mockError?: string | null): Promise<TradeSubmitResponse> {
+  return send("POST", withMockQuery("/api/trade/submit", mockError), tradeSubmitResponseSchema, body);
+}
+
+export function getTradeStatus(id: string, mockError?: string | null): Promise<Order> {
+  const query = new URLSearchParams({ id });
+  if (mockError) query.set("mockError", mockError);
+  return request(`/api/trade/status?${query.toString()}`, orderSchema, { cache: "no-store" });
 }
 
 export function getPortfolio(): Promise<Portfolio> {

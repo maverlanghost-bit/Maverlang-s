@@ -14,6 +14,7 @@ import { clearClientCookie } from "@/lib/auth/browser-cookies";
 import { MOCK_ONBOARDING_COOKIE, MOCK_SESSION_COOKIE } from "@/lib/auth/cookies";
 import { privyAppId } from "@/lib/auth/mode";
 import { MockAuthProvider } from "@/lib/auth/mock-provider";
+import { PrivyTradeSigner } from "@/lib/auth/privy-signer";
 import { SessionProvider } from "@/lib/auth/session-context";
 import type { LoginMethod, SessionUser, SessionValue } from "@/lib/auth/types";
 
@@ -89,7 +90,11 @@ function PrivySession({ children }: { children: ReactNode }) {
     };
   }, [authenticated, login, logout, ready, router, sessionUser]);
 
-  return <SessionProvider value={value}>{children}</SessionProvider>;
+  return (
+    <SessionProvider value={value}>
+      <PrivyTradeSigner>{children}</PrivyTradeSigner>
+    </SessionProvider>
+  );
 }
 
 export function PrivyAuthProvider({ children }: { children: ReactNode }) {

@@ -1,9 +1,16 @@
 # PROGRESO — Maverlang
 
 ## Estado
-T12 hecha. Modo de datos: mock. Siguiente: T13.
+T13 hecha. Modo de datos: mock. Siguiente: T14.
 
 ## Tareas hechas
+
+### T13 — Compra/venta (2026-10-05, T13: compra venta)
+- Hecho: TradeSheet con `?operar=comprar|vender`. Monto CLP/USDC o acciones/USDC, chips, saldo y mínimo US$ 1. Cotización a los 400 ms, countdown y nueva cotización al vencer. Revisar muestra el resumen, CostBreakdown (comisión 0%, red, rent si abre cuenta, impacto, slippage), el aviso si el mercado está cerrado y el link a riesgos. Confirmar hace build, firma (mock 800 ms; Privy `signTransaction`) , submit y polling. Estados: Firmando, Enviando, Listo (cartera y Solscan) y Error con reintento. Al confirmar se invalidan cartera, saldos y actividad. `npx tsc --noEmit` y `npm run lint` ok. Sin `next dev`.
+- Archivos clave: `components/domain/{trade-sheet,cost-breakdown}.tsx`, `components/ui/amount-input.tsx`, `lib/trade/amount.ts`, `lib/auth/{sign-transaction.ts,privy-signer.tsx}`, `lib/api/client.ts`, `config/trade.ts`, detalle de la acción, `content/i18n/{es-CL,en}.ts`.
+- Decisiones: el archivo va en kebab-case, como el resto de `components/domain`. El mínimo vive en `config/trade.ts`, no en el env. USDC se muestra como US$. "Depositar" apunta a `/app/billetera/depositar` (la página es T16). Si faltan acciones al vender, no se ofrece depositar. Red y rent van en SOL, sin pasarlos a dólares. La firma mock devuelve la misma transacción. `?mockError=CODE` se reenvía a quote, build, submit y status.
+- Pendiente: mirar compra y venta de AAPLx a 360 y 1280 (monto, chips, cotización, revisar, confirmar, listo). Probar `?operar=comprar&mockError=PRICE_DEVIATION` y también `QUOTE_EXPIRED`, `INSUFFICIENT_FUNDS` y `UPSTREAM`. Solscan no tiene las firmas `mock-sig-…`. En live, firmar depende de la billetera Privy; `@solana/kit` sigue sin instalarse.
+- Próximo: T14.
 
 ### T12 — Detalle de acción (2026-10-05, T12: detalle accion)
 - Hecho: `/app/accion/[ticker]` con header, precio, gráfico por rango, posición, datos, empresa y token, y CTA. Fuera del catálogo operable → 404 de la app. `npx tsc --noEmit` ok. ESLint de los archivos tocados ok. Sin `next dev`.
@@ -99,4 +106,4 @@ T12 hecha. Modo de datos: mock. Siguiente: T13.
 - Ubicación definitiva del repo (OneDrive vs C:\dev).
 - Textos legales: [REVISIÓN ABOGADO].
 - Verificar mints contra xstocks.fi antes de producción.
-- Confirmar en el navegador el hero (360/768/1280), T04 (reveal, tabs, tabla), T05 (FAQ, CTA, footer, legales, bloqueado), `/dev/ui` a 360px, las rutas `/api/tickers`, `/api/prices` e historial, T08 (`/app` sin sesión, login demo, `?country=US`), T09 (wizard completo, sin saltar pasos), T10 (4 secciones a 360 y 1280, saldo y ojo), T11 (mercado a 360 y 1280) y T12 (detalle a 360 y 1280; con sesión, FAKE y HOODx en 404).
+- Confirmar en el navegador el hero (360/768/1280), T04 (reveal, tabs, tabla), T05 (FAQ, CTA, footer, legales, bloqueado), `/dev/ui` a 360px, las rutas `/api/tickers`, `/api/prices` e historial, T08 (`/app` sin sesión, login demo, `?country=US`), T09 (wizard completo, sin saltar pasos), T10 (4 secciones a 360 y 1280, saldo y ojo), T11 (mercado a 360 y 1280), T12 (detalle a 360 y 1280; con sesión, FAKE y HOODx en 404) y T13 (compra y venta a 360 y 1280; `?mockError=`).

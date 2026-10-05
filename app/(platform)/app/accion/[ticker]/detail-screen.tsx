@@ -7,12 +7,12 @@ import { usePathname, useRouter } from "next/navigation";
 import { ChangeBadge } from "@/components/domain/change-badge";
 import { FavoriteButton } from "@/components/domain/favorite-button";
 import { TickerLogo } from "@/components/domain/ticker-logo";
+import { TradeSheet } from "@/components/domain/trade-sheet";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ErrorState } from "@/components/ui/error-state";
 import { IconButton } from "@/components/ui/icon-button";
 import { IconShare } from "@/components/ui/icons";
-import { Sheet } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/components/ui/toast";
 import { site } from "@/config/site";
@@ -268,13 +268,6 @@ export function DetailScreen({
     router.replace(search ? `${pathname}?${search}` : pathname, { scroll: false });
   }
 
-  let tradeBody = t.detail.tradeLater;
-  if (operar === "vender" && portfolio.isPending) tradeBody = t.states.loading;
-  else if (operar === "vender" && portfolio.isError) tradeBody = t.detail.positionError;
-  else if (operar === "vender" && portfolio.isSuccess && !canSell) tradeBody = t.detail.tradeNoPosition;
-
-  const tradeTitle = fill(operar === "vender" ? t.detail.tradeSell : t.detail.tradeBuy, { name: ticker.name });
-
   return (
     <>
     <div data-ticker={ticker.symbol} className="lg:grid lg:grid-cols-[minmax(0,1fr)_17.5rem] lg:items-start lg:gap-8">
@@ -407,15 +400,14 @@ export function DetailScreen({
         onSell={() => openOperar("vender")}
       />
 
-      <Sheet
+      <TradeSheet
+        ticker={ticker}
+        side={operar === "vender" ? "sell" : "buy"}
         open={operar !== null}
         onOpenChange={(open) => {
           if (!open) openOperar(null);
         }}
-        title={tradeTitle}
-      >
-        <p className="text-sm leading-relaxed text-fg-body">{tradeBody}</p>
-      </Sheet>
+      />
     </>
   );
 }

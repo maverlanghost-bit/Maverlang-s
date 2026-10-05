@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useMemo, type ReactNode } from "react";
 
+import { SignerProvider, type SignTrade } from "@/lib/auth/sign-transaction";
 import type { SessionValue } from "@/lib/auth/types";
 
 const SessionContext = createContext<SessionValue | null>(null);
@@ -18,9 +19,17 @@ export function SessionProvider({ value, children }: { value: SessionValue; chil
 }
 
 /** Sesión mientras carga el chunk de Privy. No autentica. */
+const rejectSign: SignTrade = async () => {
+  throw new Error("NO_WALLET");
+};
+
 export function LoadingSession({ children }: { children: ReactNode }) {
   const value = useMemo(() => loadingSession, []);
-  return <SessionProvider value={value}>{children}</SessionProvider>;
+  return (
+    <SessionProvider value={value}>
+      <SignerProvider sign={rejectSign}>{children}</SignerProvider>
+    </SessionProvider>
+  );
 }
 
 export function useSession(): SessionValue {

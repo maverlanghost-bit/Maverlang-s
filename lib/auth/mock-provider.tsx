@@ -12,6 +12,7 @@ import {
 import { MOCK_ONBOARDING_COOKIE, MOCK_SESSION_COOKIE } from "@/lib/auth/cookies";
 import { DEMO_SESSION_USER } from "@/lib/auth/demo-user";
 import { SessionProvider } from "@/lib/auth/session-context";
+import { SignerProvider, signMockTransaction } from "@/lib/auth/sign-transaction";
 import type { SessionStatus, SessionUser, SessionValue } from "@/lib/auth/types";
 
 type Snapshot = { status: SessionStatus; user: SessionUser | null };
@@ -56,5 +57,9 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
     [snapshot, login, logout],
   );
 
-  return <SessionProvider value={value}>{children}</SessionProvider>;
+  return (
+    <SessionProvider value={value}>
+      <SignerProvider sign={signMockTransaction}>{children}</SignerProvider>
+    </SessionProvider>
+  );
 }
