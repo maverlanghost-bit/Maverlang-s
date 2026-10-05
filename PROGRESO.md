@@ -1,9 +1,19 @@
 # PROGRESO — Maverlang
 
 ## Estado
-T19 hecha. Modo de datos: mock. Siguiente: T20.
+T20 hecha. Modo de datos: mock. Lint, typecheck, build, unitarios y e2e en verde. Siguiente: fase live (fuera de este paquete).
 
 ## Tareas hechas
+
+### T20 — Verificación final (2026-10-05, T20: verificacion final)
+- Hecho: `npm run lint`, `npm run typecheck`, `npm run build`, `npm test` (12) y `npm run e2e` en verde. Vitest cubre format, scaled-ui (newMultiplier con timestamp pasado y futuro), fee (0 bps no arma instrucción), allowlist (mint falso rechazado) y zod (request inválido → VALIDATION). El smoke mock recorre landing, `/app` sin sesión → ingresar, login, onboarding, mercado, AAPL, compra, cartera, dirección inválida bloqueada e idioma en inglés.
+- Archivos clave: `tests/unit/*`, `e2e/smoke.spec.ts`, `vitest.config.ts`, `playwright.config.ts`, `package.json`.
+- Decisiones: devDependencies `vitest@3.2.4` y `@playwright/test` (las pide T20). Vitest 5 exige `@types/node` 22 y el repo está en 20. `npm run e2e` sirve el build con `next start` en 127.0.0.1:3456 y lo cierra; hace falta `npm run build` antes. `t18-check.ts` sigue en disco, ahora en `.gitignore`, sin borrarlo.
+- Bugs: ninguno de producto. El primer e2e chocó con el announcer vacío de Next (`role="alert"`); el aviso de dirección sí estaba. Se afinó el selector.
+- Deuda: Next 16 avisa de pasar `middleware.ts` a `proxy.ts`. Los dos archivos juntos rompen el build, así que se deja el nombre de §2.3. `bigint-buffer` sigue en JS porque npm bloqueó el install-script. Stubs live sin llamar. El smoke es 1280×800; 360/768 no se recorrió aquí.
+- TODO-VERIFICAR: mints de `config/tickers.ts` contra xstocks.fi; mínimo CLP y métodos de Koywe/Onramper; dividendos y emisor en la FAQ; autocustodia y exportar la clave (Privy); patrocinio del fee-payer [POR DECIDIR]; firma del webhook de Onramper; logos y el texto final del disclaimer.
+- [REVISIÓN ABOGADO]: `content/legal/{terminos,privacidad,riesgos}.md`, FAQ de regulación, footer, banner de `/legal`, paso 3 del onboarding, baja de cuenta y disclaimer del shell.
+- Próximo: fase live, fuera de este paquete.
 
 ### T19 — Pulido visual, accesibilidad y rendimiento (2026-10-05, T19: pulido)
 - Hecho: checklist en landing y `/app`. Tabs con `animate-tab` y `--ease-spring` (el Sheet ya lo usaba), press `active:scale-[0.98]`, NumberFlow en el saldo del shell. Cierre de Sheet/Dialog a 44px. `aria-live` en el USDC de la billetera y en la cotización; el countdown no se anuncia. Contraste a 4,5:1. Copy es-CL sin "app", "slippage", "spread", "exchange", "SDK" ni "broker". Fuentes con `display: swap`. QR y `lightweight-charts` en import dinámico. Logo con `next/image`. Landing y `/bloqueado` en `force-static`. `overflow-x-clip` en el body. `npx tsc --noEmit` y `npm run lint` ok. Sin `next dev`.
@@ -151,7 +161,7 @@ T19 hecha. Modo de datos: mock. Siguiente: T20.
 
 ## Pendientes / bloqueos
 - Ubicación definitiva del repo (OneDrive vs C:\dev).
-- Textos legales: [REVISIÓN ABOGADO].
-- Verificar mints contra xstocks.fi antes de producción.
-- Confirmar en el navegador el hero (360/768/1280), T04 (reveal, tabs, tabla), T05 (FAQ, CTA, footer, legales, bloqueado), `/dev/ui` a 360px, las rutas `/api/tickers`, `/api/prices` e historial, T08 (`/app` sin sesión, login demo, `?country=US`), T09 (wizard completo, sin saltar pasos), T10 (4 secciones a 360 y 1280, saldo y ojo), T11 (mercado a 360 y 1280), T12 (detalle a 360 y 1280; con sesión, FAKE y HOODx en 404), T13 (compra y venta a 360 y 1280; `?mockError=`), T14 (cartera a 360 y 1280; rangos, hover, asignación, ojo y vacío), T15 (billetera, recibir y enviar a 360 y 1280; dirección inválida, propia, máx. y actividad), T16 (depositar a 360 y 1280; chips, mínimo, widget, actividad y saldo), T17 (perfil y ajustes a 360 y 1280; nombre, baja, clave, switches, idioma y tabla) y T19 (360/768/1280 sin scroll horizontal; Sheet, tabs, saldo y cotización).
-- Borrar `t18-check.ts` (script local de T18; no va en el commit).
+- Textos legales: [REVISIÓN ABOGADO]. Mints contra xstocks.fi, mínimo y métodos de on-ramp, dividendos, emisor, autocustodia Privy, patrocinio [POR DECIDIR] y firma del webhook de Onramper: [VERIFICAR] antes de producción.
+- El smoke de T20 cubre el flujo mock a 1280×800. Sigue sin mirarse 360/768 (landing, mercado, detalle, compra, cartera, billetera, depositar, perfil) ni `?country=US`, `?mockError=`, FAKE/HOODx en 404 y el ojo del saldo.
+- Borrar `t18-check.ts` (sigue en el disco; `.gitignore` evita commitearlo).
+- Fase live: Jupiter, Privy server, Koywe, Onramper y Supabase siguen en stub.
