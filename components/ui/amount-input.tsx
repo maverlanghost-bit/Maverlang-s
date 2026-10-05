@@ -88,6 +88,7 @@ export function AmountInput({
   id,
   describedBy,
   invalid = false,
+  chips,
 }: {
   label?: string;
   value: string;
@@ -104,12 +105,14 @@ export function AmountInput({
   id?: string;
   describedBy?: string;
   invalid?: boolean;
+  /** Si no se pasa, los atajos son los de la moneda. */
+  chips?: readonly { label: string; value: number | "max" }[];
 }) {
   const places = placesOf(currency);
   const display = places === 0 ? groupClp(value.replace(/\D/g, "")) : decimalToDisplay(value);
   const symbol = currency === "CLP" ? "$" : currency === "SHARES" ? "" : "US$";
   const choices = currencies ?? (["CLP", "USD"] as const);
-  const chips = quickAmounts[currency].map((chip) =>
+  const shownChips = (chips ?? quickAmounts[currency]).map((chip) =>
     chip.value === "max" && maxLabel ? { ...chip, label: maxLabel } : chip,
   );
 
@@ -165,7 +168,7 @@ export function AmountInput({
         {suffix ? <span className="text-sm text-fg-muted">{suffix}</span> : null}
       </div>
       <div className="flex flex-wrap justify-center gap-2">
-        {chips.map((chip) => {
+        {shownChips.map((chip) => {
           const target = chip.value === "max" ? (max === undefined ? null : asRaw(max, currency)) : asRaw(chip.value, currency);
           const pressed = target !== null && value === target;
           return (

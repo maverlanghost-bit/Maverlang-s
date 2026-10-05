@@ -1,9 +1,16 @@
 # PROGRESO — Maverlang
 
 ## Estado
-T15 hecha. Modo de datos: mock. Siguiente: T16.
+T16 hecha. Modo de datos: mock. Siguiente: T17.
 
 ## Tareas hechas
+
+### T16 — Depositar pesos (2026-10-05, T16: deposito onramp)
+- Hecho: `/app/billetera/depositar` con Con pesos y Con USDC. Monto CLP, chips, mínimo, estimado y costo desde `createOnrampSession`. Continuar con Koywe abre el diálogo mock (pago → procesando → USDC acreditado); Otros métodos usa Onramper. Al pagar, el webhook mock suma USDC, deja un Depósito en la actividad, refresca saldos y muestra toast. `npx tsc --noEmit` y `npm run lint` ok. Sin `next dev`.
+- Archivos clave: `app/(platform)/app/billetera/depositar/**`, `lib/onramp/**`, `config/onramp.ts`, `lib/services/onramp.mock.ts`, `lib/mocks/demo-state.ts`, `lib/api/{client,contracts}.ts`, `content/i18n/{es-CL,en}.ts`.
+- Decisiones: mínimo 10.000 CLP en config, [VERIFICAR] con el proveedor. El costo mock es $0: no se inventa la comisión. Khipu, EtPay y transferencia son info, [VERIFICAR en Koywe]. `lib/onramp` es la interfaz común: mock = diálogo; live = URL o SDK (el servicio live sigue en stub). El crédito entra por `POST /api/onramp/webhook`; repetir la misma sesión no suma. La actividad es `kind: deposit`.
+- Pendiente: mirar `/app/billetera/depositar` a 360 y 1280 (chips, mínimo, widget, toast, actividad, saldo y la pestaña USDC). En live el SDK de Koywe no está conectado.
+- Próximo: T17.
 
 ### T15 — Billetera (2026-10-05, T15: billetera)
 - Hecho: `/app/billetera` con USDC grande, SOL de red (explicación y aviso si no alcanza rent + red), Depositar · Enviar · Recibir, activos, dirección con copiar y actividad de todas las clases agrupada por día en Santiago. `/recibir` con QR, copiar, compartir y los avisos de red y de tokens. `/enviar` bloquea una dirección que no es base58 de 32 bytes, avisa si es la propia, monto con máx., revisión con red y rent mock, y confirma con `buildSend`, firma y los estados de T13. El envío mock queda en la actividad. `npx tsc --noEmit` y `npm run lint` ok. Sin `next dev`.
@@ -125,4 +132,4 @@ T15 hecha. Modo de datos: mock. Siguiente: T16.
 - Ubicación definitiva del repo (OneDrive vs C:\dev).
 - Textos legales: [REVISIÓN ABOGADO].
 - Verificar mints contra xstocks.fi antes de producción.
-- Confirmar en el navegador el hero (360/768/1280), T04 (reveal, tabs, tabla), T05 (FAQ, CTA, footer, legales, bloqueado), `/dev/ui` a 360px, las rutas `/api/tickers`, `/api/prices` e historial, T08 (`/app` sin sesión, login demo, `?country=US`), T09 (wizard completo, sin saltar pasos), T10 (4 secciones a 360 y 1280, saldo y ojo), T11 (mercado a 360 y 1280), T12 (detalle a 360 y 1280; con sesión, FAKE y HOODx en 404), T13 (compra y venta a 360 y 1280; `?mockError=`), T14 (cartera a 360 y 1280; rangos, hover, asignación, ojo y vacío) y T15 (billetera, recibir y enviar a 360 y 1280; dirección inválida, propia, máx. y actividad).
+- Confirmar en el navegador el hero (360/768/1280), T04 (reveal, tabs, tabla), T05 (FAQ, CTA, footer, legales, bloqueado), `/dev/ui` a 360px, las rutas `/api/tickers`, `/api/prices` e historial, T08 (`/app` sin sesión, login demo, `?country=US`), T09 (wizard completo, sin saltar pasos), T10 (4 secciones a 360 y 1280, saldo y ojo), T11 (mercado a 360 y 1280), T12 (detalle a 360 y 1280; con sesión, FAKE y HOODx en 404), T13 (compra y venta a 360 y 1280; `?mockError=`), T14 (cartera a 360 y 1280; rangos, hover, asignación, ojo y vacío), T15 (billetera, recibir y enviar a 360 y 1280; dirección inválida, propia, máx. y actividad) y T16 (depositar a 360 y 1280; chips, mínimo, widget, actividad y saldo).

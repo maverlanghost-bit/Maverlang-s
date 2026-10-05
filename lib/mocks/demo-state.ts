@@ -14,6 +14,7 @@ import type {
   Balance,
   Consent,
   LegalDoc,
+  OnrampProviderId,
   Order,
   Portfolio,
   Position,
@@ -63,6 +64,19 @@ export type StoredSend = {
   orderId: string | null;
 };
 
+/** Sesión de on-ramp. El USDC entra en `settleOnramp`. */
+export type StoredOnramp = {
+  id: string;
+  userId: string;
+  walletAddress: string;
+  amountClp: number;
+  estimatedUsdc: number;
+  feeClp: number;
+  provider: OnrampProviderId;
+  expiresAt: string;
+  settled: boolean;
+};
+
 type DemoState = {
   seq: number;
   cashUsdc: number;
@@ -75,6 +89,7 @@ type DemoState = {
   quotes: Map<string, StoredQuote>;
   builds: Map<string, StoredBuild>;
   sends: Map<string, StoredSend>;
+  onramps: Map<string, StoredOnramp>;
   orders: Map<string, Order>;
 };
 
@@ -170,6 +185,7 @@ function createState(): DemoState {
     quotes: new Map(),
     builds: new Map(),
     sends: new Map(),
+    onramps: new Map(),
     orders: new Map(),
   };
 }
@@ -425,6 +441,41 @@ export function fxRate(): number {
 
 export function saveSend(send: StoredSend): void {
   state.sends.set(send.requestId, send);
+}
+
+export function saveOnramp(session: StoredOnramp): void {
+  state.onramps.set(session.id, session);
+}
+
+/**
+ * Acredita el USDC de una sesión y deja un depósito en la actividad.
+ * La segunda llamada no suma de nuevo.
+ */
+export function settleOnramp(sessionId: string): { estimatedUsdc: number; already: boolean } {
+  const row = state.onramps.get(sessionId);
+  if (!row) throw new DomainError("NOT_FOUND", "No encontramos ese depósito.");
+  if (row.settled) return { estimatedUsdc: row.estimatedUsdc, already: true };
+  if (Date.now() > Date.parse(row.expiresAt)) {
+    throw new DomainError("QUOTE_EXPIRED", "La sesión de depósito venció.");
+  }
+  if (!addressesEqual(row.walletAddress, DEMO_WALLET_ADDRESS)) {
+    throw new DomainError("VALIDATION", "Esa billetera no es la de la demo.");
+  }
+
+  const at = new Date().toISOString();
+  state.onramps.set(sessionId, { ...row, settled: true });
+  state.cashUsdc = roundDigits(state.cashUsdc + row.estimatedUsdc, 6);
+  pushActivity({
+    id: nextDemoId("act"),
+    kind: "deposit",
+    symbol: "USDC",
+    amountUi: row.estimatedUsdc,
+    valueUsd: row.estimatedUsdc,
+    status: "confirmed",
+    signature: null,
+    at,
+  });
+  return { estimatedUsdc: row.estimatedUsdc, already: false };
 }
 
 function symbolForMint(mint: string): string {

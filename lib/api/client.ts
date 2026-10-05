@@ -9,6 +9,7 @@ import {
   historyResponseSchema,
   marketStatusSchema,
   onrampSessionSchema,
+  onrampWebhookResponseSchema,
   portfolioSchema,
   preferencesSchema,
   quotesResponseSchema,
@@ -165,6 +166,15 @@ export function buildSend(body: SendBuildRequest, mockError?: string | null): Pr
 
 export function createOnrampSession(body: OnrampSessionRequest): Promise<OnrampSession> {
   return send("POST", "/api/onramp/session", onrampSessionSchema, body);
+}
+
+/** Aviso del proveedor. En mock acredita el USDC de la sesión. */
+export function notifyOnrampWebhook(body: { sessionId: string }): Promise<{
+  ok: true;
+  estimatedUsdc?: number;
+  already?: boolean;
+}> {
+  return send("POST", "/api/onramp/webhook", onrampWebhookResponseSchema, body);
 }
 
 export function getMe(): Promise<UserProfile> {

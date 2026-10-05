@@ -219,6 +219,8 @@ export const onrampWebhookSchema = z.unknown();
 
 export const onrampWebhookResponseSchema = z.object({
   ok: z.literal(true),
+  estimatedUsdc: z.number().nonnegative().optional(),
+  already: z.boolean().optional(),
 });
 
 export const userProfileSchema = z.object({

@@ -63,7 +63,8 @@ export interface Services {
   };
   onramp: {
     createSession(request: OnrampSessionRequest, userId: string): Promise<OnrampSession>;
-    handleWebhook(req: Request): Promise<void>;
+    /** El mock devuelve el USDC acreditado. Live verifica la firma y todavía no acredita. */
+    handleWebhook(req: Request): Promise<{ estimatedUsdc: number; already: boolean } | void>;
   };
   users: {
     get(id: string): Promise<UserProfile>;
