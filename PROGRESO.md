@@ -1,9 +1,16 @@
 # PROGRESO — Maverlang
 
 ## Estado
-T02 hecha. Modo de datos: mock. Siguiente: T03.
+T03 hecha. Modo de datos: mock. Siguiente: T04.
 
 ## Tareas hechas
+
+### T03 — Landing A (2026-10-05, T03: landing hero)
+- Hecho: header fijo (blur al scroll, menú en Sheet), hero centrado, card ivory con TickerRows y cinta infinita. `npx tsc --noEmit` y `npm run lint` ok. Sin servidor.
+- Archivos clave: `app/(marketing)/layout.tsx`, `app/(marketing)/page.tsx`, `components/landing/{site-header,announcement-pill,hero,ticker-marquee}.tsx`, `lib/mocks/landing.ts`, `app/globals.css`.
+- Decisiones: marca desde `site.name` con punto naranja. Copy elegido; alternativas en comentarios de `hero.tsx` y `announcement-pill.tsx`. Precios sólo ilustrativos, sin logos de emisor (iniciales). Cinta `aria-hidden` más lista para lector de pantalla; pausa en hover; estática si `prefers-reduced-motion`. Links a `/#como-funciona`, `/#costos`, `/#seguridad` y `/ayuda`.
+- Pendiente: mirar `/` a 360/768/1280 (blur, marquee, sin scroll horizontal). `/app`, `/ayuda` y las anclas todavía no tienen página.
+- Próximo: T04.
 
 ### T02 — Primitivos UI (2026-10-04, T02: primitivos UI)
 - Hecho: primitivos en `components/ui/`, presentacionales en `components/domain/` (TickerLogo, PriceText, ChangeBadge, Sparkline, TickerRow), `lib/format.ts` con `Intl` es-CL y catálogo `/dev/ui` (`notFound()` si `NODE_ENV==="production"`). `npx tsc --noEmit` y `npm run lint` ok.
@@ -28,4 +35,4 @@ T02 hecha. Modo de datos: mock. Siguiente: T03.
 - Ubicación definitiva del repo (OneDrive vs C:\dev).
 - Textos legales: [REVISIÓN ABOGADO].
 - Verificar mints contra xstocks.fi antes de producción.
-- Confirmar en el navegador que `/` muestra Geist y los colores del DS, y que `/dev/ui` se ve bien a 360px.
+- Confirmar en el navegador el hero a 360/768/1280 (blur del header y marquee) y que `/dev/ui` se ve bien a 360px.

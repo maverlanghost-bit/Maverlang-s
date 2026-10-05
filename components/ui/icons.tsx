@@ -7,6 +7,14 @@ function base({ className, ...props }: IconProps) {
   return { className: cn("size-4", className), "aria-hidden": true as const, ...props };
 }
 
+export function IconMenu(props: IconProps) {
+  return (
+    <svg viewBox="0 0 16 16" fill="none" {...base(props)}>
+      <path d="M2.5 4.5h11M2.5 8h11M2.5 11.5h11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 export function IconClose(props: IconProps) {
   return (
     <svg viewBox="0 0 16 16" fill="none" {...base(props)}>

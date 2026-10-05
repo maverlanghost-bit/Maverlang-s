@@ -70,7 +70,7 @@
 }
 
 @layer base {
-  html { color-scheme: light; -webkit-font-smoothing: antialiased; }
+  html { color-scheme: light; -webkit-font-smoothing: antialiased; scroll-padding-top: 4rem; }
   body { @apply bg-bg text-fg-body font-sans; }
   h1, h2, h3 { @apply text-fg font-display font-medium tracking-tight; }
   .num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
@@ -78,5 +78,13 @@
   :focus-visible { outline: none; box-shadow: 0 0 0 4px rgb(10 10 10 / 0.2); border-radius: inherit; }
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation-duration: 1ms !important; transition-duration: 1ms !important; }
+    .ticker-marquee-motion { display: none !important; }
+    .ticker-marquee-static { display: flex !important; }
   }
+}
+
+.ticker-marquee-static { display: none; }
+
+.ticker-marquee-motion:hover .animate-marquee {
+  animation-play-state: paused;
 }
