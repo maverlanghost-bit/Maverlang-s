@@ -57,6 +57,29 @@ export function formatShares(value: number): string {
   return `${sharesFormatter.format(value)} acc.`;
 }
 
+const portionFormatter = new Intl.NumberFormat("es-CL", {
+  style: "percent",
+  maximumFractionDigits: 1,
+});
+
+/** Parte de un total, sin signo: 0.307 → 30,7 %. */
+export function formatPortion(value: number): string {
+  return portionFormatter.format(value);
+}
+
+const dateTimeFormatter = new Intl.DateTimeFormat("es-CL", {
+  dateStyle: "medium",
+  timeStyle: "short",
+  timeZone: "America/Santiago",
+});
+
+/** Fecha y hora en Chile. El ISO de entrada se muestra igual en servidor y cliente. */
+export function formatDateTime(input: string): string {
+  const time = Date.parse(input);
+  if (Number.isNaN(time)) return "fecha desconocida";
+  return dateTimeFormatter.format(time);
+}
+
 const multiplierFormatter = new Intl.NumberFormat("es-CL", { maximumFractionDigits: 6 });
 
 /** Multiplicador vigente del emisor. No es una cantidad de tokens. */

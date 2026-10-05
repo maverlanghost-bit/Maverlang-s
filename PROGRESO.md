@@ -1,9 +1,16 @@
 # PROGRESO — Maverlang
 
 ## Estado
-T13 hecha. Modo de datos: mock. Siguiente: T14.
+T14 hecha. Modo de datos: mock. Siguiente: T15.
 
 ## Tareas hechas
+
+### T14 — Cartera (2026-10-05, T14: cartera)
+- Hecho: `/app/cartera` con valor total (CLP/USD), P&L en monto y % ("—" si es null), rangos y gráfico de valor, AllocationBar, PositionRow, USDC con Depositar, historial buy/sell y vacío. La demo cuadra: 228,40 + 65,58 + 199,12 + 250 USDC = 743,10 USD. `npx tsc --noEmit` y `npm run lint` ok. Sin `next dev`.
+- Archivos clave: `app/(platform)/app/cartera/*`, `components/domain/{allocation-bar,position-row,activity-item}.tsx`, `lib/portfolio/series.ts`, `lib/hooks/use-hide-balance.ts`, `lib/format.ts`, `content/i18n/{es-CL,en}.ts`.
+- Decisiones: `Position.shares` ya incluye el multiplicador; no se vuelve a aplicar. El tooltip dice "incluye ajustes del emisor". El gráfico es historial de precios × las acciones de hoy + USDC; el último punto es `totalUsd`. Sin acciones no hay gráfico: quedan el vacío, el USDC y el historial. Depositar apunta a `/app/billetera/depositar` (T16). El ojo del shell también tapa montos y gráfico.
+- Pendiente: mirar `/app/cartera` a 360 y 1280 (rangos, hover, asignación, filas, historial, ojo y vacío). Solscan no tiene las firmas `mock-sig-…`.
+- Próximo: T15.
 
 ### T13 — Compra/venta (2026-10-05, T13: compra venta)
 - Hecho: TradeSheet con `?operar=comprar|vender`. Monto CLP/USDC o acciones/USDC, chips, saldo y mínimo US$ 1. Cotización a los 400 ms, countdown y nueva cotización al vencer. Revisar muestra el resumen, CostBreakdown (comisión 0%, red, rent si abre cuenta, impacto, slippage), el aviso si el mercado está cerrado y el link a riesgos. Confirmar hace build, firma (mock 800 ms; Privy `signTransaction`) , submit y polling. Estados: Firmando, Enviando, Listo (cartera y Solscan) y Error con reintento. Al confirmar se invalidan cartera, saldos y actividad. `npx tsc --noEmit` y `npm run lint` ok. Sin `next dev`.
@@ -111,4 +118,4 @@ T13 hecha. Modo de datos: mock. Siguiente: T14.
 - Ubicación definitiva del repo (OneDrive vs C:\dev).
 - Textos legales: [REVISIÓN ABOGADO].
 - Verificar mints contra xstocks.fi antes de producción.
-- Confirmar en el navegador el hero (360/768/1280), T04 (reveal, tabs, tabla), T05 (FAQ, CTA, footer, legales, bloqueado), `/dev/ui` a 360px, las rutas `/api/tickers`, `/api/prices` e historial, T08 (`/app` sin sesión, login demo, `?country=US`), T09 (wizard completo, sin saltar pasos), T10 (4 secciones a 360 y 1280, saldo y ojo), T11 (mercado a 360 y 1280), T12 (detalle a 360 y 1280; con sesión, FAKE y HOODx en 404) y T13 (compra y venta a 360 y 1280; `?mockError=`).
+- Confirmar en el navegador el hero (360/768/1280), T04 (reveal, tabs, tabla), T05 (FAQ, CTA, footer, legales, bloqueado), `/dev/ui` a 360px, las rutas `/api/tickers`, `/api/prices` e historial, T08 (`/app` sin sesión, login demo, `?country=US`), T09 (wizard completo, sin saltar pasos), T10 (4 secciones a 360 y 1280, saldo y ojo), T11 (mercado a 360 y 1280), T12 (detalle a 360 y 1280; con sesión, FAKE y HOODx en 404), T13 (compra y venta a 360 y 1280; `?mockError=`) y T14 (cartera a 360 y 1280; rangos, hover, asignación, ojo y vacío).

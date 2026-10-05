@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
 
-import { SectionBody } from "@/components/app-shell/section-body";
+import { PortfolioScreen } from "./portfolio-screen";
 
 export const metadata: Metadata = {
   title: "Cartera",
 };
 
 export default function CarteraPage() {
-  return <SectionBody section="portfolio" />;
+  return <PortfolioScreen />;
 }

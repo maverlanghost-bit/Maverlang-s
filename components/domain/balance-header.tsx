@@ -1,63 +1,16 @@
 "use client";
 
-import { useCallback, useSyncExternalStore, type ReactNode } from "react";
+import type { ReactNode } from "react";
 
 import { IconButton } from "@/components/ui/icon-button";
 import { IconEye, IconEyeOff } from "@/components/ui/icons";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useSession } from "@/lib/auth/session-context";
 import { cn } from "@/lib/cn";
 import { formatMoney } from "@/lib/format";
+import { useHideBalance } from "@/lib/hooks/use-hide-balance";
 import { useFx, usePortfolio } from "@/lib/hooks/queries";
 import { useT } from "@/lib/hooks/use-t";
 import type { Currency } from "@/lib/types";
-
-const HIDE_EVENT = "a24-hide-balance";
-
-function hideKey(userId: string) {
-  return `a24_hide_balance:${userId}`;
-}
-
-function subscribeHide(onChange: () => void) {
-  const onStorage = (event: StorageEvent) => {
-    if (event.key === null || event.key.startsWith("a24_hide_balance")) onChange();
-  };
-  window.addEventListener("storage", onStorage);
-  window.addEventListener(HIDE_EVENT, onChange);
-  return () => {
-    window.removeEventListener("storage", onStorage);
-    window.removeEventListener(HIDE_EVENT, onChange);
-  };
-}
-
-function readHidden(key: string | null): boolean | null {
-  if (!key) return null;
-  try {
-    return window.localStorage.getItem(key) === "1";
-  } catch {
-    return false;
-  }
-}
-
-function hiddenOnServer(): boolean | null {
-  return null;
-}
-
-function useHideBalance(userId: string | null) {
-  const key = userId ? hideKey(userId) : null;
-  const hidden = useSyncExternalStore(subscribeHide, () => readHidden(key), hiddenOnServer);
-  const toggle = useCallback(() => {
-    if (!key) return;
-    const next = readHidden(key) !== true;
-    try {
-      window.localStorage.setItem(key, next ? "1" : "0");
-    } catch {
-      return;
-    }
-    window.dispatchEvent(new Event(HIDE_EVENT));
-  }, [key]);
-  return { hidden, toggle };
-}
 
 function amountFor(totalUsd: number, currency: Currency, rate: number | undefined): number | null {
   const value = currency === "USD" ? totalUsd : rate === undefined ? null : totalUsd * rate;
@@ -72,9 +25,7 @@ export function BalanceHeader({
   className?: string;
 }) {
   const { t, currency } = useT();
-  const session = useSession();
-  const userId = session.status === "authenticated" ? (session.user?.id ?? null) : null;
-  const { hidden, toggle } = useHideBalance(userId);
+  const { hidden, toggle, userId } = useHideBalance();
   const portfolio = usePortfolio();
   const fx = useFx();
   const totalUsd = portfolio.data?.totalUsd;
