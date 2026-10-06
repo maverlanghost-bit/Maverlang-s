@@ -15,7 +15,12 @@ import type { Ticker } from "@/lib/types";
 
 export const CATALOG_CACHE_MS = 5 * 60 * 1000;
 export const LOW_LIQUIDITY_USD = 10_000;
-const ASSETS_FETCH_LIMIT = 2000;
+/**
+ * PostgREST corta cada respuesta en 1000 filas como máximo: se pagina de a
+ * 1000 con `offset` y orden estable para traer la tabla completa.
+ */
+const ASSETS_PAGE_SIZE = 1000;
+const ASSETS_MAX_PAGES = 10;
 
 const KNOWN_CATEGORIES = [
   "tech",
@@ -203,6 +208,7 @@ export function searchAssets(rows: readonly CatalogAsset[], params: CatalogSearc
 interface AssetsCache {
   at: number;
   rows: CatalogAsset[];
+  fromSupabase: boolean;
 }
 
 let cache: AssetsCache | null = null;
@@ -213,7 +219,7 @@ function isFresh(now: number): boolean {
 
 /** Sólo para tests. */
 export function __setAssetsCacheForTests(rows: CatalogAsset[], at: number): void {
-  cache = { at, rows };
+  cache = { at, rows, fromSupabase: true };
 }
 
 /** Sólo para tests. */
@@ -237,39 +243,48 @@ const ASSETS_COLUMNS = [
 async function fetchAssetsFromSupabase(fetchImpl: typeof fetch): Promise<CatalogAsset[] | null> {
   const config = readSupabasePublicConfig();
   if (!config) return null;
-  const url = new URL(`${config.url}/rest/v1/assets`);
-  url.searchParams.set("select", ASSETS_COLUMNS);
-  url.searchParams.set("limit", String(ASSETS_FETCH_LIMIT));
-  let response: Response;
-  try {
-    response = await fetchImpl(url.toString(), {
-      method: "GET",
-      headers: {
-        accept: "application/json",
-        apikey: config.publishableKey,
-        authorization: `Bearer ${config.publishableKey}`,
-      },
-      cache: "no-store",
-    });
-  } catch {
-    return null;
-  }
-  if (!response.ok) return null;
-  let body: unknown;
-  try {
-    body = await response.json();
-  } catch {
-    return null;
-  }
-  if (!Array.isArray(body)) return null;
-  const rows: CatalogAsset[] = [];
-  for (const entry of body) {
-    if (entry !== null && typeof entry === "object") {
-      const asset = assetFromRow(entry as AssetRow);
-      if (asset) rows.push(asset);
+  const collected: CatalogAsset[] = [];
+  for (let page = 0; page < ASSETS_MAX_PAGES; page += 1) {
+    const url = new URL(`${config.url}/rest/v1/assets`);
+    url.searchParams.set("select", ASSETS_COLUMNS);
+    // Orden estable: las filas curadas primero y el resto por símbolo.
+    url.searchParams.set("order", "curated.desc,symbol.asc");
+    url.searchParams.set("limit", String(ASSETS_PAGE_SIZE));
+    url.searchParams.set("offset", String(page * ASSETS_PAGE_SIZE));
+    let response: Response;
+    try {
+      response = await fetchImpl(url.toString(), {
+        method: "GET",
+        headers: {
+          accept: "application/json",
+          apikey: config.publishableKey,
+          authorization: `Bearer ${config.publishableKey}`,
+        },
+        cache: "no-store",
+      });
+    } catch {
+      // Sin ninguna fila, se mantiene el fallback actual; con filas parciales
+      // se usan las obtenidas para no dejar el mercado vacío.
+      return collected.length > 0 ? collected : null;
     }
+    if (!response.ok) return collected.length > 0 ? collected : null;
+    let body: unknown;
+    try {
+      body = await response.json();
+    } catch {
+      return collected.length > 0 ? collected : null;
+    }
+    if (!Array.isArray(body)) return collected.length > 0 ? collected : null;
+    for (const entry of body) {
+      if (entry !== null && typeof entry === "object") {
+        const asset = assetFromRow(entry as AssetRow);
+        if (asset) collected.push(asset);
+      }
+    }
+    // Página no llena: era la última.
+    if (body.length < ASSETS_PAGE_SIZE) break;
   }
-  return rows;
+  return collected;
 }
 
 function fallbackAssets(): CatalogAsset[] {
@@ -277,20 +292,44 @@ function fallbackAssets(): CatalogAsset[] {
   return TICKERS.map((ticker) => assetFromTicker(ticker, true));
 }
 
-async function loadAssets(fetchImpl: typeof fetch, now: number): Promise<CatalogAsset[]> {
-  if (isFresh(now) && cache) return cache.rows;
+interface LoadedAssets {
+  rows: CatalogAsset[];
+  fromSupabase: boolean;
+}
+
+async function loadAssets(fetchImpl: typeof fetch, now: number): Promise<LoadedAssets> {
+  if (isFresh(now) && cache) return { rows: cache.rows, fromSupabase: cache.fromSupabase };
   const rows = await fetchAssetsFromSupabase(fetchImpl);
   const next = rows ?? fallbackAssets();
-  cache = { at: now, rows: next };
-  return next;
+  cache = { at: now, rows: next, fromSupabase: rows !== null };
+  return { rows: next, fromSupabase: rows !== null };
+}
+
+/**
+ * Salvaguarda: si Supabase responde filas pero ninguna es curada (sync
+ * incompleto) y el alcance efectivo es `curated`, se usa el fallback de
+ * `config/tickers.ts` para que el mercado nunca quede vacío. No se cachea el
+ * reemplazo: el cache guarda las filas de Supabase para otros alcances.
+ */
+function withCuratedSafeguard(loaded: LoadedAssets, effectiveScope: CatalogScope): CatalogAsset[] {
+  if (
+    loaded.fromSupabase &&
+    loaded.rows.length > 0 &&
+    effectiveScope === "curated" &&
+    !loaded.rows.some((asset) => asset.curated)
+  ) {
+    return fallbackAssets();
+  }
+  return loaded.rows;
 }
 
 export async function searchCatalog(
   params: CatalogSearchParams,
   deps?: { fetchImpl?: typeof fetch; now?: () => number },
 ): Promise<CatalogSearchResult> {
-  const rows = await loadAssets(deps?.fetchImpl ?? fetch, deps?.now?.() ?? Date.now());
-  return searchAssets(rows, params);
+  const loaded = await loadAssets(deps?.fetchImpl ?? fetch, deps?.now?.() ?? Date.now());
+  const effectiveScope = resolveEffectiveScope(params.scope, maxScopeFromEnv());
+  return searchAssets(withCuratedSafeguard(loaded, effectiveScope), params);
 }
 
 export async function findAssetBySymbol(
@@ -299,8 +338,9 @@ export async function findAssetBySymbol(
 ): Promise<CatalogAsset | null> {
   const wanted = symbol.trim().toLowerCase();
   if (!wanted) return null;
-  const rows = await loadAssets(deps?.fetchImpl ?? fetch, deps?.now?.() ?? Date.now());
+  const loaded = await loadAssets(deps?.fetchImpl ?? fetch, deps?.now?.() ?? Date.now());
   const effectiveScope = resolveEffectiveScope(deps?.scope, maxScopeFromEnv());
+  const rows = withCuratedSafeguard(loaded, effectiveScope);
   const exact = rows.find((asset) => asset.symbol.toLowerCase() === wanted);
   if (!exact) return null;
   if (effectiveScope === "curated" && !exact.curated) return null;

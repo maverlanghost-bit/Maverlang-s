@@ -1,5 +1,8 @@
 # PROGRESO — Maverlang
 
+## M38b — Catálogo paginado (2026-10-06, fix(M38): catalogo paginado)
+- `fetchAssetsFromSupabase` pagina con `order=curated.desc,symbol.asc`, `limit=1000` + `offset` (tope 10 páginas; fallo parcial usa lo obtenido). Si hay filas pero ninguna curada y el alcance es `curated`, fallback a `config/tickers.ts`. Sin filtro `curated=eq.true` en servidor para no romper el cache compartido ni `bySymbol`. Tests: `catalog-pagination.test.ts` (4). `tsc`, `lint`, `npm test` 123/123 ok.
+
 ## Estado
 M38 hecha y verificada (`npx tsc --noEmit`, `npm run lint`, `npm test` 119). M36 y M37 ya commiteadas (2b089d3); la migración 0004 está aplicada y public.assets tiene 1171 filas. Sin `next dev/build`, sin push, sin e2e (límite de shell).
 
