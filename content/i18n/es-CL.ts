@@ -9,6 +9,7 @@ export const esCL = {
     portfolio: "Cartera",
     wallet: "Billetera",
     profile: "Perfil",
+    settings: "Ajustes",
   },
   shell: {
     balance: "Saldo",
@@ -20,6 +21,7 @@ export const esCL = {
     skip: "Saltar al contenido",
     collapseSidebar: "Contraer barra lateral",
     expandSidebar: "Expandir barra lateral",
+    currencyLabel: "Moneda",
   },
   account: {
     typeLabel: "Tipo de cuenta",
@@ -73,6 +75,11 @@ export const esCL = {
     profile: {
       title: "Perfil",
       lead: "Tu cuenta y tus preferencias.",
+      emptyTitle: "Tus ajustes todavía no están en esta pantalla",
+    },
+    settings: {
+      title: "Ajustes",
+      lead: "Moneda e idioma de la plataforma.",
       emptyTitle: "Tus ajustes todavía no están en esta pantalla",
     },
   },
@@ -257,6 +264,7 @@ export const esCL = {
     signFailed: "No se firmó la orden.",
     noFx: "Sin tipo de cambio no podemos usar pesos.",
     noPrice: "Sin precio no podemos calcular este monto.",
+    executesInDollars: "La orden se ejecuta en dólares ({amount})",
     orderFailed: "La orden no se completó.",
     errors: {
       UNAUTHORIZED: "Necesitas iniciar sesión para operar.",
@@ -429,6 +437,7 @@ export const esCL = {
     security: "Seguridad",
     notifications: "Notificaciones",
     language: "Idioma y moneda",
+    settings: "Ajustes",
     legal: "Documentos legales",
     help: "Ayuda",
     logout: "Cerrar sesión",

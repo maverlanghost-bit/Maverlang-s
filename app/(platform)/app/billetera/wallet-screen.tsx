@@ -40,12 +40,6 @@ const STATUS_TONE: Record<OrderStatus, BadgeTone> = {
   expired: "neutral",
 };
 
-function fill(template: string, values: Record<string, string>) {
-  let next = template;
-  for (const [key, value] of Object.entries(values)) next = next.split(`{${key}}`).join(value);
-  return next;
-}
-
 function rank(symbol: string) {
   if (symbol === "USDC") return 0;
   if (symbol === "SOL") return 1;
@@ -178,8 +172,9 @@ export function WalletScreen() {
   const address = session.user?.walletAddress?.trim() ?? "";
   const tickerBySymbol = new Map((tickers.data ?? []).map((ticker) => [ticker.symbol, ticker]));
   const rate = fx.data?.rate;
-  const pendingFx = currency === "CLP" && fx.isPending;
-  const clp = currency === "CLP" ? displayPrice(usdcUi, "CLP", rate) : null;
+  const fxKnown = typeof rate === "number" && Number.isFinite(rate) && rate > 0;
+  const pendingFx = currency === "CLP" && !fxKnown && fx.isPending;
+  const usdcView = moneyView(usdcUi, currency, fxKnown ? rate : undefined);
   const masked = hidden === true;
 
   return (
@@ -191,14 +186,12 @@ export function WalletScreen() {
         <div className="mt-2" aria-live="polite">
           {masked ? (
             <Masked label={t.shell.balanceHidden} className="text-4xl sm:text-5xl" />
+          ) : pendingFx ? (
+            <Skeleton className="h-12 w-48" />
           ) : (
-            <PriceText value={usdcUi} currency="USD" size="lg" />
+            <PriceText value={usdcView.amount} currency={usdcView.currency} size="lg" />
           )}
-          {masked ? null : pendingFx ? (
-            <Skeleton className="mt-2 h-5 w-28" />
-          ) : clp !== null ? (
-            <p className="num mt-2 text-sm text-fg-muted">{fill(t.wallet.clpApprox, { amount: formatMoney(clp, "CLP") })}</p>
-          ) : currency === "CLP" ? (
+          {masked || pendingFx ? null : currency === "CLP" && !fxKnown ? (
             <p className="mt-2 text-sm text-fg-muted">{t.detail.fxMissing}</p>
           ) : null}
         </div>
@@ -281,6 +274,8 @@ export function WalletScreen() {
           error={activity.isError}
           rows={activity.data ?? []}
           hidden={masked}
+          currency={currency}
+          rate={fxKnown ? rate : undefined}
           onRetry={() => {
             void activity.refetch();
           }}
@@ -335,12 +330,16 @@ function ActivityList({
   error,
   rows,
   hidden,
+  currency,
+  rate,
   onRetry,
 }: {
   pending: boolean;
   error: boolean;
   rows: Activity[];
   hidden: boolean;
+  currency: Currency;
+  rate: number | undefined;
   onRetry: () => void;
 }) {
   const { t } = useT();
@@ -378,7 +377,7 @@ function ActivityList({
               <li key={row.id}>
                 <ActivityItem
                   title={activityTitle(t.wallet.kinds, row)}
-                  detail={activityDetail(row, hidden, t.shell.balanceHidden)}
+                  detail={activityDetail(row, hidden, t.shell.balanceHidden, currency, rate)}
                   time={formatDateTime(row.at)}
                   dateTime={row.at}
                   status={t.portfolio.status[row.status]}
@@ -400,12 +399,20 @@ function activityTitle(kinds: Record<ActivityKind, string>, row: Activity) {
   return `${kinds[row.kind]} · ${row.symbol}`;
 }
 
-function activityDetail(row: Activity, hidden: boolean, hiddenLabel: string): ReactNode {
+function activityDetail(
+  row: Activity,
+  hidden: boolean,
+  hiddenLabel: string,
+  currency: Currency,
+  rate: number | undefined,
+): ReactNode {
   const amount = formatAssetAmount(row.symbol, row.amountUi);
   if (row.symbol === "USDC" || row.symbol === "SOL") {
     return hidden ? <Masked label={hiddenLabel} /> : amount;
   }
-  const money = row.valueUsd !== null ? formatMoney(row.valueUsd, "USD") : null;
+  if (row.valueUsd === null) return amount;
+  const view = moneyView(row.valueUsd, currency, rate);
+  const money = formatMoney(view.amount, view.currency);
   if (!money) return amount;
   if (hidden) {
     return (

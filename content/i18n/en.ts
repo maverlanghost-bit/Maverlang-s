@@ -7,6 +7,7 @@ export const en = {
     portfolio: "Portfolio",
     wallet: "Wallet",
     profile: "Profile",
+    settings: "Settings",
   },
   shell: {
     balance: "Balance",
@@ -18,6 +19,7 @@ export const en = {
     skip: "Skip to content",
     collapseSidebar: "Collapse sidebar",
     expandSidebar: "Expand sidebar",
+    currencyLabel: "Currency",
   },
   account: {
     typeLabel: "Account type",
@@ -70,6 +72,11 @@ export const en = {
     profile: {
       title: "Profile",
       lead: "Your account and preferences.",
+      emptyTitle: "Your settings are not on this screen yet",
+    },
+    settings: {
+      title: "Settings",
+      lead: "Platform currency and language.",
       emptyTitle: "Your settings are not on this screen yet",
     },
   },
@@ -254,6 +261,7 @@ export const en = {
     signFailed: "The order was not signed.",
     noFx: "We can't use pesos without an exchange rate.",
     noPrice: "We can't calculate this amount without a price.",
+    executesInDollars: "The order settles in dollars ({amount})",
     orderFailed: "The order did not complete.",
     errors: {
       UNAUTHORIZED: "You need to sign in to trade.",
@@ -425,6 +433,7 @@ export const en = {
     security: "Security",
     notifications: "Notifications",
     language: "Language and currency",
+    settings: "Settings",
     legal: "Legal documents",
     help: "Help",
     logout: "Log out",

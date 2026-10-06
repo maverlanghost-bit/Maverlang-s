@@ -160,11 +160,12 @@ export function useDeletionStatus() {
   });
 }
 
-/** USDCLP. El route es no-store; el cliente lo retiene 1 h. */
+/** USDCLP. Refresco cada 5 minutos (M40): la moneda única lo usa en toda la app. */
 export function useFx() {
   return useQuery({
     queryKey: ["fx", "USDCLP"],
     queryFn: getFx,
-    staleTime: HOUR_MS,
+    staleTime: 5 * 60_000,
+    refetchInterval: 5 * 60_000,
   });
 }

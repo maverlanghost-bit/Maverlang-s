@@ -2,6 +2,13 @@
 
 > Estado de la base (2026-10-06): las migraciones 0002, 0003 y 0004 YA están aplicadas en el proyecto Supabase actual y `public.assets` está sincronizada. No hay que pegar nada en el SQL Editor; las instrucciones de `docs/SUPABASE.md` sirven sólo para un proyecto nuevo.
 
+## M40 — Una sola moneda (2026-10-06, M40: una sola moneda)
+- Hecho: `lib/preferences/currency.ts` (resolve sesión>local>CLP + cookie `mv_currency` 1 año) y `useDisplayCurrency/useSetDisplayCurrency` (local con useSyncExternalStore, DB si hay sesión, UI al instante); `useT` la usa. `/app/ajustes` pública (moneda primero, idioma después, vale visitante); `/app/perfil/idioma` redirige; perfil y sidebar/bottom-tabs suman Ajustes (IconGear). Switch USD/CLP en top-bar, header público y sidebar. Detalle sin celdas USD/CLP; trade/cartera/billetera/mercado en moneda única; orden CLP→USD antes de cotizar + "La orden se ejecuta en dólares (US$X)". `useFx` cada 5 min. Tests `display-currency.test.ts` (11).
+- Archivos clave: `lib/preferences/currency.ts`, `lib/hooks/use-display-currency.ts`, `app/(platform)/app/ajustes/`, `components/{app-shell/currency-switch,domain/preferences-form}`, detalle, `trade-sheet`, cartera, billetera, `paths.ts`, `nav.ts`, i18n.
+- Decisiones: idioma visitante también en local (`mv_language`); depósitos en pesos y catálogo intactos; sin CLP sin FX se muestra USD; sell en SHARES sigue en unidades.
+- Verificación: `npx tsc --noEmit` ok; `eslint` por archivo ok (completo excede 120 s); `npm test` 141/141 (24 archivos); `git grep sb_secret_` sin claves nuevas. Sin `next dev/build`, sin e2e, sin push.
+- Pendiente: mirar `/app/ajustes` con y sin sesión, switch en móvil/escritorio, detalle sin duplicados, compra en CLP con línea en dólares, cartera/billetera en una moneda.
+
 ## M39b — Separar asset-status cliente/servidor (2026-10-06, fix(M39): separar asset-status cliente/servidor (build))
 - Hecho: `lib/market/asset-status.shared.ts` nuevo (tipos + `chipKeyForStatus`, `tradeBlockForStatus`, `effectiveMinOrderUsd`, `normalizeMode`, `normalizePeriod`; sin `server-only`, sin `lib/env` ni catálogo). `asset-status.ts` conserva `server-only`, `status()`, `isLiveStatusEnabled()`, cache y fetch, y re-exporta lo compartido. `detail-screen.tsx` y `trade-sheet.tsx` importan del `.shared`. Test `client-imports.test.ts` (1) falla si un `"use client"` importa `asset-status` sin `.shared`, `catalog/assets`, `lib/env` o `server-only`.
 - Verificación: `npx tsc --noEmit` ok; `eslint` de los 5 archivos tocados ok (`npm run lint` completo excede el límite de 120 s de la shell); `npm test` 130/130 (23 archivos); `git grep` sin `sb_secret_` ni import cliente→servidor. Sin `next dev/build`, sin e2e, sin push.

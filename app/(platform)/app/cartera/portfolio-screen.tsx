@@ -20,7 +20,7 @@ import { ErrorState } from "@/components/ui/error-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { Skeleton } from "@/components/ui/skeleton";
-import { formatDateTime, formatMoney, formatShares, formatUsd, type MoneyCurrency } from "@/lib/format";
+import { formatDateTime, formatMoney, formatShares, type MoneyCurrency } from "@/lib/format";
 import { useAccountMode } from "@/lib/hooks/use-account-mode";
 import { useHideBalance } from "@/lib/hooks/use-hide-balance";
 import { useActivity, useFx, useHistories, usePortfolio, useTickers } from "@/lib/hooks/queries";
@@ -403,11 +403,7 @@ export function PortfolioScreen() {
                 <PriceText value={cashView.amount} currency={cashView.currency} size="md" />
               )}
             </div>
-            <p className="mt-1 text-sm text-fg-muted">
-              {masked || pendingFx || cashView.currency !== "CLP"
-                ? t.portfolio.availableNote
-                : fill(t.portfolio.availableUsd, { amount: formatUsd(loaded.cashUsdc) })}
-            </p>
+            <p className="mt-1 text-sm text-fg-muted">{t.portfolio.availableNote}</p>
           </div>
           <Button asChild>
             <Link href={DEPOSIT_HREF}>{t.trade.deposit}</Link>

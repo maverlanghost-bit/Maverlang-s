@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 
 import { BrandMark } from "@/components/app-shell/brand-mark";
+import { CurrencySwitch } from "@/components/app-shell/currency-switch";
 import { Button } from "@/components/ui/button";
 import { IconButton } from "@/components/ui/icon-button";
 import { IconMenu } from "@/components/ui/icons";
@@ -54,6 +55,7 @@ function PublicHeaderBar({ here }: { here: string }) {
           ))}
         </nav>
         <div className="ml-auto flex shrink-0 items-center gap-1.5">
+          <CurrencySwitch className="mr-1 hidden min-[400px]:inline-flex" />
           <Button asChild variant="ghost" size="sm" className="h-11 shrink-0 px-2 text-sm whitespace-nowrap">
             <Link href={enter}>{t.guest.login}</Link>
           </Button>
@@ -85,6 +87,9 @@ function PublicHeaderBar({ here }: { here: string }) {
             </Link>
           ))}
         </nav>
+        <div className="mt-4 flex justify-center">
+          <CurrencySwitch />
+        </div>
       </Sheet>
     </header>
   );

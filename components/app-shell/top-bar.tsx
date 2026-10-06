@@ -2,6 +2,7 @@
 
 import { useAccountLabel } from "@/components/app-shell/account-label";
 import { BrandMark } from "@/components/app-shell/brand-mark";
+import { CurrencySwitch } from "@/components/app-shell/currency-switch";
 import { BalanceHeader } from "@/components/domain/balance-header";
 import { Badge } from "@/components/ui/badge";
 import type { AccountMode } from "@/lib/account/mode";
@@ -14,7 +15,7 @@ export function TopBar({ accountMode = "demo" }: { accountMode?: AccountMode }) 
 
   return (
     <header className="sticky top-0 z-30 border-b border-border bg-bg/90 px-5 backdrop-blur-md pt-[env(safe-area-inset-top)] lg:hidden">
-      <div className="flex min-h-14 items-center gap-3 py-2">
+      <div className="flex min-h-14 items-center gap-2 py-2">
         <div className="min-w-0 flex-1">
           <span className="flex items-center gap-2">
             <BrandMark />
@@ -22,7 +23,8 @@ export function TopBar({ accountMode = "demo" }: { accountMode?: AccountMode }) 
           </span>
           {identity ? <p className="truncate pl-4 text-xs leading-4 text-fg-muted">{identity}</p> : null}
         </div>
-        <BalanceHeader variant="bar" className="min-w-0 max-w-[58%]" />
+        <BalanceHeader variant="bar" className="min-w-0 max-w-[45%]" />
+        <CurrencySwitch className="shrink-0" />
       </div>
     </header>
   );

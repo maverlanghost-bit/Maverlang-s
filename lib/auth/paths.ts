@@ -1,9 +1,10 @@
 /**
- * Mercado (`/app`) y el detalle (`/app/accion/[ticker]`).
+ * Mercado (`/app`), el detalle (`/app/accion/[ticker]`) y Ajustes (`/app/ajustes`).
  * Cartera, billetera, perfil y el resto de `/app` piden sesión.
  */
 export function isPublicAppPath(pathname: string): boolean {
-  return pathname === "/app" || pathname === "/app/accion" || pathname.startsWith("/app/accion/");
+  if (pathname === "/app" || pathname === "/app/accion" || pathname.startsWith("/app/accion/")) return true;
+  return pathname === "/app/ajustes" || pathname.startsWith("/app/ajustes/");
 }
 
 function isPath(pathname: string, base: string): boolean {

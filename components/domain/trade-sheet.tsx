@@ -20,10 +20,11 @@ import type { Messages } from "@/content/i18n/es-CL";
 import { ApiError, buildTrade, getTradeStatus, quoteTrade, submitTrade } from "@/lib/api/client";
 import { useSession } from "@/lib/auth";
 import { useSignTrade } from "@/lib/auth/sign-transaction";
-import { formatClp, formatShares, formatUsd } from "@/lib/format";
+import { formatMoney, formatShares } from "@/lib/format";
 import { useAccountMode } from "@/lib/hooks/use-account-mode";
 import { useAssetStatus, useFx, useMarketStatus, usePortfolio, usePrices } from "@/lib/hooks/queries";
 import { useT } from "@/lib/hooks/use-t";
+import { displayPrice } from "@/lib/market/browse";
 import { effectiveMinOrderUsd } from "@/lib/market/asset-status.shared";
 import {
   amountBlock,
@@ -34,7 +35,7 @@ import {
   type AmountBlock,
   type TradeAmountCurrency,
 } from "@/lib/trade/amount";
-import type { Order, Side, Ticker, TradeQuote } from "@/lib/types";
+import type { Currency, Order, Side, Ticker, TradeQuote } from "@/lib/types";
 
 const DEPOSIT_HREF = "/app/billetera/depositar";
 const POLL_MS = 1_000;
@@ -118,19 +119,25 @@ function solText(value: number) {
   return `${solFormatter.format(value)} SOL`;
 }
 
-function costRows(t: Messages, quote: TradeQuote, side: Side) {
+function shownMoney(usd: number, currency: Currency, rate: number | null | undefined) {
+  const value = displayPrice(usd, currency, rate ?? undefined);
+  if (value === null) return formatMoney(usd, "USD");
+  return formatMoney(value, currency);
+}
+
+function costRows(t: Messages, quote: TradeQuote, side: Side, currency: Currency, rate: number | null | undefined) {
   const fee =
     quote.costs.platformFeeBps === 0
       ? t.trade.feeFree
       : fill(t.trade.feeLine, {
           percent: plainPercent.format(quote.costs.platformFeeBps / 10_000),
-          amount: formatUsd(quote.costs.platformFeeUsd),
+          amount: shownMoney(quote.costs.platformFeeUsd, currency, rate),
         });
   const rows = [
-    { label: t.trade.price, value: formatUsd(quote.pricePerShareUsd) },
+    { label: t.trade.price, value: shownMoney(quote.pricePerShareUsd, currency, rate) },
     {
       label: t.trade.youReceive,
-      value: side === "buy" ? formatShares(quote.outAmountUi) : formatUsd(quote.outAmountUi),
+      value: side === "buy" ? formatShares(quote.outAmountUi) : shownMoney(quote.outAmountUi, currency, rate),
     },
     { label: fill(t.trade.fee, { brand: site.name }), value: fee },
     { label: t.trade.network, value: solText(quote.costs.networkFeeSol) },
@@ -145,8 +152,15 @@ function costRows(t: Messages, quote: TradeQuote, side: Side) {
   return rows;
 }
 
-function blockCopy(t: Messages, block: AmountBlock | null, side: Side, amount: number) {
-  const minimum = formatUsd(MIN_TRADE_USD);
+function blockCopy(
+  t: Messages,
+  block: AmountBlock | null,
+  side: Side,
+  amount: number,
+  currency: Currency,
+  rate: number | null | undefined,
+) {
+  const minimum = shownMoney(MIN_TRADE_USD, currency, rate);
   if (block === "min") return fill(t.trade.min, { amount: minimum });
   if (block === "funds" && !(amount > 0)) {
     return fill(side === "sell" ? t.trade.belowMinShares : t.trade.belowMin, { amount: minimum });
@@ -220,6 +234,9 @@ function TradeFlow({ side, ticker }: { side: Side; ticker: Ticker }) {
   const fxRate = fx.data?.rate ?? null;
   const amount = parseAmount(amountRaw);
   const portfolioPending = portfolio.isPending;
+  // Las órdenes se ejecutan en dólares (M40): el monto en CLP se convierte a USD antes de cotizar.
+  const quoteAmount = currency === "CLP" && fxRate && fxRate > 0 ? amount / fxRate : amount;
+  const quoteCurrency = currency === "CLP" ? "USDC" : currency;
   const block = amountBlock({
     side,
     currency,
@@ -233,7 +250,9 @@ function TradeFlow({ side, ticker }: { side: Side; ticker: Ticker }) {
     portfolioPending,
   });
   const requestKey =
-    block === null ? `${side}|${ticker.symbol}|${currency}|${amount}|${refreshKey}|${mockError ?? ""}` : "";
+    block === null
+      ? `${side}|${ticker.symbol}|${quoteCurrency}|${quoteAmount}|${refreshKey}|${mockError ?? ""}`
+      : "";
   const live = quoteState.key === requestKey ? quoteState : idleQuote;
   const quote = live.quote;
   const quoting = live.pending;
@@ -246,9 +265,13 @@ function TradeFlow({ side, ticker }: { side: Side; ticker: Ticker }) {
   // Mínimo por orden del activo (M39): ayuda visible y validación suave en el demo.
   const halted = asset.data?.halted === true;
   const minUsd = effectiveMinOrderUsd(asset.data?.minOrderUsd);
-  const minHelp = fill(t.trade.minOrder, { amount: formatUsd(minUsd) });
+  const minHelp = fill(t.trade.minOrder, { amount: shownMoney(minUsd, displayCurrency, fxRate) });
   const notion = notionalUsd(amount, currency, fxRate, priceUsd);
   const belowAssetMin = notion !== null && notion > 0 && notion + 1e-9 < minUsd;
+  const dollarsNote =
+    currency === "CLP" && fxRate && fxRate > 0 && amount > 0
+      ? fill(t.trade.executesInDollars, { amount: formatMoney(amount / fxRate, "USD") })
+      : null;
 
   useEffect(() => {
     mounted.current = true;
@@ -273,8 +296,8 @@ function TradeFlow({ side, ticker }: { side: Side; ticker: Ticker }) {
         {
           side,
           symbol: ticker.symbol,
-          amount,
-          amountCurrency: currency,
+          amount: quoteAmount,
+          amountCurrency: quoteCurrency,
           ...(pubkey ? { userPublicKey: pubkey } : {}),
         },
         mockError,
@@ -297,7 +320,7 @@ function TradeFlow({ side, ticker }: { side: Side; ticker: Ticker }) {
       window.clearTimeout(handle);
       seqRef.current += 1;
     };
-  }, [amount, busy, currency, mockError, pubkey, requestKey, side, t, ticker.symbol]);
+  }, [amount, busy, currency, mockError, pubkey, quoteAmount, quoteCurrency, requestKey, side, t, ticker.symbol]);
 
   useEffect(() => {
     if (!quote || busy) return;
@@ -407,7 +430,7 @@ function TradeFlow({ side, ticker }: { side: Side; ticker: Ticker }) {
         <p className="text-2xl text-fg">{t.trade.done}</p>
         <p className="text-sm text-balance text-fg-body">{summary}</p>
         {result.side === "sell" ? (
-          <p className="text-sm text-fg-muted">{fill(t.trade.receiveSell, { amount: formatUsd(result.outAmountUi) })}</p>
+          <p className="text-sm text-fg-muted">{fill(t.trade.receiveSell, { amount: shownMoney(result.outAmountUi, displayCurrency, fxRate) })}</p>
         ) : null}
         <Button asChild size="lg" className="w-full">
           <Link href="/app/cartera">{t.trade.portfolio}</Link>
@@ -439,30 +462,29 @@ function TradeFlow({ side, ticker }: { side: Side; ticker: Ticker }) {
     );
   }
 
-  const hint = blockCopy(t, block, side, amount);
+  const hint = blockCopy(t, block, side, amount, displayCurrency, fxRate);
   const showDeposit = side === "buy" && block === "funds";
   const canReview = block === null && fresh && !quoting && !quoteError && !belowAssetMin && !halted;
   const canConfirm = phase === "review" && canReview && remainingMs > 0 && pubkey !== null && !halted;
   const estimate = quote
     ? side === "buy"
       ? fill(t.trade.receiveBuy, { amount: formatShares(quote.outAmountUi), name: ticker.name })
-      : fill(t.trade.receiveSell, { amount: formatUsd(quote.outAmountUi) })
+      : fill(t.trade.receiveSell, { amount: shownMoney(quote.outAmountUi, displayCurrency, fxRate) })
     : null;
+  const availableUsd = side === "buy" ? cashUsdc : (priceUsd && priceUsd > 0 ? shares * priceUsd : cashUsdc);
   const available =
     cap === null
       ? null
       : currency === "SHARES"
         ? fill(t.trade.holding, { amount: formatShares(cap) })
-        : currency === "CLP"
-          ? fill(t.trade.available, { amount: formatClp(cap) })
-          : fill(t.trade.available, { amount: formatUsd(cap) });
+        : fill(t.trade.available, { amount: shownMoney(availableUsd, displayCurrency, fxRate) });
   const labels = { CLP: "CLP", USDC: "USDC", SHARES: t.trade.shares, USD: "USD" } as const;
 
   if (phase === "review") {
     const sub = quote
       ? side === "buy"
         ? fill(t.trade.pay, {
-            amount: currency === "CLP" ? `${formatClp(amount)} · ${formatUsd(quote.inAmountUi)}` : formatUsd(quote.inAmountUi),
+            amount: shownMoney(quote.inAmountUi, displayCurrency, fxRate),
           })
         : fill(t.trade.sellOf, { amount: formatShares(quote.inAmountUi), name: ticker.name })
       : null;
@@ -503,7 +525,8 @@ function TradeFlow({ side, ticker }: { side: Side; ticker: Ticker }) {
           <MarketStatusPill open={false} label={market.data.session === "closed" ? t.market.closed : t.market.offHours} />
         ) : null}
         {halted ? <p className="text-center text-sm text-down">{t.detail.tradeHaltedNote}</p> : null}
-        {fresh && quote ? <CostBreakdown rows={costRows(t, quote, side)} /> : null}
+        {fresh && quote ? <CostBreakdown rows={costRows(t, quote, side, displayCurrency, fxRate)} /> : null}
+        {dollarsNote ? <p className="text-center text-xs text-fg-muted">{dollarsNote}</p> : null}
         <Link href="/legal/riesgos" className="text-sm font-medium text-fg underline underline-offset-4">
           {t.detail.risksLink}
         </Link>
@@ -595,6 +618,7 @@ function TradeFlow({ side, ticker }: { side: Side; ticker: Ticker }) {
       {fresh && quote ? (
         <p className="text-center text-sm text-fg-muted">{fill(t.trade.expiresIn, { time: countdownLabel(remainingMs) })}</p>
       ) : null}
+      {dollarsNote ? <p className="text-center text-xs text-fg-muted">{dollarsNote}</p> : null}
       {block === "fx" || block === "price" ? (
         <Button
           variant="secondary"

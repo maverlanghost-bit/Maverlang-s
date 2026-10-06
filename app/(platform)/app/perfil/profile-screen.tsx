@@ -23,7 +23,7 @@ const LINKS = [
   { href: "/app/perfil/cuenta", id: "account" },
   { href: "/app/perfil/seguridad", id: "security" },
   { href: "/app/perfil/notificaciones", id: "notifications" },
-  { href: "/app/perfil/idioma", id: "language" },
+  { href: "/app/ajustes", id: "settings" },
   { href: "/app/perfil/legal", id: "legal" },
   { href: "/ayuda", id: "help" },
 ] as const;

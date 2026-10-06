@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 
 import { useAccountLabel } from "@/components/app-shell/account-label";
 import { BrandMark } from "@/components/app-shell/brand-mark";
+import { CurrencySwitch } from "@/components/app-shell/currency-switch";
 import { isShellSectionActive, shellNav } from "@/components/app-shell/nav";
 import { BalanceHeader } from "@/components/domain/balance-header";
 import { Avatar } from "@/components/ui/avatar";
@@ -180,6 +181,9 @@ export function Sidebar({
           <AccountSwitch mode={accountMode} onChange={onAccountChange ?? (() => {})} />
           <div className="mt-3">
             <BalanceHeader variant="sidebar" />
+          </div>
+          <div className="mt-3 flex justify-start">
+            <CurrencySwitch />
           </div>
           <Link
             href="/app/perfil"

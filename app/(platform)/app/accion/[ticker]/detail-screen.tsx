@@ -20,7 +20,7 @@ import { useToast } from "@/components/ui/toast";
 import { site } from "@/config/site";
 import { detailReturnPath, ingresarPath, onboardingPath, registroPath } from "@/lib/auth/paths";
 import { cn } from "@/lib/cn";
-import { formatMoney, formatMultiplier, formatReopenWhen, formatShares, formatUsd } from "@/lib/format";
+import { formatMoney, formatMultiplier, formatReopenWhen, formatShares } from "@/lib/format";
 import { useAccountMode } from "@/lib/hooks/use-account-mode";
 import { useAssetStatus, useFx, useHistory, useMarketStatus, usePortfolio, usePrices } from "@/lib/hooks/queries";
 import { useFavorites } from "@/lib/hooks/use-favorites";
@@ -374,7 +374,6 @@ function KeyStats({
   range,
   currency,
   rate,
-  fxPending,
 }: {
   quote: Quote | null;
   quotePending: boolean;
@@ -384,41 +383,22 @@ function KeyStats({
   range: Range;
   currency: Currency;
   rate: number | undefined;
-  fxPending: boolean;
 }) {
   const { t } = useT();
   const caption = t.detail.rangeCaption[range];
   const fxKnown = typeof rate === "number" && Number.isFinite(rate) && rate > 0;
   const shownCurrency: Currency = currency === "CLP" && fxKnown ? "CLP" : "USD";
-  const clp = quote ? displayPrice(quote.priceUsd, "CLP", fxKnown ? rate : undefined) : null;
   const move = historyPending || historyError ? null : rangeMove(points);
   const bounds = historyPending || historyError ? null : rangeBounds(points);
   const rangeMissing = historyError ? t.detail.chartError : t.detail.chartEmpty;
   const quoteCellPending = quotePending && quote === null;
-  const clpPending = quote !== null && !fxKnown && fxPending;
   const high = bounds ? moneyText(bounds.high, shownCurrency, rate) : null;
   const low = bounds ? moneyText(bounds.low, shownCurrency, rate) : null;
 
   return (
     <Card className="p-5 md:p-6">
       <h2 className="text-lg">{t.detail.stats}</h2>
-      <dl className="mt-4 grid grid-cols-2 gap-px overflow-hidden rounded-xl bg-border lg:grid-cols-3">
-        <StatCell label={t.detail.priceUsd} pending={quoteCellPending}>
-          {quote && Number.isFinite(quote.priceUsd) ? (
-            <span className="num text-sm text-fg">{formatUsd(quote.priceUsd)}</span>
-          ) : (
-            <MissingFigure label={t.detail.unavailable} />
-          )}
-        </StatCell>
-        <StatCell label={t.detail.priceClp} pending={quoteCellPending || clpPending}>
-          {quote && clp !== null ? (
-            <span className="num text-sm text-fg">{formatMoney(clp, "CLP")}</span>
-          ) : quote && !fxKnown ? (
-            <span className="text-sm text-fg-muted">{t.detail.fxMissing}</span>
-          ) : (
-            <MissingFigure label={t.detail.unavailable} />
-          )}
-        </StatCell>
+      <dl className="mt-4 grid grid-cols-2 gap-px overflow-hidden rounded-xl bg-border">
         {/* 24 h: quote.change24hPct. En vivo es Jupiter priceChange24h, igual que el mercado. */}
         <StatCell label={t.detail.change24h} pending={quoteCellPending}>
           {quote && Number.isFinite(quote.change24hPct) ? (
@@ -690,7 +670,6 @@ export function DetailScreen({
           range={range}
           currency={currency}
           rate={rate}
-          fxPending={fx.isPending}
         />
 
         {access === "guest" ? null : (

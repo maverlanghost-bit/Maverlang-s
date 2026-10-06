@@ -1,11 +1,6 @@
-import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 
-import { LanguageScreen } from "./language-screen";
-
-export const metadata: Metadata = {
-  title: "Idioma",
-};
-
+/** /app/perfil/idioma ahora vive en /app/ajustes (M40). */
 export default function IdiomaPage() {
-  return <LanguageScreen />;
+  redirect("/app/ajustes");
 }
