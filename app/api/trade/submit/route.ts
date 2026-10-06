@@ -1,6 +1,16 @@
 import { tradeSubmitRequestSchema, tradeSubmitResponseSchema } from "@/lib/api/contracts";
-import { bodyOf, callService, handle, readOutput, requireSession } from "@/lib/api/handler";
+import {
+  bodyOf,
+  callService,
+  handle,
+  readOutput,
+  requireSession,
+  isRealAccountRequest,
+  isUserDemoRequest,
+} from "@/lib/api/handler";
+import { DomainError } from "@/lib/api/result";
 import { getServices } from "@/lib/services";
+import { demoSupabase } from "@/lib/services/demo.supabase";
 
 export const runtime = "nodejs";
 
@@ -11,6 +21,13 @@ export function POST(req: Request) {
       bodyOf(tradeSubmitRequestSchema, req),
       requireSession(services, req),
     ]);
+    if (isRealAccountRequest(req)) {
+      throw new DomainError("VALIDATION", "La cuenta real todavía no opera.");
+    }
+    if (isUserDemoRequest(req)) {
+      const data = await callService(req, () => demoSupabase.trade.submit(session.userId, body));
+      return readOutput(tradeSubmitResponseSchema, data);
+    }
     const data = await callService(req, () => services.trade.submit(body, session.userId));
     return readOutput(tradeSubmitResponseSchema, data);
   });

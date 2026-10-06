@@ -5,6 +5,7 @@ import type { ZodType } from "zod";
 
 import { parseContract } from "@/lib/api/contracts";
 import { DomainError, failFrom, ok, resultStatus, type ApiResult } from "@/lib/api/result";
+import { requestAccountMode } from "@/lib/account/server";
 import { DEMO_WALLET_ADDRESS } from "@/lib/auth/demo-user";
 import { isSupabaseAuth } from "@/lib/auth/mode";
 import { withMockError } from "@/lib/mocks/latency";
@@ -83,6 +84,21 @@ export async function requireSession(services: Services, req: Request): Promise<
 export async function requireSupabaseUser(services: Services, req: Request): Promise<void> {
   if (!isSupabaseAuth()) return;
   await requireSession(services, req);
+}
+
+/**
+ * M36: con AUTH_MODE=supabase y la cookie `mv_account=demo` (por defecto),
+ * la cartera y las órdenes demo son por usuario en Supabase.
+ * Con `mv_account=real`, la cuenta real todavía no opera: estado vacío.
+ * Con AUTH_MODE=mock (tests/e2e) no cambia nada: sigue el mock en memoria.
+ */
+export function isUserDemoRequest(req: Request): boolean {
+  return isSupabaseAuth() && requestAccountMode(req) === "demo";
+}
+
+/** Supabase + cuenta real: todavía sin movimientos. Las rutas devuelven vacío. */
+export function isRealAccountRequest(req: Request): boolean {
+  return isSupabaseAuth() && requestAccountMode(req) === "real";
 }
 
 export function requireWallet(session: Session): string {

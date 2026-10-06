@@ -12,6 +12,18 @@ Eso crea el perfil (`public.profiles`), los consentimientos y las preferencias. 
 
 No hace falta aplicarlo desde la terminal. Cartera, billetera y órdenes no van en este archivo.
 
+## Cuenta demo por usuario (0003)
+
+Después de `0002`, pega **una sola vez** `supabase/migrations/0003_demo_accounts.sql` en el SQL Editor y ejecútalo. También es idempotente. Crea:
+
+- `public.demo_accounts` (una fila por usuario, arranca en $1.000.000 CLP), `public.demo_positions` y `public.demo_orders`.
+- RLS: cada persona sólo lee sus filas. Nadie escribe desde el navegador: las escrituras las hace el servidor con la secret key vía rpc.
+- `public.demo_trade(...)`: compra o venta en una transacción (valida saldo o acciones, costo promedio, inserta la orden). Sólo `service_role`.
+- `public.demo_reset(...)`: vuelve al saldo inicial y borra posiciones y órdenes. Sólo `service_role`.
+- Trigger: cada perfil nuevo recibe su cuenta demo; al final hay un backfill para los perfiles que ya existen.
+
+Sin aplicar `0003`, las rutas demo por usuario fallan con error interno y la cartera muestra reintento. En local con `AUTH_MODE=mock` no hace falta: sigue la demo en memoria.
+
 ## Auth en el panel
 
 - Site URL: el valor de `NEXT_PUBLIC_SITE_URL` (en local, `http://localhost:3000`)

@@ -1,7 +1,17 @@
 # PROGRESO — Maverlang
 
 ## Estado
-M34 hecha. La ficha usa un solo spot: el gráfico ilustrativo termina en ese precio y, con `PRICES_MODE=live`, el dólar sale de mindicador. Siguiente: fuera de esta tarea (asociar la cartera real al usuario).
+M36 hecha y verificada (`npx tsc --noEmit`, `npm run lint`, `npm test` 93, `npm run e2e` 2 + 1 skipped). Pendiente: aplicar `0003` en el SQL Editor y hacer el commit.
+
+## Tareas hechas
+
+### M36 — Cuenta demo por usuario (2026-10-06, M36: cuenta demo por usuario) [VERIFICADA, POR COMMITEAR]
+- Hecho: migración `0003_demo_accounts.sql` (demo_accounts/positions/orders, RLS sólo lectura propia, `demo_trade` con promedio ponderado y errores cortos, `demo_reset`, trigger + backfill; sólo `service_role` ejecuta). Servicio server-only `lib/services/demo.supabase.ts` (precio del servicio de M34 y dólar real; sin dólar o con precio de referencia rechaza con mensaje claro; escrituras por rpc). Rutas portfolio/balances/activity/quote/build/submit/status leen la demo del usuario con `mv_account=demo` (defecto); `real` devuelve vacío/bloquea; mock sigue en memoria. Nueva `POST /api/demo/reset`. Selector demo/real en sidebar (icono con tooltip si colapsado), perfil y top bar (insignia Demo); real muestra "Próximamente: depósitos reales"; demo muestra insignia, nota de simulación y botón Reiniciar (Cartera y Perfil). i18n es-CL/en y `docs/SUPABASE.md` con cómo aplicar 0003.
+- Archivos clave: `supabase/migrations/0003_demo_accounts.sql`, `lib/services/{demo.supabase,demo.logic}.ts`, `lib/account/{mode,server}.ts`, `lib/hooks/use-account-mode.ts`, `app/api/{portfolio,wallet/*/trade/*,demo/reset}`, `components/{app-shell/account-switch,domain/{real-account-empty,reset-demo-button}}`, shell, cartera, billetera, perfil, detalle, trade-sheet, i18n.
+- Decisiones: saldo demo en CLP ($1.000.000); cartera/balances se exponen en USD vía dólar real (sin inventar: si falta, error con reintento). Cotizaciones en memoria (60 s); saldo/posiciones/órdenes en Supabase. Sin billetera, la demo firma con el id de usuario. En billetera demo no hay fila SOL: se oculta ese bloque y la dirección dice "sin dirección en Solana". Registro/login, mercado público, precio único, sidebar, barra móvil y `?operar=vender` sin cambios.
+- Verificación (2026-10-06, r2): `npx tsc --noEmit` ok; `npm run lint` ok tras renombrar `useUserDemo`/`useRealAccount` a `isUserDemoRequest`/`isRealAccountRequest` (el prefijo `use` los marcaba como hooks) y quitar el `setState` en efecto de `useAccountMode` (inicializador perezoso lee la cookie); `npm test` 93/93 (17 archivos, incl. `demo-account.test.ts` 11); `npm run e2e` 2 passed + 1 skipped (mock, `.next-e2e`). Revisión SQL: idempotente, RLS sólo-lectura propia, grants sólo a `service_role`, sin `pg_catalog.current_date` (usa `now()`); corregida venta parcial en `demo_trade` (antes no restaba las acciones si quedaba saldo). Búsqueda de claves de Supabase en el código limpia; `.env.local` no aparece en `git status`.
+- Pendiente: aplicar 0003 DESPUÉS de 0002 en el SQL Editor; `git add` + `git commit -m "M36: cuenta demo por usuario"`. Sin `next dev/build`, sin push.
+- Próximo: fuera de esta tarea.
 
 ## Tareas hechas
 

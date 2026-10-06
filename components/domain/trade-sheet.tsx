@@ -6,8 +6,10 @@ import { useEffect, useId, useRef, useState } from "react";
 
 import { CostBreakdown } from "@/components/domain/cost-breakdown";
 import { MarketStatusPill } from "@/components/domain/market-status-pill";
+import { RealAccountEmpty } from "@/components/domain/real-account-empty";
 import { TickerLogo } from "@/components/domain/ticker-logo";
 import { AmountInput } from "@/components/ui/amount-input";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ErrorState } from "@/components/ui/error-state";
 import { Sheet } from "@/components/ui/sheet";
@@ -19,6 +21,7 @@ import { ApiError, buildTrade, getTradeStatus, quoteTrade, submitTrade } from "@
 import { useSession } from "@/lib/auth";
 import { useSignTrade } from "@/lib/auth/sign-transaction";
 import { formatClp, formatShares, formatUsd } from "@/lib/format";
+import { useAccountMode } from "@/lib/hooks/use-account-mode";
 import { useFx, useMarketStatus, usePortfolio, usePrices } from "@/lib/hooks/queries";
 import { useT } from "@/lib/hooks/use-t";
 import {
@@ -176,6 +179,7 @@ function TradeMark({ ticker }: { ticker: Ticker }) {
 function TradeFlow({ side, ticker }: { side: Side; ticker: Ticker }) {
   const { t, currency: displayCurrency } = useT();
   const session = useSession();
+  const { mode } = useAccountMode();
   const sign = useSignTrade();
   const queryClient = useQueryClient();
   const portfolio = usePortfolio();
@@ -203,7 +207,9 @@ function TradeFlow({ side, ticker }: { side: Side; ticker: Ticker }) {
   const confirming = useRef(false);
 
   const wallet = session.user?.walletAddress?.trim() ?? "";
-  const pubkey = wallet.length >= 32 ? wallet : null;
+  const userId = session.user?.id?.trim() ?? "";
+  // La cuenta demo no tiene billetera: se firma con el id de usuario (uuid ≥ 32).
+  const pubkey = wallet.length >= 32 ? wallet : mode === "demo" && userId.length >= 32 ? userId : null;
   const position = portfolio.data?.positions.find((item) => item.symbol === ticker.symbol) ?? null;
   const shares = position?.shares ?? 0;
   const cashUsdc = portfolio.data?.cashUsdc ?? 0;
@@ -343,6 +349,10 @@ function TradeFlow({ side, ticker }: { side: Side; ticker: Ticker }) {
         <Skeleton className="h-40 w-full rounded-3xl" />
       </div>
     );
+  }
+
+  if (mode === "real") {
+    return <RealAccountEmpty />;
   }
 
   if (portfolio.isError) {
@@ -486,6 +496,12 @@ function TradeFlow({ side, ticker }: { side: Side; ticker: Ticker }) {
   return (
     <div className="flex flex-col gap-5">
       <TradeMark ticker={ticker} />
+      {mode === "demo" ? (
+        <p className="flex items-center justify-center gap-2 text-xs leading-relaxed text-fg-muted">
+          <Badge tone="warn">{t.account.badge}</Badge>
+          <span>{t.account.note}</span>
+        </p>
+      ) : null}
       <AmountInput
         id={`${hintId}-amount`}
         label={t.trade.amount}

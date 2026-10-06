@@ -1,4 +1,4 @@
-import type { ZodType } from "zod";
+import { z, type ZodType } from "zod";
 
 import {
   activityResponseSchema,
@@ -198,6 +198,16 @@ export function getConsents(): Promise<Consent[]> {
 
 export function getDeletionStatus(): Promise<DeletionStatus> {
   return request("/api/me/deletion", deletionStatusSchema, { cache: "no-store" });
+}
+
+/** Reinicia la cuenta demo del usuario (saldo inicial, sin posiciones ni órdenes). */
+export function resetDemoAccount(): Promise<{ cashClp: number; resetCount?: number }> {
+  return send(
+    "POST",
+    "/api/demo/reset",
+    z.object({ cashClp: z.number(), resetCount: z.number().optional() }),
+    {},
+  );
 }
 
 export function requestDeletion(): Promise<DeletionStatus> {

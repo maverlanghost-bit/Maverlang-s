@@ -5,6 +5,7 @@ import { useState, type ReactNode } from "react";
 
 import { ActivityItem } from "@/components/domain/activity-item";
 import { PriceText } from "@/components/domain/price-text";
+import { RealAccountEmpty } from "@/components/domain/real-account-empty";
 import { TickerLogo } from "@/components/domain/ticker-logo";
 import type { BadgeTone } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -16,6 +17,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useSession } from "@/lib/auth";
 import { formatDateTime, formatMoney, type MoneyCurrency } from "@/lib/format";
+import { useAccountMode } from "@/lib/hooks/use-account-mode";
 import { useHideBalance } from "@/lib/hooks/use-hide-balance";
 import { useActivity, useBalances, useFx, useTickers } from "@/lib/hooks/queries";
 import { useT } from "@/lib/hooks/use-t";
@@ -131,6 +133,7 @@ function AssetRow({
 export function WalletScreen() {
   const { t, currency } = useT();
   const session = useSession();
+  const { mode } = useAccountMode();
   const { hidden } = useHideBalance();
   const balances = useBalances();
   const activity = useActivity();
@@ -139,6 +142,15 @@ export function WalletScreen() {
 
   if (session.status === "loading" || balances.isPending) {
     return <LoadingState label={t.states.loading} />;
+  }
+
+  if (mode === "real") {
+    return (
+      <div className="flex flex-col gap-6">
+        <PageHeader title={t.pages.wallet.title} description={t.wallet.lead} />
+        <RealAccountEmpty />
+      </div>
+    );
   }
 
   if (balances.isError) {
@@ -194,13 +206,19 @@ export function WalletScreen() {
 
         <div className="mt-6 border-t border-border pt-4">
           <p className="label">{t.wallet.solLabel}</p>
-          <p className="mt-2 text-lg text-fg">{masked ? <Masked label={t.shell.balanceHidden} /> : <span className="num">{formatSol(solUi)}</span>}</p>
-          <p className="mt-1 max-w-xl text-sm leading-relaxed text-fg-muted">{t.wallet.solExplain}</p>
-          {lowSol ? (
-            <p role="status" className="mt-3 rounded-xl bg-warn-bg px-4 py-3 text-sm leading-relaxed text-fg">
-              {t.wallet.solLow}
-            </p>
-          ) : null}
+          {sol ? (
+            <>
+              <p className="mt-2 text-lg text-fg">{masked ? <Masked label={t.shell.balanceHidden} /> : <span className="num">{formatSol(solUi)}</span>}</p>
+              <p className="mt-1 max-w-xl text-sm leading-relaxed text-fg-muted">{t.wallet.solExplain}</p>
+              {lowSol ? (
+                <p role="status" className="mt-3 rounded-xl bg-warn-bg px-4 py-3 text-sm leading-relaxed text-fg">
+                  {t.wallet.solLow}
+                </p>
+              ) : null}
+            </>
+          ) : (
+            <p className="mt-1 max-w-xl text-sm leading-relaxed text-fg-muted">{t.wallet.solExplain}</p>
+          )}
         </div>
 
         <div className="mt-6 grid grid-cols-1 gap-2 sm:grid-cols-3">
@@ -250,7 +268,7 @@ export function WalletScreen() {
             <CopyButton value={address} label={t.wallet.copy} copiedLabel={t.wallet.copied} />
           </div>
         ) : (
-          <p className="mt-4 text-sm text-fg-muted">{t.wallet.noWallet}</p>
+          <p className="mt-4 text-sm text-fg-muted">{t.account.noAddress}</p>
         )}
       </Card>
 

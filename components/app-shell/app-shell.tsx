@@ -9,7 +9,9 @@ import { PublicHeader } from "@/components/app-shell/public-header";
 import { Sidebar } from "@/components/app-shell/sidebar";
 import { TopBar } from "@/components/app-shell/top-bar";
 import { serializeSidebarCookie } from "@/lib/app-shell/sidebar";
+import { useAccountMode } from "@/lib/hooks/use-account-mode";
 import { useT } from "@/lib/hooks/use-t";
+import type { AccountMode } from "@/lib/account/mode";
 
 function SyncDocumentLanguage({ language }: { language: "es-CL" | "en" }) {
   useEffect(() => {
@@ -57,9 +59,18 @@ function ClearPrivateTabs() {
   return null;
 }
 
-function ShellFrame({ children, sidebarCollapsed }: { children: ReactNode; sidebarCollapsed: boolean }) {
+function ShellFrame({
+  children,
+  sidebarCollapsed,
+  accountInitial,
+}: {
+  children: ReactNode;
+  sidebarCollapsed: boolean;
+  accountInitial: AccountMode;
+}) {
   const { t, language } = useT();
   const [collapsed, setCollapsed] = useState(sidebarCollapsed);
+  const account = useAccountMode(accountInitial);
   const toggleSidebar = useCallback(() => {
     setCollapsed((previous) => {
       const next = !previous;
@@ -79,9 +90,9 @@ function ShellFrame({ children, sidebarCollapsed }: { children: ReactNode; sideb
         {t.shell.skip}
       </a>
       <div className="min-h-dvh lg:grid lg:grid-cols-[auto_minmax(0,1fr)]">
-        <Sidebar collapsed={collapsed} onToggle={toggleSidebar} />
+        <Sidebar collapsed={collapsed} onToggle={toggleSidebar} accountMode={account.mode} onAccountChange={account.select} />
         <div className="flex min-h-dvh min-w-0 flex-col">
-          <TopBar />
+          <TopBar accountMode={account.mode} />
           <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col px-5 pt-6 lg:px-8 lg:pt-8">
             <main id="contenido" tabIndex={-1} className="flex-1 scroll-mt-16 outline-none">
               {children}
@@ -127,14 +138,20 @@ function PublicFrame({ children }: { children: ReactNode }) {
 export function AppShell({
   signedIn,
   sidebarCollapsed = false,
+  accountMode = "demo",
   children,
 }: {
   signedIn: boolean;
   sidebarCollapsed?: boolean;
+  accountMode?: AccountMode;
   children: ReactNode;
 }) {
   const pathname = usePathname();
   if (isBarePlatformPath(pathname)) return children;
   if (!signedIn) return <PublicFrame>{children}</PublicFrame>;
-  return <ShellFrame sidebarCollapsed={sidebarCollapsed}>{children}</ShellFrame>;
+  return (
+    <ShellFrame sidebarCollapsed={sidebarCollapsed} accountInitial={accountMode}>
+      {children}
+    </ShellFrame>
+  );
 }

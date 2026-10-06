@@ -13,14 +13,26 @@ import { IconButton } from "@/components/ui/icon-button";
 import { IconLogout, IconPanel } from "@/components/ui/icons";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip } from "@/components/ui/tooltip";
+import { AccountSwitch } from "@/components/app-shell/account-switch";
 import { site } from "@/config/site";
 import { shouldIgnoreSidebarShortcut, shouldToggleSidebarClick } from "@/lib/app-shell/sidebar";
+import type { AccountMode } from "@/lib/account/mode";
 import { cn } from "@/lib/cn";
 import { useT } from "@/lib/hooks/use-t";
 
 const WIDTH_ANIMATION = "transition-[width] duration-200 ease-spring";
 
-export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => void }) {
+export function Sidebar({
+  collapsed,
+  onToggle,
+  accountMode = "demo",
+  onAccountChange,
+}: {
+  collapsed: boolean;
+  onToggle: () => void;
+  accountMode?: AccountMode;
+  onAccountChange?: (mode: AccountMode) => void;
+}) {
   const pathname = usePathname();
   const { t } = useT();
   const account = useAccountLabel();
@@ -139,6 +151,7 @@ export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
       )}
       {collapsed ? (
         <div className="flex flex-col items-center gap-1 border-t border-border p-2">
+          <AccountSwitch mode={accountMode} onChange={onAccountChange ?? (() => {})} collapsed />
           <Link
             href="/app/perfil"
             aria-label={loading ? t.shell.account : `${name}. ${t.shell.account}`}
@@ -164,7 +177,10 @@ export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
         </div>
       ) : (
         <div className="border-t border-border p-3">
-          <BalanceHeader variant="sidebar" />
+          <AccountSwitch mode={accountMode} onChange={onAccountChange ?? (() => {})} />
+          <div className="mt-3">
+            <BalanceHeader variant="sidebar" />
+          </div>
           <Link
             href="/app/perfil"
             aria-label={loading ? t.shell.account : `${name}. ${t.shell.account}`}

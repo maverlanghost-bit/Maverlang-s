@@ -9,7 +9,10 @@ import { ChangeBadge } from "@/components/domain/change-badge";
 import { PriceChart } from "@/components/domain/price-chart";
 import { PriceText } from "@/components/domain/price-text";
 import { PositionRow } from "@/components/domain/position-row";
+import { RealAccountEmpty } from "@/components/domain/real-account-empty";
+import { ResetDemoButton } from "@/components/domain/reset-demo-button";
 import type { BadgeTone } from "@/components/ui/badge";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -18,6 +21,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatDateTime, formatMoney, formatShares, formatUsd, type MoneyCurrency } from "@/lib/format";
+import { useAccountMode } from "@/lib/hooks/use-account-mode";
 import { useHideBalance } from "@/lib/hooks/use-hide-balance";
 import { useActivity, useFx, useHistories, usePortfolio, useTickers } from "@/lib/hooks/queries";
 import { useT } from "@/lib/hooks/use-t";
@@ -182,7 +186,8 @@ const ValueChart = memo(function ValueChart({
 export function PortfolioScreen() {
   const { t, currency } = useT();
   const { hidden } = useHideBalance();
-  const portfolio = usePortfolio();
+  const { mode } = useAccountMode();
+  const portfolio = usePortfolio(mode === "demo");
   const activity = useActivity();
   const tickers = useTickers();
   const fx = useFx();
@@ -204,6 +209,15 @@ export function PortfolioScreen() {
   const showFxNote = currency === "CLP" && !fxKnown && !fx.isPending;
   const masked = hidden === true;
   const page = t.pages.portfolio;
+
+  if (mode === "real") {
+    return (
+      <div className="flex flex-col gap-6">
+        <PageHeader title={page.title} description={page.lead} />
+        <RealAccountEmpty />
+      </div>
+    );
+  }
 
   let body: ReactNode;
   if (portfolio.isPending) {
@@ -451,6 +465,15 @@ export function PortfolioScreen() {
   return (
     <div className="flex flex-col gap-6">
       <PageHeader title={page.title} description={page.lead} />
+      {mode === "demo" ? (
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="flex items-center gap-2 text-xs leading-relaxed text-fg-muted">
+            <Badge tone="warn">{t.account.badge}</Badge>
+            <span>{t.account.note}</span>
+          </p>
+          <ResetDemoButton />
+        </div>
+      ) : null}
       {body}
     </div>
   );

@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 
 import { ChangeBadge } from "@/components/domain/change-badge";
 import { FavoriteButton } from "@/components/domain/favorite-button";
+import { RealAccountEmpty } from "@/components/domain/real-account-empty";
 import { TickerLogo } from "@/components/domain/ticker-logo";
 import { TradeSheet } from "@/components/domain/trade-sheet";
 import { Button } from "@/components/ui/button";
@@ -20,6 +21,7 @@ import { site } from "@/config/site";
 import { detailReturnPath, ingresarPath, onboardingPath, registroPath } from "@/lib/auth/paths";
 import { cn } from "@/lib/cn";
 import { formatMoney, formatMultiplier, formatShares, formatUsd } from "@/lib/format";
+import { useAccountMode } from "@/lib/hooks/use-account-mode";
 import { useFx, useHistory, useMarketStatus, usePortfolio, usePrices } from "@/lib/hooks/queries";
 import { useFavorites } from "@/lib/hooks/use-favorites";
 import { useT } from "@/lib/hooks/use-t";
@@ -440,6 +442,7 @@ export function DetailScreen({
 }) {
   const { t, language, currency } = useT();
   const pathname = usePathname();
+  const { mode } = useAccountMode();
   const prices = usePrices([ticker.symbol]);
   const fx = useFx();
   const canTrade = access === "member";
@@ -520,6 +523,20 @@ export function DetailScreen({
   }
 
   function tradeSlot(variant: "bar" | "card") {
+    if (mode === "real") {
+      if (variant === "bar") {
+        return (
+          <div className="fixed inset-x-0 z-20 border-t border-border bg-bg px-4 py-3 min-[400px]:px-5 lg:hidden" style={{ bottom: "var(--app-tabs-height)" }}>
+            <p className="mx-auto max-w-6xl text-center text-sm text-fg-muted">{t.account.comingTitle}</p>
+          </div>
+        );
+      }
+      return (
+        <Card className="p-5 md:p-6">
+          <RealAccountEmpty />
+        </Card>
+      );
+    }
     if (access === "member") {
       return (
         <TradeActions
