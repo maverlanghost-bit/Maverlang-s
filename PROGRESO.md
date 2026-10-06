@@ -1,9 +1,16 @@
 # PROGRESO — Maverlang
 
 ## Estado
-M32 hecha. La verificación de Auth con Supabase pasa. El perfil queda en SKIP hasta aplicar `0002`. Siguiente: fuera de esta tarea (asociar la cartera real al usuario).
+M33 hecha. Con la confirmación apagada, el registro entra al destino si `signUp` trae sesión. Si no hay sesión, sigue la pantalla del correo. Siguiente: fuera de esta tarea (asociar la cartera real al usuario).
 
 ## Tareas hechas
+
+### M33 — Registro sin confirmación de correo (2026-10-06, M33: registro sin confirmacion de correo)
+- Hecho: si `signUp` trae sesión, refresca y entra al `next` saneado (o `/app`) con el toast "Cuenta creada". Si la sesión es null, sigue "Revisa tu correo". La metadata del alta cumple `claimsOnboarded`. `npm run verify:auth`: PASS 8, FAIL 0, SKIP 0. El paso b quedó PASS: el usuario creado sin confirmar sigue sin poder entrar ("email not confirmed"); el SKIP no se disparó. `npx tsc --noEmit`, `npm run lint`, `npm test` (70) y `npm run e2e` (2, 1 skipped) ok. Sin `next dev` ni `npm run build`.
+- Archivos clave: `lib/auth/registro-client.ts`, `app/(platform)/app/registro/wizard.tsx`, `scripts/verificar-auth.mjs`, `tests/unit/registro-destination.test.ts`, `content/i18n/{es-CL,en}.ts`, `docs/SUPABASE.md`.
+- Decisiones: el código soporta confirmación apagada y encendida. No se tocó `0002`. Errores (correo ya registrado, etc.) siguen en español. En mock el alta no cambia. El paso b del script es SKIP sólo si ese ingreso devuelve sesión.
+- Pendiente: mirar `/app/registro?next=/app/accion/AAPLx?operar=comprar` en el navegador (esta ejecución no levanta Next). Si el panel ya tiene Confirm email en OFF, un alta real debería entrar directo; el script no lo vio porque crea el usuario con `email_confirm: false`. Asociar la cartera real al usuario.
+- Próximo: fuera de esta tarea.
 
 ### M32 — Verificación de auth con Supabase (2026-10-05, M32: verificacion auth)
 - Hecho: `npm run verify:auth` crea el usuario con el admin API (sin `signUp` ni correos), exige confirmación, confirma, ingresa, cierra sesión y borra. Resultado: PASS a createUser, PASS b signIn sin confirmar, PASS c signIn confirmado, SKIP d select, SKIP d update, SKIP d rls (migración no aplicada), PASS e signOut, PASS limpieza. RESUMEN PASS (5 PASS, 0 FAIL, 3 SKIP). `npx tsc --noEmit`, `npm run lint`, `npm test` (66), `npm run build` y `npm run e2e` (2, 1 skipped) ok. Sin `next dev`.

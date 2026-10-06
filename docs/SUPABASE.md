@@ -16,8 +16,10 @@ No hace falta aplicarlo desde la terminal. Cartera, billetera y órdenes no van 
 
 - Site URL: el valor de `NEXT_PUBLIC_SITE_URL` (en local, `http://localhost:3000`)
 - Redirect URLs: `http://localhost:3000/auth/callback` y `http://localhost:3000/**`
-- Confirmación de correo: activa
+- Confirmación de correo: hoy está apagada (Authentication → Emails → Confirm email). Manu la dejó así a propósito.
 - El SMTP integrado de Supabase tiene un límite bajo de correos por hora. Para producción, configura un SMTP propio.
+
+El registro soporta los dos modos. Si `signUp` devuelve sesión (confirmación apagada), la persona entra al `next` saneado, o a `/app` si no hay `next`. La metadata del alta ya trae el perfil completo, así que el gate no la manda de nuevo al asistente. Si `signUp` no trae sesión (confirmación encendida), sigue la pantalla "Revisa tu correo", con reenvío. No hace falta cambiar código para volver a encenderla.
 
 Google no se enciende. El botón del ingreso queda en Próximamente.
 
@@ -35,6 +37,6 @@ Plantillas, opcionales. En Authentication → Emails puedes dejar las de Supabas
 
 `npm run verify:auth` (o `node scripts/verificar-auth.mjs`) lee `.env.local` en el proceso y no imprime claves ni tokens. Crea un usuario con el admin API (`maverlang.e2e+<timestamp>@example.com`, `email_confirm: false`). No usa `signUp`, así que no manda correos.
 
-Comprueba que el ingreso falla mientras el correo no está confirmado, confirma al usuario, ingresa, y cierra la sesión. Si `public.profiles` existe, lee la fila propia, cambia el teléfono y comprueba que el listado no trae filas ajenas. Si la migración `0002` no está aplicada, esos pasos salen `SKIP: migracion no aplicada` y el resto sigue. Siempre borra el usuario. El proceso termina con código distinto de 0 sólo si algún paso es `FAIL`.
+El paso "b signIn sin confirmar" espera el error "email not confirmed" y en ese caso es PASS. Si el ingreso funciona porque la confirmación está apagada en el proyecto, ese paso sale SKIP ("confirmacion de correo desactivada en el proyecto") y el resto sigue. Cualquier otro error es FAIL. Después confirma al usuario, ingresa y cierra la sesión. Si `public.profiles` existe, lee la fila propia, cambia el teléfono y comprueba que el listado no trae filas ajenas. Si la migración `0002` no está aplicada, esos pasos salen `SKIP: migracion no aplicada` y el resto sigue. Siempre borra el usuario. El proceso termina con código distinto de 0 sólo si algún paso es `FAIL`.
 
 El recorrido en el navegador es aparte: `npm run e2e:auth`. No entra en `npm run e2e`, que sigue en mock. Construye con `AUTH_MODE=supabase`, entra por `/app/ingresar?next=/app/accion/AAPLx`, mira la compra, abre la cartera, sale y comprueba que la cartera vuelve a pedir ingreso. Si faltan las claves o el modo no es supabase, el spec se salta. Hace falta el build y el servidor de esa prueba; esta verificación de API no levanta Next.

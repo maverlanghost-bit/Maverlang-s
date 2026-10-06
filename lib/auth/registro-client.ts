@@ -11,6 +11,14 @@ export function registroRedirectTo(next: string | null): string {
   return url.toString();
 }
 
+/** Con sesión (confirmación apagada) entra al `next` saneado. Sin sesión, queda la pantalla del correo. */
+export type SignUpDestination = { kind: "app"; path: string } | { kind: "email" };
+
+export function signUpDestination(session: unknown, next: string | null): SignUpDestination {
+  if (session === null || session === undefined) return { kind: "email" };
+  return { kind: "app", path: safeNextPath(next) ?? "/app" };
+}
+
 function metadata(values: RegistroValues, versions: RegistroVersions) {
   return registroUserData(values, versions);
 }
@@ -19,7 +27,7 @@ export async function signUpRegistro(
   values: RegistroValues,
   versions: RegistroVersions,
   next: string | null,
-): Promise<{ ok: true; email: string } | { ok: false; message: string }> {
+): Promise<{ ok: true; email: string; destination: SignUpDestination } | { ok: false; message: string }> {
   const supabase = createSupabaseBrowserClient();
   if (!supabase) return { ok: false, message: registroErrorMessage("network") };
   try {
@@ -35,7 +43,11 @@ export async function signUpRegistro(
     if (data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
       return { ok: false, message: registroErrorMessage("already") };
     }
-    return { ok: true, email: values.email.trim() };
+    return {
+      ok: true,
+      email: values.email.trim(),
+      destination: signUpDestination(data.session, next),
+    };
   } catch (error) {
     const code = error instanceof Error ? classifyAuthError(error) : "network";
     return { ok: false, message: registroErrorMessage(code === "unknown" ? "network" : code) };

@@ -233,13 +233,13 @@ async function main() {
     record("a createUser", "PASS");
 
     const blocked = await userClient.auth.signInWithPassword({ email, password });
-    if (blocked.error && isUnconfirmed(blocked.error) && !blocked.data.session) {
-      record("b signIn sin confirmar", "PASS");
-    } else if (!blocked.error || blocked.data.session) {
-      record("b signIn sin confirmar", "FAIL", "el ingreso funciono sin confirmar");
+    if (blocked.data.session) {
+      record("b signIn sin confirmar", "SKIP", "confirmacion de correo desactivada en el proyecto");
       await userClient.auth.signOut();
+    } else if (blocked.error && isUnconfirmed(blocked.error)) {
+      record("b signIn sin confirmar", "PASS");
     } else {
-      record("b signIn sin confirmar", "FAIL", redact(blocked.error.message));
+      record("b signIn sin confirmar", "FAIL", blocked.error ? redact(blocked.error.message) : "sin sesion");
     }
 
     const confirmed = await admin.auth.admin.updateUserById(userId, { email_confirm: true });

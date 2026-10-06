@@ -466,6 +466,9 @@ export const esCL = {
     legalEmpty: "Todavía no hay consentimientos registrados.",
     legalError: "No pudimos cargar tus consentimientos.",
   },
+  auth: {
+    accountCreated: "Cuenta creada",
+  },
   notFound: {
     code: "404",
     pageTitle: "No encontramos esta página",

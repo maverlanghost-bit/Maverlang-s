@@ -20,7 +20,9 @@ import { Button, buttonClasses } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useToast } from "@/components/ui/toast";
 import { ApiError, addConsent, updateMe } from "@/lib/api/client";
+import { useT } from "@/lib/hooks/use-t";
 import { useSession } from "@/lib/auth";
 import { writeClientCookie } from "@/lib/auth/browser-cookies";
 import { MOCK_ONBOARDING_COOKIE, ONBOARDING_DONE } from "@/lib/auth/cookies";
@@ -307,6 +309,8 @@ function RegistroForm({
   login: (method?: "email" | "google") => Promise<void>;
 }) {
   const router = useRouter();
+  const { toast } = useToast();
+  const { t } = useT();
   const headingRef = useRef<HTMLHeadingElement>(null);
   const skipFocus = useRef(true);
   const lock = useRef(false);
@@ -381,7 +385,13 @@ function RegistroForm({
           setFormError(result.message);
           return;
         }
-        onSent(result.email);
+        if (result.destination.kind === "email") {
+          onSent(result.email);
+          return;
+        }
+        toast({ title: t.auth.accountCreated, tone: "up" });
+        router.refresh();
+        router.push(result.destination.path);
         return;
       }
       if (!versions.terminos || !versions.privacidad || !versions.riesgos) {

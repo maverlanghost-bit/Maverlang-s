@@ -462,6 +462,9 @@ export const en = {
     legalEmpty: "No consents are recorded yet.",
     legalError: "We couldn't load your consents.",
   },
+  auth: {
+    accountCreated: "Account created",
+  },
   notFound: {
     code: "404",
     pageTitle: "We couldn't find this page",
