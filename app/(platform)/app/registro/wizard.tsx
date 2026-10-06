@@ -28,11 +28,14 @@ import { writeClientCookie } from "@/lib/auth/browser-cookies";
 import { MOCK_ONBOARDING_COOKIE, ONBOARDING_DONE } from "@/lib/auth/cookies";
 import { authMode, clientAuthModeInput } from "@/lib/auth/mode";
 import { ingresarPath } from "@/lib/auth/paths";
-import { publishRegistroMetadata, resendRegistro, signUpRegistro } from "@/lib/auth/registro-client";
+import { publishRegistroMetadata, resendRegistro, signUpDemo, signUpRegistro } from "@/lib/auth/registro-client";
 import {
+  DEMO_LEGAL_MESSAGE,
   formatRut,
   normalizePhone,
+  registroDemoSchema,
   registroSchemaAt,
+  type RegistroDemoValues,
   type RegistroValues,
   type RegistroVersions,
 } from "@/lib/auth/registro-schema";
@@ -289,10 +292,199 @@ export function RegistroWizard({
   const [sentEmail, setSentEmail] = useState<string | null>(null);
 
   if (sentEmail) return <MailScreen email={sentEmail} next={next} />;
-  if (mode === "completar" && status === "loading") return <LoadingCard />;
-  if (mode === "completar" && status !== "authenticated") return <NeedSession />;
+  if (mode === "alta") return <DemoRegistroForm next={next} versions={versions} onSent={setSentEmail} login={login} />;
+  if (status === "loading") return <LoadingCard />;
+  if (status !== "authenticated") return <NeedSession />;
 
   return <RegistroForm mode={mode} next={next} versions={versions} onSent={setSentEmail} login={login} />;
+}
+
+const DEMO_EMPTY: RegistroDemoValues = {
+  email: "",
+  password: "",
+  passwordConfirm: "",
+  aceptaLegal: false,
+};
+
+/**
+ * Alta demo mínima (M43): un solo paso con correo, contraseña,
+ * repetir contraseña y el checkbox legal obligatorio.
+ * Sin RUT, teléfono, nombre, país ni fecha.
+ */
+function DemoRegistroForm({
+  next,
+  versions,
+  onSent,
+  login,
+}: {
+  next: string | null;
+  versions: RegistroVersions;
+  onSent: (email: string) => void;
+  login: (method?: "email" | "google") => Promise<void>;
+}) {
+  const router = useRouter();
+  const { toast } = useToast();
+  const { t } = useT();
+  const lock = useRef(false);
+  const schema = useMemo(() => registroDemoSchema(), []);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const {
+    control,
+    register,
+    getValues,
+    formState: { errors },
+  } = useForm<RegistroDemoValues>({
+    resolver: zodResolver(schema),
+    defaultValues: DEMO_EMPTY,
+    mode: "onSubmit",
+  });
+
+  const password = useWatch({ control, name: "password" });
+  const strength = passwordLabel(password ?? "");
+  const enter = ingresarPath(next ?? "/app");
+
+  async function onSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (lock.current || busy) return;
+    lock.current = true;
+    setBusy(true);
+    setFormError(null);
+    try {
+      const parsed = schema.safeParse(getValues());
+      if (!parsed.success) {
+        const legal = parsed.error.issues.find((issue) => issue.path[0] === "aceptaLegal");
+        setFormError(legal?.message ?? "Revisa los datos del formulario.");
+        return;
+      }
+      const values = parsed.data;
+      if (!values.aceptaLegal) {
+        setFormError(DEMO_LEGAL_MESSAGE);
+        return;
+      }
+      if (authMode(clientAuthModeInput()) !== "supabase") {
+        await login("email");
+        writeClientCookie(MOCK_ONBOARDING_COOKIE, ONBOARDING_DONE);
+        router.push(next ?? "/app");
+        router.refresh();
+        return;
+      }
+      if (!versions.terminos || !versions.privacidad) {
+        setFormError("Falta la versión de un documento.");
+        return;
+      }
+      const result = await signUpDemo(
+        values,
+        { terminos: versions.terminos, privacidad: versions.privacidad },
+        next,
+      );
+      if (!result.ok) {
+        setFormError(result.message);
+        return;
+      }
+      if (result.destination.kind === "email") {
+        onSent(result.email);
+        return;
+      }
+      toast({ title: t.auth.accountCreated, tone: "up" });
+      router.refresh();
+      router.push(result.destination.path);
+    } catch (error) {
+      setFormError(messageFrom(error));
+    } finally {
+      lock.current = false;
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Shell>
+      <form className="mt-6" onSubmit={(event) => void onSubmit(event)} noValidate>
+        <h1 className="text-3xl text-balance">Crea tu cuenta demo</h1>
+        <TextField
+          id="registro-email"
+          label="Correo"
+          type="email"
+          autoComplete="email"
+          inputMode="email"
+          error={errors.email?.message}
+          {...register("email")}
+        />
+        <TextField
+          id="registro-password"
+          label="Contraseña"
+          type="password"
+          autoComplete="new-password"
+          hint={strength ? `Seguridad: ${strength}. Mínimo 8 caracteres. Recomendamos 12 o más.` : "Mínimo 8 caracteres. Recomendamos 12 o más."}
+          error={errors.password?.message}
+          {...register("password")}
+        />
+        <TextField
+          id="registro-password-confirm"
+          label="Repetir contraseña"
+          type="password"
+          autoComplete="new-password"
+          error={errors.passwordConfirm?.message}
+          {...register("passwordConfirm")}
+        />
+        <div className="mt-4">
+          <Controller
+            name="aceptaLegal"
+            control={control}
+            render={({ field, fieldState }) => (
+              <CheckField
+                checked={field.value}
+                onChange={field.onChange}
+                onBlur={field.onBlur}
+                inputRef={field.ref}
+                error={fieldState.error?.message}
+                label={
+                  <>
+                    Acepto los{" "}
+                    <Link
+                      href="/legal/terminos"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-medium underline decoration-border underline-offset-4 hover:decoration-fg"
+                    >
+                      Términos y Condiciones
+                    </Link>{" "}
+                    y la{" "}
+                    <Link
+                      href="/legal/privacidad"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-medium underline decoration-border underline-offset-4 hover:decoration-fg"
+                    >
+                      Política de Privacidad
+                    </Link>
+                    .
+                  </>
+                }
+              />
+            )}
+          />
+        </div>
+        <p className="mt-4 text-sm leading-relaxed text-fg-muted">Borrador. [REVISIÓN ABOGADO]</p>
+        {formError ? (
+          <p className="mt-4 text-sm text-down" role="alert">
+            {formError}
+          </p>
+        ) : null}
+        <div className="mt-6">
+          <Button type="submit" size="lg" className="w-full" loading={busy}>
+            {t.auth.createDemoAccount}
+          </Button>
+        </div>
+        <p className="mt-4 text-center text-sm text-fg-muted">
+          <Link href={enter} className="font-medium text-fg underline decoration-border underline-offset-4 hover:decoration-fg">
+            Ya tengo cuenta
+          </Link>
+        </p>
+      </form>
+    </Shell>
+  );
 }
 
 function RegistroForm({

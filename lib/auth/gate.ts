@@ -29,6 +29,11 @@ export type GateInput = {
   supabaseSession: boolean;
   /** En supabase, sale de `user_metadata` del JWT. La cookie `a24_onb` no cuenta. */
   supabaseOnboarded: boolean;
+  /**
+   * M43: aceptación mínima para la demo (`terms_version` + `privacy_version`,
+   * o perfil completo antiguo). Si no se informa, vale `supabaseOnboarded`.
+   */
+  supabaseDemoReady?: boolean;
 };
 
 export type GateDecision =
@@ -90,6 +95,10 @@ function isOnboardingPath(pathname: string): boolean {
   return pathname === "/app/onboarding" || pathname.startsWith("/app/onboarding/");
 }
 
+function isAceptarPath(pathname: string): boolean {
+  return pathname === "/app/aceptar" || pathname.startsWith("/app/aceptar/");
+}
+
 function redirectTo(path: string): GateDecision {
   const target = splitPath(path);
   return { kind: "redirect", pathname: target.pathname, search: target.search };
@@ -112,6 +121,25 @@ function onboardingRedirect(pathname: string, search: string): GateDecision {
   return { kind: "redirect", pathname: "/app/onboarding", search: `?${params.toString()}` };
 }
 
+/** M43: cuentas a medias (con sesión pero sin aceptación) van a la pantalla corta. */
+function aceptarRedirect(pathname: string, search: string): GateDecision {
+  const current = new URLSearchParams(search.startsWith("?") ? search.slice(1) : search);
+  const next = safeNextPath(current.get("next")) ?? safeNextPath(`${pathname}${search}`);
+  const nextPath = next ? splitPath(next).pathname : "";
+  if (
+    !next ||
+    isAceptarPath(nextPath) ||
+    isIngresarPath(nextPath) ||
+    isRegistroPath(nextPath) ||
+    isOnboardingPath(nextPath)
+  ) {
+    return { kind: "redirect", pathname: "/app/aceptar", search: "" };
+  }
+  const params = new URLSearchParams();
+  params.set("next", next);
+  return { kind: "redirect", pathname: "/app/aceptar", search: `?${params.toString()}` };
+}
+
 export function decideGate(input: GateInput): GateDecision {
   if (isSkippedPath(input.pathname)) return NEXT;
   if (isAuthPath(input.pathname)) return NEXT;
@@ -132,6 +160,27 @@ export function decideGate(input: GateInput): GateDecision {
   if (!hasSession) {
     if (isCredentialPath(input.pathname) || isPublic) return NEXT;
     return loginRedirect(input.pathname, input.search);
+  }
+
+  // M43: en supabase manda la aceptación mínima (demoReady), no el perfil completo.
+  // Con demoReady se entra a todo /app; sin aceptación se va a /app/aceptar.
+  // `/app/onboarding` ya no es destino automático: sigue accesible directo.
+  if (input.useSupabase) {
+    const demoReady = input.supabaseDemoReady ?? input.supabaseOnboarded;
+    if (!demoReady) {
+      if (isAceptarPath(input.pathname) || isPublic || isPasswordFlowPath(input.pathname)) return NEXT;
+      return aceptarRedirect(input.pathname, input.search);
+    }
+    if (isAceptarPath(input.pathname) || isIngresarPath(input.pathname) || isRegistroPath(input.pathname)) {
+      const params = new URLSearchParams(input.search.startsWith("?") ? input.search.slice(1) : input.search);
+      const next = safeNextPath(params.get("next"));
+      const nextPath = next ? splitPath(next).pathname : "";
+      if (!next || isIngresarPath(nextPath) || isRegistroPath(nextPath) || isOnboardingPath(nextPath) || isAceptarPath(nextPath)) {
+        return redirectTo("/app");
+      }
+      return redirectTo(next);
+    }
+    return NEXT;
   }
 
   if (!onboarded) {

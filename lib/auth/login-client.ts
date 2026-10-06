@@ -1,12 +1,12 @@
 import { recoveryRedirectTo } from "@/lib/auth/callback-next";
 import { classifyLoginError, loginErrorMessage, type LoginErrorCode } from "@/lib/auth/login-errors";
-import { claimsOnboarded } from "@/lib/auth/registro-schema";
+import { claimsDemoReady, claimsOnboarded } from "@/lib/auth/registro-schema";
 import { registroRedirectTo } from "@/lib/auth/registro-client";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
 export { recoveryRedirectTo };
 
-export type SignInResult = { ok: true; onboarded: boolean } | { ok: false; code: LoginErrorCode };
+export type SignInResult = { ok: true; onboarded: boolean; demoReady: boolean } | { ok: false; code: LoginErrorCode };
 
 export async function signInWithPassword(email: string, password: string): Promise<SignInResult> {
   const supabase = createSupabaseBrowserClient();
@@ -17,8 +17,8 @@ export async function signInWithPassword(email: string, password: string): Promi
       password,
     });
     if (error) return { ok: false, code: classifyLoginError(error) };
-    const onboarded = claimsOnboarded(data.user ? { user_metadata: data.user.user_metadata } : null);
-    return { ok: true, onboarded };
+    const meta = data.user ? { user_metadata: data.user.user_metadata } : null;
+    return { ok: true, onboarded: claimsOnboarded(meta), demoReady: claimsDemoReady(meta) };
   } catch (error) {
     const code = error instanceof Error ? classifyLoginError(error) : "network";
     return { ok: false, code: code === "unknown" ? "network" : code };

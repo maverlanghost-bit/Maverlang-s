@@ -9,6 +9,10 @@ export const US_RESIDENT_MESSAGE = `${site.name} no está disponible para reside
 /** El mismo texto que la declaración del onboarding si no la marcan. */
 export const DECLARATION_REQUIRED = "Confirma que no eres ciudadano ni residente de EE.UU.";
 
+/** Checkbox legal obligatorio del registro demo (M43). Mensaje exacto que pide la tarea. */
+export const DEMO_LEGAL_MESSAGE =
+  "Debes aceptar los Términos y Condiciones y la Política de Privacidad para continuar.";
+
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const DATE = /^(\d{4})-(\d{2})-(\d{2})$/;
 
@@ -31,6 +35,19 @@ export type RegistroVersions = {
   terminos: string;
   privacidad: string;
   riesgos: string;
+};
+
+/** Registro demo mínimo (M43): correo, contraseña y un solo checkbox legal. */
+export type RegistroDemoValues = {
+  email: string;
+  password: string;
+  passwordConfirm: string;
+  aceptaLegal: boolean;
+};
+
+export type RegistroDemoVersions = {
+  terminos: string;
+  privacidad: string;
 };
 
 export function normalizePhone(value: string): string {
@@ -164,6 +181,40 @@ export function registroUserData(input: Pick<RegistroValues, "nombre" | "rut" | 
   };
 }
 
+/** `user_metadata` mínimo del alta demo (M43): sólo versiones, fecha ISO y origen. */
+export function registroDemoUserData(
+  versions: RegistroDemoVersions,
+  acceptedAtIso: string,
+): {
+  terms_version: string;
+  privacy_version: string;
+  terms_accepted_at: string;
+  signup_source: "demo";
+} {
+  return {
+    terms_version: versions.terminos,
+    privacy_version: versions.privacidad,
+    terms_accepted_at: acceptedAtIso,
+    signup_source: "demo",
+  };
+}
+
+/**
+ * Demo lista (M43): tiene `terms_version` y `privacy_version`.
+ * Los usuarios antiguos con el perfil completo (`onboarding_completed`)
+ * también entran, aunque no traigan esas versiones.
+ */
+export function claimsDemoReady(
+  claims: { user_metadata?: unknown } | null | undefined,
+  today = new Date(),
+): boolean {
+  const meta = claims?.user_metadata;
+  if (!meta || typeof meta !== "object") return false;
+  const record = meta as Record<string, unknown>;
+  if (text(record.terms_version) && text(record.privacy_version)) return true;
+  return claimsOnboarded(claims, today);
+}
+
 function checkAccount(data: RegistroValues, ctx: z.RefinementCtx): void {
   if (data.password !== data.passwordConfirm) {
     ctx.addIssue({ code: "custom", path: ["passwordConfirm"], message: "Las contraseñas no coinciden." });
@@ -225,5 +276,27 @@ export function registroSchemaAt(today: Date, account: boolean) {
     .superRefine((data, ctx) => {
       if (account) checkAccount(data, ctx);
       checkDatos(data, ctx, today);
+    });
+}
+
+/**
+ * Esquema del registro demo (M43): correo, contraseña (mín. 8),
+ * repetición igual y un solo checkbox legal obligatorio.
+ */
+export function registroDemoSchema() {
+  return z
+    .object({
+      email: z.string().trim().regex(EMAIL, "Ingresa un correo válido."),
+      password: z.string().min(8, "La contraseña debe tener al menos 8 caracteres."),
+      passwordConfirm: z.string(),
+      aceptaLegal: z.boolean(),
+    })
+    .superRefine((data, ctx) => {
+      if (data.password !== data.passwordConfirm) {
+        ctx.addIssue({ code: "custom", path: ["passwordConfirm"], message: "Las contraseñas no coinciden." });
+      }
+      if (!data.aceptaLegal) {
+        ctx.addIssue({ code: "custom", path: ["aceptaLegal"], message: DEMO_LEGAL_MESSAGE });
+      }
     });
 }

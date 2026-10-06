@@ -35,7 +35,7 @@ export default async function AccionPage({
   const asset = await findAssetBySymbol(raw);
   if (!asset || !asset.mint) notFound();
   const session = await readServerSession();
-  const access: DetailAccess = !session.hasSession ? "guest" : session.onboarded ? "member" : "pending";
+  const access: DetailAccess = !session.hasSession ? "guest" : session.demoReady ? "member" : "pending";
 
   // Operar sólo si está habilitada y no suspendida; si no, CTA deshabilitado con motivo.
   const tradeBlock: TradeBlock = !asset.enabled ? "disabled" : asset.halted ? "halted" : null;

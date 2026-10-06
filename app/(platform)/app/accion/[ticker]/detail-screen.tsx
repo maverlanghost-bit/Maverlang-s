@@ -18,7 +18,7 @@ import { IconShare } from "@/components/ui/icons";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/components/ui/toast";
 import { site } from "@/config/site";
-import { detailReturnPath, ingresarPath, onboardingPath, registroPath } from "@/lib/auth/paths";
+import { detailReturnPath, ingresarPath, aceptarPath, registroPath } from "@/lib/auth/paths";
 import { cn } from "@/lib/cn";
 import { formatMoney, formatMultiplier, formatReopenWhen, formatShares } from "@/lib/format";
 import { useAccountMode } from "@/lib/hooks/use-account-mode";
@@ -527,7 +527,7 @@ export function DetailScreen({
   const back = detailReturnPath(ticker.symbol, requested);
   const enter = ingresarPath(back);
   const create = registroPath(back);
-  const resume = onboardingPath(back);
+  const resume = aceptarPath(back);
 
   function openOperar(next: "comprar" | "vender" | null) {
     const params = new URLSearchParams(window.location.search);

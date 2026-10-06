@@ -1,6 +1,13 @@
 import { siteOrigin } from "@/config/site";
 import { classifyAuthError, registroErrorMessage } from "@/lib/auth/registro-errors";
-import { registroUserData, type RegistroValues, type RegistroVersions } from "@/lib/auth/registro-schema";
+import {
+  registroDemoUserData,
+  registroUserData,
+  type RegistroDemoValues,
+  type RegistroDemoVersions,
+  type RegistroValues,
+  type RegistroVersions,
+} from "@/lib/auth/registro-schema";
 import { safeNextPath } from "@/lib/auth/paths";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
@@ -54,6 +61,39 @@ export async function signUpRegistro(
   }
 }
 
+/** Alta demo mínima (M43): en `user_metadata` van sólo versiones, fecha ISO y origen. */
+export async function signUpDemo(
+  values: RegistroDemoValues,
+  versions: RegistroDemoVersions,
+  next: string | null,
+  acceptedAtIso: string = new Date().toISOString(),
+): Promise<{ ok: true; email: string; destination: SignUpDestination } | { ok: false; message: string }> {
+  const supabase = createSupabaseBrowserClient();
+  if (!supabase) return { ok: false, message: registroErrorMessage("network") };
+  try {
+    const { data, error } = await supabase.auth.signUp({
+      email: values.email.trim(),
+      password: values.password,
+      options: {
+        emailRedirectTo: registroRedirectTo(next),
+        data: registroDemoUserData(versions, acceptedAtIso),
+      },
+    });
+    if (error) return { ok: false, message: registroErrorMessage(classifyAuthError(error)) };
+    if (data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
+      return { ok: false, message: registroErrorMessage("already") };
+    }
+    return {
+      ok: true,
+      email: values.email.trim(),
+      destination: signUpDestination(data.session, next),
+    };
+  } catch (error) {
+    const code = error instanceof Error ? classifyAuthError(error) : "network";
+    return { ok: false, message: registroErrorMessage(code === "unknown" ? "network" : code) };
+  }
+}
+
 /** Null si el correo salió. Si no, el mensaje en español. */
 export async function resendRegistro(email: string, next: string | null): Promise<string | null> {
   const supabase = createSupabaseBrowserClient();
@@ -78,6 +118,27 @@ export async function publishRegistroMetadata(values: RegistroValues, versions: 
   if (!supabase) return registroErrorMessage("network");
   try {
     const { error } = await supabase.auth.updateUser({ data: metadata(values, versions) });
+    if (error) return registroErrorMessage(classifyAuthError(error));
+    return null;
+  } catch (error) {
+    const code = error instanceof Error ? classifyAuthError(error) : "network";
+    return registroErrorMessage(code === "unknown" ? "network" : code);
+  }
+}
+
+/**
+ * M43: la pantalla `/app/aceptar` guarda la aceptación en el JWT
+ * (el gate lee `terms_version` + `privacy_version` de ahí).
+ * Null si quedó guardada.
+ */
+export async function publishDemoMetadata(
+  versions: RegistroDemoVersions,
+  acceptedAtIso: string = new Date().toISOString(),
+): Promise<string | null> {
+  const supabase = createSupabaseBrowserClient();
+  if (!supabase) return registroErrorMessage("network");
+  try {
+    const { error } = await supabase.auth.updateUser({ data: registroDemoUserData(versions, acceptedAtIso) });
     if (error) return registroErrorMessage(classifyAuthError(error));
     return null;
   } catch (error) {

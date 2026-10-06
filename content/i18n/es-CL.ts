@@ -31,6 +31,8 @@ export const esCL = {
     note: "Simulación con precios reales; no es dinero real ni asesoría.",
     comingTitle: "Próximamente: depósitos reales",
     comingBody: "La cuenta real todavía no recibe depósitos ni opera. Mientras tanto puedes probar con la cuenta demo.",
+    comingProfileNote: "Cuando la cuenta Real esté disponible te pediremos tus datos y verificaremos tu identidad.",
+    completeProfile: "Completar mis datos",
     switchToReal: "Cambiar a cuenta real",
     switchToDemo: "Cambiar a cuenta demo",
     noAddress: "Cuenta demo: sin dirección en Solana.",
@@ -529,6 +531,7 @@ export const esCL = {
   },
   auth: {
     accountCreated: "Cuenta creada",
+    createDemoAccount: "Crear mi cuenta demo",
   },
   notFound: {
     code: "404",

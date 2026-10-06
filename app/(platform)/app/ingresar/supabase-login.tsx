@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { loginErrorMessage, type LoginErrorCode } from "@/lib/auth/login-errors";
 import { resendConfirmation, signInWithPassword } from "@/lib/auth/login-client";
 import { loginSchema } from "@/lib/auth/login-schema";
-import { onboardingPath } from "@/lib/auth/paths";
+import { aceptarPath } from "@/lib/auth/paths";
 
 function GoogleIcon() {
   return (
@@ -78,7 +78,7 @@ export function SupabaseLogin({
       setFailure(result.code);
       return;
     }
-    const dest = result.onboarded ? next : onboardingPath(next);
+    const dest = result.demoReady ? next : aceptarPath(next);
     router.refresh();
     router.push(dest);
   }

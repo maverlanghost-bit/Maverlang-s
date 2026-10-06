@@ -1,7 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-import { claimsOnboarded } from "@/lib/auth/registro-schema";
+import { claimsDemoReady, claimsOnboarded } from "@/lib/auth/registro-schema";
 import { warnAuthOnce } from "@/lib/auth/mode";
 import { readSupabasePublicConfig } from "@/lib/supabase/config";
 
@@ -14,6 +14,8 @@ export type SessionRefresh = {
   hasSession: boolean;
   /** `user_metadata` del JWT. No lee `public.profiles`. */
   onboarded: boolean;
+  /** M43: aceptación mínima para la demo (términos + privacidad, u onboarding antiguo). */
+  demoReady: boolean;
 };
 
 /**
@@ -24,7 +26,7 @@ export type SessionRefresh = {
 export async function updateSession(request: NextRequest): Promise<SessionRefresh> {
   let response = NextResponse.next({ request });
   const config = readSupabasePublicConfig();
-  if (!config) return { response, hasSession: false, onboarded: false };
+  if (!config) return { response, hasSession: false, onboarded: false, demoReady: false };
 
   const supabase = createServerClient(config.url, config.publishableKey, {
     cookies: {
@@ -49,10 +51,15 @@ export async function updateSession(request: NextRequest): Promise<SessionRefres
   try {
     const { data, error } = await supabase.auth.getClaims();
     const hasSession = !error && Boolean(data?.claims?.sub);
-    return { response, hasSession, onboarded: hasSession && claimsOnboarded(data?.claims ?? null) };
+    return {
+      response,
+      hasSession,
+      onboarded: hasSession && claimsOnboarded(data?.claims ?? null),
+      demoReady: hasSession && claimsDemoReady(data?.claims ?? null),
+    };
   } catch {
     warnAuthOnce(SESSION_WARN);
-    return { response, hasSession: false, onboarded: false };
+    return { response, hasSession: false, onboarded: false, demoReady: false };
   }
 }
 

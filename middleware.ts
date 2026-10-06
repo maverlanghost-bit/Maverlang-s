@@ -17,11 +17,13 @@ export async function middleware(request: NextRequest) {
 
   let supabaseSession = false;
   let supabaseOnboarded = false;
+  let supabaseDemoReady = false;
   let refreshed: NextResponse | null = null;
   if (useSupabase) {
     const updated = await updateSession(request);
     supabaseSession = updated.hasSession;
     supabaseOnboarded = updated.onboarded;
+    supabaseDemoReady = updated.demoReady;
     refreshed = updated.response;
   }
 
@@ -39,6 +41,7 @@ export async function middleware(request: NextRequest) {
     useSupabase,
     supabaseSession,
     supabaseOnboarded,
+    supabaseDemoReady,
   });
 
   if (decision.kind === "next" || (decision.pathname === pathname && decision.search === search)) {

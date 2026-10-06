@@ -29,6 +29,8 @@ export const en = {
     note: "Simulation with real prices; not real money or advice.",
     comingTitle: "Coming soon: real deposits",
     comingBody: "The real account can't receive deposits or trade yet. Meanwhile you can try the demo account.",
+    comingProfileNote: "When the Real account becomes available we'll ask for your details and verify your identity.",
+    completeProfile: "Complete my details",
     switchToReal: "Switch to real account",
     switchToDemo: "Switch to demo account",
     noAddress: "Demo account: no Solana address yet.",
@@ -525,6 +527,7 @@ export const en = {
   },
   auth: {
     accountCreated: "Account created",
+    createDemoAccount: "Create my demo account",
   },
   notFound: {
     code: "404",

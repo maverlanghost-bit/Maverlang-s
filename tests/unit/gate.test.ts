@@ -35,6 +35,12 @@ function onboarding(next: string) {
   return { kind: "redirect" as const, pathname: "/app/onboarding", search: `?${params.toString()}` };
 }
 
+function aceptar(next: string) {
+  const params = new URLSearchParams();
+  params.set("next", next);
+  return { kind: "redirect" as const, pathname: "/app/aceptar", search: `?${params.toString()}` };
+}
+
 const NEXT = { kind: "next" as const };
 const SESSION = { mockSession: "1", onboarding: "1" };
 
@@ -134,28 +140,31 @@ describe("decideGate", () => {
         pathname: "/app/cartera",
       }),
     ).toEqual(login("/app/cartera"));
+    // M43: sin aceptación mínima va a /app/aceptar, ya no al onboarding.
     expect(
       gate({
         useSupabase: true,
         supabaseSession: true,
         onboarding: "1",
         supabaseOnboarded: false,
+        supabaseDemoReady: false,
         pathname: "/app/cartera",
       }),
-    ).toEqual(onboarding("/app/cartera"));
+    ).toEqual(aceptar("/app/cartera"));
     expect(
       gate({
         useSupabase: true,
         supabaseSession: true,
         onboarding: null,
         supabaseOnboarded: true,
+        supabaseDemoReady: true,
         pathname: "/app/cartera",
       }),
     ).toEqual(NEXT);
     expect(gate({ useSupabase: true, supabaseSession: true, onboarding: null, pathname: "/app" })).toEqual(NEXT);
     expect(
       gate({ useSupabase: true, supabaseSession: true, onboarding: null, pathname: "/app/cartera" }),
-    ).toEqual(onboarding("/app/cartera"));
+    ).toEqual(aceptar("/app/cartera"));
     expect(
       gate({
         useSupabase: true,
@@ -174,15 +183,17 @@ describe("decideGate", () => {
         useSupabase: true,
         supabaseSession: true,
         supabaseOnboarded: false,
+        supabaseDemoReady: false,
         pathname: "/app/registro",
         search: "?next=%2Fapp%2Faccion%2FAAPLx",
       }),
-    ).toEqual(onboarding("/app/accion/AAPLx"));
+    ).toEqual(aceptar("/app/accion/AAPLx"));
     expect(
       gate({
         useSupabase: true,
         supabaseSession: true,
         supabaseOnboarded: true,
+        supabaseDemoReady: true,
         pathname: "/app/registro",
         search: "?next=%2Fapp%2Faccion%2FAAPLx",
       }),

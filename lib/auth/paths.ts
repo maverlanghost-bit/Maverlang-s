@@ -61,6 +61,15 @@ export function onboardingPath(next: string): string {
   return search ? `/app/onboarding?${search}` : "/app/onboarding";
 }
 
+/** Pantalla corta de aceptación legal (M43): mismo patrón que el onboarding. */
+export function aceptarPath(next: string): string {
+  const safe = safeNextPath(next) ?? "/app";
+  const params = new URLSearchParams();
+  if (safe !== "/app") params.set("next", safe);
+  const search = params.toString();
+  return search ? `/app/aceptar?${search}` : "/app/aceptar";
+}
+
 /** Destino interno bajo `/app`, sin volver a la pantalla de ingreso. */
 export function safeNextPath(value: string | null | undefined): string | null {
   if (!value) return null;
