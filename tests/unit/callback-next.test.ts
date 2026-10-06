@@ -26,4 +26,9 @@ describe("callback next", () => {
     expect(callbackTarget(null, false)).toBe("/app/ingresar?error=enlace");
     expect(callbackTarget("https://evil.test", false)).toBe("/app/ingresar?error=enlace");
   });
+
+  it("si falla la recuperación vuelve a pedir otro enlace", () => {
+    expect(callbackTarget("/app/restablecer", false)).toBe("/app/restablecer?error=expirado");
+    expect(callbackTarget("/app/restablecer", true)).toBe("/app/restablecer");
+  });
 });

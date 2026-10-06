@@ -3,21 +3,21 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+import { useAccountLabel } from "@/components/app-shell/account-label";
 import { BrandMark } from "@/components/app-shell/brand-mark";
 import { isShellSectionActive, shellNav } from "@/components/app-shell/nav";
 import { BalanceHeader } from "@/components/domain/balance-header";
 import { Avatar } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useSession } from "@/lib/auth/session-context";
 import { cn } from "@/lib/cn";
 import { useT } from "@/lib/hooks/use-t";
 
 export function Sidebar() {
   const pathname = usePathname();
   const { t } = useT();
-  const session = useSession();
-  const name = session.user?.displayName?.trim() || session.user?.email || t.nav.profile;
-  const loading = session.status === "loading";
+  const account = useAccountLabel();
+  const name = account.name;
+  const loading = account.loading;
 
   return (
     <aside className="sticky top-0 hidden h-dvh w-[240px] shrink-0 flex-col overflow-y-auto border-r border-border bg-bg lg:flex">
@@ -62,10 +62,21 @@ export function Sidebar() {
           ) : (
             <>
               <Avatar alt="" fallback={name} size="md" className="size-11" />
-              <span className="truncate text-sm font-medium text-fg">{name}</span>
+              <span className="min-w-0">
+                <span className="block truncate text-sm font-medium text-fg">{name}</span>
+                {account.email ? <span className="block truncate text-xs text-fg-muted">{account.email}</span> : null}
+              </span>
             </>
           )}
         </Link>
+        <button
+          type="button"
+          onClick={() => void account.logout()}
+          disabled={account.status === "loading"}
+          className="mt-1 flex min-h-11 w-full items-center rounded-xl px-3 text-left text-sm text-fg-body hover:bg-surface-2 disabled:opacity-40"
+        >
+          {t.profile.logout}
+        </button>
       </div>
     </aside>
   );

@@ -193,4 +193,31 @@ describe("decideGate", () => {
     expect(gate({ pathname: "/auth/callback", search: "?code=1", countryHeader: "US" })).toEqual(NEXT);
     expect(gate({ pathname: "/auth/callback", useSupabase: true, supabaseSession: false })).toEqual(NEXT);
   });
+
+  it("deja recuperar y restablecer sin sesión y también con sesión", () => {
+    expect(gate({ pathname: "/app/recuperar" })).toEqual(NEXT);
+    expect(gate({ pathname: "/app/restablecer", search: "?error=expirado" })).toEqual(NEXT);
+    expect(gate({ pathname: "/app/perfil/ajustes" })).toEqual(login("/app/perfil/ajustes"));
+    expect(gate({ ...SESSION, pathname: "/app/recuperar" })).toEqual(NEXT);
+    expect(gate({ ...SESSION, pathname: "/app/restablecer" })).toEqual(NEXT);
+    const pending = { mockSession: "1", onboarding: null };
+    expect(gate({ ...pending, pathname: "/app/recuperar" })).toEqual(NEXT);
+    expect(gate({ ...pending, pathname: "/app/restablecer" })).toEqual(NEXT);
+    expect(
+      gate({
+        useSupabase: true,
+        supabaseSession: true,
+        supabaseOnboarded: true,
+        pathname: "/app/ingresar",
+        search: "?next=%2Fapp%2Faccion%2FAAPLx%3Foperar%3Dcomprar",
+      }),
+    ).toEqual({ kind: "redirect", pathname: "/app/accion/AAPLx", search: "?operar=comprar" });
+    expect(
+      gate({
+        useSupabase: true,
+        supabaseSession: false,
+        pathname: "/app/billetera/recibir",
+      }),
+    ).toEqual(login("/app/billetera/recibir"));
+  });
 });

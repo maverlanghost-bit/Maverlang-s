@@ -5,6 +5,8 @@ import type { ZodType } from "zod";
 
 import { parseContract } from "@/lib/api/contracts";
 import { DomainError, failFrom, ok, resultStatus, type ApiResult } from "@/lib/api/result";
+import { DEMO_WALLET_ADDRESS } from "@/lib/auth/demo-user";
+import { isSupabaseAuth } from "@/lib/auth/mode";
 import { withMockError } from "@/lib/mocks/latency";
 import type { Services } from "@/lib/services";
 import { isOfficialMint, tradableTicker } from "@/lib/solana/allowlist";
@@ -74,9 +76,21 @@ export async function requireSession(services: Services, req: Request): Promise<
   return session;
 }
 
+/**
+ * En modo supabase, la ruta exige un usuario verificado con `getUser`.
+ * En mock no cambia: cotizar y armar siguen sin sesión.
+ */
+export async function requireSupabaseUser(services: Services, req: Request): Promise<void> {
+  if (!isSupabaseAuth()) return;
+  await requireSession(services, req);
+}
+
 export function requireWallet(session: Session): string {
-  if (!session.walletAddress) throw new DomainError("VALIDATION", "Falta la billetera.");
-  return session.walletAddress;
+  if (session.walletAddress) return session.walletAddress;
+  // La cartera real no está asociada al usuario. Con datos mock se sirve la demo.
+  const dataMode = process.env.DATA_MODE?.trim() || "mock";
+  if (dataMode !== "live" && isSupabaseAuth()) return DEMO_WALLET_ADDRESS;
+  throw new DomainError("VALIDATION", "Falta la billetera.");
 }
 
 /** Fuera del allowlist operable (enabled + mint oficial) → MINT_NOT_ALLOWED. */

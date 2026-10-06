@@ -6,6 +6,28 @@ export function isPublicAppPath(pathname: string): boolean {
   return pathname === "/app" || pathname === "/app/accion" || pathname.startsWith("/app/accion/");
 }
 
+function isPath(pathname: string, base: string): boolean {
+  return pathname === base || pathname.startsWith(`${base}/`);
+}
+
+export function isIngresarPath(pathname: string): boolean {
+  return isPath(pathname, "/app/ingresar");
+}
+
+export function isRegistroPath(pathname: string): boolean {
+  return isPath(pathname, "/app/registro");
+}
+
+/** Recuperar y restablecer. Siguen abiertas con o sin sesión. */
+export function isPasswordFlowPath(pathname: string): boolean {
+  return isPath(pathname, "/app/recuperar") || isPath(pathname, "/app/restablecer");
+}
+
+/** Ingreso, alta, recuperar y restablecer. No piden sesión. */
+export function isCredentialPath(pathname: string): boolean {
+  return isIngresarPath(pathname) || isRegistroPath(pathname) || isPasswordFlowPath(pathname);
+}
+
 /** Vuelta al detalle, con `?operar` si la persona llegó a comprar o vender. */
 export function detailReturnPath(symbol: string, operar: "comprar" | "vender" | null): string {
   const path = `/app/accion/${encodeURIComponent(symbol)}`;

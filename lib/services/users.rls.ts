@@ -99,9 +99,9 @@ function toProfile(row: ProfileRow): UserProfile {
 async function sessionClient() {
   const supabase = await createSupabaseServerClient();
   if (!supabase) throw new DomainError("INTERNAL", "Falta la configuración de Supabase.");
-  const { data, error } = await supabase.auth.getClaims();
-  if (error || !data?.claims?.sub) throw new DomainError("UNAUTHORIZED");
-  return { supabase, userId: data.claims.sub };
+  const { data, error } = await supabase.auth.getUser();
+  if (error || !data.user) throw new DomainError("UNAUTHORIZED");
+  return { supabase, userId: data.user.id };
 }
 
 function sameUser(id: string, userId: string): void {

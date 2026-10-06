@@ -1,9 +1,17 @@
 # PROGRESO — Maverlang
 
 ## Estado
-M30 hecha. El alta está en `/app/registro` (correo, datos, documentos). En mock sigue la demo y no llama a Supabase. Siguiente: M31 (ingreso, salir, recuperar).
+M31 hecha. Ingreso, salir y recuperar contraseña usan Supabase cuando el modo es supabase. En mock la demo no cambia. Siguiente: fuera de esta tarea (asociar la cartera real al usuario).
 
 ## Tareas hechas
+
+### M31 — Login real con Supabase (2026-10-05, M31: login real supabase)
+- Hecho: `/app/ingresar` en supabase pide correo y contraseña (`signInWithPassword`). Errores en español, reenvío si falta confirmar, Google en Próximamente. Tras entrar, `next` saneado (por ejemplo `/app/accion/AAPLx?operar=comprar`); si falta el registro, el wizard conserva `next`. Salir hace `signOut`, limpia cookies mock y vuelve a `/` (perfil y sidebar). `/app/recuperar` y `/app/restablecer` públicas. Cartera, billetera, perfil y subrutas exigen sesión. En supabase, quote, build, submit, cartera, billetera, `/api/me*` y `/api/onramp/session` usan `getUser` y responden 401 sin usuario. El webhook no cambia. Mock igual. `npx tsc --noEmit`, `npm run lint`, `npm test` (66) y `npm run e2e` (2, mock) ok. Sin `next dev`.
+- Archivos clave: `lib/auth/{login-schema,login-errors,login-client,gate,paths}.ts`, `app/(platform)/app/{ingresar,recuperar,restablecer}`, `lib/services/auth.supabase.ts`, `lib/api/handler.ts`, `docs/SUPABASE.md`.
+- Decisiones: la cartera y la billetera siguen en el mock de la demo (la sesión supabase no trae billetera). Google no se enciende. Con sesión, ingresar y registro redirigen; recuperar y restablecer no. El enlace de clave va a `/auth/callback?next=/app/restablecer`.
+- Pendiente: asociar la cartera real al usuario. Aplicar `0002` en el SQL Editor. Plantillas de correo opcionales y Redirect URLs en `docs/SUPABASE.md`. No se abrió el navegador.
+- Próximo: fuera de esta tarea.
+
 
 ### M30 — Registro real con Supabase (2026-10-05, M30: registro real supabase)
 - Hecho: migración `0002_supabase_auth.sql`, idempotente, para pegar una vez. `/app/registro` en 3 pasos. En modo supabase, `signUp` con confirmación y pantalla "Revisa tu correo" (reenviar a los 60 s). `/api/me` lee `public.profiles` con la sesión (RLS). Si falta la tabla, aviso discreto. El gate mira `user_metadata` del JWT y no consulta la tabla. `npx tsc --noEmit`, `npm run lint`, `npm test` (56) y `npm run e2e` (2, mock) ok. Sin `next dev`.
@@ -236,4 +244,4 @@ M30 hecha. El alta está en `/app/registro` (correo, datos, documentos). En mock
 - Logos y marcas del catálogo: sólo identifican el activo. Archivos de xStocks/Backed en `public/logos`. Ver `docs/PENDIENTES-LEGALES.md`. [REVISIÓN ABOGADO] antes de producción.
 - El smoke de T20 cubre el flujo mock a 1280×800. Sigue sin mirarse 360/768 (landing, mercado, detalle, compra, cartera, billetera, depositar, perfil) ni `?country=US`, `?mockError=`, FAKE/HOODx en 404 y el ojo del saldo.
 - Borrar `t18-check.ts` (sigue en el disco; `.gitignore` evita commitearlo).
-- Fase live: `.env.example` recomienda `PRICES_MODE=live`. Si la variable no existe, el código sigue en mock (tests y CI). Historial, trade, cartera, Koywe y Onramper siguen en stub. Auth de Supabase (M29) refresca la sesión; la migración SQL no está aplicada y el formulario no existe. Privy sigue en el código. La landing sigue con precios ilustrativos.
+- Fase live: `.env.example` recomienda `PRICES_MODE=live`. Si la variable no existe, el código sigue en mock (tests y CI). Historial, trade, cartera, Koywe y Onramper siguen en stub. Auth de Supabase: registro (M30) e ingreso (M31). Falta aplicar `0002`. La cartera mock no está asociada al usuario. Privy sigue en el código. La landing sigue con precios ilustrativos.

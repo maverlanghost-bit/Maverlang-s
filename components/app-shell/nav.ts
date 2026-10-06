@@ -1,5 +1,6 @@
 import type { ComponentType, SVGProps } from "react";
 
+import { isCredentialPath } from "@/lib/auth/paths";
 import { IconChart, IconPortfolio, IconUser, IconWallet } from "@/components/ui/icons";
 
 export type ShellSection = "market" | "portfolio" | "wallet" | "profile";
@@ -20,8 +21,7 @@ export function isShellSectionActive(pathname: string, id: ShellSection): boolea
 }
 
 /** Rutas de /app que no llevan sidebar ni tabs. */
-const BARE = ["/app/ingresar", "/app/onboarding", "/app/registro"] as const;
-
 export function isBarePlatformPath(pathname: string): boolean {
-  return BARE.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
+  if (isCredentialPath(pathname)) return true;
+  return pathname === "/app/onboarding" || pathname.startsWith("/app/onboarding/");
 }

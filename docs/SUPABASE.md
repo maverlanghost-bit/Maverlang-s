@@ -14,9 +14,19 @@ No hace falta aplicarlo desde la terminal. Cartera, billetera y órdenes no van 
 
 ## Auth en el panel
 
-- Site URL: `http://localhost:3000`
+- Site URL: el valor de `NEXT_PUBLIC_SITE_URL` (en local, `http://localhost:3000`)
 - Redirect URLs: `http://localhost:3000/auth/callback` y `http://localhost:3000/**`
 - Confirmación de correo: activa
 - El SMTP integrado de Supabase tiene un límite bajo de correos por hora. Para producción, configura un SMTP propio.
 
-Google no se enciende en este paso.
+Google no se enciende. El botón del ingreso queda en Próximamente.
+
+## Correos
+
+El registro manda el enlace de confirmación a `{SITE_URL}/auth/callback?next=…`. Recuperar la contraseña usa `{SITE_URL}/auth/callback?next=/app/restablecer`. Los dos pasan por la misma Redirect URL.
+
+Plantillas, opcionales. En Authentication → Emails puedes dejar las de Supabase o escribirlas en español. El botón del correo tiene que usar la URL de confirmación que arma Supabase (`{{ .ConfirmationURL }}`), que ya incluye el callback de arriba. No prometas rentabilidad. El horario del producto es de lunes a viernes.
+
+- Confirmar cuenta: asunto y cuerpo en español, con el enlace para activar.
+- Recuperar contraseña: asunto y cuerpo en español, con el enlace para elegir una clave nueva.
+- Si no tocas las plantillas, las de Supabase sirven igual.

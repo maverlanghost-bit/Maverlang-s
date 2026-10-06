@@ -58,6 +58,8 @@ export function SupabaseAuthProvider({ children }: { children: ReactNode }) {
     clearClientCookie(MOCK_ONBOARDING_COOKIE);
     try {
       await supabase?.auth.signOut();
+    } catch {
+      await supabase?.auth.signOut({ scope: "local" });
     } finally {
       router.push("/");
       router.refresh();

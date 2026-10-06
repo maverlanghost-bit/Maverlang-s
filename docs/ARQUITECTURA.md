@@ -66,8 +66,8 @@ Layout con sesión: sidebar (≥lg) / bottom tabs (<lg) con 4 tabs: **Mercado ·
 - Geobloqueo: si país ∈ `GEO_BLOCKED_COUNTRIES` (default `US`) → `/bloqueado`. Header `x-vercel-ip-country`. `/auth/*` no se bloquea: el enlace de confirmación tiene que poder canjearse.
 - `/app` y `/app/accion/*` son públicas (`isPublicAppPath`): se ven sin sesión y sin onboarding. El geobloqueo sigue igual.
 - Sesión: modo efectivo supabase (`authMode`) refresca cookies con `updateSession` y decide con `getClaims()` (`supabaseSession`). No se confía en `getSession()`. Si no, cookie mock `a24_mock_session` o, con Privy, `privy-token`.
-- `/app/registro` es público sin sesión. No es una ruta de mercado. Con sesión de Supabase, el onboarding sale de `user_metadata` del JWT (`onboarding_completed` y datos). No se consulta `profiles` en cada request. La cookie `a24_onb` no cuenta en ese modo.
-- El resto de `/app/*` (excepto `/app/ingresar` y `/app/registro`) requiere sesión. Sin sesión → `/app/ingresar?next=…`. Con sesión y sin onboarding → `/app/onboarding` (las rutas públicas siguen abiertas). Un redirect copia las cookies refrescadas. `readServerSession` usa la misma regla.
+- `/app/ingresar`, `/app/registro`, `/app/recuperar` y `/app/restablecer` son públicas. No son rutas de mercado. Con sesión, ingresar y registro redirigen al `next` saneado o a `/app`. Recuperar y restablecer siguen abiertas (el enlace de clave trae sesión). Con sesión de Supabase, el onboarding sale de `user_metadata` del JWT (`onboarding_completed` y datos). No se consulta `profiles` en cada request. La cookie `a24_onb` no cuenta en ese modo.
+- El resto de `/app/*` (cartera, billetera y subrutas, perfil y subrutas) requiere sesión. Sin sesión → `/app/ingresar?next=…`. Con sesión y sin onboarding → `/app/onboarding` (las rutas públicas y las de clave siguen abiertas). Un redirect copia las cookies refrescadas. `readServerSession` usa la misma regla. En modo supabase, las APIs de datos personales exigen `getUser` y responden 401 si no hay usuario. El webhook de onramp no cambia.
 
 ### 2.4 API (Route Handlers `app/api/**/route.ts`) — todas validan con zod y devuelven `ApiResult<T>`
 | Método y ruta | Request | Response |
@@ -318,7 +318,7 @@ Ver `docs/.env.example`. `DATA_MODE=mock` mientras se construye. `AUTH_MODE=mock
 ## 10. Puntos de enchufe del backend (fase siguiente)
 | Punto | Archivo | Qué falta |
 |---|---|---|
-| Sesión Supabase | `lib/supabase/*`, `app/(platform)/app/registro`, `lib/services/users.rls.ts` | Registro con confirmación por correo. Falta aplicar `0002` en el SQL Editor. Ingreso y recuperar quedan en M31 |
+| Sesión Supabase | `lib/supabase/*`, `app/(platform)/app/{registro,ingresar,recuperar,restablecer}`, `lib/services/{auth.supabase,users.rls}.ts` | Registro, ingreso y recuperar con correo. Falta aplicar `0002` en el SQL Editor. Google sigue apagado. La cartera mock no está asociada al usuario. |
 | Sesión Privy | `lib/services/auth.privy.ts` | Sigue en el código. No manda si `AUTH_MODE=supabase`. Verificar `privy-token` queda pendiente |
 | Precios | `prices.live.ts` | Jupiter Price v3 + multiplicador on-chain (cache 15 s) |
 | Historial | `prices.live.ts#history` | proveedor por definir (datos del subyacente o de pools) |

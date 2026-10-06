@@ -10,7 +10,10 @@ import { Card } from "@/components/ui/card";
 import { shouldUsePrivy, useSession, type LoginMethod } from "@/lib/auth";
 import { readBrowserCookie } from "@/lib/auth/browser-cookies";
 import { MOCK_ONBOARDING_COOKIE, ONBOARDING_DONE } from "@/lib/auth/cookies";
+import { clientAuthModeInput, isSupabaseAuth } from "@/lib/auth/mode";
 import { registroPath, safeNextPath } from "@/lib/auth/paths";
+
+import { SupabaseLogin } from "./supabase-login";
 
 function MailIcon() {
   return (
@@ -51,9 +54,11 @@ export function LoginCard() {
   const [error, setError] = useState<string | null>(null);
   const next = safeNextPath(params.get("next")) ?? "/app";
   const create = registroPath(next);
-  const demo = !shouldUsePrivy();
+  const supabaseMode = isSupabaseAuth(clientAuthModeInput());
+  const demo = !supabaseMode && !shouldUsePrivy();
 
   useEffect(() => {
+    if (supabaseMode) return;
     if (status !== "authenticated") return;
     if (readBrowserCookie(MOCK_ONBOARDING_COOKIE) !== ONBOARDING_DONE) {
       const params = new URLSearchParams();
@@ -63,7 +68,7 @@ export function LoginCard() {
       return;
     }
     router.push(next);
-  }, [next, router, status]);
+  }, [next, router, status, supabaseMode]);
 
   async function enter(method: LoginMethod) {
     setError(null);
@@ -75,6 +80,10 @@ export function LoginCard() {
   }
 
   const busy = status !== "unauthenticated";
+
+  if (supabaseMode) {
+    return <SupabaseLogin next={next} createHref={create} linkError={params.get("error")} />;
+  }
 
   return (
     <Card className="w-full max-w-md">
@@ -110,6 +119,11 @@ export function LoginCard() {
           Crear cuenta
         </Link>
       </p>
+      {params.get("error") === "enlace" ? (
+        <p className="mt-4 text-center text-sm text-down" role="alert">
+          Ese enlace no es válido o ya venció.
+        </p>
+      ) : null}
       {error ? (
         <p className="mt-4 text-center text-sm text-down" role="alert">
           {error}

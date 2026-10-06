@@ -1,5 +1,13 @@
 import { ONBOARDING_DONE } from "@/lib/auth/cookies";
-import { isPublicAppPath, safeNextPath, splitPath } from "@/lib/auth/paths";
+import {
+  isCredentialPath,
+  isIngresarPath,
+  isPasswordFlowPath,
+  isPublicAppPath,
+  isRegistroPath,
+  safeNextPath,
+  splitPath,
+} from "@/lib/auth/paths";
 
 const COUNTRY = /^[A-Z]{2}$/;
 
@@ -78,16 +86,8 @@ function isAppPath(pathname: string): boolean {
   return pathname === "/app" || pathname.startsWith("/app/");
 }
 
-function isLoginPath(pathname: string): boolean {
-  return pathname === "/app/ingresar" || pathname.startsWith("/app/ingresar/");
-}
-
 function isOnboardingPath(pathname: string): boolean {
   return pathname === "/app/onboarding" || pathname.startsWith("/app/onboarding/");
-}
-
-function isRegistroPath(pathname: string): boolean {
-  return pathname === "/app/registro" || pathname.startsWith("/app/registro/");
 }
 
 function redirectTo(path: string): GateDecision {
@@ -130,20 +130,20 @@ export function decideGate(input: GateInput): GateDecision {
   const isPublic = isPublicAppPath(input.pathname);
 
   if (!hasSession) {
-    if (isLoginPath(input.pathname) || isRegistroPath(input.pathname) || isPublic) return NEXT;
+    if (isCredentialPath(input.pathname) || isPublic) return NEXT;
     return loginRedirect(input.pathname, input.search);
   }
 
   if (!onboarded) {
-    if (isOnboardingPath(input.pathname) || isPublic) return NEXT;
+    if (isOnboardingPath(input.pathname) || isPublic || isPasswordFlowPath(input.pathname)) return NEXT;
     return onboardingRedirect(input.pathname, input.search);
   }
 
-  if (isLoginPath(input.pathname) || isRegistroPath(input.pathname) || (input.useSupabase && isOnboardingPath(input.pathname))) {
+  if (isIngresarPath(input.pathname) || isRegistroPath(input.pathname) || (input.useSupabase && isOnboardingPath(input.pathname))) {
     const params = new URLSearchParams(input.search.startsWith("?") ? input.search.slice(1) : input.search);
     const next = safeNextPath(params.get("next"));
     const nextPath = next ? splitPath(next).pathname : "";
-    if (!next || isLoginPath(nextPath) || isRegistroPath(nextPath) || isOnboardingPath(nextPath)) {
+    if (!next || isIngresarPath(nextPath) || isRegistroPath(nextPath) || isOnboardingPath(nextPath)) {
       return redirectTo("/app");
     }
     return redirectTo(next);
