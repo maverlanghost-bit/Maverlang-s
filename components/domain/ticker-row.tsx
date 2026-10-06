@@ -19,6 +19,7 @@ export function TickerRow({
   action,
   lowLiquidityLabel = null,
   statusDot = null,
+  priceSlot = null,
 }: {
   href: string;
   symbol: string;
@@ -36,6 +37,11 @@ export function TickerRow({
   lowLiquidityLabel?: string | null;
   /** Punto de estado por fila desde el catálogo (M39). Null lo oculta. */
   statusDot?: { kind: "open" | "closed" | "halted"; label: string } | null;
+  /**
+   * Números en vivo de la portada (M42): reemplaza el bloque de precio y
+   * cambio (p. ej. `<LandingPrice>`). El mercado no lo usa.
+   */
+  priceSlot?: ReactNode;
 }) {
   const dotClass =
     statusDot?.kind === "open"
@@ -66,10 +72,12 @@ export function TickerRow({
           </span>
         </span>
         {sparkline ? <Sparkline data={sparkline} width={72} height={28} className={sparklineClassName} /> : null}
-        <span className="flex shrink-0 flex-col items-end gap-0.5">
-          <FlashPrice value={price} currency={currency} size="sm" />
-          <ChangeBadge value={change} />
-        </span>
+        {priceSlot ?? (
+          <span className="flex shrink-0 flex-col items-end gap-0.5">
+            <FlashPrice value={price} currency={currency} size="sm" />
+            <ChangeBadge value={change} />
+          </span>
+        )}
       </Link>
       {action ? <div className="shrink-0 pr-1">{action}</div> : null}
     </div>

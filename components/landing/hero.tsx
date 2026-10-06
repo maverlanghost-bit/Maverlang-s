@@ -1,12 +1,14 @@
 import type { ComponentType, ReactNode, SVGProps } from "react";
 import Link from "next/link";
 import { AnnouncementPill } from "@/components/landing/announcement-pill";
+import { LandingPrice } from "@/components/landing/live-landing-prices";
 import { TickerRow } from "@/components/domain/ticker-row";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { IconClock, IconGlobe, IconWallet } from "@/components/ui/icons";
 import { esCL } from "@/content/i18n/es-CL";
-import { ILLUSTRATIVE_NOTICE, landingHeroQuotes } from "@/lib/mocks/landing";
+import { landingNotice } from "@/lib/landing/live-quotes";
+import { HERO_SYMBOLS, type LandingQuote } from "@/lib/mocks/landing";
 import { cn } from "@/lib/cn";
 
 /**
@@ -46,7 +48,14 @@ function Reveal({
   );
 }
 
-export function Hero() {
+/**
+ * Precios reales en dólares cuando la fuente responde (M42); si no, la
+ * muestra con "Precios ilustrativos". Sin series: el historial live no
+ * es real. Sólo los números son cliente (`<LandingPrice>`).
+ */
+export function Hero({ quotes, live }: { quotes: LandingQuote[]; live: boolean }) {
+  const heroQuotes = quotes.filter((quote) => HERO_SYMBOLS.has(quote.symbol));
+
   return (
     <section className="px-5 pt-12 pb-16 md:pt-20 md:pb-24 lg:pt-24">
       <div className="mx-auto flex w-full max-w-4xl flex-col items-center text-center">
@@ -100,11 +109,11 @@ export function Hero() {
       <Reveal delay={400} className="mx-auto mt-12 w-full max-w-xl md:mt-16 md:max-w-2xl">
         <Card>
           <div className="mb-2 flex items-baseline justify-between gap-3 px-2">
-            <p className="label">Ejemplo</p>
-            <p className="text-sm text-fg-muted">{ILLUSTRATIVE_NOTICE}</p>
+            <p className="label">{live ? "En vivo" : "Ejemplo"}</p>
+            <p className="text-sm text-fg-muted">{landingNotice(live)}</p>
           </div>
           <ul>
-            {landingHeroQuotes.map((quote) => (
+            {heroQuotes.map((quote) => (
               <li key={quote.symbol}>
                 <TickerRow
                   href={quote.href}
@@ -114,7 +123,12 @@ export function Hero() {
                   price={quote.priceUsd}
                   currency="USD"
                   change={quote.change}
-                  sparkline={quote.sparkline}
+                  priceSlot={
+                    <LandingPrice
+                      symbol={quote.symbol}
+                      initial={{ priceUsd: quote.priceUsd, change: quote.change }}
+                    />
+                  }
                 />
               </li>
             ))}

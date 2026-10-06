@@ -1,8 +1,7 @@
-import { cn } from "@/lib/cn";
+import { LandingPrice } from "@/components/landing/live-landing-prices";
 import { formatPercent } from "@/lib/format";
-import { ILLUSTRATIVE_NOTICE, landingQuotes, type LandingQuote } from "@/lib/mocks/landing";
-
-const tape = [...landingQuotes, ...landingQuotes];
+import { landingNotice } from "@/lib/landing/live-quotes";
+import { ILLUSTRATIVE_NOTICE, type LandingQuote } from "@/lib/mocks/landing";
 
 function changeWord(change: number) {
   if (change > 0) return "sube";
@@ -10,45 +9,51 @@ function changeWord(change: number) {
   return "sin cambio";
 }
 
-function QuoteItem({ quote }: { quote: LandingQuote }) {
-  const tone = quote.change > 0 ? "text-up" : quote.change < 0 ? "text-down" : "text-fg-muted";
+/**
+ * Cinta con precio en dólares (US$) y variación (M42). Los números son
+ * cliente (`<LandingPrice>` liviano); la etiqueta es "en vivo" sólo con
+ * precios reales, si no "Precios ilustrativos".
+ */
+export function TickerMarquee({ quotes, live }: { quotes: LandingQuote[]; live: boolean }) {
+  const tape = [...quotes, ...quotes];
 
-  return (
-    <span className="inline-flex items-center gap-2 px-4">
-      <span className="text-sm font-medium text-fg">{quote.symbol}</span>
-      <span className={cn("font-mono text-sm tabular-nums", tone)}>{formatPercent(quote.change)}</span>
-    </span>
-  );
-}
-
-export function TickerMarquee() {
   return (
     <section aria-labelledby="cinta-label" className="overflow-hidden border-y border-border py-6 md:py-8">
       <h2 id="cinta-label" className="label mb-4 text-center">
-        02 — Variación ilustrativa
+        {live ? "02 — En vivo" : "02 — Variación ilustrativa"}
       </h2>
 
       <div className="ticker-marquee-motion" aria-hidden>
         <ul className="flex w-max animate-marquee">
           {tape.map((quote, index) => (
             <li key={`${quote.symbol}-${index}`} className="flex">
-              <QuoteItem quote={quote} />
+              <LandingPrice
+                symbol={quote.symbol}
+                initial={{ priceUsd: quote.priceUsd, change: quote.change }}
+                layout="tape"
+              />
             </li>
           ))}
         </ul>
       </div>
 
       <ul className="ticker-marquee-static flex-wrap justify-center gap-x-2 gap-y-2 px-5" aria-hidden>
-        {landingQuotes.map((quote) => (
+        {quotes.map((quote) => (
           <li key={quote.symbol}>
-            <QuoteItem quote={quote} />
+            <LandingPrice
+              symbol={quote.symbol}
+              initial={{ priceUsd: quote.priceUsd, change: quote.change }}
+              layout="tape"
+            />
           </li>
         ))}
       </ul>
 
-      <p className="sr-only">{ILLUSTRATIVE_NOTICE}. No son cotizaciones en vivo.</p>
+      <p className="sr-only">
+        {live ? `${landingNotice(true)}.` : `${ILLUSTRATIVE_NOTICE}. No son cotizaciones en vivo.`}
+      </p>
       <ul className="sr-only">
-        {landingQuotes.map((quote) => (
+        {quotes.map((quote) => (
           <li key={quote.symbol}>
             {quote.name} ({quote.symbol}): {changeWord(quote.change)} {formatPercent(quote.change)}.
           </li>

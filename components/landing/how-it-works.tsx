@@ -5,35 +5,14 @@ import { TickerRow } from "@/components/domain/ticker-row";
 import { Card } from "@/components/ui/card";
 import { LandingSection, SectionIntro } from "@/components/landing/section";
 import { Reveal } from "@/components/landing/reveal";
-import { ILLUSTRATIVE_NOTICE, landingQuotes } from "@/lib/mocks/landing";
+import { LandingPrice, LandingSharesValue } from "@/components/landing/live-landing-prices";
+import { landingNotice } from "@/lib/landing/live-quotes";
+import type { LandingQuote } from "@/lib/mocks/landing";
 import { formatShares } from "@/lib/format";
 import { REVEAL_STAGGER_MS } from "@/lib/hooks/reveal-motion";
 
 /** Fracción de ejemplo. No es una cotización ni lo que compras con $1.000. */
 const SAMPLE_SHARES = 0.0438;
-
-const sampleQuote = landingQuotes.find((quote) => quote.symbol === "AAPLx") ?? landingQuotes[0];
-
-const steps: { kicker: string; title: string; body: string; mock: ReactNode }[] = [
-  {
-    kicker: "01",
-    title: "Deposita pesos (Khipu, transferencia)",
-    body: "El método y el costo del proveedor se ven al depositar.",
-    mock: <DepositMock />,
-  },
-  {
-    kicker: "02",
-    title: "Elige una acción",
-    body: "Apple, NVIDIA y las demás del catálogo.",
-    mock: <PickMock />,
-  },
-  {
-    kicker: "03",
-    title: "Listo: el token es tuyo, en tu billetera",
-    body: "Queda en tu billetera y sigue el precio de la acción.",
-    mock: <OwnedMock />,
-  },
-];
 
 function DepositMock() {
   return (
@@ -45,44 +24,70 @@ function DepositMock() {
   );
 }
 
-function PickMock() {
-  if (!sampleQuote) return null;
-
+function PickMock({ quote, live }: { quote: LandingQuote; live: boolean }) {
   return (
     <div className="rounded-xl bg-bg">
       <TickerRow
-        href={sampleQuote.href}
-        symbol={sampleQuote.symbol}
-        name={sampleQuote.name}
-        logoUrl={sampleQuote.logo}
-        price={sampleQuote.priceUsd}
+        href={quote.href}
+        symbol={quote.symbol}
+        name={quote.name}
+        logoUrl={quote.logo}
+        price={quote.priceUsd}
         currency="USD"
-        change={sampleQuote.change}
-        sparkline={sampleQuote.sparkline}
+        change={quote.change}
+        priceSlot={
+          <LandingPrice
+            symbol={quote.symbol}
+            initial={{ priceUsd: quote.priceUsd, change: quote.change }}
+          />
+        }
       />
-      <p className="px-3 pb-3 text-sm text-fg-muted">{ILLUSTRATIVE_NOTICE}</p>
+      <p className="px-3 pb-3 text-sm text-fg-muted">{landingNotice(live)}</p>
     </div>
   );
 }
 
-function OwnedMock() {
-  if (!sampleQuote) return null;
-
-  const valueUsd = Math.round(sampleQuote.priceUsd * SAMPLE_SHARES * 100) / 100;
-
+function OwnedMock({ quote }: { quote: LandingQuote }) {
   return (
     <div className="flex items-center gap-3 rounded-xl bg-bg px-4 py-4">
-      <TickerLogo symbol={sampleQuote.symbol} name={sampleQuote.name} logoUrl={sampleQuote.logo} size={40} decorative />
+      <TickerLogo symbol={quote.symbol} name={quote.name} logoUrl={quote.logo} size={40} decorative />
       <span className="min-w-0 flex-1">
         <span className="block truncate font-medium text-fg">{formatShares(SAMPLE_SHARES)}</span>
         <span className="block text-sm text-fg-muted">Ejemplo. No es un saldo.</span>
       </span>
-      <PriceText value={valueUsd} currency="USD" size="sm" className="shrink-0" />
+      <LandingSharesValue symbol={quote.symbol} shares={SAMPLE_SHARES} initialPrice={quote.priceUsd} />
     </div>
   );
 }
 
-export function HowItWorks() {
+/**
+ * El depósito sigue en pesos (se deposita en CLP); los precios de acciones
+ * van en dólares (M42), en vivo cuando la fuente responde.
+ */
+export function HowItWorks({ quotes, live }: { quotes: LandingQuote[]; live: boolean }) {
+  const sampleQuote = quotes.find((quote) => quote.symbol === "AAPLx") ?? quotes[0];
+
+  const steps: { kicker: string; title: string; body: string; mock: ReactNode }[] = [
+    {
+      kicker: "01",
+      title: "Deposita pesos (Khipu, transferencia)",
+      body: "El método y el costo del proveedor se ven al depositar.",
+      mock: <DepositMock />,
+    },
+    {
+      kicker: "02",
+      title: "Elige una acción",
+      body: "Apple, NVIDIA y las demás del catálogo.",
+      mock: sampleQuote ? <PickMock quote={sampleQuote} live={live} /> : null,
+    },
+    {
+      kicker: "03",
+      title: "Listo: el token es tuyo, en tu billetera",
+      body: "Queda en tu billetera y sigue el precio de la acción.",
+      mock: sampleQuote ? <OwnedMock quote={sampleQuote} /> : null,
+    },
+  ];
+
   return (
     <LandingSection id="como-funciona" titleId="como-funciona-title">
       <Reveal>

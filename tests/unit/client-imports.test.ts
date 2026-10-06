@@ -36,6 +36,10 @@ function bannedImportReason(source: string): string | null {
     if (trimmed.includes("lib/market/asset-status") && !trimmed.includes("lib/market/asset-status.shared")) {
       return `importa lib/market/asset-status sin .shared: ${trimmed}`;
     }
+    // Quotes de la portada (M42): server-only (getServices + lib/env).
+    if (trimmed.includes("lib/landing/live-quotes")) {
+      return `importa lib/landing/live-quotes: ${trimmed}`;
+    }
   }
   return null;
 }

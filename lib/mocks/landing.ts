@@ -1,8 +1,9 @@
 import { ENABLED_TICKERS } from "@/config/tickers";
 
 /**
- * Cifras estáticas para la landing. No son cotizaciones ni volumen.
- * La UI debe mostrarlas como "Precios ilustrativos".
+ * Valores de muestra para la portada. No son cotizaciones ni volumen.
+ * La UI los muestra como "Precios ilustrativos" sólo cuando la fuente en
+ * vivo falla (M42: `lib/landing/live-quotes.ts` decide la etiqueta).
  */
 export const ILLUSTRATIVE_NOTICE = "Precios ilustrativos";
 
@@ -16,7 +17,14 @@ export type LandingQuote = {
   priceUsd: number;
   /** Ratio, igual que ChangeBadge: 0.012 = +1,20 %. */
   change: number;
-  sparkline: number[];
+  /**
+   * Serie corta de muestra que termina en el precio mostrado (M42: la
+   * portada ya no la usa; el historial live tampoco es real). Opcional:
+   * las quotes en vivo llegan sin este campo.
+   */
+  sparkline?: number[];
+  /** true cuando el precio viene de la fuente en vivo. La muestra lo deja en false. */
+  live?: boolean;
 };
 
 const ILLUSTRATIVE_PRICES: Record<string, { priceUsd: number; change: number }> = {
@@ -32,7 +40,7 @@ const ILLUSTRATIVE_PRICES: Record<string, { priceUsd: number; change: number }> 
   CRCLx: { priceUsd: 148, change: -0.015 },
 };
 
-const HERO_SYMBOLS = new Set(["AAPLx", "NVDAx", "TSLAx", "MSFTx"]);
+export const HERO_SYMBOLS = new Set(["AAPLx", "NVDAx", "TSLAx", "MSFTx"]);
 
 /** Serie corta que termina en el precio mostrado. No es historia de mercado. */
 function illustrativeSeries(priceUsd: number, change: number): number[] {
