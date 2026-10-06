@@ -38,11 +38,12 @@ export function tradeBlockForStatus(status: Pick<AssetStatus, "halted">): "halte
   return status.halted ? "halted" : null;
 }
 
-/** Mínimo efectivo por orden: el del activo o US$1 si no hay dato. Pura. */
+/** Mínimo efectivo por orden: máximo entre el del activo y US$1. Pura. */
 export function effectiveMinOrderUsd(minOrderUsd: number | null | undefined): number {
-  return typeof minOrderUsd === "number" && Number.isFinite(minOrderUsd) && minOrderUsd > 0
-    ? minOrderUsd
-    : MIN_TRADE_USD;
+  if (typeof minOrderUsd === "number" && Number.isFinite(minOrderUsd) && minOrderUsd > 0) {
+    return Math.max(minOrderUsd, MIN_TRADE_USD);
+  }
+  return MIN_TRADE_USD;
 }
 
 export function normalizeMode(value: unknown): AssetTradingMode {

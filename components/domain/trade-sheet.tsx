@@ -15,7 +15,7 @@ import { ErrorState } from "@/components/ui/error-state";
 import { Sheet } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { site } from "@/config/site";
-import { MIN_TRADE_USD, QUOTE_DEBOUNCE_MS } from "@/config/trade";
+import { QUOTE_DEBOUNCE_MS } from "@/config/trade";
 import type { Messages } from "@/content/i18n/es-CL";
 import { ApiError, buildTrade, getTradeStatus, quoteTrade, submitTrade } from "@/lib/api/client";
 import { useSession } from "@/lib/auth";
@@ -30,8 +30,8 @@ import {
   amountBlock,
   convertAmount,
   maxAmount,
-  notionalUsd,
   parseAmount,
+  quickTradeAmounts,
   type AmountBlock,
   type TradeAmountCurrency,
 } from "@/lib/trade/amount";
@@ -159,8 +159,9 @@ function blockCopy(
   amount: number,
   currency: Currency,
   rate: number | null | undefined,
+  minUsd: number,
 ) {
-  const minimum = shownMoney(MIN_TRADE_USD, currency, rate);
+  const minimum = shownMoney(minUsd, currency, rate);
   if (block === "min") return fill(t.trade.min, { amount: minimum });
   if (block === "funds" && !(amount > 0)) {
     return fill(side === "sell" ? t.trade.belowMinShares : t.trade.belowMin, { amount: minimum });
@@ -190,6 +191,16 @@ function TradeMark({ ticker }: { ticker: Ticker }) {
       </div>
     </div>
   );
+}
+
+const clpChipFormat = new Intl.NumberFormat("es-CL", { maximumFractionDigits: 0 });
+const usdcChipFormat = new Intl.NumberFormat("es-CL", { maximumFractionDigits: 2 });
+const sharesChipFormat = new Intl.NumberFormat("es-CL", { maximumFractionDigits: 6 });
+
+function quickChipLabel(value: number, currency: TradeAmountCurrency): string {
+  if (currency === "CLP") return `$${clpChipFormat.format(value)}`;
+  if (currency === "SHARES") return sharesChipFormat.format(value);
+  return `US$ ${usdcChipFormat.format(value)}`;
 }
 
 function TradeFlow({ side, ticker }: { side: Side; ticker: Ticker }) {
@@ -237,6 +248,10 @@ function TradeFlow({ side, ticker }: { side: Side; ticker: Ticker }) {
   // Las órdenes se ejecutan en dólares (M40): el monto en CLP se convierte a USD antes de cotizar.
   const quoteAmount = currency === "CLP" && fxRate && fxRate > 0 ? amount / fxRate : amount;
   const quoteCurrency = currency === "CLP" ? "USDC" : currency;
+  // Mínimo por orden del activo (M39/M43b): un solo mínimo coherente, el máximo
+  // entre el global y el de la acción. La validación y el mensaje usan el mismo.
+  const halted = asset.data?.halted === true;
+  const minUsd = effectiveMinOrderUsd(asset.data?.minOrderUsd);
   const block = amountBlock({
     side,
     currency,
@@ -248,6 +263,7 @@ function TradeFlow({ side, ticker }: { side: Side; ticker: Ticker }) {
     fxPending: fx.isPending,
     pricePending: prices.isPending,
     portfolioPending,
+    minUsd,
   });
   const requestKey =
     block === null
@@ -262,12 +278,14 @@ function TradeFlow({ side, ticker }: { side: Side; ticker: Ticker }) {
   const currencies = side === "sell" ? SELL_CURRENCIES : BUY_CURRENCIES;
   const cap = portfolioPending ? null : maxAmount({ side, currency, cashUsdc, shares, fx: fxRate, priceUsd });
   const busy = phase === "signing" || phase === "submitting" || phase === "done" || phase === "error";
-  // Mínimo por orden del activo (M39): ayuda visible y validación suave en el demo.
-  const halted = asset.data?.halted === true;
-  const minUsd = effectiveMinOrderUsd(asset.data?.minOrderUsd);
   const minHelp = fill(t.trade.minOrder, { amount: shownMoney(minUsd, displayCurrency, fxRate) });
-  const notion = notionalUsd(amount, currency, fxRate, priceUsd);
-  const belowAssetMin = notion !== null && notion > 0 && notion + 1e-9 < minUsd;
+  // Montos rápidos (M43b): nunca bajo el mínimo efectivo; sin pasar el
+  // disponible cuando se puede. La UI conserva el chip Máx.
+  const quickValues = quickTradeAmounts(currency, { minUsd, fx: fxRate, priceUsd, max: cap });
+  const quickChips = [
+    ...quickValues.map((value) => ({ label: quickChipLabel(value, currency), value })),
+    { label: t.trade.max, value: "max" as const },
+  ];
   const dollarsNote =
     currency === "CLP" && fxRate && fxRate > 0 && amount > 0
       ? fill(t.trade.executesInDollars, { amount: formatMoney(amount / fxRate, "USD") })
@@ -462,9 +480,9 @@ function TradeFlow({ side, ticker }: { side: Side; ticker: Ticker }) {
     );
   }
 
-  const hint = blockCopy(t, block, side, amount, displayCurrency, fxRate);
+  const hint = blockCopy(t, block, side, amount, displayCurrency, fxRate, minUsd);
   const showDeposit = side === "buy" && block === "funds";
-  const canReview = block === null && fresh && !quoting && !quoteError && !belowAssetMin && !halted;
+  const canReview = block === null && fresh && !quoting && !quoteError && !halted;
   const canConfirm = phase === "review" && canReview && remainingMs > 0 && pubkey !== null && !halted;
   const estimate = quote
     ? side === "buy"
@@ -564,6 +582,7 @@ function TradeFlow({ side, ticker }: { side: Side; ticker: Ticker }) {
         max={cap ?? undefined}
         describedBy={hint ? hintId : undefined}
         invalid={block === "min" || block === "funds"}
+        chips={quickChips}
         onCurrencyChange={(next) => {
           if (next !== "CLP" && next !== "USDC" && next !== "SHARES") return;
           setAmountRaw(convertAmount(amount, currency, next, fxRate, priceUsd));
@@ -575,11 +594,6 @@ function TradeFlow({ side, ticker }: { side: Side; ticker: Ticker }) {
       {halted ? (
         <p role="alert" className="text-center text-sm text-down">
           {t.detail.tradeHaltedNote}
-        </p>
-      ) : null}
-      {belowAssetMin && !halted ? (
-        <p role="alert" className="text-center text-sm text-down">
-          {minHelp}
         </p>
       ) : null}
       {block === "wait" ? (

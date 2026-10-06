@@ -65,8 +65,14 @@ export function amountBlock(input: {
   fxPending: boolean;
   pricePending: boolean;
   portfolioPending: boolean;
+  /** Mínimo efectivo en USD (M39/M43b). Por defecto `MIN_TRADE_USD`. */
+  minUsd?: number;
 }): AmountBlock | null {
   const { currency, amount, side, fx, priceUsd, fxPending, pricePending, portfolioPending } = input;
+  const floor =
+    typeof input.minUsd === "number" && Number.isFinite(input.minUsd) && input.minUsd > 0
+      ? Math.max(input.minUsd, MIN_TRADE_USD)
+      : MIN_TRADE_USD;
   if (portfolioPending) return "wait";
   if (currency === "CLP" && fx === null && fxPending) return "wait";
   if (currency === "CLP" && !(fx && fx > 0)) return "fx";
@@ -78,13 +84,13 @@ export function amountBlock(input: {
   if (max === null) return currency === "CLP" ? "fx" : "price";
   const maxUsd = notionalUsd(max, currency, fx, priceUsd);
   if (!(amount > 0)) {
-    if (maxUsd !== null && maxUsd + 1e-9 < MIN_TRADE_USD) return "funds";
+    if (maxUsd !== null && maxUsd + 1e-9 < floor) return "funds";
     return "empty";
   }
   if (overMax(amount, max, currency)) return "funds";
   const usd = notionalUsd(amount, currency, fx, priceUsd);
   if (usd === null) return currency === "CLP" ? "fx" : "price";
-  if (usd + 1e-9 < MIN_TRADE_USD) return "min";
+  if (usd + 1e-9 < floor) return "min";
   return null;
 }
 
@@ -117,4 +123,62 @@ export function convertAmount(
   }
   if (!(priceUsd && priceUsd > 0)) return "";
   return roundAmount(usd / priceUsd, "SHARES");
+}
+
+const DEFAULT_QUICK: Record<TradeAmountCurrency, readonly number[]> = {
+  CLP: [5000, 10000, 50000],
+  USDC: [10, 50, 100],
+  SHARES: [0.01, 0.1, 1],
+};
+
+function effectiveFloor(minUsd: number | null | undefined): number {
+  if (typeof minUsd === "number" && Number.isFinite(minUsd) && minUsd > 0) {
+    return Math.max(minUsd, MIN_TRADE_USD);
+  }
+  return MIN_TRADE_USD;
+}
+
+/** Mínimo efectivo expresado en la moneda del monto. Null si falta fx/precio. Pura. */
+export function minInCurrency(
+  currency: TradeAmountCurrency,
+  minUsd: number | null | undefined,
+  fx: number | null,
+  priceUsd: number | null,
+): number | null {
+  const floor = effectiveFloor(minUsd);
+  if (currency === "USDC") return Math.ceil(floor * 100 - 1e-9) / 100;
+  if (currency === "CLP") {
+    if (!(fx && fx > 0)) return null;
+    return Math.max(1, Math.ceil(floor * fx - 1e-9));
+  }
+  if (!(priceUsd && priceUsd > 0)) return null;
+  const raw = floor / priceUsd;
+  if (!(raw > 0)) return null;
+  return Math.ceil(raw * 1_000_000 - 1e-9) / 1_000_000;
+}
+
+/**
+ * Montos rápidos válidos (M43b): nunca bajo el mínimo efectivo y, cuando se
+ * puede, sin pasar el disponible (`max` en la misma moneda). Si ningún
+ * predeterminado sirve pero el mínimo cabe en el disponible, devuelve el
+ * mínimo redondeado hacia arriba. Si ni el mínimo cabe, devuelve vacío (la UI
+ * conserva el chip Máx). Pura: la usan la hoja y los tests.
+ */
+export function quickTradeAmounts(
+  currency: TradeAmountCurrency,
+  opts: { minUsd: number | null | undefined; fx: number | null; priceUsd: number | null; max?: number | null },
+): number[] {
+  const defaults = DEFAULT_QUICK[currency] ?? [];
+  const minCur = minInCurrency(currency, opts.minUsd, opts.fx, opts.priceUsd);
+  if (minCur === null) return [...defaults];
+  const eps = currency === "CLP" ? 0.49 : 1e-9;
+  let valid = defaults.filter((value) => value + eps >= minCur);
+  const max = opts.max;
+  const maxKnown = typeof max === "number" && Number.isFinite(max) && max >= 0;
+  if (maxKnown && (max as number) + eps >= minCur) {
+    valid = valid.filter((value) => value <= (max as number) + eps);
+  }
+  if (valid.length > 0) return [...valid];
+  if (!maxKnown || (max as number) + eps >= minCur) return [minCur];
+  return [];
 }

@@ -45,7 +45,7 @@ test("smoke con datos mock", async ({ page }) => {
 
   await page.getByRole("button", { name: "Comprar", exact: true }).click();
   const sheet = page.getByRole("dialog", { name: /Comprar Apple/ });
-  await sheet.getByRole("button", { name: "$5.000" }).click();
+  await sheet.getByRole("button", { name: "$10.000" }).click();
   const review = sheet.getByRole("button", { name: "Revisar" });
   await expect(review).toBeEnabled();
   await review.click();
@@ -64,10 +64,10 @@ test("smoke con datos mock", async ({ page }) => {
   await expect(page.getByRole("button", { name: "Revisar" })).toBeDisabled();
 
   await page.goto("/app/perfil");
-  await page.getByRole("link", { name: "Idioma y moneda" }).click();
-  await expect(page.getByRole("heading", { name: "Idioma y moneda" })).toBeVisible();
+  await page.getByRole("link", { name: "Ajustes" }).click();
+  await expect(page.getByRole("heading", { name: "Ajustes" })).toBeVisible();
   await page.getByRole("radio", { name: "English" }).click();
-  await expect(page.getByRole("heading", { name: "Language and currency" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Market" })).toBeVisible();
 });
 
@@ -79,7 +79,7 @@ test("visita el detalle sin sesión", async ({ browser }) => {
   expect(response?.request().redirectedFrom()).toBeNull();
   await expect(page).toHaveURL(/\/app\/accion\/AAPLx$/);
   await expect(page.getByRole("heading", { level: 1, name: "Apple" })).toBeVisible();
-  await expect(page.getByText(/US\$[\d.]+/).first()).toBeVisible();
+  await expect(page.getByText(/\$\s?[\d.]+/).first()).toBeVisible();
   await expect(page.getByRole("link", { name: "Crear cuenta para invertir" }).first()).toBeVisible();
   await expect(page.getByRole("heading", { name: "Tu posición" })).toHaveCount(0);
   await expect(page.getByRole("navigation", { name: "Secciones" })).toHaveCount(0);
