@@ -166,7 +166,7 @@ export const en = {
     assetOvernight: "Overnight session: price can move more",
     assetClosed: "Market closed",
     assetReopen: "opens {when}",
-    scheduleAlways: "Hours: Trade 24 hours a day, Monday to Friday",
+    scheduleAlways: "Trades 24 hours a day, Monday to Friday",
     scheduleExchange: "Exchange hours (NY)",
     stats: "Figures",
     priceUsd: "Price in dollars",

@@ -169,7 +169,7 @@ export const esCL = {
     assetOvernight: "Sesión nocturna: el precio puede variar más",
     assetClosed: "Mercado cerrado",
     assetReopen: "abre el {when}",
-    scheduleAlways: "Horario: 24 horas, de lunes a viernes",
+    scheduleAlways: "Opera las 24 horas, de lunes a viernes",
     scheduleExchange: "Horario de bolsa (NY)",
     stats: "Datos",
     priceUsd: "Precio en dólares",
