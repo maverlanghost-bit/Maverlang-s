@@ -153,6 +153,12 @@ const serverSchema = publicSchema.extend({
    * Es el máximo permitido: con `curated`, los pedidos de `all` se ignoran.
    */
   CATALOG_SCOPE: enumEnv(["curated", "all"] as const, "curated"),
+  /**
+   * Horario real por acción (M39). `live` consulta xStocks (assets + system/status)
+   * con timeout 2,5 s y cache 60 s por símbolo; si falla usa el catálogo y si no,
+   * el mock. También se activa con `PRICES_MODE=live`. En mock/tests sigue el mock.
+   */
+  MARKET_STATUS_MODE: enumEnv(["mock", "live"] as const, "mock"),
 });
 
 export type PublicEnv = z.infer<typeof publicSchema>;

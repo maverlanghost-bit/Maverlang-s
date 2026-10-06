@@ -22,12 +22,14 @@ import { useSession } from "@/lib/auth";
 import { useSignTrade } from "@/lib/auth/sign-transaction";
 import { formatClp, formatShares, formatUsd } from "@/lib/format";
 import { useAccountMode } from "@/lib/hooks/use-account-mode";
-import { useFx, useMarketStatus, usePortfolio, usePrices } from "@/lib/hooks/queries";
+import { useAssetStatus, useFx, useMarketStatus, usePortfolio, usePrices } from "@/lib/hooks/queries";
 import { useT } from "@/lib/hooks/use-t";
+import { effectiveMinOrderUsd } from "@/lib/market/asset-status";
 import {
   amountBlock,
   convertAmount,
   maxAmount,
+  notionalUsd,
   parseAmount,
   type AmountBlock,
   type TradeAmountCurrency,
@@ -186,6 +188,7 @@ function TradeFlow({ side, ticker }: { side: Side; ticker: Ticker }) {
   const prices = usePrices([ticker.symbol]);
   const fx = useFx();
   const market = useMarketStatus();
+  const asset = useAssetStatus(ticker.symbol);
   const hintId = useId();
   const [amountRaw, setAmountRaw] = useState("");
   const [currency, setCurrency] = useState<TradeAmountCurrency>(
@@ -240,6 +243,12 @@ function TradeFlow({ side, ticker }: { side: Side; ticker: Ticker }) {
   const currencies = side === "sell" ? SELL_CURRENCIES : BUY_CURRENCIES;
   const cap = portfolioPending ? null : maxAmount({ side, currency, cashUsdc, shares, fx: fxRate, priceUsd });
   const busy = phase === "signing" || phase === "submitting" || phase === "done" || phase === "error";
+  // Mínimo por orden del activo (M39): ayuda visible y validación suave en el demo.
+  const halted = asset.data?.halted === true;
+  const minUsd = effectiveMinOrderUsd(asset.data?.minOrderUsd);
+  const minHelp = fill(t.trade.minOrder, { amount: formatUsd(minUsd) });
+  const notion = notionalUsd(amount, currency, fxRate, priceUsd);
+  const belowAssetMin = notion !== null && notion > 0 && notion + 1e-9 < minUsd;
 
   useEffect(() => {
     mounted.current = true;
@@ -432,8 +441,8 @@ function TradeFlow({ side, ticker }: { side: Side; ticker: Ticker }) {
 
   const hint = blockCopy(t, block, side, amount);
   const showDeposit = side === "buy" && block === "funds";
-  const canReview = block === null && fresh && !quoting && !quoteError;
-  const canConfirm = phase === "review" && canReview && remainingMs > 0 && pubkey !== null;
+  const canReview = block === null && fresh && !quoting && !quoteError && !belowAssetMin && !halted;
+  const canConfirm = phase === "review" && canReview && remainingMs > 0 && pubkey !== null && !halted;
   const estimate = quote
     ? side === "buy"
       ? fill(t.trade.receiveBuy, { amount: formatShares(quote.outAmountUi), name: ticker.name })
@@ -475,9 +484,25 @@ function TradeFlow({ side, ticker }: { side: Side; ticker: Ticker }) {
         ) : (
           <p className="text-center text-sm text-fg-muted">{fill(t.trade.expiresIn, { time: countdownLabel(remainingMs) })}</p>
         )}
-        {market.data && market.data.session !== "regular" ? (
+        {halted ? (
+          <MarketStatusPill open={false} halted label={t.detail.assetHalted} />
+        ) : asset.data && (asset.data.period !== "market" || !asset.data.openNow) ? (
+          <MarketStatusPill
+            open={false}
+            label={
+              asset.data.period === "extended"
+                ? t.detail.assetExtended
+                : asset.data.period === "overnight"
+                  ? t.detail.assetOvernight
+                  : asset.data.period === "closed"
+                    ? t.detail.assetClosed
+                    : t.market.offHours
+            }
+          />
+        ) : market.data && market.data.session !== "regular" ? (
           <MarketStatusPill open={false} label={market.data.session === "closed" ? t.market.closed : t.market.offHours} />
         ) : null}
+        {halted ? <p className="text-center text-sm text-down">{t.detail.tradeHaltedNote}</p> : null}
         {fresh && quote ? <CostBreakdown rows={costRows(t, quote, side)} /> : null}
         <Link href="/legal/riesgos" className="text-sm font-medium text-fg underline underline-offset-4">
           {t.detail.risksLink}
@@ -523,6 +548,17 @@ function TradeFlow({ side, ticker }: { side: Side; ticker: Ticker }) {
         }}
       />
       {available ? <p className="text-center text-sm text-fg-muted">{available}</p> : null}
+      {side === "buy" ? <p className="text-center text-xs text-fg-muted">{minHelp}</p> : null}
+      {halted ? (
+        <p role="alert" className="text-center text-sm text-down">
+          {t.detail.tradeHaltedNote}
+        </p>
+      ) : null}
+      {belowAssetMin && !halted ? (
+        <p role="alert" className="text-center text-sm text-down">
+          {minHelp}
+        </p>
+      ) : null}
       {block === "wait" ? (
         <p role="status" className="text-center text-sm text-fg-muted">
           {t.states.loading}

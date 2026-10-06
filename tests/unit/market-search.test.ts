@@ -22,6 +22,12 @@ function asset(patch: Partial<CatalogAsset> & { symbol: string }): CatalogAsset 
     halted: false,
     liquidityUsd: null,
     curated: true,
+    mode: null,
+    period: null,
+    openNow: null,
+    nextChangeAt: null,
+    minOrderUsd: null,
+    maxOrderUsd: null,
     ...patch,
   };
 }

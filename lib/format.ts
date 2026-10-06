@@ -87,6 +87,28 @@ export function formatMultiplier(value: number): string {
   return multiplierFormatter.format(value);
 }
 
+/**
+ * Día y hora de reapertura en America/Santiago (M39).
+ * `2026-10-05T12:00:00Z` → es-CL `lunes 09:00`, en `Monday 09:00`.
+ * Devuelve null si el ISO no es válido. Determinista: sólo depende del ISO.
+ */
+export function formatReopenWhen(input: string, locale: "es-CL" | "en" = "es-CL"): string | null {
+  const time = Date.parse(input);
+  if (Number.isNaN(time)) return null;
+  const date = new Date(time);
+  const weekday = new Intl.DateTimeFormat(locale, {
+    weekday: "long",
+    timeZone: "America/Santiago",
+  }).format(date);
+  const clock = new Intl.DateTimeFormat(locale, {
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+    timeZone: "America/Santiago",
+  }).format(date);
+  return `${weekday} ${clock}`;
+}
+
 const relativeFormatter = new Intl.RelativeTimeFormat("es-CL", { numeric: "auto" });
 
 const RELATIVE_UNITS: readonly [Intl.RelativeTimeFormatUnit, number][] = [

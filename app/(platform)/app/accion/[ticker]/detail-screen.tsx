@@ -20,12 +20,13 @@ import { useToast } from "@/components/ui/toast";
 import { site } from "@/config/site";
 import { detailReturnPath, ingresarPath, onboardingPath, registroPath } from "@/lib/auth/paths";
 import { cn } from "@/lib/cn";
-import { formatMoney, formatMultiplier, formatShares, formatUsd } from "@/lib/format";
+import { formatMoney, formatMultiplier, formatReopenWhen, formatShares, formatUsd } from "@/lib/format";
 import { useAccountMode } from "@/lib/hooks/use-account-mode";
-import { useFx, useHistory, useMarketStatus, usePortfolio, usePrices } from "@/lib/hooks/queries";
+import { useAssetStatus, useFx, useHistory, useMarketStatus, usePortfolio, usePrices } from "@/lib/hooks/queries";
 import { useFavorites } from "@/lib/hooks/use-favorites";
 import { useT } from "@/lib/hooks/use-t";
 import { displayPrice } from "@/lib/market/browse";
+import { chipKeyForStatus, tradeBlockForStatus } from "@/lib/market/asset-status";
 import { rangeBounds, rangeMove, seriesForQuote } from "@/lib/market/series";
 import type { Currency, Position, PricePoint, Quote, Range, Ticker } from "@/lib/types";
 
@@ -461,6 +462,7 @@ export function DetailScreen({
   const canTrade = access === "member";
   const portfolio = usePortfolio(access !== "guest");
   const status = useMarketStatus();
+  const asset = useAssetStatus(ticker.symbol);
   const { symbols, toggle } = useFavorites();
   const [range, setRange] = useState<Range>("1M");
   const history = useHistory(ticker.symbol, range);
@@ -492,16 +494,55 @@ export function DetailScreen({
   const aboutText = about ? (language === "en" ? about.en : about.es) : null;
   const rate = fx.data?.rate;
   const category = categoryName(ticker.category, t.market);
+  // Horario real por acción (M39): live → catálogo → mock. El estado general queda de respaldo.
+  const live = asset.data ?? null;
+  const chipKey = live ? chipKeyForStatus(live) : null;
+  const liveHalted = live?.halted === true;
+  const effectiveBlock: TradeBlock = tradeBlock ?? tradeBlockForStatus({ halted: liveHalted });
   const phase = status.data?.session;
-  const marketOpen = phase === "regular";
-  const marketChip =
+  const fallbackChip =
     phase === "closed" ? t.detail.marketClosed : phase === "offHours" ? t.detail.marketOffHours : t.detail.marketOpen;
-  const marketNote =
+  const fallbackNote =
     phase === "closed"
       ? t.detail.marketClosedNote
       : phase === "offHours"
         ? t.detail.marketOffHoursNote
         : t.detail.marketOpenNote;
+  const assetChip =
+    chipKey === "halted"
+      ? t.detail.assetHalted
+      : chipKey === "market"
+        ? t.detail.assetOpen
+        : chipKey === "extended"
+          ? t.detail.assetExtended
+          : chipKey === "overnight"
+            ? t.detail.assetOvernight
+            : chipKey === "closed"
+              ? t.detail.assetClosed
+              : null;
+  const reopenWhen = live?.nextChangeAt ? formatReopenWhen(live.nextChangeAt, language) : null;
+  const reopenText =
+    chipKey === "closed" && reopenWhen ? fill(t.detail.assetReopen, { when: reopenWhen }) : null;
+  const chipText = assetChip ?? fallbackChip;
+  const chipNote =
+    chipKey === "halted"
+      ? t.detail.tradeHaltedNote
+      : chipKey === "closed"
+        ? reopenText ?? fallbackNote
+        : chipKey === "market" || chipKey === null
+          ? phase === "regular"
+            ? null
+            : fallbackNote
+          : null;
+  const chipDot = chipKey === "halted" ? "bg-down" : chipKey === "market" ? "bg-up" : "bg-warn";
+  const scheduleText =
+    live?.mode === "TwentyFourFive"
+      ? t.detail.scheduleAlways
+      : live?.mode === "MarketHours" || live?.mode === "Regular"
+        ? t.detail.scheduleExchange
+        : null;
+  const statusPending = asset.isPending && status.isPending;
+  const statusReady = asset.isSuccess || status.isSuccess;
 
   const back = detailReturnPath(ticker.symbol, requested);
   const enter = ingresarPath(back);
@@ -555,7 +596,7 @@ export function DetailScreen({
         <TradeActions
           variant={variant}
           canSell={canSell}
-          blocked={tradeBlock}
+          blocked={effectiveBlock}
           onBuy={() => openOperar("comprar")}
           onSell={() => openOperar("vender")}
         />
@@ -606,22 +647,22 @@ export function DetailScreen({
           <ul className="flex list-none flex-wrap gap-1.5 p-0" aria-label={t.detail.chips}>
             {category ? <FactChip>{category}</FactChip> : null}
             <FactChip>{t.detail.tokenOnSolana}</FactChip>
-            {tradeBlock !== null ? <FactChip>{t.detail.tradeUnavailable}</FactChip> : null}
-            {/* Lun–vie 09:30–16:00 NY: abierto. Fuera de eso, entre semana, el precio puede variar más. Sábado y domingo: cerrado. */}
-            {status.isPending ? (
+            {effectiveBlock !== null ? <FactChip>{t.detail.tradeUnavailable}</FactChip> : null}
+            {/* Horario real por acción (M39): suspendida, abierto, extendido, nocturno o cerrado. */}
+            {statusPending ? (
               <li>
                 <Skeleton className="h-5 w-28 rounded-full" />
               </li>
-            ) : status.isSuccess ? (
+            ) : statusReady ? (
               <FactChip>
-                <span className={cn("size-1.5 shrink-0 rounded-full", marketOpen ? "bg-up" : "bg-warn")} aria-hidden />
-                {marketChip}
-                {marketOpen && marketNote ? <span className="sr-only">. {marketNote}</span> : null}
+                <span className={cn("size-1.5 shrink-0 rounded-full", chipDot)} aria-hidden />
+                {chipText}
               </FactChip>
             ) : null}
           </ul>
-          {status.isSuccess && !marketOpen ? (
-            <p className="text-xs leading-relaxed text-fg-muted">{marketNote}</p>
+          {scheduleText ? <p className="text-xs leading-relaxed text-fg-muted">{scheduleText}</p> : null}
+          {statusReady && chipNote ? (
+            <p className="text-xs leading-relaxed text-fg-muted">{chipNote}</p>
           ) : null}
         </header>
 
@@ -728,7 +769,7 @@ export function DetailScreen({
 
       {tradeSlot("bar")}
 
-      {access === "member" && tradeBlock === null ? (
+      {access === "member" && effectiveBlock === null ? (
         <TradeSheet
           ticker={ticker}
           side={operar === "vender" ? "sell" : "buy"}

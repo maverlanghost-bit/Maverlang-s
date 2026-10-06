@@ -384,6 +384,21 @@ export function MarketScreen({
     setPage(1);
   }
 
+  /** Punto de estado por fila desde el catálogo (M39): sin pedir la API por fila. */
+  function dotFor(item: MarketSearchItem): { kind: "open" | "closed" | "halted"; label: string } | null {
+    if (item.halted) return { kind: "halted", label: t.market.dotHalted };
+    const period = (item.period ?? "").toLowerCase();
+    const openNow = item.openNow;
+    if (openNow === true && (period === "" || period === "market" || period === "extended" || period === "overnight")) {
+      return { kind: "open", label: t.market.dotOpen };
+    }
+    if (openNow === false || period === "closed") return { kind: "closed", label: t.market.dotClosed };
+    if (period === "market" || period === "extended" || period === "overnight") {
+      return { kind: "open", label: t.market.dotOpen };
+    }
+    return null;
+  }
+
   function onFilterChange(value: MarketFilter) {
     setFilter(value);
     setPage(1);
@@ -542,6 +557,7 @@ export function MarketScreen({
                   sparkline={sparkBySymbol.get(entry.item.symbol)}
                   sparklineClassName="block"
                   lowLiquidityLabel={entry.item.lowLiquidity ? t.market.lowLiquidity : null}
+                  statusDot={dotFor(entry.item)}
                   action={
                     <FavoriteButton
                       pressed={favoriteSet.has(entry.item.symbol)}

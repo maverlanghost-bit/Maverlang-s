@@ -18,6 +18,7 @@ export function TickerRow({
   sparklineClassName = "hidden sm:block",
   action,
   lowLiquidityLabel = null,
+  statusDot = null,
 }: {
   href: string;
   symbol: string;
@@ -33,7 +34,15 @@ export function TickerRow({
   action?: ReactNode;
   /** Etiqueta discreta de baja liquidez (M38). Null la oculta. */
   lowLiquidityLabel?: string | null;
+  /** Punto de estado por fila desde el catálogo (M39). Null lo oculta. */
+  statusDot?: { kind: "open" | "closed" | "halted"; label: string } | null;
 }) {
+  const dotClass =
+    statusDot?.kind === "open"
+      ? "bg-up"
+      : statusDot?.kind === "halted"
+        ? "bg-down"
+        : "bg-warn";
   return (
     <div className="flex h-16 items-center rounded-xl transition duration-[140ms] hover:bg-surface-2">
       <Link
@@ -42,7 +51,15 @@ export function TickerRow({
       >
         <TickerLogo symbol={symbol} name={name} logoUrl={logoUrl} size={36} decorative />
         <span className="min-w-0 flex-1">
-          <span className="block truncate font-medium text-fg">{symbol}</span>
+          <span className="flex items-center gap-1.5 truncate font-medium text-fg">
+            {statusDot ? (
+              <span className="inline-flex shrink-0 items-center" aria-hidden>
+                <span className={`size-1.5 rounded-full ${dotClass}`} />
+              </span>
+            ) : null}
+            <span className="truncate">{symbol}</span>
+            {statusDot ? <span className="sr-only">({statusDot.label})</span> : null}
+          </span>
           <span className="block truncate text-sm text-fg-muted">
             {name}
             {lowLiquidityLabel ? <span> · {lowLiquidityLabel}</span> : null}

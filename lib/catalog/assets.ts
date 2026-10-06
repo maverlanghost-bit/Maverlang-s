@@ -51,6 +51,17 @@ export interface CatalogAsset {
   halted: boolean;
   liquidityUsd: number | null;
   curated: boolean;
+  /** Modo de horario xStocks (`TwentyFourFive` | `MarketHours` | `Regular`), o null si no hay dato. */
+  mode: string | null;
+  /** Período actual xStocks (`market` | `extended` | `overnight` | `closed`), o null. */
+  period: string | null;
+  /** true/false según `open_now`; null si no hay dato. */
+  openNow: boolean | null;
+  /** ISO de `next_change_at`, o null. */
+  nextChangeAt: string | null;
+  /** Mínimo/máximo por orden en USD (límites del período, centavos ÷ 100). Null si no hay dato. */
+  minOrderUsd: number | null;
+  maxOrderUsd: number | null;
 }
 
 export interface CatalogSearchParams {
@@ -81,6 +92,11 @@ interface AssetRow {
   is_trading_halted?: unknown;
   jupiter_liquidity_usd?: unknown;
   curated?: unknown;
+  trading_hours_mode?: unknown;
+  current_period?: unknown;
+  open_now?: unknown;
+  next_change_at?: unknown;
+  limits?: unknown;
 }
 
 function text(value: unknown): string | null {
@@ -103,10 +119,51 @@ function numberOrNull(value: unknown): number | null {
   return null;
 }
 
+/** Límites xStocks en centavos → USD. `limits` es `limitsPerPeriod` por período. */
+function limitsUsdForPeriod(limits: unknown, period: string | null): { min: number | null; max: number | null } {
+  if (limits === null || typeof limits !== "object" || Array.isArray(limits)) return { min: null, max: null };
+  const table = limits as Record<string, unknown>;
+  const keys = period ? [period, period.toLowerCase(), "market"] : ["market"];
+  for (const key of keys) {
+    const entry = table[key];
+    if (entry === null || typeof entry !== "object" || Array.isArray(entry)) continue;
+    const row = entry as Record<string, unknown>;
+    const minCents = numberOrNull(row.minOrderFiatValue);
+    const maxCents = numberOrNull(row.maxOrderFiatValue);
+    return {
+      min: minCents !== null && minCents > 0 ? minCents / 100 : null,
+      // `maxOrderFiatValue` 0 = no se puede operar en ese período: se conserva el 0.
+      max: maxCents !== null && maxCents >= 0 ? maxCents / 100 : null,
+    };
+  }
+  return { min: null, max: null };
+}
+
+function modeOrNull(value: unknown): string | null {
+  return text(value);
+}
+
+function periodOrNull(value: unknown): string | null {
+  return text(value);
+}
+
+function boolOrNull(value: unknown): boolean | null {
+  return typeof value === "boolean" ? value : null;
+}
+
+function isoOrNull(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  return Number.isNaN(Date.parse(trimmed)) ? null : trimmed;
+}
+
 export function assetFromRow(row: AssetRow): CatalogAsset | null {
   const symbol = text(row.symbol);
   if (!symbol) return null;
   const name = text(row.name) ?? symbol;
+  const period = periodOrNull(row.current_period);
+  const limits = limitsUsdForPeriod(row.limits, period);
   return {
     symbol,
     name,
@@ -118,6 +175,12 @@ export function assetFromRow(row: AssetRow): CatalogAsset | null {
     halted: row.is_trading_halted === true,
     liquidityUsd: numberOrNull(row.jupiter_liquidity_usd),
     curated: row.curated === true,
+    mode: modeOrNull(row.trading_hours_mode),
+    period,
+    openNow: boolOrNull(row.open_now),
+    nextChangeAt: isoOrNull(row.next_change_at),
+    minOrderUsd: limits.min,
+    maxOrderUsd: limits.max,
   };
 }
 
@@ -133,6 +196,12 @@ export function assetFromTicker(ticker: Ticker, curated: boolean): CatalogAsset 
     halted: false,
     liquidityUsd: null,
     curated,
+    mode: null,
+    period: null,
+    openNow: null,
+    nextChangeAt: null,
+    minOrderUsd: null,
+    maxOrderUsd: null,
   };
 }
 
@@ -238,6 +307,11 @@ const ASSETS_COLUMNS = [
   "is_trading_halted",
   "jupiter_liquidity_usd",
   "curated",
+  "trading_hours_mode",
+  "current_period",
+  "open_now",
+  "next_change_at",
+  "limits",
 ].join(",");
 
 async function fetchAssetsFromSupabase(fetchImpl: typeof fetch): Promise<CatalogAsset[] | null> {

@@ -1,5 +1,12 @@
 # PROGRESO — Maverlang
 
+## M39 — Horario real por acción (2026-10-06, M39: horario real por accion)
+- Hecho: `lib/market/asset-status.ts` (server-only; xStocks assets+system/status timeout 2,5 s cache 60 s; fallback catálogo→mock; sólo con `PRICES_MODE`/`MARKET_STATUS_MODE=live`). `GET /api/market/status?symbol=` (sin símbolo sigue el estado general). Detalle con chips reales (suspendida/abierto/extendido/nocturno/cerrado + "abre el lunes 09:00" en America/Santiago) y línea "Horario: 24 horas, de lunes a viernes" o "Horario de bolsa (NY)". Hoja de compra con "Mínimo por orden" y validación suave; suspendida deshabilita CTA demo. Lista con punto por fila desde el catálogo. `MARKET_STATUS_MODE` en `lib/env.ts` y `.env.example`. Tests `asset-status.test.ts` (6).
+- Archivos clave: `lib/market/asset-status.ts`, `lib/catalog/assets.ts` (+columnas modo/período/open/next/limits), `lib/format.ts` (`formatReopenWhen`), `app/api/market/status/route.ts`, contratos/cliente/hooks, detalle, `trade-sheet`, `ticker-row`, `market-screen`, `market-status-pill`, i18n.
+- Decisiones: `maxOrderFiatValue` 0 se conserva (no opera en ese período); `offHours` mock → `extended` abierto; `unknown` → cerrado; dot de lista sólo con dato del catálogo. Precio único, sidebar, demo, registro/login, mercado público, barra móvil y `?operar=vender` sin cambios.
+- Verificación: `npx tsc --noEmit` ok; `npm run lint` ok; `npm test` 129/129 (22 archivos); `git grep` sin secretos ni "24/7" nuevo; `.env.local` fuera de `git status`. Sin `next dev/build`, sin e2e (límite de shell), sin push.
+- Pendiente: mirar `/app/accion/AAPLx` con `MARKET_STATUS_MODE=live` (chips, horario, mínimo, suspendida) y `/app` (puntos por fila); cron de sync ya trae los campos (M37/M38).
+
 ## M38b — Catálogo paginado (2026-10-06, fix(M38): catalogo paginado)
 - `fetchAssetsFromSupabase` pagina con `order=curated.desc,symbol.asc`, `limit=1000` + `offset` (tope 10 páginas; fallo parcial usa lo obtenido). Si hay filas pero ninguna curada y el alcance es `curated`, fallback a `config/tickers.ts`. Sin filtro `curated=eq.true` en servidor para no romper el cache compartido ni `bySymbol`. Tests: `catalog-pagination.test.ts` (4). `tsc`, `lint`, `npm test` 123/123 ok.
 

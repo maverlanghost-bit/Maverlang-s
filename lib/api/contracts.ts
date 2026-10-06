@@ -87,6 +87,23 @@ export const marketStatusSchema = z.object({
   note: z.string().optional(),
 });
 
+/** Horario real por acción (M39). `nextChangeAt` null si xStocks no lo trae. */
+export const assetStatusSchema = z.object({
+  mode: z.enum(["TwentyFourFive", "MarketHours", "Regular", "unknown"]),
+  period: z.enum(["market", "extended", "overnight", "closed", "unknown"]),
+  openNow: z.boolean(),
+  nextChangeAt: isoTimeSchema.nullable(),
+  halted: z.boolean(),
+  minOrderUsd: z.number().nonnegative().nullable(),
+  maxOrderUsd: z.number().nonnegative().nullable(),
+  source: z.enum(["live", "catalog", "mock"]),
+  updatedAt: isoTimeSchema,
+});
+
+export const marketStatusQuerySchema = z.object({
+  symbol: symbolSchema.optional(),
+});
+
 export const balanceSchema = z.object({
   mint: z.string().min(1),
   symbol: z.string().min(1),
@@ -341,7 +358,7 @@ export const tradeStatusQuerySchema = z.object({
   id: z.string().min(1),
 });
 
-/** Búsqueda del mercado (M38). `pageSize` máximo 50; `scope` lo topa CATALOG_SCOPE. */
+  /** Búsqueda del mercado (M38). `pageSize` máximo 50; `scope` lo topa CATALOG_SCOPE. */
 export const marketSearchCategorySchema = z.enum([
   "all",
   "tech",
@@ -381,6 +398,11 @@ export const marketSearchItemSchema = z.object({
   /** true cuando la liquidez es menor a US$10.000. */
   lowLiquidity: z.boolean(),
   curated: z.boolean(),
+  /** Punto de estado de la lista (M39, desde el catálogo, sin pedir la API por fila). */
+  openNow: z.boolean().nullable().optional(),
+  period: z.string().min(1).nullable().optional(),
+  mode: z.string().min(1).nullable().optional(),
+  nextChangeAt: z.string().min(1).nullable().optional(),
 });
 
 export const marketSearchResponseSchema = z.object({
@@ -420,7 +442,7 @@ export const apiContracts = {
     response: historyResponseSchema,
   },
   "GET /api/fx/usdclp": { response: fxRateSchema },
-  "GET /api/market/status": { response: marketStatusSchema },
+  "GET /api/market/status": { query: marketStatusQuerySchema, response: marketStatusSchema },
   "POST /api/trade/quote": { body: tradeQuoteRequestSchema, response: tradeQuoteSchema },
   "POST /api/trade/build": { body: tradeBuildRequestSchema, response: tradeBuildResponseSchema },
   "POST /api/trade/submit": { body: tradeSubmitRequestSchema, response: tradeSubmitResponseSchema },

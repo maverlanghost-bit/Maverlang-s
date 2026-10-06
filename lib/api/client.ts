@@ -3,6 +3,7 @@ import { z, type ZodType } from "zod";
 import {
   activityResponseSchema,
   apiResultSchema,
+  assetStatusSchema,
   balancesResponseSchema,
   consentsResponseSchema,
   consentSchema,
@@ -152,6 +153,14 @@ export function getFx(): Promise<FxRate> {
 
 export function getMarketStatus(): Promise<MarketStatus> {
   return request("/api/market/status", marketStatusSchema, { cache: "no-store" });
+}
+
+export type AssetStatus = z.infer<typeof assetStatusSchema>;
+
+/** Horario real por acción (M39). Sin símbolo se usa `getMarketStatus` (estado general). */
+export function getAssetStatus(symbol: string): Promise<AssetStatus> {
+  const query = new URLSearchParams({ symbol: symbol.trim() });
+  return request(`/api/market/status?${query.toString()}`, assetStatusSchema, { cache: "no-store" });
 }
 
 export function getHistory(symbol: string, range: Range = "1M"): Promise<PricePoint[]> {

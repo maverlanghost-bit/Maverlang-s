@@ -4,6 +4,7 @@ import { useQueries, useQuery } from "@tanstack/react-query";
 
 import {
   getActivity,
+  getAssetStatus,
   getBalances,
   getConsents,
   getDeletionStatus,
@@ -90,6 +91,18 @@ export function useMarketStatus() {
   return useQuery({
     queryKey: ["market-status"],
     queryFn: getMarketStatus,
+    staleTime: 60_000,
+    refetchInterval: 60_000,
+  });
+}
+
+/** Horario real por acción (M39): live → catálogo → mock. Cache 60 s. */
+export function useAssetStatus(symbol: string, enabled = true) {
+  const trimmed = symbol.trim();
+  return useQuery({
+    queryKey: ["asset-status", trimmed],
+    queryFn: () => getAssetStatus(trimmed),
+    enabled: enabled && trimmed.length > 0,
     staleTime: 60_000,
     refetchInterval: 60_000,
   });
