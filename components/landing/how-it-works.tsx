@@ -54,6 +54,7 @@ function PickMock() {
         href={sampleQuote.href}
         symbol={sampleQuote.symbol}
         name={sampleQuote.name}
+        logoUrl={sampleQuote.logo}
         price={sampleQuote.priceUsd}
         currency="USD"
         change={sampleQuote.change}
@@ -71,7 +72,7 @@ function OwnedMock() {
 
   return (
     <div className="flex items-center gap-3 rounded-xl bg-bg px-4 py-4">
-      <TickerLogo symbol={sampleQuote.symbol} name={sampleQuote.name} size={40} decorative />
+      <TickerLogo symbol={sampleQuote.symbol} name={sampleQuote.name} logoUrl={sampleQuote.logo} size={40} decorative />
       <span className="min-w-0 flex-1">
         <span className="block truncate font-medium text-fg">{formatShares(SAMPLE_SHARES)}</span>
         <span className="block text-sm text-fg-muted">Ejemplo. No es un saldo.</span>

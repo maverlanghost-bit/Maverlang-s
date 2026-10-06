@@ -1,9 +1,16 @@
 # PROGRESO — Maverlang
 
 ## Estado
-M26 hecha. Horario "24 horas, de lunes a viernes". `.env.example` recomienda PRICES_MODE=live; si la variable no existe, el código sigue en mock. Siguiente: fuera de esta tarea.
+M27 hecha. Logos locales en `public/logos`. Horario "24 horas, de lunes a viernes". `.env.example` recomienda PRICES_MODE=live; si la variable no existe, el código sigue en mock. Siguiente: fuera de esta tarea.
 
 ## Tareas hechas
+
+### M27 — Logos reales de empresas (2026-10-05, M27: logos de empresas)
+- Hecho: 12 PNG de xStocks (400×400, con transparencia) en `public/logos/<underlying>.png`. `config/tickers.ts` apunta a `.png`. El monograma sigue si falta o falla la imagen. Mercado, detalle, cartera, billetera, hoja de compra/venta y landing pasan `logoUrl`. `npx tsc --noEmit`, `npm run lint` y `npm test` (28) ok. Sin `next dev`.
+- Archivos clave: `public/logos/*.png`, `scripts/descargar-logos.mjs`, `config/tickers.ts`, `components/domain/{ticker-logo,trade-sheet}.tsx`, `lib/mocks/landing.ts`, landing (hero, how-it-works, product-mock), `tests/unit/ticker-logos.test.ts`, `docs/PENDIENTES-LEGALES.md`.
+- Decisiones: no hizo falta `simple-icons`: los 12 respondieron 200 `image/png`. `object-cover` llena el círculo (el PNG es cuadrado; las esquinas transparentes quedan fuera). Fondo `bg-bg` si hay transparencia. Se quitó `unoptimized`: son PNG locales y Next los optimiza; `onError` sigue cayendo al monograma. Marcas sólo para identificar el activo.
+- Pendiente: [REVISIÓN ABOGADO] del uso de marcas (`docs/PENDIENTES-LEGALES.md`). Mirar mercado, detalle, compra/venta y landing a 360 y en escritorio. No se levantó el servidor. `/dev/ui` deja un monograma de ejemplo sin `logoUrl`.
+- Próximo: fuera de esta tarea.
 
 ### M26 — Horario 24/5 y precios reales activos (2026-10-05, M26: horario 24/5 y precios reales activos)
 - Hecho: hero, pill, chips, grilla, lead del mercado y FAQ dicen "24 horas, de lunes a viernes" (EN: "Trade 24 hours a day, Monday to Friday"). Sábado y domingo: "Mercado cerrado: abre el lunes". Lun–vie fuera de 09:30–16:00 NY: "Fuera del horario regular" y el aviso de que el precio puede variar más. `.env.example` recomienda `PRICES_MODE=live`. Sin la variable, el código sigue en mock. Si Jupiter falla o falta un ticker, sigue la ancla y "Precio de referencia". Consulta a Jupiter lite de AAPLx: usdPrice 333,39 (acción de referencia 332,85); la ancla mock sigue cerca de 228. `npx tsc --noEmit`, `npm run lint` y `npm test` (27) ok. Sin `next dev`.
@@ -54,7 +61,7 @@ M26 hecha. Horario "24 horas, de lunes a viernes". `.env.example` recomienda PRI
 - Decisiones: devDependencies `vitest@3.2.4` y `@playwright/test` (las pide T20). Vitest 5 exige `@types/node` 22 y el repo está en 20. `npm run e2e` sirve el build con `next start` en 127.0.0.1:3456 y lo cierra; hace falta `npm run build` antes. `t18-check.ts` sigue en disco, ahora en `.gitignore`, sin borrarlo.
 - Bugs: ninguno de producto. El primer e2e chocó con el announcer vacío de Next (`role="alert"`); el aviso de dirección sí estaba. Se afinó el selector.
 - Deuda: Next 16 avisa de pasar `middleware.ts` a `proxy.ts`. Los dos archivos juntos rompen el build, así que se deja el nombre de §2.3. `bigint-buffer` sigue en JS porque npm bloqueó el install-script. Stubs live sin llamar. El smoke es 1280×800; 360/768 no se recorrió aquí.
-- TODO-VERIFICAR: mints de `config/tickers.ts` contra xstocks.fi; mínimo CLP y métodos de Koywe/Onramper; dividendos y emisor en la FAQ; autocustodia y exportar la clave (Privy); patrocinio del fee-payer [POR DECIDIR]; firma del webhook de Onramper; logos y el texto final del disclaimer.
+- TODO-VERIFICAR: mints de `config/tickers.ts` contra xstocks.fi; mínimo CLP y métodos de Koywe/Onramper; dividendos y emisor en la FAQ; autocustodia y exportar la clave (Privy); patrocinio del fee-payer [POR DECIDIR]; firma del webhook de Onramper; logos y marcas (`docs/PENDIENTES-LEGALES.md`) [REVISIÓN ABOGADO]; el texto final del disclaimer.
 - [REVISIÓN ABOGADO]: `content/legal/{terminos,privacidad,riesgos}.md`, FAQ de regulación, footer, banner de `/legal`, paso 3 del onboarding, baja de cuenta y disclaimer del shell.
 - Próximo: fase live, fuera de este paquete.
 
@@ -205,6 +212,7 @@ M26 hecha. Horario "24 horas, de lunes a viernes". `.env.example` recomienda PRI
 ## Pendientes / bloqueos
 - Ubicación definitiva del repo (OneDrive vs C:\dev).
 - Textos legales: [REVISIÓN ABOGADO]. Mints contra xstocks.fi, mínimo y métodos de on-ramp, dividendos, emisor, autocustodia Privy, patrocinio [POR DECIDIR] y firma del webhook de Onramper: [VERIFICAR] antes de producción.
+- Logos y marcas del catálogo: sólo identifican el activo. Archivos de xStocks/Backed en `public/logos`. Ver `docs/PENDIENTES-LEGALES.md`. [REVISIÓN ABOGADO] antes de producción.
 - El smoke de T20 cubre el flujo mock a 1280×800. Sigue sin mirarse 360/768 (landing, mercado, detalle, compra, cartera, billetera, depositar, perfil) ni `?country=US`, `?mockError=`, FAKE/HOODx en 404 y el ojo del saldo.
 - Borrar `t18-check.ts` (sigue en el disco; `.gitignore` evita commitearlo).
 - Fase live: `.env.example` recomienda `PRICES_MODE=live`. Si la variable no existe, el código sigue en mock (tests y CI). Historial, trade, cartera, Privy server, Koywe, Onramper y Supabase siguen en stub. La landing sigue con precios ilustrativos.

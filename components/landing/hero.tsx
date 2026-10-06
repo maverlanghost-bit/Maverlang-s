@@ -106,6 +106,7 @@ export function Hero() {
                   href={quote.href}
                   symbol={quote.symbol}
                   name={quote.name}
+                  logoUrl={quote.logo}
                   price={quote.priceUsd}
                   currency="USD"
                   change={quote.change}

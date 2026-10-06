@@ -6,6 +6,7 @@ import { useEffect, useId, useRef, useState } from "react";
 
 import { CostBreakdown } from "@/components/domain/cost-breakdown";
 import { MarketStatusPill } from "@/components/domain/market-status-pill";
+import { TickerLogo } from "@/components/domain/ticker-logo";
 import { AmountInput } from "@/components/ui/amount-input";
 import { Button } from "@/components/ui/button";
 import { ErrorState } from "@/components/ui/error-state";
@@ -157,6 +158,18 @@ function Spinner() {
       <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2" opacity="0.25" />
       <path d="M21 12a9 9 0 0 0-9-9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
     </svg>
+  );
+}
+
+function TradeMark({ ticker }: { ticker: Ticker }) {
+  return (
+    <div className="flex items-center gap-3">
+      <TickerLogo symbol={ticker.symbol} name={ticker.name} logoUrl={ticker.logo} size={40} decorative />
+      <div className="min-w-0">
+        <p className="truncate font-medium text-fg">{ticker.name}</p>
+        <p className="truncate text-sm text-fg-muted">{ticker.symbol}</p>
+      </div>
+    </div>
   );
 }
 
@@ -347,9 +360,12 @@ function TradeFlow({ side, ticker }: { side: Side; ticker: Ticker }) {
 
   if (side === "sell" && !(shares > 0)) {
     return (
-      <p className="text-sm leading-relaxed text-fg-body">
-        {fill(t.detail.tradeNoPosition, { symbol: ticker.symbol })}
-      </p>
+      <div className="flex flex-col gap-4">
+        <TradeMark ticker={ticker} />
+        <p className="text-sm leading-relaxed text-fg-body">
+          {fill(t.detail.tradeNoPosition, { symbol: ticker.symbol })}
+        </p>
+      </div>
     );
   }
 
@@ -433,6 +449,7 @@ function TradeFlow({ side, ticker }: { side: Side; ticker: Ticker }) {
       : null;
     return (
       <div className="flex flex-col gap-5">
+        <TradeMark ticker={ticker} />
         {fresh && quote && estimate ? (
           <div>
             <p className="text-center text-2xl text-balance text-fg" aria-live="polite">
@@ -468,6 +485,7 @@ function TradeFlow({ side, ticker }: { side: Side; ticker: Ticker }) {
 
   return (
     <div className="flex flex-col gap-5">
+      <TradeMark ticker={ticker} />
       <AmountInput
         id={`${hintId}-amount`}
         label={t.trade.amount}

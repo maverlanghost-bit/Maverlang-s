@@ -3,6 +3,7 @@
 import { useState, type ReactNode } from "react";
 import Link from "next/link";
 import { site } from "@/config/site";
+import { tickerBySymbol } from "@/config/tickers";
 import { formatClp, formatPercent, formatShares, formatUsd, type MoneyCurrency } from "@/lib/format";
 import { Accordion } from "@/components/ui/accordion";
 import { AmountInput } from "@/components/ui/amount-input";
@@ -359,8 +360,8 @@ function CatalogBody() {
       <Section title="TickerLogo">
         <div className="flex flex-wrap items-center gap-3">
           <TickerLogo symbol="AAPLx" name="Apple" />
-          <TickerLogo symbol="NVDAx" name="NVIDIA" logoUrl="/logos/nvda.svg" />
-          <TickerLogo symbol="SPYx" name="S&P 500 ETF" size={48} />
+          <TickerLogo symbol="NVDAx" name="NVIDIA" logoUrl={tickerBySymbol("NVDAx")?.logo} />
+          <TickerLogo symbol="SPYx" name="S&P 500 ETF" logoUrl={tickerBySymbol("SPYx")?.logo} size={48} />
         </div>
       </Section>
 
@@ -403,6 +404,7 @@ function CatalogBody() {
             href="/dev/ui#filas"
             symbol="AAPLx"
             name="Apple"
+            logoUrl={tickerBySymbol("AAPLx")?.logo}
             price={189.42}
             change={0.0124}
             sparkline={upSeries}
@@ -411,7 +413,7 @@ function CatalogBody() {
             href="/dev/ui#filas"
             symbol="TSLAx"
             name="Tesla"
-            logoUrl="/logos/tsla.svg"
+            logoUrl={tickerBySymbol("TSLAx")?.logo}
             price={248.1}
             change={-0.0086}
             sparkline={downSeries}

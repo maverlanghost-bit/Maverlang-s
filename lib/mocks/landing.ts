@@ -10,6 +10,8 @@ export type LandingQuote = {
   symbol: string;
   underlying: string;
   name: string;
+  /** Ruta en `public`, desde `config/tickers.ts`. Vacío si no hay archivo. */
+  logo: string;
   href: string;
   priceUsd: number;
   /** Ratio, igual que ChangeBadge: 0.012 = +1,20 %. */
@@ -57,6 +59,7 @@ export const landingQuotes: LandingQuote[] = ENABLED_TICKERS.flatMap((ticker) =>
       symbol: ticker.symbol,
       underlying: ticker.underlying,
       name: ticker.name,
+      logo: ticker.logo,
       href: `/app/accion/${ticker.symbol}`,
       priceUsd: sample.priceUsd,
       change: sample.change,

@@ -7,10 +7,12 @@ import { cn } from "@/lib/cn";
 /**
  * Fondos suaves del design system. El texto es `fg` (#0a0a0a): contraste alto sobre todos.
  * El mismo símbolo cae siempre en el mismo tono.
+ * Con archivo, el círculo usa object-cover: el PNG es cuadrado y las esquinas transparentes quedan fuera.
+ * El fondo es `bg-bg` para que la transparencia no muestre el tono del monograma.
  */
 const MONOGRAM_TONES = ["bg-up-bg", "bg-info-bg", "bg-warn-bg", "bg-surface-2", "bg-surface-3"] as const;
 
-/** Letras del símbolo. El sufijo "x" de xStocks no entra. Sin logos de marcas ajenas. TODO-VERIFICAR uso de marcas. */
+/** Letras del símbolo. El sufijo "x" de xStocks no entra. Si no hay archivo, este monograma es el respaldo. Uso de marcas: docs/PENDIENTES-LEGALES.md. TODO-VERIFICAR. */
 function monogramLetters(symbol: string) {
   const trimmed = symbol.trim();
   const withoutSuffix = trimmed.replace(/x$/i, "");
@@ -46,7 +48,7 @@ export function TickerLogo({
 }: {
   symbol: string;
   name?: string;
-  /** Ruta en `public`, por ejemplo `/logos/aapl.svg`. Si falta o falla, monograma. */
+  /** Ruta en `public`, por ejemplo `/logos/aapl.png`. Si falta o falla, monograma. */
   logoUrl?: string | null;
   size?: number;
   decorative?: boolean;
@@ -63,7 +65,7 @@ export function TickerLogo({
     <span
       className={cn(
         "relative inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full border border-border font-mono leading-none font-medium text-fg select-none",
-        toneFor(symbol),
+        showImage ? "bg-bg" : toneFor(symbol),
         className,
       )}
       style={{
@@ -82,7 +84,6 @@ export function TickerLogo({
           alt={decorative ? "" : (name ?? symbol)}
           width={size}
           height={size}
-          unoptimized
           className={cn("absolute inset-0 size-full object-cover", imageReady ? "opacity-100" : "opacity-0")}
           onLoad={() => setReadySrc(source)}
           onError={() => setFailedSrc(source)}

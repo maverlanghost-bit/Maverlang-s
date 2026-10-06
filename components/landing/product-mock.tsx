@@ -15,7 +15,7 @@ function QuotePreview({ quote }: { quote: LandingQuote }) {
     <div className="flex flex-col gap-6">
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 items-center gap-3">
-          <TickerLogo symbol={quote.symbol} name={quote.name} size={48} decorative />
+          <TickerLogo symbol={quote.symbol} name={quote.name} logoUrl={quote.logo} size={48} decorative />
           <div className="min-w-0">
             <p className="truncate text-base font-medium text-fg">{quote.name}</p>
             <p className="truncate text-sm text-fg-muted">{quote.underlying}</p>
