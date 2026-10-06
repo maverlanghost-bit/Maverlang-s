@@ -24,7 +24,7 @@ import { formatClp, formatShares, formatUsd } from "@/lib/format";
 import { useAccountMode } from "@/lib/hooks/use-account-mode";
 import { useAssetStatus, useFx, useMarketStatus, usePortfolio, usePrices } from "@/lib/hooks/queries";
 import { useT } from "@/lib/hooks/use-t";
-import { effectiveMinOrderUsd } from "@/lib/market/asset-status";
+import { effectiveMinOrderUsd } from "@/lib/market/asset-status.shared";
 import {
   amountBlock,
   convertAmount,

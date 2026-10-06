@@ -26,7 +26,7 @@ import { useAssetStatus, useFx, useHistory, useMarketStatus, usePortfolio, usePr
 import { useFavorites } from "@/lib/hooks/use-favorites";
 import { useT } from "@/lib/hooks/use-t";
 import { displayPrice } from "@/lib/market/browse";
-import { chipKeyForStatus, tradeBlockForStatus } from "@/lib/market/asset-status";
+import { chipKeyForStatus, tradeBlockForStatus } from "@/lib/market/asset-status.shared";
 import { rangeBounds, rangeMove, seriesForQuote } from "@/lib/market/series";
 import type { Currency, Position, PricePoint, Quote, Range, Ticker } from "@/lib/types";
 

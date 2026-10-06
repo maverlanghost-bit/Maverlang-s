@@ -1,5 +1,10 @@
 # PROGRESO — Maverlang
 
+## M39b — Separar asset-status cliente/servidor (2026-10-06, fix(M39): separar asset-status cliente/servidor (build))
+- Hecho: `lib/market/asset-status.shared.ts` nuevo (tipos + `chipKeyForStatus`, `tradeBlockForStatus`, `effectiveMinOrderUsd`, `normalizeMode`, `normalizePeriod`; sin `server-only`, sin `lib/env` ni catálogo). `asset-status.ts` conserva `server-only`, `status()`, `isLiveStatusEnabled()`, cache y fetch, y re-exporta lo compartido. `detail-screen.tsx` y `trade-sheet.tsx` importan del `.shared`. Test `client-imports.test.ts` (1) falla si un `"use client"` importa `asset-status` sin `.shared`, `catalog/assets`, `lib/env` o `server-only`.
+- Verificación: `npx tsc --noEmit` ok; `eslint` de los 5 archivos tocados ok (`npm run lint` completo excede el límite de 120 s de la shell); `npm test` 130/130 (23 archivos); `git grep` sin `sb_secret_` ni import cliente→servidor. Sin `next dev/build`, sin e2e, sin push.
+- Pendiente: el operador corre `next build` para confirmar el fix; mirar `/app/accion/AAPLx` con `MARKET_STATUS_MODE=live`.
+
 ## M39 — Horario real por acción (2026-10-06, M39: horario real por accion)
 - Hecho: `lib/market/asset-status.ts` (server-only; xStocks assets+system/status timeout 2,5 s cache 60 s; fallback catálogo→mock; sólo con `PRICES_MODE`/`MARKET_STATUS_MODE=live`). `GET /api/market/status?symbol=` (sin símbolo sigue el estado general). Detalle con chips reales (suspendida/abierto/extendido/nocturno/cerrado + "abre el lunes 09:00" en America/Santiago) y línea "Horario: 24 horas, de lunes a viernes" o "Horario de bolsa (NY)". Hoja de compra con "Mínimo por orden" y validación suave; suspendida deshabilita CTA demo. Lista con punto por fila desde el catálogo. `MARKET_STATUS_MODE` en `lib/env.ts` y `.env.example`. Tests `asset-status.test.ts` (6).
 - Archivos clave: `lib/market/asset-status.ts`, `lib/catalog/assets.ts` (+columnas modo/período/open/next/limits), `lib/format.ts` (`formatReopenWhen`), `app/api/market/status/route.ts`, contratos/cliente/hooks, detalle, `trade-sheet`, `ticker-row`, `market-screen`, `market-status-pill`, i18n.
