@@ -159,7 +159,7 @@ begin
     nombre is not null
     and pais is not null
     and nacimiento is not null
-    and nacimiento <= (pg_catalog.current_date - interval '18 years')::date
+    and nacimiento <= (current_date - interval '18 years')::date
     and telefono is not null
     and (pais is distinct from 'CL' or rut is not null)
     and terms is not null
