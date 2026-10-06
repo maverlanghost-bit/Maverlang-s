@@ -144,6 +144,8 @@ const serverSchema = publicSchema.extend({
   KOYWE_WEBHOOK_SECRET: optionalText(),
   ONRAMPER_API_KEY: optionalText(),
   FX_SOURCE_URL: urlEnv("https://mindicador.cl/api/dolar"),
+  /** Respaldo público sin clave (open.er-api.com). Opcional; se usa si mindicador falla. */
+  FX_FALLBACK_URL: urlEnv("https://open.er-api.com/v6/latest/USD"),
   GEO_BLOCKED_COUNTRIES: countryListEnv(["US"]),
   TERMS_VERSION: requiredText("2026-10-draft"),
   PRIVACY_VERSION: requiredText("2026-10-draft"),

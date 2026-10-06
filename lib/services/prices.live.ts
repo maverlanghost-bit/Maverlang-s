@@ -4,7 +4,7 @@ import type { Connection } from "@solana/web3.js";
 
 import { DomainError } from "@/lib/api/result";
 import { serverEnv } from "@/lib/env";
-import { createLiveFxCache, liveFxRate, readUsdClp, type LiveFxCache } from "@/lib/market/live-fx";
+import { createLiveFxCache, liveFxRate, readUsdClp, warmUsdClp, type LiveFxCache } from "@/lib/market/live-fx";
 import {
   createPriceBatcherCache,
   listBatchedQuotes,
@@ -22,6 +22,20 @@ import type { FxRate, MarketStatus, PricePoint, Quote, Ticker } from "@/lib/type
  */
 
 const fxCache: LiveFxCache = createLiveFxCache();
+
+/**
+ * Calentamiento (M40b): al primer uso del servicio de precios se dispara el
+ * pedido del dólar en segundo plano, sin bloquear, para que la primera
+ * pantalla ya lo tenga en cache.
+ */
+function warmFx(): void {
+  warmUsdClp({
+    url: serverEnv.FX_SOURCE_URL,
+    fallbackUrl: serverEnv.FX_FALLBACK_URL,
+    fetchImpl: fetch,
+    cache: fxCache,
+  });
+}
 
 const cache: PriceBatcherCache = createPriceBatcherCache();
 const multiplierCache = new Map<string, { at: number; value: number; ttl: number }>();
@@ -98,6 +112,7 @@ export const livePrices = {
    * `PRICES_MODE=live`. Acepta hasta 50 símbolos por llamada.
    */
   async list(symbols: string[]): Promise<Quote[]> {
+    warmFx();
     return listBatchedQuotes(symbols, {
       fetchImpl: fetch,
       priceUrl: priceUrl(),
@@ -124,13 +139,16 @@ export const livePrices = {
    * Dólar observado. Activo cuando `getServices` entra con `PRICES_MODE=live`.
    * GET {FX_SOURCE_URL} (default https://mindicador.cl/api/dolar). [VERIFICAR licencia].
    * `serie[0].valor` es el CLP por dólar. `serie[0].fecha` es el día.
-   * `source` es "live" y `updatedAt` es esa fecha. Cache 45 min. Timeout 2,5 s.
+   * `source` es "live" en fresco y "stale" con el último valor válido (hasta 24 h).
+   * Cache 45 min. Timeout 6 s con un reintento rápido. Fallo recordado 15 s.
+   * Respaldo {FX_FALLBACK_URL} (open.er-api.com, `rates.CLP`, sin clave).
    * Red, JSON inválido, serie vacía o valor que no es un número > 0 → UPSTREAM.
    * No se sustituye por el dólar mock.
    */
   async fx(): Promise<FxRate> {
     const parsed = await readUsdClp({
       url: serverEnv.FX_SOURCE_URL,
+      fallbackUrl: serverEnv.FX_FALLBACK_URL,
       fetchImpl: fetch,
       cache: fxCache,
     });

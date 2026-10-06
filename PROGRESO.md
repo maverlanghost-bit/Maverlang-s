@@ -2,6 +2,13 @@
 
 > Estado de la base (2026-10-06): las migraciones 0002, 0003 y 0004 YA están aplicadas en el proyecto Supabase actual y `public.assets` está sincronizada. No hay que pegar nada en el SQL Editor; las instrucciones de `docs/SUPABASE.md` sirven sólo para un proyecto nuevo.
 
+## M40b — Dólar robusto (2026-10-06, fix(M40): dolar robusto)
+- Hecho: `live-fx.ts` con timeout 6 s + 1 reintento, fallo recordado 15 s, último valor válido hasta 24 h marcado `stale` (source `stale`, contrato intacto), dedup en vuelo y respaldo `open.er-api.com` (`rates.CLP`, `FX_FALLBACK_URL`). `livePrices.list` calienta el dólar en segundo plano; `fx()` lo usa. Cartera demo sin cambios: el `stale` fluye como tasa válida y sólo sin ningún dólar mantiene el error actual. Tests `live-fx-robust.test.ts` (6).
+- Archivos clave: `lib/market/live-fx.ts`, `lib/services/prices.live.ts`, `lib/env.ts` (`FX_FALLBACK_URL`), `.env.example`, `tests/unit/live-fx-robust.test.ts`.
+- Decisiones: fresco sin campo `stale` (compat con tests M34); `stale` vale para M40 (tasa > 0 = CLP conocido); respaldo de 1 intento tras 2 de mindicador; textos M40 y M41 intactos.
+- Verificación: `npx tsc --noEmit` ok; `eslint` de los 4 archivos tocados ok; `npm test` 157/157 (26 archivos); `git grep sb_secret_` sin claves nuevas. Sin `next dev/build`, sin e2e, sin push.
+- Pendiente: mirar `/app` y `/app/cartera` en arranque en frío con `PRICES_MODE=live` (CLP desde el inicio, sin "Dólar no disponible" salvo caída total).
+
 ## M41 — Precios en vivo visibles (2026-10-06, M41: precios en vivo visibles)
 - Hecho: polling 15 s intacto + `refetchOnWindowFocus: true` sólo en precios (`usePrices`, mercado) y gráfico abierto (`useHistory` cada 60 s visible, `refetchIntervalInBackground: false`). `PriceFreshness` ("Actualizado hace Xs" / "Updated Xs ago", `aria-live="off"`, intervalo 1 s) en detalle, cabecera de lista y cartera; `stale` o > 60 s → `text-warn` + "Precio con retraso". `usePriceFlash` (puro + hook 700 ms, sin flash en primer render ni cambio de moneda) vía `FlashPrice` (`bg-up-bg`/`bg-down-bg`) en precio grande, filas/tarjetas y cartera. Último punto del gráfico sigue siendo el spot. Tests `live-prices-visible.test.ts` (10).
 - Archivos clave: `lib/{market/freshness,hooks/use-price-flash,hooks/queries}.ts`, `components/domain/{price-freshness,flash-price,ticker-row,ticker-card,position-row}.tsx`, `price-panel`, detalle, `market-screen`, cartera, i18n (`prices.delayed`).
