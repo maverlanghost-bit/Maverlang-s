@@ -17,6 +17,16 @@ export const en = {
     account: "Go to your profile",
     skip: "Skip to content",
   },
+  guest: {
+    nav: "Site",
+    help: "Help",
+    login: "Log in",
+    signup: "Sign up",
+    seeStocks: "See stocks",
+    menu: "Menu",
+    openMenu: "Open menu",
+    closeMenu: "Close menu",
+  },
   disclaimer: "Tokenized stocks do not grant shareholder rights. Investing involves risks.",
   pages: {
     market: {
@@ -142,6 +152,9 @@ export const en = {
     risksLink: "Read the risks",
     buy: "Buy",
     sell: "Sell",
+    signupToInvest: "Create an account to invest",
+    loginToInvest: "Log in",
+    finishSignup: "Finish signup to invest",
     sellDisabled: "To sell, you first need to hold this stock.",
     actions: "Buy or sell",
     tradeBuy: "Buy {name}",

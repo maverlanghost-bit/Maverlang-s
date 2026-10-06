@@ -2,6 +2,7 @@
 
 import { useState, useSyncExternalStore } from "react";
 import Link from "next/link";
+import { esCL } from "@/content/i18n/es-CL";
 import { site } from "@/config/site";
 import { cn } from "@/lib/cn";
 import { Button } from "@/components/ui/button";
@@ -10,6 +11,7 @@ import { IconMenu } from "@/components/ui/icons";
 import { Sheet } from "@/components/ui/sheet";
 
 const NAV = [
+  { href: "/app", label: esCL.guest.seeStocks },
   { href: "/#como-funciona", label: "Cómo funciona" },
   { href: "/#costos", label: "Costos" },
   { href: "/#seguridad", label: "Seguridad" },
@@ -61,7 +63,7 @@ export function SiteHeader() {
 
         <div className="ml-auto flex shrink-0 items-center gap-2 md:ml-4">
           <Button asChild size="md" className="min-h-11 px-4">
-            <Link href="/app">Entrar</Link>
+            <Link href="/app/ingresar">Entrar</Link>
           </Button>
           <IconButton
             label={open ? "Cerrar menú" : "Abrir menú"}
@@ -88,7 +90,7 @@ export function SiteHeader() {
             </Link>
           ))}
           <Button asChild className="mt-4 min-h-11 w-full">
-            <Link href="/app" onClick={() => setOpen(false)}>
+            <Link href="/app/ingresar" onClick={() => setOpen(false)}>
               Entrar
             </Link>
           </Button>

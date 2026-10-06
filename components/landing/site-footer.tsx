@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
+import { esCL } from "@/content/i18n/es-CL";
 import { site, supportMailto } from "@/config/site";
 
 const columns: { title: string; links: { href: string; label: string }[] }[] = [
@@ -11,7 +12,8 @@ const columns: { title: string; links: { href: string; label: string }[] }[] = [
       { href: "/#seguridad", label: "Seguridad" },
       { href: "/#preguntas", label: "Preguntas" },
       { href: "/ayuda", label: "Ayuda" },
-      { href: "/app", label: "Entrar" },
+      { href: "/app", label: esCL.guest.seeStocks },
+      { href: "/app/ingresar", label: "Entrar" },
     ],
   },
   {

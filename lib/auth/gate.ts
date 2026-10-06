@@ -1,5 +1,5 @@
 import { ONBOARDING_DONE } from "@/lib/auth/cookies";
-import { safeNextPath, splitPath } from "@/lib/auth/paths";
+import { isPublicAppPath, safeNextPath, splitPath } from "@/lib/auth/paths";
 
 const COUNTRY = /^[A-Z]{2}$/;
 
@@ -55,6 +55,11 @@ function present(value: string | null): boolean {
   return value !== null && value.length > 0;
 }
 
+/** Misma regla que el middleware. En mock mira `a24_mock_session`; con Privy, `privy-token`. */
+export function hasAuthSession(input: Pick<GateInput, "usePrivy" | "privyToken" | "mockSession">): boolean {
+  return input.usePrivy ? present(input.privyToken) : present(input.mockSession);
+}
+
 function isAppPath(pathname: string): boolean {
   return pathname === "/app" || pathname.startsWith("/app/");
 }
@@ -101,16 +106,17 @@ export function decideGate(input: GateInput): GateDecision {
 
   if (!isAppPath(input.pathname)) return NEXT;
 
-  const hasSession = input.usePrivy ? present(input.privyToken) : present(input.mockSession);
+  const hasSession = hasAuthSession(input);
   const onboarded = input.onboarding === ONBOARDING_DONE;
+  const isPublic = isPublicAppPath(input.pathname);
 
   if (!hasSession) {
-    if (isLoginPath(input.pathname)) return NEXT;
+    if (isLoginPath(input.pathname) || isPublic) return NEXT;
     return loginRedirect(input.pathname, input.search);
   }
 
   if (!onboarded) {
-    if (isOnboardingPath(input.pathname)) return NEXT;
+    if (isOnboardingPath(input.pathname) || isPublic) return NEXT;
     return onboardingRedirect(input.pathname, input.search);
   }
 

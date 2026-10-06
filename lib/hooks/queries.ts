@@ -16,6 +16,7 @@ import {
   getPrices,
   getTickers,
 } from "@/lib/api/client";
+import { useSession } from "@/lib/auth/session-context";
 import type { Range } from "@/lib/types";
 
 const HOUR_MS = 3_600_000;
@@ -75,10 +76,11 @@ export function useMarketStatus() {
   });
 }
 
-export function usePortfolio() {
+export function usePortfolio(enabled = true) {
   return useQuery({
     queryKey: ["portfolio"],
     queryFn: getPortfolio,
+    enabled,
   });
 }
 
@@ -104,9 +106,11 @@ export function useMe() {
 }
 
 export function usePrefs() {
+  const session = useSession();
   return useQuery({
     queryKey: ["prefs"],
     queryFn: getPrefs,
+    enabled: session.status === "authenticated",
   });
 }
 

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Reveal } from "@/components/landing/reveal";
 import { Button } from "@/components/ui/button";
+import { esCL } from "@/content/i18n/es-CL";
 
 export function FinalCTA() {
   return (
@@ -13,9 +14,12 @@ export function FinalCTA() {
         <p className="mt-4 max-w-xl text-sm leading-relaxed text-balance text-fg-body sm:text-base">
           Correo, país y los textos legales. El depósito queda para cuando quieras.
         </p>
-        <div className="mt-8">
+        <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
           <Button asChild size="lg" className="min-h-11">
-            <Link href="/app">Crear cuenta</Link>
+            <Link href="/app/ingresar">Crear cuenta</Link>
+          </Button>
+          <Button asChild variant="secondary" size="lg" className="min-h-11">
+            <Link href="/app">{esCL.guest.seeStocks}</Link>
           </Button>
         </div>
       </Reveal>

@@ -1,9 +1,16 @@
 # PROGRESO — Maverlang
 
 ## Estado
-M27 hecha. Logos locales en `public/logos`. Horario "24 horas, de lunes a viernes". `.env.example` recomienda PRICES_MODE=live; si la variable no existe, el código sigue en mock. Siguiente: fuera de esta tarea.
+M28 hecha. Mercado (`/app`) y detalle (`/app/accion/[ticker]`) se ven sin sesión. Cartera, billetera y perfil siguen pidiendo cuenta. Siguiente: fuera de esta tarea.
 
 ## Tareas hechas
+
+### M28 — Mercado público sin cuenta (2026-10-05, M28: mercado publico sin cuenta)
+- Hecho: sin sesión, `/app` y `/app/accion/[ticker]` responden y no redirigen. Cartera, billetera (depositar, enviar, recibir) y perfil redirigen a `/app/ingresar?next=…`. Con sesión y sin onboarding se ve el mercado; operar manda a completar el registro y conserva `?operar`. Geobloqueo igual. `npx tsc --noEmit`, `npm run lint`, `npm test` (35) y `npm run build` ok. `npm run e2e` (2) ok. Sin `next dev`.
+- Archivos clave: `lib/auth/{paths,gate,server-session}.ts`, `middleware.ts`, `components/app-shell/{app-shell,public-header}.tsx`, detalle, landing, `content/i18n/{es-CL,en}.ts`, `tests/unit/gate.test.ts`, `e2e/smoke.spec.ts`, `docs/ARQUITECTURA.md`.
+- Decisiones: `isPublicAppPath` y `readServerSession` leen las mismas cookies que el gate, para enchufar Supabase después. El ingreso no tiene modo: los dos CTA llevan sólo `next`. Sin sesión no se monta el TradeSheet ni se llama a cartera, billetera ni `/api/me` (`usePrefs` sólo con sesión). Favoritas siguen: están en este navegador, no en la cuenta. En la landing, "Ver acciones" va a `/app`; "Crear cuenta" y "Entrar" van a `/app/ingresar`.
+- Pendiente: mirar `/`, `/app` y `/app/accion/AAPLx` a 360 y en escritorio (header público, CTA, barra, `?operar=vender` ya logueado). El e2e es 1280. No se integró Supabase.
+- Próximo: fuera de esta tarea.
 
 ### M27 — Logos reales de empresas (2026-10-05, M27: logos de empresas)
 - Hecho: 12 PNG de xStocks (400×400, con transparencia) en `public/logos/<underlying>.png`. `config/tickers.ts` apunta a `.png`. El monograma sigue si falta o falla la imagen. Mercado, detalle, cartera, billetera, hoja de compra/venta y landing pasan `logoUrl`. `npx tsc --noEmit`, `npm run lint` y `npm test` (28) ok. Sin `next dev`.

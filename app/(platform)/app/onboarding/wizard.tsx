@@ -115,10 +115,12 @@ export function OnboardingWizard({
   terminosVersion,
   privacidadVersion,
   riesgosVersion,
+  returnTo,
 }: {
   terminosVersion: string;
   privacidadVersion: string;
   riesgosVersion: string;
+  returnTo: string | null;
 }) {
   const { status, user } = useSession();
   const versions = useMemo<LegalVersions>(
@@ -157,6 +159,7 @@ export function OnboardingWizard({
       userId={userId}
       versions={versions}
       walletAddress={walletAddress}
+      returnTo={returnTo}
     />
   );
 }
@@ -166,11 +169,13 @@ function WizardBody({
   userId,
   versions,
   walletAddress,
+  returnTo,
 }: {
   initial: OnboardingDraft;
   userId: string;
   versions: LegalVersions;
   walletAddress: string | null;
+  returnTo: string | null;
 }) {
   const router = useRouter();
   const headingRef = useRef<HTMLHeadingElement>(null);
@@ -360,7 +365,7 @@ function WizardBody({
       } else if (readBrowserCookie(MOCK_ONBOARDING_COOKIE) !== ONBOARDING_DONE) {
         writeClientCookie(MOCK_ONBOARDING_COOKIE, ONBOARDING_DONE);
       }
-      router.push(href);
+      router.push(href === "/app" ? (returnTo ?? "/app") : href);
       router.refresh();
     } catch (error) {
       setFormError(messageFrom(error));

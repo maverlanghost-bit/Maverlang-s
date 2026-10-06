@@ -2,9 +2,10 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { aboutForTicker } from "@/content/tickers";
+import { readServerSession } from "@/lib/auth/server-session";
 import { tradableTicker } from "@/lib/solana/allowlist";
 
-import { DetailScreen } from "./detail-screen";
+import { DetailScreen, type DetailAccess } from "./detail-screen";
 
 function one(value: string | string[] | undefined) {
   return Array.isArray(value) ? (value[0] ?? "") : (value ?? "");
@@ -32,6 +33,15 @@ export default async function AccionPage({
   const query = await searchParams;
   const ticker = tradableTicker(raw);
   if (!ticker) notFound();
+  const session = await readServerSession();
+  const access: DetailAccess = !session.hasSession ? "guest" : session.onboarded ? "member" : "pending";
 
-  return <DetailScreen ticker={ticker} about={aboutForTicker(ticker.symbol)} initialOperar={one(query.operar)} />;
+  return (
+    <DetailScreen
+      ticker={ticker}
+      about={aboutForTicker(ticker.symbol)}
+      initialOperar={one(query.operar)}
+      access={access}
+    />
+  );
 }

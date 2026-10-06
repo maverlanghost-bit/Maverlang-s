@@ -2,7 +2,7 @@
 
 Dos productos en **un solo repo Next.js**:
 1. **Landing** de marketing (`/`, `/legal/*`, `/ayuda`) — estática, rápida, SEO.
-2. **Plataforma** (`/app/*`) — app autenticada: mercado, detalle, compra/venta, cartera, billetera, perfil/ajustes, onboarding.
+2. **Plataforma** (`/app/*`) — mercado y detalle públicos; compra/venta, cartera, billetera, perfil/ajustes y onboarding con sesión.
 
 Fase actual: **frontend primero, con backend real "enchufable"**: todo pasa por contratos tipados + capa de servicios con implementación `mock` (default) y `live` (se completa después). Tests y verificación se hacen al FINAL (tarea 20).
 
@@ -39,15 +39,15 @@ Fase actual: **frontend primero, con backend real "enchufable"**: todo pasa por 
 | `/legal/privacidad` | Política de privacidad (Ley 19.628 y Ley 21.719 — [REVISIÓN ABOGADO]) |
 | `/legal/riesgos` | Divulgación de riesgos (sin derechos de accionista, emisor, congelamiento, liquidez fuera de horario, no es asesoría) |
 | `/legal/comisiones` | Tabla de costos |
-CTA principal → `/app` (si no hay sesión, middleware lleva a `/app/ingresar`).
+CTA "Ver acciones" → `/app` (mercado público, sin sesión). "Crear cuenta" y "Entrar" → `/app/ingresar`.
 
 ### 2.2 Plataforma — route group `app/(platform)/app`
 | Ruta | Pantalla |
 |---|---|
 | `/app/ingresar` | Login (Privy: email OTP / Google) |
 | `/app/onboarding` | Pasos: 1 País de residencia · 2 Declaración "no soy US person" · 3 Aceptar términos + riesgos (versionados) · 4 Wallet creada ✓ · 5 (opcional) primer depósito |
-| `/app` | **Mercado**: buscador, filtros (Todas / Tecnología / ETFs / Favoritas), orden (Popular, Mayor alza, Mayor baja, A–Z), lista de TickerRow con sparkline, "Más movidas hoy", estado de mercado |
-| `/app/accion/[ticker]` | **Detalle**: precio grande, variación, gráfico con tabs `1S 1M 3M 1A Todo`, tu posición, estadísticas, "Sobre la empresa", "Sobre el token" (emisor, mint, multiplicador, riesgos), botones Comprar/Vender fijos abajo. `?operar=comprar|vender` abre el TradeSheet |
+| `/app` | **Mercado** (público): buscador, filtros (Todas / Tecnología / ETFs / Favoritas), orden (Popular, Mayor alza, Mayor baja, A–Z), lista de TickerRow con sparkline, "Más movidas hoy", estado de mercado. Sin saldo, cartera ni posiciones |
+| `/app/accion/[ticker]` | **Detalle** (público): precio grande, variación, gráfico con tabs `1S 1M 3M 1A Todo`, estadísticas, "Sobre la empresa", "Sobre el token" (emisor, mint, multiplicador, riesgos). Con sesión: tu posición y Comprar/Vender. Sin sesión, el CTA es crear cuenta o ingresar y no abre el TradeSheet. `?operar=comprar|vender` abre el TradeSheet sólo con sesión y onboarding |
 | `/app/cartera` | **Cartera**: valor total (CLP/USD), P&L total y por posición, barra de asignación, lista PositionRow, historial de órdenes |
 | `/app/billetera` | **Billetera**: saldo USDC disponible + SOL (red), accesos Depositar / Enviar / Recibir, direcciones, actividad |
 | `/app/billetera/depositar` | Depositar pesos vía on-ramp (monto CLP → estimado USDC, proveedor, métodos: Khipu/EtPay/transferencia) + depositar USDC desde otra wallet |
@@ -59,11 +59,12 @@ CTA principal → `/app` (si no hay sesión, middleware lleva a `/app/ingresar`)
 | `/app/perfil/notificaciones` | Email: órdenes ejecutadas, depósitos, novedades (switches) |
 | `/app/perfil/idioma` | Español (Chile) / English · moneda de visualización CLP/USD |
 | `/app/perfil/legal` | Documentos aceptados con versión y fecha + links a `/legal/*` |
-Layout plataforma: sidebar (≥lg) / bottom tabs (<lg) con 4 tabs: **Mercado · Cartera · Billetera · Perfil**.
+Layout con sesión: sidebar (≥lg) / bottom tabs (<lg) con 4 tabs: **Mercado · Cartera · Billetera · Perfil**. Sin sesión: header público (logo, Mercado, Ayuda, Ingresar, Crear cuenta), sin sidebar, tabs ni saldo.
 
 ### 2.3 Middleware (`middleware.ts`)
 - Geobloqueo: si país ∈ `GEO_BLOCKED_COUNTRIES` (default `US`) → `/bloqueado` (página simple). Header `x-vercel-ip-country`.
-- `/app/*` (excepto `/app/ingresar`): requiere sesión (cookie Privy `privy-token`; en mock `a24_mock_session`). Sin onboarding completo → `/app/onboarding`.
+- `/app` y `/app/accion/*` son públicas (`isPublicAppPath`): se ven sin sesión y sin onboarding. El geobloqueo sigue igual.
+- El resto de `/app/*` (excepto `/app/ingresar`) requiere sesión (cookie Privy `privy-token`; en mock `a24_mock_session`). Sin sesión → `/app/ingresar?next=…`. Con sesión y sin onboarding → `/app/onboarding` (las rutas públicas siguen abiertas). `readServerSession` lee las mismas cookies.
 
 ### 2.4 API (Route Handlers `app/api/**/route.ts`) — todas validan con zod y devuelven `ApiResult<T>`
 | Método y ruta | Request | Response |

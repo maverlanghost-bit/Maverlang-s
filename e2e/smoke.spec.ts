@@ -7,7 +7,10 @@ test("smoke con datos mock", async ({ page }) => {
   ).toBeVisible();
 
   await page.goto("/app");
-  await expect(page).toHaveURL(/\/app\/ingresar/);
+  await expect(page).toHaveURL(/\/app\/?$/);
+  await expect(page.getByRole("heading", { name: "Mercado" })).toBeVisible();
+
+  await page.goto("/app/ingresar");
   await expect(page.getByRole("heading", { name: "Ingresa o crea tu cuenta" })).toBeVisible();
 
   await page.getByRole("button", { name: "Continuar con correo" }).click();
@@ -51,7 +54,7 @@ test("smoke con datos mock", async ({ page }) => {
   await sheet.getByRole("link", { name: "Ver en cartera" }).click();
 
   await expect(page).toHaveURL(/\/app\/cartera/);
-  const apple = page.getByRole("link", { name: /Apple/ });
+  const apple = page.locator('a[href="/app/accion/AAPLx"]');
   await expect(apple).toBeVisible();
   await expect(apple).toContainText(/1,\d/);
 
@@ -66,4 +69,23 @@ test("smoke con datos mock", async ({ page }) => {
   await page.getByRole("radio", { name: "English" }).click();
   await expect(page.getByRole("heading", { name: "Language and currency" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Market" })).toBeVisible();
+});
+
+test("visita el detalle sin sesión", async ({ browser }) => {
+  const context = await browser.newContext();
+  const page = await context.newPage();
+  const response = await page.goto("/app/accion/AAPLx");
+  expect(response?.status()).toBe(200);
+  expect(response?.request().redirectedFrom()).toBeNull();
+  await expect(page).toHaveURL(/\/app\/accion\/AAPLx$/);
+  await expect(page.getByRole("heading", { level: 1, name: "Apple" })).toBeVisible();
+  await expect(page.getByText(/US\$[\d.]+/).first()).toBeVisible();
+  await expect(page.getByRole("link", { name: "Crear cuenta para invertir" }).first()).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Tu posición" })).toHaveCount(0);
+  await expect(page.getByRole("navigation", { name: "Secciones" })).toHaveCount(0);
+
+  await page.goto("/app/cartera");
+  await expect(page).toHaveURL(/\/app\/ingresar\?next=/);
+  expect(decodeURIComponent(new URL(page.url()).searchParams.get("next") ?? "")).toContain("/app/cartera");
+  await context.close();
 });

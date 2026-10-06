@@ -19,6 +19,16 @@ export const esCL = {
     account: "Ir a tu perfil",
     skip: "Saltar al contenido",
   },
+  guest: {
+    nav: "Sitio",
+    help: "Ayuda",
+    login: "Ingresar",
+    signup: "Crear cuenta",
+    seeStocks: "Ver acciones",
+    menu: "Menú",
+    openMenu: "Abrir menú",
+    closeMenu: "Cerrar menú",
+  },
   disclaimer:
     "Las acciones tokenizadas no otorgan derechos de accionista. Invertir implica riesgos.",
   pages: {
@@ -145,6 +155,9 @@ export const esCL = {
     risksLink: "Leer los riesgos",
     buy: "Comprar",
     sell: "Vender",
+    signupToInvest: "Crear cuenta para invertir",
+    loginToInvest: "Inicia sesión",
+    finishSignup: "Completa tu registro para invertir",
     sellDisabled: "Para vender, primero tienes que tener esta acción.",
     actions: "Comprar o vender",
     tradeBuy: "Comprar {name}",

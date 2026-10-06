@@ -5,6 +5,7 @@ import { TickerRow } from "@/components/domain/ticker-row";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { IconClock, IconGlobe, IconWallet } from "@/components/ui/icons";
+import { esCL } from "@/content/i18n/es-CL";
 import { ILLUSTRATIVE_NOTICE, landingHeroQuotes } from "@/lib/mocks/landing";
 import { cn } from "@/lib/cn";
 
@@ -12,7 +13,7 @@ import { cn } from "@/lib/cn";
  * Copy en uso:
  * H1: "Acciones de EE.UU. tokenizadas, en tu billetera"
  * Subtítulo: "Compra fracciones desde $1.000. El token queda en tu billetera Solana, pagas en pesos y operas las 24 horas, de lunes a viernes."
- * CTAs: "Crear cuenta" → /app · "Cómo funciona" → #como-funciona
+ * CTAs: "Crear cuenta" → /app/ingresar · "Ver acciones" → /app · "Cómo funciona" → #como-funciona
  *
  * ALTERNATIVA:
  * H1: "El token es tuyo, en tu billetera Solana"
@@ -73,7 +74,10 @@ export function Hero() {
         <Reveal delay={320} className="mt-8 w-full">
           <div className="flex flex-wrap items-center justify-center gap-3">
             <Button asChild size="md" className="min-h-11">
-              <Link href="/app">Crear cuenta</Link>
+              <Link href="/app/ingresar">Crear cuenta</Link>
+            </Button>
+            <Button asChild variant="secondary" size="md" className="min-h-11">
+              <Link href="/app">{esCL.guest.seeStocks}</Link>
             </Button>
             <Button asChild variant="secondary" size="md" className="min-h-11">
               <Link href="/#como-funciona">Cómo funciona</Link>

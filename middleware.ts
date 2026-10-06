@@ -8,6 +8,7 @@ import { shouldUsePrivy } from "@/lib/auth/mode";
  * Next.js 16 renombró esta convención a `proxy.ts` y avisa al compilar.
  * Se mantiene `middleware.ts` porque ARQUITECTURA §2.3 y esta tarea lo nombran.
  * Los dos archivos a la vez hacen fallar el build.
+ * Qué ruta de `/app` es pública lo decide `isPublicAppPath` dentro de `decideGate`.
  */
 export function middleware(request: NextRequest) {
   const { pathname, search } = request.nextUrl;

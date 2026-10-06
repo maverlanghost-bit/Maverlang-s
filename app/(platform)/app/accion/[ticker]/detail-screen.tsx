@@ -17,6 +17,7 @@ import { IconShare } from "@/components/ui/icons";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/components/ui/toast";
 import { site } from "@/config/site";
+import { detailReturnPath, ingresarPath, onboardingPath } from "@/lib/auth/paths";
 import { cn } from "@/lib/cn";
 import { formatMoney, formatMultiplier, formatShares, formatUsd } from "@/lib/format";
 import { useFx, useHistory, useMarketStatus, usePortfolio, usePrices } from "@/lib/hooks/queries";
@@ -173,6 +174,64 @@ function PositionBlock({
       <p className="mt-4 text-sm leading-relaxed text-fg-muted">{t.detail.positionNote}</p>
     </Card>
   );
+}
+
+export type DetailAccess = "guest" | "pending" | "member";
+
+function AccountActions({
+  variant,
+  aboveTabs,
+  primary,
+  secondary,
+}: {
+  variant: "bar" | "card";
+  aboveTabs: boolean;
+  primary: { href: string; label: string };
+  secondary?: { href: string; label: string };
+}) {
+  const wide = variant === "card";
+  const barRef = useRef<HTMLDivElement>(null);
+  useDetailCtaOffset(variant === "bar", barRef);
+
+  const buttons = (
+    <div className={wide ? "flex flex-col gap-3" : "flex flex-col gap-2"}>
+      <Button
+        asChild
+        size="lg"
+        className="h-auto min-h-11 w-full px-3 text-sm whitespace-nowrap sm:px-4 sm:text-base"
+      >
+        <Link href={primary.href}>{primary.label}</Link>
+      </Button>
+      {secondary ? (
+        <Button
+          asChild
+          size="lg"
+          variant="secondary"
+          className="h-auto min-h-11 w-full px-3 text-sm whitespace-nowrap sm:px-4 sm:text-base"
+        >
+          <Link href={secondary.href}>{secondary.label}</Link>
+        </Button>
+      ) : null}
+    </div>
+  );
+
+  if (variant === "bar") {
+    return (
+      <div
+        ref={barRef}
+        className="fixed inset-x-0 z-20 border-t border-border bg-bg px-4 pt-3 min-[400px]:px-5 lg:hidden"
+        style={
+          aboveTabs
+            ? { bottom: "var(--app-tabs-height)" }
+            : { bottom: 0, paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }
+        }
+      >
+        <div className="mx-auto max-w-6xl">{buttons}</div>
+      </div>
+    );
+  }
+
+  return <Card className="p-5 md:p-6">{buttons}</Card>;
 }
 
 function TradeActions({
@@ -369,31 +428,41 @@ export function DetailScreen({
   ticker,
   about,
   initialOperar,
+  access,
 }: {
   ticker: Ticker;
   about: { es: string; en: string } | null;
   initialOperar: string;
+  access: DetailAccess;
 }) {
   const { t, language, currency } = useT();
   const pathname = usePathname();
   const prices = usePrices([ticker.symbol]);
   const fx = useFx();
-  const portfolio = usePortfolio();
+  const canTrade = access === "member";
+  const portfolio = usePortfolio(access !== "guest");
   const status = useMarketStatus();
   const { symbols, toggle } = useFavorites();
   const [range, setRange] = useState<Range>("1M");
   const history = useHistory(ticker.symbol, range);
-  const [operar, setOperar] = useState(() => parseOperar(initialOperar));
+  const [requested, setRequested] = useState(() => parseOperar(initialOperar));
+  const [operar, setOperar] = useState(() => (canTrade ? parseOperar(initialOperar) : null));
   const pushed = useRef(false);
 
   useEffect(() => {
     const onPop = () => {
+      const next = parseOperar(new URLSearchParams(window.location.search).get("operar") ?? "");
+      setRequested(next);
+      if (!canTrade) {
+        setOperar(null);
+        return;
+      }
       pushed.current = false;
-      setOperar(parseOperar(new URLSearchParams(window.location.search).get("operar") ?? ""));
+      setOperar(next);
     };
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
-  }, []);
+  }, [canTrade]);
 
   const quote = prices.data?.find((item) => item.symbol === ticker.symbol) ?? null;
   const position = portfolio.data?.positions.find((item) => item.symbol === ticker.symbol) ?? null;
@@ -413,6 +482,10 @@ export function DetailScreen({
       : phase === "offHours"
         ? t.detail.marketOffHoursNote
         : t.detail.marketOpenNote;
+
+  const back = detailReturnPath(ticker.symbol, requested);
+  const enter = ingresarPath(back);
+  const resume = onboardingPath(back);
 
   function openOperar(next: "comprar" | "vender" | null) {
     const params = new URLSearchParams(window.location.search);
@@ -439,6 +512,36 @@ export function DetailScreen({
     }
     pushed.current = false;
     window.history.replaceState(null, "", href);
+  }
+
+  function tradeSlot(variant: "bar" | "card") {
+    if (access === "member") {
+      return (
+        <TradeActions
+          variant={variant}
+          canSell={canSell}
+          onBuy={() => openOperar("comprar")}
+          onSell={() => openOperar("vender")}
+        />
+      );
+    }
+    if (access === "pending") {
+      return (
+        <AccountActions
+          variant={variant}
+          aboveTabs
+          primary={{ href: resume, label: t.detail.finishSignup }}
+        />
+      );
+    }
+    return (
+      <AccountActions
+        variant={variant}
+        aboveTabs={false}
+        primary={{ href: enter, label: t.detail.signupToInvest }}
+        secondary={{ href: enter, label: t.detail.loginToInvest }}
+      />
+    );
   }
 
   return (
@@ -512,16 +615,18 @@ export function DetailScreen({
           fxPending={fx.isPending}
         />
 
-        <PositionBlock
-          position={position}
-          pending={portfolio.isPending}
-          failed={portfolio.isError}
-          onRetry={() => {
-            void portfolio.refetch();
-          }}
-          currency={currency}
-          rate={rate}
-        />
+        {access === "guest" ? null : (
+          <PositionBlock
+            position={position}
+            pending={portfolio.isPending}
+            failed={portfolio.isError}
+            onRetry={() => {
+              void portfolio.refetch();
+            }}
+            currency={currency}
+            rate={rate}
+          />
+        )}
 
         <section className="flex flex-col gap-3">
           <h2 className="text-lg">{t.detail.aboutTitle}</h2>
@@ -579,28 +684,23 @@ export function DetailScreen({
       </div>
 
       <aside className="hidden lg:block">
-        <div className="sticky top-8">
-          <TradeActions variant="card" canSell={canSell} onBuy={() => openOperar("comprar")} onSell={() => openOperar("vender")} />
-        </div>
+        <div className="sticky top-8">{tradeSlot("card")}</div>
       </aside>
 
     </div>
 
-      <TradeActions
-        variant="bar"
-        canSell={canSell}
-        onBuy={() => openOperar("comprar")}
-        onSell={() => openOperar("vender")}
-      />
+      {tradeSlot("bar")}
 
-      <TradeSheet
-        ticker={ticker}
-        side={operar === "vender" ? "sell" : "buy"}
-        open={operar !== null}
-        onOpenChange={(open) => {
-          if (!open) openOperar(null);
-        }}
-      />
+      {access === "member" ? (
+        <TradeSheet
+          ticker={ticker}
+          side={operar === "vender" ? "sell" : "buy"}
+          open={operar !== null}
+          onOpenChange={(open) => {
+            if (!open) openOperar(null);
+          }}
+        />
+      ) : null}
     </>
   );
 }
