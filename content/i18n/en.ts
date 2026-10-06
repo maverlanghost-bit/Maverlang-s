@@ -121,6 +121,9 @@ export const en = {
     loadError: "We couldn't load the market.",
     statusError: "We couldn't load market hours.",
   },
+  prices: {
+    delayed: "Delayed price",
+  },
   detail: {
     underlying: "Underlying",
     share: "Share",

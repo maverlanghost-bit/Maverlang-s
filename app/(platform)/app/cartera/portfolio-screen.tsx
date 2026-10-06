@@ -6,8 +6,9 @@ import Link from "next/link";
 import { ActivityItem } from "@/components/domain/activity-item";
 import { AllocationBar, type AllocationSlice } from "@/components/domain/allocation-bar";
 import { ChangeBadge } from "@/components/domain/change-badge";
+import { FlashPrice } from "@/components/domain/flash-price";
 import { PriceChart } from "@/components/domain/price-chart";
-import { PriceText } from "@/components/domain/price-text";
+import { PriceFreshness } from "@/components/domain/price-freshness";
 import { PositionRow } from "@/components/domain/position-row";
 import { RealAccountEmpty } from "@/components/domain/real-account-empty";
 import { ResetDemoButton } from "@/components/domain/reset-demo-button";
@@ -295,9 +296,10 @@ export function PortfolioScreen() {
               ) : pendingFx ? (
                 <Skeleton className="h-12 w-48" />
               ) : (
-                <PriceText value={shown.amount} currency={shown.currency} size="lg" live={hoverUsd === null} />
+                <FlashPrice value={shown.amount} currency={shown.currency} size="lg" live={hoverUsd === null} />
               )}
             </div>
+            <PriceFreshness at={portfolio.dataUpdatedAt || loaded.updatedAt} />
             {hoverUsd !== null && !masked ? <p className="mt-2 text-sm text-fg-muted">{t.portfolio.onChart}</p> : null}
             {showFxNote ? <p className="mt-2 text-sm text-fg-muted">{t.detail.fxFallback}</p> : null}
           </div>
@@ -313,7 +315,7 @@ export function PortfolioScreen() {
                 {pnl === null ? (
                   <span className="num text-sm text-fg-muted">—</span>
                 ) : (
-                  <PriceText value={pnl.amount} currency={pnl.currency} size="sm" colorBySign />
+                  <FlashPrice value={pnl.amount} currency={pnl.currency} size="sm" colorBySign />
                 )}
                 {loaded.pnlPct === null ? <span className="num text-sm text-fg-muted">—</span> : <ChangeBadge value={loaded.pnlPct} />}
               </>
@@ -400,7 +402,7 @@ export function PortfolioScreen() {
               ) : pendingFx ? (
                 <Skeleton className="h-8 w-36" />
               ) : (
-                <PriceText value={cashView.amount} currency={cashView.currency} size="md" />
+                <FlashPrice value={cashView.amount} currency={cashView.currency} size="md" />
               )}
             </div>
             <p className="mt-1 text-sm text-fg-muted">{t.portfolio.availableNote}</p>

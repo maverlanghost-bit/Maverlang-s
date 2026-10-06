@@ -6,6 +6,7 @@ import { useQueries } from "@tanstack/react-query";
 
 import { FavoriteButton } from "@/components/domain/favorite-button";
 import { MarketStatusPill } from "@/components/domain/market-status-pill";
+import { PriceFreshness } from "@/components/domain/price-freshness";
 import { TickerCard } from "@/components/domain/ticker-card";
 import { TickerRow } from "@/components/domain/ticker-row";
 import { Button } from "@/components/ui/button";
@@ -249,6 +250,7 @@ export function MarketScreen({
       enabled: symbols.length > 0,
       staleTime: PRICE_MS,
       refetchInterval: PRICE_MS,
+      refetchOnWindowFocus: true,
     })),
   });
   const quotesBySymbol = (() => {
@@ -257,6 +259,26 @@ export function MarketScreen({
       for (const quote of query.data ?? []) map.set(quote.symbol, quote);
     }
     return map;
+  })();
+  /** Un solo indicador para la lista (M41): el `updatedAt` más reciente. */
+  const freshestAt = (() => {
+    let max: number | null = null;
+    for (const quote of quotesBySymbol.values()) {
+      const ms = Date.parse(quote.updatedAt);
+      if (Number.isFinite(ms) && (max === null || ms > max)) max = ms;
+    }
+    if (max !== null) return max;
+    for (const query of priceQueries) {
+      const at = query.dataUpdatedAt;
+      if (typeof at === "number" && Number.isFinite(at) && at > 0 && (max === null || at > max)) max = at;
+    }
+    return max;
+  })();
+  const anyStale = (() => {
+    for (const quote of quotesBySymbol.values()) {
+      if (quote.stale === true) return true;
+    }
+    return false;
   })();
 
   const loadedSymbols = useMemo(() => items.map((item) => item.symbol), [items]);
@@ -543,6 +565,7 @@ export function MarketScreen({
       {!waiting && !failed && listItems.length > 0 ? (
         <section className="flex min-w-0 flex-col gap-2">
           <h2 className="text-base font-medium text-fg">{applied.trim() ? t.market.results : t.market.list}</h2>
+          <PriceFreshness at={freshestAt} stale={anyStale} />
           <ul>
             {listItems.map(({ entry, price, currency: rowCurrency }) => (
               <li key={entry.item.symbol}>

@@ -3,8 +3,9 @@
 import { useCallback, useState, type ReactNode } from "react";
 
 import { ChangeBadge } from "@/components/domain/change-badge";
+import { FlashPrice } from "@/components/domain/flash-price";
 import { PriceChart } from "@/components/domain/price-chart";
-import { PriceText } from "@/components/domain/price-text";
+import { PriceFreshness } from "@/components/domain/price-freshness";
 import { ErrorState } from "@/components/ui/error-state";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -35,6 +36,8 @@ export function PricePanel({
   fxPending,
   range,
   onRangeChange,
+  priceUpdatedAt = null,
+  priceStale = false,
 }: {
   symbol: string;
   name: string;
@@ -46,6 +49,8 @@ export function PricePanel({
   fxPending: boolean;
   range: Range;
   onRangeChange: (range: Range) => void;
+  priceUpdatedAt?: string | number | null;
+  priceStale?: boolean;
 }) {
   const { t } = useT();
   const history = useHistory(symbol, range);
@@ -98,7 +103,8 @@ export function PricePanel({
   } else {
     priceNode = (
       <div className="flex flex-col gap-2">
-        <PriceText value={shown} currency={priceCurrency} size="lg" live={point === null} />
+        <FlashPrice value={shown} currency={priceCurrency} size="lg" live={point === null} />
+        <PriceFreshness at={priceUpdatedAt ?? quote.updatedAt} stale={priceStale || quote.stale === true} />
         {point === null && quote.reference ? (
           <p className="text-sm text-fg-muted">{t.detail.referencePrice}</p>
         ) : null}

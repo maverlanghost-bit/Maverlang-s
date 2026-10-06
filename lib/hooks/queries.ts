@@ -23,7 +23,11 @@ import { useSession } from "@/lib/auth/session-context";
 import type { Range } from "@/lib/types";
 
 const HOUR_MS = 3_600_000;
-const PRICE_MS = 15_000;
+/** Polling de precios en vivo (M41): 15 s, también al volver a la pestaña. */
+export const PRICE_MS = 15_000;
+/** Historial del gráfico abierto (M41): cache 5 min, repoll cada 60 s visible. */
+export const HISTORY_MS = 5 * 60_000;
+export const HISTORY_REFETCH_MS = 60_000;
 
 export function useTickers() {
   return useQuery({
@@ -58,6 +62,7 @@ export function usePrices(symbols?: readonly string[], enabled = true) {
     enabled: enabled && list.length > 0,
     staleTime: PRICE_MS,
     refetchInterval: PRICE_MS,
+    refetchOnWindowFocus: true,
   });
 }
 
@@ -67,10 +72,12 @@ export function useHistory(symbol: string, range: Range = "1M") {
     queryKey: ["history", trimmed, range],
     queryFn: () => getHistory(trimmed, range),
     enabled: trimmed.length > 0,
+    staleTime: HISTORY_MS,
+    refetchInterval: HISTORY_REFETCH_MS,
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: true,
   });
 }
-
-const HISTORY_MS = 5 * 60_000;
 
 /** Una serie por símbolo. Misma clave que `useHistory`, para compartir caché. */
 export function useHistories(symbols: readonly string[], range: Range = "1W") {

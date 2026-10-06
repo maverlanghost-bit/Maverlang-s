@@ -659,6 +659,8 @@ export function DetailScreen({
           fxPending={fx.isPending}
           range={range}
           onRangeChange={setRange}
+          priceUpdatedAt={prices.dataUpdatedAt || quote?.updatedAt || null}
+          priceStale={quote?.stale === true}
         />
 
         <KeyStats

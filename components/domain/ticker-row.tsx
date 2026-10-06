@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { ChangeBadge } from "@/components/domain/change-badge";
-import { PriceText } from "@/components/domain/price-text";
+import { FlashPrice } from "@/components/domain/flash-price";
 import { Sparkline } from "@/components/domain/sparkline";
 import { TickerLogo } from "@/components/domain/ticker-logo";
 import type { MoneyCurrency } from "@/lib/format";
@@ -67,7 +67,7 @@ export function TickerRow({
         </span>
         {sparkline ? <Sparkline data={sparkline} width={72} height={28} className={sparklineClassName} /> : null}
         <span className="flex shrink-0 flex-col items-end gap-0.5">
-          <PriceText value={price} currency={currency} size="sm" />
+          <FlashPrice value={price} currency={currency} size="sm" />
           <ChangeBadge value={change} />
         </span>
       </Link>

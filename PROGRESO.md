@@ -2,6 +2,13 @@
 
 > Estado de la base (2026-10-06): las migraciones 0002, 0003 y 0004 YA están aplicadas en el proyecto Supabase actual y `public.assets` está sincronizada. No hay que pegar nada en el SQL Editor; las instrucciones de `docs/SUPABASE.md` sirven sólo para un proyecto nuevo.
 
+## M41 — Precios en vivo visibles (2026-10-06, M41: precios en vivo visibles)
+- Hecho: polling 15 s intacto + `refetchOnWindowFocus: true` sólo en precios (`usePrices`, mercado) y gráfico abierto (`useHistory` cada 60 s visible, `refetchIntervalInBackground: false`). `PriceFreshness` ("Actualizado hace Xs" / "Updated Xs ago", `aria-live="off"`, intervalo 1 s) en detalle, cabecera de lista y cartera; `stale` o > 60 s → `text-warn` + "Precio con retraso". `usePriceFlash` (puro + hook 700 ms, sin flash en primer render ni cambio de moneda) vía `FlashPrice` (`bg-up-bg`/`bg-down-bg`) en precio grande, filas/tarjetas y cartera. Último punto del gráfico sigue siendo el spot. Tests `live-prices-visible.test.ts` (10).
+- Archivos clave: `lib/{market/freshness,hooks/use-price-flash,hooks/queries}.ts`, `components/domain/{price-freshness,flash-price,ticker-row,ticker-card,position-row}.tsx`, `price-panel`, detalle, `market-screen`, cartera, i18n (`prices.delayed`).
+- Decisiones: filas siguen servidor (envuelven `FlashPrice` cliente); textos del formato viven en `freshness.ts` y el sufijo en i18n; `useHistories` (sparklines) sin repoll; moneda única M40 y precio único M34 intactos.
+- Verificación: `npx tsc --noEmit` ok; `eslint` por archivo ok; `npm test` 151/151 (25 archivos); `git grep sb_secret_` sin claves nuevas. Sin `next dev/build`, sin e2e, sin push.
+- Pendiente: mirar detalle/mercado/cartera con polling real (destello, "Actualizado hace Xs", "Precio con retraso" tras 429), reducir movimiento, EN.
+
 ## M40 — Una sola moneda (2026-10-06, M40: una sola moneda)
 - Hecho: `lib/preferences/currency.ts` (resolve sesión>local>CLP + cookie `mv_currency` 1 año) y `useDisplayCurrency/useSetDisplayCurrency` (local con useSyncExternalStore, DB si hay sesión, UI al instante); `useT` la usa. `/app/ajustes` pública (moneda primero, idioma después, vale visitante); `/app/perfil/idioma` redirige; perfil y sidebar/bottom-tabs suman Ajustes (IconGear). Switch USD/CLP en top-bar, header público y sidebar. Detalle sin celdas USD/CLP; trade/cartera/billetera/mercado en moneda única; orden CLP→USD antes de cotizar + "La orden se ejecuta en dólares (US$X)". `useFx` cada 5 min. Tests `display-currency.test.ts` (11).
 - Archivos clave: `lib/preferences/currency.ts`, `lib/hooks/use-display-currency.ts`, `app/(platform)/app/ajustes/`, `components/{app-shell/currency-switch,domain/preferences-form}`, detalle, `trade-sheet`, cartera, billetera, `paths.ts`, `nav.ts`, i18n.

@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 
 import { ChangeBadge } from "@/components/domain/change-badge";
-import { PriceText } from "@/components/domain/price-text";
+import { FlashPrice } from "@/components/domain/flash-price";
 import { TickerLogo } from "@/components/domain/ticker-logo";
 import { Tooltip } from "@/components/ui/tooltip";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -61,9 +61,9 @@ export function PositionRow({
             <Skeleton className="h-9 w-16" />
           ) : (
             <>
-              <PriceText value={value} currency={currency} size="sm" />
+              <FlashPrice value={value} currency={currency} size="sm" />
               <span className="flex flex-col items-end gap-1 sm:flex-row sm:items-center">
-                {pnl === null ? <span className="num text-sm text-fg-muted">—</span> : <PriceText value={pnl} currency={currency} size="sm" colorBySign />}
+                {pnl === null ? <span className="num text-sm text-fg-muted">—</span> : <FlashPrice value={pnl} currency={currency} size="sm" colorBySign />}
                 {pnlPct === null ? <span className="num text-sm text-fg-muted">—</span> : <ChangeBadge value={pnlPct} />}
               </span>
             </>

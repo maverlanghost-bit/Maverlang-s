@@ -124,6 +124,9 @@ export const esCL = {
     loadError: "No pudimos cargar el mercado.",
     statusError: "No pudimos ver el horario del mercado.",
   },
+  prices: {
+    delayed: "Precio con retraso",
+  },
   detail: {
     underlying: "Subyacente",
     share: "Compartir",

@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 
 import { ChangeBadge } from "@/components/domain/change-badge";
-import { PriceText } from "@/components/domain/price-text";
+import { FlashPrice } from "@/components/domain/flash-price";
 import { TickerLogo } from "@/components/domain/ticker-logo";
 import { cn } from "@/lib/cn";
 import type { MoneyCurrency } from "@/lib/format";
@@ -48,7 +48,7 @@ export function TickerCard({
           </span>
         </span>
         <span className="flex items-end justify-between gap-2">
-          <PriceText value={price} currency={currency} size="sm" />
+          <FlashPrice value={price} currency={currency} size="sm" />
           <ChangeBadge value={change} />
         </span>
       </Link>
