@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
 import type { ReactNode } from "react";
 
 import { AppShell } from "@/components/app-shell/app-shell";
+import { parseSidebarState, SIDEBAR_COOKIE } from "@/lib/app-shell/sidebar";
 import { readServerSession } from "@/lib/auth/server-session";
 
 export const metadata: Metadata = {
@@ -11,5 +13,11 @@ export const metadata: Metadata = {
 /** Ingresar y onboarding siguen bajo esta ruta, pero AppShell no les pone chrome. */
 export default async function PlatformLayout({ children }: { children: ReactNode }) {
   const session = await readServerSession();
-  return <AppShell signedIn={session.hasSession}>{children}</AppShell>;
+  const jar = await cookies();
+  const sidebarCollapsed = parseSidebarState(jar.get(SIDEBAR_COOKIE)?.value) === "collapsed";
+  return (
+    <AppShell signedIn={session.hasSession} sidebarCollapsed={sidebarCollapsed}>
+      {children}
+    </AppShell>
+  );
 }

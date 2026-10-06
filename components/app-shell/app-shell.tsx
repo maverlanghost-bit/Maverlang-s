@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useLayoutEffect, type ReactNode } from "react";
+import { useCallback, useEffect, useLayoutEffect, useState, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
 
 import { BottomTabs } from "@/components/app-shell/bottom-tabs";
@@ -8,6 +8,7 @@ import { isBarePlatformPath } from "@/components/app-shell/nav";
 import { PublicHeader } from "@/components/app-shell/public-header";
 import { Sidebar } from "@/components/app-shell/sidebar";
 import { TopBar } from "@/components/app-shell/top-bar";
+import { serializeSidebarCookie } from "@/lib/app-shell/sidebar";
 import { useT } from "@/lib/hooks/use-t";
 
 function SyncDocumentLanguage({ language }: { language: "es-CL" | "en" }) {
@@ -56,8 +57,16 @@ function ClearPrivateTabs() {
   return null;
 }
 
-function ShellFrame({ children }: { children: ReactNode }) {
+function ShellFrame({ children, sidebarCollapsed }: { children: ReactNode; sidebarCollapsed: boolean }) {
   const { t, language } = useT();
+  const [collapsed, setCollapsed] = useState(sidebarCollapsed);
+  const toggleSidebar = useCallback(() => {
+    setCollapsed((previous) => {
+      const next = !previous;
+      document.cookie = serializeSidebarCookie(next ? "collapsed" : "expanded");
+      return next;
+    });
+  }, []);
 
   return (
     <div className="relative min-h-dvh bg-bg">
@@ -69,8 +78,8 @@ function ShellFrame({ children }: { children: ReactNode }) {
       >
         {t.shell.skip}
       </a>
-      <div className="min-h-dvh lg:grid lg:grid-cols-[240px_minmax(0,1fr)]">
-        <Sidebar />
+      <div className="min-h-dvh lg:grid lg:grid-cols-[auto_minmax(0,1fr)]">
+        <Sidebar collapsed={collapsed} onToggle={toggleSidebar} />
         <div className="flex min-h-dvh min-w-0 flex-col">
           <TopBar />
           <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col px-5 pt-6 lg:px-8 lg:pt-8">
@@ -115,9 +124,17 @@ function PublicFrame({ children }: { children: ReactNode }) {
   );
 }
 
-export function AppShell({ signedIn, children }: { signedIn: boolean; children: ReactNode }) {
+export function AppShell({
+  signedIn,
+  sidebarCollapsed = false,
+  children,
+}: {
+  signedIn: boolean;
+  sidebarCollapsed?: boolean;
+  children: ReactNode;
+}) {
   const pathname = usePathname();
   if (isBarePlatformPath(pathname)) return children;
   if (!signedIn) return <PublicFrame>{children}</PublicFrame>;
-  return <ShellFrame>{children}</ShellFrame>;
+  return <ShellFrame sidebarCollapsed={sidebarCollapsed}>{children}</ShellFrame>;
 }

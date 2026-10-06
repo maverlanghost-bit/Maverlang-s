@@ -177,3 +177,21 @@ export function IconArrow({ direction = "up", ...props }: IconProps & { directio
     </svg>
   );
 }
+
+export function IconPanel(props: IconProps) {
+  return (
+    <svg viewBox="0 0 16 16" fill="none" {...base(props)}>
+      <rect x="2.5" y="3" width="11" height="10" rx="1.5" stroke="currentColor" strokeWidth="1.5" />
+      <path d="M6.5 3v10" stroke="currentColor" strokeWidth="1.5" />
+    </svg>
+  );
+}
+
+export function IconLogout(props: IconProps) {
+  return (
+    <svg viewBox="0 0 16 16" fill="none" {...base(props)}>
+      <path d="M6.5 3.5H4.2A1.7 1.7 0 0 0 2.5 5.2v5.6a1.7 1.7 0 0 0 1.7 1.7h2.3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      <path d="M6.5 8h7M10.5 5.5 13 8l-2.5 2.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}

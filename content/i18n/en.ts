@@ -16,6 +16,8 @@ export const en = {
     balanceUnavailable: "Balance unavailable",
     account: "Go to your profile",
     skip: "Skip to content",
+    collapseSidebar: "Collapse sidebar",
+    expandSidebar: "Expand sidebar",
   },
   guest: {
     nav: "Site",

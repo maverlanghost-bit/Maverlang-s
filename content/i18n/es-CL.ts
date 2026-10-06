@@ -18,6 +18,8 @@ export const esCL = {
     balanceUnavailable: "Saldo no disponible",
     account: "Ir a tu perfil",
     skip: "Saltar al contenido",
+    collapseSidebar: "Contraer barra lateral",
+    expandSidebar: "Expandir barra lateral",
   },
   guest: {
     nav: "Sitio",
