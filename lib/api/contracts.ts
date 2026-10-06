@@ -64,6 +64,8 @@ export const quoteSchema = z.object({
   updatedAt: isoTimeSchema,
   source: z.enum(["jupiter", "mock"]),
   reference: z.boolean().optional(),
+  /** true cuando el precio es el último guardado tras un 429 o un error (M38). */
+  stale: z.boolean().optional(),
 });
 
 export const pricePointSchema = z.object({
@@ -323,7 +325,8 @@ export const pricesQuerySchema = z.object({
         .split(",")
         .map((part) => part.trim())
         .filter((part) => part.length > 0),
-    ),
+    )
+    .refine((list) => list.length <= 50, "Como máximo 50 símbolos por llamada."),
 });
 
 export const historyParamsSchema = z.object({
@@ -336,6 +339,56 @@ export const historyQuerySchema = z.object({
 
 export const tradeStatusQuerySchema = z.object({
   id: z.string().min(1),
+});
+
+/** Búsqueda del mercado (M38). `pageSize` máximo 50; `scope` lo topa CATALOG_SCOPE. */
+export const marketSearchCategorySchema = z.enum([
+  "all",
+  "tech",
+  "etf",
+  "fintech",
+  "consumer",
+  "finance",
+  "health",
+  "energy",
+  "industrial",
+  "commodity",
+]);
+
+export const marketSearchSortSchema = z.enum(["liquidity", "name"]);
+export const marketSearchScopeSchema = z.enum(["curated", "all"]);
+
+export const marketSearchQuerySchema = z.object({
+  q: z.string().trim().max(100).optional().default(""),
+  category: marketSearchCategorySchema.optional().default("all"),
+  page: z.coerce.number().int().min(1).optional().default(1),
+  pageSize: z.coerce.number().int().min(1).max(50).optional().default(20),
+  sort: marketSearchSortSchema.optional().default("liquidity"),
+  scope: marketSearchScopeSchema.optional().default("curated"),
+});
+
+export const marketSearchItemSchema = z.object({
+  symbol: symbolSchema,
+  name: z.string().min(1),
+  underlying: z.string().min(1),
+  category: categorySchema,
+  mint: z.string(),
+  /** Ruta local (`/logos/…`) o null (monograma). Nunca hotlinking. */
+  logoUrl: z.string().min(1).nullable(),
+  enabled: z.boolean(),
+  halted: z.boolean(),
+  liquidityUsd: z.number().nullable(),
+  /** true cuando la liquidez es menor a US$10.000. */
+  lowLiquidity: z.boolean(),
+  curated: z.boolean(),
+});
+
+export const marketSearchResponseSchema = z.object({
+  items: z.array(marketSearchItemSchema),
+  total: z.number().int().nonnegative(),
+  page: z.number().int().min(1),
+  pageSize: z.number().int().min(1).max(50),
+  hasMore: z.boolean(),
 });
 
 export const apiErrorSchema = z.object({
@@ -359,6 +412,7 @@ export const activityResponseSchema = z.array(activitySchema);
 /** Catálogo §2.4. T07 engancha cada route handler aquí. */
 export const apiContracts = {
   "GET /api/tickers": { response: tickersResponseSchema },
+  "GET /api/market/search": { query: marketSearchQuerySchema, response: marketSearchResponseSchema },
   "GET /api/prices": { query: pricesQuerySchema, response: quotesResponseSchema },
   "GET /api/tickers/[symbol]/history": {
     params: historyParamsSchema,

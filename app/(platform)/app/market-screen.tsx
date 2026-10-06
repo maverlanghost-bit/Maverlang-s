@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useMemo, useRef, useState, type FormEvent } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import { useQueries } from "@tanstack/react-query";
 
 import { FavoriteButton } from "@/components/domain/favorite-button";
 import { MarketStatusPill } from "@/components/domain/market-status-pill";
@@ -16,26 +17,25 @@ import { indexFromKey } from "@/components/ui/keys";
 import { PageHeader } from "@/components/ui/page-header";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/cn";
+import { getPrices, searchMarket, type MarketSearchItem } from "@/lib/api/client";
 import { useFavorites } from "@/lib/hooks/use-favorites";
-import { useFx, useHistories, useMarketStatus, usePrices, useTickers } from "@/lib/hooks/queries";
+import { useFx, useHistories, useMarketStatus } from "@/lib/hooks/queries";
 import { useT } from "@/lib/hooks/use-t";
 import {
   displayPrice,
   downsample,
-  matchesQuery,
-  moversOf,
   parseFilter,
   parseSort,
-  passesFilter,
-  sortRows,
   type MarketFilter,
-  type MarketRow,
   type MarketSort,
 } from "@/lib/market/browse";
 import { anchorSeriesToSpot } from "@/lib/market/series";
 import type { Currency, Quote } from "@/lib/types";
 
-const SEARCH_MS = 150;
+const SEARCH_MS = 300;
+const PAGE_SIZE = 20;
+const SEARCH_STALE_MS = 30_000;
+const PRICE_MS = 15_000;
 
 function canonicalSearch(search: string): string {
   const params = new URLSearchParams(search);
@@ -63,15 +63,42 @@ function withName(template: string, name: string) {
   return template.replace("{name}", name);
 }
 
-function priceRows(rows: readonly MarketRow[], currency: Currency, rate: number | undefined) {
+type PricedItem = {
+  item: MarketSearchItem;
+  quote: Quote;
+  /** Posición acumulada (orden Popular del servidor). */
+  index: number;
+};
+
+function priceRows(items: readonly PricedItem[], currency: Currency, rate: number | undefined) {
   const fxKnown = typeof rate === "number" && Number.isFinite(rate) && rate > 0;
   const shown: Currency = currency === "CLP" && fxKnown ? "CLP" : "USD";
-  const items: { row: MarketRow; price: number; currency: Currency }[] = [];
-  for (const row of rows) {
-    const price = displayPrice(row.quote.priceUsd, shown, fxKnown ? rate : undefined);
-    if (price !== null) items.push({ row, price, currency: shown });
+  const out: { entry: PricedItem; price: number; currency: Currency }[] = [];
+  for (const entry of items) {
+    const price = displayPrice(entry.quote.priceUsd, shown, fxKnown ? rate : undefined);
+    if (price !== null) out.push({ entry, price, currency: shown });
   }
-  return items;
+  return out;
+}
+
+function changeOf(entry: PricedItem): number {
+  return Number.isFinite(entry.quote.change24hPct) ? entry.quote.change24hPct : 0;
+}
+
+function orderPriced(rows: readonly PricedItem[], sort: MarketSort): PricedItem[] {
+  if (sort !== "gain" && sort !== "loss") return [...rows];
+  return [...rows].sort((a, b) => {
+    const delta = changeOf(a) - changeOf(b);
+    const directed = sort === "gain" ? -delta : delta;
+    return directed || a.index - b.index;
+  });
+}
+
+/** Top por |variación| sobre filas ya cotizadas. Criterio objetivo: no es una selección editorial. */
+function moversOfPriced(rows: readonly PricedItem[], limit = 3): PricedItem[] {
+  return [...rows]
+    .sort((a, b) => Math.abs(changeOf(b)) - Math.abs(changeOf(a)) || a.index - b.index)
+    .slice(0, limit);
 }
 
 function ChipGroup<T extends string>({
@@ -172,30 +199,83 @@ export function MarketScreen({
   const [applied, setApplied] = useState(initialQuery);
   const [filter, setFilter] = useState<MarketFilter>(() => parseFilter(initialFilter));
   const [sort, setSort] = useState<MarketSort>(() => parseSort(initialSort));
+  const [page, setPage] = useState(1);
 
-  const tickers = useTickers();
-  const prices = usePrices();
+  // Favoritas vive en este navegador: el servidor devuelve todo y se filtra aquí.
+  const serverCategory = filter === "favorites" ? "all" : filter;
+  const serverSort = sort === "az" ? "name" : "liquidity";
+
+  // Una consulta del servidor por página cargada. Al cambiar el criterio, la página vuelve a 1.
+  const searchQueries = useQueries({
+    queries: Array.from({ length: page }, (_, index) => {
+      const pageNum = index + 1;
+      return {
+        queryKey: ["market-search", applied, serverCategory, pageNum, PAGE_SIZE, serverSort] as const,
+        queryFn: () =>
+          searchMarket({
+            q: applied,
+            category: serverCategory,
+            page: pageNum,
+            pageSize: PAGE_SIZE,
+            sort: serverSort,
+          }),
+        staleTime: SEARCH_STALE_MS,
+      };
+    }),
+  });
   const fx = useFx();
   const status = useMarketStatus();
   const { symbols: favorites, toggle } = useFavorites();
 
-  const catalog = useMemo(
-    () => (tickers.data ?? []).filter((ticker) => ticker.enabled).map((ticker) => ticker.symbol),
-    [tickers.data],
-  );
-  const histories = useHistories(catalog);
+  const items: MarketSearchItem[] = (() => {
+    const seen = new Set<string>();
+    const out: MarketSearchItem[] = [];
+    for (const query of searchQueries) {
+      for (const item of query.data?.items ?? []) {
+        if (seen.has(item.symbol)) continue;
+        seen.add(item.symbol);
+        out.push(item);
+      }
+    }
+    return out;
+  })();
+
+  // Precios y sparklines sólo de las filas cargadas: una llamada de precios por página.
+  const symbolsByPage = searchQueries.map((query) => (query.data?.items ?? []).map((item) => item.symbol));
+  const priceQueries = useQueries({
+    queries: symbolsByPage.map((symbols) => ({
+      queryKey: ["prices", [...symbols].sort()] as const,
+      queryFn: () => getPrices(symbols),
+      enabled: symbols.length > 0,
+      staleTime: PRICE_MS,
+      refetchInterval: PRICE_MS,
+    })),
+  });
+  const quotesBySymbol = (() => {
+    const map = new Map<string, Quote>();
+    for (const query of priceQueries) {
+      for (const quote of query.data ?? []) map.set(quote.symbol, quote);
+    }
+    return map;
+  })();
+
+  const loadedSymbols = useMemo(() => items.map((item) => item.symbol), [items]);
+  const histories = useHistories(loadedSymbols);
 
   useEffect(() => {
-    const id = window.setTimeout(() => setApplied(draft), SEARCH_MS);
+    const id = window.setTimeout(() => {
+      setApplied(draft);
+      setPage(1);
+    }, SEARCH_MS);
     return () => window.clearTimeout(id);
   }, [draft]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     withMarketParams(params, applied, filter, sort);
-    const search = params.toString();
-    if (canonicalSearch(window.location.search) === canonicalSearch(search ? `?${search}` : "")) return;
-    router.replace(search ? `${pathname}?${search}` : pathname, { scroll: false });
+    const searchText = params.toString();
+    if (canonicalSearch(window.location.search) === canonicalSearch(searchText ? `?${searchText}` : "")) return;
+    router.replace(searchText ? `${pathname}?${searchText}` : pathname, { scroll: false });
   }, [applied, filter, pathname, router, sort]);
 
   useEffect(() => {
@@ -206,6 +286,7 @@ export function MarketScreen({
       setApplied(query);
       setFilter(parseFilter(params.get("filtro")));
       setSort(parseSort(params.get("orden")));
+      setPage(1);
     };
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
@@ -227,64 +308,55 @@ export function MarketScreen({
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  const quoteBySymbol = useMemo(() => {
-    const map = new Map<string, Quote>();
-    for (const quote of prices.data ?? []) map.set(quote.symbol, quote);
-    return map;
-  }, [prices.data]);
-
-  const indexed = useMemo(() => {
-    const rows: MarketRow[] = [];
-    (tickers.data ?? []).forEach((ticker, index) => {
-      if (!ticker.enabled) return;
-      const quote = quoteBySymbol.get(ticker.symbol);
+  const favoriteSet = useMemo(() => new Set(favorites ?? []), [favorites]);
+  const priced = useMemo(() => {
+    const rows: PricedItem[] = [];
+    items.forEach((item, index) => {
+      if (filter === "favorites" && !favoriteSet.has(item.symbol)) return;
+      const quote = quotesBySymbol.get(item.symbol);
       if (!quote) return;
-      rows.push({ ticker, quote, index });
+      rows.push({ item, quote, index });
     });
     return rows;
-  }, [quoteBySymbol, tickers.data]);
-
-  const favoriteSet = useMemo(() => new Set(favorites ?? []), [favorites]);
-  const inFilter = useMemo(
-    () => indexed.filter((row) => passesFilter(row.ticker, filter, favoriteSet)),
-    [favoriteSet, filter, indexed],
-  );
-  const searched = useMemo(
-    () => inFilter.filter((row) => matchesQuery(row.ticker, applied)),
-    [applied, inFilter],
-  );
-  const ordered = useMemo(() => sortRows(searched, sort), [searched, sort]);
-  const moverSource = useMemo(() => (applied.trim() ? [] : moversOf(inFilter)), [applied, inFilter]);
-
-  const spotBySymbol = useMemo(() => {
-    const map = new Map<string, number>();
-    for (const quote of prices.data ?? []) map.set(quote.symbol, quote.priceUsd);
-    return map;
-  }, [prices.data]);
+  }, [favoriteSet, filter, items, quotesBySymbol]);
+  const ordered = useMemo(() => orderPriced(priced, sort), [priced, sort]);
+  const moverSource = useMemo(() => (applied.trim() ? [] : moversOfPriced(priced)), [applied, priced]);
 
   const sparkBySymbol = useMemo(() => {
     const map = new Map<string, number[]>();
-    catalog.forEach((symbol, index) => {
+    loadedSymbols.forEach((symbol, index) => {
       const points = histories[index]?.data;
       if (!points || points.length < 2) return;
-      const spot = spotBySymbol.get(symbol);
+      const spot = quotesBySymbol.get(symbol)?.priceUsd;
       const series = spot !== undefined && spot > 0 ? anchorSeriesToSpot(points, spot) : points;
       map.set(symbol, downsample(series.map((point) => point.p)));
     });
     return map;
-  }, [catalog, histories, spotBySymbol]);
+  }, [loadedSymbols, histories, quotesBySymbol]);
 
   const favoritesPending = filter === "favorites" && favorites === null;
   const rate = fx.data?.rate;
   const fxKnown = typeof rate === "number" && Number.isFinite(rate) && rate > 0;
-  const failed = (tickers.isError && !tickers.data) || (prices.isError && !prices.data);
+  const firstQuery = searchQueries[0];
+  const firstPrices = priceQueries[0];
+  const quotesFailed = items.length > 0 && quotesBySymbol.size === 0 && (firstPrices?.isError ?? false);
+  const failed = (firstQuery?.isError && items.length === 0) || quotesFailed;
   const waiting =
     !failed &&
-    (favoritesPending || tickers.isPending || prices.isPending || (currency === "CLP" && !fxKnown && fx.isPending));
+    (favoritesPending ||
+      (items.length === 0 && ((firstQuery?.isPending ?? true) || (firstPrices?.isPending ?? false))) ||
+      (items.length === 0 && currency === "CLP" && !fxKnown && fx.isPending));
+  const pageFailed = !failed && items.length > 0 && searchQueries.some((query) => query.isError);
+  const loadingMore =
+    items.length > 0 &&
+    (searchQueries.some((query) => query.isFetching) || priceQueries.some((query) => query.isFetching));
   const moverItems = waiting || failed ? [] : priceRows(moverSource, currency, rate);
   const listItems = waiting || failed ? [] : priceRows(ordered, currency, rate);
-  const failure = tickers.error ?? prices.error;
+  const failure = searchQueries.find((query) => query.error)?.error ?? firstPrices?.error;
   const failureDetail = failure instanceof Error && failure.message.trim() ? failure.message : undefined;
+  const lastWithData = [...searchQueries].reverse().find((query) => query.data);
+  const total = lastWithData?.data?.total ?? 0;
+  const hasMore = lastWithData?.data?.hasMore ?? false;
 
   const filterOptions: { value: MarketFilter; label: string }[] = [
     { value: "all", label: t.market.all },
@@ -309,11 +381,22 @@ export function MarketScreen({
   function onSearch(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setApplied(draft);
+    setPage(1);
+  }
+
+  function onFilterChange(value: MarketFilter) {
+    setFilter(value);
+    setPage(1);
+  }
+
+  function onSortChange(value: MarketSort) {
+    setSort(value);
+    setPage(1);
   }
 
   function retry() {
-    void tickers.refetch();
-    void prices.refetch();
+    for (const query of searchQueries) void query.refetch();
+    for (const query of priceQueries) void query.refetch();
     void status.refetch();
     if (currency === "CLP") void fx.refetch();
   }
@@ -343,7 +426,7 @@ export function MarketScreen({
     );
   }
 
-  const emptyTerm = applied.trim() || t.market[filter];
+  const emptyTitle = applied.trim() ? t.market.noResultsTitle : `${t.market.emptyFor} «${t.market[filter]}»`;
 
   return (
     <div className="flex min-w-0 flex-col gap-6">
@@ -387,14 +470,14 @@ export function MarketScreen({
         <p id={filtersLabelId} className="label">
           {t.market.filtersLabel}
         </p>
-        <ChipGroup labelId={filtersLabelId} value={filter} options={filterOptions} onChange={setFilter} />
+        <ChipGroup labelId={filtersLabelId} value={filter} options={filterOptions} onChange={onFilterChange} />
       </div>
 
       <div className="flex min-w-0 flex-col gap-2">
         <p id={sortLabelId} className="label">
           {t.market.sortLabel}
         </p>
-        <ChipGroup labelId={sortLabelId} value={sort} options={sortOptions} onChange={setSort} />
+        <ChipGroup labelId={sortLabelId} value={sort} options={sortOptions} onChange={onSortChange} />
       </div>
 
       {waiting ? <ResultsSkeleton label={t.states.loading} /> : null}
@@ -416,24 +499,25 @@ export function MarketScreen({
             <p className="mt-1 text-sm text-fg-muted">{t.market.moversNote}</p>
           </div>
           <div className="flex min-w-0 snap-x snap-mandatory gap-3 overflow-x-auto p-1">
-            {moverItems.map(({ row, price, currency: rowCurrency }) => (
+            {moverItems.map(({ entry, price, currency: rowCurrency }) => (
               <TickerCard
-                key={row.ticker.symbol}
-                href={tickerHref(row.ticker.symbol)}
-                symbol={row.ticker.symbol}
-                name={row.ticker.name}
-                logoUrl={row.ticker.logo}
+                key={entry.item.symbol}
+                href={tickerHref(entry.item.symbol)}
+                symbol={entry.item.symbol}
+                name={entry.item.name}
+                logoUrl={entry.item.logoUrl}
                 price={price}
                 currency={rowCurrency}
-                change={row.quote.change24hPct}
+                change={entry.quote.change24hPct}
+                lowLiquidityLabel={entry.item.lowLiquidity ? t.market.lowLiquidity : null}
                 action={
                   <FavoriteButton
-                    pressed={favoriteSet.has(row.ticker.symbol)}
+                    pressed={favoriteSet.has(entry.item.symbol)}
                     label={withName(
-                      favoriteSet.has(row.ticker.symbol) ? t.market.favoriteOn : t.market.favoriteOff,
-                      row.ticker.name,
+                      favoriteSet.has(entry.item.symbol) ? t.market.favoriteOn : t.market.favoriteOff,
+                      entry.item.name,
                     )}
-                    onToggle={() => toggle(row.ticker.symbol)}
+                    onToggle={() => toggle(entry.item.symbol)}
                   />
                 }
               />
@@ -445,36 +529,64 @@ export function MarketScreen({
         <section className="flex min-w-0 flex-col gap-2">
           <h2 className="text-base font-medium text-fg">{applied.trim() ? t.market.results : t.market.list}</h2>
           <ul>
-            {listItems.map(({ row, price, currency: rowCurrency }) => (
-              <li key={row.ticker.symbol}>
+            {listItems.map(({ entry, price, currency: rowCurrency }) => (
+              <li key={entry.item.symbol}>
                 <TickerRow
-                  href={tickerHref(row.ticker.symbol)}
-                  symbol={row.ticker.symbol}
-                  name={row.ticker.name}
-                  logoUrl={row.ticker.logo}
+                  href={tickerHref(entry.item.symbol)}
+                  symbol={entry.item.symbol}
+                  name={entry.item.name}
+                  logoUrl={entry.item.logoUrl}
                   price={price}
                   currency={rowCurrency}
-                  change={row.quote.change24hPct}
-                  sparkline={sparkBySymbol.get(row.ticker.symbol)}
+                  change={entry.quote.change24hPct}
+                  sparkline={sparkBySymbol.get(entry.item.symbol)}
                   sparklineClassName="block"
+                  lowLiquidityLabel={entry.item.lowLiquidity ? t.market.lowLiquidity : null}
                   action={
                     <FavoriteButton
-                      pressed={favoriteSet.has(row.ticker.symbol)}
+                      pressed={favoriteSet.has(entry.item.symbol)}
                       label={withName(
-                        favoriteSet.has(row.ticker.symbol) ? t.market.favoriteOn : t.market.favoriteOff,
-                        row.ticker.name,
+                        favoriteSet.has(entry.item.symbol) ? t.market.favoriteOn : t.market.favoriteOff,
+                        entry.item.name,
                       )}
-                      onToggle={() => toggle(row.ticker.symbol)}
+                      onToggle={() => toggle(entry.item.symbol)}
                     />
                   }
                 />
               </li>
             ))}
           </ul>
+          {total > 0 ? (
+            <p className="text-sm text-fg-muted" aria-live="polite">
+              {t.market.showingOf.replace("{shown}", String(listItems.length)).replace("{total}", String(total))}
+            </p>
+          ) : null}
+          {pageFailed ? (
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="text-sm text-fg-muted">{t.market.loadError}</p>
+              <Button variant="secondary" onClick={retry}>
+                {t.states.retry}
+              </Button>
+            </div>
+          ) : null}
+          {hasMore && !pageFailed ? (
+            <div>
+              <Button variant="secondary" onClick={() => setPage((value) => value + 1)} disabled={loadingMore}>
+                {t.market.loadMore}
+              </Button>
+              {loadingMore ? (
+                <div role="status" aria-live="polite" aria-busy="true" className="mt-2 flex flex-col gap-2">
+                  <span className="sr-only">{t.states.loading}</span>
+                  <Skeleton className="h-16 w-full rounded-xl" />
+                  <Skeleton className="h-16 w-full rounded-xl" />
+                </div>
+              ) : null}
+            </div>
+          ) : null}
         </section>
       ) : null}
       {!waiting && !failed && listItems.length === 0 ? (
-        <EmptyState title={`${t.market.emptyFor} «${emptyTerm}»`} description={t.market.emptyHint} />
+        <EmptyState title={emptyTitle} description={t.market.emptyHint} />
       ) : null}
     </div>
   );

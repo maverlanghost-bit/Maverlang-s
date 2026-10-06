@@ -1,7 +1,17 @@
 # PROGRESO — Maverlang
 
 ## Estado
-M37 hecha y verificada (`npx tsc --noEmit`, `npm run lint`, `npm test` 100). Pendiente: aplicar `0004` en el SQL Editor DESPUÉS de 0003 y hacer el commit. Sin `next dev/build`, sin push, sin e2e (límite de shell).
+M38 hecha y verificada (`npx tsc --noEmit`, `npm run lint`, `npm test` 119). M36 y M37 ya commiteadas (2b089d3); la migración 0004 está aplicada y public.assets tiene 1171 filas. Sin `next dev/build`, sin push, sin e2e (límite de shell).
+
+## Tareas hechas
+
+### M38 — Mercado escalable (2026-10-06, M38: mercado escalable) [VERIFICADA, POR COMMITEAR]
+- Hecho: `lib/catalog/assets.ts` (server-only; lee public.assets con publishable key, cache 5 min; `search` con q/categoría/scope/página/orden + `bySymbol`; fallback a `config/tickers.ts`). `GET /api/market/search` (zod, pageSize máx 50, cache 30/60 s, logo local o null, `lowLiquidity` < US$10.000). `lib/market/price-batcher.ts` (lotes de 50, dedup en vuelo, cache 15 s, `stale` tras 429 con backoff); `livePrices` y `/api/prices` (máx 50) lo usan. Mercado con debounce 300 ms, "Cargar más", skeleton, vacío "No encontramos acciones con ese nombre", una llamada de precios por página y "Baja liquidez". Detalle por `bySymbol` con CTA deshabilitado si no habilitada/suspendida.
+- Archivos clave: `lib/catalog/assets.ts`, `lib/market/price-batcher.ts`, `app/api/market/search/route.ts`, `market-screen.tsx`, detalle (`page.tsx`, `detail-screen.tsx`), contratos/cliente/hooks, i18n, `.env.example`.
+- Decisiones: Supabase se lee por REST con fetch (mockeable, sin cookies); filtro/orden en memoria sobre 1171 filas. `stale` es campo opcional nuevo en `Quote`. Favoritas se filtra en cliente. Precio único M34, sidebar, demo, registro/login, mercado público, barra móvil y `?operar=vender` sin cambios.
+- Verificación: `npx tsc --noEmit` ok; `npm run lint` ok; `npm test` 119/119 (20 archivos, incl. `market-search` 11 y `price-batcher` 8); `git grep` sin secretos; `.env.local` fuera de `git status`.
+- Pendiente: clave de Jupiter de Manu (portal.jup.ag); mirar `/app` (buscar, chips, "Cargar más", "Baja liquidez") y `/app/accion/AAPLx` en navegador; con `CATALOG_SCOPE=all`, precios/operar fuera de los 50 curados siguen limitados a `config/tickers.ts`.
+- Próximo: fuera de esta tarea.
 
 ## Tareas hechas
 

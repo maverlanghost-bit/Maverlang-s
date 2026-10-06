@@ -9,6 +9,8 @@ import {
   deletionStatusSchema,
   fxRateSchema,
   historyResponseSchema,
+  marketSearchItemSchema,
+  marketSearchResponseSchema,
   marketStatusSchema,
   onrampSessionSchema,
   onrampWebhookResponseSchema,
@@ -108,6 +110,34 @@ function withMockQuery(path: string, mockError?: string | null): string {
 
 export function getTickers(): Promise<Ticker[]> {
   return request("/api/tickers", tickersResponseSchema, { next: { revalidate: 3600 } });
+}
+
+export type MarketSearchItem = z.infer<typeof marketSearchItemSchema>;
+export type MarketSearchResult = z.infer<typeof marketSearchResponseSchema>;
+export type MarketSearchSort = "liquidity" | "name";
+export type MarketSearchScope = "curated" | "all";
+
+export interface MarketSearchParams {
+  q?: string;
+  category?: string;
+  page?: number;
+  pageSize?: number;
+  sort?: MarketSearchSort;
+  scope?: MarketSearchScope;
+}
+
+/** Búsqueda paginada del mercado (M38). Una llamada por página. */
+export function searchMarket(params: MarketSearchParams): Promise<MarketSearchResult> {
+  const query = new URLSearchParams();
+  const q = params.q?.trim() ?? "";
+  if (q) query.set("q", q);
+  if (params.category && params.category !== "all") query.set("category", params.category);
+  query.set("page", String(params.page ?? 1));
+  query.set("pageSize", String(params.pageSize ?? 20));
+  query.set("sort", params.sort ?? "liquidity");
+  if (params.scope) query.set("scope", params.scope);
+  const suffix = query.toString();
+  return request(`/api/market/search${suffix ? `?${suffix}` : ""}`, marketSearchResponseSchema);
 }
 
 export function getPrices(symbols?: readonly string[]): Promise<Quote[]> {

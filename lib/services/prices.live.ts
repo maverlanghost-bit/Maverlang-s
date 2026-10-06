@@ -5,7 +5,11 @@ import type { Connection } from "@solana/web3.js";
 import { DomainError } from "@/lib/api/result";
 import { serverEnv } from "@/lib/env";
 import { createLiveFxCache, liveFxRate, readUsdClp, type LiveFxCache } from "@/lib/market/live-fx";
-import { createLivePriceCache, listLiveQuotes, type LivePriceCache } from "@/lib/market/live-quotes";
+import {
+  createPriceBatcherCache,
+  listBatchedQuotes,
+  type PriceBatcherCache,
+} from "@/lib/market/price-batcher";
 import { getServerConnection } from "@/lib/solana/connection";
 import { fetchMintMultiplier } from "@/lib/solana/scaled-ui";
 import type { FxRate, MarketStatus, PricePoint, Quote, Ticker } from "@/lib/types";
@@ -19,7 +23,7 @@ import type { FxRate, MarketStatus, PricePoint, Quote, Ticker } from "@/lib/type
 
 const fxCache: LiveFxCache = createLiveFxCache();
 
-const cache: LivePriceCache = createLivePriceCache();
+const cache: PriceBatcherCache = createPriceBatcherCache();
 const multiplierCache = new Map<string, { at: number; value: number; ttl: number }>();
 const MULTIPLIER_TTL_MS = 5 * 60 * 1000;
 const MULTIPLIER_MISS_TTL_MS = 60_000;
@@ -88,11 +92,13 @@ async function readMultipliers(tickers: readonly Ticker[]): Promise<ReadonlyMap<
 
 export const livePrices = {
   /**
-   * Jupiter Price v3, con cache corta. Un ticker ausente o inválido vuelve a la ancla
-   * (`source: "mock"`, `reference: true`). El caller sólo entra con `PRICES_MODE=live`.
+   * Jupiter Price v3 vía el batcher (lotes de 50, cache por mint de 15 s,
+   * `stale` tras un 429 o un error). Un ticker ausente o inválido vuelve a
+   * la ancla (`source: "mock"`, `reference: true`). El caller sólo entra con
+   * `PRICES_MODE=live`. Acepta hasta 50 símbolos por llamada.
    */
   async list(symbols: string[]): Promise<Quote[]> {
-    return listLiveQuotes(symbols, {
+    return listBatchedQuotes(symbols, {
       fetchImpl: fetch,
       priceUrl: priceUrl(),
       apiKey: serverEnv.JUPITER_API_KEY,

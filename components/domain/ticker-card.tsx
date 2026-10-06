@@ -17,6 +17,7 @@ export function TickerCard({
   change,
   action,
   className,
+  lowLiquidityLabel = null,
 }: {
   href: string;
   symbol: string;
@@ -27,6 +28,8 @@ export function TickerCard({
   change: number;
   action?: ReactNode;
   className?: string;
+  /** Etiqueta discreta de baja liquidez (M38). Null la oculta. */
+  lowLiquidityLabel?: string | null;
 }) {
   return (
     <div className={cn("relative w-60 shrink-0 snap-start", className)}>
@@ -38,7 +41,10 @@ export function TickerCard({
           <TickerLogo symbol={symbol} name={name} logoUrl={logoUrl} size={36} decorative />
           <span className="min-w-0">
             <span className="block truncate font-medium text-fg">{symbol}</span>
-            <span className="block truncate text-sm text-fg-muted">{name}</span>
+            <span className="block truncate text-sm text-fg-muted">
+              {name}
+              {lowLiquidityLabel ? <span> · {lowLiquidityLabel}</span> : null}
+            </span>
           </span>
         </span>
         <span className="flex items-end justify-between gap-2">

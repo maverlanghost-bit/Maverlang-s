@@ -31,6 +31,8 @@ export interface Quote {
   source: "jupiter" | "mock";
   /** true sólo cuando el modo live no obtuvo este ticker y se mostró la ancla. */
   reference?: boolean;
+  /** true cuando el precio es el último guardado tras un 429 o un error (M38). */
+  stale?: boolean;
 }
 
 /** `t` en unix ms. `p` es USD por acción. */

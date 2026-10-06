@@ -17,6 +17,7 @@ export function TickerRow({
   sparkline,
   sparklineClassName = "hidden sm:block",
   action,
+  lowLiquidityLabel = null,
 }: {
   href: string;
   symbol: string;
@@ -30,6 +31,8 @@ export function TickerRow({
   sparklineClassName?: string;
   /** Control al lado del link (por ejemplo, favorito). No va dentro del enlace. */
   action?: ReactNode;
+  /** Etiqueta discreta de baja liquidez (M38). Null la oculta. */
+  lowLiquidityLabel?: string | null;
 }) {
   return (
     <div className="flex h-16 items-center rounded-xl transition duration-[140ms] hover:bg-surface-2">
@@ -40,7 +43,10 @@ export function TickerRow({
         <TickerLogo symbol={symbol} name={name} logoUrl={logoUrl} size={36} decorative />
         <span className="min-w-0 flex-1">
           <span className="block truncate font-medium text-fg">{symbol}</span>
-          <span className="block truncate text-sm text-fg-muted">{name}</span>
+          <span className="block truncate text-sm text-fg-muted">
+            {name}
+            {lowLiquidityLabel ? <span> · {lowLiquidityLabel}</span> : null}
+          </span>
         </span>
         {sparkline ? <Sparkline data={sparkline} width={72} height={28} className={sparklineClassName} /> : null}
         <span className="flex shrink-0 flex-col items-end gap-0.5">

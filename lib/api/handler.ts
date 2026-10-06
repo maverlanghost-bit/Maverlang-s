@@ -13,12 +13,14 @@ import type { Services } from "@/lib/services";
 import { isOfficialMint, tradableTicker } from "@/lib/solana/allowlist";
 
 /** `runtime` se declara en cada `route.ts`: Next sólo lo lee ahí, como literal. */
-export type CacheMode = "no-store" | "hour" | "private";
+export type CacheMode = "no-store" | "hour" | "private" | "short";
 
 const CACHE_CONTROL: Record<CacheMode, string> = {
   "no-store": "no-store",
   hour: "public, max-age=3600, s-maxage=3600",
   private: "private, no-store",
+  /** Respuestas de búsqueda del mercado: 30 s en el navegador, 60 s en el CDN. */
+  short: "public, max-age=30, s-maxage=60",
 };
 
 export type Session = { userId: string; walletAddress: string | null };

@@ -180,6 +180,9 @@ function PositionBlock({
 
 export type DetailAccess = "guest" | "pending" | "member";
 
+/** M38: `disabled` (no habilitada) o `halted` (negociación suspendida): CTA deshabilitado con motivo. */
+export type TradeBlock = "disabled" | "halted" | null;
+
 function AccountActions({
   variant,
   aboveTabs,
@@ -239,33 +242,42 @@ function AccountActions({
 function TradeActions({
   variant,
   canSell,
+  blocked,
   onBuy,
   onSell,
 }: {
   variant: "bar" | "card";
   canSell: boolean;
+  /** M38: acción deshabilitada o suspendida en el catálogo. */
+  blocked: TradeBlock;
   onBuy: () => void;
   onSell: () => void;
 }) {
   const { t } = useT();
   const hintId = variant === "bar" ? "sell-hint-bar" : "sell-hint-card";
+  const blockedId = variant === "bar" ? "trade-blocked-bar" : "trade-blocked-card";
   const wide = variant === "card";
   const barRef = useRef<HTMLDivElement>(null);
   useDetailCtaOffset(variant === "bar", barRef);
+  const blockedReason = blocked === "halted" ? t.detail.tradeHaltedNote : blocked === "disabled" ? t.detail.tradeDisabledNote : null;
+  const buyDisabled = blocked !== null;
+  const sellDisabled = blocked !== null || !canSell;
 
   const buttons = (
     <div className={wide ? "flex flex-col gap-3" : "flex gap-3"}>
-      <Button size="lg" className={wide ? "w-full" : "h-auto min-h-11 flex-1 whitespace-nowrap px-4 text-base md:h-auto md:px-5"} onClick={onBuy}>
+      <Button size="lg" className={wide ? "w-full" : "h-auto min-h-11 flex-1 whitespace-nowrap px-4 text-base md:h-auto md:px-5"} disabled={buyDisabled} aria-describedby={blockedReason ? blockedId : undefined} onClick={() => {
+          if (!buyDisabled) onBuy();
+        }}>
         {t.detail.buy}
       </Button>
       <Button
         size="lg"
         variant="secondary"
         className={wide ? "w-full" : "h-auto min-h-11 flex-1 whitespace-nowrap px-4 text-base md:h-auto md:px-5"}
-        disabled={!canSell}
-        aria-describedby={canSell ? undefined : hintId}
+        disabled={sellDisabled}
+        aria-describedby={blockedReason ? blockedId : sellDisabled ? hintId : undefined}
         onClick={() => {
-          if (canSell) onSell();
+          if (!sellDisabled) onSell();
         }}
       >
         {t.detail.sell}
@@ -282,7 +294,11 @@ function TradeActions({
       >
         <div className="mx-auto max-w-6xl">
           {buttons}
-          {canSell ? null : (
+          {blockedReason ? (
+            <p id={blockedId} className="mt-2 text-center text-xs leading-relaxed text-fg-muted">
+              {blockedReason}
+            </p>
+          ) : canSell ? null : (
             <p id={hintId} className="sr-only">
               {t.detail.sellDisabled}
             </p>
@@ -296,7 +312,11 @@ function TradeActions({
     <Card className="p-5 md:p-6">
       <h2 className="text-lg">{t.detail.actions}</h2>
       <div className="mt-4">{buttons}</div>
-      {canSell ? null : (
+      {blockedReason ? (
+        <p id={blockedId} className="mt-3 text-sm leading-relaxed text-fg-muted">
+          {blockedReason}
+        </p>
+      ) : canSell ? null : (
         <p id={hintId} className="mt-3 text-sm leading-relaxed text-fg-muted">
           {t.detail.sellDisabled}
         </p>
@@ -425,11 +445,13 @@ export function DetailScreen({
   about,
   initialOperar,
   access,
+  tradeBlock = null,
 }: {
   ticker: Ticker;
   about: { es: string; en: string } | null;
   initialOperar: string;
   access: DetailAccess;
+  tradeBlock?: TradeBlock;
 }) {
   const { t, language, currency } = useT();
   const pathname = usePathname();
@@ -533,6 +555,7 @@ export function DetailScreen({
         <TradeActions
           variant={variant}
           canSell={canSell}
+          blocked={tradeBlock}
           onBuy={() => openOperar("comprar")}
           onSell={() => openOperar("vender")}
         />
@@ -583,6 +606,7 @@ export function DetailScreen({
           <ul className="flex list-none flex-wrap gap-1.5 p-0" aria-label={t.detail.chips}>
             {category ? <FactChip>{category}</FactChip> : null}
             <FactChip>{t.detail.tokenOnSolana}</FactChip>
+            {tradeBlock !== null ? <FactChip>{t.detail.tradeUnavailable}</FactChip> : null}
             {/* Lun–vie 09:30–16:00 NY: abierto. Fuera de eso, entre semana, el precio puede variar más. Sábado y domingo: cerrado. */}
             {status.isPending ? (
               <li>
@@ -704,7 +728,7 @@ export function DetailScreen({
 
       {tradeSlot("bar")}
 
-      {access === "member" ? (
+      {access === "member" && tradeBlock === null ? (
         <TradeSheet
           ticker={ticker}
           side={operar === "vender" ? "sell" : "buy"}
