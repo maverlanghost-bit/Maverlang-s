@@ -1,9 +1,16 @@
 # PROGRESO — Maverlang
 
 ## Estado
-M33 hecha. Con la confirmación apagada, el registro entra al destino si `signUp` trae sesión. Si no hay sesión, sigue la pantalla del correo. Siguiente: fuera de esta tarea (asociar la cartera real al usuario).
+M34 hecha. La ficha usa un solo spot: el gráfico ilustrativo termina en ese precio y, con `PRICES_MODE=live`, el dólar sale de mindicador. Siguiente: fuera de esta tarea (asociar la cartera real al usuario).
 
 ## Tareas hechas
+
+### M34 — Precio único en la ficha (2026-10-06, M34: precio unico consistente)
+- Hecho: titular, Datos, posición y orden demo usan el mismo spot. Jupiter `usdPrice` no se vuelve a dividir (AAPLx 332,78 sigue en 332,78). La serie de referencia se reescala para terminar en ese spot y lleva la etiqueta "Ilustrativo". Variación, máximo y mínimo del rango salen de esa serie. "Variación 24 h" es `priceChange24h` de Jupiter, en el mercado y en Datos. El % bajo el titular es el del rango elegido. Con `PRICES_MODE=live`, `/api/fx/usdclp` lee mindicador (cache 45 min, timeout 2,5 s, `source` live y la fecha). Si falla, no usa 950: el precio queda en USD y dice "Dólar no disponible". Sin el flag, todo sigue en mock. `npx tsc --noEmit`, `npm run lint`, `npm test` (75) y `npm run e2e` (2, 1 skipped) ok. Sin `next dev` ni `npm run build`.
+- Archivos clave: `lib/market/{live-quotes,live-fx,series,demo-price}.ts`, `lib/services/{index,prices.live,demo-prices,trade.mock,portfolio.mock}.ts`, `lib/mocks/demo-state.ts`, ficha y mercado, `tests/unit/price-consistency.test.ts`.
+- Decisiones: el dólar live va con `PRICES_MODE`, sin flag nuevo. La 24 h no sale del gráfico. El historial real sigue sin proveedor. El e2e fuerza precios mock para no depender de la red. La landing sigue ilustrativa.
+- Pendiente: mirar `/app/accion/AAPLx` con `PRICES_MODE=live` (titular, CLP, gráfico, Datos, posición y `?operar=vender`) y la nota si mindicador falla. No se abrió el navegador.
+- Próximo: fuera de esta tarea.
 
 ### M33 — Registro sin confirmación de correo (2026-10-06, M33: registro sin confirmacion de correo)
 - Hecho: si `signUp` trae sesión, refresca y entra al `next` saneado (o `/app`) con el toast "Cuenta creada". Si la sesión es null, sigue "Revisa tu correo". La metadata del alta cumple `claimsOnboarded`. `npm run verify:auth`: PASS 8, FAIL 0, SKIP 0. El paso b quedó PASS: el usuario creado sin confirmar sigue sin poder entrar ("email not confirmed"); el SKIP no se disparó. `npx tsc --noEmit`, `npm run lint`, `npm test` (70) y `npm run e2e` (2, 1 skipped) ok. Sin `next dev` ni `npm run build`.
@@ -258,4 +265,4 @@ M33 hecha. Con la confirmación apagada, el registro entra al destino si `signUp
 - Logos y marcas del catálogo: sólo identifican el activo. Archivos de xStocks/Backed en `public/logos`. Ver `docs/PENDIENTES-LEGALES.md`. [REVISIÓN ABOGADO] antes de producción.
 - El smoke de T20 cubre el flujo mock a 1280×800. Sigue sin mirarse 360/768 (landing, mercado, detalle, compra, cartera, billetera, depositar, perfil) ni `?country=US`, `?mockError=`, FAKE/HOODx en 404 y el ojo del saldo.
 - Borrar `t18-check.ts` (sigue en el disco; `.gitignore` evita commitearlo).
-- Fase live: `.env.example` recomienda `PRICES_MODE=live`. Si la variable no existe, el código sigue en mock (tests y CI). Historial, trade, cartera, Koywe y Onramper siguen en stub. Auth de Supabase: registro (M30), ingreso (M31) y verificación (M32, perfil en SKIP). Falta aplicar `0002` y correr `npm run e2e:auth`. La cartera mock no está asociada al usuario. Privy sigue en el código. La landing sigue con precios ilustrativos.
+- Fase live: `.env.example` recomienda `PRICES_MODE=live`. Si la variable no existe, el código sigue en mock (tests y CI). Con live, el spot y el dólar son reales; el historial sigue ilustrativo y anclado a ese spot. Trade on-chain, Koywe y Onramper siguen en stub. Auth de Supabase: registro (M30), ingreso (M31) y verificación (M32, perfil en SKIP). Falta aplicar `0002` y correr `npm run e2e:auth`. La cartera mock no está asociada al usuario. Privy sigue en el código. La landing sigue con precios ilustrativos.

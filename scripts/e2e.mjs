@@ -1,5 +1,5 @@
 /**
- * Construye y corre Playwright siempre con auth mock.
+ * Construye y corre Playwright con auth, datos y precios en mock.
  * `next build` incrusta `NEXT_PUBLIC_*`. El process env gana sobre `.env.local`.
  * `NEXT_DIST_DIR=.next-e2e` no pisa `.next` del dev.
  *
@@ -17,6 +17,9 @@ for (const [key, value] of Object.entries(process.env)) {
 }
 env.AUTH_MODE = "mock";
 env.NEXT_PUBLIC_AUTH_MODE = "mock";
+env.DATA_MODE = "mock";
+env.NEXT_PUBLIC_DATA_MODE = "mock";
+env.PRICES_MODE = "mock";
 env.NEXT_DIST_DIR = ".next-e2e";
 
 function run(args) {

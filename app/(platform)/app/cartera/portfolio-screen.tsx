@@ -22,7 +22,7 @@ import { useHideBalance } from "@/lib/hooks/use-hide-balance";
 import { useActivity, useFx, useHistories, usePortfolio, useTickers } from "@/lib/hooks/queries";
 import { useT } from "@/lib/hooks/use-t";
 import { displayPrice } from "@/lib/market/browse";
-import { DETAIL_RANGES, isDetailRange, rangeMove, toneOf } from "@/lib/market/series";
+import { DETAIL_RANGES, anchorSeriesToSpot, isDetailRange, rangeMove, toneOf } from "@/lib/market/series";
 import { balancedPortions, decodePoints, encodePoints, portfolioValueSeries, sumUsd, sumsMatch, tradeActivity } from "@/lib/portfolio/series";
 import type { Activity, Currency, OrderStatus, Position, Range, Ticker } from "@/lib/types";
 
@@ -125,7 +125,12 @@ const ValueChart = memo(function ValueChart({
   const [range, setRange] = useState<Range>("1M");
   const symbols = useMemo(() => positions.map((position) => position.symbol), [positions]);
   const histories = useHistories(symbols, range);
-  const rows = histories.map((query) => query.data ?? []);
+  const rows = histories.map((query, index) => {
+    const series = query.data ?? [];
+    const spot = positions[index]?.priceUsd;
+    if (!(typeof spot === "number" && spot > 0) || series.length === 0) return series;
+    return anchorSeriesToSpot(series, spot);
+  });
   const ready = rows.length === positions.length && rows.every((row) => row.length >= 2);
   const encoded = encodePoints(ready ? portfolioValueSeries(positions, rows, cashUsdc, totalUsd) : []);
   const points = useMemo(() => decodePoints(encoded), [encoded]);

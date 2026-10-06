@@ -24,8 +24,8 @@ import { useFx, useHistory, useMarketStatus, usePortfolio, usePrices } from "@/l
 import { useFavorites } from "@/lib/hooks/use-favorites";
 import { useT } from "@/lib/hooks/use-t";
 import { displayPrice } from "@/lib/market/browse";
-import { rangeBounds, rangeMove } from "@/lib/market/series";
-import type { Currency, Position, Quote, Range, Ticker } from "@/lib/types";
+import { rangeBounds, rangeMove, seriesForQuote } from "@/lib/market/series";
+import type { Currency, Position, PricePoint, Quote, Range, Ticker } from "@/lib/types";
 
 import { PricePanel } from "./price-panel";
 
@@ -364,7 +364,7 @@ function KeyStats({
 }: {
   quote: Quote | null;
   quotePending: boolean;
-  points: readonly { p: number }[];
+  points: readonly PricePoint[];
   historyPending: boolean;
   historyError: boolean;
   range: Range;
@@ -399,10 +399,13 @@ function KeyStats({
         <StatCell label={t.detail.priceClp} pending={quoteCellPending || clpPending}>
           {quote && clp !== null ? (
             <span className="num text-sm text-fg">{formatMoney(clp, "CLP")}</span>
+          ) : quote && !fxKnown ? (
+            <span className="text-sm text-fg-muted">{t.detail.fxMissing}</span>
           ) : (
-            <MissingFigure label={quote ? t.detail.fxMissing : t.detail.unavailable} />
+            <MissingFigure label={t.detail.unavailable} />
           )}
         </StatCell>
+        {/* 24 h: quote.change24hPct. En vivo es Jupiter priceChange24h, igual que el mercado. */}
         <StatCell label={t.detail.change24h} pending={quoteCellPending}>
           {quote && Number.isFinite(quote.change24hPct) ? (
             <ChangeBadge value={quote.change24hPct} />
@@ -465,6 +468,7 @@ export function DetailScreen({
   }, [canTrade]);
 
   const quote = prices.data?.find((item) => item.symbol === ticker.symbol) ?? null;
+  const points = seriesForQuote(history.data ?? [], quote?.priceUsd);
   const position = portfolio.data?.positions.find((item) => item.symbol === ticker.symbol) ?? null;
   const canSell = (position?.shares ?? 0) > 0;
   const saved = symbols?.includes(ticker.symbol) ?? false;
@@ -607,7 +611,7 @@ export function DetailScreen({
         <KeyStats
           quote={quote}
           quotePending={prices.isPending}
-          points={history.data ?? []}
+          points={points}
           historyPending={history.isPending}
           historyError={history.isError}
           range={range}

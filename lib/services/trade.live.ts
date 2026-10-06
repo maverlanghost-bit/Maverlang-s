@@ -20,7 +20,7 @@ export const liveTrade = {
    *   slippageBps = DEFAULT_SLIPPAGE_BPS. Sin `taker`: cotización, sin transacción.
    *   Sólo mints de `operableMints()`.
    * Mapeo a TradeQuote: inAmountUi / outAmountUi ya en acciones o USDC (÷ 10^decimals × multiplicador);
-   *   pricePerShareUsd con `rawPriceToSharePrice`; costs.platformFeeBps = FEE_BPS y
+   *   pricePerShareUsd = usdPrice de Jupiter (ya es por acción; no dividir de nuevo); costs.platformFeeBps = FEE_BPS y
    *   platformFeeUsd desde `computeFee` (bps 0 → 0 USD); priceImpactPct y slippageBps de la respuesta;
    *   priceDeviationBps contra el precio de `prices.live`; route "jupiter";
    *   expiresAt ≈ 60 s; id = requestId de Jupiter o uno propio si la orden no trae tx.

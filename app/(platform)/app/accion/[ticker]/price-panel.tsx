@@ -8,11 +8,12 @@ import { PriceText } from "@/components/domain/price-text";
 import { ErrorState } from "@/components/ui/error-state";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tooltip } from "@/components/ui/tooltip";
 import { formatDateTime } from "@/lib/format";
 import { useHistory } from "@/lib/hooks/queries";
 import { useT } from "@/lib/hooks/use-t";
 import { displayPrice } from "@/lib/market/browse";
-import { DETAIL_RANGES, isDetailRange, rangeMove, toneOf } from "@/lib/market/series";
+import { DETAIL_RANGES, isDetailRange, rangeMove, seriesForQuote, toneOf } from "@/lib/market/series";
 import type { Currency, PricePoint, Quote, Range } from "@/lib/types";
 
 const NO_POINTS: readonly PricePoint[] = [];
@@ -48,8 +49,14 @@ export function PricePanel({
 }) {
   const { t } = useT();
   const history = useHistory(symbol, range);
-  const points = history.data ?? NO_POINTS;
+  const points = seriesForQuote(history.data ?? NO_POINTS, quote?.priceUsd);
   const move = rangeMove(points);
+  const illustrative =
+    !history.isPending &&
+    !history.isError &&
+    points.length > 1 &&
+    quote?.source === "jupiter" &&
+    quote.reference !== true;
   const tone = toneOf(move);
   const seriesKey = `${range}:${points.length}:${points[0]?.t ?? 0}:${points[points.length - 1]?.p ?? 0}`;
   const [hover, setHover] = useState<{ key: string; usd: number; timeMs: number } | null>(null);
@@ -134,6 +141,18 @@ export function PricePanel({
       />
 
       <div className="relative">
+        {illustrative ? (
+          <div className="absolute top-2 right-2 z-20">
+            <Tooltip content={t.detail.chartIllustrativeNote}>
+              <button
+                type="button"
+                className="rounded-full bg-surface-2 px-2 py-1 text-xs text-fg-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fg"
+              >
+                {t.detail.chartIllustrative}
+              </button>
+            </Tooltip>
+          </div>
+        ) : null}
         <PriceChart
           points={points}
           tone={tone}

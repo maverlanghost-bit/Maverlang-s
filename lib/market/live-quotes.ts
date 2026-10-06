@@ -2,14 +2,14 @@ import { ENABLED_TICKERS, tickerBySymbol } from "@/config/tickers";
 import { DomainError } from "@/lib/api/result";
 import { roundDigits } from "@/lib/mocks/number";
 import { quoteFor } from "@/lib/mocks/prices";
-import { rawPriceToSharePrice } from "@/lib/solana/scaled-ui";
 import type { Quote, Ticker } from "@/lib/types";
 
 /**
  * Precio actual vía Jupiter Price API v3.
  * GET {priceUrl}?ids={mints} — hasta 50 por llamada. `x-api-key` sólo si hay clave.
- * `usdPrice` es el precio del token. `priceChange24h` es un porcentaje (1,29 = +1,29 %).
- * Precio por acción = usdPrice ÷ multiplicador. Sin multiplicador, 1.
+ * `usdPrice` ya es el precio por acción (equivale a `usdPricePrescaled` / multiplicador).
+ * No se vuelve a dividir: si el RPC llega tarde el precio saltaría.
+ * `priceChange24h` es un porcentaje (1,29 = +1,29 %). El multiplicador se guarda aparte.
  * Se descarta un precio que no es un número mayor que cero.
  * Si la red falla o falta el mint, la quote es la ancla mock con `reference: true`.
  * Este módulo no decide el flag: si nadie lo llama, no hay red.
@@ -139,12 +139,7 @@ function toQuote(
   const entry = cache.entries.get(ticker.mint);
   if (!isFresh(entry, now, ttl) || isMiss(entry)) return referenceQuote(ticker.symbol, now);
   const multiplier = multiplierFor(ticker.symbol, multipliers, options);
-  let priceUsd: number;
-  try {
-    priceUsd = rawPriceToSharePrice(entry.usdPrice, multiplier);
-  } catch {
-    return referenceQuote(ticker.symbol, now);
-  }
+  const priceUsd = roundDigits(entry.usdPrice, 6);
   if (!Number.isFinite(priceUsd) || priceUsd <= 0) return referenceQuote(ticker.symbol, now);
   return {
     symbol: ticker.symbol,

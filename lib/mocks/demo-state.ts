@@ -4,6 +4,7 @@ import { USDC_MINT } from "@/config/tickers";
 import { DEMO_USER_ID, DEMO_WALLET_ADDRESS } from "@/lib/auth/demo-user";
 import { serverEnv } from "@/lib/env";
 import { DomainError } from "@/lib/api/result";
+import { demoSpotPrice, type SpotPrice } from "@/lib/market/demo-price";
 import { mockFx } from "@/lib/mocks/fx";
 import { roundDigits } from "@/lib/mocks/number";
 import { quoteFor } from "@/lib/mocks/prices";
@@ -215,6 +216,15 @@ export function demoShares(symbol: string): number {
   return state.positions.get(symbol)?.shares ?? 0;
 }
 
+export function demoHeldSymbols(): string[] {
+  return [...state.positions.keys()];
+}
+
+function spotPrice(symbol: string, spots?: ReadonlyMap<string, SpotPrice>): { priceUsd: number; multiplier: number } {
+  const anchor = quoteFor(symbol);
+  return { priceUsd: demoSpotPrice(symbol, spots), multiplier: anchor.multiplier };
+}
+
 export function getDemoProfile(): UserProfile {
   return { ...state.profile };
 }
@@ -280,8 +290,13 @@ export function requestDemoDeletion(id: string): { requestedAt: string } {
   return { requestedAt: state.deletionRequestedAt };
 }
 
-function positionFrom(symbol: string, lot: Lot, totalUsd: number): Position {
-  const quote = quoteFor(symbol);
+function positionFrom(
+  symbol: string,
+  lot: Lot,
+  totalUsd: number,
+  spots?: ReadonlyMap<string, SpotPrice>,
+): Position {
+  const quote = spotPrice(symbol, spots);
   const valueUsd = roundDigits(lot.shares * quote.priceUsd, 2);
   const pnlUsd = roundDigits(valueUsd - lot.shares * lot.avgCostUsd, 2);
   const pnlPct = lot.avgCostUsd === 0 ? null : (quote.priceUsd - lot.avgCostUsd) / lot.avgCostUsd;
@@ -298,13 +313,13 @@ function positionFrom(symbol: string, lot: Lot, totalUsd: number): Position {
   };
 }
 
-function totals(): { totalUsd: number; pnlUsd: number; costUsd: number } {
+function totals(spots?: ReadonlyMap<string, SpotPrice>): { totalUsd: number; pnlUsd: number; costUsd: number } {
   let invested = 0;
   let pnlUsd = 0;
   let costUsd = 0;
   for (const [symbol, lot] of state.positions) {
-    const quote = quoteFor(symbol);
-    const valueUsd = roundDigits(lot.shares * quote.priceUsd, 2);
+    const priceUsd = demoSpotPrice(symbol, spots);
+    const valueUsd = roundDigits(lot.shares * priceUsd, 2);
     invested += valueUsd;
     costUsd += lot.shares * lot.avgCostUsd;
     pnlUsd += valueUsd - lot.shares * lot.avgCostUsd;
@@ -316,7 +331,7 @@ function totals(): { totalUsd: number; pnlUsd: number; costUsd: number } {
   };
 }
 
-export function buildDemoPortfolio(address: string): Portfolio {
+export function buildDemoPortfolio(address: string, spots?: ReadonlyMap<string, SpotPrice>): Portfolio {
   const updatedAt = new Date().toISOString();
   if (address !== DEMO_WALLET_ADDRESS) {
     return {
@@ -329,9 +344,9 @@ export function buildDemoPortfolio(address: string): Portfolio {
       updatedAt,
     };
   }
-  const summary = totals();
+  const summary = totals(spots);
   const positions = [...state.positions.entries()].map(([symbol, lot]) =>
-    positionFrom(symbol, lot, summary.totalUsd),
+    positionFrom(symbol, lot, summary.totalUsd, spots),
   );
   return {
     address,
@@ -353,7 +368,7 @@ function rawToUi(raw: bigint, multiplier: number, decimals: number): number {
   return (Number(raw) * multiplier) / 10 ** decimals;
 }
 
-export function buildDemoBalances(address: string): Balance[] {
+export function buildDemoBalances(address: string, spots?: ReadonlyMap<string, SpotPrice>): Balance[] {
   if (address !== DEMO_WALLET_ADDRESS) return [];
   const balances: Balance[] = [];
   const usdcRaw = sharesToRaw(state.cashUsdc, 1, 6);
@@ -375,7 +390,7 @@ export function buildDemoBalances(address: string): Balance[] {
   for (const [symbol, lot] of state.positions) {
     const ticker = tickerBySymbol(symbol);
     if (!ticker) continue;
-    const quote = quoteFor(symbol);
+    const quote = spotPrice(symbol, spots);
     const raw = sharesToRaw(lot.shares, quote.multiplier, ticker.decimals);
     const uiAmount = rawToUi(raw, quote.multiplier, ticker.decimals);
     balances.push({
@@ -394,8 +409,12 @@ export function buildDemoActivity(address: string): Activity[] {
   return state.activities.map((row) => ({ ...row }));
 }
 
-export function balanceForMint(address: string, mint: string): Balance | undefined {
-  return buildDemoBalances(address).find((row) => row.mint === mint);
+export function balanceForMint(
+  address: string,
+  mint: string,
+  spots?: ReadonlyMap<string, SpotPrice>,
+): Balance | undefined {
+  return buildDemoBalances(address, spots).find((row) => row.mint === mint);
 }
 
 export function applyBuy(symbol: string, shares: number, priceUsd: number, usdc: number): void {
@@ -508,7 +527,12 @@ function symbolForMint(mint: string): string {
  * Resta USDC o acciones. El SOL de la red no se descuenta en la demo.
  * Si el destino es la propia billetera, el saldo no cambia: el token no sale.
  */
-export function applySend(mint: string, amountUi: number, debit = true): { symbol: string; valueUsd: number } {
+export function applySend(
+  mint: string,
+  amountUi: number,
+  debit = true,
+  spots?: ReadonlyMap<string, SpotPrice>,
+): { symbol: string; valueUsd: number } {
   const symbol = symbolForMint(mint);
   if (mint === USDC_MINT) {
     if (state.cashUsdc + 1e-9 < amountUi) throw new DomainError("INSUFFICIENT_FUNDS");
@@ -523,7 +547,7 @@ export function applySend(mint: string, amountUi: number, debit = true): { symbo
     if (nextShares <= 1e-8) state.positions.delete(symbol);
     else state.positions.set(symbol, { shares: nextShares, avgCostUsd: lot.avgCostUsd });
   }
-  return { symbol, valueUsd: roundDigits(amountUi * quoteFor(symbol).priceUsd, 2) };
+  return { symbol, valueUsd: roundDigits(amountUi * demoSpotPrice(symbol, spots), 2) };
 }
 
 /**
@@ -535,6 +559,7 @@ export function settleSend(
   requestId: string,
   signedTransactionBase64: string,
   userId: string,
+  spots?: ReadonlyMap<string, SpotPrice>,
 ): TradeSubmitResponse | null {
   const send = state.sends.get(requestId);
   if (!send) return null;
@@ -563,7 +588,7 @@ export function settleSend(
   };
 
   try {
-    const moved = applySend(send.mint, send.amountUi, !addressesEqual(send.to, send.userPublicKey));
+    const moved = applySend(send.mint, send.amountUi, !addressesEqual(send.to, send.userPublicKey), spots);
     const signature = `mock-sig-${orderId}`;
     saveOrder({ ...base, symbol: moved.symbol, status: "confirmed", signature });
     state.sends.set(requestId, { ...send, orderId });

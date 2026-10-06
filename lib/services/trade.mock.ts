@@ -6,8 +6,8 @@ import {
   applyBuy,
   applySell,
   demoCash,
+  demoHeldSymbols,
   demoShares,
-  fxRate,
   markBuildUsed,
   nextDemoId,
   pushActivity,
@@ -19,10 +19,11 @@ import {
   saveQuote,
   settleSend,
 } from "@/lib/mocks/demo-state";
+import { demoSpotPrice } from "@/lib/market/demo-price";
 import { simulateMock } from "@/lib/mocks/latency";
 import { roundDigits } from "@/lib/mocks/number";
 import { hashSeed } from "@/lib/mocks/prng";
-import { quoteFor } from "@/lib/mocks/prices";
+import { demoFxRate, demoSpot, demoSpotBook } from "@/lib/services/demo-prices";
 import { tickerBySymbol, tradableTicker } from "@/lib/solana/allowlist";
 import { NETWORK_FEE_SOL, TOKEN_ACCOUNT_RENT_SOL } from "@/lib/wallet/send-cost";
 import type {
@@ -56,7 +57,7 @@ function encodeMockTx(label: string): string {
   return btoa(binary);
 }
 
-function quoteCore(request: TradeQuoteRequest): TradeQuote {
+async function quoteCore(request: TradeQuoteRequest): Promise<TradeQuote> {
   if (!(request.amount > 0) || !Number.isFinite(request.amount)) {
     throw new DomainError("VALIDATION", "El monto tiene que ser mayor que cero.");
   }
@@ -65,12 +66,15 @@ function quoteCore(request: TradeQuoteRequest): TradeQuote {
     throw new DomainError("INTERNAL", "Falta la billetera de comisión.");
   }
 
-  const spot = quoteFor(ticker.symbol);
-  const price = spot.priceUsd;
+  const needsFx = request.amountCurrency === "CLP";
+  const [spot, fx] = await Promise.all([demoSpot(ticker.symbol), needsFx ? demoFxRate() : Promise.resolve(0)]);
+  const price = demoSpotPrice(ticker.symbol, new Map([[ticker.symbol, spot]]));
   let notionalUsd: number;
   if (request.amountCurrency === "SHARES") notionalUsd = request.amount * price;
-  else if (request.amountCurrency === "CLP") notionalUsd = request.amount / fxRate();
-  else notionalUsd = request.amount;
+  else if (needsFx) {
+    if (!(fx > 0) || !Number.isFinite(fx)) throw new DomainError("UPSTREAM", "Dólar no disponible");
+    notionalUsd = request.amount / fx;
+  } else notionalUsd = request.amount;
 
   const feeUsd = roundDigits((notionalUsd * feeConfig.bps) / 10_000, 6);
   let shares: number;
@@ -135,8 +139,9 @@ function expired(iso: string): boolean {
 
 export const mockTrade = {
   async quote(request: TradeQuoteRequest): Promise<TradeQuote> {
-    return simulateMock(`quote:${request.side}:${request.symbol}:${request.amount}:${request.amountCurrency}`, () =>
-      quoteCore(request),
+    return simulateMock(
+      `quote:${request.side}:${request.symbol}:${request.amount}:${request.amountCurrency}`,
+      () => quoteCore(request),
     );
   },
 
@@ -165,8 +170,9 @@ export const mockTrade = {
   },
 
   async submit(request: TradeSubmitRequest, userId: string): Promise<TradeSubmitResponse> {
+    const spots = await demoSpotBook(demoHeldSymbols());
     return simulateMock(`submit:${request.requestId}`, () => {
-      const sent = settleSend(request.requestId, request.signedTransactionBase64, userId);
+      const sent = settleSend(request.requestId, request.signedTransactionBase64, userId, spots);
       if (sent) return sent;
       const build = recallBuild(request.requestId);
       if (!build) throw new DomainError("NOT_FOUND", "No encontramos esa orden.");

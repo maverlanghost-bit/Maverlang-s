@@ -2,17 +2,22 @@ import "server-only";
 
 import type { Connection } from "@solana/web3.js";
 
+import { DomainError } from "@/lib/api/result";
 import { serverEnv } from "@/lib/env";
+import { createLiveFxCache, liveFxRate, readUsdClp, type LiveFxCache } from "@/lib/market/live-fx";
 import { createLivePriceCache, listLiveQuotes, type LivePriceCache } from "@/lib/market/live-quotes";
 import { getServerConnection } from "@/lib/solana/connection";
 import { fetchMintMultiplier } from "@/lib/solana/scaled-ui";
 import type { FxRate, MarketStatus, PricePoint, Quote, Ticker } from "@/lib/types";
 
 /**
- * Precio actual real. El historial, el dólar y el horario siguen sin proveedor live.
+ * Precio actual real y dólar observado. El historial real sigue sin proveedor:
+ * `getServices` reescala la serie mock para que termine en este spot.
  * `PRICE_DEVIATION_MAX_BPS` no filtra esta lista: un precio real puede alejarse
  * de la ancla del demo. Esa guardia sigue en la cotización de la orden.
  */
+
+const fxCache: LiveFxCache = createLiveFxCache();
 
 const cache: LivePriceCache = createLivePriceCache();
 const multiplierCache = new Map<string, { at: number; value: number; ttl: number }>();
@@ -110,15 +115,21 @@ export const livePrices = {
   },
 
   /**
-   * TODO FX USDCLP.
-   * Endpoint: GET {FX_SOURCE_URL} (default https://mindicador.cl/api/dolar). [VERIFICAR licencia].
-   * Respuesta: `serie[0].valor` es el dólar observado en CLP. `serie[0].fecha` es el día.
-   * Mapeo a FxRate: pair "USDCLP", rate = valor, source = la URL, updatedAt = esa fecha.
-   * Errores: red, JSON inválido o serie vacía → UPSTREAM. No inventar un tipo de cambio.
-   * Cache: 1 h.
+   * Dólar observado. Activo cuando `getServices` entra con `PRICES_MODE=live`.
+   * GET {FX_SOURCE_URL} (default https://mindicador.cl/api/dolar). [VERIFICAR licencia].
+   * `serie[0].valor` es el CLP por dólar. `serie[0].fecha` es el día.
+   * `source` es "live" y `updatedAt` es esa fecha. Cache 45 min. Timeout 2,5 s.
+   * Red, JSON inválido, serie vacía o valor que no es un número > 0 → UPSTREAM.
+   * No se sustituye por el dólar mock.
    */
   async fx(): Promise<FxRate> {
-    throw new Error("NOT_IMPLEMENTED: FX USDCLP");
+    const parsed = await readUsdClp({
+      url: serverEnv.FX_SOURCE_URL,
+      fetchImpl: fetch,
+      cache: fxCache,
+    });
+    if (!parsed) throw new DomainError("UPSTREAM", "Dólar no disponible");
+    return liveFxRate(parsed);
   },
 
   /**

@@ -1,6 +1,7 @@
 import "server-only";
 
 import { serverEnv } from "@/lib/env";
+import { anchorSeriesToSpot } from "@/lib/market/series";
 import { mockAuth } from "@/lib/services/auth.mock";
 import { privyAuth } from "@/lib/services/auth.privy";
 import { koyweOnramp } from "@/lib/services/onramp.koywe";
@@ -90,11 +91,19 @@ function liveOnramp(): Services["onramp"] {
 }
 
 /**
- * `PRICES_MODE=mock` (default) no consulta Jupiter ni el RPC.
- * Con `live`, sólo el precio actual sale de la red. El historial del gráfico sigue en mock.
- * `DATA_MODE` sigue eligiendo el resto. Con live y el flag de precios apagado, la lista
- * también queda en mock para no abrir la red.
+ * `PRICES_MODE=mock` (default) no consulta Jupiter, el RPC ni el dólar.
+ * Con `live`, el precio actual sale de Jupiter y el dólar de mindicador.
+ * El historial sigue siendo la serie de referencia, reescalada para terminar en ese spot.
+ * Si Jupiter no trae un ticker, la ancla queda en toda la ficha (`reference`).
+ * `DATA_MODE` sigue eligiendo trade, cartera on-chain y auth.
  */
+async function anchoredHistory(symbol: string, range: Range): Promise<PricePoint[]> {
+  const [series, quotes] = await Promise.all([mockPrices.history(symbol, range), livePrices.list([symbol])]);
+  const quote = quotes[0];
+  if (!quote || quote.reference || !(quote.priceUsd > 0)) return series;
+  return anchorSeriesToSpot(series, quote.priceUsd);
+}
+
 function priceServices(): Services["prices"] {
   const dataLive = serverEnv.DATA_MODE === "live";
   const pricesLive = serverEnv.PRICES_MODE === "live";
@@ -103,16 +112,15 @@ function priceServices(): Services["prices"] {
     return {
       list: (symbols) => mockPrices.list(symbols),
       history: (symbol, range) => mockPrices.history(symbol, range),
-      fx: () => livePrices.fx(),
+      fx: () => mockPrices.fx(),
       market: () => livePrices.market(),
     };
   }
-  const rest = dataLive ? livePrices : mockPrices;
   return {
     list: (symbols) => livePrices.list(symbols),
-    history: (symbol, range) => mockPrices.history(symbol, range),
-    fx: () => rest.fx(),
-    market: () => rest.market(),
+    history: (symbol, range) => anchoredHistory(symbol, range),
+    fx: () => livePrices.fx(),
+    market: () => (dataLive ? livePrices.market() : mockPrices.market()),
   };
 }
 

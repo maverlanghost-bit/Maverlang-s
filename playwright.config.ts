@@ -12,6 +12,7 @@ function serverEnv(): Record<string, string> {
   const authE2e = process.env.E2E_AUTH?.trim() === "supabase";
   env.DATA_MODE = "mock";
   env.NEXT_PUBLIC_DATA_MODE = "mock";
+  env.PRICES_MODE = "mock";
   env.AUTH_MODE = authE2e ? "supabase" : "mock";
   env.NEXT_PUBLIC_AUTH_MODE = authE2e ? "supabase" : "mock";
   env.NEXT_DIST_DIR = distDir;

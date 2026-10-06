@@ -191,20 +191,32 @@ describe("precios live", () => {
     expect(fetchImpl.mock.calls[0]?.[1]?.headers).toMatchObject({ "x-api-key": "secret-key" });
   });
 
-  it("divide el precio crudo por el multiplicador", async () => {
+  it("usa el usdPrice de Jupiter tal cual aunque llegue el multiplicador", async () => {
     const aapl = ticker("AAPLx");
-    const fetchImpl = vi.fn<typeof fetch>(async () =>
-      jsonResponse({ [aapl.mint]: { usdPrice: 200, priceChange24h: 0 } }),
-    );
-
-    const quotes = await listLiveQuotes(
+    const usdPrice = 332.78;
+    const multiplier = 1.00327;
+    const body = {
+      [aapl.mint]: { usdPrice, usdPricePrescaled: 333.87, priceChange24h: 1.2 },
+    };
+    const late = await listLiveQuotes(
       ["AAPLx"],
-      options(fetchImpl, {
-        prepareMultipliers: async () => new Map([["AAPLx", 2]]),
-      }),
+      options(
+        vi.fn<typeof fetch>(async () => jsonResponse(body)),
+        { prepareMultipliers: async () => new Map() },
+      ),
+    );
+    const ready = await listLiveQuotes(
+      ["AAPLx"],
+      options(
+        vi.fn<typeof fetch>(async () => jsonResponse(body)),
+        { prepareMultipliers: async () => new Map([["AAPLx", multiplier]]) },
+      ),
     );
 
-    expect(quotes[0]).toMatchObject({ priceUsd: 100, multiplier: 2, source: "jupiter" });
+    expect(late[0]).toMatchObject({ priceUsd: usdPrice, multiplier: 1, source: "jupiter" });
+    expect(ready[0]).toMatchObject({ priceUsd: usdPrice, multiplier, change24hPct: 0.012, source: "jupiter" });
+    expect(ready[0]?.priceUsd).not.toBeCloseTo(usdPrice / multiplier, 2);
+    expect(333.87 / multiplier).toBeCloseTo(usdPrice, 1);
   });
 
   it("si el multiplicador falla, muestra el precio de Jupiter con multiplicador 1", async () => {

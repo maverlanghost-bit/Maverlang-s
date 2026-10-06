@@ -32,6 +32,7 @@ import {
   type MarketRow,
   type MarketSort,
 } from "@/lib/market/browse";
+import { anchorSeriesToSpot } from "@/lib/market/series";
 import type { Currency, Quote } from "@/lib/types";
 
 const SEARCH_MS = 150;
@@ -63,10 +64,12 @@ function withName(template: string, name: string) {
 }
 
 function priceRows(rows: readonly MarketRow[], currency: Currency, rate: number | undefined) {
-  const items: { row: MarketRow; price: number }[] = [];
+  const fxKnown = typeof rate === "number" && Number.isFinite(rate) && rate > 0;
+  const shown: Currency = currency === "CLP" && fxKnown ? "CLP" : "USD";
+  const items: { row: MarketRow; price: number; currency: Currency }[] = [];
   for (const row of rows) {
-    const price = displayPrice(row.quote.priceUsd, currency, rate);
-    if (price !== null) items.push({ row, price });
+    const price = displayPrice(row.quote.priceUsd, shown, fxKnown ? rate : undefined);
+    if (price !== null) items.push({ row, price, currency: shown });
   }
   return items;
 }
@@ -253,28 +256,34 @@ export function MarketScreen({
   const ordered = useMemo(() => sortRows(searched, sort), [searched, sort]);
   const moverSource = useMemo(() => (applied.trim() ? [] : moversOf(inFilter)), [applied, inFilter]);
 
+  const spotBySymbol = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const quote of prices.data ?? []) map.set(quote.symbol, quote.priceUsd);
+    return map;
+  }, [prices.data]);
+
   const sparkBySymbol = useMemo(() => {
     const map = new Map<string, number[]>();
     catalog.forEach((symbol, index) => {
       const points = histories[index]?.data;
       if (!points || points.length < 2) return;
-      map.set(symbol, downsample(points.map((point) => point.p)));
+      const spot = spotBySymbol.get(symbol);
+      const series = spot !== undefined && spot > 0 ? anchorSeriesToSpot(points, spot) : points;
+      map.set(symbol, downsample(series.map((point) => point.p)));
     });
     return map;
-  }, [catalog, histories]);
+  }, [catalog, histories, spotBySymbol]);
 
   const favoritesPending = filter === "favorites" && favorites === null;
-  const failed =
-    (tickers.isError && !tickers.data) ||
-    (prices.isError && !prices.data) ||
-    (currency === "CLP" && fx.isError && !fx.data);
-  const waiting =
-    !failed && (favoritesPending || tickers.isPending || prices.isPending || (currency === "CLP" && fx.isPending));
-
   const rate = fx.data?.rate;
+  const fxKnown = typeof rate === "number" && Number.isFinite(rate) && rate > 0;
+  const failed = (tickers.isError && !tickers.data) || (prices.isError && !prices.data);
+  const waiting =
+    !failed &&
+    (favoritesPending || tickers.isPending || prices.isPending || (currency === "CLP" && !fxKnown && fx.isPending));
   const moverItems = waiting || failed ? [] : priceRows(moverSource, currency, rate);
   const listItems = waiting || failed ? [] : priceRows(ordered, currency, rate);
-  const failure = tickers.error ?? prices.error ?? (currency === "CLP" ? fx.error : null);
+  const failure = tickers.error ?? prices.error;
   const failureDetail = failure instanceof Error && failure.message.trim() ? failure.message : undefined;
 
   const filterOptions: { value: MarketFilter; label: string }[] = [
@@ -334,6 +343,9 @@ export function MarketScreen({
   return (
     <div className="flex min-w-0 flex-col gap-6">
       <PageHeader title={t.pages.market.title} description={t.pages.market.lead} action={statusNode} />
+      {currency === "CLP" && !fxKnown && !fx.isPending && !waiting && !failed ? (
+        <p className="text-sm text-fg-muted">{t.detail.fxFallback}</p>
+      ) : null}
 
       <form role="search" onSubmit={onSearch}>
         <label htmlFor={searchId} className="sr-only">
@@ -399,7 +411,7 @@ export function MarketScreen({
             <p className="mt-1 text-sm text-fg-muted">{t.market.moversNote}</p>
           </div>
           <div className="flex min-w-0 snap-x snap-mandatory gap-3 overflow-x-auto p-1">
-            {moverItems.map(({ row, price }) => (
+            {moverItems.map(({ row, price, currency: rowCurrency }) => (
               <TickerCard
                 key={row.ticker.symbol}
                 href={tickerHref(row.ticker.symbol)}
@@ -407,7 +419,7 @@ export function MarketScreen({
                 name={row.ticker.name}
                 logoUrl={row.ticker.logo}
                 price={price}
-                currency={currency}
+                currency={rowCurrency}
                 change={row.quote.change24hPct}
                 action={
                   <FavoriteButton
@@ -428,7 +440,7 @@ export function MarketScreen({
         <section className="flex min-w-0 flex-col gap-2">
           <h2 className="text-base font-medium text-fg">{applied.trim() ? t.market.results : t.market.list}</h2>
           <ul>
-            {listItems.map(({ row, price }) => (
+            {listItems.map(({ row, price, currency: rowCurrency }) => (
               <li key={row.ticker.symbol}>
                 <TickerRow
                   href={tickerHref(row.ticker.symbol)}
@@ -436,7 +448,7 @@ export function MarketScreen({
                   name={row.ticker.name}
                   logoUrl={row.ticker.logo}
                   price={price}
-                  currency={currency}
+                  currency={rowCurrency}
                   change={row.quote.change24hPct}
                   sparkline={sparkBySymbol.get(row.ticker.symbol)}
                   sparklineClassName="block"

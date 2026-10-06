@@ -7,9 +7,11 @@ import {
   buildDemoActivity,
   buildDemoBalances,
   buildDemoPortfolio,
+  demoHeldSymbols,
   nextDemoId,
   saveSend,
 } from "@/lib/mocks/demo-state";
+import { demoSpotBook } from "@/lib/services/demo-prices";
 import { simulateMock } from "@/lib/mocks/latency";
 import { isSolanaAddress } from "@/lib/solana/address";
 import { isOfficialMint } from "@/lib/solana/allowlist";
@@ -25,11 +27,17 @@ function encodeMockTx(label: string): string {
 
 export const mockPortfolio = {
   async get(address: string): Promise<Portfolio> {
-    return simulateMock(`portfolio:${address}`, () => buildDemoPortfolio(address));
+    return simulateMock(`portfolio:${address}`, async () => {
+      const spots = await demoSpotBook(demoHeldSymbols());
+      return buildDemoPortfolio(address, spots);
+    });
   },
 
   async balances(address: string): Promise<Balance[]> {
-    return simulateMock(`balances:${address}`, () => buildDemoBalances(address));
+    return simulateMock(`balances:${address}`, async () => {
+      const spots = await demoSpotBook(demoHeldSymbols());
+      return buildDemoBalances(address, spots);
+    });
   },
 
   async activity(address: string): Promise<Activity[]> {

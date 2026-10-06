@@ -123,7 +123,10 @@ const serverSchema = publicSchema.extend({
   DATA_MODE: dataModeEnv(),
   /** mock | supabase. El modo efectivo exige además URL y clave pública (`authMode`). */
   AUTH_MODE: authFlagEnv(),
-  /** Precio actual. Si la variable no existe, queda `mock` (tests y CI): no llama a Jupiter ni al RPC. El historial no usa este flag. */
+  /**
+   * Precio actual y dólar. Si la variable no existe, queda `mock` (tests y CI): no llama a Jupiter, al RPC ni a mindicador.
+   * Con `live`, el historial de referencia se reescala al spot y el dólar sale de `FX_SOURCE_URL`.
+   */
   PRICES_MODE: dataModeEnv(),
   PRIVY_APP_SECRET: optionalText(),
   SOLANA_RPC_URL: optionalText(),

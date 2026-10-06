@@ -186,6 +186,8 @@ export function WalletScreen() {
             <Skeleton className="mt-2 h-5 w-28" />
           ) : clp !== null ? (
             <p className="num mt-2 text-sm text-fg-muted">{fill(t.wallet.clpApprox, { amount: formatMoney(clp, "CLP") })}</p>
+          ) : currency === "CLP" ? (
+            <p className="mt-2 text-sm text-fg-muted">{t.detail.fxMissing}</p>
           ) : null}
         </div>
         <p className="mt-1 text-sm text-fg-muted">{t.wallet.usdcHint}</p>

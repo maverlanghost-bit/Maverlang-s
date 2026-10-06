@@ -29,7 +29,12 @@ export function BalanceHeader({
   const portfolio = usePortfolio();
   const fx = useFx();
   const totalUsd = portfolio.data?.totalUsd;
-  const amount = totalUsd === undefined ? null : amountFor(totalUsd, currency, fx.data?.rate);
+  const rate = fx.data?.rate;
+  const fxKnown = typeof rate === "number" && Number.isFinite(rate) && rate > 0;
+  const waitingFx = currency === "CLP" && !fxKnown && fx.isPending;
+  const shownCurrency: Currency = currency === "CLP" && fxKnown ? "CLP" : "USD";
+  const amount =
+    totalUsd === undefined || waitingFx ? null : amountFor(totalUsd, shownCurrency, fxKnown ? rate : undefined);
 
   let value: ReactNode;
   if (hidden === true) {
@@ -42,8 +47,15 @@ export function BalanceHeader({
       </>
     );
   } else if (amount !== null) {
-    value = <PriceText value={amount} currency={currency} size="sm" className="block truncate" />;
-  } else if (portfolio.isError || (currency === "CLP" && fx.isError)) {
+    value = (
+      <>
+        <PriceText value={amount} currency={shownCurrency} size="sm" className="block truncate" />
+        {currency === "CLP" && shownCurrency === "USD" ? (
+          <p className="text-xs text-fg-muted">{t.detail.fxMissing}</p>
+        ) : null}
+      </>
+    );
+  } else if (portfolio.isError) {
     value = <span className="text-sm text-fg-muted">{t.shell.balanceUnavailable}</span>;
   } else {
     value = <Skeleton className="h-5 w-24" />;
