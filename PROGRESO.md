@@ -1,9 +1,16 @@
 # PROGRESO — Maverlang
 
 ## Estado
-M25 hecha. Precio actual real sólo con PRICES_MODE=live. Por defecto mock, sin red. Siguiente: fuera de esta tarea.
+M26 hecha. Horario "24 horas, de lunes a viernes". `.env.example` recomienda PRICES_MODE=live; si la variable no existe, el código sigue en mock. Siguiente: fuera de esta tarea.
 
 ## Tareas hechas
+
+### M26 — Horario 24/5 y precios reales activos (2026-10-05, M26: horario 24/5 y precios reales activos)
+- Hecho: hero, pill, chips, grilla, lead del mercado y FAQ dicen "24 horas, de lunes a viernes" (EN: "Trade 24 hours a day, Monday to Friday"). Sábado y domingo: "Mercado cerrado: abre el lunes". Lun–vie fuera de 09:30–16:00 NY: "Fuera del horario regular" y el aviso de que el precio puede variar más. `.env.example` recomienda `PRICES_MODE=live`. Sin la variable, el código sigue en mock. Si Jupiter falla o falta un ticker, sigue la ancla y "Precio de referencia". Consulta a Jupiter lite de AAPLx: usdPrice 333,39 (acción de referencia 332,85); la ancla mock sigue cerca de 228. `npx tsc --noEmit`, `npm run lint` y `npm test` (27) ok. Sin `next dev`.
+- Archivos clave: `components/landing/{hero,announcement-pill,feature-grid,faq}.tsx`, `lib/content/faq.ts`, `lib/mocks/market.ts`, `content/i18n/{es-CL,en}.ts`, `.env.example`, `tests/unit/market-hours.test.ts`.
+- Decisiones: `MarketStatus.session` es `regular`, `offHours` o `closed`. El fin de semana no bloquea la orden: sólo cambia el aviso. La regla quedó en AGENTS.md y en DESIGN-SYSTEM. No se leyó `.env.local`.
+- Pendiente: la landing es `force-static` y sigue con precios ilustrativos (hero, cinta, mock de producto y sparklines). Unirla al servicio live rompería ese estático o dejaría el precio congelado al build; el historial sigue en mock. Mirar `/`, `/ayuda`, `/app` y `/app/accion/AAPLx` (chip, FAQ, precio real y "Precio de referencia" si falta un ticker). Barra, `?operar=vender`, chips, stats y gráfico no se rehicieron.
+- Próximo: fuera de esta tarea.
 
 ### M25 — Precios reales detrás de un flag (2026-10-05, M25: precios reales detras de flag (mock por defecto))
 - Hecho: `PRICES_MODE=mock` por defecto. Con `live`, el precio actual sale de Jupiter Price v3 (`JUPITER_BASE_URL/price/v3`). `JUPITER_API_KEY` es opcional y no va en el código. Timeout 2,5 s, cache 10 s. Se descartan precios ≤ 0 o no numéricos. Si falla la red o falta un ticker, se usa la ancla y `reference: true` (en el detalle, «Precio de referencia»). Historial, dólar y horario siguen en mock. Con el flag apagado no hay red. `npx tsc --noEmit`, `npm run lint` y `npm test` (23) ok. Sin `next dev`.
@@ -200,4 +207,4 @@ M25 hecha. Precio actual real sólo con PRICES_MODE=live. Por defecto mock, sin 
 - Textos legales: [REVISIÓN ABOGADO]. Mints contra xstocks.fi, mínimo y métodos de on-ramp, dividendos, emisor, autocustodia Privy, patrocinio [POR DECIDIR] y firma del webhook de Onramper: [VERIFICAR] antes de producción.
 - El smoke de T20 cubre el flujo mock a 1280×800. Sigue sin mirarse 360/768 (landing, mercado, detalle, compra, cartera, billetera, depositar, perfil) ni `?country=US`, `?mockError=`, FAKE/HOODx en 404 y el ojo del saldo.
 - Borrar `t18-check.ts` (sigue en el disco; `.gitignore` evita commitearlo).
-- Fase live: el precio actual de Jupiter está detrás de `PRICES_MODE` (default mock). Historial, trade, cartera, Privy server, Koywe, Onramper y Supabase siguen en stub.
+- Fase live: `.env.example` recomienda `PRICES_MODE=live`. Si la variable no existe, el código sigue en mock (tests y CI). Historial, trade, cartera, Privy server, Koywe, Onramper y Supabase siguen en stub. La landing sigue con precios ilustrativos.

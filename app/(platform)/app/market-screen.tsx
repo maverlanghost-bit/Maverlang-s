@@ -307,7 +307,16 @@ export function MarketScreen({
   let statusNode = <Skeleton className="h-6 w-40 rounded-full" />;
   if (status.data) {
     statusNode = (
-      <MarketStatusPill open={status.data.underlyingOpen} label={status.data.underlyingOpen ? t.market.open : t.market.closed} />
+      <MarketStatusPill
+        open={status.data.session === "regular"}
+        label={
+          status.data.session === "closed"
+            ? t.market.closed
+            : status.data.session === "offHours"
+              ? t.market.offHours
+              : t.market.open
+        }
+      />
     );
   } else if (status.isError) {
     statusNode = (

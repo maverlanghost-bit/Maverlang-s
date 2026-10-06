@@ -21,7 +21,7 @@ export const en = {
   pages: {
     market: {
       title: "Market",
-      lead: "Tokenized U.S. stocks.",
+      lead: "Tokenized U.S. stocks. Trade 24 hours a day, Monday to Friday.",
       emptyTitle: "The list is not on this screen yet",
     },
     portfolio: {
@@ -64,7 +64,8 @@ export const en = {
     favoriteOn: "Remove {name} from favorites",
     favoriteOff: "Save {name} as a favorite",
     open: "Market open",
-    closed: "After hours: the price can move more",
+    offHours: "Outside regular hours. The price can move more.",
+    closed: "Market closed: opens Monday",
     loadError: "We couldn't load the market.",
     statusError: "We couldn't load market hours.",
   },
@@ -107,8 +108,11 @@ export const en = {
     chips: "Context",
     tokenOnSolana: "Token on Solana",
     marketOpen: "Market open",
-    marketExtended: "Extended market",
-    marketExtendedNote: "Outside regular hours. The price can move more.",
+    marketOpenNote: "Regular U.S. market hours.",
+    marketOffHours: "Outside regular hours",
+    marketOffHoursNote: "Outside regular hours. The price can move more.",
+    marketClosed: "Market closed: opens Monday",
+    marketClosedNote: "The market is closed on weekends. The price can move when it reopens on Monday.",
     stats: "Figures",
     priceUsd: "Price in dollars",
     priceClp: "Price in pesos",

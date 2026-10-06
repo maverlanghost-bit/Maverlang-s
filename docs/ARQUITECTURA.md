@@ -174,7 +174,7 @@ export interface Quote {                     // precio por ACCIÓN (ya ajustado 
 }
 export interface PricePoint { t: number; p: number }   // unix ms, USD por acción
 export interface FxRate { pair: "USDCLP"; rate: number; source: string; updatedAt: string }
-export interface MarketStatus { underlyingOpen: boolean; nextChange: string; note?: string }
+export interface MarketStatus { underlyingOpen: boolean; session: "regular" | "offHours" | "closed"; nextChange: string; note?: string }
 
 export interface Balance {
   mint: string; symbol: Symbol | "USDC" | "SOL";

@@ -448,7 +448,9 @@ function TradeFlow({ side, ticker }: { side: Side; ticker: Ticker }) {
         ) : (
           <p className="text-center text-sm text-fg-muted">{fill(t.trade.expiresIn, { time: countdownLabel(remainingMs) })}</p>
         )}
-        {market.data && !market.data.underlyingOpen ? <MarketStatusPill open={false} label={t.market.closed} /> : null}
+        {market.data && market.data.session !== "regular" ? (
+          <MarketStatusPill open={false} label={market.data.session === "closed" ? t.market.closed : t.market.offHours} />
+        ) : null}
         {fresh && quote ? <CostBreakdown rows={costRows(t, quote, side)} /> : null}
         <Link href="/legal/riesgos" className="text-sm font-medium text-fg underline underline-offset-4">
           {t.detail.risksLink}

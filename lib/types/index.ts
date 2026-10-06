@@ -46,8 +46,12 @@ export interface FxRate {
   updatedAt: string;
 }
 
+/** `regular`: lun–vie 09:30–16:00 NY. `offHours`: lun–vie fuera de ese rango. `closed`: sábado y domingo. */
+export type MarketSession = "regular" | "offHours" | "closed";
+
 export interface MarketStatus {
   underlyingOpen: boolean;
+  session: MarketSession;
   nextChange: string;
   note?: string;
 }

@@ -403,12 +403,16 @@ export function DetailScreen({
   const aboutText = about ? (language === "en" ? about.en : about.es) : null;
   const rate = fx.data?.rate;
   const category = categoryName(ticker.category, t.market);
-  const marketOpen = status.data?.underlyingOpen === true;
-  const marketNote = status.isSuccess
-    ? marketOpen
-      ? (status.data.note ?? "")
-      : (status.data.note ?? t.detail.marketExtendedNote)
-    : "";
+  const phase = status.data?.session;
+  const marketOpen = phase === "regular";
+  const marketChip =
+    phase === "closed" ? t.detail.marketClosed : phase === "offHours" ? t.detail.marketOffHours : t.detail.marketOpen;
+  const marketNote =
+    phase === "closed"
+      ? t.detail.marketClosedNote
+      : phase === "offHours"
+        ? t.detail.marketOffHoursNote
+        : t.detail.marketOpenNote;
 
   function openOperar(next: "comprar" | "vender" | null) {
     const params = new URLSearchParams(window.location.search);
@@ -463,7 +467,7 @@ export function DetailScreen({
           <ul className="flex list-none flex-wrap gap-1.5 p-0" aria-label={t.detail.chips}>
             {category ? <FactChip>{category}</FactChip> : null}
             <FactChip>{t.detail.tokenOnSolana}</FactChip>
-            {/* El mock sólo distingue horario regular. Fuera de ese horario el token sigue operable. */}
+            {/* Lun–vie 09:30–16:00 NY: abierto. Fuera de eso, entre semana, el precio puede variar más. Sábado y domingo: cerrado. */}
             {status.isPending ? (
               <li>
                 <Skeleton className="h-5 w-28 rounded-full" />
@@ -471,7 +475,7 @@ export function DetailScreen({
             ) : status.isSuccess ? (
               <FactChip>
                 <span className={cn("size-1.5 shrink-0 rounded-full", marketOpen ? "bg-up" : "bg-warn")} aria-hidden />
-                {marketOpen ? t.detail.marketOpen : t.detail.marketExtended}
+                {marketChip}
                 {marketOpen && marketNote ? <span className="sr-only">. {marketNote}</span> : null}
               </FactChip>
             ) : null}

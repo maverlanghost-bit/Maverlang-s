@@ -102,7 +102,7 @@ const publicSchema = z.object({
 
 const serverSchema = publicSchema.extend({
   DATA_MODE: dataModeEnv(),
-  /** Precio actual. `mock` no llama a Jupiter ni al RPC. El historial no usa este flag. */
+  /** Precio actual. Si la variable no existe, queda `mock` (tests y CI): no llama a Jupiter ni al RPC. El historial no usa este flag. */
   PRICES_MODE: dataModeEnv(),
   PRIVY_APP_SECRET: optionalText(),
   SOLANA_RPC_URL: optionalText(),

@@ -11,20 +11,20 @@ import { cn } from "@/lib/cn";
 /**
  * Copy en uso:
  * H1: "Acciones de EE.UU. tokenizadas, en tu billetera"
- * Subtítulo: "Compra fracciones desde $1.000. El token queda en tu billetera Solana, pagas en pesos y operas casi a cualquier hora."
+ * Subtítulo: "Compra fracciones desde $1.000. El token queda en tu billetera Solana, pagas en pesos y operas las 24 horas, de lunes a viernes."
  * CTAs: "Crear cuenta" → /app · "Cómo funciona" → #como-funciona
  *
  * ALTERNATIVA:
  * H1: "El token es tuyo, en tu billetera Solana"
- * Subtítulo: "Fracciones de acciones de EE.UU. desde $1.000, pagando con pesos. Mercado ampliado: opera casi a cualquier hora."
+ * Subtítulo: "Fracciones de acciones de EE.UU. desde $1.000, pagando con pesos. Operas las 24 horas, de lunes a viernes."
  *
  * ALTERNATIVA:
  * H1: "Fracciones de EE.UU. en Solana, pagando en pesos"
- * Subtítulo: "Tokenizadas, desde $1.000, en tu billetera. Opera casi a cualquier hora, sin cuenta en una corredora de EE.UU."
+ * Subtítulo: "Tokenizadas, desde $1.000, en tu billetera. Operas las 24 horas, de lunes a viernes, sin cuenta en una corredora de EE.UU."
  */
 
 const trustChips: { label: string; Icon: ComponentType<SVGProps<SVGSVGElement>> }[] = [
-  { label: "Opera casi a cualquier hora", Icon: IconClock },
+  { label: "Opera las 24 horas, de lunes a viernes", Icon: IconClock },
   { label: "Token en tu wallet Solana", Icon: IconWallet },
   { label: "Sin cuenta en corredora de EE.UU.", Icon: IconGlobe },
 ];
@@ -65,9 +65,9 @@ export function Hero() {
         <Reveal delay={240} className="mt-4 w-full">
           <p className="mx-auto max-w-2xl text-sm leading-relaxed text-balance text-fg-body sm:text-base">
             Compra fracciones desde $1.000. El token queda en tu billetera Solana, pagas en pesos y
-            operas casi a cualquier hora.
-            {/* ALTERNATIVA: Fracciones de acciones de EE.UU. desde $1.000, pagando con pesos. Mercado ampliado: opera casi a cualquier hora. */}
-            {/* ALTERNATIVA: Tokenizadas, desde $1.000, en tu billetera. Opera casi a cualquier hora, sin cuenta en una corredora de EE.UU. */}
+            operas las 24 horas, de lunes a viernes.
+            {/* ALTERNATIVA: Fracciones de acciones de EE.UU. desde $1.000, pagando con pesos. Operas las 24 horas, de lunes a viernes. */}
+            {/* ALTERNATIVA: Tokenizadas, desde $1.000, en tu billetera. Operas las 24 horas, de lunes a viernes, sin cuenta en una corredora de EE.UU. */}
           </p>
         </Reveal>
         <Reveal delay={320} className="mt-8 w-full">

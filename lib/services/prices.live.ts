@@ -124,7 +124,8 @@ export const livePrices = {
   /**
    * TODO estado del mercado del subyacente. No hay endpoint externo.
    * Regla: America/New_York, lunes a viernes, 09:30–16:00. Feriados de EE.UU. [POR DEFINIR].
-   * Mapeo a MarketStatus: underlyingOpen, nextChange (ISO del próximo corte), note opcional.
+   * Mapeo a MarketStatus: underlyingOpen, session (`regular` | `offHours` | `closed`), nextChange (ISO del próximo corte), note opcional.
+   * Sábado y domingo en Nueva York: `closed`. Lun–vie fuera de 09:30–16:00: `offHours`.
    * Errores: no es UPSTREAM mientras el cálculo sea local.
    * Cache: como máximo 60 s; depende del reloj. `/api/market/status` sigue en no-store.
    */

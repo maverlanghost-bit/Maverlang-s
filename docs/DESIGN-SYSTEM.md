@@ -77,12 +77,13 @@ Contraste: `fg-muted` sobre blanco ≈ 4.0:1 → usar sólo ≥14px; texto peque
 - **TickerRow**: alto 64px; logo 36px circular; símbolo `font-medium` + nombre `text-fg-muted text-sm`; a la derecha precio mono + ChangeBadge. Hover `bg-surface-2`. Toda la fila es link.
 - **AmountInput**: número `font-mono text-5xl` centrado, moneda conmutable CLP ⇄ USD, chips rápidos `$5.000 · $10.000 · $50.000 · Máx`.
 - **CostBreakdown**: lista clave/valor `text-sm`: Precio estimado · Recibes (acciones) · Comisión Maverlang (0%) · Comisión de red · Creación de cuenta de token (sólo 1ª vez) · Slippage máx. Siempre visible antes de "Confirmar".
-- **MarketStatusPill**: "Mercado abierto" (up) / "Fuera de horario: precio puede variar más" (warn).
+- **MarketStatusPill**: "Mercado abierto" (up) / "Fuera del horario regular. El precio puede variar más" (warn, lun–vie) / "Mercado cerrado: abre el lunes" (warn, sábado y domingo).
 
 ## 4. Voz y copy (es-CL)
 - Tú, directo, sin jerga cripto en la superficie: "acción tokenizada" se explica una vez; se evita "token", "swap", "wallet" en UI principal → "acción", "compra/venta", "billetera".
 - Números en formato chileno: `$12.345` CLP (sin decimales), `US$ 1.234,56`; acciones con hasta 6 decimales (`0,004213 acc.`).
-- Nunca: "gana", "rentabilidad asegurada", "sin riesgo", "24/7" si no aplica.
+- Horario: "24 horas, de lunes a viernes" (EN: "Trade 24 hours a day, Monday to Friday"). Nunca "24/7", "siempre abierto", "a toda hora" ni "casi a cualquier hora".
+- Nunca: "gana", "rentabilidad asegurada", "sin riesgo".
 - Disclaimer corto persistente en footer del /app: "Las acciones tokenizadas no otorgan derechos de accionista. Invertir implica riesgos." (texto final lo revisa abogado — [VERIFICAR]).
 
 ## 5. Accesibilidad

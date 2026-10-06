@@ -1,8 +1,9 @@
 import type { MarketStatus } from "@/lib/types";
 
 /**
- * Horario regular del subyacente en America/New_York (09:30–16:00, lun–vie).
- * No modela feriados. El precio tokenizado puede moverse igual fuera de ese horario.
+ * Horario del subyacente en America/New_York.
+ * `regular`: lun–vie 09:30–16:00. `offHours`: lun–vie fuera de ese rango.
+ * `closed`: sábado y domingo. No modela feriados.
  */
 const NY = "America/New_York";
 const OPEN_MINUTES = 9 * 60 + 30;
@@ -88,6 +89,7 @@ export function mockMarketStatus(now = new Date()): MarketStatus {
   const minutes = parts.hour * 60 + parts.minute;
   const isWeekday = parts.weekday >= 1 && parts.weekday <= 5;
   const underlyingOpen = isWeekday && minutes >= OPEN_MINUTES && minutes < CLOSE_MINUTES;
+  const session = underlyingOpen ? "regular" : isWeekday ? "offHours" : "closed";
 
   let nextChange: Date;
   if (underlyingOpen) {
@@ -100,9 +102,13 @@ export function mockMarketStatus(now = new Date()): MarketStatus {
 
   return {
     underlyingOpen,
+    session,
     nextChange: nextChange.toISOString(),
-    note: underlyingOpen
-      ? "Horario regular del mercado de EE.UU."
-      : "Fuera del horario regular. El precio puede variar más.",
+    note:
+      session === "regular"
+        ? "Horario regular del mercado de EE.UU."
+        : session === "closed"
+          ? "El fin de semana el mercado está cerrado. El precio puede moverse al reabrir, el lunes."
+          : "Fuera del horario regular. El precio puede variar más.",
   };
 }

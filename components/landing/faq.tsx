@@ -56,7 +56,7 @@ export function FaqSection() {
     <LandingSection id="preguntas" titleId="preguntas-title">
       <Reveal>
         <SectionIntro id="preguntas-title" label="08 — Preguntas" title="Antes de abrir la cuenta">
-          Seis respuestas cortas. El detalle legal sigue en borrador.
+          Siete respuestas cortas. El detalle legal sigue en borrador.
         </SectionIntro>
       </Reveal>
       <Reveal delay={REVEAL_STAGGER_MS} className="mt-10 max-w-3xl md:mt-14">

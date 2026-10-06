@@ -70,6 +70,7 @@ export const fxRateSchema = z.object({
 
 export const marketStatusSchema = z.object({
   underlyingOpen: z.boolean(),
+  session: z.enum(["regular", "offHours", "closed"]),
   nextChange: isoTimeSchema,
   note: z.string().optional(),
 });

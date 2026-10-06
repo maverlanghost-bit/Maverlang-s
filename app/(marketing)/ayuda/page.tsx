@@ -19,7 +19,7 @@ export default function AyudaPage() {
             Preguntas frecuentes
           </h1>
           <p className="mt-4 text-sm leading-relaxed text-fg-body sm:text-base">
-            Ocho respuestas cortas. Términos, privacidad, riesgos y comisiones siguen en borrador.
+            Nueve respuestas cortas. Términos, privacidad, riesgos y comisiones siguen en borrador.
           </p>
         </div>
         <div className="mt-10 max-w-3xl md:mt-14">

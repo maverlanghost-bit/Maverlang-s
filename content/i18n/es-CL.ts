@@ -24,7 +24,7 @@ export const esCL = {
   pages: {
     market: {
       title: "Mercado",
-      lead: "Acciones de EE.UU. tokenizadas.",
+      lead: "Acciones de EE.UU. tokenizadas. Operas las 24 horas, de lunes a viernes.",
       emptyTitle: "El listado todavía no está en esta pantalla",
     },
     portfolio: {
@@ -67,7 +67,8 @@ export const esCL = {
     favoriteOn: "Quitar {name} de favoritas",
     favoriteOff: "Marcar {name} como favorita",
     open: "Mercado abierto",
-    closed: "Fuera de horario: precio puede variar más",
+    offHours: "Fuera del horario regular. El precio puede variar más.",
+    closed: "Mercado cerrado: abre el lunes",
     loadError: "No pudimos cargar el mercado.",
     statusError: "No pudimos ver el horario del mercado.",
   },
@@ -110,8 +111,11 @@ export const esCL = {
     chips: "Contexto",
     tokenOnSolana: "Token en Solana",
     marketOpen: "Mercado abierto",
-    marketExtended: "Mercado ampliado",
-    marketExtendedNote: "Fuera del horario regular. El precio puede variar más.",
+    marketOpenNote: "Horario regular de la bolsa de EE.UU.",
+    marketOffHours: "Fuera del horario regular",
+    marketOffHoursNote: "Fuera del horario regular. El precio puede variar más.",
+    marketClosed: "Mercado cerrado: abre el lunes",
+    marketClosedNote: "El fin de semana el mercado está cerrado. El precio puede moverse al reabrir, el lunes.",
     stats: "Datos",
     priceUsd: "Precio en dólares",
     priceClp: "Precio en pesos",

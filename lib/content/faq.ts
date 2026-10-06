@@ -6,7 +6,7 @@ export type FaqPart =
 export type FaqEntry = {
   id: string;
   question: string;
-  /** Las seis primeras de la landing. /ayuda muestra todas. */
+  /** `home` se muestra en la landing. /ayuda muestra todas. */
   home: boolean;
   paragraphs: FaqPart[][];
 };
@@ -22,6 +22,20 @@ export function getFaq(brand: string): FaqEntry[] {
           {
             kind: "text",
             value: `Es un token en Solana que sigue el precio de una acción o un ETF de Estados Unidos. En ${brand} lo compras por fracciones, pagas con pesos y queda en tu billetera. No queda inscrito a tu nombre en una corredora de EE.UU.`,
+          },
+        ],
+      ],
+    },
+    {
+      id: "horario",
+      home: true,
+      question: "¿En qué horario puedo operar?",
+      paragraphs: [
+        [
+          {
+            kind: "text",
+            value:
+              "Se opera las 24 horas, de lunes a viernes. Los fines de semana el mercado está cerrado y el precio puede moverse al reabrir, el lunes. Fuera del horario regular de la bolsa de EE.UU. el precio puede variar más.",
           },
         ],
       ],

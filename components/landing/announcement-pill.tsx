@@ -1,8 +1,8 @@
 import Link from "next/link";
 
 /**
- * Copy en uso: "Token en tu billetera Solana • Cómo funciona"
- * ALTERNATIVA: "Mercado ampliado: opera casi a cualquier hora • Cómo funciona"
+ * Copy en uso: "Opera las 24 horas, de lunes a viernes • Cómo funciona"
+ * ALTERNATIVA: "Token en tu billetera Solana • Cómo funciona"
  * ALTERNATIVA: "Comisión 0% en el lanzamiento • Ver costos"
  */
 export function AnnouncementPill() {
@@ -11,8 +11,8 @@ export function AnnouncementPill() {
       href="/#como-funciona"
       className="mx-auto inline-flex max-w-full flex-wrap items-center justify-center gap-x-2 gap-y-0.5 rounded-full border border-border bg-bg px-3 py-1.5 text-center text-sm leading-snug text-fg-body transition duration-[140ms] ease-spring hover:bg-surface-2 active:scale-[0.98]"
     >
-      <span>Token en tu billetera Solana</span>
-      {/* ALTERNATIVA: Mercado ampliado: opera casi a cualquier hora */}
+      <span>Opera las 24 horas, de lunes a viernes</span>
+      {/* ALTERNATIVA: Token en tu billetera Solana */}
       {/* ALTERNATIVA: Comisión 0% en el lanzamiento */}
       <span aria-hidden className="text-fg-subtle">
         •
