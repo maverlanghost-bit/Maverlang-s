@@ -1,9 +1,17 @@
 # PROGRESO — Maverlang
 
 ## Estado
-M36 hecha y verificada (`npx tsc --noEmit`, `npm run lint`, `npm test` 93, `npm run e2e` 2 + 1 skipped). Pendiente: aplicar `0003` en el SQL Editor y hacer el commit.
+M37 hecha y verificada (`npx tsc --noEmit`, `npm run lint`, `npm test` 100). Pendiente: aplicar `0004` en el SQL Editor DESPUÉS de 0003 y hacer el commit. Sin `next dev/build`, sin push, sin e2e (límite de shell).
 
 ## Tareas hechas
+
+### M37 — Catálogo xStocks automático (2026-10-06, M37: catalogo xstocks automatico) [VERIFICADA, POR COMMITEAR]
+- Hecho: migración `0004_assets.sql` (tabla `assets`, RLS sólo SELECT para anon/authenticated, índices curated/category/lower(name)). Curada de 50 en `data/curated-symbols.json` (fuente única) + `config/curated-symbols.ts`. Script `scripts/sync-xstocks.mjs` (`npm run sync:xstocks`, flags --dry-run/--no-db/--no-files; API paginada, Jupiter con reintento y respaldo CSV, logos una vez, upsert service_role, genera `config/tickers.generated.ts`). `config/tickers.ts` sale del generado (mismos exports; 12 mints intactos). `CATALOG_SCOPE=curated|all` (default curated; all para M38) en `lib/env.ts` y `.env.example`.
+- Archivos clave: `supabase/migrations/0004_assets.sql`, `data/{xstocks-solana-2026-10-06.csv,curated-symbols.json}`, `config/{curated-symbols.ts,tickers.generated.ts,tickers.ts}`, `scripts/sync-xstocks.mjs`, `lib/catalog/xstocks.ts`, `lib/{types,api/contracts,market/browse,mocks/prices,env.ts}`, mercado, detalle, i18n, `docs/SUPABASE.md`.
+- Decisiones: categorías nuevas finance/health/energy/industrial/commodity (filtros y chips extendidos). Generado sin liquidez para no cambiar en cada sync. `HOODx/MSTRx` enabled true (no suspendidos). Mock con ancla determinista para símbolos nuevos; demo/landing/precio único/sidebar/`?operar=vender` sin cambios.
+- Verificación: `npx tsc --noEmit` ok; `npm run lint` ok; `npm test` 100/100 (18 archivos, incl. `xstocks-catalog.test.ts` 7); sync real `--no-db`: total 1171, con Solana 1171, 38 logos bajados + 12 existentes, 0 errores; `git grep` sin secretos; `.env.local` fuera de `git status`.
+- Pendiente: aplicar 0004 DESPUÉS de 0003 en el SQL Editor; cron diario en Vercel cuando haya deploy (M40); revisar marcas/logos con abogado. [REVISIÓN ABOGADO] logos/marcas.
+- Próximo: M38 (fuera de esta tarea).
 
 ### M36 — Cuenta demo por usuario (2026-10-06, M36: cuenta demo por usuario) [VERIFICADA, POR COMMITEAR]
 - Hecho: migración `0003_demo_accounts.sql` (demo_accounts/positions/orders, RLS sólo lectura propia, `demo_trade` con promedio ponderado y errores cortos, `demo_reset`, trigger + backfill; sólo `service_role` ejecuta). Servicio server-only `lib/services/demo.supabase.ts` (precio del servicio de M34 y dólar real; sin dólar o con precio de referencia rechaza con mensaje claro; escrituras por rpc). Rutas portfolio/balances/activity/quote/build/submit/status leen la demo del usuario con `mv_account=demo` (defecto); `real` devuelve vacío/bloquea; mock sigue en memoria. Nueva `POST /api/demo/reset`. Selector demo/real en sidebar (icono con tooltip si colapsado), perfil y top bar (insignia Demo); real muestra "Próximamente: depósitos reales"; demo muestra insignia, nota de simulación y botón Reiniciar (Cartera y Perfil). i18n es-CL/en y `docs/SUPABASE.md` con cómo aplicar 0003.

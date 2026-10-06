@@ -24,6 +24,25 @@ Después de `0002`, pega **una sola vez** `supabase/migrations/0003_demo_account
 
 Sin aplicar `0003`, las rutas demo por usuario fallan con error interno y la cartera muestra reintento. En local con `AUTH_MODE=mock` no hace falta: sigue la demo en memoria.
 
+## Catálogo xStocks (0004)
+
+Después de `0003`, pega **una sola vez** `supabase/migrations/0004_assets.sql` en el SQL Editor y ejecútalo. También es idempotente. Crea:
+
+- `public.assets` (un fila por símbolo xStocks en Solana: mint, logo local, categoría, horario, liquidez Jupiter, `curated`, `enabled`, `raw`).
+- RLS: catálogo público de lectura (`SELECT` para `anon` y `authenticated`). Nadie escribe desde el navegador: sólo `service_role`.
+- Índices por `curated`, `category` y `lower(name)`.
+
+Luego corre `npm run sync:xstocks` (o `node scripts/sync-xstocks.mjs`):
+
+- Pagina la API pública de xStocks (`pageSize 100`), se queda con los que tienen deployment en Solana.
+- Trae la liquidez de Jupiter en lotes (si responde 429, usa `data/xstocks-solana-2026-10-06.csv`).
+- Descarga UNA vez cada logo curado a `public/logos/<subyacente>.png` (ej. `brk-b.png`); nunca hotlinking.
+- Hace upsert en `public.assets` con la secret key (lee `.env.local` sin imprimir claves). Si la tabla no existe, avisa `tabla assets no existe: aplica 0004` y sigue.
+- Genera `config/tickers.generated.ts` (50 curados, sin liquidez para que no cambie en cada sync).
+- Flags: `--dry-run` (no escribe nada), `--no-db`, `--no-files`.
+
+En M37 la app usa el curado (`CATALOG_SCOPE=curated`, ver `.env.example`); `all` queda para M38.
+
 ## Auth en el panel
 
 - Site URL: el valor de `NEXT_PUBLIC_SITE_URL` (en local, `http://localhost:3000`)

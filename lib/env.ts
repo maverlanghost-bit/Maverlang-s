@@ -148,6 +148,11 @@ const serverSchema = publicSchema.extend({
   TERMS_VERSION: requiredText("2026-10-draft"),
   PRIVACY_VERSION: requiredText("2026-10-draft"),
   RISKS_VERSION: requiredText("2026-10-draft"),
+  /**
+   * Alcance del catálogo. En M37 sólo se usa `curated` (50 símbolos).
+   * `all` queda reservado para M38 (tabla Supabase completa).
+   */
+  CATALOG_SCOPE: enumEnv(["curated", "all"] as const, "curated"),
 });
 
 export type PublicEnv = z.infer<typeof publicSchema>;

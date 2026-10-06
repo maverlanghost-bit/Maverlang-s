@@ -1,4 +1,3 @@
-import { DomainError } from "@/lib/api/result";
 import { hashSeed, mulberry32 } from "@/lib/mocks/prng";
 import { roundDigits } from "@/lib/mocks/number";
 import type { PricePoint, Quote, Range } from "@/lib/types";
@@ -7,7 +6,8 @@ import type { PricePoint, Quote, Range } from "@/lib/types";
  * Anclas de precio para el demo. No son cotizaciones.
  * Todas las Quote que salen de aquí llevan source: "mock".
  * Multiplicador 1 hasta que el live lea scaled UI del mint (T18).
- * HOODx y MSTRx están apagados en el allowlist; la ancla sólo sirve si se pide el símbolo.
+ * Los 12 originales conservan su ancla; el resto usa un respaldo
+ * determinista por símbolo (sólo para que el mock cubra el catálogo curado).
  */
 const ANCHORS: Record<string, { priceUsd: number; multiplier: number }> = {
   AAPLx: { priceUsd: 228.4, multiplier: 1 },
@@ -36,8 +36,11 @@ const RANGE_SPEC: Record<Range, { points: number; stepMs: number }> = {
 
 function anchorOf(symbol: string): { symbol: string; priceUsd: number; multiplier: number } {
   const row = ANCHORS[symbol];
-  if (!row) throw new DomainError("NOT_FOUND", "No encontramos esa acción.");
-  return { symbol, ...row };
+  if (row) return { symbol, ...row };
+  // Respaldo determinista para el catálogo curado (mock): no es cotización.
+  const seed = hashSeed(`anchor:${symbol}`);
+  const priceUsd = roundDigits(20 + (seed % 58_000) / 100, 2);
+  return { symbol, priceUsd, multiplier: 1 };
 }
 
 /** Random walk con semilla por símbolo y rango. El último punto es el precio ancla. */

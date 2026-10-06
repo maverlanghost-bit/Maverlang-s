@@ -1,0 +1,61 @@
+// Archivo generado por scripts/sync-xstocks.mjs; no editar a mano.
+import type { Ticker } from "@/lib/types";
+
+export interface GeneratedTicker extends Ticker {
+  tradingHoursMode: string;
+}
+
+const base = { decimals: 8 as const, issuer: "Backed (xStocks)" as const };
+
+export const GENERATED_TICKERS: GeneratedTicker[] = [
+  { ...base, symbol: "GLDx", underlying: "GLD", name: "Gold", category: "commodity", mint: "Xsv9hRk1z5ystj9MhnA7Lq4vjSsLwzL2nxrwmwtD3re", logo: "/logos/gld.png", enabled: true, tradingHoursMode: "TwentyFourFive" },
+  { ...base, symbol: "AMZNx", underlying: "AMZN", name: "Amazon.com", category: "consumer", mint: "Xs3eBt7uRfJX8QUs4suhyU8p2M6DoUDrJyWBa8LLZsg", logo: "/logos/amzn.png", enabled: true, tradingHoursMode: "TwentyFourFive" },
+  { ...base, symbol: "KOx", underlying: "KO", name: "Coca-Cola", category: "consumer", mint: "XsaBXg8dU5cPM6ehmVctMkVqoiRG2ZjMo1cyBJ3AykQ", logo: "/logos/ko.png", enabled: true, tradingHoursMode: "TwentyFourFive" },
+  { ...base, symbol: "GMEx", underlying: "GME", name: "Gamestop", category: "consumer", mint: "Xsf9mBktVB9BSU5kf4nHxPq5hCBJ2j2ui3ecFGxPRGc", logo: "/logos/gme.png", enabled: true, tradingHoursMode: "TwentyFourFive" },
+  { ...base, symbol: "MCDx", underlying: "MCD", name: "McDonald's", category: "consumer", mint: "XsqE9cRRpzxcGKDXj1BJ7Xmg4GRhZoyY1KpmGSxAWT2", logo: "/logos/mcd.png", enabled: true, tradingHoursMode: "TwentyFourFive" },
+  { ...base, symbol: "NFLXx", underlying: "NFLX", name: "Netflix", category: "consumer", mint: "XsEH7wWfJJu2ZT3UCFeVfALnVA6CP5ur7Ee11KmzVpL", logo: "/logos/nflx.png", enabled: true, tradingHoursMode: "TwentyFourFive" },
+  { ...base, symbol: "PEPx", underlying: "PEP", name: "PepsiCo", category: "consumer", mint: "Xsv99frTRUeornyvCfvhnDesQDWuvns1M852Pez91vF", logo: "/logos/pep.png", enabled: true, tradingHoursMode: "TwentyFourFive" },
+  { ...base, symbol: "PGx", underlying: "PG", name: "Procter & Gamble", category: "consumer", mint: "XsYdjDjNUygZ7yGKfQaB6TxLh2gC6RRjzLtLAGJrhzV", logo: "/logos/pg.png", enabled: true, tradingHoursMode: "TwentyFourFive" },
+  { ...base, symbol: "TSLAx", underlying: "TSLA", name: "Tesla", category: "consumer", mint: "XsDoVfqeBukxuZHWhdvWHBhgEHjGNst4MLodqsJHzoB", logo: "/logos/tsla.png", enabled: true, tradingHoursMode: "TwentyFourFive" },
+  { ...base, symbol: "WMTx", underlying: "WMT", name: "Walmart", category: "consumer", mint: "Xs151QeqTCiuKtinzfRATnUESM2xTU6V9Wy8Vy538ci", logo: "/logos/wmt.png", enabled: true, tradingHoursMode: "TwentyFourFive" },
+  { ...base, symbol: "CVXx", underlying: "CVX", name: "Chevron", category: "energy", mint: "XsNNMt7WTNA2sV3jrb1NNfNgapxRF5i4i6GcnTRRHts", logo: "/logos/cvx.png", enabled: true, tradingHoursMode: "TwentyFourFive" },
+  { ...base, symbol: "XOMx", underlying: "XOM", name: "Exxon Mobil", category: "energy", mint: "XsaHND8sHyfMfsWPj6kSdd5VwvCayZvjYgKmmcNL5qh", logo: "/logos/xom.png", enabled: true, tradingHoursMode: "TwentyFourFive" },
+  { ...base, symbol: "QQQx", underlying: "QQQ", name: "Nasdaq", category: "etf", mint: "Xs8S1uUs1zvS2p7iwtsG3b6fkhpvmwz4GYU3gWAmWHZ", logo: "/logos/qqq.png", enabled: true, tradingHoursMode: "TwentyFourFive" },
+  { ...base, symbol: "IWMx", underlying: "IWM", name: "Russell 2000", category: "etf", mint: "XsbELVbLGBkn7xfMfyYuUipKGt1iRUc2B7pYRvFTFu3", logo: "/logos/iwm.png", enabled: true, tradingHoursMode: "TwentyFourFive" },
+  { ...base, symbol: "SPYx", underlying: "SPY", name: "SP500", category: "etf", mint: "XsoCS1TfEyfFhfvj8EtZ528L3CaKBDBRqRapnBbDF2W", logo: "/logos/spy.png", enabled: true, tradingHoursMode: "TwentyFourFive" },
+  { ...base, symbol: "VTIx", underlying: "VTI", name: "Vanguard", category: "etf", mint: "XsssYEQjzxBCFgvYFFNuhJFBeHNdLWYeUSP8F45cDr9", logo: "/logos/vti.png", enabled: true, tradingHoursMode: "TwentyFourFive" },
+  { ...base, symbol: "BACx", underlying: "BAC", name: "Bank of America", category: "finance", mint: "XswsQk4duEQmCbGzfqUUWYmi7pV7xpJ9eEmLHXCaEQP", logo: "/logos/bac.png", enabled: true, tradingHoursMode: "TwentyFourFive" },
+  { ...base, symbol: "BRK.Bx", underlying: "BRK.B", name: "Berkshire Hathaway", category: "finance", mint: "Xs6B6zawENwAbWVi7w92rjazLuAr5Az59qgWKcNb45x", logo: "/logos/brk-b.png", enabled: true, tradingHoursMode: "TwentyFourFive" },
+  { ...base, symbol: "GSx", underlying: "GS", name: "Goldman Sachs", category: "finance", mint: "XsgaUyp4jd1fNBCxgtTKkW64xnnhQcvgaxzsbAq5ZD1", logo: "/logos/gs.png", enabled: true, tradingHoursMode: "TwentyFourFive" },
+  { ...base, symbol: "CRCLx", underlying: "CRCL", name: "Circle", category: "fintech", mint: "XsueG8BtpquVJX9LVLLEGuViXUungE6WmK5YZ3p3bd1", logo: "/logos/crcl.png", enabled: true, tradingHoursMode: "TwentyFourFive" },
+  { ...base, symbol: "COINx", underlying: "COIN", name: "Coinbase", category: "fintech", mint: "Xs7ZdzSHLU9ftNJsii5fCeJhoRWSC32SQGzGQtePxNu", logo: "/logos/coin.png", enabled: true, tradingHoursMode: "TwentyFourFive" },
+  { ...base, symbol: "MAx", underlying: "MA", name: "Mastercard", category: "fintech", mint: "XsApJFV9MAktqnAc6jqzsHVujxkGm9xcSUffaBoYLKC", logo: "/logos/ma.png", enabled: true, tradingHoursMode: "TwentyFourFive" },
+  { ...base, symbol: "MSTRx", underlying: "MSTR", name: "MicroStrategy", category: "fintech", mint: "XsP7xzNPvEHS1m6qfanPUGjNmdnmsLKEoNAnHjdxxyZ", logo: "/logos/mstr.png", enabled: true, tradingHoursMode: "TwentyFourFive" },
+  { ...base, symbol: "HOODx", underlying: "HOOD", name: "Robinhood", category: "fintech", mint: "XsvNBAYkrDRNhA7wPHQfX3ZUXZyZLdnCQDfHZ56bzpg", logo: "/logos/hood.png", enabled: true, tradingHoursMode: "TwentyFourFive" },
+  { ...base, symbol: "Vx", underlying: "V", name: "Visa", category: "fintech", mint: "XsqgsbXwWogGJsNcVZ3TyVouy2MbTkfCFhCGGGcQZ2p", logo: "/logos/v.png", enabled: true, tradingHoursMode: "TwentyFourFive" },
+  { ...base, symbol: "ABTx", underlying: "ABT", name: "Abbott", category: "health", mint: "XsHtf5RpxsQ7jeJ9ivNewouZKJHbPxhPoEy6yYvULr7", logo: "/logos/abt.png", enabled: true, tradingHoursMode: "TwentyFourFive" },
+  { ...base, symbol: "AZNx", underlying: "AZN", name: "AstraZeneca", category: "health", mint: "Xs3ZFkPYT2BN7qBMqf1j1bfTeTm1rFzEFSsQ1z3wAKU", logo: "/logos/azn.png", enabled: true, tradingHoursMode: "TwentyFourFive" },
+  { ...base, symbol: "LLYx", underlying: "LLY", name: "Eli Lilly", category: "health", mint: "Xsnuv4omNoHozR6EEW5mXkw8Nrny5rB3jVfLqi6gKMH", logo: "/logos/lly.png", enabled: true, tradingHoursMode: "TwentyFourFive" },
+  { ...base, symbol: "MRKx", underlying: "MRK", name: "Merck", category: "health", mint: "XsnQnU7AdbRZYe2akqqpibDdXjkieGFfSkbkjX1Sd1X", logo: "/logos/mrk.png", enabled: true, tradingHoursMode: "TwentyFourFive" },
+  { ...base, symbol: "NVOx", underlying: "NVO", name: "Novo Nordisk", category: "health", mint: "XsfAzPzYrYjd4Dpa9BU3cusBsvWfVB9gBcyGC87S57n", logo: "/logos/nvo.png", enabled: true, tradingHoursMode: "TwentyFourFive" },
+  { ...base, symbol: "UNHx", underlying: "UNH", name: "UnitedHealth", category: "health", mint: "XszvaiXGPwvk2nwb3o9C1CX4K6zH8sez11E6uyup6fe", logo: "/logos/unh.png", enabled: true, tradingHoursMode: "TwentyFourFive" },
+  { ...base, symbol: "LINx", underlying: "LIN", name: "Linde", category: "industrial", mint: "XsSr8anD1hkvNMu8XQiVcmiaTP7XGvYu7Q58LdmtE8Z", logo: "/logos/lin.png", enabled: true, tradingHoursMode: "TwentyFourFive" },
+  { ...base, symbol: "GOOGLx", underlying: "GOOGL", name: "Alphabet", category: "tech", mint: "XsCPL9dNWBMvFtTmwcCA5v3xWPSMEBCszbQdiLLq6aN", logo: "/logos/googl.png", enabled: true, tradingHoursMode: "TwentyFourFive" },
+  { ...base, symbol: "AMDx", underlying: "AMD", name: "AMD", category: "tech", mint: "XsXcJ6GZ9kVnjqGsjBnktRcuwMBmvKWh8S93RefZ1rF", logo: "/logos/amd.png", enabled: true, tradingHoursMode: "TwentyFourFive" },
+  { ...base, symbol: "AAPLx", underlying: "AAPL", name: "Apple", category: "tech", mint: "XsbEhLAtcf6HdfpFZ5xEMdqW8nfAvcsP5bdudRLJzJp", logo: "/logos/aapl.png", enabled: true, tradingHoursMode: "TwentyFourFive" },
+  { ...base, symbol: "ASMLx", underlying: "ASML", name: "ASML", category: "tech", mint: "XshuHQ6o6SVpUNawvnnTMxsZ4tacZsNgVCLorv7TkFq", logo: "/logos/asml.png", enabled: true, tradingHoursMode: "TwentyFourFive" },
+  { ...base, symbol: "AVGOx", underlying: "AVGO", name: "Broadcom", category: "tech", mint: "XsgSaSvNSqLTtFuyWPBhK9196Xb9Bbdyjj4fH3cPJGo", logo: "/logos/avgo.png", enabled: true, tradingHoursMode: "TwentyFourFive" },
+  { ...base, symbol: "CSCOx", underlying: "CSCO", name: "Cisco", category: "tech", mint: "Xsr3pdLQyXvDJBFgpR5nexCEZwXvigb8wbPYp4YoNFf", logo: "/logos/csco.png", enabled: true, tradingHoursMode: "TwentyFourFive" },
+  { ...base, symbol: "INTCx", underlying: "INTC", name: "Intel", category: "tech", mint: "XshPgPdXFRWB8tP1j82rebb2Q9rPgGX37RuqzohmArM", logo: "/logos/intc.png", enabled: true, tradingHoursMode: "TwentyFourFive" },
+  { ...base, symbol: "IBMx", underlying: "IBM", name: "International Business Machines", category: "tech", mint: "XspwhyYPdWVM8XBHZnpS9hgyag9MKjLRyE3tVfmCbSr", logo: "/logos/ibm.png", enabled: true, tradingHoursMode: "TwentyFourFive" },
+  { ...base, symbol: "MRVLx", underlying: "MRVL", name: "Marvell", category: "tech", mint: "XsuxRGDzbLjnJ72v74b7p9VY6N66uYgTCyfwwRjVCJA", logo: "/logos/mrvl.png", enabled: true, tradingHoursMode: "TwentyFourFive" },
+  { ...base, symbol: "METAx", underlying: "META", name: "Meta", category: "tech", mint: "Xsa62P5mvPszXL1krVUnU5ar38bBSVcWAB6fmPCo5Zu", logo: "/logos/meta.png", enabled: true, tradingHoursMode: "TwentyFourFive" },
+  { ...base, symbol: "MUx", underlying: "MU", name: "Micron Technology", category: "tech", mint: "XsQLZycSZ7QnBBdBXQaTbQdiUcbRqjNJgyBGAMzhHav", logo: "/logos/mu.png", enabled: true, tradingHoursMode: "TwentyFourFive" },
+  { ...base, symbol: "MSFTx", underlying: "MSFT", name: "Microsoft", category: "tech", mint: "XspzcW1PRtgf6Wj92HCiZdjzKCyFekVD8P5Ueh3dRMX", logo: "/logos/msft.png", enabled: true, tradingHoursMode: "TwentyFourFive" },
+  { ...base, symbol: "NVDAx", underlying: "NVDA", name: "NVIDIA", category: "tech", mint: "Xsc9qvGR1efVDFGLrVsmkzv3qi45LTBjeUKSPmx9qEh", logo: "/logos/nvda.png", enabled: true, tradingHoursMode: "TwentyFourFive" },
+  { ...base, symbol: "ORCLx", underlying: "ORCL", name: "Oracle", category: "tech", mint: "XsjFwUPiLofddX5cWFHW35GCbXcSu1BCUGfxoQAQjeL", logo: "/logos/orcl.png", enabled: true, tradingHoursMode: "TwentyFourFive" },
+  { ...base, symbol: "PLTRx", underlying: "PLTR", name: "Palantir", category: "tech", mint: "XsoBhf2ufR8fTyNSjqfU71DYGaE6Z3SUGAidpzriAA4", logo: "/logos/pltr.png", enabled: true, tradingHoursMode: "TwentyFourFive" },
+  { ...base, symbol: "CRMx", underlying: "CRM", name: "Salesforce", category: "tech", mint: "XsczbcQ3zfcgAEt9qHQES8pxKAVG5rujPSHQEXi4kaN", logo: "/logos/crm.png", enabled: true, tradingHoursMode: "TwentyFourFive" },
+  { ...base, symbol: "TSMx", underlying: "TSM", name: "TSMC", category: "tech", mint: "XsafvsGtzFqqHgTnA3aPC83EAMkacU5mcGtcSayhpVV", logo: "/logos/tsm.png", enabled: true, tradingHoursMode: "TwentyFourFive" },
+  { ...base, symbol: "UBERx", underlying: "UBER", name: "Uber", category: "tech", mint: "XsAsZLF4MmsvS1sDxRMrUz7REjHfwbC9UAMXSRBqgEB", logo: "/logos/uber.png", enabled: true, tradingHoursMode: "TwentyFourFive" },
+];

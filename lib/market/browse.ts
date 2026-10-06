@@ -1,6 +1,18 @@
 import type { Currency, Quote, Ticker } from "@/lib/types";
 
-export const MARKET_FILTERS = ["all", "tech", "etf", "fintech", "consumer", "favorites"] as const;
+export const MARKET_FILTERS = [
+  "all",
+  "tech",
+  "etf",
+  "fintech",
+  "consumer",
+  "finance",
+  "health",
+  "energy",
+  "industrial",
+  "commodity",
+  "favorites",
+] as const;
 export type MarketFilter = (typeof MARKET_FILTERS)[number];
 
 export const MARKET_SORTS = ["popular", "gain", "loss", "az"] as const;

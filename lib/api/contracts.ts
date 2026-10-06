@@ -27,7 +27,17 @@ export const activityKindSchema = z.enum([
   "receive",
   "onramp",
 ]);
-export const categorySchema = z.enum(["tech", "etf", "fintech", "consumer"]);
+export const categorySchema = z.enum([
+  "tech",
+  "etf",
+  "fintech",
+  "consumer",
+  "finance",
+  "health",
+  "energy",
+  "industrial",
+  "commodity",
+]);
 export const onrampProviderSchema = z.enum(["koywe", "onramper"]);
 export const amountCurrencySchema = z.enum(["USDC", "SHARES", "CLP"]);
 

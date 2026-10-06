@@ -307,18 +307,9 @@ function TradeActions({
 
 function categoryName(
   category: Ticker["category"],
-  labels: { tech: string; etf: string; fintech: string; consumer: string },
+  labels: Record<Ticker["category"], string>,
 ) {
-  switch (category) {
-    case "tech":
-      return labels.tech;
-    case "etf":
-      return labels.etf;
-    case "fintech":
-      return labels.fintech;
-    case "consumer":
-      return labels.consumer;
-  }
+  return labels[category] ?? category;
 }
 
 function FactChip({ children }: { children: ReactNode }) {

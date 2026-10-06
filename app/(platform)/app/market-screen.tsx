@@ -292,6 +292,11 @@ export function MarketScreen({
     { value: "etf", label: t.market.etf },
     { value: "fintech", label: t.market.fintech },
     { value: "consumer", label: t.market.consumer },
+    { value: "finance", label: t.market.finance },
+    { value: "health", label: t.market.health },
+    { value: "energy", label: t.market.energy },
+    { value: "industrial", label: t.market.industrial },
+    { value: "commodity", label: t.market.commodity },
     { value: "favorites", label: t.market.favorites },
   ];
   const sortOptions: { value: MarketSort; label: string }[] = [
