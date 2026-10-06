@@ -16,10 +16,12 @@ export async function middleware(request: NextRequest) {
   const useSupabase = isSupabaseAuth();
 
   let supabaseSession = false;
+  let supabaseOnboarded = false;
   let refreshed: NextResponse | null = null;
   if (useSupabase) {
     const updated = await updateSession(request);
     supabaseSession = updated.hasSession;
+    supabaseOnboarded = updated.onboarded;
     refreshed = updated.response;
   }
 
@@ -36,6 +38,7 @@ export async function middleware(request: NextRequest) {
     usePrivy: useSupabase ? false : shouldUsePrivy(),
     useSupabase,
     supabaseSession,
+    supabaseOnboarded,
   });
 
   if (decision.kind === "next" || (decision.pathname === pathname && decision.search === search)) {

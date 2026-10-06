@@ -236,6 +236,13 @@ export const userProfileSchema = z.object({
   language: languageSchema,
   displayCurrency: currencySchema,
   createdAt: isoTimeSchema,
+  rut: z.string().nullable().default(null),
+  birthDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .nullable()
+    .default(null),
+  phone: z.string().nullable().default(null),
 });
 
 /** PATCH /api/me. No incluye id ni createdAt: los pone el servidor. */
@@ -248,6 +255,14 @@ export const profileUpdateSchema = z
     language: languageSchema.optional(),
     displayCurrency: currencySchema.optional(),
     onboardingCompleted: z.boolean().optional(),
+    rut: z.string().trim().max(16).nullable().optional(),
+    birthDate: z
+      .string()
+      .trim()
+      .regex(/^\d{4}-\d{2}-\d{2}$/)
+      .nullable()
+      .optional(),
+    phone: z.string().trim().max(20).nullable().optional(),
   })
   .strict();
 

@@ -17,7 +17,7 @@ import { IconShare } from "@/components/ui/icons";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/components/ui/toast";
 import { site } from "@/config/site";
-import { detailReturnPath, ingresarPath, onboardingPath } from "@/lib/auth/paths";
+import { detailReturnPath, ingresarPath, onboardingPath, registroPath } from "@/lib/auth/paths";
 import { cn } from "@/lib/cn";
 import { formatMoney, formatMultiplier, formatShares, formatUsd } from "@/lib/format";
 import { useFx, useHistory, useMarketStatus, usePortfolio, usePrices } from "@/lib/hooks/queries";
@@ -485,6 +485,7 @@ export function DetailScreen({
 
   const back = detailReturnPath(ticker.symbol, requested);
   const enter = ingresarPath(back);
+  const create = registroPath(back);
   const resume = onboardingPath(back);
 
   function openOperar(next: "comprar" | "vender" | null) {
@@ -538,7 +539,7 @@ export function DetailScreen({
       <AccountActions
         variant={variant}
         aboveTabs={false}
-        primary={{ href: enter, label: t.detail.signupToInvest }}
+        primary={{ href: create, label: t.detail.signupToInvest }}
         secondary={{ href: enter, label: t.detail.loginToInvest }}
       />
     );

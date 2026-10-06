@@ -1,9 +1,16 @@
 # PROGRESO — Maverlang
 
 ## Estado
-M29 hecha. La sesión puede ser de Supabase (`AUTH_MODE`); si falta config, queda en mock. El formulario de registro e ingreso todavía no. Siguiente: fuera de esta tarea.
+M30 hecha. El alta está en `/app/registro` (correo, datos, documentos). En mock sigue la demo y no llama a Supabase. Siguiente: M31 (ingreso, salir, recuperar).
 
 ## Tareas hechas
+
+### M30 — Registro real con Supabase (2026-10-05, M30: registro real supabase)
+- Hecho: migración `0002_supabase_auth.sql`, idempotente, para pegar una vez. `/app/registro` en 3 pasos. En modo supabase, `signUp` con confirmación y pantalla "Revisa tu correo" (reenviar a los 60 s). `/api/me` lee `public.profiles` con la sesión (RLS). Si falta la tabla, aviso discreto. El gate mira `user_metadata` del JWT y no consulta la tabla. `npx tsc --noEmit`, `npm run lint`, `npm test` (56) y `npm run e2e` (2, mock) ok. Sin `next dev`.
+- Archivos clave: `supabase/migrations/0002_supabase_auth.sql`, `docs/SUPABASE.md`, `lib/auth/registro-schema.ts`, `app/(platform)/app/registro/*`, `lib/services/users.rls.ts`, `lib/auth/gate.ts`.
+- Decisiones: `0001` queda con el aviso "NO APLICAR" (no se mueve ni se borra). En mock el formulario valida y entra a la demo. La landing sigue en `/app/ingresar`. El header y "Crear cuenta para invertir" van a `/app/registro` y conservan `next`. Si faltan datos, `/app/onboarding` reusa el wizard. Cartera, billetera y órdenes siguen en mock. El wizard está en español, como el onboarding.
+- Pendiente: aplicar 0002 en el SQL Editor. En el panel: Site URL `http://localhost:3000`; Redirect URLs `http://localhost:3000/auth/callback` y `http://localhost:3000/**`; confirmación de correo activa; el SMTP integrado tiene un límite bajo de correos por hora (en producción, SMTP propio). No se abrió el navegador: esta ejecución no levanta `next dev`. Ingreso, salir y recuperar son M31.
+- Próximo: fuera de esta tarea.
 
 ### M29 — Base de Supabase (2026-10-05, M29: supabase base)
 - Hecho: clientes en `lib/supabase` (`@supabase/ssr` 0.12.7, `@supabase/supabase-js` 2.117.2). `authMode()` es supabase sólo con el flag y URL + clave pública; si falta algo, mock y un `console.warn` una vez. El middleware refresca con `getClaims` (no `getSession`) y copia las cookies al redirect. `/auth/callback` canjea `code` o `token_hash`. `npm run e2e` construye y sirve con auth mock en `.next-e2e`. `npx tsc --noEmit`, `npm run lint`, `npm test` (45) y `npm run e2e` (2) ok. Sin `next dev`.

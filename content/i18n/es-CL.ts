@@ -387,6 +387,7 @@ export const esCL = {
     noEmail: "Sin correo",
     noCountry: "Sin país",
     loadError: "No pudimos cargar tu perfil.",
+    schemaMissing: "Tu perfil aparece cuando se aplique la migración en Supabase.",
     accountLead: "Tu nombre, tu correo y tu país.",
     name: "Nombre",
     nameHint: "Así aparece en tu cuenta.",

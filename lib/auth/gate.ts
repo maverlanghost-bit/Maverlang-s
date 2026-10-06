@@ -19,6 +19,8 @@ export type GateInput = {
   useSupabase: boolean;
   /** Sesión verificada con `getClaims` (o `getUser`). No es la cookie en crudo. */
   supabaseSession: boolean;
+  /** En supabase, sale de `user_metadata` del JWT. La cookie `a24_onb` no cuenta. */
+  supabaseOnboarded: boolean;
 };
 
 export type GateDecision =
@@ -84,6 +86,10 @@ function isOnboardingPath(pathname: string): boolean {
   return pathname === "/app/onboarding" || pathname.startsWith("/app/onboarding/");
 }
 
+function isRegistroPath(pathname: string): boolean {
+  return pathname === "/app/registro" || pathname.startsWith("/app/registro/");
+}
+
 function redirectTo(path: string): GateDecision {
   const target = splitPath(path);
   return { kind: "redirect", pathname: target.pathname, search: target.search };
@@ -120,11 +126,11 @@ export function decideGate(input: GateInput): GateDecision {
   if (!isAppPath(input.pathname)) return NEXT;
 
   const hasSession = hasAuthSession(input);
-  const onboarded = input.onboarding === ONBOARDING_DONE;
+  const onboarded = input.useSupabase ? input.supabaseOnboarded : input.onboarding === ONBOARDING_DONE;
   const isPublic = isPublicAppPath(input.pathname);
 
   if (!hasSession) {
-    if (isLoginPath(input.pathname) || isPublic) return NEXT;
+    if (isLoginPath(input.pathname) || isRegistroPath(input.pathname) || isPublic) return NEXT;
     return loginRedirect(input.pathname, input.search);
   }
 
@@ -133,9 +139,14 @@ export function decideGate(input: GateInput): GateDecision {
     return onboardingRedirect(input.pathname, input.search);
   }
 
-  if (isLoginPath(input.pathname)) {
+  if (isLoginPath(input.pathname) || isRegistroPath(input.pathname) || (input.useSupabase && isOnboardingPath(input.pathname))) {
     const params = new URLSearchParams(input.search.startsWith("?") ? input.search.slice(1) : input.search);
-    return redirectTo(safeNextPath(params.get("next")) ?? "/app");
+    const next = safeNextPath(params.get("next"));
+    const nextPath = next ? splitPath(next).pathname : "";
+    if (!next || isLoginPath(nextPath) || isRegistroPath(nextPath) || isOnboardingPath(nextPath)) {
+      return redirectTo("/app");
+    }
+    return redirectTo(next);
   }
 
   return NEXT;

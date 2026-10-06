@@ -16,7 +16,7 @@ function displayName(user: User): string | null {
   const meta = user.user_metadata;
   if (!meta || typeof meta !== "object") return null;
   const record = meta as Record<string, unknown>;
-  const name = record.full_name ?? record.name;
+  const name = record.nombre ?? record.full_name ?? record.name;
   return typeof name === "string" && name.trim() ? name.trim() : null;
 }
 

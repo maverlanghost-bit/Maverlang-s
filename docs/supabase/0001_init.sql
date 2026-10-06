@@ -1,3 +1,5 @@
+-- NO APLICAR: reemplazado por 0002 (Supabase Auth).
+-- Este archivo usa ids de texto (Privy). En un proyecto vacío pega sólo 0002_supabase_auth.sql.
 -- Maverlang — esquema inicial. Identidad = Privy DID (text). Acceso sólo vía service role.
 create table if not exists profiles (
   id text primary key,                       -- Privy DID

@@ -45,7 +45,8 @@ CTA "Ver acciones" → `/app` (mercado público, sin sesión). "Crear cuenta" y 
 | Ruta | Pantalla |
 |---|---|
 | `/app/ingresar` | Login. El formulario de Supabase (correo y, más adelante, Google) se enchufa acá. El canje del enlace es `GET /auth/callback` |
-| `/app/onboarding` | Pasos: 1 País de residencia · 2 Declaración "no soy US person" · 3 Aceptar términos + riesgos (versionados) · 4 Wallet creada ✓ · 5 (opcional) primer depósito |
+| `/app/registro` | Alta pública: correo y contraseña, datos personales, términos. En mock no llama a Supabase. Header y "Crear cuenta para invertir" llegan acá y conservan `next`. La landing sigue en `/app/ingresar` |
+| `/app/onboarding` | Mock: país, declaración, documentos, billetera. Con Supabase: el mismo wizard de datos si el JWT no trae el perfil listo |
 | `/app` | **Mercado** (público): buscador, filtros (Todas / Tecnología / ETFs / Favoritas), orden (Popular, Mayor alza, Mayor baja, A–Z), lista de TickerRow con sparkline, "Más movidas hoy", estado de mercado. Sin saldo, cartera ni posiciones |
 | `/app/accion/[ticker]` | **Detalle** (público): precio grande, variación, gráfico con tabs `1S 1M 3M 1A Todo`, estadísticas, "Sobre la empresa", "Sobre el token" (emisor, mint, multiplicador, riesgos). Con sesión: tu posición y Comprar/Vender. Sin sesión, el CTA es crear cuenta o ingresar y no abre el TradeSheet. `?operar=comprar|vender` abre el TradeSheet sólo con sesión y onboarding |
 | `/app/cartera` | **Cartera**: valor total (CLP/USD), P&L total y por posición, barra de asignación, lista PositionRow, historial de órdenes |
@@ -65,7 +66,8 @@ Layout con sesión: sidebar (≥lg) / bottom tabs (<lg) con 4 tabs: **Mercado ·
 - Geobloqueo: si país ∈ `GEO_BLOCKED_COUNTRIES` (default `US`) → `/bloqueado`. Header `x-vercel-ip-country`. `/auth/*` no se bloquea: el enlace de confirmación tiene que poder canjearse.
 - `/app` y `/app/accion/*` son públicas (`isPublicAppPath`): se ven sin sesión y sin onboarding. El geobloqueo sigue igual.
 - Sesión: modo efectivo supabase (`authMode`) refresca cookies con `updateSession` y decide con `getClaims()` (`supabaseSession`). No se confía en `getSession()`. Si no, cookie mock `a24_mock_session` o, con Privy, `privy-token`.
-- El resto de `/app/*` (excepto `/app/ingresar`) requiere sesión. Sin sesión → `/app/ingresar?next=…`. Con sesión y sin onboarding → `/app/onboarding` (las rutas públicas siguen abiertas). Un redirect copia las cookies refrescadas. `readServerSession` usa la misma regla.
+- `/app/registro` es público sin sesión. No es una ruta de mercado. Con sesión de Supabase, el onboarding sale de `user_metadata` del JWT (`onboarding_completed` y datos). No se consulta `profiles` en cada request. La cookie `a24_onb` no cuenta en ese modo.
+- El resto de `/app/*` (excepto `/app/ingresar` y `/app/registro`) requiere sesión. Sin sesión → `/app/ingresar?next=…`. Con sesión y sin onboarding → `/app/onboarding` (las rutas públicas siguen abiertas). Un redirect copia las cookies refrescadas. `readServerSession` usa la misma regla.
 
 ### 2.4 API (Route Handlers `app/api/**/route.ts`) — todas validan con zod y devuelven `ApiResult<T>`
 | Método y ruta | Request | Response |
@@ -310,13 +312,13 @@ USDC (Solana): `EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v`. Archivo listo: `d
 ## 8. Variables de entorno (`.env.example`)
 Ver `docs/.env.example`. `DATA_MODE=mock` mientras se construye. `AUTH_MODE=mock` por defecto; `supabase` sólo con URL y clave pública. `PRICES_MODE` no cambia la auth.
 
-## 9. Base de datos (Supabase) — `supabase/migrations/0001_init.sql`
-Tablas: `profiles`, `consents`, `preferences`, `orders`, `onramp_sessions`, `audit_log`. RLS activado y **sin políticas públicas** (acceso de servidor con `SUPABASE_SECRET_KEY`). Con `AUTH_MODE=supabase` la sesión es el usuario de Supabase Auth. Privy queda en el código. Archivo listo: `docs/supabase/0001_init.sql` (aún no aplicado en el proyecto remoto).
+## 9. Base de datos (Supabase)
+`0001_init.sql` es el esquema viejo de Privy (ids de texto). No pegarlo. En un proyecto vacío se pega una vez `supabase/migrations/0002_supabase_auth.sql`: `profiles` con uuid, `consents`, `preferences`, RLS de la propia fila y un trigger al crear el usuario. Pasos del panel en `docs/SUPABASE.md`. Con `AUTH_MODE=supabase`, `/api/me` lee y actualiza `public.profiles` con la sesión del usuario. Cartera, billetera y órdenes siguen en mock.
 
 ## 10. Puntos de enchufe del backend (fase siguiente)
 | Punto | Archivo | Qué falta |
 |---|---|---|
-| Sesión Supabase | `lib/supabase/*`, `app/auth/callback/route.ts` | Clientes, refresco y callback. Falta el formulario de registro e ingreso, y aplicar `0001_init.sql` |
+| Sesión Supabase | `lib/supabase/*`, `app/(platform)/app/registro`, `lib/services/users.rls.ts` | Registro con confirmación por correo. Falta aplicar `0002` en el SQL Editor. Ingreso y recuperar quedan en M31 |
 | Sesión Privy | `lib/services/auth.privy.ts` | Sigue en el código. No manda si `AUTH_MODE=supabase`. Verificar `privy-token` queda pendiente |
 | Precios | `prices.live.ts` | Jupiter Price v3 + multiplicador on-chain (cache 15 s) |
 | Historial | `prices.live.ts#history` | proveedor por definir (datos del subyacente o de pools) |

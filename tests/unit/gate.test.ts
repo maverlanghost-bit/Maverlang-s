@@ -16,6 +16,7 @@ const base: GateInput = {
   usePrivy: false,
   useSupabase: false,
   supabaseSession: false,
+  supabaseOnboarded: false,
 };
 
 function gate(overrides: Partial<GateInput> = {}) {
@@ -46,6 +47,7 @@ describe("isPublicAppPath", () => {
     expect(isPublicAppPath("/app/billetera/enviar")).toBe(false);
     expect(isPublicAppPath("/app/perfil/cuenta")).toBe(false);
     expect(isPublicAppPath("/app/ingresar")).toBe(false);
+    expect(isPublicAppPath("/app/registro")).toBe(false);
     expect(isPublicAppPath("/app/onboarding")).toBe(false);
     expect(isPublicAppPath("/app/acciones")).toBe(false);
   });
@@ -133,7 +135,22 @@ describe("decideGate", () => {
       }),
     ).toEqual(login("/app/cartera"));
     expect(
-      gate({ useSupabase: true, supabaseSession: true, onboarding: "1", pathname: "/app/cartera" }),
+      gate({
+        useSupabase: true,
+        supabaseSession: true,
+        onboarding: "1",
+        supabaseOnboarded: false,
+        pathname: "/app/cartera",
+      }),
+    ).toEqual(onboarding("/app/cartera"));
+    expect(
+      gate({
+        useSupabase: true,
+        supabaseSession: true,
+        onboarding: null,
+        supabaseOnboarded: true,
+        pathname: "/app/cartera",
+      }),
     ).toEqual(NEXT);
     expect(gate({ useSupabase: true, supabaseSession: true, onboarding: null, pathname: "/app" })).toEqual(NEXT);
     expect(
@@ -148,6 +165,28 @@ describe("decideGate", () => {
         pathname: "/app/perfil",
       }),
     ).toEqual(login("/app/perfil"));
+  });
+
+  it("deja el registro público y, con sesión, lo trata según el JWT", () => {
+    expect(gate({ pathname: "/app/registro", search: "?next=%2Fapp%2Faccion%2FAAPLx" })).toEqual(NEXT);
+    expect(
+      gate({
+        useSupabase: true,
+        supabaseSession: true,
+        supabaseOnboarded: false,
+        pathname: "/app/registro",
+        search: "?next=%2Fapp%2Faccion%2FAAPLx",
+      }),
+    ).toEqual(onboarding("/app/accion/AAPLx"));
+    expect(
+      gate({
+        useSupabase: true,
+        supabaseSession: true,
+        supabaseOnboarded: true,
+        pathname: "/app/registro",
+        search: "?next=%2Fapp%2Faccion%2FAAPLx",
+      }),
+    ).toEqual({ kind: "redirect", pathname: "/app/accion/AAPLx", search: "" });
   });
 
   it("no bloquea /auth aunque no haya sesión o el país esté bloqueado", () => {

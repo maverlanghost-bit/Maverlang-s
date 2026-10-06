@@ -11,6 +11,8 @@ import { PageHeader } from "@/components/ui/page-header";
 import { useSession } from "@/lib/auth";
 import { useMe } from "@/lib/hooks/queries";
 import { useT } from "@/lib/hooks/use-t";
+import { isProfileMigrationMessage } from "@/lib/profile/migration";
+import type { Messages } from "@/content/i18n/es-CL";
 
 import { fill, regionName } from "./ui";
 
@@ -23,9 +25,52 @@ const LINKS = [
   { href: "/ayuda", id: "help" },
 ] as const;
 
+function ProfileMenu({
+  t,
+  status,
+  onLogout,
+  version,
+}: {
+  t: Messages;
+  status: "loading" | "authenticated" | "unauthenticated";
+  onLogout: () => void;
+  version: string;
+}) {
+  return (
+    <>
+      <nav aria-label={t.profile.menu}>
+        <ul className="overflow-hidden rounded-3xl border border-border bg-surface-1">
+          {LINKS.map((item) => (
+            <li key={item.href} className="border-b border-border last:border-b-0">
+              <Link
+                href={item.href}
+                className="flex min-h-11 items-center justify-between gap-3 px-4 py-3 text-sm text-fg outline-none transition duration-[140ms] hover:bg-surface-2 focus-visible:ring-4 focus-visible:ring-fg/20 focus-visible:ring-inset"
+              >
+                <span>{t.profile[item.id]}</span>
+                <IconChevron className="-rotate-90 text-fg-muted" />
+              </Link>
+            </li>
+          ))}
+          <li className="border-b border-border last:border-b-0">
+            <button
+              type="button"
+              onClick={onLogout}
+              disabled={status === "loading"}
+              className="flex min-h-11 w-full items-center px-4 py-3 text-left text-sm text-fg outline-none transition duration-[140ms] hover:bg-surface-2 focus-visible:ring-4 focus-visible:ring-fg/20 focus-visible:ring-inset disabled:opacity-40"
+            >
+              {t.profile.logout}
+            </button>
+          </li>
+        </ul>
+      </nav>
+      <p className="text-center text-sm text-fg-muted">{fill(t.profile.version, { version })}</p>
+    </>
+  );
+}
+
 export function ProfileScreen({ version }: { version: string }) {
   const { t, language } = useT();
-  const { status, logout } = useSession();
+  const { status, logout, user } = useSession();
   const me = useMe();
   const profile = me.data;
 
@@ -34,6 +79,22 @@ export function ProfileScreen({ version }: { version: string }) {
       <div className="flex flex-col gap-6">
         <PageHeader title={t.pages.profile.title} description={t.pages.profile.lead} />
         <LoadingState label={t.states.loading} />
+      </div>
+    );
+  }
+  if (isProfileMigrationMessage(me.error)) {
+    const heading = user?.displayName ?? user?.email ?? t.profile.noEmail;
+    return (
+      <div className="flex flex-col gap-6">
+        <PageHeader title={t.pages.profile.title} description={t.pages.profile.lead} />
+        <p role="status" className="rounded-2xl border border-border bg-surface-1 px-4 py-3 text-sm leading-relaxed text-fg-muted">
+          {t.profile.schemaMissing}
+        </p>
+        <Card className="flex items-center gap-4 p-4 md:p-6">
+          <Avatar alt={heading} fallback={heading} size="lg" className="size-16 text-lg" />
+          <p className="min-w-0 truncate text-lg text-fg">{heading}</p>
+        </Card>
+        <ProfileMenu t={t} status={status} onLogout={() => void logout()} version={version} />
       </div>
     );
   }
@@ -66,32 +127,7 @@ export function ProfileScreen({ version }: { version: string }) {
           <p className="text-sm text-fg-muted">{country}</p>
         </div>
       </Card>
-      <nav aria-label={t.profile.menu}>
-        <ul className="overflow-hidden rounded-3xl border border-border bg-surface-1">
-          {LINKS.map((item) => (
-            <li key={item.href} className="border-b border-border last:border-b-0">
-              <Link
-                href={item.href}
-                className="flex min-h-11 items-center justify-between gap-3 px-4 py-3 text-sm text-fg outline-none transition duration-[140ms] hover:bg-surface-2 focus-visible:ring-4 focus-visible:ring-fg/20 focus-visible:ring-inset"
-              >
-                <span>{t.profile[item.id]}</span>
-                <IconChevron className="-rotate-90 text-fg-muted" />
-              </Link>
-            </li>
-          ))}
-          <li className="border-b border-border last:border-b-0">
-            <button
-              type="button"
-              onClick={() => void logout()}
-              disabled={status === "loading"}
-              className="flex min-h-11 w-full items-center px-4 py-3 text-left text-sm text-fg outline-none transition duration-[140ms] hover:bg-surface-2 focus-visible:ring-4 focus-visible:ring-fg/20 focus-visible:ring-inset disabled:opacity-40"
-            >
-              {t.profile.logout}
-            </button>
-          </li>
-        </ul>
-      </nav>
-      <p className="text-center text-sm text-fg-muted">{fill(t.profile.version, { version })}</p>
+      <ProfileMenu t={t} status={status} onLogout={() => void logout()} version={version} />
     </div>
   );
 }

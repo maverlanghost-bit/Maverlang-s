@@ -5,6 +5,7 @@ import { cookies } from "next/headers";
 import { MOCK_ONBOARDING_COOKIE, MOCK_SESSION_COOKIE, ONBOARDING_DONE, PRIVY_SESSION_COOKIE } from "@/lib/auth/cookies";
 import { hasAuthSession } from "@/lib/auth/gate";
 import { isSupabaseAuth, shouldUsePrivy, warnAuthOnce } from "@/lib/auth/mode";
+import { claimsOnboarded } from "@/lib/auth/registro-schema";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 export type ServerSession = {
@@ -26,12 +27,13 @@ export async function readServerSession(): Promise<ServerSession> {
   if (isSupabaseAuth()) {
     try {
       const supabase = await createSupabaseServerClient();
-      if (!supabase) return { hasSession: false, onboarded };
+      if (!supabase) return { hasSession: false, onboarded: false };
       const { data, error } = await supabase.auth.getClaims();
-      return { hasSession: !error && Boolean(data?.claims?.sub), onboarded };
+      const hasSession = !error && Boolean(data?.claims?.sub);
+      return { hasSession, onboarded: hasSession && claimsOnboarded(data?.claims ?? null) };
     } catch {
       warnAuthOnce(SESSION_WARN);
-      return { hasSession: false, onboarded };
+      return { hasSession: false, onboarded: false };
     }
   }
 

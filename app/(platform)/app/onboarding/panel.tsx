@@ -5,6 +5,7 @@ import { useId, type ReactNode } from "react";
 import { Controller, type Control } from "react-hook-form";
 
 import { site } from "@/config/site";
+import { US_RESIDENT_MESSAGE } from "@/lib/auth/registro-schema";
 import { Button } from "@/components/ui/button";
 import { Select, type SelectOption } from "@/components/ui/select";
 import type { LegalVersions, OnboardingStep } from "./draft";
@@ -140,7 +141,7 @@ export function UnavailableStep({ onChooseAgain }: { onChooseAgain: () => void }
   return (
     <div className="mt-4">
       <p className="text-sm leading-relaxed text-fg-body">
-        {site.name} no está disponible para residentes de Estados Unidos. Si vives en otro país, elige ese país.
+        {US_RESIDENT_MESSAGE}
       </p>
       <div className="mt-6">
         <Button type="button" size="lg" className="w-full" onClick={onChooseAgain}>

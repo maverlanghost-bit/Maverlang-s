@@ -14,6 +14,7 @@ import { requestDeletion, updateMe } from "@/lib/api/client";
 import { useSession } from "@/lib/auth";
 import { useDeletionStatus, useMe } from "@/lib/hooks/queries";
 import { useT } from "@/lib/hooks/use-t";
+import { isProfileMigrationMessage } from "@/lib/profile/migration";
 
 import { fill, formatWhen, regionName, SettingsFrame, SettingsPanel } from "../ui";
 
@@ -45,6 +46,19 @@ export function AccountScreen() {
   const profile = me.data;
   const name = draft ?? profile?.displayName ?? "";
   const requestedAt = deletion.data?.requestedAt ?? null;
+
+  if (isProfileMigrationMessage(me.error)) {
+    return (
+      <SettingsFrame title={t.profile.account} description={t.profile.accountLead}>
+        <p role="status" className="rounded-2xl border border-border bg-surface-1 px-4 py-3 text-sm leading-relaxed text-fg-muted">
+          {t.profile.schemaMissing}
+        </p>
+        <Button type="button" variant="secondary" size="lg" className="w-full" disabled={status === "loading"} onClick={() => void logout()}>
+          {t.profile.logout}
+        </Button>
+      </SettingsFrame>
+    );
+  }
 
   if (me.isPending) {
     return (

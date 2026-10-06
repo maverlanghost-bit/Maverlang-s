@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { IconButton } from "@/components/ui/icon-button";
 import { IconMenu } from "@/components/ui/icons";
 import { Sheet } from "@/components/ui/sheet";
-import { ingresarPath, safeNextPath } from "@/lib/auth/paths";
+import { ingresarPath, registroPath, safeNextPath } from "@/lib/auth/paths";
 import { cn } from "@/lib/cn";
 import { useT } from "@/lib/hooks/use-t";
 
@@ -26,6 +26,7 @@ function PublicHeaderBar({ here }: { here: string }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const enter = ingresarPath(here);
+  const create = registroPath(here);
   const marketCurrent = pathname === "/app" || pathname.startsWith("/app/accion");
 
   const links = [
@@ -57,7 +58,7 @@ function PublicHeaderBar({ here }: { here: string }) {
             <Link href={enter}>{t.guest.login}</Link>
           </Button>
           <Button asChild size="sm" className="h-11 shrink-0 px-2.5 text-sm whitespace-nowrap">
-            <Link href={enter}>{t.guest.signup}</Link>
+            <Link href={create}>{t.guest.signup}</Link>
           </Button>
           <IconButton
             label={open ? t.guest.closeMenu : t.guest.openMenu}

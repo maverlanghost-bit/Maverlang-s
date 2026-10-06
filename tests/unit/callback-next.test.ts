@@ -12,6 +12,7 @@ describe("callback next", () => {
     expect(callbackTarget("/app/ingresar?next=/app", true)).toBe("/app");
     expect(safeNextPath("https://evil.test/app")).toBeNull();
     expect(safeNextPath("/app/ingresar")).toBeNull();
+    expect(safeNextPath("/app/registro")).toBeNull();
   });
 
   it("conserva un destino bajo /app", () => {

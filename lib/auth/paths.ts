@@ -21,6 +21,14 @@ export function ingresarPath(next: string): string {
   return `/app/ingresar?${params.toString()}`;
 }
 
+/** Alta de cuenta. Conserva `next` para volver a la misma acción. */
+export function registroPath(next: string): string {
+  const safe = safeNextPath(next) ?? "/app";
+  const params = new URLSearchParams();
+  params.set("next", safe);
+  return `/app/registro?${params.toString()}`;
+}
+
 /** Tras la sesión, el registro conserva `next` para volver a la misma acción. */
 export function onboardingPath(next: string): string {
   const safe = safeNextPath(next) ?? "/app";
@@ -43,6 +51,7 @@ export function safeNextPath(value: string | null | undefined): string | null {
   const pathname = query === -1 ? withoutHash : withoutHash.slice(0, query);
   if (pathname !== "/app" && !pathname.startsWith("/app/")) return null;
   if (pathname === "/app/ingresar" || pathname.startsWith("/app/ingresar/")) return null;
+  if (pathname === "/app/registro" || pathname.startsWith("/app/registro/")) return null;
   return withoutHash;
 }
 

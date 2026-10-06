@@ -12,7 +12,10 @@ import { livePrices } from "@/lib/services/prices.live";
 import { mockPrices } from "@/lib/services/prices.mock";
 import { liveTrade } from "@/lib/services/trade.live";
 import { mockTrade } from "@/lib/services/trade.mock";
+import { isSupabaseAuth } from "@/lib/auth/mode";
+import { supabaseSessionAuth } from "@/lib/services/auth.supabase";
 import { mockUsers } from "@/lib/services/users.mock";
+import { rlsUsers } from "@/lib/services/users.rls";
 import { supabaseUsers } from "@/lib/services/users.supabase";
 import type {
   Activity,
@@ -114,22 +117,14 @@ function priceServices(): Services["prices"] {
 }
 
 export function getServices(): Services {
-  if (serverEnv.DATA_MODE === "live") {
-    return {
-      prices: priceServices(),
-      trade: liveTrade,
-      portfolio: livePortfolio,
-      onramp: liveOnramp(),
-      users: supabaseUsers,
-      auth: privyAuth,
-    };
-  }
+  const dataLive = serverEnv.DATA_MODE === "live";
+  const supabaseSession = isSupabaseAuth();
   return {
     prices: priceServices(),
-    trade: mockTrade,
-    portfolio: mockPortfolio,
-    onramp: mockOnramp,
-    users: mockUsers,
-    auth: mockAuth,
+    trade: dataLive ? liveTrade : mockTrade,
+    portfolio: dataLive ? livePortfolio : mockPortfolio,
+    onramp: dataLive ? liveOnramp() : mockOnramp,
+    users: supabaseSession ? rlsUsers : dataLive ? supabaseUsers : mockUsers,
+    auth: supabaseSession ? supabaseSessionAuth : dataLive ? privyAuth : mockAuth,
   };
 }

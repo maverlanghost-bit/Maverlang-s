@@ -208,7 +208,7 @@ export interface OnrampSession {
 }
 
 export interface UserProfile {
-  /** Privy DID. */
+  /** Privy DID, o el uuid de Supabase Auth. */
   id: string;
   email: string | null;
   displayName: string | null;
@@ -219,6 +219,11 @@ export interface UserProfile {
   language: "es-CL" | "en";
   displayCurrency: Currency;
   createdAt: string;
+  /** RUT con formato, sólo si el país es CL. */
+  rut: string | null;
+  /** `YYYY-MM-DD`. */
+  birthDate: string | null;
+  phone: string | null;
 }
 
 export type LegalDoc = "terminos" | "privacidad" | "riesgos";

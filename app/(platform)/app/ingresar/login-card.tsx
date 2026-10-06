@@ -10,7 +10,7 @@ import { Card } from "@/components/ui/card";
 import { shouldUsePrivy, useSession, type LoginMethod } from "@/lib/auth";
 import { readBrowserCookie } from "@/lib/auth/browser-cookies";
 import { MOCK_ONBOARDING_COOKIE, ONBOARDING_DONE } from "@/lib/auth/cookies";
-import { safeNextPath } from "@/lib/auth/paths";
+import { registroPath, safeNextPath } from "@/lib/auth/paths";
 
 function MailIcon() {
   return (
@@ -50,6 +50,7 @@ export function LoginCard() {
   const { status, login } = useSession();
   const [error, setError] = useState<string | null>(null);
   const next = safeNextPath(params.get("next")) ?? "/app";
+  const create = registroPath(next);
   const demo = !shouldUsePrivy();
 
   useEffect(() => {
@@ -104,6 +105,11 @@ export function LoginCard() {
           En este entorno los dos botones abren la cuenta demo.
         </p>
       ) : null}
+      <p className="mt-6 text-center text-sm leading-relaxed text-fg-muted">
+        <Link href={create} className="font-medium text-fg underline decoration-border underline-offset-4 hover:decoration-fg">
+          Crear cuenta
+        </Link>
+      </p>
       {error ? (
         <p className="mt-4 text-center text-sm text-down" role="alert">
           {error}

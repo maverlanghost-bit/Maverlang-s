@@ -152,6 +152,9 @@ function toProfile(row: ProfileRow): UserProfile {
     language: asLanguage(row.language),
     displayCurrency: asCurrency(row.display_currency),
     createdAt: row.created_at,
+    rut: null,
+    birthDate: null,
+    phone: null,
   };
 }
 

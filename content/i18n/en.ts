@@ -383,6 +383,7 @@ export const en = {
     noEmail: "No email",
     noCountry: "No country",
     loadError: "We couldn't load your profile.",
+    schemaMissing: "Your profile will show up once the Supabase migration is applied.",
     accountLead: "Your name, email, and country.",
     name: "Name",
     nameHint: "This is how you appear in the app.",

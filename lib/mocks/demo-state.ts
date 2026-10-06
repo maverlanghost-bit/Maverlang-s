@@ -171,6 +171,9 @@ function createState(): DemoState {
       language: "es-CL",
       displayCurrency: "CLP",
       createdAt: "2026-09-20T15:00:00.000Z",
+      rut: null,
+      birthDate: null,
+      phone: null,
     },
     prefs: {
       notifyOrders: true,
