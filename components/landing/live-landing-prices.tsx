@@ -10,6 +10,8 @@ import { PriceText } from "@/components/domain/price-text";
 import { getPrices } from "@/lib/api/client";
 import { cn } from "@/lib/cn";
 import { formatPercent, formatUsd } from "@/lib/format";
+import { useMounted } from "@/lib/hooks/use-mounted";
+import { FRESHNESS_PLACEHOLDER_TEXT } from "@/lib/market/freshness";
 import type { LandingQuote } from "@/lib/mocks/landing";
 import type { Quote } from "@/lib/types";
 
@@ -153,10 +155,26 @@ export function LandingSharesValue({
 /**
  * Un solo "Actualizado hace Xs" para la portada (bajo la cinta). Con la
  * muestra no hay nada que refrescar: devuelve null.
+ *
+ * Hidratación (M42b): la página es ISR (`revalidate = 30`), así que el HTML
+ * del servidor puede tener hasta 30 s y el relativo dependería de la hora de
+ * cada lado (error #418). En el primer render se muestra un marcador estable
+ * con la misma altura y el contador parte sólo tras montar, con los mismos
+ * datos iniciales del servidor. Los números usan locale fijo "es-CL".
  */
 export function LandingFreshness({ className }: { className?: string }) {
   const state = useLandingLiveState();
+  const mounted = useMounted();
   if (!state.live) return null;
+  if (!mounted) {
+    return (
+      <div className={cn("flex justify-center px-5", className)}>
+        <p aria-live="off" className="text-xs text-fg-muted">
+          {FRESHNESS_PLACEHOLDER_TEXT}
+        </p>
+      </div>
+    );
+  }
   return (
     <div className={cn("flex justify-center px-5", className)}>
       <PriceFreshness at={state.dataUpdatedAt ?? state.fallbackUpdatedAt} />

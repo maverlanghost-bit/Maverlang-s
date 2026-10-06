@@ -42,3 +42,19 @@ export function formatFreshness(elapsedSec: number, lang: FreshnessLang): string
   if (seconds < 60) return `Actualizado hace ${seconds} s`;
   return `Actualizado hace ${Math.floor(seconds / 60)} min`;
 }
+
+/**
+ * Marcador estable pre-hidratación (M42b): misma altura que el relativo (una
+ * línea `text-xs`), sin depender de la hora. Idéntico en servidor y cliente.
+ * Es un espacio duro (U+00A0) construido por código para que no colapse.
+ */
+export const FRESHNESS_PLACEHOLDER_TEXT = String.fromCharCode(160);
+
+/**
+ * Texto del indicador según montaje (M42b): antes de montar devuelve el
+ * marcador estable; después, el relativo de siempre.
+ */
+export function resolveFreshnessText(mounted: boolean, elapsedSec: number, lang: FreshnessLang): string {
+  if (!mounted) return FRESHNESS_PLACEHOLDER_TEXT;
+  return formatFreshness(elapsedSec, lang);
+}
