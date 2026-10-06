@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { authMode, isSupabaseAuth, pickAuthFlag, resetAuthModeWarningsForTests } from "@/lib/auth/mode";
-import { readSupabaseSecretKey } from "@/lib/supabase/config";
+import { readSupabaseSecretKey } from "@/lib/supabase/secret";
 
 const URL = "https://example.supabase.co";
 const KEY = "publishable-test";

@@ -30,3 +30,11 @@ Plantillas, opcionales. En Authentication → Emails puedes dejar las de Supabas
 - Confirmar cuenta: asunto y cuerpo en español, con el enlace para activar.
 - Recuperar contraseña: asunto y cuerpo en español, con el enlace para elegir una clave nueva.
 - Si no tocas las plantillas, las de Supabase sirven igual.
+
+## Verificar
+
+`npm run verify:auth` (o `node scripts/verificar-auth.mjs`) lee `.env.local` en el proceso y no imprime claves ni tokens. Crea un usuario con el admin API (`maverlang.e2e+<timestamp>@example.com`, `email_confirm: false`). No usa `signUp`, así que no manda correos.
+
+Comprueba que el ingreso falla mientras el correo no está confirmado, confirma al usuario, ingresa, y cierra la sesión. Si `public.profiles` existe, lee la fila propia, cambia el teléfono y comprueba que el listado no trae filas ajenas. Si la migración `0002` no está aplicada, esos pasos salen `SKIP: migracion no aplicada` y el resto sigue. Siempre borra el usuario. El proceso termina con código distinto de 0 sólo si algún paso es `FAIL`.
+
+El recorrido en el navegador es aparte: `npm run e2e:auth`. No entra en `npm run e2e`, que sigue en mock. Construye con `AUTH_MODE=supabase`, entra por `/app/ingresar?next=/app/accion/AAPLx`, mira la compra, abre la cartera, sale y comprueba que la cartera vuelve a pedir ingreso. Si faltan las claves o el modo no es supabase, el spec se salta. Hace falta el build y el servidor de esa prueba; esta verificación de API no levanta Next.

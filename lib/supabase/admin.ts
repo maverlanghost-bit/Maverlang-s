@@ -2,7 +2,8 @@ import "server-only";
 
 import { createClient } from "@supabase/supabase-js";
 
-import { readSupabasePublicConfig, readSupabaseSecretKey } from "@/lib/supabase/config";
+import { readSupabasePublicConfig } from "@/lib/supabase/config";
+import { readSupabaseSecretKey } from "@/lib/supabase/secret";
 
 /**
  * Cliente con la clave de servidor, para tareas de servidor y scripts.

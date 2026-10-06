@@ -1,9 +1,16 @@
 # PROGRESO — Maverlang
 
 ## Estado
-M31 hecha. Ingreso, salir y recuperar contraseña usan Supabase cuando el modo es supabase. En mock la demo no cambia. Siguiente: fuera de esta tarea (asociar la cartera real al usuario).
+M32 hecha. La verificación de Auth con Supabase pasa. El perfil queda en SKIP hasta aplicar `0002`. Siguiente: fuera de esta tarea (asociar la cartera real al usuario).
 
 ## Tareas hechas
+
+### M32 — Verificación de auth con Supabase (2026-10-05, M32: verificacion auth)
+- Hecho: `npm run verify:auth` crea el usuario con el admin API (sin `signUp` ni correos), exige confirmación, confirma, ingresa, cierra sesión y borra. Resultado: PASS a createUser, PASS b signIn sin confirmar, PASS c signIn confirmado, SKIP d select, SKIP d update, SKIP d rls (migración no aplicada), PASS e signOut, PASS limpieza. RESUMEN PASS (5 PASS, 0 FAIL, 3 SKIP). `npx tsc --noEmit`, `npm run lint`, `npm test` (66), `npm run build` y `npm run e2e` (2, 1 skipped) ok. Sin `next dev`.
+- Archivos clave: `scripts/verificar-auth.mjs`, `scripts/e2e-auth.mjs`, `e2e/auth-supabase.spec.ts`, `lib/supabase/secret.ts`, `docs/SUPABASE.md`.
+- Decisiones: un SKIP de perfil no falla el script. `npm run e2e:auth` no entra en `npm run e2e` y no se corrió aquí (levanta Next). La clave de servidor quedó en `lib/supabase/secret.ts` (`server-only`). Ningún componente cliente importa `lib/supabase/admin`. No hay literales de clave en el repo. `.env.local` sigue ignorado por git.
+- Pendiente: aplicar `0002` y volver a correr `npm run verify:auth` (d debería pasar). Correr `npm run e2e:auth` donde se pueda levantar Next. La cartera real sigue sin asociarse al usuario.
+- Próximo: fuera de esta tarea.
 
 ### M31 — Login real con Supabase (2026-10-05, M31: login real supabase)
 - Hecho: `/app/ingresar` en supabase pide correo y contraseña (`signInWithPassword`). Errores en español, reenvío si falta confirmar, Google en Próximamente. Tras entrar, `next` saneado (por ejemplo `/app/accion/AAPLx?operar=comprar`); si falta el registro, el wizard conserva `next`. Salir hace `signOut`, limpia cookies mock y vuelve a `/` (perfil y sidebar). `/app/recuperar` y `/app/restablecer` públicas. Cartera, billetera, perfil y subrutas exigen sesión. En supabase, quote, build, submit, cartera, billetera, `/api/me*` y `/api/onramp/session` usan `getUser` y responden 401 sin usuario. El webhook no cambia. Mock igual. `npx tsc --noEmit`, `npm run lint`, `npm test` (66) y `npm run e2e` (2, mock) ok. Sin `next dev`.
@@ -244,4 +251,4 @@ M31 hecha. Ingreso, salir y recuperar contraseña usan Supabase cuando el modo e
 - Logos y marcas del catálogo: sólo identifican el activo. Archivos de xStocks/Backed en `public/logos`. Ver `docs/PENDIENTES-LEGALES.md`. [REVISIÓN ABOGADO] antes de producción.
 - El smoke de T20 cubre el flujo mock a 1280×800. Sigue sin mirarse 360/768 (landing, mercado, detalle, compra, cartera, billetera, depositar, perfil) ni `?country=US`, `?mockError=`, FAKE/HOODx en 404 y el ojo del saldo.
 - Borrar `t18-check.ts` (sigue en el disco; `.gitignore` evita commitearlo).
-- Fase live: `.env.example` recomienda `PRICES_MODE=live`. Si la variable no existe, el código sigue en mock (tests y CI). Historial, trade, cartera, Koywe y Onramper siguen en stub. Auth de Supabase: registro (M30) e ingreso (M31). Falta aplicar `0002`. La cartera mock no está asociada al usuario. Privy sigue en el código. La landing sigue con precios ilustrativos.
+- Fase live: `.env.example` recomienda `PRICES_MODE=live`. Si la variable no existe, el código sigue en mock (tests y CI). Historial, trade, cartera, Koywe y Onramper siguen en stub. Auth de Supabase: registro (M30), ingreso (M31) y verificación (M32, perfil en SKIP). Falta aplicar `0002` y correr `npm run e2e:auth`. La cartera mock no está asociada al usuario. Privy sigue en el código. La landing sigue con precios ilustrativos.
