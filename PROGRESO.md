@@ -1,9 +1,16 @@
 # PROGRESO — Maverlang
 
 ## Estado
-M28 hecha. Mercado (`/app`) y detalle (`/app/accion/[ticker]`) se ven sin sesión. Cartera, billetera y perfil siguen pidiendo cuenta. Siguiente: fuera de esta tarea.
+M29 hecha. La sesión puede ser de Supabase (`AUTH_MODE`); si falta config, queda en mock. El formulario de registro e ingreso todavía no. Siguiente: fuera de esta tarea.
 
 ## Tareas hechas
+
+### M29 — Base de Supabase (2026-10-05, M29: supabase base)
+- Hecho: clientes en `lib/supabase` (`@supabase/ssr` 0.12.7, `@supabase/supabase-js` 2.117.2). `authMode()` es supabase sólo con el flag y URL + clave pública; si falta algo, mock y un `console.warn` una vez. El middleware refresca con `getClaims` (no `getSession`) y copia las cookies al redirect. `/auth/callback` canjea `code` o `token_hash`. `npm run e2e` construye y sirve con auth mock en `.next-e2e`. `npx tsc --noEmit`, `npm run lint`, `npm test` (45) y `npm run e2e` (2) ok. Sin `next dev`.
+- Archivos clave: `lib/supabase/*`, `lib/auth/{mode,gate,provider,server-session,supabase-provider,callback-next}.ts`, `middleware.ts`, `app/auth/callback/route.ts`, `scripts/e2e.mjs`, `lib/env.ts`, `.env.example`, `docs/ARQUITECTURA.md`.
+- Decisiones: el cliente usa sólo `NEXT_PUBLIC_AUTH_MODE` (hidratación alineada); el servidor prioriza `AUTH_MODE`. Privy queda y no manda si el modo es supabase. `/auth/*` no pasa por geobloqueo, para canjear el correo. Onboarding sigue en `a24_onb`. `SUPABASE_SECRET_KEY` reemplaza el nombre viejo, que queda de alias. `DATA_MODE` y `PRICES_MODE` no cambian. `login()` va a `/app/ingresar`; `logout()` hace `signOut` y vuelve a `/`.
+- Pendiente: aplicar `supabase/migrations/0001_init.sql` (el remoto está vacío). Registro (M30) e ingreso/recuperar (M31). Google sigue apagado; la confirmación por correo está activa. No se levantó `next dev`.
+- Próximo: fuera de esta tarea.
 
 ### M28 — Mercado público sin cuenta (2026-10-05, M28: mercado publico sin cuenta)
 - Hecho: sin sesión, `/app` y `/app/accion/[ticker]` responden y no redirigen. Cartera, billetera (depositar, enviar, recibir) y perfil redirigen a `/app/ingresar?next=…`. Con sesión y sin onboarding se ve el mercado; operar manda a completar el registro y conserva `?operar`. Geobloqueo igual. `npx tsc --noEmit`, `npm run lint`, `npm test` (35) y `npm run build` ok. `npm run e2e` (2) ok. Sin `next dev`.
@@ -222,4 +229,4 @@ M28 hecha. Mercado (`/app`) y detalle (`/app/accion/[ticker]`) se ven sin sesió
 - Logos y marcas del catálogo: sólo identifican el activo. Archivos de xStocks/Backed en `public/logos`. Ver `docs/PENDIENTES-LEGALES.md`. [REVISIÓN ABOGADO] antes de producción.
 - El smoke de T20 cubre el flujo mock a 1280×800. Sigue sin mirarse 360/768 (landing, mercado, detalle, compra, cartera, billetera, depositar, perfil) ni `?country=US`, `?mockError=`, FAKE/HOODx en 404 y el ojo del saldo.
 - Borrar `t18-check.ts` (sigue en el disco; `.gitignore` evita commitearlo).
-- Fase live: `.env.example` recomienda `PRICES_MODE=live`. Si la variable no existe, el código sigue en mock (tests y CI). Historial, trade, cartera, Privy server, Koywe, Onramper y Supabase siguen en stub. La landing sigue con precios ilustrativos.
+- Fase live: `.env.example` recomienda `PRICES_MODE=live`. Si la variable no existe, el código sigue en mock (tests y CI). Historial, trade, cartera, Koywe y Onramper siguen en stub. Auth de Supabase (M29) refresca la sesión; la migración SQL no está aplicada y el formulario no existe. Privy sigue en el código. La landing sigue con precios ilustrativos.

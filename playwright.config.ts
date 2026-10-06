@@ -2,8 +2,26 @@ import { defineConfig } from "@playwright/test";
 
 const port = 3456;
 const baseURL = `http://127.0.0.1:${port}`;
+const distDir = process.env.NEXT_DIST_DIR?.trim() || ".next-e2e";
 
-/** `npm run e2e` sirve el build (`next start`) y lo cierra al terminar. Hace falta `npm run build` antes. */
+function serverEnv(): Record<string, string> {
+  const env: Record<string, string> = {};
+  for (const [key, value] of Object.entries(process.env)) {
+    if (typeof value === "string") env[key] = value;
+  }
+  env.DATA_MODE = "mock";
+  env.NEXT_PUBLIC_DATA_MODE = "mock";
+  env.AUTH_MODE = "mock";
+  env.NEXT_PUBLIC_AUTH_MODE = "mock";
+  env.NEXT_DIST_DIR = distDir;
+  return env;
+}
+
+/**
+ * `npm run e2e` construye con auth mock (`scripts/e2e.mjs`) y sirve ese build.
+ * `NEXT_PUBLIC_*` se incrusta en el build: el process env gana sobre `.env.local`.
+ * El distDir es `.next-e2e` para no pisar `.next` del dev.
+ */
 export default defineConfig({
   testDir: "e2e",
   timeout: 120_000,
@@ -22,9 +40,6 @@ export default defineConfig({
     url: baseURL,
     reuseExistingServer: false,
     timeout: 120_000,
-    env: {
-      DATA_MODE: "mock",
-      NEXT_PUBLIC_DATA_MODE: "mock",
-    },
+    env: serverEnv(),
   },
 });

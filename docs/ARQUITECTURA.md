@@ -16,13 +16,13 @@ Fase actual: **frontend primero, con backend real "enchufable"**: todo pasa por 
 | Fuentes | `geist` (Geist Sans + Mono) | OFL |
 | Estado servidor | TanStack Query | caché de precios/cartera |
 | Formularios | react-hook-form + zod | zod también valida APIs |
-| Auth + wallet | Privy (`@privy-io/react-auth`, `@privy-io/server-auth`) — login email/Google + wallet embebida Solana | Gratis hasta 499 MAU (verificado fase 2). En modo mock se simula |
+| Auth + wallet | Supabase Auth (`@supabase/ssr`, `@supabase/supabase-js`) si `AUTH_MODE=supabase` y hay URL + clave pública. Si falta algo, mock. Privy sigue en el código para la wallet y no manda cuando el modo es supabase | Mock por defecto (`a24_mock_session`). `AUTH_MODE` en servidor y `NEXT_PUBLIC_AUTH_MODE` en cliente, iguales |
 | Solana | `@solana/web3.js` + `@solana/spl-token` (Token-2022) | sólo en `lib/solana/*` |
 | Swaps | Jupiter Swap API (Ultra/Swap V2 `/order` + `/execute`) | comisión propia = instrucción de transferencia USDC (0 bps al lanzar) |
 | Precios | Jupiter Price API v3 (precio por token crudo → ajustar por multiplicador) | historial: proveedor [POR DEFINIR]; mock por ahora |
 | FX CLP/USD | API pública (ej. mindicador.cl, dólar observado) [VERIFICAR licencia/uso] | cache 1 h |
 | On-ramp pesos | Koywe (SDK `@koyweforest/koywe-ramp-sdk`) ; fallback Onramper | adaptador `OnrampProvider` |
-| DB | Supabase (Postgres) — acceso **sólo desde servidor** con service role | Auth es Privy, no Supabase Auth |
+| DB | Supabase (Postgres) — CRUD de servidor con `SUPABASE_SECRET_KEY` (alias `SUPABASE_SERVICE_ROLE_KEY`) | La sesión de la app, con el flag, es Supabase Auth |
 | Gráficos | `lightweight-charts` (detalle) + Sparkline SVG propio | |
 | Números animados | `@number-flow/react` | como x.ai |
 | QR | `qrcode.react` | |
@@ -44,7 +44,7 @@ CTA "Ver acciones" → `/app` (mercado público, sin sesión). "Crear cuenta" y 
 ### 2.2 Plataforma — route group `app/(platform)/app`
 | Ruta | Pantalla |
 |---|---|
-| `/app/ingresar` | Login (Privy: email OTP / Google) |
+| `/app/ingresar` | Login. El formulario de Supabase (correo y, más adelante, Google) se enchufa acá. El canje del enlace es `GET /auth/callback` |
 | `/app/onboarding` | Pasos: 1 País de residencia · 2 Declaración "no soy US person" · 3 Aceptar términos + riesgos (versionados) · 4 Wallet creada ✓ · 5 (opcional) primer depósito |
 | `/app` | **Mercado** (público): buscador, filtros (Todas / Tecnología / ETFs / Favoritas), orden (Popular, Mayor alza, Mayor baja, A–Z), lista de TickerRow con sparkline, "Más movidas hoy", estado de mercado. Sin saldo, cartera ni posiciones |
 | `/app/accion/[ticker]` | **Detalle** (público): precio grande, variación, gráfico con tabs `1S 1M 3M 1A Todo`, estadísticas, "Sobre la empresa", "Sobre el token" (emisor, mint, multiplicador, riesgos). Con sesión: tu posición y Comprar/Vender. Sin sesión, el CTA es crear cuenta o ingresar y no abre el TradeSheet. `?operar=comprar|vender` abre el TradeSheet sólo con sesión y onboarding |
@@ -62,9 +62,10 @@ CTA "Ver acciones" → `/app` (mercado público, sin sesión). "Crear cuenta" y 
 Layout con sesión: sidebar (≥lg) / bottom tabs (<lg) con 4 tabs: **Mercado · Cartera · Billetera · Perfil**. Sin sesión: header público (logo, Mercado, Ayuda, Ingresar, Crear cuenta), sin sidebar, tabs ni saldo.
 
 ### 2.3 Middleware (`middleware.ts`)
-- Geobloqueo: si país ∈ `GEO_BLOCKED_COUNTRIES` (default `US`) → `/bloqueado` (página simple). Header `x-vercel-ip-country`.
+- Geobloqueo: si país ∈ `GEO_BLOCKED_COUNTRIES` (default `US`) → `/bloqueado`. Header `x-vercel-ip-country`. `/auth/*` no se bloquea: el enlace de confirmación tiene que poder canjearse.
 - `/app` y `/app/accion/*` son públicas (`isPublicAppPath`): se ven sin sesión y sin onboarding. El geobloqueo sigue igual.
-- El resto de `/app/*` (excepto `/app/ingresar`) requiere sesión (cookie Privy `privy-token`; en mock `a24_mock_session`). Sin sesión → `/app/ingresar?next=…`. Con sesión y sin onboarding → `/app/onboarding` (las rutas públicas siguen abiertas). `readServerSession` lee las mismas cookies.
+- Sesión: modo efectivo supabase (`authMode`) refresca cookies con `updateSession` y decide con `getClaims()` (`supabaseSession`). No se confía en `getSession()`. Si no, cookie mock `a24_mock_session` o, con Privy, `privy-token`.
+- El resto de `/app/*` (excepto `/app/ingresar`) requiere sesión. Sin sesión → `/app/ingresar?next=…`. Con sesión y sin onboarding → `/app/onboarding` (las rutas públicas siguen abiertas). Un redirect copia las cookies refrescadas. `readServerSession` usa la misma regla.
 
 ### 2.4 API (Route Handlers `app/api/**/route.ts`) — todas validan con zod y devuelven `ApiResult<T>`
 | Método y ruta | Request | Response |
@@ -307,15 +308,16 @@ Mints xStocks en Solana, verificados en Jupiter (tag `xstocks`, verificado) el 4
 USDC (Solana): `EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v`. Archivo listo: `docs/config/tickers.ts`.
 
 ## 8. Variables de entorno (`.env.example`)
-Ver `docs/.env.example`. Clave: `DATA_MODE=mock` mientras se construye.
+Ver `docs/.env.example`. `DATA_MODE=mock` mientras se construye. `AUTH_MODE=mock` por defecto; `supabase` sólo con URL y clave pública. `PRICES_MODE` no cambia la auth.
 
 ## 9. Base de datos (Supabase) — `supabase/migrations/0001_init.sql`
-Tablas: `profiles`, `consents`, `preferences`, `orders`, `onramp_sessions`, `audit_log`. RLS activado y **sin políticas públicas** (acceso sólo con service role desde Route Handlers, porque la identidad viene de Privy). Archivo listo: `docs/supabase/0001_init.sql`.
+Tablas: `profiles`, `consents`, `preferences`, `orders`, `onramp_sessions`, `audit_log`. RLS activado y **sin políticas públicas** (acceso de servidor con `SUPABASE_SECRET_KEY`). Con `AUTH_MODE=supabase` la sesión es el usuario de Supabase Auth. Privy queda en el código. Archivo listo: `docs/supabase/0001_init.sql` (aún no aplicado en el proyecto remoto).
 
 ## 10. Puntos de enchufe del backend (fase siguiente)
 | Punto | Archivo | Qué falta |
 |---|---|---|
-| Sesión real | `lib/services/auth.privy.ts` | verificar `privy-token` con `@privy-io/server-auth` |
+| Sesión Supabase | `lib/supabase/*`, `app/auth/callback/route.ts` | Clientes, refresco y callback. Falta el formulario de registro e ingreso, y aplicar `0001_init.sql` |
+| Sesión Privy | `lib/services/auth.privy.ts` | Sigue en el código. No manda si `AUTH_MODE=supabase`. Verificar `privy-token` queda pendiente |
 | Precios | `prices.live.ts` | Jupiter Price v3 + multiplicador on-chain (cache 15 s) |
 | Historial | `prices.live.ts#history` | proveedor por definir (datos del subyacente o de pools) |
 | Cotizar/ejecutar | `trade.live.ts` | Jupiter `/order` → `/execute`; insertar instrucción de fee si `FEE_BPS>0`; guardar `orders` |

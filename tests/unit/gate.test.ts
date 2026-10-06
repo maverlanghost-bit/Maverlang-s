@@ -14,6 +14,8 @@ const base: GateInput = {
   onboarding: null,
   privyToken: null,
   usePrivy: false,
+  useSupabase: false,
+  supabaseSession: false,
 };
 
 function gate(overrides: Partial<GateInput> = {}) {
@@ -118,5 +120,38 @@ describe("decideGate", () => {
       login("/app/cartera"),
     );
     expect(gate({ usePrivy: true, privyToken: "tok", onboarding: "1", pathname: "/app/cartera" })).toEqual(NEXT);
+  });
+
+  it("con Supabase usa la sesión verificada y no la cookie mock", () => {
+    expect(
+      gate({
+        useSupabase: true,
+        supabaseSession: false,
+        mockSession: "1",
+        onboarding: "1",
+        pathname: "/app/cartera",
+      }),
+    ).toEqual(login("/app/cartera"));
+    expect(
+      gate({ useSupabase: true, supabaseSession: true, onboarding: "1", pathname: "/app/cartera" }),
+    ).toEqual(NEXT);
+    expect(gate({ useSupabase: true, supabaseSession: true, onboarding: null, pathname: "/app" })).toEqual(NEXT);
+    expect(
+      gate({ useSupabase: true, supabaseSession: true, onboarding: null, pathname: "/app/cartera" }),
+    ).toEqual(onboarding("/app/cartera"));
+    expect(
+      gate({
+        useSupabase: true,
+        usePrivy: true,
+        privyToken: "tok",
+        supabaseSession: false,
+        pathname: "/app/perfil",
+      }),
+    ).toEqual(login("/app/perfil"));
+  });
+
+  it("no bloquea /auth aunque no haya sesión o el país esté bloqueado", () => {
+    expect(gate({ pathname: "/auth/callback", search: "?code=1", countryHeader: "US" })).toEqual(NEXT);
+    expect(gate({ pathname: "/auth/callback", useSupabase: true, supabaseSession: false })).toEqual(NEXT);
   });
 });

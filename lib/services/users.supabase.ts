@@ -7,7 +7,7 @@ import { serverEnv } from "@/lib/env";
 import type { Consent, LegalDoc, Preferences, UserProfile } from "@/lib/types";
 
 /**
- * CRUD de perfiles con la service role (ARQUITECTURA §9 y §10).
+ * CRUD de perfiles con `SUPABASE_SECRET_KEY` (ARQUITECTURA §9 y §10).
  * Las queries de abajo sólo corren si `DATA_MODE=live`. En mock, `getServices()`
  * ni las llama; igual el guard de cada método corta antes del fetch.
  * RLS está activo y sin políticas públicas. La identidad es el DID de Privy.
@@ -65,7 +65,7 @@ function assertLive(): { url: string; key: string } {
     throw new Error("NOT_IMPLEMENTED: Supabase sólo con DATA_MODE=live");
   }
   const url = serverEnv.NEXT_PUBLIC_SUPABASE_URL?.replace(/\/$/, "");
-  const key = serverEnv.SUPABASE_SERVICE_ROLE_KEY;
+  const key = serverEnv.SUPABASE_SECRET_KEY;
   if (!url || !key) {
     throw new DomainError("INTERNAL", "Falta la configuración de Supabase.");
   }

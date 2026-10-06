@@ -15,6 +15,10 @@ export type GateInput = {
   onboarding: string | null;
   privyToken: string | null;
   usePrivy: boolean;
+  /** Si es true, manda Supabase: no cuentan la cookie mock ni `privy-token`. */
+  useSupabase: boolean;
+  /** Sesión verificada con `getClaims` (o `getUser`). No es la cookie en crudo. */
+  supabaseSession: boolean;
 };
 
 export type GateDecision =
@@ -42,6 +46,11 @@ export function isSkippedPath(pathname: string): boolean {
   );
 }
 
+/** El canje del correo (`/auth/callback`) no pasa por geobloqueo ni por la sesión. */
+export function isAuthPath(pathname: string): boolean {
+  return pathname === "/auth" || pathname.startsWith("/auth/");
+}
+
 export function resolveCountry(input: Pick<GateInput, "countryHeader" | "countryQuery" | "nodeEnv">): string | null {
   if (input.nodeEnv !== "production") {
     const query = input.countryQuery?.trim().toUpperCase() ?? "";
@@ -55,8 +64,11 @@ function present(value: string | null): boolean {
   return value !== null && value.length > 0;
 }
 
-/** Misma regla que el middleware. En mock mira `a24_mock_session`; con Privy, `privy-token`. */
-export function hasAuthSession(input: Pick<GateInput, "usePrivy" | "privyToken" | "mockSession">): boolean {
+/** Misma regla que el middleware. Supabase manda si el modo es ese; si no, Privy o la cookie mock. */
+export function hasAuthSession(
+  input: Pick<GateInput, "useSupabase" | "supabaseSession" | "usePrivy" | "privyToken" | "mockSession">,
+): boolean {
+  if (input.useSupabase) return input.supabaseSession;
   return input.usePrivy ? present(input.privyToken) : present(input.mockSession);
 }
 
@@ -96,6 +108,7 @@ function onboardingRedirect(pathname: string, search: string): GateDecision {
 
 export function decideGate(input: GateInput): GateDecision {
   if (isSkippedPath(input.pathname)) return NEXT;
+  if (isAuthPath(input.pathname)) return NEXT;
 
   const country = resolveCountry(input);
   const blocked = country !== null && input.blockedCountries.includes(country);

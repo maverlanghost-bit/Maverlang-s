@@ -89,8 +89,26 @@ function countryListEnv(fallback: string[]) {
 
 const dataModeEnv = () => enumEnv(["mock", "live"] as const, "mock");
 
+/** Valor inválido o vacío → mock, para que el proceso no se caiga al arrancar. El modo efectivo está en `authMode()`. */
+function authFlagEnv() {
+  return z.preprocess((value) => {
+    const cleaned = cleanEnv(value)?.toLowerCase();
+    return cleaned === "supabase" ? "supabase" : "mock";
+  }, z.enum(["mock", "supabase"] as const));
+}
+
+/** `SUPABASE_SECRET_KEY`, o el nombre viejo `SUPABASE_SERVICE_ROLE_KEY` si el nuevo no está. */
+function supabaseSecretEnv() {
+  return z.preprocess((value) => {
+    const primary = cleanEnv(value);
+    if (primary) return primary;
+    return cleanEnv(process.env.SUPABASE_SERVICE_ROLE_KEY);
+  }, z.string().optional());
+}
+
 const publicSchema = z.object({
   NEXT_PUBLIC_DATA_MODE: dataModeEnv(),
+  NEXT_PUBLIC_AUTH_MODE: authFlagEnv(),
   NEXT_PUBLIC_BRAND_NAME: requiredText("Maverlang Stocks"),
   NEXT_PUBLIC_SITE_URL: urlEnv("http://localhost:3000"),
   NEXT_PUBLIC_SUPPORT_EMAIL: requiredText(""),
@@ -98,10 +116,13 @@ const publicSchema = z.object({
   NEXT_PUBLIC_SOLANA_CLUSTER: enumEnv(["mainnet-beta", "devnet", "testnet"] as const, "mainnet-beta"),
   NEXT_PUBLIC_SOLANA_RPC_URL: optionalText(),
   NEXT_PUBLIC_SUPABASE_URL: optionalText(),
+  NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: optionalText(),
 });
 
 const serverSchema = publicSchema.extend({
   DATA_MODE: dataModeEnv(),
+  /** mock | supabase. El modo efectivo exige además URL y clave pública (`authMode`). */
+  AUTH_MODE: authFlagEnv(),
   /** Precio actual. Si la variable no existe, queda `mock` (tests y CI): no llama a Jupiter ni al RPC. El historial no usa este flag. */
   PRICES_MODE: dataModeEnv(),
   PRIVY_APP_SECRET: optionalText(),
@@ -113,7 +134,7 @@ const serverSchema = publicSchema.extend({
   PRICE_DEVIATION_MAX_BPS: intEnv(150, 10_000),
   DEFAULT_SLIPPAGE_BPS: intEnv(50, 10_000),
   SPONSOR_ENABLED: boolEnv(false),
-  SUPABASE_SERVICE_ROLE_KEY: optionalText(),
+  SUPABASE_SECRET_KEY: supabaseSecretEnv(),
   ONRAMP_PROVIDER: enumEnv(["koywe", "onramper"] as const, "koywe"),
   KOYWE_CLIENT_ID: optionalText(),
   KOYWE_SECRET: optionalText(),
