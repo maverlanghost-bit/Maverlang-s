@@ -1,5 +1,7 @@
 # PROGRESO — Maverlang
 
+> Estado de la base (2026-10-06): las migraciones 0002, 0003 y 0004 YA están aplicadas en el proyecto Supabase actual y `public.assets` está sincronizada. No hay que pegar nada en el SQL Editor; las instrucciones de `docs/SUPABASE.md` sirven sólo para un proyecto nuevo.
+
 ## M39b — Separar asset-status cliente/servidor (2026-10-06, fix(M39): separar asset-status cliente/servidor (build))
 - Hecho: `lib/market/asset-status.shared.ts` nuevo (tipos + `chipKeyForStatus`, `tradeBlockForStatus`, `effectiveMinOrderUsd`, `normalizeMode`, `normalizePeriod`; sin `server-only`, sin `lib/env` ni catálogo). `asset-status.ts` conserva `server-only`, `status()`, `isLiveStatusEnabled()`, cache y fetch, y re-exporta lo compartido. `detail-screen.tsx` y `trade-sheet.tsx` importan del `.shared`. Test `client-imports.test.ts` (1) falla si un `"use client"` importa `asset-status` sin `.shared`, `catalog/assets`, `lib/env` o `server-only`.
 - Verificación: `npx tsc --noEmit` ok; `eslint` de los 5 archivos tocados ok (`npm run lint` completo excede el límite de 120 s de la shell); `npm test` 130/130 (23 archivos); `git grep` sin `sb_secret_` ni import cliente→servidor. Sin `next dev/build`, sin e2e, sin push.
@@ -35,7 +37,7 @@ M38 hecha y verificada (`npx tsc --noEmit`, `npm run lint`, `npm test` 119). M36
 - Archivos clave: `supabase/migrations/0004_assets.sql`, `data/{xstocks-solana-2026-10-06.csv,curated-symbols.json}`, `config/{curated-symbols.ts,tickers.generated.ts,tickers.ts}`, `scripts/sync-xstocks.mjs`, `lib/catalog/xstocks.ts`, `lib/{types,api/contracts,market/browse,mocks/prices,env.ts}`, mercado, detalle, i18n, `docs/SUPABASE.md`.
 - Decisiones: categorías nuevas finance/health/energy/industrial/commodity (filtros y chips extendidos). Generado sin liquidez para no cambiar en cada sync. `HOODx/MSTRx` enabled true (no suspendidos). Mock con ancla determinista para símbolos nuevos; demo/landing/precio único/sidebar/`?operar=vender` sin cambios.
 - Verificación: `npx tsc --noEmit` ok; `npm run lint` ok; `npm test` 100/100 (18 archivos, incl. `xstocks-catalog.test.ts` 7); sync real `--no-db`: total 1171, con Solana 1171, 38 logos bajados + 12 existentes, 0 errores; `git grep` sin secretos; `.env.local` fuera de `git status`.
-- Pendiente: aplicar 0004 DESPUÉS de 0003 en el SQL Editor; cron diario en Vercel cuando haya deploy (M40); revisar marcas/logos con abogado. [REVISIÓN ABOGADO] logos/marcas.
+- Pendiente: (0004 ya aplicada el 2026-10-06 vía psql y catálogo sincronizado: 1171 filas) cron diario en Vercel cuando haya deploy (M40); revisar marcas/logos con abogado. [REVISIÓN ABOGADO] logos/marcas.
 - Próximo: M38 (fuera de esta tarea).
 
 ### M36 — Cuenta demo por usuario (2026-10-06, M36: cuenta demo por usuario) [VERIFICADA, POR COMMITEAR]
@@ -43,7 +45,7 @@ M38 hecha y verificada (`npx tsc --noEmit`, `npm run lint`, `npm test` 119). M36
 - Archivos clave: `supabase/migrations/0003_demo_accounts.sql`, `lib/services/{demo.supabase,demo.logic}.ts`, `lib/account/{mode,server}.ts`, `lib/hooks/use-account-mode.ts`, `app/api/{portfolio,wallet/*/trade/*,demo/reset}`, `components/{app-shell/account-switch,domain/{real-account-empty,reset-demo-button}}`, shell, cartera, billetera, perfil, detalle, trade-sheet, i18n.
 - Decisiones: saldo demo en CLP ($1.000.000); cartera/balances se exponen en USD vía dólar real (sin inventar: si falta, error con reintento). Cotizaciones en memoria (60 s); saldo/posiciones/órdenes en Supabase. Sin billetera, la demo firma con el id de usuario. En billetera demo no hay fila SOL: se oculta ese bloque y la dirección dice "sin dirección en Solana". Registro/login, mercado público, precio único, sidebar, barra móvil y `?operar=vender` sin cambios.
 - Verificación (2026-10-06, r2): `npx tsc --noEmit` ok; `npm run lint` ok tras renombrar `useUserDemo`/`useRealAccount` a `isUserDemoRequest`/`isRealAccountRequest` (el prefijo `use` los marcaba como hooks) y quitar el `setState` en efecto de `useAccountMode` (inicializador perezoso lee la cookie); `npm test` 93/93 (17 archivos, incl. `demo-account.test.ts` 11); `npm run e2e` 2 passed + 1 skipped (mock, `.next-e2e`). Revisión SQL: idempotente, RLS sólo-lectura propia, grants sólo a `service_role`, sin `pg_catalog.current_date` (usa `now()`); corregida venta parcial en `demo_trade` (antes no restaba las acciones si quedaba saldo). Búsqueda de claves de Supabase en el código limpia; `.env.local` no aparece en `git status`.
-- Pendiente: aplicar 0003 DESPUÉS de 0002 en el SQL Editor; `git add` + `git commit -m "M36: cuenta demo por usuario"`. Sin `next dev/build`, sin push.
+- Pendiente: ninguno (0003 aplicada el 2026-10-06 vía psql; commit e839f5b). Sin `next dev/build`, sin push.
 - Próximo: fuera de esta tarea.
 
 ## Tareas hechas
@@ -80,7 +82,7 @@ M38 hecha y verificada (`npx tsc --noEmit`, `npm run lint`, `npm test` 119). M36
 - Hecho: `/app/ingresar` en supabase pide correo y contraseña (`signInWithPassword`). Errores en español, reenvío si falta confirmar, Google en Próximamente. Tras entrar, `next` saneado (por ejemplo `/app/accion/AAPLx?operar=comprar`); si falta el registro, el wizard conserva `next`. Salir hace `signOut`, limpia cookies mock y vuelve a `/` (perfil y sidebar). `/app/recuperar` y `/app/restablecer` públicas. Cartera, billetera, perfil y subrutas exigen sesión. En supabase, quote, build, submit, cartera, billetera, `/api/me*` y `/api/onramp/session` usan `getUser` y responden 401 sin usuario. El webhook no cambia. Mock igual. `npx tsc --noEmit`, `npm run lint`, `npm test` (66) y `npm run e2e` (2, mock) ok. Sin `next dev`.
 - Archivos clave: `lib/auth/{login-schema,login-errors,login-client,gate,paths}.ts`, `app/(platform)/app/{ingresar,recuperar,restablecer}`, `lib/services/auth.supabase.ts`, `lib/api/handler.ts`, `docs/SUPABASE.md`.
 - Decisiones: la cartera y la billetera siguen en el mock de la demo (la sesión supabase no trae billetera). Google no se enciende. Con sesión, ingresar y registro redirigen; recuperar y restablecer no. El enlace de clave va a `/auth/callback?next=/app/restablecer`.
-- Pendiente: asociar la cartera real al usuario. Aplicar `0002` en el SQL Editor. Plantillas de correo opcionales y Redirect URLs en `docs/SUPABASE.md`. No se abrió el navegador.
+- Pendiente: asociar la cartera real al usuario. (0002 ya aplicada.) Plantillas de correo opcionales y Redirect URLs en `docs/SUPABASE.md`. No se abrió el navegador.
 - Próximo: fuera de esta tarea.
 
 
@@ -88,7 +90,7 @@ M38 hecha y verificada (`npx tsc --noEmit`, `npm run lint`, `npm test` 119). M36
 - Hecho: migración `0002_supabase_auth.sql`, idempotente, para pegar una vez. `/app/registro` en 3 pasos. En modo supabase, `signUp` con confirmación y pantalla "Revisa tu correo" (reenviar a los 60 s). `/api/me` lee `public.profiles` con la sesión (RLS). Si falta la tabla, aviso discreto. El gate mira `user_metadata` del JWT y no consulta la tabla. `npx tsc --noEmit`, `npm run lint`, `npm test` (56) y `npm run e2e` (2, mock) ok. Sin `next dev`.
 - Archivos clave: `supabase/migrations/0002_supabase_auth.sql`, `docs/SUPABASE.md`, `lib/auth/registro-schema.ts`, `app/(platform)/app/registro/*`, `lib/services/users.rls.ts`, `lib/auth/gate.ts`.
 - Decisiones: `0001` queda con el aviso "NO APLICAR" (no se mueve ni se borra). En mock el formulario valida y entra a la demo. La landing sigue en `/app/ingresar`. El header y "Crear cuenta para invertir" van a `/app/registro` y conservan `next`. Si faltan datos, `/app/onboarding` reusa el wizard. Cartera, billetera y órdenes siguen en mock. El wizard está en español, como el onboarding.
-- Pendiente: aplicar 0002 en el SQL Editor. En el panel: Site URL `http://localhost:3000`; Redirect URLs `http://localhost:3000/auth/callback` y `http://localhost:3000/**`; confirmación de correo activa; el SMTP integrado tiene un límite bajo de correos por hora (en producción, SMTP propio). No se abrió el navegador: esta ejecución no levanta `next dev`. Ingreso, salir y recuperar son M31.
+- Pendiente: (0002 ya aplicada.) En el panel: Site URL `http://localhost:3000`; Redirect URLs `http://localhost:3000/auth/callback` y `http://localhost:3000/**`; confirmación de correo activa; el SMTP integrado tiene un límite bajo de correos por hora (en producción, SMTP propio). No se abrió el navegador: esta ejecución no levanta `next dev`. Ingreso, salir y recuperar son M31.
 - Próximo: fuera de esta tarea.
 
 ### M29 — Base de Supabase (2026-10-05, M29: supabase base)

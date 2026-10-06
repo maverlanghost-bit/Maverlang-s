@@ -1,6 +1,8 @@
 # Supabase — qué pegar y cómo dejar Auth
 
-El proyecto remoto está vacío. No pegues `0001_init.sql`: ese archivo es el esquema viejo de Privy (ids de texto) y choca con el registro. El aviso está al inicio del archivo.
+> **Estado actual (2026-10-06):** en el proyecto Supabase de Maverlang ya están aplicadas `0002`, `0003` y `0004`, y `public.assets` ya está sincronizada (`npm run sync:xstocks`). **No hay que pegar nada.** Lo de abajo sirve sólo para montar un proyecto nuevo desde cero.
+
+En un proyecto nuevo (vacío), no pegues `0001_init.sql`: ese archivo es el esquema viejo de Privy (ids de texto) y choca con el registro. El aviso está al inicio del archivo.
 
 ## Qué pegar en el SQL Editor
 

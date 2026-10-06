@@ -1,4 +1,5 @@
 -- Maverlang — registro con Supabase Auth.
+-- YA APLICADA en el proyecto actual (2026-10-06). Sólo para un proyecto nuevo:
 -- Pegar UNA vez en el SQL Editor de un proyecto vacío.
 -- No pegues 0001_init.sql antes: ese esquema usa ids de texto (Privy) y choca con esta tabla.
 -- Idempotente: se puede volver a ejecutar.

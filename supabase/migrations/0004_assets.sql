@@ -1,8 +1,9 @@
 -- Maverlang — catálogo xStocks automático.
+-- YA APLICADA en el proyecto actual (2026-10-06). Sólo para un proyecto nuevo:
 -- Pegar UNA vez en el SQL Editor DESPUÉS de 0003_demo_accounts.sql.
 -- No toca 0002 ni 0003: sólo agrega la tabla public.assets.
 -- Idempotente: se puede volver a ejecutar.
--- NO aplicar desde la terminal: el operador la pega en el panel.
+-- Se puede aplicar en el SQL Editor o con psql (así se aplicó).
 
 create table if not exists public.assets (
   symbol text primary key,

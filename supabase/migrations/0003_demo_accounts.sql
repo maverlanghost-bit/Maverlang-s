@@ -1,8 +1,9 @@
 -- Maverlang — cuenta demo por usuario.
+-- YA APLICADA en el proyecto actual (2026-10-06). Sólo para un proyecto nuevo:
 -- Pegar UNA vez en el SQL Editor DESPUÉS de 0002_supabase_auth.sql.
 -- No toca 0002: sólo agrega las tablas demo y sus funciones.
 -- Idempotente: se puede volver a ejecutar.
--- NO aplicar desde la terminal: el operador la pega en el panel.
+-- Se puede aplicar en el SQL Editor o con psql (así se aplicó).
 
 create table if not exists public.demo_accounts (
   user_id uuid primary key references public.profiles (id) on delete cascade,
