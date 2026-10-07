@@ -2,8 +2,7 @@ import type { ReactNode } from "react";
 import { SiteFooter } from "@/components/landing/site-footer";
 import { SiteHeader } from "@/components/landing/site-header";
 
-/** Landing, ayuda y legales no dependen de la sesión ni de la hora. */
-export const dynamic = "force-static";
+// M48: sin `force-static`: la CSP con nonce exige render dinámico.
 
 export default function MarketingLayout({ children }: { children: ReactNode }) {
   return (

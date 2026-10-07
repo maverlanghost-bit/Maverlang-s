@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { site } from "@/config/site";
 
-export const dynamic = "force-static";
+// M48: sin `force-static`: la CSP con nonce exige render dinámico.
 
 export const metadata: Metadata = {
   title: "Región no disponible",

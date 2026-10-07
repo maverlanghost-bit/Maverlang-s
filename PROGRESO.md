@@ -1,5 +1,11 @@
 # PROGRESO — Maverlang
 
+## M48c-fix — CSP con nonce en páginas de marketing y e2e al día (2026-10-07)
+- Sin `force-static` en `app/(marketing)/layout.tsx` y `app/bloqueado/page.tsx` (comentario M48 de una línea; eran los únicos en `app/`, sin tocar `app/api/**` ni la CSP): `await connection()` del layout raíz vuelve dinámico el render, el HTML sale con nonce y la portada hidrata con CSP `enforce` + `strict-dynamic`.
+- e2e `smoke.spec.ts`: buscador como `combobox "Buscar acciones"` + `option /AAPLx|Apple/` (resultados con `role="option"` en `search-suggestions.tsx`); termina en `/app/accion/AAPLx`. Sin tocar componentes.
+- e2e `demo-usd.spec.ts`: montos 950.000/855.000 con regex que tolera espacios (`/\$\s*9\s*5\s*0\s*\.\s*0\s*0\s*0/`) sobre la tarjeta "Disponible para invertir" (NumberFlow parte los dígitos en spans); el "ya no está" de $855.000 con `not.toContainText`. Mock de cartera intacto (vacío, US$1.000). `portada-lista-espera.spec.ts` sin cambios.
+- Verificación: `npx tsc --noEmit` ok; `npm run lint` ok; `npm test` 257/257 (39 archivos). Digo con todas sus letras: NO comprobables aquí build prod ni `npm run e2e` (los corre el operador).
+
 ## M48b-fix — nonce de la CSP en modo Supabase (2026-10-07)
 - Arreglo: `middleware.ts` rama `next` ya no copia todas las cabeceras de `refreshed` (pisaba `x-middleware-override-headers` con `x-nonce`/CSP y bloqueaba scripts con `strict-dynamic` en enforce); ahora usa `mergeSupabaseIntoNext(refreshed, next)` (`lib/supabase/middleware.ts`), que copia sólo cookies + `cache-control`/`expires`/`pragma` vía `copySupabaseResponse` y nunca `x-middleware-*`. Política CSP intacta.
 - Verificación: `npx tsc --noEmit` ok; `npm run lint` ok; `npm test` 257/257 (39 archivos, `csp.test.ts` 15 con test nuevo que conserva `x-nonce`/CSP en override-headers y pasa cookie + `cache-control`).

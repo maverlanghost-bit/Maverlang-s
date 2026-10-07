@@ -39,8 +39,8 @@ test("smoke con datos mock", async ({ page }) => {
   await expect(page).toHaveURL(/\/app\/?$/);
   await expect(page.getByRole("heading", { name: "Mercado" })).toBeVisible();
 
-  await page.getByRole("searchbox", { name: "Buscar acciones" }).fill("AAPL");
-  await page.getByRole("link", { name: /AAPLx/ }).click();
+  await page.getByRole("combobox", { name: "Buscar acciones" }).fill("AAPL");
+  await page.getByRole("option", { name: /AAPLx|Apple/ }).click();
   await expect(page).toHaveURL(/\/app\/accion\/AAPLx/);
 
   await page.getByRole("button", { name: "Comprar", exact: true }).click();
