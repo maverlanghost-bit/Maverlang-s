@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { connection } from "next/server";
 import { site, siteOrigin } from "@/config/site";
 import { geistMono, geistSans } from "./fonts";
 import { Providers } from "./providers";
@@ -29,11 +30,16 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // M48: la CSP con nonce por solicitud exige render dinámico (guía de Next 16:
+  // las páginas estáticas se prerenderizan sin nonce y `strict-dynamic`
+  // bloquearía sus scripts). Toda la app pasa a dinámica; la portada pierde
+  // su ISR de 30 s hasta que la CSP sea por hashes (SRI) o por ruta.
+  await connection();
   return (
     <html
       lang="es-CL"

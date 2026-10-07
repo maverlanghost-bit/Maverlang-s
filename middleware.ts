@@ -4,14 +4,69 @@ import { decideGate, blockedCountryList } from "@/lib/auth/gate";
 import { MOCK_ONBOARDING_COOKIE, MOCK_SESSION_COOKIE, PRIVY_SESSION_COOKIE } from "@/lib/auth/cookies";
 import { isSupabaseAuth, shouldUsePrivy } from "@/lib/auth/mode";
 import { copySupabaseResponse, updateSession } from "@/lib/supabase/middleware";
+import { applyStaticHeaders } from "@/lib/security/headers";
+import { buildCsp, generateNonce, resolveCspMode } from "@/lib/security/csp";
 
 /**
  * Next.js 16 renombró esta convención a `proxy.ts` y avisa al compilar.
  * Se mantiene `middleware.ts` porque ARQUITECTURA §2.3 lo nombra.
  * Los dos archivos a la vez hacen fallar el build.
  * En modo supabase, `updateSession` refresca la cookie y `getClaims` decide la sesión.
+ *
+ * M48: nonce por solicitud (guía de CSP de Next 16). El nonce viaja en la
+ * CSP pedida (`Content-Security-Policy` del request) y en `x-nonce` para que
+ * Next lo inyecte en los scripts; la respuesta lleva la CSP (`enforce`) o
+ * `Content-Security-Policy-Report-Only` (`report-only`) más las cabeceras
+ * estáticas. `CSP_MODE=off` apaga sólo la CSP. Las rutas API no pasan por
+ * acá (matcher): su `nosniff` sale de `next.config.ts` y `jsonResult`.
  */
+function securityOf(request: NextRequest): {
+  nonce: string;
+  isProd: boolean;
+  requestHeaders: Headers;
+  cspName: string | null;
+  cspValue: string | null;
+} {
+  const nonce = generateNonce();
+  const isProd = process.env.NODE_ENV === "production";
+  const mode = resolveCspMode(process.env.CSP_MODE, process.env.NODE_ENV);
+  const cspValue =
+    mode === "off"
+      ? null
+      : buildCsp({
+          nonce,
+          isDev: !isProd,
+          supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
+          rpcUrl: process.env.NEXT_PUBLIC_SOLANA_RPC_URL,
+          rpcCluster: process.env.NEXT_PUBLIC_SOLANA_CLUSTER,
+          reportUri: process.env.CSP_REPORT_URI,
+        });
+  const cspName =
+    cspValue === null
+      ? null
+      : mode === "report-only"
+        ? "Content-Security-Policy-Report-Only"
+        : "Content-Security-Policy";
+
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set("x-nonce", nonce);
+  if (cspValue) requestHeaders.set("Content-Security-Policy", cspValue);
+  return { nonce, isProd, requestHeaders, cspName, cspValue };
+}
+
+function applySecurity(
+  response: NextResponse,
+  security: { isProd: boolean; cspName: string | null; cspValue: string | null },
+): NextResponse {
+  applyStaticHeaders(response.headers, { isProd: security.isProd });
+  if (security.cspName && security.cspValue) {
+    response.headers.set(security.cspName, security.cspValue);
+  }
+  return response;
+}
+
 export async function middleware(request: NextRequest) {
+  const security = securityOf(request);
   const { pathname, search } = request.nextUrl;
   const useSupabase = isSupabaseAuth();
 
@@ -45,7 +100,17 @@ export async function middleware(request: NextRequest) {
   });
 
   if (decision.kind === "next" || (decision.pathname === pathname && decision.search === search)) {
-    return refreshed ?? NextResponse.next();
+    const next = NextResponse.next({ request: { headers: security.requestHeaders } });
+    if (refreshed) {
+      for (const cookie of refreshed.cookies.getAll()) {
+        next.cookies.set(cookie);
+      }
+      for (const [key, value] of refreshed.headers) {
+        next.headers.set(key, value);
+      }
+      copySupabaseResponse(refreshed, next);
+    }
+    return applySecurity(next, security);
   }
 
   const url = request.nextUrl.clone();
@@ -53,7 +118,7 @@ export async function middleware(request: NextRequest) {
   url.search = decision.search;
   const redirect = NextResponse.redirect(url);
   if (refreshed) copySupabaseResponse(refreshed, redirect);
-  return redirect;
+  return applySecurity(redirect, security);
 }
 
 export const config = {

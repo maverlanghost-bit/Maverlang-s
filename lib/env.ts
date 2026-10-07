@@ -2,6 +2,8 @@ import "server-only";
 
 import { z } from "zod";
 
+import { resolveCspMode } from "@/lib/security/csp";
+
 /**
  * Env validado. Este módulo es sólo de servidor: `import "server-only"`.
  * El cliente sigue leyendo la marca y la URL en `config/site.ts`
@@ -175,6 +177,18 @@ const serverSchema = publicSchema.extend({
    * el mock. También se activa con `PRICES_MODE=live`. En mock/tests sigue el mock.
    */
   MARKET_STATUS_MODE: enumEnv(["mock", "live"] as const, "mock"),
+  /**
+   * Cabeceras de seguridad (M48). `enforce` | `report-only` | `off`.
+   * Sin variable: `enforce` en producción, `report-only` en desarrollo.
+   * Si la demo publicada se rompe por la CSP, poner `CSP_MODE=report-only`
+   * en Vercel (Settings → Environment Variables) y redeployar, sin código.
+   */
+  CSP_MODE: z.preprocess(
+    (value) => resolveCspMode(cleanEnv(value), process.env.NODE_ENV),
+    z.enum(["enforce", "report-only", "off"] as const),
+  ),
+  /** Endpoint propio para informes de violación de CSP (opcional; M61 lo conecta a Sentry). */
+  CSP_REPORT_URI: optionalText(),
 });
 
 export type PublicEnv = z.infer<typeof publicSchema>;

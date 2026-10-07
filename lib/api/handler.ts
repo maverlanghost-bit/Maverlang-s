@@ -28,7 +28,7 @@ export type Session = { userId: string; walletAddress: string | null };
 export function jsonResult<T>(result: ApiResult<T>, cache: CacheMode): NextResponse {
   return NextResponse.json(result, {
     status: resultStatus(result),
-    headers: { "cache-control": CACHE_CONTROL[cache] },
+    headers: { "cache-control": CACHE_CONTROL[cache], "x-content-type-options": "nosniff" },
   });
 }
 

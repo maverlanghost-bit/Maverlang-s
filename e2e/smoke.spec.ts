@@ -89,3 +89,35 @@ test("visita el detalle sin sesión", async ({ browser }) => {
   expect(decodeURIComponent(new URL(page.url()).searchParams.get("next") ?? "")).toContain("/app/cartera");
   await context.close();
 });
+
+test("M48: cabeceras de seguridad y CSP sin violaciones", async ({ page }) => {
+  const cspErrors: string[] = [];
+  page.on("console", (message) => {
+    if (message.text().includes("Content Security Policy")) cspErrors.push(message.text());
+  });
+
+  const policies: string[] = [];
+  for (const path of ["/", "/app"]) {
+    const response = await page.goto(path);
+    expect(response?.status(), `GET ${path}`).toBe(200);
+    const headers = response?.headers() ?? {};
+    const csp = headers["content-security-policy"] ?? headers["content-security-policy-report-only"];
+    expect(csp, `CSP en ${path}`).toBeTruthy();
+    if (csp) policies.push(csp);
+    expect(headers["x-content-type-options"], `nosniff en ${path}`).toBe("nosniff");
+    expect(headers["x-frame-options"], `frame en ${path}`).toBe("DENY");
+    expect(headers["referrer-policy"], `referrer en ${path}`).toBe("strict-origin-when-cross-origin");
+    expect(headers["cross-origin-opener-policy"], `coop en ${path}`).toBe(
+      "same-origin-allow-popups",
+    );
+    expect(headers["permissions-policy"] ?? "", `permissions en ${path}`).toContain("camera=()");
+    expect(headers["strict-transport-security"] ?? "", `hsts en ${path}`).toContain(
+      "max-age=63072000",
+    );
+    expect(headers["x-powered-by"], `sin x-powered-by en ${path}`).toBeUndefined();
+  }
+
+  // Nonce distinto en cada solicitud.
+  expect(new Set(policies).size, "nonce distinto por solicitud").toBe(policies.length);
+  expect(cspErrors, "errores de CSP en consola").toEqual([]);
+});

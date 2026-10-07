@@ -1,4 +1,4 @@
-# Seguridad — RLS (M47)
+# Seguridad — RLS (M47) + cabeceras y CSP (M48)
 
 Cómo se garantiza que con la clave pública y la sesión de un usuario sólo se
 ven y cambian sus propios datos, y que las tablas internas sólo las toca el
@@ -45,3 +45,35 @@ Cada tarea que cree una tabla (`asset_safety`, `orders`, `wallets`,
 depósitos y retiros) debe: activar RLS en su migración y agregar su fila a
 `AUDIT_TABLES` y a la matriz de `scripts/audit-rls.mjs`. Si aparece una tabla
 de `public` sin fila en la matriz, la auditoría FALLA.
+
+## Cabeceras y CSP (M48)
+
+Todas las respuestas llevan: `X-Content-Type-Options: nosniff`,
+`X-Frame-Options: DENY` (más `frame-ancestors 'none'` en la CSP),
+`Referrer-Policy: strict-origin-when-cross-origin`,
+`Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=()`
+(cerrado; si el KYC de M76 necesita cámara, se abre ahí) y
+`Cross-Origin-Opener-Policy: same-origin-allow-popups` (Privy y Google usan
+popups). `Strict-Transport-Security` sólo en producción. Sin `X-Powered-By`
+(`poweredByHeader: false`). Las páginas salen de `middleware.ts`; las rutas
+API (`/api/*`, fuera del matcher) de `next.config.ts` + `jsonResult`.
+
+La CSP usa nonce por solicitud (guía de Next 16): `script-src 'self'
+'nonce-<n>' 'strict-dynamic'` (`'unsafe-eval'` sólo en dev),
+`style-src 'self' 'unsafe-inline'`, `connect-src 'self'` + Supabase
+(`*.supabase.co` + origen del proyecto desde env, https y wss), Privy
+(`auth.privy.io`, `*.privy.io`, `*.privy.systems`, `*.rpc.privy.systems`) y el
+RPC cliente (env o endpoint del cluster), `frame-src`/`child-src` Privy +
+WalletConnect verify + Turnstile, `upgrade-insecure-requests` sólo en
+producción. Jupiter, mindicador y el RPC privado son sólo servidor: no van en
+la CSP. Vercel Analytics (M50) es mismo origen (`/_vercel/insights/*`):
+cubierto por `'self'`; al agregarlo, verificar que respete el nonce.
+
+**Efecto colateral:** el nonce exige render dinámico (`await connection()`
+en el layout raíz): la portada pierde su ISR de 30 s. Volver a estático exige
+CSP por hashes (SRI experimental) o por ruta, fuera de esta tarea.
+
+**Si la demo publicada se rompe:** poner `CSP_MODE=report-only` en Vercel
+(Settings → Environment Variables) y redeployar, sin tocar código. Modos:
+`CSP_MODE=enforce|report-only|off` (default `report-only` en desarrollo,
+`enforce` en producción); `CSP_REPORT_URI` opcional (M61 lo conecta a Sentry).
