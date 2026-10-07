@@ -44,7 +44,8 @@ test("portada: demo gratis, lista de espera y logos", async ({ page }) => {
   await waitlist.getByLabel("Correo").fill("demo-lista@example.com");
   await waitlist.getByRole("checkbox", { name: /contacten/ }).check();
   await waitlist.getByRole("button", { name: "Avísame" }).click();
-  await expect(waitlist.getByText("¡Listo! Te avisaremos.")).toBeVisible();
+  await expect(page.getByRole("status").filter({ hasText: WAITLIST_SUCCESS_MESSAGE }).first()).toBeVisible();
+  await expect(page.getByRole("form", { name: "Lista de espera" })).toHaveCount(0);
   await expect.poll(() => correoEnviado).toBe("demo-lista@example.com");
   expect(consentEnviado).toBe(true);
 

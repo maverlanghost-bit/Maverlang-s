@@ -1,5 +1,8 @@
 # PROGRESO — Maverlang
 
+## M48e-fix — mensaje de la lista de espera fuera del form (2026-10-07)
+- `e2e/portada-lista-espera.spec.ts`: el éxito se busca fuera del form (`page.getByRole("status")` con `WAITLIST_SUCCESS_MESSAGE`, `WaitlistForm` reemplaza el form por `<p role="status">`) + `toHaveCount(0)` del form (portada con un único form en `FinalCTA`); intercepción y correo/`consent: true` intactos. Verificación: `npx tsc --noEmit` ok; `npm run lint` ok; `npm test` 257/257 (39 archivos); sin build ni e2e.
+
 ## M48d-fix — e2e de montos y lista de espera sin base real (2026-10-07)
 - `e2e/demo-usd.spec.ts`: las 4 aserciones de montos leen el árbol accesible (`monto()` con `ariaSnapshot` sin espacios: `$950.000`/`$855.000`) en vez del `textContent` (NumberFlow dibuja columnas 0–9). Componentes y mock intactos (cartera vacía, US$1.000).
 - `e2e/portada-lista-espera.spec.ts`: `page.route("**/api/waitlist")` responde 200 con `{ message: WAITLIST_SUCCESS_MESSAGE }` y verifica correo + `consent: true`; cabecera aclara la intercepción. Sin tocar `lib/waitlist/**` ni la ruta API.
