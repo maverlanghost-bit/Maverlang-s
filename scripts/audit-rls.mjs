@@ -29,11 +29,14 @@
  *   insertar con el user_id de B ni ver/borrar las de B; nadie hace UPDATE.
  * - waitlist y _migration_flags: nada para anon/authenticated, ni lectura ni
  *   escritura directa (revoke total: el SELECT da error de permiso).
+ * - asset_safety_runs y asset_safety_events (M53): nada para
+ *   anon/authenticated, ni lectura ni escritura directa (sólo service_role).
  * - funciones demo_trade/demo_reset: anon y authenticated siempre denegados
  *   (sólo service_role), incluso con el user_id propio.
  *
- * Tablas futuras (asset_safety, orders, wallets, depósitos y retiros): cada
- * tarea que las cree debe agregar su fila a AUDIT_TABLES y a esta matriz.
+ * Tablas futuras (orders, wallets, depósitos y retiros): cada tarea que las
+ * cree debe agregar su fila a AUDIT_TABLES y a esta matriz
+ * (asset_safety_runs/events ya entraron en M53).
  */
 import { randomBytes } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
@@ -57,6 +60,8 @@ const AUDIT_TABLES = [
   "user_favorites",
   "waitlist",
   "_migration_flags",
+  "asset_safety_runs",
+  "asset_safety_events",
 ];
 
 /** Columnas sensibles de profiles que authenticated nunca puede cambiar (0009). */
@@ -149,6 +154,8 @@ function dryRun() {
     ["user_favorites", "anon: nada", "A→B: no ve/inserta/borra", "A propio: lee, inserta y borra; sin UPDATE"],
     ["waitlist", "anon: nada", "A→B: n/a", "nadie (ni lectura ni escritura directa)"],
     ["_migration_flags", "anon: nada", "A→B: n/a", "nadie (ni lectura ni escritura directa)"],
+    ["asset_safety_runs", "anon: nada", "A→B: n/a", "nadie (ni lectura ni escritura directa)"],
+    ["asset_safety_events", "anon: nada", "A→B: n/a", "nadie (ni lectura ni escritura directa)"],
     ["demo_trade()", "anon: denegado", "A con user_id de B: denegado", "A con user_id propio: denegado (sólo service_role)"],
     ["demo_reset()", "anon: denegado", "A con user_id de B: denegado", "A con user_id propio: denegado (sólo service_role)"],
   ];
@@ -403,6 +410,16 @@ async function main() {
     record("A SELECT _migration_flags (denegado)", !!selFlags.error, selFlags.error ? redact(selFlags.error.message) : "leyó filas");
     const insFlags = await clientA.from("_migration_flags").insert({ name: `rls-probe-${ts}` }).select("name");
     record("A INSERT _migration_flags (denegado)", !!insFlags.error, insFlags.error ? redact(insFlags.error.message) : "insertó");
+
+    // ---- corridas y eventos de seguridad (M53: sólo service_role) ----
+    const selRuns = await clientA.from("asset_safety_runs").select("id").limit(3);
+    record("A SELECT asset_safety_runs (denegado)", !!selRuns.error, selRuns.error ? redact(selRuns.error.message) : "leyó filas");
+    const insRuns = await clientA.from("asset_safety_runs").insert({ session: "rls-probe" }).select("id");
+    record("A INSERT asset_safety_runs (denegado)", !!insRuns.error, insRuns.error ? redact(insRuns.error.message) : "insertó");
+    const selEvents = await clientA.from("asset_safety_events").select("id").limit(3);
+    record("A SELECT asset_safety_events (denegado)", !!selEvents.error, selEvents.error ? redact(selEvents.error.message) : "leyó filas");
+    const insEvents = await clientA.from("asset_safety_events").insert({ symbol: "AAPLx", result: "PASA" }).select("id");
+    record("A INSERT asset_safety_events (denegado)", !!insEvents.error, insEvents.error ? redact(insEvents.error.message) : "insertó");
 
     // ---- funciones con el user_id de otro (y propio: también denegado) ----
     const tradeAsB = await clientA.rpc("demo_trade", {

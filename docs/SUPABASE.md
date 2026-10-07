@@ -135,3 +135,21 @@ npm run audit:rls                # con 0005 a 0009 aplicadas; sale 1 si hay FALL
 ```
 
 Crea 2 usuarios temporales, prueba SELECT/INSERT/UPDATE/DELETE y las rpc `demo_trade`/`demo_reset` con el `user_id` de otro, y siempre borra los usuarios (`finally`). Reporte de sólo lectura: `supabase/audits/rls-report.sql`.
+
+## Estado de seguridad por activo (0010) y auditoría con --db
+
+NO aplicada. Después de `0009`, pega **una sola vez** `supabase/migrations/0010_asset_safety.sql` en el SQL Editor y ejecútalo. También es idempotente (se puede pegar dos veces). Agrega:
+
+- Columnas de seguridad en `public.assets` (`safety_status` en `listed`|`watch`|`hidden`|`unknown`, `safety_reasons`, `safety_metrics`, `safety_tier`, `safety_checked_at`, `safety_session`, rachas `consecutive_passes`/`consecutive_fails`, `listed_at`/`hidden_at`, `manual_override`/`manual_note`). Ninguna es secreta: la lectura pública sigue igual.
+- `public.asset_safety_runs` (una fila por corrida con `--db`: sesión, total, PASA) y `public.asset_safety_events` (qué cambió cada activo y por qué).
+- RLS en las dos tablas nuevas **sin políticas**: nadie lee ni escribe desde el navegador; sólo el servidor con la secret key.
+
+Para guardar una corrida (la corre el operador, con la migración ya aplicada):
+
+```bash
+npm run audit:catalog -- --symbols AAPLx,NVDAx --db
+npm run audit:catalog -- --db --session market        # corrida completa en horario regular
+npm run audit:catalog -- --db --all-events            # un evento por activo (si no, sólo los que cambian)
+```
+
+El script abre la fila del run, calcula `nextSafetyState` por activo (máquina de estados en `docs/CATALOGO-SEGURIDAD.md`), hace upsert SÓLO de las columnas de seguridad (nunca `mint_solana`, `name` ni `curated`) y cierra el run. Sin 0010 aplicada imprime `aplica 0010` y sale con código 2, sin escribir nada. Las 50 curadas parten con `consecutive_passes = 0`: se ganan el listado con 2 corridas; la app sigue mostrando como hoy hasta M54.

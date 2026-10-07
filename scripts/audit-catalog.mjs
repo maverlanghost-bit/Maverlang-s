@@ -11,15 +11,28 @@
  * Uso:
  *   node scripts/audit-catalog.mjs [--limit N] [--symbols AAPLx,NVDAx] [--no-quotes] [--out <ruta>]
  *   npm run audit:catalog -- --symbols AAPLx,NVDAx,AEHRx,TSLLx
+ *   npm run audit:catalog -- --symbols AAPLx --db [--session market] [--all-events]
+ *
+ * Con --db además del CSV guarda el resultado en Supabase (M53): abre una fila
+ * en asset_safety_runs, calcula nextSafetyState por activo, hace upsert SÓLO de
+ * las columnas de seguridad (nunca mint_solana, name ni curated) e inserta un
+ * evento por activo cuyo estado cambió (--all-events: uno por activo).
+ * Usa la secret key igual que sync-xstocks.mjs (SUPABASE_SECRET_KEY o el nombre
+ * viejo SUPABASE_SERVICE_ROLE_KEY, sin imprimir claves). Sin la migración 0010
+ * aplicada imprime "aplica 0010" y sale con código 2, sin escribir nada.
  */
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { createClient } from "@supabase/supabase-js";
+
 import {
   classifyProduct,
   effectiveMultiplier,
   evaluateAsset,
+  nextSafetyState,
+  normalizeSafetySession,
   quoteCostBps,
   staticChecks,
 } from "../lib/catalog/safety-core.mjs";
@@ -137,7 +150,7 @@ export async function fetchJsonWithRetry(url, options = {}) {
  * @param {string[]} argv resto de process.argv
  */
 export function parseAuditArgs(argv) {
-  const out = { limit: null, symbols: null, noQuotes: false, out: null };
+  const out = { limit: null, symbols: null, noQuotes: false, out: null, db: false, session: null, allEvents: false };
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
     if (arg === "--no-quotes") {
@@ -164,9 +177,100 @@ export function parseAuditArgs(argv) {
       i += 1;
     } else if (arg.startsWith("--out=")) {
       out.out = arg.slice("--out=".length);
+    } else if (arg === "--db") {
+      out.db = true;
+    } else if (arg === "--all-events") {
+      out.allEvents = true;
+    } else if (arg === "--session" && i + 1 < argv.length) {
+      out.session = argv[i + 1];
+      i += 1;
+    } else if (arg.startsWith("--session=")) {
+      out.session = arg.slice("--session=".length);
     }
   }
   return out;
+}
+
+/**
+ * Columnas que --db puede escribir en public.assets (más `symbol` como clave
+ * del upsert). Nunca mint_solana, name ni curated: el test de la tarea lo
+ * comprueba contra esta lista.
+ */
+export const SAFETY_UPSERT_COLUMNS = Object.freeze([
+  "safety_status",
+  "safety_reasons",
+  "safety_metrics",
+  "safety_tier",
+  "safety_checked_at",
+  "safety_session",
+  "consecutive_passes",
+  "consecutive_fails",
+  "listed_at",
+  "hidden_at",
+]);
+
+/**
+ * Sesión de la corrida: --session manda; si no, el período más común de los
+ * auditados (regular → market); si no hay dato, "unknown" (conservador).
+ * @param {unknown} flag valor de --session
+ * @param {Map<string, number>} periodCounts conteo por currentPeriod
+ * @returns {"market" | "extended" | "overnight" | "closed" | "unknown"}
+ */
+export function resolveAuditSession(flag, periodCounts) {
+  const explicit = normalizeSafetySession(flag);
+  if (explicit !== "unknown") return explicit;
+  let top = null;
+  let topCount = 0;
+  if (periodCounts instanceof Map) {
+    for (const [period, count] of periodCounts) {
+      if (typeof count === "number" && count > topCount) {
+        top = period;
+        topCount = count;
+      }
+    }
+  }
+  const mapped = normalizeSafetySession(top);
+  return mapped !== "unknown" ? mapped : "unknown";
+}
+
+/**
+ * Arma el payload del upsert SÓLO con columnas de seguridad. Puro (testeable).
+ * listed_at/hidden_at sólo se tocan al entrar a ese estado (o se conserva el
+ * previo); nunca se inventan fechas.
+ * @param {unknown} prev fila previa de assets
+ * @param {{ status: string, consecutive_passes: number, consecutive_fails: number }} next salida de nextSafetyState
+ * @param {{ result: string, reasons: string[], tier?: string | null }} evaluation veredicto de esta corrida
+ * @param {{ checkedAt?: unknown, session?: unknown, metrics?: Record<string, unknown> }} [meta]
+ * @returns {Record<string, unknown>} payload con symbol + columnas de SAFETY_UPSERT_COLUMNS
+ */
+export function buildSafetyUpsert(prev, next, evaluation, meta = {}) {
+  const checkedAt = typeof meta.checkedAt === "string" ? meta.checkedAt : new Date().toISOString();
+  const session = typeof meta.session === "string" ? meta.session : "unknown";
+  const table = (typeof prev === "object" && prev !== null ? prev : {});
+  const before = table.safety_status ?? "unknown";
+  const reasons = Array.isArray(evaluation?.reasons) ? evaluation.reasons.map(String) : [];
+  const metrics = { ...(meta.metrics ?? {}), tier: evaluation?.tier ?? null };
+  const payload = {
+    safety_status: next.status,
+    safety_reasons: reasons,
+    safety_metrics: metrics,
+    safety_tier: evaluation?.tier ?? null,
+    safety_checked_at: checkedAt,
+    safety_session: session,
+    consecutive_passes: next.consecutive_passes,
+    consecutive_fails: next.consecutive_fails,
+  };
+  if (next.status === "listed" && before !== "listed") {
+    payload.listed_at = checkedAt;
+  } else if (typeof table.listed_at === "string" && table.listed_at.length > 0) {
+    payload.listed_at = table.listed_at;
+  }
+  if (next.status === "hidden" && before !== "hidden") {
+    payload.hidden_at = checkedAt;
+  } else if (typeof table.hidden_at === "string" && table.hidden_at.length > 0) {
+    payload.hidden_at = table.hidden_at;
+  }
+  return payload;
 }
 
 function readCuratedSet() {
@@ -330,6 +434,25 @@ function boolCell(value) {
 async function main() {
   loadLocalEnv();
   const args = parseAuditArgs(process.argv.slice(2));
+  const runStartedAt = new Date().toISOString();
+  if (args.db) {
+    const probe = await checkSafetyMigration();
+    if (probe === "missing-keys") {
+      console.log("falta SUPABASE_SECRET_KEY (o SUPABASE_SERVICE_ROLE_KEY) en .env.local: no se puede escribir en --db.");
+      process.exitCode = 1;
+      return;
+    }
+    if (probe === "missing-migration") {
+      console.log("aplica 0010: pega supabase/migrations/0010_asset_safety.sql en el SQL Editor y vuelve a correr con --db.");
+      process.exitCode = 2;
+      return;
+    }
+    if (probe !== "ok") {
+      console.log("no se pudo sondar la migración 0010 (revisa la conexión y vuelve a intentar).");
+      process.exitCode = 1;
+      return;
+    }
+  }
   const apiKey = (process.env.JUPITER_API_KEY ?? "").trim();
   const paceMs = apiKey ? 300 : 1500;
   const jupHeaders = apiKey ? { "x-api-key": apiKey } : {};
@@ -506,6 +629,7 @@ async function main() {
 
   // 4. Cotizaciones sólo para los que pasan los filtros estáticos.
   const rows = [];
+  const outcomes = [];
   let staticPass = 0;
   let quoted = 0;
   const reasonCounts = new Map();
@@ -625,6 +749,20 @@ async function main() {
     for (const reason of verdict.reasons) {
       reasonCounts.set(reason, (reasonCounts.get(reason) ?? 0) + 1);
     }
+    outcomes.push({
+      symbol: asset.symbol,
+      verdict,
+      usdPrice: Number.isFinite(usdPrice) ? usdPrice : null,
+      refPrice: Number.isFinite(refPrice) ? refPrice : null,
+      deviationBps: Number.isFinite(deviation) ? Math.round(deviation * 10) / 10 : null,
+      liquidityUsd: liquidity,
+      holders,
+      buy100CostBps: buy100?.ok ? buy100.costBps : null,
+      buy100Route,
+      buy1000CostBps: buy1000?.ok ? buy1000.costBps : null,
+      sell100CostBps: sell100?.ok ? sell100.costBps : null,
+      currentPeriod: asset.currentPeriod ?? null,
+    });
     if (asset.currentPeriod) {
       periodCounts.set(asset.currentPeriod, (periodCounts.get(asset.currentPeriod) ?? 0) + 1);
     }
@@ -681,6 +819,168 @@ async function main() {
   }
   console.log(`Sesión de mercado: ${topPeriod ? `${topPeriod[0]} (${topPeriod[1]})` : "sin datos"}`);
   console.log(`CSV: ${outPath}`);
+
+  if (args.db) {
+    const session = resolveAuditSession(args.session, periodCounts);
+    await syncSafetyToDb({ outcomes, session, runStartedAt, source: "audit-catalog", allEvents: args.allEvents });
+  }
+}
+
+/**
+ * Cliente admin con la secret key, igual que sync-xstocks.mjs.
+ * Nunca imprime claves.
+ */
+function readSafetyAdmin() {
+  const url = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? "").trim().replace(/\/$/, "");
+  const secret = (
+    process.env.SUPABASE_SECRET_KEY ??
+    process.env.SUPABASE_SERVICE_ROLE_KEY ??
+    ""
+  ).trim();
+  if (!url || !secret) return { error: "missing-keys" };
+  const admin = createClient(url, secret, {
+    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+  });
+  return { admin };
+}
+
+/**
+ * Sonda de sólo lectura: ¿existen las columnas de 0010?
+ * @returns {Promise<"ok" | "missing-keys" | "missing-migration" | "probe-error">}
+ */
+export async function checkSafetyMigration() {
+  const { admin, error } = readSafetyAdmin();
+  if (error || !admin) return "missing-keys";
+  const probe = await admin.from("assets").select("safety_status").limit(1);
+  if (!probe.error) return "ok";
+  const message = probe.error.message ?? "";
+  if (/does not exist|schema cache|could not find|could not identify|column/i.test(message)) {
+    return "missing-migration";
+  }
+  console.error(`DB sonda falló: ${message}`);
+  return "probe-error";
+}
+
+/**
+ * Guarda el resultado de la auditoría en Supabase (M53). Sólo con --db y con
+ * 0010 aplicada (main() lo sonda antes). Nunca toca mint_solana, name ni
+ * curated: el upsert sólo lleva symbol + SAFETY_UPSERT_COLUMNS.
+ */
+export async function syncSafetyToDb({ outcomes, session, runStartedAt, source, allEvents }) {
+  const { admin } = readSafetyAdmin();
+  if (!admin) {
+    console.log("falta SUPABASE_SECRET_KEY (o SUPABASE_SERVICE_ROLE_KEY) en .env.local: no se puede escribir en --db.");
+    process.exitCode = 1;
+    return;
+  }
+  const checkedAt = new Date().toISOString();
+  const list = Array.isArray(outcomes) ? outcomes : [];
+  const passed = list.filter((o) => o?.verdict?.result === "pass").length;
+
+  const runRes = await admin
+    .from("asset_safety_runs")
+    .insert({
+      started_at: runStartedAt,
+      session,
+      total: list.length,
+      passed,
+      source: source ?? "audit-catalog",
+      notes: `audit-catalog ${checkedAt}`,
+    })
+    .select("id")
+    .single();
+  if (runRes.error || !runRes.data) {
+    console.error(`DB run falló: ${runRes.error?.message ?? "sin id"}`);
+    process.exitCode = 1;
+    return;
+  }
+  const runId = runRes.data.id;
+
+  const symbols = [...new Set(list.map((o) => o?.symbol).filter((s) => typeof s === "string"))];
+  /** @type {Map<string, Record<string, unknown>>} */
+  const prevBySymbol = new Map();
+  for (let i = 0; i < symbols.length; i += 200) {
+    const batch = symbols.slice(i, i + 200);
+    const res = await admin
+      .from("assets")
+      .select("symbol,safety_status,consecutive_passes,consecutive_fails,manual_override,safety_session,listed_at,hidden_at")
+      .in_("symbol", batch);
+    if (res.error) {
+      console.error(`DB lectura de assets falló: ${res.error.message}`);
+      process.exitCode = 1;
+      return;
+    }
+    for (const row of res.data ?? []) prevBySymbol.set(row.symbol, row);
+  }
+
+  const payloads = [];
+  const events = [];
+  let skipped = 0;
+  for (const outcome of list) {
+    const prev = prevBySymbol.get(outcome.symbol);
+    if (!prev) {
+      console.log(`Aviso: ${outcome.symbol} no está en public.assets; se omite en --db.`);
+      skipped += 1;
+      continue;
+    }
+    const evaluation = { result: outcome.verdict.result, reasons: outcome.verdict.reasons, tier: outcome.verdict.tier ?? null };
+    const next = nextSafetyState(prev, evaluation, session);
+    const metrics = {
+      usd_price: outcome.usdPrice,
+      ref_price_usd: outcome.refPrice,
+      deviation_bps: outcome.deviationBps,
+      buy100_cost_bps: outcome.buy100CostBps,
+      buy100_route: outcome.buy100Route || null,
+      buy1000_cost_bps: outcome.buy1000CostBps,
+      sell100_cost_bps: outcome.sell100CostBps,
+      liquidity_usd: outcome.liquidityUsd,
+      holders: outcome.holders,
+    };
+    const safety = buildSafetyUpsert(prev, next, evaluation, { checkedAt, session, metrics });
+    payloads.push({ symbol: outcome.symbol, ...safety });
+    const before = typeof prev.safety_status === "string" ? prev.safety_status : "unknown";
+    if (allEvents || before !== next.status) {
+      events.push({
+        run_id: runId,
+        symbol: outcome.symbol,
+        result: outcome.verdict.result === "pass" ? "PASA" : "NO PASA",
+        reasons: evaluation.reasons,
+        metrics,
+        status_before: before,
+        status_after: next.status,
+      });
+    }
+  }
+
+  for (let i = 0; i < payloads.length; i += 200) {
+    const batch = payloads.slice(i, i + 200);
+    const res = await admin.from("assets").upsert(batch, { onConflict: "symbol" });
+    if (res.error) {
+      console.error(`DB upsert de seguridad falló: ${res.error.message}`);
+      process.exitCode = 1;
+      return;
+    }
+  }
+  for (let i = 0; i < events.length; i += 200) {
+    const batch = events.slice(i, i + 200);
+    const res = await admin.from("asset_safety_events").insert(batch);
+    if (res.error) {
+      console.error(`DB eventos falló: ${res.error.message}`);
+      process.exitCode = 1;
+      return;
+    }
+  }
+
+  const doneRes = await admin
+    .from("asset_safety_runs")
+    .update({ finished_at: new Date().toISOString(), total: payloads.length + skipped, passed })
+    .eq("id", runId);
+  if (doneRes.error) {
+    console.error(`DB cierre del run falló: ${doneRes.error.message}`);
+    process.exitCode = 1;
+    return;
+  }
+  console.log(`DB: run ${runId} sesión ${session}: ${payloads.length} activos, ${passed} PASA, ${events.length} eventos.`);
 }
 
 const isMain =

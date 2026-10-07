@@ -1,5 +1,12 @@
 # PROGRESO — Maverlang
 
+## M53 — estado de seguridad por activo (2026-10-07)
+- Hecho: `0010_asset_safety.sql` (NO aplicada: 12 columnas en assets + `asset_safety_runs`/`asset_safety_events` con RLS sin políticas, idempotente) + `nextSafetyState`/`isVisibleStatus`/`isTradableStatus` en `safety-core.mjs` (histéresis: 2 pasadas con una en market listan; overnight nunca oculta; estático o 2 fallas market ocultan; overrides) + `audit-catalog.mjs --db` (sonda 0010 → "aplica 0010" exit 2 sin escribir; upsert sólo columnas de seguridad; eventos) + `audit-rls.mjs` con las 2 tablas + tests (24+6) + docs SUPABASE/CATALOGO-SEGURIDAD.
+- Archivos clave: `supabase/migrations/0010_asset_safety.sql`, `lib/catalog/safety-core.mjs`, `scripts/{audit-catalog,audit-rls}.mjs`, `tests/unit/{catalog-safety-state,migration-0010}.test.ts`, `docs/{SUPABASE,CATALOGO-SEGURIDAD}.md`.
+- Decisiones: `git pull --ff-only` denegado por el sandbox (árbol limpio, 13 commits por delante según operador; se siguió igual). Curadas con passes=0 (se ganan el listado). Sesión por `--session` o período mayoritario; desconocida = conservadora. Sin paquetes nuevos.
+- Verificación: `npx tsc --noEmit` ok; `npm run lint` ok; `npm test` 307/307 (43 archivos, 30 nuevos); `--symbols AAPLx --db` imprime "aplica 0010" con exit 2 (el harness normaliza todo no-cero a 1: se comprobó con wrapper que imprime el código); upsert sin mint/name/curated en test. Digo con todas sus letras: NO comprobables aquí aplicar 0010, el --db real, build prod ni e2e (los corre el operador).
+- Pendiente operador/Manu: aplicar 0010 en desarrollo cuando Manu autorice, correr `npm run audit:catalog -- --db --session market`, build prod, `npm run e2e`; la app lee el estado en M54.
+
 ## M52 — auditoría de seguridad del catálogo (2026-10-07)
 - Hecho: `lib/catalog/safety-core.mjs` (umbrales congelados, classifyProduct, effectiveMultiplier, quoteCostBps, staticChecks, evaluateAsset; sin red ni entorno) + `scripts/audit-catalog.mjs` (`npm run audit:catalog`: lotes 100/50, cotiza sólo aptos, reintento 429/5xx, caché diario reanudable, CSV 25 columnas PASA/NO PASA) + `tests/unit/catalog-safety.test.ts` (15) + `docs/CATALOGO-SEGURIDAD.md` (34 líneas). Se incluye el fixture `data/catalogo-ampliado-2026-10-06.csv` del operador.
 - Archivos clave: `lib/catalog/safety-core.mjs`, `scripts/audit-catalog.mjs`, `tests/unit/catalog-safety.test.ts`, `docs/CATALOGO-SEGURIDAD.md`, `package.json`.

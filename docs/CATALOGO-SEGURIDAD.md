@@ -32,3 +32,28 @@ El caché diario vive en `data/audit-cache/` y la hace reanudable.
 Nota de horario: de noche (sesión overnight) muchos activos no tienen
 cotización RFQ; la promoción a 'listado' se decide con corridas en sesión
 regular (M53/M55).
+
+## Máquina de estados (M53)
+
+Cada activo guarda `safety_status` (`listed`, `watch`, `hidden`, `unknown`)
+más rachas `consecutive_passes`/`consecutive_fails`. Cada corrida con `--db`
+aplica `nextSafetyState` y deja evento en `asset_safety_events`.
+
+| Estado previo | Qué pasó | Sesión | Estado nuevo |
+|---|---|---|---|
+| cualquiera | `force_hide` | cualquiera | `hidden` |
+| cualquiera | motivo estático (mint, autoridades, suspendido, bolsa, apalancado) | cualquiera | `hidden` |
+| cualquiera | `force_list` sin motivo estático | cualquiera | `listed` |
+| cualquiera | `force_list` con motivo estático | cualquiera | `hidden` |
+| no `listed` | PASA (1.ª vez) | cualquiera | `watch` |
+| no `listed` | PASA (2.ª seguida, una en `market`) | `market` | `listed` |
+| no `listed` | PASA (2.ª seguida, ninguna en `market`) | otra | `watch` |
+| `listed` | PASA | cualquiera | `listed` |
+| `listed` | falla sólo cotización | `overnight`/`closed` | `watch` (nunca `hidden`) |
+| otro | falla sólo cotización | `overnight`/`closed` | igual (nunca `hidden`) |
+| no `hidden` | falla sólo cotización (1.ª) | `market`/`extended` | `watch` |
+| cualquiera | falla sólo cotización (2.ª seguida) | `market`/`extended` | `hidden` |
+
+Visible para la app: `listed` y `watch`. Operable: sólo `listed`.
+Las 50 curadas parten con `consecutive_passes = 0`: se ganan el listado
+como todas. `manual_override`/`manual_note` son del operador.
