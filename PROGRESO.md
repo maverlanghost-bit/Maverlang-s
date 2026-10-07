@@ -2,6 +2,12 @@
 
 > Estado de la base (2026-10-06): las migraciones 0002, 0003 y 0004 YA están aplicadas en el proyecto Supabase actual y `public.assets` está sincronizada. No hay que pegar nada en el SQL Editor; las instrucciones de `docs/SUPABASE.md` sirven sólo para un proyecto nuevo.
 
+## N21 — Navbar suave + logo chico + sidebar fija (2026-10-07)
+- Hecho: navbar del landing sube/baja en 500 ms (antes 240 ms). Logo h-5 (antes h-6). Sidebar con iconos siempre fijos: marca favicon + nombre, nav y avatar en slots fijos; al colapsar sólo se ocultan las palabras (max-w/opacity). Expandida muestra marca + nombre.
+- La M al colapsar = falta `public/brand/maverlang-mark.png`. Operador: `Copy-Item "app\icon.png" "public\brand\maverlang-mark.png"`.
+- Verificación: sin `tsc/test` aquí; pendiente: `npx tsc --noEmit`, `npm test`, probar colapsar (Ctrl/Cmd+B) y scroll del landing.
+- Archivos: `sidebar.tsx`, `site-header.tsx`, `brand-image.tsx`.
+
 ## N20 — Buscador con sugerencias (2026-10-07)
 - Hecho: al escribir se abre un desplegable con top 6 (logo, nombre, símbolo, precio y variación), esqueletos al cargar, "Buscar «q»" para aplicar y teclado (↑↓/Enter/Esc). Clic o Enter va al detalle. Lógica pura `topSuggestions` en `browse.ts` + tests (3).
 - Verificación: sin `tsc/test` aquí (sin shell); pendiente operador: `npx tsc --noEmit`, `npm test`, buscar "apple" en `/app` y navegar con teclado y clic.

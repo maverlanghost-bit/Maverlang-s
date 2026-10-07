@@ -22,7 +22,7 @@ export function BrandLogoImage({ className }: { className?: string }) {
       width={148}
       height={26}
       priority
-      className={cn("h-6 w-auto", className)}
+      className={cn("h-5 w-auto", className)}
       onError={() => setFailed(true)}
     />
   );

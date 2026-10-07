@@ -62,7 +62,7 @@ export function SiteHeader() {
   return (
     <header
       className={cn(
-        "fixed inset-x-0 top-0 z-40 h-16 border-b transition-[background-color,border-color,backdrop-filter,transform] duration-[240ms] ease-spring",
+        "fixed inset-x-0 top-0 z-40 h-16 border-b transition-[background-color,border-color,backdrop-filter,transform] duration-500 ease-spring",
         scrolled ? "border-border bg-bg/80 backdrop-blur-md" : "border-transparent bg-transparent",
         show ? "translate-y-0" : "-translate-y-full",
       )}
