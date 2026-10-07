@@ -1,5 +1,10 @@
 # PROGRESO — Maverlang
 
+## M49b-fix — check de upstash con formato REST correcto (2026-10-07)
+- Hecho: `scripts/check-upstash.mjs` envía cada comando como `POST` a `${url}/` con cuerpo `["INCR"|"EXPIRE"|"GET"|"DEL", key, ...]`; limpieza con `DEL` en `finally`; salida con `process.exitCode` (sin `process.exit()` tras `fetch`); sin imprimir claves.
+- Verificación: `npx tsc --noEmit` ok; `npm run lint` ok; `npm test` 317/317 (44 archivos). `npm run check:upstash` NO corrido aquí (claves reales; lo corre el operador).
+- Pendiente operador: `npm run check:upstash` con variables reales (esperado "OK upstash").
+
 ## M49 — límite de solicitudes (2026-10-07)
 - Hecho: `lib/security/rate-limit.ts` (server-only; `limit(key,policy)` + `withRateLimit(req,pol,parts)` → 429 con `Retry-After`/`X-RateLimit-Remaining`; Upstash si hay URL+token, si no memoria con aviso en prod; `RATE_LIMIT_TEST_SEARCH` sólo dev) + `RATE_LIMITED` (429) en tipos/result/i18n es-en + cliente sin reintento de 429 (`queryRetry` en providers) + `check:upstash` + sección Supabase Auth/Turnstile en SEGURIDAD.md + tests (10).
 - Archivos clave: `lib/security/rate-limit.ts`, 18 rutas `app/api/**`, `lib/{env,api/{handler,client}}.ts`, `app/providers.tsx`, `waitlist-form.tsx`, `scripts/{check-upstash,e2e,e2e-auth}.mjs`, `tests/unit/rate-limit.test.ts`, `docs/SEGURIDAD.md`, `.env.example`.
