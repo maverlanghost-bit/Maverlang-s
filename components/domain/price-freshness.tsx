@@ -27,10 +27,13 @@ export function PriceFreshness({
   at,
   stale = false,
   className,
+  delayedOnly = false,
 }: {
   at: string | number | Date | null | undefined;
   stale?: boolean;
   className?: string;
+  /** Sólo muestra algo con retraso significativo (stale o > 60 s). */
+  delayedOnly?: boolean;
 }) {
   const { t, language } = useT();
   const mounted = useMounted();
@@ -43,6 +46,7 @@ export function PriceFreshness({
 
   const atMs = parseUpdatedAt(at);
   if (atMs === null) return null;
+  if (delayedOnly && !mounted) return null;
   if (!mounted) {
     return (
       <p aria-live="off" className={cn("text-xs text-fg-muted", className)}>
@@ -61,6 +65,7 @@ export function PriceFreshness({
   }
   const elapsed = elapsedSeconds(now, atMs);
   const delayed = freshnessDelayed(elapsed, stale);
+  if (delayedOnly && !delayed) return null;
 
   return (
     <p aria-live="off" className={cn("text-xs", delayed ? "text-warn" : "text-fg-muted", className)}>

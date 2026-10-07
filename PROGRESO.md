@@ -2,6 +2,20 @@
 
 > Estado de la base (2026-10-06): las migraciones 0002, 0003 y 0004 YA están aplicadas en el proyecto Supabase actual y `public.assets` está sincronizada. No hay que pegar nada en el SQL Editor; las instrucciones de `docs/SUPABASE.md` sirven sólo para un proyecto nuevo.
 
+## N10 — Moneda por defecto: se mantiene CLP (2026-10-06)
+- Revertido el cambio a USD: CLP sigue por defecto (mercado chileno). Sin cambios efectivos vs M40.
+- Pendiente (demo US$1000): ver nota N10 original — pide migración 0006 + reescritura. A confirmar.
+
+## N9 — Cartera sin saltos + aviso solo con retraso (2026-10-06)
+- Hecho: fuera "Valor del punto en el gráfico" de cartera (era lo que empujaba el gráfico) + `mb-2` bajo el total. `PriceFreshness` con `delayedOnly` en cartera, detalle y mercado: sin "Actualizado hace Xs"; solo "Precio con retraso" si stale o > 60 s. Portada intacta.
+- Verificación: sin `tsc/lint/build` aquí (sin shell); pendiente operador: `npx tsc --noEmit`, `npm test`, mirar `/app/cartera` (hover sin saltos) y detalle/mercado.
+- Archivos: `portfolio-screen.tsx`, `price-panel.tsx`, `market-screen.tsx`, `price-freshness.tsx`.
+
+## N8 — Sidebar: menú con cierre afuera + riel limpio (2026-10-06)
+- Hecho: menú de perfil se cierra con clic afuera y Escape. Riel colapsado sin botón salir ni insignia D (solo avatar → `/app/perfil`; el cambio demo/real sigue en expandido y perfil). Fuera los botones de contraer/expandir (se alterna con clic en el fondo y Ctrl/Cmd+B).
+- Verificación: sin `tsc/lint/build` aquí (sin shell); pendiente operador: `npx tsc --noEmit`, probar clic fondo, menú y Escape en 1280.
+- Archivos: `components/app-shell/sidebar.tsx`.
+
 ## N7 — Sidebar sin nota demo + real próximamente (2026-10-06)
 - Hecho: `AccountSwitch` sin nota ni insignia (el selector ya dice Cuenta demo). Cuenta real: "Cuentas reales: próximamente. De momento no ofrecemos cuentas reales. Te avisaremos cuando estén disponibles." (es/en). Hoja de compra y resto intactos.
 - Verificación: sin `tsc/lint/build` aquí (sin shell); pendiente operador: `npx tsc --noEmit`, mirar sidebar y cuenta real.

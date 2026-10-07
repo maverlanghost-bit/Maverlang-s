@@ -290,7 +290,7 @@ export function PortfolioScreen() {
         <section className="flex flex-col gap-4">
           <div>
             <p className="label">{t.portfolio.total}</p>
-            <div className="mt-1">
+            <div className="mt-1 mb-2">
               {masked ? (
                 <Masked label={t.shell.balanceHidden} className="text-4xl tracking-tight sm:text-5xl" />
               ) : pendingFx ? (
@@ -299,8 +299,7 @@ export function PortfolioScreen() {
                 <FlashPrice value={shown.amount} currency={shown.currency} size="lg" live={hoverUsd === null} />
               )}
             </div>
-            <PriceFreshness at={portfolio.dataUpdatedAt || loaded.updatedAt} />
-            {hoverUsd !== null && !masked ? <p className="mt-2 text-sm text-fg-muted">{t.portfolio.onChart}</p> : null}
+            <PriceFreshness at={portfolio.dataUpdatedAt || loaded.updatedAt} delayedOnly />
             {showFxNote ? <p className="mt-2 text-sm text-fg-muted">{t.detail.fxFallback}</p> : null}
           </div>
 

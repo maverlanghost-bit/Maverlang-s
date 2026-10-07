@@ -104,7 +104,7 @@ export function PricePanel({
     priceNode = (
       <div className="flex flex-col gap-2">
         <FlashPrice value={shown} currency={priceCurrency} size="lg" live={point === null} />
-        <PriceFreshness at={priceUpdatedAt ?? quote.updatedAt} stale={priceStale || quote.stale === true} />
+        <PriceFreshness at={priceUpdatedAt ?? quote.updatedAt} stale={priceStale || quote.stale === true} delayedOnly />
         {point === null && quote.reference ? (
           <p className="text-sm text-fg-muted">{t.detail.referencePrice}</p>
         ) : null}

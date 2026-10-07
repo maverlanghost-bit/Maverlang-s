@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -10,8 +10,7 @@ import { CurrencySwitch } from "@/components/app-shell/currency-switch";
 import { isShellSectionActive, shellNav } from "@/components/app-shell/nav";
 import { BalanceHeader } from "@/components/domain/balance-header";
 import { Avatar } from "@/components/ui/avatar";
-import { IconButton } from "@/components/ui/icon-button";
-import { IconChevron, IconLogout, IconPanel } from "@/components/ui/icons";
+import { IconChevron } from "@/components/ui/icons";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip } from "@/components/ui/tooltip";
 import { AccountSwitch } from "@/components/app-shell/account-switch";
@@ -39,9 +38,21 @@ export function Sidebar({
   const account = useAccountLabel();
   const name = account.name;
   const loading = account.loading;
-  const toggleLabel = collapsed ? t.shell.expandSidebar : t.shell.collapseSidebar;
   /** Menú del perfil: Perfil, Ajustes, moneda y salir. */
   const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  /** Clic afuera cierra el menú del perfil. */
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onPointerDown = (event: PointerEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node | null)) {
+        setMenuOpen(false);
+      }
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => document.removeEventListener("pointerdown", onPointerDown);
+  }, [menuOpen]);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -77,28 +88,10 @@ export function Sidebar({
           >
             <span className="size-2 rounded-full bg-brand" aria-hidden />
           </Link>
-          <IconButton
-            label={toggleLabel}
-            aria-expanded={false}
-            size="sm"
-            onClick={onToggle}
-            className="cursor-pointer"
-          >
-            <IconPanel />
-          </IconButton>
         </div>
       ) : (
         <div className="flex items-center justify-between gap-2 px-4 py-5">
           <BrandMark />
-          <IconButton
-            label={toggleLabel}
-            aria-expanded={true}
-            size="sm"
-            onClick={onToggle}
-            className="cursor-pointer"
-          >
-            <IconPanel />
-          </IconButton>
         </div>
       )}
       {collapsed ? (
@@ -154,7 +147,6 @@ export function Sidebar({
       )}
       {collapsed ? (
         <div className="flex flex-col items-center gap-1 border-t border-border p-2">
-          <AccountSwitch mode={accountMode} onChange={onAccountChange ?? (() => {})} collapsed />
           <Link
             href="/app/perfil"
             aria-label={loading ? t.shell.account : `${name}. ${t.shell.account}`}
@@ -167,16 +159,6 @@ export function Sidebar({
               <Avatar alt="" fallback={name} size="md" />
             )}
           </Link>
-          <IconButton
-            label={t.profile.logout}
-            title={t.profile.logout}
-            size="sm"
-            disabled={account.status === "loading"}
-            onClick={() => void account.logout()}
-            className="cursor-pointer"
-          >
-            <IconLogout />
-          </IconButton>
         </div>
       ) : (
         <div className="border-t border-border p-3">
@@ -184,7 +166,13 @@ export function Sidebar({
           <div className="mt-3">
             <BalanceHeader variant="sidebar" />
           </div>
-          <div className="relative mt-3">
+          <div
+            ref={menuRef}
+            className="relative mt-3"
+            onKeyDown={(event) => {
+              if (event.key === "Escape") setMenuOpen(false);
+            }}
+          >
             {menuOpen && !loading ? (
               <div
                 role="menu"

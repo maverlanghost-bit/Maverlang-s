@@ -565,7 +565,7 @@ export function MarketScreen({
       {!waiting && !failed && listItems.length > 0 ? (
         <section className="flex min-w-0 flex-col gap-2">
           <h2 className="text-base font-medium text-fg">{applied.trim() ? t.market.results : t.market.list}</h2>
-          <PriceFreshness at={freshestAt} stale={anyStale} />
+          <PriceFreshness at={freshestAt} stale={anyStale} delayedOnly />
           <ul>
             {listItems.map(({ entry, price, currency: rowCurrency }) => (
               <li key={entry.item.symbol}>
