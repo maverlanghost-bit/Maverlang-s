@@ -1,5 +1,12 @@
 # PROGRESO — Maverlang
 
+## M48d-fix — e2e de montos y lista de espera sin base real (2026-10-07)
+- `e2e/demo-usd.spec.ts`: las 4 aserciones de montos leen el árbol accesible (`monto()` con `ariaSnapshot` sin espacios: `$950.000`/`$855.000`) en vez del `textContent` (NumberFlow dibuja columnas 0–9). Componentes y mock intactos (cartera vacía, US$1.000).
+- `e2e/portada-lista-espera.spec.ts`: `page.route("**/api/waitlist")` responde 200 con `{ message: WAITLIST_SUCCESS_MESSAGE }` y verifica correo + `consent: true`; cabecera aclara la intercepción. Sin tocar `lib/waitlist/**` ni la ruta API.
+- Legal: línea (e) al final de `docs/PENDIENTES-LEGALES.md` (M45 pasó montos de pesos a US$ en `terminos.md`); `terminos.md` intacto.
+- Frases de depósito en pesos de /como-funciona, /ayuda, /costos, `content/i18n`, `privacidad.md` y `comisiones.md` siguen pendientes de M83; no se tocaron aquí.
+- Verificación: `npx tsc --noEmit` ok; `npm run lint` ok; `npm test` 257/257 (39 archivos). Digo con todas sus letras: NO comprobables aquí build prod ni `npm run e2e` (los corre el operador).
+
 ## M48c-fix — CSP con nonce en páginas de marketing y e2e al día (2026-10-07)
 - Sin `force-static` en `app/(marketing)/layout.tsx` y `app/bloqueado/page.tsx` (comentario M48 de una línea; eran los únicos en `app/`, sin tocar `app/api/**` ni la CSP): `await connection()` del layout raíz vuelve dinámico el render, el HTML sale con nonce y la portada hidrata con CSP `enforce` + `strict-dynamic`.
 - e2e `smoke.spec.ts`: buscador como `combobox "Buscar acciones"` + `option /AAPLx|Apple/` (resultados con `role="option"` en `search-suggestions.tsx`); termina en `/app/accion/AAPLx`. Sin tocar componentes.

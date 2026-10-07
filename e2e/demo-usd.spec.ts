@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Locator } from "@playwright/test";
 
 /**
  * M44: la demo mock parte con US$1.000 ficticios.
@@ -7,12 +7,13 @@ import { expect, test } from "@playwright/test";
  * El estado en memoria lo comparten las pruebas, así que se reinicia
  * primero para partir de un estado conocido.
  *
- * Los montos se dibujan con dígitos animados en spans separados
- * (NumberFlow), así que se comparan con regex que toleran espacios
- * entre caracteres en vez de `getByText` exacto.
+ * Los montos se dibujan con NumberFlow (cada dígito en columnas con 0–9),
+ * así que el textContent no sirve: se lee el árbol accesible
+ * (`ariaSnapshot`), que sí dice `$ 9 5 0 . 0 0 0`.
  */
-const CLP_950K = /\$\s*9\s*5\s*0\s*\.\s*0\s*0\s*0/;
-const CLP_855K = /\$\s*8\s*5\s*5\s*\.\s*0\s*0\s*0/;
+async function monto(locator: Locator) {
+  return (await locator.ariaSnapshot()).replace(/[\s"]/g, "");
+}
 test("demo mock: US$1.000, compra US$100 y reinicio", async ({ page }) => {
   await page.goto("/app/registro");
   await expect(page.getByRole("heading", { name: "Crea tu cuenta demo" })).toBeVisible();
@@ -33,7 +34,7 @@ test("demo mock: US$1.000, compra US$100 y reinicio", async ({ page }) => {
   await page.getByRole("button", { name: "Reiniciar cuenta demo" }).click();
   await page.getByRole("button", { name: "Reiniciar", exact: true }).click();
   await expect(page.locator('a[href="/app/accion/AAPLx"]')).toHaveCount(0);
-  await expect(disponible).toContainText(CLP_950K);
+  await expect.poll(() => monto(disponible)).toContain("$950.000");
 
   await page.goto("/app/accion/AAPLx");
   await page.getByRole("button", { name: "Comprar", exact: true }).click();
@@ -47,12 +48,12 @@ test("demo mock: US$1.000, compra US$100 y reinicio", async ({ page }) => {
   await sheet.getByRole("link", { name: "Ver en cartera" }).click();
 
   await expect(page).toHaveURL(/\/app\/cartera/);
-  await expect(disponible).toContainText(CLP_855K);
+  await expect.poll(() => monto(disponible)).toContain("$855.000");
   await expect(page.locator('a[href="/app/accion/AAPLx"]')).toBeVisible();
 
   await page.getByRole("button", { name: "Reiniciar cuenta demo" }).click();
   await page.getByRole("button", { name: "Reiniciar", exact: true }).click();
   await expect(page.locator('a[href="/app/accion/AAPLx"]')).toHaveCount(0);
-  await expect(disponible).not.toContainText(CLP_855K);
-  await expect(disponible).toContainText(CLP_950K);
+  await expect.poll(() => monto(disponible)).not.toContain("$855.000");
+  await expect.poll(() => monto(disponible)).toContain("$950.000");
 });

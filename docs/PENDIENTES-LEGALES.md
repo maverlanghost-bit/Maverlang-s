@@ -21,3 +21,5 @@ Si un logo de esa fuente no existe, la segunda opción es copiar sólo el SVG ne
 [REVISIÓN ABOGADO] (c) La frase "nosotros no custodiamos tus activos": confirmar que es exacta con la billetera embebida de Privy y qué responsabilidad implica para nosotros.
 
 [REVISIÓN ABOGADO] (d) "Opera 24/7" (fuente: xstocks.fi, "tradeable 24/7") junto a la advertencia de que fuera del horario regular de la bolsa de EE.UU. el precio puede variar más. Confirmar que esa combinación no promete disponibilidad ni precio.
+
+[REVISIÓN ABOGADO] (e) Cambio de copy en Términos a revisar por el abogado: M45 pasó los montos de pesos a US$ en content/legal/terminos.md.
