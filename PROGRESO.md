@@ -1,5 +1,12 @@
 # PROGRESO — Maverlang
 
+## M56 — validación de entradas y CSRF (2026-10-07)
+- Hecho: `parseJson(req,schema,{maxBytes:16KB})` (413 + 400 `VALIDATION` con campos sin valores, `.strict()`), `parseQuery` (q≤64, símbolo `^[A-Za-z0-9.]{1,12}x$`, page/pageSize acotados), `assertSameOrigin` (403 `FORBIDDEN_ORIGIN`, exentos `/api/onramp/webhook` y `/api/cron/*`) y `handle()` con `requestId` + mensaje genérico en 500 (detalle sólo en log). 24 rutas migradas (orden: origin→rate limit→parse); `queryOf`/`bodyOf` quedan como alias. Montos trade: finito>0, ≤2 dec USD (≤8 acciones), USDC≤`MAX_ORDER_USD`=1000 (`config/trade.ts`); CLP/acciones se topan en el servicio. Códigos nuevos `FORBIDDEN_ORIGIN`/`PAYLOAD_TOO_LARGE` (result+tipos+i18n es/en+cliente con `requestId`).
+- Archivos clave: `lib/api/{handler,contracts,result,client}.ts`, `lib/types/index.ts`, `config/trade.ts`, 17 `app/api/**/route.ts`, `tests/unit/api-routes-validated.test.ts` (15), i18n es/en.
+- Decisiones: `git pull --ff-only` denegado por el sandbox (árbol limpio, se siguió igual); M54 pendiente → símbolo validado con regex + `requireSymbol` existente; webhook sin Origin ni `parseJson` (firma con cuerpo crudo); waitlist conserva su forma `{message}/{error}`; CLP sin tope de esquema (lo convierte el servicio); e2e sin POST directo (sólo intercepción waitlist: el navegador manda Origin).
+- Verificación: `npx tsc --noEmit` ok; `npm run lint` ok; `npm test` 332/332 (45 archivos, 15 nuevos). Criterios: cobertura 100 % en el test estático; demo/Ajustes/perfil intactos en tests (`demo-account`, `display-currency`, `contracts`, `waitlist`) y formas de respuesta sin cambios; 500 sin fugas en test de comportamiento. Digo con todas sus letras: NO comprobables aquí build prod, `npm run e2e` ni el 403 real en navegador (los corre el operador).
+- Pendiente operador/Manu: build prod (`.next-verify`), `npm run e2e`, probar Origin evil en `/api/demo/reset` y cuerpo de 20 KB contra el deploy; nada que revisar de copy legal (sin textos nuevos salvo mensajes de error).
+
 ## M49b-fix — check de upstash con formato REST correcto (2026-10-07)
 - Hecho: `scripts/check-upstash.mjs` envía cada comando como `POST` a `${url}/` con cuerpo `["INCR"|"EXPIRE"|"GET"|"DEL", key, ...]`; limpieza con `DEL` en `finally`; salida con `process.exitCode` (sin `process.exit()` tras `fetch`); sin imprimir claves.
 - Verificación: `npx tsc --noEmit` ok; `npm run lint` ok; `npm test` 317/317 (44 archivos). `npm run check:upstash` NO corrido aquí (claves reales; lo corre el operador).

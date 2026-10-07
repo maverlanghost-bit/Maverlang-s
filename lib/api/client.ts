@@ -59,12 +59,14 @@ import type {
 export class ApiError extends Error {
   readonly code: ApiErrorCode;
   readonly status: number;
+  readonly requestId?: string;
 
-  constructor(code: ApiErrorCode, message: string, status = httpStatusFor(code)) {
+  constructor(code: ApiErrorCode, message: string, status = httpStatusFor(code), requestId?: string) {
     super(message);
     this.name = "ApiError";
     this.code = code;
     this.status = status;
+    this.requestId = requestId;
   }
 }
 
@@ -107,7 +109,12 @@ async function request<T>(path: string, schema: ZodType<T>, init?: RequestInit):
   const parsed = apiResultSchema(schema).safeParse(payload);
   if (!parsed.success || !parsed.data.ok) {
     if (parsed.success && !parsed.data.ok) {
-      throw new ApiError(parsed.data.error.code, parsed.data.error.message, response.status);
+      throw new ApiError(
+        parsed.data.error.code,
+        parsed.data.error.message,
+        response.status,
+        parsed.data.requestId,
+      );
     }
     throw new ApiError("UPSTREAM", "La respuesta no tiene el formato esperado.", response.status || 502);
   }

@@ -1,5 +1,5 @@
 import { assetStatusSchema, marketStatusQuerySchema, marketStatusSchema } from "@/lib/api/contracts";
-import { callService, handle, queryOf, readOutput } from "@/lib/api/handler";
+import { callService, handle, parseQuery, readOutput } from "@/lib/api/handler";
 import { status as assetStatus } from "@/lib/market/asset-status";
 import { getServices } from "@/lib/services";
 
@@ -13,7 +13,7 @@ export const dynamic = "force-dynamic";
  */
 export function GET(req: Request) {
   return handle("no-store", async () => {
-    const params = queryOf(marketStatusQuerySchema, req);
+    const params = parseQuery(req, marketStatusQuerySchema);
     if (params.symbol) {
       const data = await callService(req, () => assetStatus(params.symbol as string));
       return readOutput(assetStatusSchema, data);

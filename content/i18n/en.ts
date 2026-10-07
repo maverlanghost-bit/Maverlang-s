@@ -283,6 +283,7 @@ export const en = {
     errors: {
       UNAUTHORIZED: "You need to sign in to trade.",
       FORBIDDEN_REGION: "The service isn't available in your country.",
+      FORBIDDEN_ORIGIN: "That origin isn't allowed. Reload the page and try again.",
       VALIDATION: "Check the amount and try again.",
       NOT_FOUND: "We couldn't find that quote. Request a new one.",
       QUOTE_EXPIRED: "The quote expired. Request a new one.",
@@ -290,6 +291,7 @@ export const en = {
       INSUFFICIENT_FUNDS: "You don't have enough balance.",
       MINT_NOT_ALLOWED: "This stock can't be traded.",
       RATE_LIMITED: "Too many requests. Try again in a few seconds.",
+      PAYLOAD_TOO_LARGE: "The data is too large.",
       UPSTREAM: "The provider didn't respond. You can try again.",
       INTERNAL: "Something failed on our side. You can try again.",
     },

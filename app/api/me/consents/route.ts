@@ -1,5 +1,5 @@
 import { consentRequestSchema, consentSchema, consentsResponseSchema } from "@/lib/api/contracts";
-import { bodyOf, callService, handle, readOutput, requireSession } from "@/lib/api/handler";
+import { parseJson, assertSameOrigin, callService, handle, readOutput, requireSession } from "@/lib/api/handler";
 import { withRateLimit } from "@/lib/security/rate-limit";
 import { getServices } from "@/lib/services";
 
@@ -19,11 +19,10 @@ export function GET(req: Request) {
 
 export function POST(req: Request) {
   return handle("no-store", async () => {
+    assertSameOrigin(req);
     const services = getServices();
-    const [body, session] = await Promise.all([
-      bodyOf(consentRequestSchema, req),
-      requireSession(services, req),
-    ]);
+    const session = await requireSession(services, req);
+    const body = await parseJson(req, consentRequestSchema);
     const userLimited = await withRateLimit(req, "me", [session.userId]);
     if (userLimited) return userLimited;
     const data = await callService(req, () =>

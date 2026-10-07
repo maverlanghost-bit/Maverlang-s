@@ -1,6 +1,7 @@
 import { tradeQuoteRequestSchema, tradeQuoteSchema } from "@/lib/api/contracts";
 import {
-  bodyOf,
+  parseJson,
+  assertSameOrigin,
   callService,
   handle,
   readOutput,
@@ -19,11 +20,12 @@ export const runtime = "nodejs";
 
 export function POST(req: Request) {
   return handle("no-store", async () => {
+    assertSameOrigin(req);
     const ipLimited = await withRateLimit(req, "tradeIp");
     if (ipLimited) return ipLimited;
     const services = getServices();
     await requireSupabaseUser(services, req);
-    const body = await bodyOf(tradeQuoteRequestSchema, req);
+    const body = await parseJson(req, tradeQuoteRequestSchema);
     const symbol = requireSymbol(body.symbol);
     if (isRealAccountRequest(req)) {
       throw new DomainError("VALIDATION", "La cuenta real todavía no opera.");

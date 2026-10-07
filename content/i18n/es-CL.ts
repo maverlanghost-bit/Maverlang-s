@@ -286,6 +286,7 @@ export const esCL = {
     errors: {
       UNAUTHORIZED: "Necesitas iniciar sesión para operar.",
       FORBIDDEN_REGION: "El servicio no está disponible en tu país.",
+      FORBIDDEN_ORIGIN: "El origen no está permitido. Recarga la página e inténtalo de nuevo.",
       VALIDATION: "Revisa el monto e inténtalo de nuevo.",
       NOT_FOUND: "No encontramos la cotización. Pide una nueva.",
       QUOTE_EXPIRED: "La cotización venció. Pide una nueva.",
@@ -293,6 +294,7 @@ export const esCL = {
       INSUFFICIENT_FUNDS: "No tienes saldo suficiente.",
       MINT_NOT_ALLOWED: "Esta acción no se puede operar.",
       RATE_LIMITED: "Demasiadas solicitudes. Intenta de nuevo en unos segundos.",
+      PAYLOAD_TOO_LARGE: "Los datos son demasiado grandes.",
       UPSTREAM: "El proveedor no respondió. Puedes intentar de nuevo.",
       INTERNAL: "Algo falló de nuestro lado. Puedes intentar de nuevo.",
     },

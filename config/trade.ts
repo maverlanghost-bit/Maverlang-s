@@ -4,6 +4,12 @@
  */
 export const MIN_TRADE_USD = 1;
 
+/**
+ * Tope por orden en la beta, en dólares (M56; M74 lo pasa a la base).
+ * La API rechaza montos en USDC sobre este techo.
+ */
+export const MAX_ORDER_USD = 1000;
+
 /** Espera tras el último cambio de monto antes de pedir cotización. */
 export const QUOTE_DEBOUNCE_MS = 400;
 

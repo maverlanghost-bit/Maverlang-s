@@ -1,6 +1,6 @@
 import { isLowLiquidity, searchCatalog } from "@/lib/catalog/assets";
 import { marketSearchQuerySchema, marketSearchResponseSchema } from "@/lib/api/contracts";
-import { handle, queryOf, readOutput } from "@/lib/api/handler";
+import { handle, parseQuery, readOutput } from "@/lib/api/handler";
 import { withRateLimit } from "@/lib/security/rate-limit";
 
 export const runtime = "nodejs";
@@ -15,7 +15,7 @@ export function GET(req: Request) {
   return handle("short", async () => {
     const ipLimited = await withRateLimit(req, "search");
     if (ipLimited) return ipLimited;
-    const params = queryOf(marketSearchQuerySchema, req);
+    const params = parseQuery(req, marketSearchQuerySchema);
     const result = await searchCatalog({
       q: params.q,
       category: params.category,

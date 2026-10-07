@@ -1,6 +1,7 @@
 import { z } from "zod";
 
-import { handle, requireSession, isRealAccountRequest, isUserDemoRequest } from "@/lib/api/handler";
+import { demoResetRequestSchema } from "@/lib/api/contracts";
+import { parseJson, assertSameOrigin, handle, requireSession, isRealAccountRequest, isUserDemoRequest } from "@/lib/api/handler";
 import { DomainError } from "@/lib/api/result";
 import { withRateLimit } from "@/lib/security/rate-limit";
 import { resetDemoState } from "@/lib/mocks/demo-state";
@@ -21,10 +22,12 @@ const resetResponseSchema = z.object({
  */
 export function POST(req: Request) {
   return handle("no-store", async () => {
+    assertSameOrigin(req);
     const services = getServices();
     const session = await requireSession(services, req);
     const userLimited = await withRateLimit(req, "demoReset", [session.userId]);
     if (userLimited) return userLimited;
+    await parseJson(req, demoResetRequestSchema);
     if (isRealAccountRequest(req)) {
       throw new DomainError("VALIDATION", "La cuenta real todavía no opera.");
     }

@@ -1,5 +1,5 @@
 import { pricesQuerySchema, quotesResponseSchema } from "@/lib/api/contracts";
-import { callService, handle, queryOf, readOutput, requireSymbol } from "@/lib/api/handler";
+import { callService, handle, parseQuery, readOutput, requireSymbol } from "@/lib/api/handler";
 import { withRateLimit } from "@/lib/security/rate-limit";
 import { getServices } from "@/lib/services";
 
@@ -11,7 +11,7 @@ export function GET(req: Request) {
   return handle("no-store", async () => {
     const ipLimited = await withRateLimit(req, "prices");
     if (ipLimited) return ipLimited;
-    const { symbols } = queryOf(pricesQuerySchema, req);
+    const { symbols } = parseQuery(req, pricesQuerySchema);
     const allowed = symbols.map((symbol) => requireSymbol(symbol));
     const services = getServices();
     const data = await callService(req, () => services.prices.list(allowed));

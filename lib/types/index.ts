@@ -255,11 +255,12 @@ export interface Preferences {
 
 export type ApiResult<T> =
   | { ok: true; data: T }
-  | { ok: false; error: { code: ApiErrorCode; message: string } };
+  | { ok: false; error: { code: ApiErrorCode; message: string }; requestId?: string };
 
 export type ApiErrorCode =
   | "UNAUTHORIZED"
   | "FORBIDDEN_REGION"
+  | "FORBIDDEN_ORIGIN"
   | "VALIDATION"
   | "NOT_FOUND"
   | "QUOTE_EXPIRED"
@@ -267,5 +268,6 @@ export type ApiErrorCode =
   | "INSUFFICIENT_FUNDS"
   | "MINT_NOT_ALLOWED"
   | "RATE_LIMITED"
+  | "PAYLOAD_TOO_LARGE"
   | "UPSTREAM"
   | "INTERNAL";

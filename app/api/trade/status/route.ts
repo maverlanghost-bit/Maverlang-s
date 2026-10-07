@@ -2,7 +2,7 @@ import { orderSchema, tradeStatusQuerySchema } from "@/lib/api/contracts";
 import {
   callService,
   handle,
-  queryOf,
+  parseQuery,
   readOutput,
   requireSession,
   isRealAccountRequest,
@@ -20,7 +20,7 @@ export function GET(req: Request) {
   return handle("no-store", async () => {
     const ipLimited = await withRateLimit(req, "tradeIp");
     if (ipLimited) return ipLimited;
-    const { id } = queryOf(tradeStatusQuerySchema, req);
+    const { id } = parseQuery(req, tradeStatusQuerySchema);
     const services = getServices();
     if (isRealAccountRequest(req)) {
       throw new DomainError("NOT_FOUND", "No encontramos esa orden.");

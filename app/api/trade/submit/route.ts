@@ -1,6 +1,7 @@
 import { tradeSubmitRequestSchema, tradeSubmitResponseSchema } from "@/lib/api/contracts";
 import {
-  bodyOf,
+  parseJson,
+  assertSameOrigin,
   callService,
   handle,
   readOutput,
@@ -17,13 +18,12 @@ export const runtime = "nodejs";
 
 export function POST(req: Request) {
   return handle("no-store", async () => {
+    assertSameOrigin(req);
     const ipLimited = await withRateLimit(req, "tradeIp");
     if (ipLimited) return ipLimited;
     const services = getServices();
-    const [body, session] = await Promise.all([
-      bodyOf(tradeSubmitRequestSchema, req),
-      requireSession(services, req),
-    ]);
+    const session = await requireSession(services, req);
+    const body = await parseJson(req, tradeSubmitRequestSchema);
     if (isRealAccountRequest(req)) {
       throw new DomainError("VALIDATION", "La cuenta real todavía no opera.");
     }

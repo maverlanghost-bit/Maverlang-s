@@ -6,6 +6,7 @@ export type { ApiErrorCode, ApiResult };
 export const API_ERROR_STATUS = {
   UNAUTHORIZED: 401,
   FORBIDDEN_REGION: 403,
+  FORBIDDEN_ORIGIN: 403,
   VALIDATION: 400,
   NOT_FOUND: 404,
   QUOTE_EXPIRED: 409,
@@ -13,6 +14,7 @@ export const API_ERROR_STATUS = {
   INSUFFICIENT_FUNDS: 422,
   MINT_NOT_ALLOWED: 400,
   RATE_LIMITED: 429,
+  PAYLOAD_TOO_LARGE: 413,
   UPSTREAM: 502,
   INTERNAL: 500,
 } as const satisfies Record<ApiErrorCode, number>;
@@ -20,6 +22,7 @@ export const API_ERROR_STATUS = {
 const ERROR_MESSAGE: Record<ApiErrorCode, string> = {
   UNAUTHORIZED: "Necesitas iniciar sesión.",
   FORBIDDEN_REGION: "El servicio no está disponible en tu país.",
+  FORBIDDEN_ORIGIN: "El origen de la solicitud no está permitido.",
   VALIDATION: "Los datos no son válidos.",
   NOT_FOUND: "No encontramos eso.",
   QUOTE_EXPIRED: "La cotización venció. Pide una nueva.",
@@ -27,6 +30,7 @@ const ERROR_MESSAGE: Record<ApiErrorCode, string> = {
   INSUFFICIENT_FUNDS: "No tienes saldo suficiente.",
   MINT_NOT_ALLOWED: "Ese activo no está permitido.",
   RATE_LIMITED: "Demasiadas solicitudes. Intenta de nuevo en unos segundos.",
+  PAYLOAD_TOO_LARGE: "Los datos son demasiado grandes.",
   UPSTREAM: "El proveedor no respondió.",
   INTERNAL: "Error interno.",
 };

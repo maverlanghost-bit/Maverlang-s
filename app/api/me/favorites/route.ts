@@ -1,5 +1,5 @@
 import { favoritesRequestSchema, favoritesResponseSchema } from "@/lib/api/contracts";
-import { bodyOf, callService, handle, readOutput, requireSession } from "@/lib/api/handler";
+import { parseJson, assertSameOrigin, callService, handle, readOutput, requireSession } from "@/lib/api/handler";
 import { withRateLimit } from "@/lib/security/rate-limit";
 import { getServices } from "@/lib/services";
 
@@ -19,11 +19,10 @@ export function GET(req: Request) {
 
 export function PUT(req: Request) {
   return handle("private", async () => {
+    assertSameOrigin(req);
     const services = getServices();
-    const [body, session] = await Promise.all([
-      bodyOf(favoritesRequestSchema, req),
-      requireSession(services, req),
-    ]);
+    const session = await requireSession(services, req);
+    const body = await parseJson(req, favoritesRequestSchema);
     const userLimited = await withRateLimit(req, "me", [session.userId]);
     if (userLimited) return userLimited;
     const data = await callService(req, () => services.users.saveFavorites(session.userId, body.symbols));

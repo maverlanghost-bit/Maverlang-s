@@ -1,10 +1,17 @@
 import "server-only";
 
 import { NextResponse } from "next/server";
-import type { ZodType } from "zod";
+import type { ZodError, ZodType } from "zod";
 
-import { parseContract } from "@/lib/api/contracts";
-import { DomainError, failFrom, ok, resultStatus, type ApiResult } from "@/lib/api/result";
+import {
+  DomainError,
+  errorMessage,
+  failFrom,
+  ok,
+  resultStatus,
+  type ApiErrorCode,
+  type ApiResult,
+} from "@/lib/api/result";
 import { requestAccountMode } from "@/lib/account/server";
 import { DEMO_WALLET_ADDRESS } from "@/lib/auth/demo-user";
 import { isSupabaseAuth } from "@/lib/auth/mode";
@@ -34,14 +41,161 @@ export function jsonResult<T>(result: ApiResult<T>, cache: CacheMode): NextRespo
 
 /** zod ya corrió. `DomainError` sale como `fail(code)`; el resto, `INTERNAL`. */
 /** Si `run` devuelve un `Response` (p. ej. la 429 de `withRateLimit`), sale tal cual. */
+/**
+ * Atrapa todo: en la respuesta sólo viajan `code`, un mensaje humano en
+ * español y `requestId`. El detalle (stack, mensajes de Supabase, Jupiter o
+ * Postgres) queda en el log del servidor junto al `requestId`.
+ */
 export async function handle<T>(cache: CacheMode, run: () => Promise<T | Response>): Promise<Response> {
   try {
     const data = await run();
     if (data instanceof Response) return data;
     return jsonResult(ok(data), cache);
   } catch (error) {
-    return jsonResult(failFrom(error), cache);
+    const requestId = newRequestId();
+    const code: ApiErrorCode = error instanceof DomainError ? error.code : "INTERNAL";
+    const failed = failFrom(error);
+    // INTERNAL siempre genérico: nunca sale `error.message` crudo de terceros.
+    const message =
+      code === "INTERNAL" ? errorMessage("INTERNAL") : failed.ok ? errorMessage(code) : failed.error.message;
+    logApiError(requestId, code, error);
+    return errorResult(code, message, requestId, cache);
   }
+}
+
+function newRequestId(): string {
+  try {
+    return crypto.randomUUID();
+  } catch {
+    return `${Date.now().toString(36)}-${Math.floor(Math.random() * 1e9).toString(36)}`;
+  }
+}
+
+function logApiError(requestId: string, code: ApiErrorCode, error: unknown): void {
+  const stack = error instanceof Error ? error.stack ?? error.message : String(error);
+  console.error(`api ${requestId} ${code}: ${stack}`);
+}
+
+function errorResult(
+  code: ApiErrorCode,
+  message: string,
+  requestId: string,
+  cache: CacheMode,
+): NextResponse {
+  const body: ApiResult<never> = { ok: false, error: { code, message }, requestId };
+  return NextResponse.json(body, {
+    status: resultStatus(body),
+    headers: {
+      "cache-control": CACHE_CONTROL[cache],
+      "x-content-type-options": "nosniff",
+      "x-request-id": requestId,
+    },
+  });
+}
+
+/** Tamaño máximo del cuerpo JSON: 16 KB. Encima → 413 `PAYLOAD_TOO_LARGE`. */
+export const MAX_BODY_BYTES = 16_384;
+
+function validationFieldsMessage(error: ZodError): string {
+  const fields: string[] = [];
+  for (const issue of error.issues) {
+    // Campos extra (`.strict()`): zod los trae en `keys`, sin `path`.
+    if (issue.code === "unrecognized_keys") {
+      const keys = (issue as { keys?: unknown }).keys;
+      if (Array.isArray(keys)) {
+        for (const key of keys) if (typeof key === "string") fields.push(key);
+      }
+      continue;
+    }
+    if (issue.path.length > 0) fields.push(String(issue.path[0]));
+  }
+  const unique = [...new Set(fields)].sort();
+  // Sin eco de valores: sólo los nombres de los campos.
+  if (unique.length === 0) return "Los datos no son válidos.";
+  return `Los datos no son válidos: revisa ${unique.join(", ")}.`;
+}
+
+/**
+ * Lee el cuerpo, lo topa en `maxBytes` (413), lo parsea y lo valida con zod
+ * (400 `VALIDATION` con la lista de campos, sin eco de valores).
+ * Los esquemas de `contracts.ts` usan `.strict()`: rechazan campos extra.
+ */
+export async function parseJson<T>(
+  req: Request,
+  schema: ZodType<T>,
+  options: { maxBytes?: number } = {},
+): Promise<T> {
+  const maxBytes = options.maxBytes ?? MAX_BODY_BYTES;
+  const text = await req.text();
+  if (new TextEncoder().encode(text).length > maxBytes) {
+    throw new DomainError("PAYLOAD_TOO_LARGE");
+  }
+  let raw: unknown;
+  try {
+    raw = text.trim() === "" ? undefined : (JSON.parse(text) as unknown);
+  } catch {
+    throw new DomainError("VALIDATION", "El cuerpo no es JSON.");
+  }
+  const parsed = schema.safeParse(raw);
+  if (!parsed.success) throw new DomainError("VALIDATION", validationFieldsMessage(parsed.error));
+  return parsed.data;
+}
+
+/**
+ * Valida la query string con zod (400 `VALIDATION` con la lista de campos).
+ * `mockError` lo lee `callService`, no el esquema: se excluye antes.
+ */
+export function parseQuery<T>(input: Request | URL | string, schema: ZodType<T>): T {
+  const url = typeof input === "string" ? new URL(input) : input instanceof URL ? input : new URL(input.url);
+  const raw: Record<string, string> = {};
+  url.searchParams.forEach((value, key) => {
+    if (key === "mockError") return;
+    raw[key] = value;
+  });
+  const parsed = schema.safeParse(raw);
+  if (!parsed.success) throw new DomainError("VALIDATION", validationFieldsMessage(parsed.error));
+  return parsed.data;
+}
+
+/** Rutas exentas de `Origin`: el webhook (firma propia) y los crons (token). */
+const ORIGIN_EXEMPT_PREFIXES = ["/api/onramp/webhook", "/api/cron/"] as const;
+
+export function isOriginExempt(pathname: string): boolean {
+  return ORIGIN_EXEMPT_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(prefix));
+}
+
+function siteOriginOf(): string | null {
+  const raw = process.env.NEXT_PUBLIC_SITE_URL?.trim();
+  if (!raw) return null;
+  try {
+    return new URL(raw).origin;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * CSRF barato (M56): en métodos que cambian estado, `Origin` (o `Referer` si
+ * falta) debe coincidir con `NEXT_PUBLIC_SITE_URL` o con el host pedido.
+ * Sin ambos, o con otro origen → 403 `FORBIDDEN_ORIGIN`. GET/HEAD/OPTIONS y
+ * las exentas (`/api/onramp/webhook`, `/api/cron/*`) pasan.
+ */
+export function assertSameOrigin(req: Request): void {
+  const method = req.method.toUpperCase();
+  if (method === "GET" || method === "HEAD" || method === "OPTIONS") return;
+  const url = new URL(req.url);
+  if (isOriginExempt(url.pathname)) return;
+  const candidate = req.headers.get("origin") ?? req.headers.get("referer");
+  if (!candidate) throw new DomainError("FORBIDDEN_ORIGIN");
+  let candidateUrl: URL;
+  try {
+    candidateUrl = new URL(candidate);
+  } catch {
+    throw new DomainError("FORBIDDEN_ORIGIN");
+  }
+  if (candidateUrl.origin === siteOriginOf()) return;
+  if (candidateUrl.host === url.host) return;
+  throw new DomainError("FORBIDDEN_ORIGIN");
 }
 
 export function readOutput<T>(schema: ZodType<T>, data: unknown): T {
@@ -50,24 +204,14 @@ export function readOutput<T>(schema: ZodType<T>, data: unknown): T {
   return parsed.data;
 }
 
+/** Alias anterior de `parseQuery` (M56): las rutas usan el nombre nuevo. */
 export function queryOf<T>(schema: ZodType<T>, req: Request): T {
-  const url = new URL(req.url);
-  const raw: Record<string, string> = {};
-  url.searchParams.forEach((value, key) => {
-    if (key === "mockError") return;
-    raw[key] = value;
-  });
-  return parseContract(schema, raw);
+  return parseQuery(req, schema);
 }
 
+/** Alias anterior de `parseJson` (M56): las rutas usan el nombre nuevo. */
 export async function bodyOf<T>(schema: ZodType<T>, req: Request): Promise<T> {
-  let raw: unknown;
-  try {
-    raw = await req.json();
-  } catch {
-    throw new DomainError("VALIDATION", "El cuerpo no es JSON.");
-  }
-  return parseContract(schema, raw);
+  return parseJson(req, schema);
 }
 
 /** `?mockError=` lo aplica el servicio, no la sesión. */

@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { MAX_ORDER_USD } from "@/config/trade";
 import { API_ERROR_STATUS, DomainError, isApiErrorCode } from "@/lib/api/result";
 import type { ApiErrorCode } from "@/lib/types";
 
@@ -13,6 +14,11 @@ const apiErrorCodes = Object.keys(API_ERROR_STATUS) as [ApiErrorCode, ...ApiErro
 export const apiErrorCodeSchema = z.enum(apiErrorCodes);
 
 export const symbolSchema = z.string().trim().min(1);
+/** Símbolo del catálogo en la entrada: `AAPLx`, `NVDAx` (M56, M54 pendiente). */
+export const tradableSymbolSchema = z
+  .string()
+  .trim()
+  .regex(/^[A-Za-z0-9.]{1,12}x$/, "Símbolo inválido.");
 export const rangeSchema = z.enum(["1W", "1M", "3M", "1Y", "ALL"]);
 export const sideSchema = z.enum(["buy", "sell"]);
 export const currencySchema = z.enum(["CLP", "USD"]);
@@ -103,9 +109,11 @@ export const assetStatusSchema = z.object({
   updatedAt: isoTimeSchema,
 });
 
-export const marketStatusQuerySchema = z.object({
-  symbol: symbolSchema.optional(),
-});
+export const marketStatusQuerySchema = z
+  .object({
+    symbol: tradableSymbolSchema.optional(),
+  })
+  .strict();
 
 export const balanceSchema = z.object({
   mint: z.string().min(1),
@@ -149,12 +157,25 @@ export const costBreakdownSchema = z.object({
 export const tradeQuoteRequestSchema = z
   .object({
     side: sideSchema,
-    symbol: symbolSchema,
-    amount: z.number().positive(),
+    symbol: tradableSymbolSchema,
+    amount: z.number().finite().positive(),
     amountCurrency: amountCurrencySchema,
     userPublicKey: z.string().min(32).optional(),
   })
-  .strict();
+  .strict()
+  .superRefine((value, ctx) => {
+    // Decimales: ≤ 2 en dólares (USDC/CLP) o ≤ 8 en acciones.
+    const decimals = value.amount.toString().split(".")[1]?.length ?? 0;
+    const maxDecimals = value.amountCurrency === "SHARES" ? 8 : 2;
+    if (decimals > maxDecimals) {
+      ctx.addIssue({ code: "custom", path: ["amount"], message: "Demasiados decimales." });
+    }
+    // Tope de la beta en dólares (M56; M74 lo pasa a la base). CLP y
+    // acciones se topan en el servicio (conversión y precio).
+    if (value.amountCurrency === "USDC" && value.amount > MAX_ORDER_USD) {
+      ctx.addIssue({ code: "custom", path: ["amount"], message: "El monto supera el máximo." });
+    }
+  });
 
 export const tradeQuoteSchema = z.object({
   id: z.string().min(1),
@@ -224,14 +245,14 @@ export const sendBuildRequestSchema = z
   .object({
     to: z.string().min(32),
     mint: z.string().min(32),
-    amountUi: z.number().positive(),
+    amountUi: z.number().finite().positive(),
     userPublicKey: z.string().min(32),
   })
   .strict();
 
 export const onrampSessionRequestSchema = z
   .object({
-    amountClp: z.number().positive(),
+    amountClp: z.number().finite().positive(),
     provider: onrampProviderSchema.optional(),
     walletAddress: z.string().min(32),
   })
@@ -345,30 +366,41 @@ export const geoResponseSchema = z.object({
   blocked: z.boolean(),
 });
 
-export const pricesQuerySchema = z.object({
-  symbols: z
-    .string()
-    .optional()
-    .transform((value) =>
-      (value ?? "")
-        .split(",")
-        .map((part) => part.trim())
-        .filter((part) => part.length > 0),
-    )
-    .refine((list) => list.length <= 50, "Como máximo 50 símbolos por llamada."),
-});
+export const pricesQuerySchema = z
+  .object({
+    symbols: z
+      .string()
+      .optional()
+      .transform((value) =>
+        (value ?? "")
+          .split(",")
+          .map((part) => part.trim())
+          .filter((part) => part.length > 0),
+      )
+      .refine((list) => list.length <= 50, "Como máximo 50 símbolos por llamada.")
+      .refine((list) => list.every((symbol) => /^[A-Za-z0-9.]{1,12}x$/.test(symbol)), {
+        message: "Símbolo inválido.",
+      }),
+  })
+  .strict();
 
-export const historyParamsSchema = z.object({
-  symbol: symbolSchema,
-});
+export const historyParamsSchema = z
+  .object({
+    symbol: tradableSymbolSchema,
+  })
+  .strict();
 
-export const historyQuerySchema = z.object({
-  range: rangeSchema.default("1M"),
-});
+export const historyQuerySchema = z
+  .object({
+    range: rangeSchema.default("1M"),
+  })
+  .strict();
 
-export const tradeStatusQuerySchema = z.object({
-  id: z.string().min(1),
-});
+export const tradeStatusQuerySchema = z
+  .object({
+    id: z.string().min(1),
+  })
+  .strict();
 
   /** Búsqueda del mercado (M38). `pageSize` máximo 50; `scope` lo topa CATALOG_SCOPE. */
 export const marketSearchCategorySchema = z.enum([
@@ -387,14 +419,16 @@ export const marketSearchCategorySchema = z.enum([
 export const marketSearchSortSchema = z.enum(["liquidity", "name"]);
 export const marketSearchScopeSchema = z.enum(["curated", "all"]);
 
-export const marketSearchQuerySchema = z.object({
-  q: z.string().trim().max(100).optional().default(""),
-  category: marketSearchCategorySchema.optional().default("all"),
-  page: z.coerce.number().int().min(1).optional().default(1),
-  pageSize: z.coerce.number().int().min(1).max(50).optional().default(20),
-  sort: marketSearchSortSchema.optional().default("liquidity"),
-  scope: marketSearchScopeSchema.optional().default("curated"),
-});
+export const marketSearchQuerySchema = z
+  .object({
+    q: z.string().trim().max(64).optional().default(""),
+    category: marketSearchCategorySchema.optional().default("all"),
+    page: z.coerce.number().int().min(1).max(1000).optional().default(1),
+    pageSize: z.coerce.number().int().min(1).max(50).optional().default(20),
+    sort: marketSearchSortSchema.optional().default("liquidity"),
+    scope: marketSearchScopeSchema.optional().default("curated"),
+  })
+  .strict();
 
 export const marketSearchItemSchema = z.object({
   symbol: symbolSchema,
@@ -430,10 +464,32 @@ export const apiErrorSchema = z.object({
   message: z.string(),
 });
 
+/** POST /api/demo/reset. Cuerpo vacío: la sesión identifica la cuenta. */
+export const demoResetRequestSchema = z.object({}).strict();
+
+/** POST /api/waitlist. La trampa `website` llena se responde 200 sin guardar. */
+export const waitlistRequestSchema = z
+  .object({
+    email: z
+      .string()
+      .trim()
+      .min(1, "Revisa el correo e inténtalo de nuevo.")
+      .max(254, "Revisa el correo e inténtalo de nuevo.")
+      .refine((value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value), {
+        message: "Revisa el correo e inténtalo de nuevo.",
+      }),
+    consent: z.boolean().refine((value) => value === true, {
+      message: "Acepta que te contactemos para avisarte del lanzamiento.",
+    }),
+    website: z.string().max(1000).optional().default(""),
+    source: z.enum(["landing", "cuenta_real"]).optional().default("landing"),
+  })
+  .strict();
+
 export function apiResultSchema<T extends z.ZodType>(data: T) {
   return z.discriminatedUnion("ok", [
     z.object({ ok: z.literal(true), data }),
-    z.object({ ok: z.literal(false), error: apiErrorSchema }),
+    z.object({ ok: z.literal(false), error: apiErrorSchema, requestId: z.string().optional() }),
   ]);
 }
 
@@ -476,6 +532,8 @@ export const apiContracts = {
   "GET /api/me/favorites": { response: favoritesResponseSchema },
   "PUT /api/me/favorites": { body: favoritesRequestSchema, response: favoritesResponseSchema },
   "GET /api/geo": { response: geoResponseSchema },
+  "POST /api/waitlist": { body: waitlistRequestSchema },
+  "POST /api/demo/reset": { body: demoResetRequestSchema },
 } as const;
 
 export type ProfileUpdate = z.infer<typeof profileUpdateSchema>;
