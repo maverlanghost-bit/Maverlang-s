@@ -106,61 +106,13 @@ function consent(doc: LegalDoc, version: string): Consent {
 }
 
 function createState(): DemoState {
-  const positions = new Map<string, Lot>([
-    ["AAPLx", { shares: 1, avgCostUsd: 220 }],
-    ["NVDAx", { shares: 0.5, avgCostUsd: 140 }],
-    ["TSLAx", { shares: 0.8, avgCostUsd: 250 }],
-  ]);
-
-  const activities: Activity[] = [
-    {
-      id: "act-tsla",
-      kind: "buy",
-      symbol: "TSLAx",
-      amountUi: 0.8,
-      valueUsd: 200,
-      status: "confirmed",
-      signature: "mock-sig-tsla",
-      at: "2026-09-23T15:00:00.000Z",
-    },
-    {
-      id: "act-nvda",
-      kind: "buy",
-      symbol: "NVDAx",
-      amountUi: 0.5,
-      valueUsd: 70,
-      status: "confirmed",
-      signature: "mock-sig-nvda",
-      at: "2026-09-22T15:00:00.000Z",
-    },
-    {
-      id: "act-aapl",
-      kind: "buy",
-      symbol: "AAPLx",
-      amountUi: 1,
-      valueUsd: 220,
-      status: "confirmed",
-      signature: "mock-sig-aapl",
-      at: "2026-09-21T15:00:00.000Z",
-    },
-    {
-      id: "act-onramp",
-      kind: "onramp",
-      symbol: "USDC",
-      amountUi: 740,
-      valueUsd: 740,
-      status: "confirmed",
-      signature: null,
-      at: "2026-09-20T15:10:00.000Z",
-    },
-  ];
-
   return {
     seq: 0,
-    cashUsdc: 250,
+    // M44: la demo parte con US$1.000 ficticios, sin posiciones.
+    cashUsdc: 1000,
     solUi: MOCK_SOL_UI,
-    positions,
-    activities,
+    positions: new Map(),
+    activities: [],
     profile: {
       id: DEMO_USER_ID,
       email: "demo@example.com",

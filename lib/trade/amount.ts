@@ -154,7 +154,7 @@ export function minInCurrency(
   if (!(priceUsd && priceUsd > 0)) return null;
   const raw = floor / priceUsd;
   if (!(raw > 0)) return null;
-  return Math.ceil(raw * 1_000_000 - 1e-9) / 1_000_000;
+  return Math.ceil(raw * 1e6 - 1e-9) / 1e6;
 }
 
 /**

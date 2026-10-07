@@ -9,7 +9,7 @@ import { resetDemoAccount } from "@/lib/api/client";
 import { useT } from "@/lib/hooks/use-t";
 import { useToast } from "@/components/ui/toast";
 
-/** Vuelve la cuenta demo a $1.000.000 CLP, con diálogo de confirmación. */
+/** Vuelve la cuenta demo a US$1.000, con diálogo de confirmación. */
 export function ResetDemoButton() {
   const { t } = useT();
   const { toast } = useToast();

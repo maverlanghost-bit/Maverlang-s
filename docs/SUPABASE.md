@@ -53,6 +53,33 @@ NO aplicada. Pega **una sola vez** `supabase/migrations/0006_user_favorites.sql`
 - RLS: cada persona lee, agrega y quita sólo las suyas. Sin update.
 - Sin aplicar `0006`, las favoritas siguen sólo en este navegador y la cuenta no las guarda (la app no se rompe).
 
+## Saldo demo en US$ (0007)
+
+NO aplicada. Después de `0006`, pega **una sola vez** `supabase/migrations/0007_demo_usd.sql` en el SQL Editor y ejecútalo. También es idempotente (se puede pegar dos veces: la segunda no reinicia nada). Agrega:
+
+- `demo_accounts.cash_usd` / `initial_usd` (US$1.000 ficticios) y `demo_orders.total_usd` (nullable para el historial viejo). Las columnas `*_clp` quedan como dato informativo deprecado y todavía no se borran.
+- `public.demo_trade(...)`: misma firma, pero descuenta o acredita en USD (`total_usd = acciones × precio_usd`); `p_usdclp` pasa a ser opcional (si es null, `usdclp`/`total_clp` quedan null y la operación igual se hace). Sólo `service_role`.
+- `public.demo_reset(...)`: vuelve a `cash_usd = initial_usd` (1000), borra posiciones y órdenes y suma `reset_count`. Sólo `service_role`.
+- `public._migration_flags`: las cuentas que ya existen se reinician a US$1.000 una sola vez (se borran sus posiciones y órdenes viejas); volver a correr la migración no borra nada nuevo.
+
+Sin aplicar `0007`, el servicio nuevo falla al leer `cash_usd` (la columna no existe) y la demo por usuario muestra reintento. En local con `AUTH_MODE=mock` no hace falta: sigue la demo en memoria (US$1.000, sin posiciones).
+
+Comprobación (dos corridas):
+
+```sql
+-- 1. Cuentas en US$1.000:
+select cash_usd, initial_usd, reset_count from public.demo_accounts;
+-- 2. La marca existe una sola vez:
+select name, applied_at from public._migration_flags;
+-- 3. Órdenes nuevas con total_usd (tras operar en la app):
+select symbol, side, shares, price_usd, total_usd, usdclp
+  from public.demo_orders order by created_at desc limit 5;
+-- 4. Idempotencia: cuenta las órdenes, vuelve a pegar 0007 y cuenta de nuevo.
+-- El conteo no cambia y las cuentas siguen en US$1.000.
+select count(*) from public.demo_orders;
+select count(*) from public.demo_positions;
+```
+
 ## Auth en el panel
 
 - Site URL: el valor de `NEXT_PUBLIC_SITE_URL` (en local, `http://localhost:3000`)

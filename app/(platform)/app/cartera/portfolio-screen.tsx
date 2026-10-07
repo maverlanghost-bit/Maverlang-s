@@ -24,6 +24,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { formatDateTime, formatMoney, formatShares, type MoneyCurrency } from "@/lib/format";
 import { useAccountMode } from "@/lib/hooks/use-account-mode";
 import { useHideBalance } from "@/lib/hooks/use-hide-balance";
+import { DEMO_INITIAL_USD } from "@/lib/services/demo.logic";
 import { useActivity, useFx, useHistories, usePortfolio, useTickers } from "@/lib/hooks/queries";
 import { priceFlashDirection, type PriceFlash } from "@/lib/hooks/use-price-flash";
 import { useT } from "@/lib/hooks/use-t";
@@ -467,12 +468,23 @@ export function PortfolioScreen() {
     <div className="flex flex-col gap-6">
       <PageHeader title={page.title} description={page.lead} />
       {mode === "demo" ? (
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <p className="flex items-center gap-2 text-xs leading-relaxed text-fg-muted">
-            <Badge tone="warn">{t.account.badge}</Badge>
-            <span>{t.account.note}</span>
+        <div className="flex flex-col gap-2">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="flex items-center gap-2 text-xs leading-relaxed text-fg-muted">
+              <Badge tone="warn">{t.account.badge}</Badge>
+              <span>{t.account.note}</span>
+            </p>
+            <ResetDemoButton />
+          </div>
+          <p className="text-xs leading-relaxed text-fg-muted">
+            {currency === "CLP" && fxKnown && typeof rate === "number"
+              ? fill(t.account.demoBalanceClp, {
+                  amount: new Intl.NumberFormat("es-CL", { maximumFractionDigits: 0 }).format(
+                    DEMO_INITIAL_USD * rate,
+                  ),
+                })
+              : t.account.demoBalance}
           </p>
-          <ResetDemoButton />
         </div>
       ) : null}
       {body}

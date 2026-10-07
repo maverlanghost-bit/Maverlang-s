@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { DEMO_WALLET_ADDRESS, buildDemoPortfolio, resetDemoState } from "@/lib/mocks/demo-state";
+import { DEMO_WALLET_ADDRESS, applyBuy, buildDemoPortfolio, resetDemoState } from "@/lib/mocks/demo-state";
 import { MOCK_USDCLP } from "@/lib/mocks/fx";
 import { priceHistory } from "@/lib/mocks/prices";
 import { demoSpotPrice } from "@/lib/market/demo-price";
@@ -95,6 +95,8 @@ describe("dólar live", () => {
 describe("cotización demo", () => {
   it("la posición y el precio de la orden usan el spot, no la ancla", () => {
     resetDemoState();
+    applyBuy("AAPLx", 1, 220, 220);
+    applyBuy("NVDAx", 0.5, 140, 70);
     const spots = new Map([["AAPLx", { priceUsd: SPOT }]]);
     expect(demoSpotPrice("AAPLx", spots)).toBe(SPOT);
     expect(demoSpotPrice("AAPLx")).toBe(228.4);

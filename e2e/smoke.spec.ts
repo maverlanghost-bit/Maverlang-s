@@ -56,7 +56,7 @@ test("smoke con datos mock", async ({ page }) => {
   await expect(page).toHaveURL(/\/app\/cartera/);
   const apple = page.locator('a[href="/app/accion/AAPLx"]');
   await expect(apple).toBeVisible();
-  await expect(apple).toContainText(/1,\d/);
+  await expect(apple).toContainText(/acc\./);
 
   await page.goto("/app/billetera/enviar");
   await page.getByLabel("Destino").fill("no-es-una-direccion");

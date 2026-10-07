@@ -2,6 +2,13 @@
 
 > Estado de la base (2026-10-06): las migraciones 0002, 0003 y 0004 YA están aplicadas en el proyecto Supabase actual y `public.assets` está sincronizada. No hay que pegar nada en el SQL Editor; las instrucciones de `docs/SUPABASE.md` sirven sólo para un proyecto nuevo.
 
+## M44 — Saldo demo de US$1.000 (2026-10-07)
+- Hecho: (A) lint del buscador (`setSuggestActive(0)` en el `onChange`, fuera el `useEffect`) y `tsconfig.json` sin `.next-verify` (commit `c2e3812`). (B) demo en USD: migración `0007_demo_usd.sql` (`cash_usd`/`initial_usd` 1000, `total_usd`, `p_usdclp` opcional, reset a 1000, `_migration_flags` una-sola-vez), servicio/cartera/hoja en USD con display M40, mock US$1.000 sin posiciones, copy "US$1.000 ficticios".
+- Archivos clave: `0007_demo_usd.sql`, `demo.supabase.ts`, `demo.logic.ts`, `demo-state.ts`, `demo/reset/route.ts`, `api/client.ts`, i18n es/en, `portfolio-screen.tsx`, `SUPABASE.md`, tests `demo-account`/`demo-migration`, e2e `demo-usd`, `smoke.spec.ts`.
+- Decisiones: firma `demo_trade` intacta; `*_clp` deprecadas sin borrar; rendimiento = total − `initialUsd`; CLP por API sin dólar → 400 claro; operar en USD/acciones no exige dólar; `git pull --ff-only` denegado por el sandbox (árbol limpio y al día, se siguió igual).
+- Verificación: `npx tsc --noEmit` ok; `npm run lint` ok; `npm test` 216/216 (34 archivos); greps `DEMO_INITIAL_CLP|1_000_000|1.000.000` y `cash_clp` vacíos en código. Digo con todas sus letras: NO comprobables aquí aplicar 0007 (dos veces), build de producción ni e2e en navegador (los corre el operador).
+- Pendiente operador/Manu: aplicar 0007 dos veces en desarrollo (checks en `SUPABASE.md`), build prod, `npm run e2e`, `npm run e2e:auth` y checks del bloque C; mirar cartera (US$1.000/≈ $950.000), compra US$100 y Reiniciar.
+
 ## N21 — Navbar suave + logo chico + sidebar fija (2026-10-07)
 - Hecho: navbar del landing sube/baja en 500 ms (antes 240 ms). Logo h-5 (antes h-6). Sidebar con iconos siempre fijos: marca favicon + nombre, nav y avatar en slots fijos; al colapsar sólo se ocultan las palabras (max-w/opacity). Expandida muestra marca + nombre.
 - La M al colapsar = falta `public/brand/maverlang-mark.png`. Operador: `Copy-Item "app\icon.png" "public\brand\maverlang-mark.png"`.

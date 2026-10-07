@@ -9,12 +9,12 @@ import { demoSupabase } from "@/lib/services/demo.supabase";
 export const runtime = "nodejs";
 
 const resetResponseSchema = z.object({
-  cashClp: z.number().nonnegative(),
+  cashUsd: z.number().nonnegative(),
   resetCount: z.number().int().nonnegative().optional(),
 });
 
 /**
- * Reinicia la cuenta demo: el saldo vuelve al inicial y se borran
+ * Reinicia la cuenta demo: el saldo vuelve a US$1.000 y se borran
  * las posiciones y las órdenes de ese usuario. Requiere sesión.
  * En mock (tests/e2e) reinicia la demo en memoria.
  */
@@ -30,6 +30,6 @@ export function POST(req: Request) {
       return resetResponseSchema.parse(result);
     }
     resetDemoState();
-    return resetResponseSchema.parse({ cashClp: 250 });
+    return resetResponseSchema.parse({ cashUsd: 1000 });
   });
 }

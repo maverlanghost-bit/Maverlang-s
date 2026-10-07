@@ -4,7 +4,7 @@ import { defaultSlippageBps, feeConfig, priceDeviationMaxBps } from "@/config/fe
 import { USDC_MINT } from "@/config/tickers";
 import { DomainError } from "@/lib/api/result";
 import { getServices } from "@/lib/services";
-import { totalClpOf, validateDemoFunds, validateDemoTradeInput } from "@/lib/services/demo.logic";
+import { DEMO_INITIAL_USD, totalUsdOf, validateDemoFunds, validateDemoTradeInput } from "@/lib/services/demo.logic";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { roundDigits } from "@/lib/mocks/number";
 import { hashSeed } from "@/lib/mocks/prng";
@@ -26,21 +26,23 @@ import type {
 } from "@/lib/types";
 
 /**
- * Cuenta demo por usuario en Supabase (tablas de 0003).
- * El precio sale del mismo servicio de precios de la ficha y el dólar del
- * servicio real: si el dólar no está disponible o el precio es de referencia,
- * la orden se rechaza con un mensaje claro. Nada se inventa.
+ * Cuenta demo por usuario en Supabase (tablas de 0003, saldo en USD desde 0007).
+ * El precio sale del mismo servicio de precios de la ficha. El dólar sólo se
+ * usa para los montos en CLP que lleguen por API y para mostrar en CLP:
+ * sin dólar igual se puede operar en USD o en acciones, y la UI muestra
+ * en dólares con la nota de respaldo. Nada se inventa.
  * Las escrituras van con la secret key (service_role) vía rpc `demo_trade`.
  */
 
 const QUOTE_TTL_MS = 60_000;
 
-export const DEMO_INITIAL_CLP = 1_000_000;
+export { DEMO_INITIAL_USD };
 
 const PRICE_MESSAGE = "No pudimos obtener el precio, intenta en un momento.";
 const FX_MESSAGE = "No pudimos obtener el dólar, intenta en un momento.";
+const FX_CLP_MESSAGE = "Sin dólar no podemos convertir pesos a dólares. Prueba en unos minutos.";
 
-export type DemoAccountRow = { cashClp: number; initialClp: number; resetCount: number };
+export type DemoAccountRow = { cashUsd: number; initialUsd: number; resetCount: number };
 
 export type DemoPositionRow = {
   symbol: string;
@@ -55,8 +57,9 @@ export type DemoOrderRow = {
   side: Side;
   shares: number;
   priceUsd: number;
-  usdclp: number;
-  totalClp: number;
+  /** Informativo, puede ser null (el historial viejo no trae total_usd). */
+  usdclp: number | null;
+  totalUsd: number | null;
   createdAt: string;
 };
 
@@ -74,10 +77,12 @@ export type DemoDeps = {
     side: Side;
     shares: number;
     priceUsd: number;
-    usdclp: number;
-  }): Promise<{ cashClp: number; totalClp: number; priceClp: number }>;
-  runReset(userId: string): Promise<{ cashClp: number; resetCount: number }>;
+    /** Opcional: si no viene, el SQL deja usdclp/total_clp en null. */
+    usdclp: number | null;
+  }): Promise<{ cashUsd: number; totalUsd: number; priceUsd: number }>;
+  runReset(userId: string): Promise<{ cashUsd: number; resetCount: number }>;
   getSpot(symbol: string): Promise<DemoSpot>;
+  /** Sólo se usa para montos en CLP por API y nunca para operar en USD. */
   getFx(): Promise<number>;
 };
 
@@ -87,7 +92,8 @@ type StoredQuote = {
   usdc: number;
   userId: string;
   priceUsd: number;
-  fx: number;
+  /** Null cuando se cotizó sin dólar (sólo USD o acciones). */
+  fx: number | null;
 };
 
 type StoredBuild = {
@@ -141,12 +147,14 @@ function expired(iso: string): boolean {
 }
 
 function toActivity(row: DemoOrderRow): Activity {
+  // El historial viejo no trae total_usd: se calcula como acciones × precio.
+  const valueUsd = row.totalUsd ?? roundDigits(row.shares * row.priceUsd, 2);
   return {
     id: row.id,
     kind: row.side,
     symbol: row.symbol,
     amountUi: row.shares,
-    valueUsd: roundDigits(row.shares * row.priceUsd, 2),
+    valueUsd,
     status: "confirmed",
     signature: null,
     at: row.createdAt,
@@ -199,18 +207,24 @@ function num(value: unknown): number {
   return typeof parsed === "number" && Number.isFinite(parsed) ? parsed : 0;
 }
 
+function numOrNull(value: unknown): number | null {
+  if (value === null || value === undefined) return null;
+  const parsed = typeof value === "string" ? Number(value) : (value as number);
+  return typeof parsed === "number" && Number.isFinite(parsed) ? parsed : null;
+}
+
 function realDeps(): DemoDeps {
   async function loadAccount(userId: string): Promise<DemoAccountRow | null> {
     const admin = createSupabaseAdminClient();
     const { data, error } = await admin
       .from("demo_accounts")
-      .select("cash_clp,initial_clp,reset_count")
+      .select("cash_usd,initial_usd,reset_count")
       .eq("user_id", userId)
       .single();
     if (error || !data) return null;
     return {
-      cashClp: num(data.cash_clp),
-      initialClp: num(data.initial_clp),
+      cashUsd: num(data.cash_usd),
+      initialUsd: num(data.initial_usd),
       resetCount: num(data.reset_count),
     };
   }
@@ -222,7 +236,7 @@ function realDeps(): DemoDeps {
       const { data, error } = await admin
         .from("demo_accounts")
         .insert({ user_id: userId })
-        .select("cash_clp,initial_clp,reset_count")
+        .select("cash_usd,initial_usd,reset_count")
         .single();
       if (error || !data) {
         const existing = await loadAccount(userId);
@@ -230,8 +244,8 @@ function realDeps(): DemoDeps {
         throw new DomainError("INTERNAL", "No pudimos crear tu cuenta demo.");
       }
       return {
-        cashClp: num(data.cash_clp),
-        initialClp: num(data.initial_clp),
+        cashUsd: num(data.cash_usd),
+        initialUsd: num(data.initial_usd),
         resetCount: num(data.reset_count),
       };
     },
@@ -253,7 +267,7 @@ function realDeps(): DemoDeps {
       const admin = createSupabaseAdminClient();
       const { data, error } = await admin
         .from("demo_orders")
-        .select("id,symbol,side,shares,price_usd,usdclp,total_clp,created_at")
+        .select("id,symbol,side,shares,price_usd,usdclp,total_usd,created_at")
         .eq("user_id", userId)
         .order("created_at", { ascending: false })
         .limit(100);
@@ -265,8 +279,8 @@ function realDeps(): DemoDeps {
           side: (row.side === "sell" ? "sell" : "buy") as Side,
           shares: num(row.shares),
           priceUsd: num(row.price_usd),
-          usdclp: num(row.usdclp),
-          totalClp: num(row.total_clp),
+          usdclp: numOrNull(row.usdclp),
+          totalUsd: numOrNull(row.total_usd),
           createdAt: String(row.created_at ?? new Date().toISOString()),
         }))
         .filter((row) => row.id !== "" && row.symbol !== "");
@@ -275,7 +289,7 @@ function realDeps(): DemoDeps {
       const admin = createSupabaseAdminClient();
       const { data, error } = await admin
         .from("demo_orders")
-        .select("id,symbol,side,shares,price_usd,usdclp,total_clp,created_at")
+        .select("id,symbol,side,shares,price_usd,usdclp,total_usd,created_at")
         .eq("user_id", userId)
         .eq("id", id)
         .single();
@@ -286,8 +300,8 @@ function realDeps(): DemoDeps {
         side: (data.side === "sell" ? "sell" : "buy") as Side,
         shares: num(data.shares),
         priceUsd: num(data.price_usd),
-        usdclp: num(data.usdclp),
-        totalClp: num(data.total_clp),
+        usdclp: numOrNull(data.usdclp),
+        totalUsd: numOrNull(data.total_usd),
         createdAt: String(data.created_at ?? new Date().toISOString()),
       };
     },
@@ -302,19 +316,19 @@ function realDeps(): DemoDeps {
         p_usdclp: input.usdclp,
       });
       if (error) throw failFromSql(error);
-      const row = data as { cash_clp?: unknown; total_clp?: unknown; price_clp?: unknown } | null;
+      const row = data as { cash_usd?: unknown; total_usd?: unknown; price_usd?: unknown } | null;
       return {
-        cashClp: num(row?.cash_clp),
-        totalClp: num(row?.total_clp),
-        priceClp: num(row?.price_clp),
+        cashUsd: num(row?.cash_usd),
+        totalUsd: num(row?.total_usd),
+        priceUsd: num(row?.price_usd),
       };
     },
     async runReset(userId) {
       const admin = createSupabaseAdminClient();
       const { data, error } = await admin.rpc("demo_reset", { p_user: userId });
       if (error) throw new DomainError("INTERNAL", "No pudimos reiniciar tu cuenta demo.");
-      const row = data as { cash_clp?: unknown; reset_count?: unknown } | null;
-      return { cashClp: num(row?.cash_clp), resetCount: Math.trunc(num(row?.reset_count)) };
+      const row = data as { cash_usd?: unknown; reset_count?: unknown } | null;
+      return { cashUsd: num(row?.cash_usd), resetCount: Math.trunc(num(row?.reset_count)) };
     },
     getSpot: realSpot,
     getFx: realFx,
@@ -353,7 +367,6 @@ export function createDemoUserService(deps: DemoDeps) {
 
   async function portfolioRows(userId: string) {
     const [account, positions] = await Promise.all([ensureAccount(userId), deps.listPositions(userId)]);
-    const fx = await deps.getFx();
     const held = positions.filter((row) => row.shares > 0);
     const spots = new Map<string, DemoSpot>();
     await Promise.all(
@@ -361,7 +374,7 @@ export function createDemoUserService(deps: DemoDeps) {
         spots.set(row.symbol, await spotLenient(row.symbol, row.avgCostUsd));
       }),
     );
-    return { account, positions: held, spots, fx };
+    return { account, positions: held, spots };
   }
 
   return {
@@ -370,8 +383,8 @@ export function createDemoUserService(deps: DemoDeps) {
     },
 
     async getPortfolio(userId: string): Promise<Portfolio> {
-      const { account, positions, spots, fx } = await portfolioRows(userId);
-      const cashUsdc = roundDigits(account.cashClp / fx, 6);
+      const { account, positions, spots } = await portfolioRows(userId);
+      const cashUsdc = roundDigits(account.cashUsd, 6);
       const updatedAt = new Date().toISOString();
       const priced = positions.map((row) => {
         const spot = spots.get(row.symbol) ?? { priceUsd: row.avgCostUsd, multiplier: 1 };
@@ -380,11 +393,9 @@ export function createDemoUserService(deps: DemoDeps) {
       });
       const investedUsd = priced.reduce((sum, item) => sum + item.valueUsd, 0);
       const totalUsd = roundDigits(investedUsd + cashUsdc, 2);
-      const costUsd = priced.reduce((sum, item) => sum + item.row.shares * item.row.avgCostUsd, 0);
-      const pnlUsd = roundDigits(
-        priced.reduce((sum, item) => sum + (item.valueUsd - item.row.shares * item.row.avgCostUsd), 0),
-        2,
-      );
+      // Rendimiento contra el inicial: (efectivo + posiciones a precio actual) − initialUsd.
+      const pnlUsd = roundDigits(totalUsd - account.initialUsd, 2);
+      const pnlPct = account.initialUsd > 0 ? pnlUsd / account.initialUsd : null;
       return {
         address: userId,
         totalUsd,
@@ -404,14 +415,14 @@ export function createDemoUserService(deps: DemoDeps) {
           allocationPct: totalUsd > 0 ? item.valueUsd / totalUsd : 0,
         })),
         pnlUsd,
-        pnlPct: costUsd > 0 ? pnlUsd / costUsd : null,
+        pnlPct,
         updatedAt,
       };
     },
 
     async getBalances(userId: string): Promise<Balance[]> {
-      const { account, positions, spots, fx } = await portfolioRows(userId);
-      const cashUsdc = roundDigits(account.cashClp / fx, 6);
+      const { account, positions, spots } = await portfolioRows(userId);
+      const cashUsdc = roundDigits(account.cashUsd, 6);
       const cashRaw = BigInt(Math.round(cashUsdc * 10 ** 6));
       const balances: Balance[] = [
         {
@@ -454,22 +465,32 @@ export function createDemoUserService(deps: DemoDeps) {
         if (feeConfig.bps > 0 && !feeConfig.wallet) {
           throw new DomainError("INTERNAL", "Falta la billetera de comisión.");
         }
-        const [spot, fx, account, positions] = await Promise.all([
+        const needsFx = request.amountCurrency === "CLP";
+        const [spot, account, positions] = await Promise.all([
           deps.getSpot(ticker.symbol).catch((error: unknown) => {
             if (error instanceof DomainError) throw new DomainError(error.code, PRICE_MESSAGE);
             throw new DomainError("UPSTREAM", PRICE_MESSAGE);
           }),
-          deps.getFx().catch((error: unknown) => {
-            if (error instanceof DomainError) throw new DomainError(error.code, FX_MESSAGE);
-            throw new DomainError("UPSTREAM", FX_MESSAGE);
-          }),
           ensureAccount(userId),
           deps.listPositions(userId),
         ]);
+        // El dólar sólo se usa para montos en CLP por API. Sin dólar igual se
+        // opera en USD o en acciones; en CLP se rechaza con un 400 claro.
+        let fx: number | null = null;
+        if (needsFx) {
+          try {
+            fx = await deps.getFx();
+          } catch {
+            throw new DomainError("VALIDATION", FX_CLP_MESSAGE);
+          }
+          if (!(fx > 0) || !Number.isFinite(fx)) {
+            throw new DomainError("VALIDATION", FX_CLP_MESSAGE);
+          }
+        }
         const price = spot.priceUsd;
         let notionalUsd: number;
         if (request.amountCurrency === "SHARES") notionalUsd = request.amount * price;
-        else if (request.amountCurrency === "CLP") notionalUsd = request.amount / fx;
+        else if (request.amountCurrency === "CLP") notionalUsd = request.amount / (fx as number);
         else notionalUsd = request.amount;
 
         const feeUsd = roundDigits((notionalUsd * feeConfig.bps) / 10_000, 6);
@@ -485,12 +506,12 @@ export function createDemoUserService(deps: DemoDeps) {
             if (net <= 0) throw new DomainError("VALIDATION", "La comisión se come el monto.");
             shares = net / price;
           }
-          const totalClp = totalClpOf(roundDigits(shares, 8), price, fx);
+          const totalUsd = totalUsdOf(roundDigits(shares, 8), price);
           const held = positions.find((row) => row.symbol === ticker.symbol)?.shares ?? 0;
           const funds = validateDemoFunds({
             side: "buy",
-            totalClp,
-            cashClp: account.cashClp,
+            totalUsd,
+            cashUsd: account.cashUsd,
             shares,
             positionShares: held,
           });
@@ -510,8 +531,8 @@ export function createDemoUserService(deps: DemoDeps) {
           const held = positions.find((row) => row.symbol === ticker.symbol)?.shares ?? 0;
           const funds = validateDemoFunds({
             side: "sell",
-            totalClp: 0,
-            cashClp: account.cashClp,
+            totalUsd: 0,
+            cashUsd: account.cashUsd,
             shares,
             positionShares: held,
           });
@@ -652,7 +673,7 @@ export function createDemoUserService(deps: DemoDeps) {
       },
     },
 
-    async reset(userId: string): Promise<{ cashClp: number; resetCount: number }> {
+    async reset(userId: string): Promise<{ cashUsd: number; resetCount: number }> {
       return deps.runReset(userId);
     },
   };
