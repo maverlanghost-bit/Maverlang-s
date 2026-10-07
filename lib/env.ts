@@ -2,6 +2,7 @@ import "server-only";
 
 import { z } from "zod";
 
+import { isOnrampModelSelectable, ONRAMP_MODELS, resolveOnrampModel } from "@/lib/onramp/model";
 import { resolveCspMode } from "@/lib/security/csp";
 
 /**
@@ -155,6 +156,13 @@ const serverSchema = publicSchema.extend({
   SPONSOR_ENABLED: boolEnv(false),
   SUPABASE_SECRET_KEY: supabaseSecretEnv(),
   ONRAMP_PROVIDER: enumEnv(["koywe", "onramper"] as const, "koywe"),
+  /**
+   * Modelo del on-ramp (M58). `widget` (default, widget directo de M80) |
+   * `api` (comercio por API: cotización + deal con PAYIN a la cuenta de
+   * Maverlang; descartado, sólo desarrollo — el adaptador queda para M75).
+   * `api` con `NODE_ENV=production` hace fallar el arranque (refine abajo).
+   */
+  ONRAMP_MODEL: z.preprocess((value) => resolveOnrampModel(cleanEnv(value)), z.enum(ONRAMP_MODELS)),
   KOYWE_CLIENT_ID: optionalText(),
   KOYWE_SECRET: optionalText(),
   KOYWE_WEBHOOK_SECRET: optionalText(),
@@ -195,5 +203,19 @@ export type PublicEnv = z.infer<typeof publicSchema>;
 export type ServerEnv = z.infer<typeof serverSchema>;
 export type DataMode = ServerEnv["DATA_MODE"];
 
+/**
+ * Guardias de producción (M58): el modelo `api` del on-ramp (descartado)
+ * no se puede elegir con `NODE_ENV=production`. Con el default (`widget`)
+ * o fuera de producción no cambia nada.
+ */
+const serverSchemaWithGuards = serverSchema.superRefine((env, ctx) => {
+  if (!isOnrampModelSelectable(env.ONRAMP_MODEL, process.env.NODE_ENV)) {
+    ctx.addIssue({
+      code: "custom",
+      message: "ONRAMP_MODEL=api está descartado: en producción sólo vale widget (M80, modelo directo).",
+    });
+  }
+});
+
 export const publicEnv: PublicEnv = publicSchema.parse(process.env);
-export const serverEnv: ServerEnv = serverSchema.parse(process.env);
+export const serverEnv: ServerEnv = serverSchemaWithGuards.parse(process.env);

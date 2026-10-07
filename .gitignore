@@ -1,5 +1,6 @@
 node_modules/
 .next/
+.next-*/
 .next-e2e/
 .next-e2e-auth/
 out/
@@ -13,6 +14,7 @@ out/
 
 *.log
 coverage/
+data/audit-cache/
 
 playwright-report/
 test-results/

@@ -90,6 +90,11 @@ export interface Services {
 }
 
 function liveOnramp(): Services["onramp"] {
+  // M58: el comercio por API de Koywe (cotización + deal con PAYIN a la cuenta
+  // de Maverlang) quedó descartado (M80 usa el widget en modelo directo). El
+  // adaptador queda para M75/dev; en producción `lib/env.ts` impide elegirlo
+  // (ONRAMP_MODEL=api con NODE_ENV=production hace fallar el arranque).
+  if (serverEnv.ONRAMP_MODEL === "api") return koyweOnramp;
   return serverEnv.ONRAMP_PROVIDER === "onramper" ? onramperOnramp : koyweOnramp;
 }
 

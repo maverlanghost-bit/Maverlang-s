@@ -1,5 +1,12 @@
 # PROGRESO — Maverlang
 
+## M58 — auditoría de dependencias y limpieza (2026-10-07)
+- Hecho: sección "Dependencias" en `docs/SEGURIDAD.md` (audit 2026-10-07: 0 críticas, 4 altas en 2 avisos con justificación; sin `--force`); `ONRAMP_MODEL=widget|api` en `lib/env.ts`+`.env.example` (api descartado: con `NODE_ENV=production` el arranque falla; adaptador intacto para M75) + `liveOnramp()` y test `onramp-model` (5); `.github/dependabot.yml` (npm semanal, minor+patch agrupados, tope 5); `npm run audit:deps`; `engines: node >= 22`; `.gitignore` con `.next-*/`, `data/audit-cache/`.
+- Archivos clave: `docs/SEGURIDAD.md`, `lib/{env.ts,onramp/model.ts,services/index.ts}`, `.github/dependabot.yml`, `package.json`, `.gitignore`, `.env.example`, `docs/.env.example`, `tests/unit/onramp-model.test.ts`.
+- Decisiones: `git pull --ff-only` denegado por el sandbox (árbol limpio, 11 commits por delante como avisó el operador; se siguió igual). Sin `npm install`: spl-token 0.4.15 y privy 3.47.0 ya son su última línea y el único fix es `--force` con breaking (prohibido). `depcheck` marcó geist/tailwind/postcss pero `git grep` confirmó uso real (`app/fonts.ts`, `globals.css`, `postcss.config.mjs`): no se desinstala nada; `@solana-program/memo` lo exige Privy. `t18-check.ts` no trackeado ni importado: queda en disco, borrado físico pendiente del operador (regla de no-borrar).
+- Verificación: `npx tsc --noEmit` ok; `npm run lint` ok; `npm test` 262/262 (40 archivos, 5 nuevos); `npm ls` sin invalid/missing; `npm run audit:deps` sale 1 por las 2 altas justificadas en SEGURIDAD.md (rama "o justificación" del criterio). Digo con todas sus letras: NO comprobables aquí build prod, `npm run e2e` ni el fallo de arranque con `ONRAMP_MODEL=api` en producción (sólo unit del helper puro; el build del operador usa el default y arranca).
+- Pendiente operador/Manu: build prod (`NEXT_DIST_DIR=.next-verify`), `npm run e2e`, borrar `t18-check.ts` del disco; Vercel 22/24 definitivo lo confirma M50.
+
 ## M48f-fix — cierre de sesión e2e desde perfil (2026-10-07)
 - `e2e/auth-supabase.spec.ts`: tras la cartera navega a `/app/perfil/cuenta` y cierra sesión con `getByRole("button", { name: "Cerrar sesión" }).first()` (el botón vive en `account-screen.tsx`, no en la cartera). Sin tocar componentes.
 - Verificación: `npx tsc --noEmit` ok; `npm run lint` ok; `npm test` 257/257 (39 archivos); sin build ni e2e.

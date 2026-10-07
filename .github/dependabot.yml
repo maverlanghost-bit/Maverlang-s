@@ -1,0 +1,17 @@
+# Dependabot (M58). El repo todavía no está en GitHub (M87 lo sube):
+# cuando se suba, npm se actualiza semanalmente, agrupando minor+patch,
+# con un máximo de 5 PR abiertas.
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    groups:
+      minor-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+    open-pull-requests-limit: 5

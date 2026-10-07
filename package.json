@@ -13,7 +13,11 @@
     "e2e:auth": "node scripts/e2e-auth.mjs",
     "verify:auth": "node scripts/verificar-auth.mjs",
     "audit:rls": "node scripts/audit-rls.mjs",
+    "audit:deps": "npm audit --omit=dev --audit-level=high",
     "sync:xstocks": "node scripts/sync-xstocks.mjs"
+  },
+  "engines": {
+    "node": ">=22"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.9.1",

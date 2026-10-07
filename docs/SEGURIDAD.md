@@ -77,3 +77,51 @@ CSP por hashes (SRI experimental) o por ruta, fuera de esta tarea.
 (Settings → Environment Variables) y redeployar, sin tocar código. Modos:
 `CSP_MODE=enforce|report-only|off` (default `report-only` en desarrollo,
 `enforce` en producción); `CSP_REPORT_URI` opcional (M61 lo conecta a Sentry).
+
+## Dependencias (M58 — 2026-10-07)
+
+Política: `npm run audit:deps` (`npm audit --omit=dev --audit-level=high`)
+falla si hay altas. Dependabot semanal de npm, minor+patch agrupados, tope
+de 5 PR (`.github/dependabot.yml`; rige cuando M87 suba el repo).
+`engines: node >= 22` (PC en Node 24; el runtime 22/24 de Vercel lo
+confirma M50).
+
+`npm audit --omit=dev` (2026-10-07): 0 críticas y 4 altas en 2 avisos (el
+resto son moderadas y no bloquean el script). No se actualizó nada: los
+2 directos ya están en su última versión y el único fix que ofrece audit
+es `--force` con breaking (prohibido por la tarea).
+
+1. `bigint-buffer` — alta, desbordamiento en `toBigIntLE()`
+   (GHSA-3gc7-fjrx-p6mg). Ruta: `@solana/spl-token@0.4.15` →
+   `@solana/buffer-layout-utils` → `bigint-buffer@1.1.5`. Uso:
+   `git grep toBigIntLE` vacío en nuestro código; sólo alcanzable dentro
+   de spl-token al codificar instrucciones. Sin parche compatible (0.4.15
+   es la última 0.4.x; el fix propuesto es bajar a spl-token 0.1.8).
+   Decisión: se deja con esta justificación; reevaluar con un parche 0.4.x
+   o con la migración futura (fuera de alcance: no migrar web3.js 1.x).
+2. `ws` 8.x — alta (GHSA-58qx-3vcg-4xpx y GHSA-96hv-2xvq-fx4p). Ruta:
+   `@privy-io/react-auth@3.47.0` → WalletConnect/viem → copias anidadas
+   `ws@8.18.x` (el árbol ya trae `ws@8.22.0` en otras ramas: el parche
+   existe arriba, pero las copias anidadas sólo las corrige un release
+   upstream). Uso: nuestro código nunca importa `ws`; en navegador rige
+   el WebSocket nativo y no hay servidor `ws` propio. Sin parche
+   compatible (3.47.0 es la última 3.x; el fix propuesto es bajar a 3.6.1).
+   Decisión: se deja con esta justificación; Dependabot avisará del fix.
+3. Moderadas (informativas): `decode-uri-component`, `stream-json` (vía
+   `jayson` de web3.js 1.x) y `uuid` (vía MetaMask/WalletConnect). Mismo
+   criterio: sólo `--force` con breaking.
+
+`npx depcheck` (2026-10-07): marcó `geist`, `tailwindcss` y
+`@tailwindcss/postcss` — falsos positivos confirmados con `git grep`:
+`geist` se usa en `app/fonts.ts` (fuentes locales) + `app/layout.tsx`;
+`tailwindcss` en `app/globals.css` y `@tailwindcss/postcss` en
+`postcss.config.mjs`. `@solana-program/memo` (sin import directo) lo exige
+la resolución de `@privy-io/react-auth/solana` (ver PROGRESO). No se
+desinstala nada; `server-only`, `@privy-io/react-auth` y `@solana/*`
+intactos (M65+).
+
+Restos: `t18-check.ts` no lo importa nadie y no está trackeado (fuera de
+`git ls-files`, ya ignorado); queda en disco y su borrado físico lo hace
+el operador. `.gitignore` ahora cubre `.next-*/`, `*.log`,
+`*.tsbuildinfo` y `data/audit-cache/` (`.next-dev.log` y
+`tsconfig.tsbuildinfo` no existen en disco).
