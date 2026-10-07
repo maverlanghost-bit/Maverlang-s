@@ -45,7 +45,7 @@ test("smoke con datos mock", async ({ page }) => {
 
   await page.getByRole("button", { name: "Comprar", exact: true }).click();
   const sheet = page.getByRole("dialog", { name: /Comprar Apple/ });
-  await sheet.getByRole("button", { name: "$10.000" }).click();
+  await sheet.getByRole("button", { name: "US$ 100" }).click();
   const review = sheet.getByRole("button", { name: "Revisar" });
   await expect(review).toBeEnabled();
   await review.click();

@@ -2,6 +2,11 @@
 
 > Estado de la base (2026-10-06): las migraciones 0002, 0003 y 0004 YA están aplicadas en el proyecto Supabase actual y `public.assets` está sincronizada. No hay que pegar nada en el SQL Editor; las instrucciones de `docs/SUPABASE.md` sirven sólo para un proyecto nuevo.
 
+## N16 — Compra en USD o acciones (2026-10-07)
+- Hecho: comprar ofrece USD ⇄ Acciones (sin CLP); venta igual que antes. Etiqueta "USD" (no USDC). Smoke e2e compra con "US$ 100". Backend y tests de montos intactos (CLP sigue válido por API).
+- Verificación: sin `tsc/test/e2e` aquí (sin shell); pendiente operador: `npx tsc --noEmit`, `npm test`, `npm run e2e`, comprar 1 acc en demo.
+- Archivos: `trade-sheet.tsx`, `e2e/smoke.spec.ts`.
+
 ## N15 — Precio ejecutable + aviso de despegue + mints verificados (2026-10-07)
 - Hecho: titular = precio ejecutable del pozo; Jupiter ahora trae `marketPriceUsd` + `liquidityUsd` (tipos, contratos, parser, batcher). Si despega ≥1% vs mercado, aviso "Despegue del pozo: X% vs mercado" + filas Precio de mercado y Liquidez del pozo en Datos. Tests `pool-price.test.ts` (5).
 - Mints: 13/13 (12 + UBERx) idénticos a `api.xstocks.fi` oficial. Nada falso.

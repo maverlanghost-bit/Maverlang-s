@@ -40,7 +40,7 @@ const DEPOSIT_HREF = "/app/billetera/depositar";
 const POLL_MS = 1_000;
 const POLL_BUDGET_MS = 20_000;
 
-const BUY_CURRENCIES = ["CLP", "USDC"] as const satisfies readonly TradeAmountCurrency[];
+const BUY_CURRENCIES = ["USDC", "SHARES"] as const satisfies readonly TradeAmountCurrency[];
 const SELL_CURRENCIES = ["SHARES", "USDC"] as const satisfies readonly TradeAmountCurrency[];
 
 const solFormatter = new Intl.NumberFormat("es-CL", { maximumFractionDigits: 6 });
@@ -215,9 +215,7 @@ function TradeFlow({ side, ticker }: { side: Side; ticker: Ticker }) {
   const asset = useAssetStatus(ticker.symbol);
   const hintId = useId();
   const [amountRaw, setAmountRaw] = useState("");
-  const [currency, setCurrency] = useState<TradeAmountCurrency>(
-    side === "sell" ? "SHARES" : displayCurrency === "USD" ? "USDC" : "CLP",
-  );
+  const [currency, setCurrency] = useState<TradeAmountCurrency>(side === "sell" ? "SHARES" : "USDC");
   const [phase, setPhase] = useState<Phase>("form");
   const [quoteState, setQuoteState] = useState<LiveQuote>(idleQuote);
   const [flowError, setFlowError] = useState<string | null>(null);
@@ -495,7 +493,7 @@ function TradeFlow({ side, ticker }: { side: Side; ticker: Ticker }) {
       : currency === "SHARES"
         ? fill(t.trade.holding, { amount: formatShares(cap) })
         : fill(t.trade.available, { amount: shownMoney(availableUsd, displayCurrency, fxRate) });
-  const labels = { CLP: "CLP", USDC: "USDC", SHARES: t.trade.shares, USD: "USD" } as const;
+  const labels = { CLP: "CLP", USDC: "USD", SHARES: t.trade.shares, USD: "USD" } as const;
 
   if (phase === "review") {
     const sub = quote
