@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
+import { NextRequest, NextResponse } from "next/server";
 
 import { buildCsp, resolveCspMode, sanitizeNonce } from "@/lib/security/csp";
 import { buildStaticHeaders } from "@/lib/security/headers";
+import { mergeSupabaseIntoNext } from "@/lib/supabase/middleware";
 import nextConfig from "../../next.config";
 
 function directiveOf(policy: string, name: string): string {
@@ -139,5 +141,28 @@ describe("M48: next.config", () => {
     }
     const api = rules.find((rule) => rule.source === "/api/:path*");
     expect(api?.headers.map((header) => header.key)).toContain("X-Content-Type-Options");
+  });
+});
+
+describe("M48b-fix: nonce de la CSP en modo Supabase", () => {
+  it("mergeSupabaseIntoNext conserva x-nonce/CSP y pasa cookie + cache-control", () => {
+    const refreshed = NextResponse.next({
+      request: new NextRequest("https://ejemplo.cl/app"),
+    });
+    refreshed.cookies.set("sb-test", "valor");
+    refreshed.headers.set("cache-control", "no-store");
+
+    const headers = new Headers();
+    headers.set("x-nonce", "abc123");
+    headers.set("content-security-policy", "script-src 'nonce-abc123'");
+    const next = NextResponse.next({ request: { headers } });
+
+    mergeSupabaseIntoNext(refreshed, next);
+
+    expect(next.headers.get("x-middleware-override-headers")).toContain("x-nonce");
+    expect(next.headers.get("x-middleware-override-headers")).toContain("content-security-policy");
+    expect(next.headers.get("x-middleware-request-x-nonce")).toContain("abc123");
+    expect(next.cookies.get("sb-test")?.value).toBe("valor");
+    expect(next.headers.get("cache-control")).toBe("no-store");
   });
 });

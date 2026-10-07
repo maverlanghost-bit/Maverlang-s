@@ -1,5 +1,9 @@
 # PROGRESO — Maverlang
 
+## M48b-fix — nonce de la CSP en modo Supabase (2026-10-07)
+- Arreglo: `middleware.ts` rama `next` ya no copia todas las cabeceras de `refreshed` (pisaba `x-middleware-override-headers` con `x-nonce`/CSP y bloqueaba scripts con `strict-dynamic` en enforce); ahora usa `mergeSupabaseIntoNext(refreshed, next)` (`lib/supabase/middleware.ts`), que copia sólo cookies + `cache-control`/`expires`/`pragma` vía `copySupabaseResponse` y nunca `x-middleware-*`. Política CSP intacta.
+- Verificación: `npx tsc --noEmit` ok; `npm run lint` ok; `npm test` 257/257 (39 archivos, `csp.test.ts` 15 con test nuevo que conserva `x-nonce`/CSP en override-headers y pasa cookie + `cache-control`).
+
 ## M48 — Cabeceras de seguridad y CSP (2026-10-07)
 - Hecho: `lib/security/csp.ts` (`buildCsp({nonce,isDev,supabaseUrl,rpcUrl,rpcCluster,reportUri})`, `resolveCspMode`, `generateNonce`; nonce+`strict-dynamic`, `unsafe-eval` sólo dev, Privy según su doc + Turnstile, RPC desde env o endpoint del cluster, `upgrade-insecure-requests` sólo prod) + `lib/security/headers.ts` (6 cabeceras, HSTS sólo prod); `middleware.ts` genera nonce, reenvía `x-nonce`/CSP al render y firma páginas+redirects (matcher intacto, gate/Supabase intactos); `next.config.ts` con `poweredByHeader:false` y `headers()` (`/(.*)` + `nosniff` en `/api/*`); `jsonResult` con `nosniff`; `CSP_MODE`/`CSP_REPORT_URI` en `lib/env.ts`+`.env.example`; `await connection()` en layout raíz (el nonce exige todo dinámico: la portada pierde su ISR de 30 s); `docs/SEGURIDAD.md` con apagado de emergencia (`CSP_MODE=report-only` en Vercel + redeploy); e2e nuevo en `smoke.spec.ts` (CSP en `/` y `/app`, nonce distinto, 0 errores CSP en consola).
 - Archivos clave: `lib/security/{csp,headers}.ts`, `middleware.ts`, `next.config.ts`, `app/layout.tsx`, `lib/{env.ts,api/handler.ts}`, `tests/unit/csp.test.ts` (14), `e2e/smoke.spec.ts`, `docs/SEGURIDAD.md`, `.env.example`.

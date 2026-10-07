@@ -3,7 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { decideGate, blockedCountryList } from "@/lib/auth/gate";
 import { MOCK_ONBOARDING_COOKIE, MOCK_SESSION_COOKIE, PRIVY_SESSION_COOKIE } from "@/lib/auth/cookies";
 import { isSupabaseAuth, shouldUsePrivy } from "@/lib/auth/mode";
-import { copySupabaseResponse, updateSession } from "@/lib/supabase/middleware";
+import { copySupabaseResponse, mergeSupabaseIntoNext, updateSession } from "@/lib/supabase/middleware";
 import { applyStaticHeaders } from "@/lib/security/headers";
 import { buildCsp, generateNonce, resolveCspMode } from "@/lib/security/csp";
 
@@ -102,13 +102,7 @@ export async function middleware(request: NextRequest) {
   if (decision.kind === "next" || (decision.pathname === pathname && decision.search === search)) {
     const next = NextResponse.next({ request: { headers: security.requestHeaders } });
     if (refreshed) {
-      for (const cookie of refreshed.cookies.getAll()) {
-        next.cookies.set(cookie);
-      }
-      for (const [key, value] of refreshed.headers) {
-        next.headers.set(key, value);
-      }
-      copySupabaseResponse(refreshed, next);
+      mergeSupabaseIntoNext(refreshed, next);
     }
     return applySecurity(next, security);
   }

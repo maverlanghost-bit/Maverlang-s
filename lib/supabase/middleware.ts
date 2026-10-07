@@ -73,3 +73,16 @@ export function copySupabaseResponse(from: NextResponse, to: NextResponse): void
     if (value) to.headers.set(header, value);
   }
 }
+
+/**
+ * M48b-fix: une la respuesta de Supabase (`refreshed`) con la respuesta del
+ * middleware (`next`) copiando SOLO cookies y cabeceras de caché.
+ * Nunca copia cabeceras `x-middleware-*`: `refreshed` es un
+ * `NextResponse.next({ request })` construido con el request ORIGINAL (sin
+ * `x-nonce`/CSP), y copiar todas sus cabeceras pisaría el
+ * `x-middleware-override-headers` de `next`, haciendo que Next no vea el
+ * nonce y los scripts se bloqueen con `strict-dynamic` en modo enforce.
+ */
+export function mergeSupabaseIntoNext(from: NextResponse, to: NextResponse): void {
+  copySupabaseResponse(from, to);
+}
