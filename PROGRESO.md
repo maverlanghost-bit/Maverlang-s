@@ -22,6 +22,7 @@
 - Pendiente operador (sin shell aquí): mover el PNG a `public/brand/` y exportar el mark cuadrado — comandos abajo. `app/favicon.ico` viejo (punto) hay que borrarlo para que rija `icon.tsx`/nuevo favicon. Luego `npx tsc --noEmit`, `npm test`, ver compra y sidebar.
 - Estado 2026-10-07: el PNG sigue en la raíz (`Maverlang Logo-1.png`, no se sirve) y no existe `public/brand/`. Sin esos archivos el logo no puede aparecer: el código ya apunta a `/brand/maverlang-logo.png` y `/brand/maverlang-mark.png`.
 - Fix robustez (2026-10-07): nuevo `brand-image.tsx` (`BrandLogoImage` → texto si falta el PNG; `BrandMarkImage` → M si falta). Se usa en header, footer, auth, sidebar colapsada y CTA: sin archivos verás nombre/M en vez de ícono roto.
+- Fix logo blanco (2026-10-07): fuera `dark:invert` del logo (la app es sólo clara; con Windows en oscuro Tailwind lo invertía).
 - Archivos: `amount-input.tsx`, `brand-mark.tsx`, `sidebar.tsx`, `site-header/footer.tsx`, `auth-frame.tsx`, `final-cta.tsx`, `app/icon.tsx`.
 
 ## N16 — Compra en USD o acciones (2026-10-07)
