@@ -1,5 +1,12 @@
 # PROGRESO — Maverlang
 
+## M52 — auditoría de seguridad del catálogo (2026-10-07)
+- Hecho: `lib/catalog/safety-core.mjs` (umbrales congelados, classifyProduct, effectiveMultiplier, quoteCostBps, staticChecks, evaluateAsset; sin red ni entorno) + `scripts/audit-catalog.mjs` (`npm run audit:catalog`: lotes 100/50, cotiza sólo aptos, reintento 429/5xx, caché diario reanudable, CSV 25 columnas PASA/NO PASA) + `tests/unit/catalog-safety.test.ts` (15) + `docs/CATALOGO-SEGURIDAD.md` (34 líneas). Se incluye el fixture `data/catalogo-ampliado-2026-10-06.csv` del operador.
+- Archivos clave: `lib/catalog/safety-core.mjs`, `scripts/audit-catalog.mjs`, `tests/unit/catalog-safety.test.ts`, `docs/CATALOGO-SEGURIDAD.md`, `package.json`.
+- Decisiones: `type` escribe `etp_apalancado` (compatible con el CSV del box); `result` PASA/NO PASA; "Ultra-Short Income" → etf directo; `git pull --ff-only` denegado por el sandbox (árbol sólo con mis cambios, se siguió igual). Sin paquetes nuevos.
+- Verificación: `npx tsc --noEmit` ok; `eslint` de los 3 archivos ok; `npm test` 277/277 (41 archivos, 15 nuevos); smoke `--symbols AAPLx,NVDAx,AEHRx,TSLLx` ok (CSV 25 cols; AAPLx/NVDAx PASA con métricas numéricas; TSLLx NO PASA con `producto_apalancado…|bolsa_no_informada`; `data/audit-smoke.csv` borrado). Digo con todas sus letras: NO comprobables aquí build prod, e2e ni la auditoría completa (la corre el operador en sesión regular).
+- Pendiente operador/Manu: AEHRx y TSLLx ya no están en la API de xStocks (1172 nodos hoy vs 1271 ayer; el script los audita contra el snapshot con aviso); build prod, `npm run e2e`, auditoría completa en sesión regular y comparación con el CSV del box.
+
 ## M58 — auditoría de dependencias y limpieza (2026-10-07)
 - Hecho: sección "Dependencias" en `docs/SEGURIDAD.md` (audit 2026-10-07: 0 críticas, 4 altas en 2 avisos con justificación; sin `--force`); `ONRAMP_MODEL=widget|api` en `lib/env.ts`+`.env.example` (api descartado: con `NODE_ENV=production` el arranque falla; adaptador intacto para M75) + `liveOnramp()` y test `onramp-model` (5); `.github/dependabot.yml` (npm semanal, minor+patch agrupados, tope 5); `npm run audit:deps`; `engines: node >= 22`; `.gitignore` con `.next-*/`, `data/audit-cache/`.
 - Archivos clave: `docs/SEGURIDAD.md`, `lib/{env.ts,onramp/model.ts,services/index.ts}`, `.github/dependabot.yml`, `package.json`, `.gitignore`, `.env.example`, `docs/.env.example`, `tests/unit/onramp-model.test.ts`.
