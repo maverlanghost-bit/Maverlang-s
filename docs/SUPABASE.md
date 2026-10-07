@@ -117,3 +117,21 @@ Plantillas, opcionales. En Authentication → Emails puedes dejar las de Supabas
 El paso "b signIn sin confirmar" espera el error "email not confirmed" y en ese caso es PASS. Si el ingreso funciona porque la confirmación está apagada en el proyecto, ese paso sale SKIP ("confirmacion de correo desactivada en el proyecto") y el resto sigue. Cualquier otro error es FAIL. Después confirma al usuario, ingresa y cierra la sesión. Si `public.profiles` existe, lee la fila propia, cambia el teléfono y comprueba que el listado no trae filas ajenas. Si la migración `0002` no está aplicada, esos pasos salen `SKIP: migracion no aplicada` y el resto sigue. Siempre borra el usuario. El proceso termina con código distinto de 0 sólo si algún paso es `FAIL`.
 
 El recorrido en el navegador es aparte: `npm run e2e:auth`. No entra en `npm run e2e`, que sigue en mock. Construye con `AUTH_MODE=supabase`, entra por `/app/ingresar?next=/app/accion/AAPLx`, mira la compra, abre la cartera, sale y comprueba que la cartera vuelve a pedir ingreso. Si faltan las claves o el modo no es supabase, el spec se salta. Hace falta el build y el servidor de esa prueba; esta verificación de API no levanta Next.
+
+## Refuerzo RLS (0009) y auditoría (M47)
+
+NO aplicada. Después de `0008`, pega **una sola vez** `supabase/migrations/0009_rls_hardening.sql` en el SQL Editor y ejecútalo. También es idempotente. Reafirma sin cambiar el comportamiento:
+
+- RLS en las 10 tablas de `public`.
+- `search_path = public, pg_temp` en las funciones `security definer` (conserva la lógica de registro simple de 0005).
+- Trigger `profiles_reject_sensitive_change`: `authenticated` no cambia columnas sensibles propias (`kyc_status`, `role`, `is_admin`, `country_blocked`), existan hoy o se agreguen después.
+- Grants exactos de la matriz (`docs/SEGURIDAD.md`): `waitlist` y `_migration_flags` sin nada para anon/authenticated.
+
+Auditoría (la corre el operador, no se aplica nada):
+
+```bash
+npm run audit:rls -- --dry-run   # imprime la matriz, sin conectarse
+npm run audit:rls                # con 0005 a 0009 aplicadas; sale 1 si hay FALLA
+```
+
+Crea 2 usuarios temporales, prueba SELECT/INSERT/UPDATE/DELETE y las rpc `demo_trade`/`demo_reset` con el `user_id` de otro, y siempre borra los usuarios (`finally`). Reporte de sólo lectura: `supabase/audits/rls-report.sql`.

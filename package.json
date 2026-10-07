@@ -12,6 +12,7 @@
     "e2e": "node scripts/e2e.mjs",
     "e2e:auth": "node scripts/e2e-auth.mjs",
     "verify:auth": "node scripts/verificar-auth.mjs",
+    "audit:rls": "node scripts/audit-rls.mjs",
     "sync:xstocks": "node scripts/sync-xstocks.mjs"
   },
   "dependencies": {

@@ -1,5 +1,12 @@
 # PROGRESO — Maverlang
 
+## M47 — Auditoría RLS con dos usuarios + refuerzo 0009 (2026-10-07)
+- Hecho: `scripts/audit-rls.mjs` (`npm run audit:rls`, `--dry-run` sin conexión; crea 2 usuarios, prueba anon/A→B/A-propio en SELECT/INSERT/UPDATE/DELETE y rpc con user_id ajeno, sale 1 si hay FALLA, borra usuarios en `finally`); `supabase/audits/rls-report.sql` (sólo lectura: sin RLS, políticas, definer sin search_path, grants); `0009_rls_hardening.sql` (idempotente, RLS×10, search_path fijo en handle_new_user M43 + demo trigger, trigger anti-columnas sensibles, grants de la matriz); `docs/SEGURIDAD.md` + sección en `SUPABASE.md`; test `rls-audit.test.ts` (6).
+- Archivos clave: `scripts/audit-rls.mjs`, `supabase/{audits/rls-report.sql,migrations/0009_rls_hardening.sql}`, `docs/{SEGURIDAD,SUPABASE}.md`, `tests/unit/rls-audit.test.ts`, `package.json`.
+- Decisiones: `git pull --ff-only` denegado por el sandbox (árbol limpio, sólo commits previos; se siguió igual); 0009 asume 0005–0008 aplicadas antes; demo_trade/reset no se reescriben (0007 ya fija search_path, 0009 reafirma grants); sensibles cubiertas aunque no existan hoy; sin instalar paquetes.
+- Verificación: `--dry-run` imprime 12 filas OK; `npx tsc --noEmit` ok; `npm run lint` ok; `npm test` 242/242 (38 archivos, 6 nuevos). Digo con todas sus letras: NO comprobables aquí el live `npm run audit:rls` contra desarrollo (requiere .env.local y 0005–0009 aplicadas), build prod ni e2e (los corre el operador).
+- Pendiente operador/Manu: aplicar 0005–0009 en orden en desarrollo, correr `npm run audit:rls` (esperado 0), build prod, `npm run e2e`; cada tabla futura suma su fila a `AUDIT_TABLES`.
+
 M45b-fix — eslint ignora .next-verify (2026-10-07): `npm run lint` fallaba por la salida del build de verificación; se agregó `.next-verify/**` a `globalIgnores`.
 
 > Estado de la base (2026-10-06): las migraciones 0002, 0003 y 0004 YA están aplicadas en el proyecto Supabase actual y `public.assets` está sincronizada. No hay que pegar nada en el SQL Editor; las instrucciones de `docs/SUPABASE.md` sirven sólo para un proyecto nuevo.
