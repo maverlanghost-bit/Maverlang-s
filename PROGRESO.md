@@ -21,6 +21,7 @@
 - Hecho: chips de compra suman (3× US$10 = US$30, tope en Máx); acciones 0,1 / 0,5 / 1. Punto naranja fuera en header, footer, auth, CTA, BrandMark y sidebar colapsada (ahora favicon `maverlang-mark.png` con respaldo M). `icon.tsx` con M (sin punto).
 - Pendiente operador (sin shell aquí): mover el PNG a `public/brand/` y exportar el mark cuadrado — comandos abajo. `app/favicon.ico` viejo (punto) hay que borrarlo para que rija `icon.tsx`/nuevo favicon. Luego `npx tsc --noEmit`, `npm test`, ver compra y sidebar.
 - Estado 2026-10-07: el PNG sigue en la raíz (`Maverlang Logo-1.png`, no se sirve) y no existe `public/brand/`. Sin esos archivos el logo no puede aparecer: el código ya apunta a `/brand/maverlang-logo.png` y `/brand/maverlang-mark.png`.
+- Fix robustez (2026-10-07): nuevo `brand-image.tsx` (`BrandLogoImage` → texto si falta el PNG; `BrandMarkImage` → M si falta). Se usa en header, footer, auth, sidebar colapsada y CTA: sin archivos verás nombre/M en vez de ícono roto.
 - Archivos: `amount-input.tsx`, `brand-mark.tsx`, `sidebar.tsx`, `site-header/footer.tsx`, `auth-frame.tsx`, `final-cta.tsx`, `app/icon.tsx`.
 
 ## N16 — Compra en USD o acciones (2026-10-07)

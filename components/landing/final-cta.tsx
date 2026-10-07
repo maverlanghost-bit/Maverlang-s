@@ -1,5 +1,5 @@
-import Image from "next/image";
 import Link from "next/link";
+import { BrandMarkImage } from "@/components/app-shell/brand-image";
 import { Reveal } from "@/components/landing/reveal";
 import { Button } from "@/components/ui/button";
 import { esCL } from "@/content/i18n/es-CL";
@@ -8,13 +8,7 @@ export function FinalCTA() {
   return (
     <section aria-labelledby="cta-final-title" className="bg-surface-1 px-5 py-20 md:py-28 lg:py-32">
       <Reveal className="mx-auto flex w-full max-w-3xl flex-col items-center text-center">
-        <Image
-          src="/brand/maverlang-mark.png"
-          alt=""
-          width={40}
-          height={40}
-          className="size-10 rounded-full object-cover"
-        />
+        <BrandMarkImage />
         <h2 id="cta-final-title" className="mt-6 text-4xl text-balance sm:text-5xl lg:text-6xl">
           Abre tu cuenta en 2 minutos
         </h2>

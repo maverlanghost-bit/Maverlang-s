@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
-import Image from "next/image";
 import Link from "next/link";
+import { BrandLogoImage } from "@/components/app-shell/brand-image";
 import { esCL } from "@/content/i18n/es-CL";
 import { site, supportMailto } from "@/config/site";
 
@@ -44,13 +44,7 @@ export function SiteFooter() {
     <footer className="border-t border-border px-5 py-16">
       <div className="mx-auto w-full max-w-7xl">
         <div className="flex items-center">
-          <Image
-            src="/brand/maverlang-logo.png"
-            alt={site.name}
-            width={148}
-            height={26}
-            className="h-6 w-auto dark:invert"
-          />
+          <BrandLogoImage />
         </div>
 
         <div className="mt-10 grid gap-10 sm:grid-cols-3">

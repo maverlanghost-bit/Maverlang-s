@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
-import Image from "next/image";
 import Link from "next/link";
+import { BrandLogoImage } from "@/components/app-shell/brand-image";
 import { esCL } from "@/content/i18n/es-CL";
 import { site } from "@/config/site";
 import { cn } from "@/lib/cn";
@@ -69,14 +69,7 @@ export function SiteHeader() {
     >
       <div className="mx-auto flex h-full max-w-7xl items-center gap-2 px-5 sm:gap-3">
         <Link href="/" aria-label={site.name} className="flex min-w-0 shrink items-center rounded-full text-fg">
-          <Image
-            src="/brand/maverlang-logo.png"
-            alt={site.name}
-            width={148}
-            height={26}
-            priority
-            className="h-6 w-auto dark:invert"
-          />
+          <BrandLogoImage />
         </Link>
 
         <nav aria-label="Principal" className="ml-auto hidden items-center gap-4 md:flex lg:gap-6">
