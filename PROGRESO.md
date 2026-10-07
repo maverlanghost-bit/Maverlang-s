@@ -1,5 +1,11 @@
 # PROGRESO — Maverlang
 
+## M56b-fix — origen permitido según el host de la solicitud (2026-10-07)
+- Hecho: `assertSameOrigin` acepta el `Origin`/`Referer` si su `origin` iguala `NEXT_PUBLIC_SITE_URL` o si su `host` coincide con `x-forwarded-host` (primer valor), `host` o el host de `req.url` (Next no lo garantiza tras proxies: e2e en `127.0.0.1:3456` daba 403). Resto intacto: sin origen → 403, evil → 403, GET/HEAD/OPTIONS y exentas pasan. Test nuevo (a/b pasan, c 403); `e2e/` sin POST directo: no se toca.
+- Archivos clave: `lib/api/handler.ts`, `tests/unit/api-routes-validated.test.ts` (16).
+- Verificación: `npx tsc --noEmit` ok; `npm run lint` ok; `npm test` 333/333 (45 archivos, 1 nuevo). Digo con todas sus letras: NO comprobables aquí `npm run e2e` ni el 403 real en navegador (los corre el operador).
+- Pendiente operador: `npm run e2e` (demo-usd + smoke en puerto 3456).
+
 ## M56 — validación de entradas y CSRF (2026-10-07)
 - Hecho: `parseJson(req,schema,{maxBytes:16KB})` (413 + 400 `VALIDATION` con campos sin valores, `.strict()`), `parseQuery` (q≤64, símbolo `^[A-Za-z0-9.]{1,12}x$`, page/pageSize acotados), `assertSameOrigin` (403 `FORBIDDEN_ORIGIN`, exentos `/api/onramp/webhook` y `/api/cron/*`) y `handle()` con `requestId` + mensaje genérico en 500 (detalle sólo en log). 24 rutas migradas (orden: origin→rate limit→parse); `queryOf`/`bodyOf` quedan como alias. Montos trade: finito>0, ≤2 dec USD (≤8 acciones), USDC≤`MAX_ORDER_USD`=1000 (`config/trade.ts`); CLP/acciones se topan en el servicio. Códigos nuevos `FORBIDDEN_ORIGIN`/`PAYLOAD_TOO_LARGE` (result+tipos+i18n es/en+cliente con `requestId`).
 - Archivos clave: `lib/api/{handler,contracts,result,client}.ts`, `lib/types/index.ts`, `config/trade.ts`, 17 `app/api/**/route.ts`, `tests/unit/api-routes-validated.test.ts` (15), i18n es/en.

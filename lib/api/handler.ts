@@ -176,7 +176,9 @@ function siteOriginOf(): string | null {
 
 /**
  * CSRF barato (M56): en métodos que cambian estado, `Origin` (o `Referer` si
- * falta) debe coincidir con `NEXT_PUBLIC_SITE_URL` o con el host pedido.
+ * falta) debe coincidir con `NEXT_PUBLIC_SITE_URL` o con el host pedido
+ * (`x-forwarded-host`, `host` o el host de `req.url`: `new URL(req.url).host`
+ * no es confiable tras proxies, así que se acepta cualquiera de los tres).
  * Sin ambos, o con otro origen → 403 `FORBIDDEN_ORIGIN`. GET/HEAD/OPTIONS y
  * las exentas (`/api/onramp/webhook`, `/api/cron/*`) pasan.
  */
@@ -194,7 +196,13 @@ export function assertSameOrigin(req: Request): void {
     throw new DomainError("FORBIDDEN_ORIGIN");
   }
   if (candidateUrl.origin === siteOriginOf()) return;
-  if (candidateUrl.host === url.host) return;
+  const allowedHosts = new Set<string>();
+  const forwarded = req.headers.get("x-forwarded-host")?.split(",")[0]?.trim();
+  if (forwarded) allowedHosts.add(forwarded.toLowerCase());
+  const hostHeader = req.headers.get("host")?.trim();
+  if (hostHeader) allowedHosts.add(hostHeader.toLowerCase());
+  allowedHosts.add(url.host.toLowerCase());
+  if (allowedHosts.has(candidateUrl.host.toLowerCase())) return;
   throw new DomainError("FORBIDDEN_ORIGIN");
 }
 

@@ -194,6 +194,36 @@ describe("M56: comportamiento del blindaje", () => {
     expect(() => assertSameOrigin(get)).not.toThrow();
   });
 
+  it("M56b-fix: el host pedido también vale (e2e en 127.0.0.1 o tras proxy)", () => {
+    // (a) Playwright sirve en 127.0.0.1:3456 pero req.url llega como localhost.
+    const e2e = new Request("http://localhost:3456/api/trade/quote", {
+      method: "POST",
+      headers: { host: "127.0.0.1:3456", origin: "http://127.0.0.1:3456" },
+    });
+    expect(() => assertSameOrigin(e2e)).not.toThrow();
+    // (b) Tras proxy: el navegador ve el dominio público en x-forwarded-host.
+    const forwarded = new Request("http://localhost:3456/api/trade/quote", {
+      method: "POST",
+      headers: {
+        host: "127.0.0.1:3456",
+        "x-forwarded-host": "maverlang.vercel.app",
+        origin: "https://maverlang.vercel.app",
+      },
+    });
+    expect(() => assertSameOrigin(forwarded)).not.toThrow();
+    // (c) Origen ajeno sigue en 403 aunque el host pedido sea propio.
+    const evil = new Request("http://localhost:3456/api/trade/quote", {
+      method: "POST",
+      headers: { host: "127.0.0.1:3456", origin: "https://evil.example" },
+    });
+    try {
+      assertSameOrigin(evil);
+      expect.unreachable("debió fallar con origen ajeno");
+    } catch (error) {
+      expect((error as DomainError).code).toBe("FORBIDDEN_ORIGIN");
+    }
+  });
+
   it("un error interno → 500 con requestId y sin el texto original", async () => {
     const secret = "postgres://interna:clave-secreta@db.supabase.co:5432";
     const response = await handle("no-store", async () => {
