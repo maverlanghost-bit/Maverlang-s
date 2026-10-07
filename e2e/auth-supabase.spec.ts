@@ -73,7 +73,8 @@ test.describe("auth supabase", () => {
       await expect(page).toHaveURL(/\/app\/cartera\/?$/);
       await expect(page.getByRole("heading", { name: "Cartera" })).toBeVisible();
 
-      await page.getByRole("button", { name: "Cerrar sesión" }).click();
+      await page.goto("/app/perfil/cuenta");
+      await page.getByRole("button", { name: "Cerrar sesión" }).first().click();
       await expect(page).toHaveURL(/\/$/);
 
       await page.goto("/app/cartera");

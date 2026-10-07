@@ -1,5 +1,10 @@
 # PROGRESO — Maverlang
 
+## M48f-fix — cierre de sesión e2e desde perfil (2026-10-07)
+- `e2e/auth-supabase.spec.ts`: tras la cartera navega a `/app/perfil/cuenta` y cierra sesión con `getByRole("button", { name: "Cerrar sesión" }).first()` (el botón vive en `account-screen.tsx`, no en la cartera). Sin tocar componentes.
+- Verificación: `npx tsc --noEmit` ok; `npm run lint` ok; `npm test` 257/257 (39 archivos); sin build ni e2e.
+- Bugs previos (vienen de antes de M44, van como tarea aparte): (1) comprar indicando acciones no funciona: `maxAmount` en `lib/trade/amount.ts` devuelve vacío para compra + `SHARES` y la hoja muestra "Sin precio no podemos calcular este monto"; (2) el mínimo por orden se muestra en CLP ("Mínimo por orden: $9.678").
+
 ## M48e-fix — mensaje de la lista de espera fuera del form (2026-10-07)
 - `e2e/portada-lista-espera.spec.ts`: el éxito se busca fuera del form (`page.getByRole("status")` con `WAITLIST_SUCCESS_MESSAGE`, `WaitlistForm` reemplaza el form por `<p role="status">`) + `toHaveCount(0)` del form (portada con un único form en `FinalCTA`); intercepción y correo/`consent: true` intactos. Verificación: `npx tsc --noEmit` ok; `npm run lint` ok; `npm test` 257/257 (39 archivos); sin build ni e2e.
 
