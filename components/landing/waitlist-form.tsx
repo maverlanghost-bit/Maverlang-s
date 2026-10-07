@@ -53,12 +53,19 @@ export function WaitlistForm({
         body: JSON.stringify({ email: value, consent, website, source }),
       });
       if (!response.ok) {
-        const body = (await response.json().catch(() => null)) as { error?: unknown } | null;
-        setError(
-          typeof body?.error === "string" && body.error.length > 0
-            ? body.error
-            : "No pudimos guardar tu correo. Inténtalo de nuevo.",
-        );
+        const body = (await response.json().catch(() => null)) as
+          | { error?: unknown }
+          | null;
+        const raw = body?.error;
+        const message =
+          typeof raw === "string" && raw.length > 0
+            ? raw
+            : typeof raw === "object" && raw !== null && "message" in raw &&
+                typeof (raw as { message?: unknown }).message === "string" &&
+                ((raw as { message: string }).message.length > 0)
+              ? (raw as { message: string }).message
+              : "No pudimos guardar tu correo. Inténtalo de nuevo.";
+        setError(message);
         return;
       }
       setDone(true);

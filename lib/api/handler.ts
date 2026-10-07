@@ -33,9 +33,12 @@ export function jsonResult<T>(result: ApiResult<T>, cache: CacheMode): NextRespo
 }
 
 /** zod ya corrió. `DomainError` sale como `fail(code)`; el resto, `INTERNAL`. */
-export async function handle<T>(cache: CacheMode, run: () => Promise<T>): Promise<NextResponse> {
+/** Si `run` devuelve un `Response` (p. ej. la 429 de `withRateLimit`), sale tal cual. */
+export async function handle<T>(cache: CacheMode, run: () => Promise<T | Response>): Promise<Response> {
   try {
-    return jsonResult(ok(await run()), cache);
+    const data = await run();
+    if (data instanceof Response) return data;
+    return jsonResult(ok(data), cache);
   } catch (error) {
     return jsonResult(failFrom(error), cache);
   }

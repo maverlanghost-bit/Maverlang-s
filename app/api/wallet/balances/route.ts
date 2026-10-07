@@ -8,6 +8,7 @@ import {
   isRealAccountRequest,
   isUserDemoRequest,
 } from "@/lib/api/handler";
+import { withRateLimit } from "@/lib/security/rate-limit";
 import { getServices } from "@/lib/services";
 import { demoSupabase } from "@/lib/services/demo.supabase";
 
@@ -18,6 +19,8 @@ export function GET(req: Request) {
   return handle("private", async () => {
     const services = getServices();
     const session = await requireSession(services, req);
+    const userLimited = await withRateLimit(req, "me", [session.userId]);
+    if (userLimited) return userLimited;
     if (isRealAccountRequest(req)) return readOutput(balancesResponseSchema, []);
     if (isUserDemoRequest(req)) {
       const data = await callService(req, () => demoSupabase.getBalances(session.userId));

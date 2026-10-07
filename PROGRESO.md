@@ -1,5 +1,12 @@
 # PROGRESO — Maverlang
 
+## M49 — límite de solicitudes (2026-10-07)
+- Hecho: `lib/security/rate-limit.ts` (server-only; `limit(key,policy)` + `withRateLimit(req,pol,parts)` → 429 con `Retry-After`/`X-RateLimit-Remaining`; Upstash si hay URL+token, si no memoria con aviso en prod; `RATE_LIMIT_TEST_SEARCH` sólo dev) + `RATE_LIMITED` (429) en tipos/result/i18n es-en + cliente sin reintento de 429 (`queryRetry` en providers) + `check:upstash` + sección Supabase Auth/Turnstile en SEGURIDAD.md + tests (10).
+- Archivos clave: `lib/security/rate-limit.ts`, 18 rutas `app/api/**`, `lib/{env,api/{handler,client}}.ts`, `app/providers.tsx`, `waitlist-form.tsx`, `scripts/{check-upstash,e2e,e2e-auth}.mjs`, `tests/unit/rate-limit.test.ts`, `docs/SEGURIDAD.md`, `.env.example`.
+- Decisiones: instalados `@upstash/ratelimit`+`@upstash/redis` (límite global en Vercel; la memoria no frena bots); rutas `handle` con 429 `ApiResult`, waitlist `plain`; `onramp/session` como trade, `balances/activity` como `me`; `git pull --ff-only` denegado por el sandbox (árbol limpio, se siguió igual).
+- Verificación: `npx tsc --noEmit` ok; `npm run lint` ok; `npm test` 317/317 (44 archivos, 10 nuevos); `audit:deps` igual que M58 (las 2 altas previas justificadas, nada nuevo de upstash). Digo con todas sus letras: NO comprobables aquí las 25 llamadas HTTP a search, build prod ni e2e (los corre el operador).
+- Pendiente operador/Manu: `npm run check:upstash`, build prod (`.next-verify`), `npm run e2e`, probar el 429 real en search/trade; revisar Auth → Rate Limits en el panel Supabase.
+
 ## M53 — estado de seguridad por activo (2026-10-07)
 - Hecho: `0010_asset_safety.sql` (NO aplicada: 12 columnas en assets + `asset_safety_runs`/`asset_safety_events` con RLS sin políticas, idempotente) + `nextSafetyState`/`isVisibleStatus`/`isTradableStatus` en `safety-core.mjs` (histéresis: 2 pasadas con una en market listan; overnight nunca oculta; estático o 2 fallas market ocultan; overrides) + `audit-catalog.mjs --db` (sonda 0010 → "aplica 0010" exit 2 sin escribir; upsert sólo columnas de seguridad; eventos) + `audit-rls.mjs` con las 2 tablas + tests (24+6) + docs SUPABASE/CATALOGO-SEGURIDAD.
 - Archivos clave: `supabase/migrations/0010_asset_safety.sql`, `lib/catalog/safety-core.mjs`, `scripts/{audit-catalog,audit-rls}.mjs`, `tests/unit/{catalog-safety-state,migration-0010}.test.ts`, `docs/{SUPABASE,CATALOGO-SEGURIDAD}.md`.

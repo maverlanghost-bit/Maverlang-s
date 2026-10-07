@@ -292,6 +292,7 @@ export const esCL = {
       PRICE_DEVIATION: "El precio se movió más de lo permitido. Cotiza de nuevo.",
       INSUFFICIENT_FUNDS: "No tienes saldo suficiente.",
       MINT_NOT_ALLOWED: "Esta acción no se puede operar.",
+      RATE_LIMITED: "Demasiadas solicitudes. Intenta de nuevo en unos segundos.",
       UPSTREAM: "El proveedor no respondió. Puedes intentar de nuevo.",
       INTERNAL: "Algo falló de nuestro lado. Puedes intentar de nuevo.",
     },

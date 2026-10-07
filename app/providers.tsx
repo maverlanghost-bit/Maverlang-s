@@ -4,13 +4,14 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 
 import { ToastProvider } from "@/components/ui/toast";
+import { queryRetry } from "@/lib/api/client";
 import { AuthProvider } from "@/lib/auth";
 
 function makeQueryClient() {
   return new QueryClient({
     defaultOptions: {
       queries: {
-        retry: 1,
+        retry: queryRetry,
         refetchOnWindowFocus: false,
         staleTime: 5_000,
       },

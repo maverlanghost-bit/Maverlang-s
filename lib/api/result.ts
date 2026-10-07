@@ -12,6 +12,7 @@ export const API_ERROR_STATUS = {
   PRICE_DEVIATION: 409,
   INSUFFICIENT_FUNDS: 422,
   MINT_NOT_ALLOWED: 400,
+  RATE_LIMITED: 429,
   UPSTREAM: 502,
   INTERNAL: 500,
 } as const satisfies Record<ApiErrorCode, number>;
@@ -25,6 +26,7 @@ const ERROR_MESSAGE: Record<ApiErrorCode, string> = {
   PRICE_DEVIATION: "El precio se movió más de lo permitido.",
   INSUFFICIENT_FUNDS: "No tienes saldo suficiente.",
   MINT_NOT_ALLOWED: "Ese activo no está permitido.",
+  RATE_LIMITED: "Demasiadas solicitudes. Intenta de nuevo en unos segundos.",
   UPSTREAM: "El proveedor no respondió.",
   INTERNAL: "Error interno.",
 };

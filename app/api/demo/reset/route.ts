@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { handle, requireSession, isRealAccountRequest, isUserDemoRequest } from "@/lib/api/handler";
 import { DomainError } from "@/lib/api/result";
+import { withRateLimit } from "@/lib/security/rate-limit";
 import { resetDemoState } from "@/lib/mocks/demo-state";
 import { getServices } from "@/lib/services";
 import { demoSupabase } from "@/lib/services/demo.supabase";
@@ -22,6 +23,8 @@ export function POST(req: Request) {
   return handle("no-store", async () => {
     const services = getServices();
     const session = await requireSession(services, req);
+    const userLimited = await withRateLimit(req, "demoReset", [session.userId]);
+    if (userLimited) return userLimited;
     if (isRealAccountRequest(req)) {
       throw new DomainError("VALIDATION", "La cuenta real todavía no opera.");
     }

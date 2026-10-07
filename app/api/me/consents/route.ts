@@ -1,5 +1,6 @@
 import { consentRequestSchema, consentSchema, consentsResponseSchema } from "@/lib/api/contracts";
 import { bodyOf, callService, handle, readOutput, requireSession } from "@/lib/api/handler";
+import { withRateLimit } from "@/lib/security/rate-limit";
 import { getServices } from "@/lib/services";
 
 export const runtime = "nodejs";
@@ -9,6 +10,8 @@ export function GET(req: Request) {
   return handle("private", async () => {
     const services = getServices();
     const session = await requireSession(services, req);
+    const userLimited = await withRateLimit(req, "me", [session.userId]);
+    if (userLimited) return userLimited;
     const data = await callService(req, () => services.users.listConsents(session.userId));
     return readOutput(consentsResponseSchema, data);
   });
@@ -21,6 +24,8 @@ export function POST(req: Request) {
       bodyOf(consentRequestSchema, req),
       requireSession(services, req),
     ]);
+    const userLimited = await withRateLimit(req, "me", [session.userId]);
+    if (userLimited) return userLimited;
     const data = await callService(req, () =>
       services.users.addConsent({
         userId: session.userId,

@@ -289,6 +289,7 @@ export const en = {
       PRICE_DEVIATION: "The price moved more than allowed. Quote again.",
       INSUFFICIENT_FUNDS: "You don't have enough balance.",
       MINT_NOT_ALLOWED: "This stock can't be traded.",
+      RATE_LIMITED: "Too many requests. Try again in a few seconds.",
       UPSTREAM: "The provider didn't respond. You can try again.",
       INTERNAL: "Something failed on our side. You can try again.",
     },

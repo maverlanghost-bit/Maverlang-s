@@ -68,6 +68,21 @@ export class ApiError extends Error {
   }
 }
 
+/** true si el fallo es un 429 (M49): no se reintenta, se muestra el mensaje. */
+export function isRateLimitedError(error: unknown): boolean {
+  return error instanceof ApiError && error.code === "RATE_LIMITED";
+}
+
+/**
+ * Reintento para React Query (M49): un 429 no se reintenta en bucle (el
+ * servidor ya dijo cuándo volver con `Retry-After`); el resto, una vez,
+ * como el default de la app. `request()` hace un solo `fetch`, sin bucle.
+ */
+export function queryRetry(failureCount: number, error: unknown): boolean {
+  if (isRateLimitedError(error)) return false;
+  return failureCount < 1;
+}
+
 async function request<T>(path: string, schema: ZodType<T>, init?: RequestInit): Promise<T> {
   const headers = new Headers(init?.headers);
   headers.set("accept", "application/json");

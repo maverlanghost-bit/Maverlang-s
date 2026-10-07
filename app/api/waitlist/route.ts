@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { withRateLimit } from "@/lib/security/rate-limit";
 import { postWaitlist, WAITLIST_SUCCESS_MESSAGE } from "@/lib/waitlist/server";
 
 export { WAITLIST_SUCCESS_MESSAGE };
@@ -13,6 +14,8 @@ export const runtime = "nodejs";
  * (M49 le pone rate limit).
  */
 export async function POST(req: Request) {
+  const limited = await withRateLimit(req, "waitlist", [], "plain");
+  if (limited) return limited;
   let body: unknown;
   try {
     body = await req.json();

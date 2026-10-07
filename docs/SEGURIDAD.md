@@ -125,3 +125,42 @@ Restos: `t18-check.ts` no lo importa nadie y no está trackeado (fuera de
 el operador. `.gitignore` ahora cubre `.next-*/`, `*.log`,
 `*.tsbuildinfo` y `data/audit-cache/` (`.next-dev.log` y
 `tsconfig.tsbuildinfo` no existen en disco).
+
+## Límite de solicitudes (M49)
+
+Las rutas sensibles devuelven 429 con `Retry-After` antes de tocar
+proveedores externos: `/api/trade/*` (20/min por usuario y 60/min por IP;
+la demo suma 30/min por usuario), `/api/demo/reset` (5/h por usuario),
+`/api/me/*` y `/api/wallet/balances|activity` (60/min por usuario),
+`/api/market/search` (60/min por IP), `/api/prices` (120/min por IP),
+`/api/onramp/session` (como trade), `/api/onramp/webhook` (300/min por IP;
+la firma se verifica aparte) y `/api/waitlist` (5/h por IP). Sin rutas
+`/api/cron/*` hoy; su política (10/min) ya está definida en
+`lib/security/rate-limit.ts`.
+
+Backend: Upstash si hay `UPSTASH_REDIS_REST_URL` y
+`UPSTASH_REDIS_REST_TOKEN` (global entre instancias de Vercel); si no,
+memoria local (en producción avisa una vez: no frena a un bot distribuido).
+`RATE_LIMIT_BACKEND=memory|upstash|auto` (default `auto`; el e2e lo fuerza a
+`memory`). En desarrollo, `RATE_LIMIT_TEST_SEARCH=5` baja la búsqueda para
+probar el 429 (en producción se ignora). Verificación:
+`npm run check:upstash` (INCR + EXPIRE + GET + DEL de una clave de prueba,
+sin imprimir valores; lo corre el operador).
+
+## Límites de Supabase Auth (M49 — sólo documentado, no se toca el panel)
+
+El registro y el ingreso van directo a Supabase desde el cliente; Supabase
+ya limita su Auth. Valores recomendados para la demo (Supabase →
+Authentication → Rate Limits): registros por IP 30 cada 5 min, ingresos por
+IP 30 cada 5 min, verificaciones de token 30 cada 5 min, y correos según el
+SMTP que se contrate (el integrado trae un límite bajo por hora; el SMTP
+propio es M51).
+
+Si aparecen registros falsos, activar CAPTCHA gratis con Cloudflare
+Turnstile en el Auth de Supabase (queda documentado, no se implementa
+ahora): (1) crear el sitio en Cloudflare (dash.cloudflare.com → Turnstile →
+Add site, tipo Managed); (2) copiar Site Key y Secret Key; (3) en Supabase
+(Authentication → Settings → Bot and CAPTCHA protection) pegar ambas y
+guardar; (4) el formulario suma el widget y envía el token en el `signUp`.
+Sin el widget activo, el paso (4) no se hace: hoy el registro no lleva
+CAPTCHA.

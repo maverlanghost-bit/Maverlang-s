@@ -266,5 +266,6 @@ export type ApiErrorCode =
   | "PRICE_DEVIATION"
   | "INSUFFICIENT_FUNDS"
   | "MINT_NOT_ALLOWED"
+  | "RATE_LIMITED"
   | "UPSTREAM"
   | "INTERNAL";

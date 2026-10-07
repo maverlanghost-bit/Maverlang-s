@@ -197,6 +197,25 @@ const serverSchema = publicSchema.extend({
   ),
   /** Endpoint propio para informes de violación de CSP (opcional; M61 lo conecta a Sentry). */
   CSP_REPORT_URI: optionalText(),
+  /**
+   * Límite de solicitudes (M49). Upstash en producción (global entre
+   * instancias), memoria en local o tests. `auto` (default) usa Upstash
+   * si hay URL y token, y si no, memoria con un aviso en producción.
+   */
+  RATE_LIMIT_BACKEND: enumEnv(["memory", "upstash", "auto"] as const, "auto"),
+  /** Redis de Upstash (gratis, global). Sólo servidor, sin valores en el repo. */
+  UPSTASH_REDIS_REST_URL: optionalText(),
+  UPSTASH_REDIS_REST_TOKEN: optionalText(),
+  /**
+   * Techo bajo para la búsqueda, sólo en desarrollo (M49): `RATE_LIMIT_TEST_SEARCH=5`
+   * hace que la sexta búsqueda en 1 min dé 429. En producción se ignora.
+   */
+  RATE_LIMIT_TEST_SEARCH: z.preprocess((value) => {
+    const cleaned = cleanEnv(value);
+    if (cleaned === undefined) return undefined;
+    const parsed = Number(cleaned);
+    return Number.isInteger(parsed) && parsed > 0 ? parsed : undefined;
+  }, z.number().int().positive().optional()),
 });
 
 export type PublicEnv = z.infer<typeof publicSchema>;
