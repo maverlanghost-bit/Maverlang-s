@@ -78,11 +78,23 @@ describe("M41: opciones de polling", () => {
     expect(source).toContain("export const PRICE_MS = 15_000");
   });
 
-  it("usePrices revalida cada 15 s y al volver a la pestaña", () => {
+  it("usePrices revalida cada intervalo (15 s por defecto) y al volver a la pestaña", () => {
     const block = blockOf("usePrices");
-    expect(block).toContain("refetchInterval: PRICE_MS");
+    expect(block).toContain("refetchInterval: intervalMs");
     expect(block).toContain("refetchOnWindowFocus: true");
-    expect(block).toContain("staleTime: PRICE_MS");
+    expect(block).toContain("staleTime: intervalMs");
+    expect(block).toContain("intervalMs = PRICE_MS");
+  });
+
+  it("SPOT_MS en 5 s y detalle/compra lo usan", () => {
+    expect(source).toContain("export const SPOT_MS = 5_000");
+    const detail = readFileSync(
+      path.join(ROOT, "app", "(platform)", "app", "accion", "[ticker]", "detail-screen.tsx"),
+      "utf8",
+    );
+    expect(detail).toContain("usePrices([ticker.symbol], true, SPOT_MS)");
+    const sheet = readFileSync(path.join(ROOT, "components", "domain", "trade-sheet.tsx"), "utf8");
+    expect(sheet).toContain("usePrices([ticker.symbol], true, SPOT_MS)");
   });
 
   it("useHistory revalida cada 60 s visible y al volver a la pestaña", () => {

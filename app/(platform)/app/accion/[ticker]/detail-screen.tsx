@@ -22,7 +22,7 @@ import { detailReturnPath, ingresarPath, aceptarPath, registroPath } from "@/lib
 import { cn } from "@/lib/cn";
 import { formatMoney, formatMultiplier, formatReopenWhen, formatShares } from "@/lib/format";
 import { useAccountMode } from "@/lib/hooks/use-account-mode";
-import { useAssetStatus, useFx, useHistory, useMarketStatus, usePortfolio, usePrices } from "@/lib/hooks/queries";
+import { SPOT_MS, useAssetStatus, useFx, useHistory, useMarketStatus, usePortfolio, usePrices } from "@/lib/hooks/queries";
 import { useFavorites } from "@/lib/hooks/use-favorites";
 import { useT } from "@/lib/hooks/use-t";
 import { displayPrice } from "@/lib/market/browse";
@@ -416,6 +416,20 @@ function KeyStats({
         <StatCell label={fill(t.detail.rangeLow, { range: caption })} pending={historyPending}>
           {low === null ? <MissingFigure label={rangeMissing} /> : <span className="num text-sm text-fg">{low}</span>}
         </StatCell>
+        <StatCell label={t.detail.marketPrice} pending={quoteCellPending}>
+          {quote?.marketPriceUsd !== undefined && Number.isFinite(quote.marketPriceUsd) ? (
+            <span className="num text-sm text-fg">{moneyText(quote.marketPriceUsd, shownCurrency, rate)}</span>
+          ) : (
+            <MissingFigure label={t.detail.unavailable} />
+          )}
+        </StatCell>
+        <StatCell label={t.detail.poolLiquidity} pending={quoteCellPending}>
+          {quote?.liquidityUsd !== undefined && Number.isFinite(quote.liquidityUsd) ? (
+            <span className="num text-sm text-fg">{formatMoney(quote.liquidityUsd, "USD")}</span>
+          ) : (
+            <MissingFigure label={t.detail.unavailable} />
+          )}
+        </StatCell>
       </dl>
     </Card>
   );
@@ -437,7 +451,7 @@ export function DetailScreen({
   const { t, language, currency } = useT();
   const pathname = usePathname();
   const { mode } = useAccountMode();
-  const prices = usePrices([ticker.symbol]);
+  const prices = usePrices([ticker.symbol], true, SPOT_MS);
   const fx = useFx();
   const canTrade = access === "member";
   const portfolio = usePortfolio(access !== "guest");

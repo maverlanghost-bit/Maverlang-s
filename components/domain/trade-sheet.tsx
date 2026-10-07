@@ -9,7 +9,6 @@ import { MarketStatusPill } from "@/components/domain/market-status-pill";
 import { RealAccountEmpty } from "@/components/domain/real-account-empty";
 import { TickerLogo } from "@/components/domain/ticker-logo";
 import { AmountInput } from "@/components/ui/amount-input";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ErrorState } from "@/components/ui/error-state";
 import { Sheet } from "@/components/ui/sheet";
@@ -22,7 +21,7 @@ import { useSession } from "@/lib/auth";
 import { useSignTrade } from "@/lib/auth/sign-transaction";
 import { formatMoney, formatShares } from "@/lib/format";
 import { useAccountMode } from "@/lib/hooks/use-account-mode";
-import { useAssetStatus, useFx, useMarketStatus, usePortfolio, usePrices } from "@/lib/hooks/queries";
+import { SPOT_MS, useAssetStatus, useFx, useMarketStatus, usePortfolio, usePrices } from "@/lib/hooks/queries";
 import { useT } from "@/lib/hooks/use-t";
 import { displayPrice } from "@/lib/market/browse";
 import { effectiveMinOrderUsd } from "@/lib/market/asset-status.shared";
@@ -210,7 +209,7 @@ function TradeFlow({ side, ticker }: { side: Side; ticker: Ticker }) {
   const sign = useSignTrade();
   const queryClient = useQueryClient();
   const portfolio = usePortfolio();
-  const prices = usePrices([ticker.symbol]);
+  const prices = usePrices([ticker.symbol], true, SPOT_MS);
   const fx = useFx();
   const market = useMarketStatus();
   const asset = useAssetStatus(ticker.symbol);
@@ -562,12 +561,6 @@ function TradeFlow({ side, ticker }: { side: Side; ticker: Ticker }) {
   return (
     <div className="flex flex-col gap-5">
       <TradeMark ticker={ticker} />
-      {mode === "demo" ? (
-        <p className="flex items-center justify-center gap-2 text-xs leading-relaxed text-fg-muted">
-          <Badge tone="warn">{t.account.badge}</Badge>
-          <span>{t.account.note}</span>
-        </p>
-      ) : null}
       <AmountInput
         id={`${hintId}-amount`}
         label={t.trade.amount}

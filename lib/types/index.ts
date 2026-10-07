@@ -33,6 +33,14 @@ export interface Quote {
   reference?: boolean;
   /** true cuando el precio es el último guardado tras un 429 o un error (M38). */
   stale?: boolean;
+  /**
+   * Precio del subyacente (N15, sólo live): lo que vale la acción en el
+   * mercado, fuera del pozo de Solana. El titular (`priceUsd`) es el precio
+   * ejecutable del pozo; si se despega, la ficha avisa.
+   */
+  marketPriceUsd?: number;
+  /** Liquidez del pozo en USD (N15, sólo live). */
+  liquidityUsd?: number;
 }
 
 /** `t` en unix ms. `p` es USD por acción. */

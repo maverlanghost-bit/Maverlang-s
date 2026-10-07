@@ -22,6 +22,10 @@ const MAX_IDS = 50;
 interface ParsedPrice {
   usdPrice: number;
   changeRatio: number;
+  /** Liquidez del pozo en USD, si Jupiter la trae. */
+  liquidityUsd?: number;
+  /** Precio del subyacente (`stockData.price`), si Jupiter lo trae. */
+  marketPriceUsd?: number;
 }
 
 interface CachedPrice extends ParsedPrice {
@@ -102,7 +106,15 @@ export function parseJupiterPrices(body: unknown): Map<string, ParsedPrice> {
     const usdPrice = positiveNumber(row.usdPrice);
     if (usdPrice === null) continue;
     const changePct = finiteNumber(row.priceChange24h);
-    rows.set(mint, { usdPrice, changeRatio: changePct === null ? 0 : changePct / 100 });
+    const liquidityRaw = row.liquidity === undefined ? undefined : positiveNumber(row.liquidity);
+    const stockData = isPriceRow(row.stockData) ? row.stockData : null;
+    const marketRaw = stockData ? positiveNumber(stockData.price) : null;
+    rows.set(mint, {
+      usdPrice,
+      changeRatio: changePct === null ? 0 : changePct / 100,
+      ...(liquidityRaw !== undefined && liquidityRaw !== null ? { liquidityUsd: liquidityRaw } : {}),
+      ...(marketRaw !== null ? { marketPriceUsd: marketRaw } : {}),
+    });
   }
   return rows;
 }
@@ -148,6 +160,8 @@ function toQuote(
     multiplier,
     updatedAt: new Date(now).toISOString(),
     source: "jupiter",
+    ...(entry.marketPriceUsd !== undefined ? { marketPriceUsd: roundDigits(entry.marketPriceUsd, 6) } : {}),
+    ...(entry.liquidityUsd !== undefined ? { liquidityUsd: roundDigits(entry.liquidityUsd, 2) } : {}),
   };
 }
 

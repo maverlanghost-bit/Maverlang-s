@@ -10,10 +10,11 @@ import { ErrorState } from "@/components/ui/error-state";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip } from "@/components/ui/tooltip";
-import { formatDateTime } from "@/lib/format";
+import { formatDateTime, formatMoney, formatPercent } from "@/lib/format";
 import { useHistory } from "@/lib/hooks/queries";
 import { useT } from "@/lib/hooks/use-t";
 import { displayPrice } from "@/lib/market/browse";
+import { poolDislocated, poolDislocationPct } from "@/lib/market/dislocation";
 import { DETAIL_RANGES, isDetailRange, rangeMove, seriesForQuote, toneOf } from "@/lib/market/series";
 import type { Currency, PricePoint, Quote, Range } from "@/lib/types";
 
@@ -85,6 +86,16 @@ export function PricePanel({
   const shown = usd === null || waitingFx ? null : displayPrice(usd, priceCurrency, rate);
   const showFxNote = Boolean(quote) && currency === "CLP" && !fxKnown && !fxPending;
   const pointIso = point ? new Date(point.timeMs).toISOString() : null;
+  const poolPct =
+    quote && quote.source === "jupiter" && !quote.reference
+      ? poolDislocationPct(quote.priceUsd, quote.marketPriceUsd)
+      : null;
+  const showDislocation = quote !== null && point === null && poolDislocated(quote.priceUsd, quote.marketPriceUsd);
+  const marketValue =
+    showDislocation && quote?.marketPriceUsd !== undefined && !waitingFx
+      ? displayPrice(quote.marketPriceUsd, priceCurrency, rate)
+      : null;
+  const marketShown = marketValue === null ? null : formatMoney(marketValue, priceCurrency);
 
   const rangeOptions = DETAIL_RANGES.map((value) => ({ value, label: t.detail.rangeShort[value] }));
 
@@ -109,6 +120,11 @@ export function PricePanel({
           <p className="text-sm text-fg-muted">{t.detail.referencePrice}</p>
         ) : null}
         {showFxNote ? <p className="text-sm text-fg-muted">{t.detail.fxFallback}</p> : null}
+        {showDislocation && poolPct !== null && marketShown !== null ? (
+          <p className="text-sm text-warn">
+            {fill(t.detail.dislocated, { pct: formatPercent(poolPct), market: marketShown })}
+          </p>
+        ) : null}
       </div>
     );
   }

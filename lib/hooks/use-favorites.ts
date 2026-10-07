@@ -1,6 +1,10 @@
 "use client";
 
-import { useCallback, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useSyncExternalStore } from "react";
+
+import { getFavorites, setFavorites } from "@/lib/api/client";
+import { useSession } from "@/lib/auth/session-context";
+import { favoritesNeedUpload, mergeFavoriteSymbols } from "@/lib/favorites/merge";
 
 const KEY = "a24_favorites";
 const EVENT = "a24-favorites";
@@ -69,17 +73,54 @@ function favoritesOnServer(): string[] | null {
   return null;
 }
 
-/** `null` hasta hidratar. Después, símbolos guardados en este navegador. */
+/** Local siempre; con sesión también guarda en la cuenta (sin bloquear). */
 export function useFavorites() {
   const symbols = useSyncExternalStore(subscribe, read, favoritesOnServer);
-  const toggle = useCallback((symbol: string) => {
-    const current = read();
-    const next = current.includes(symbol) ? current.filter((item) => item !== symbol) : [...current, symbol];
-    try {
-      write(next);
-    } catch {
-      return;
-    }
-  }, []);
+  const session = useSession();
+  const toggle = useCallback(
+    (symbol: string) => {
+      const current = read();
+      const next = current.includes(symbol) ? current.filter((item) => item !== symbol) : [...current, symbol];
+      try {
+        write(next);
+      } catch {
+        return;
+      }
+      if (session.status === "authenticated") {
+        setFavorites(next).catch(() => {});
+      }
+    },
+    [session.status],
+  );
   return { symbols, toggle };
+}
+
+/**
+ * Al entrar con sesión: une lo del servidor con lo local y sube lo nuevo.
+ * Sin red o sin tabla (migración no aplicada) queda lo local, sin romper.
+ */
+export function useSyncFavorites() {
+  const session = useSession();
+  useEffect(() => {
+    if (session.status !== "authenticated") return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const server = await getFavorites();
+        if (cancelled) return;
+        const merged = mergeFavoriteSymbols(server, read());
+        try {
+          write(merged);
+        } catch {
+          return;
+        }
+        if (favoritesNeedUpload(server, merged)) await setFavorites(merged);
+      } catch {
+        // Sin red o sin 0006: queda lo local.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [session.status]);
 }

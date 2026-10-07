@@ -12,7 +12,10 @@ import {
   updateDemoProfile,
 } from "@/lib/mocks/demo-state";
 import { simulateMock } from "@/lib/mocks/latency";
+import { sanitizeFavoriteSymbols } from "@/lib/favorites/merge";
 import type { Consent, Preferences, UserProfile } from "@/lib/types";
+
+const mockFavorites = new Map<string, string[]>();
 
 export const mockUsers = {
   async get(id: string): Promise<UserProfile> {
@@ -45,6 +48,18 @@ export const mockUsers = {
 
   async setPrefs(id: string, prefs: Preferences): Promise<Preferences> {
     return simulateMock(`prefs-set:${id}`, () => setDemoPrefs(id, prefs));
+  },
+
+  async listFavorites(id: string): Promise<string[]> {
+    return simulateMock(`favorites:${id}`, () => [...(mockFavorites.get(id) ?? [])]);
+  },
+
+  async saveFavorites(id: string, symbols: string[]): Promise<string[]> {
+    return simulateMock(`favorites-set:${id}`, () => {
+      const clean = sanitizeFavoriteSymbols(symbols);
+      mockFavorites.set(id, clean);
+      return clean;
+    });
   },
 };
 

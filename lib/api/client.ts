@@ -8,6 +8,7 @@ import {
   consentsResponseSchema,
   consentSchema,
   deletionStatusSchema,
+  favoritesResponseSchema,
   fxRateSchema,
   historyResponseSchema,
   marketSearchItemSchema,
@@ -259,4 +260,12 @@ export function getPrefs(): Promise<Preferences> {
 
 export function setPrefs(body: Preferences): Promise<Preferences> {
   return send("PUT", "/api/me/preferences", preferencesSchema, body);
+}
+
+export function getFavorites(): Promise<string[]> {
+  return request("/api/me/favorites", favoritesResponseSchema, { cache: "no-store" });
+}
+
+export function setFavorites(symbols: string[]): Promise<string[]> {
+  return send("PUT", "/api/me/favorites", favoritesResponseSchema, { symbols });
 }

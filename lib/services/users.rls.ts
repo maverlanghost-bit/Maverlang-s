@@ -4,6 +4,7 @@ import { z } from "zod";
 
 import { DomainError } from "@/lib/api/result";
 import { US_RESIDENT_MESSAGE, formatRut, isValidRut, normalizePhone } from "@/lib/auth/registro-schema";
+import { sanitizeFavoriteSymbols } from "@/lib/favorites/merge";
 import { PROFILE_MIGRATION_MESSAGE } from "@/lib/profile/migration";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { isMissingSchemaError } from "@/lib/supabase/schema-error";
@@ -208,10 +209,36 @@ export const rlsUsers = {
     });
   },
 
+  async listFavorites(id: string): Promise<string[]> {
+    const { supabase, userId } = await sessionClient();
+    sameUser(id, userId);
+    const { data, error } = await supabase
+      .from("user_favorites")
+      .select("symbol")
+      .eq("user_id", userId)
+      .order("symbol");
+    if (error) throwDb(error);
+    return sanitizeFavoriteSymbols((data ?? []).map((row) => (row as { symbol: unknown }).symbol));
+  },
+
+  async saveFavorites(id: string, symbols: string[]): Promise<string[]> {
+    const { supabase, userId } = await sessionClient();
+    sameUser(id, userId);
+    const clean = sanitizeFavoriteSymbols(symbols);
+    const cleared = await supabase.from("user_favorites").delete().eq("user_id", userId);
+    if (cleared.error) throwDb(cleared.error);
+    if (clean.length > 0) {
+      const inserted = await supabase
+        .from("user_favorites")
+        .insert(clean.map((symbol) => ({ user_id: userId, symbol })));
+      if (inserted.error) throwDb(inserted.error);
+    }
+    return clean;
+  },
+
   async deletionStatus(): Promise<{ requestedAt: string | null }> {
     return { requestedAt: null };
   },
-
   async requestDeletion(): Promise<{ requestedAt: string }> {
     throw new DomainError("VALIDATION", "La baja de la cuenta todavía no está disponible.");
   },

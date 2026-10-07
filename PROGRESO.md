@@ -2,6 +2,28 @@
 
 > Estado de la base (2026-10-06): las migraciones 0002, 0003 y 0004 YA están aplicadas en el proyecto Supabase actual y `public.assets` está sincronizada. No hay que pegar nada en el SQL Editor; las instrucciones de `docs/SUPABASE.md` sirven sólo para un proyecto nuevo.
 
+## N15 — Precio ejecutable + aviso de despegue + mints verificados (2026-10-07)
+- Hecho: titular = precio ejecutable del pozo; Jupiter ahora trae `marketPriceUsd` + `liquidityUsd` (tipos, contratos, parser, batcher). Si despega ≥1% vs mercado, aviso "Despegue del pozo: X% vs mercado" + filas Precio de mercado y Liquidez del pozo en Datos. Tests `pool-price.test.ts` (5).
+- Mints: 13/13 (12 + UBERx) idénticos a `api.xstocks.fi` oficial. Nada falso.
+- Verificación: sin `tsc/test/build` aquí (sin shell); pendiente operador: `npx tsc --noEmit`, `npm test`, mirar `/app/accion/UBERx` (aviso + Datos).
+- Archivos: `types`, `contracts.ts`, `live-quotes.ts`, `price-batcher.ts`, `dislocation.ts`, `price-panel.tsx`, `detail-screen.tsx`, i18n.
+
+## N13 — Detalle a 5 s con key Jupiter (2026-10-07)
+- Hecho: `SPOT_MS` 5 s en detalle y hoja de compra; listas siguen en 15 s. Cache servidor 5 s por mint. Con key Free (1 req/s ≈ 60/min) el gasto típico (~16/min) va sobrado; sin key igual funciona con más 429.
+- Verificación: sin `tsc/test/build` aquí (sin shell); pendiente operador: `npx tsc --noEmit`, `npm test`, mirar detalle 30 s (destello cada 5 s).
+- Archivos: `queries.ts`, `price-batcher.ts`, `detail-screen.tsx`, `trade-sheet.tsx`, tests `price-batcher` + `live-prices-visible`.
+
+## N12 — Favoritas en la cuenta (2026-10-06)
+- Hecho: migración `0006_user_favorites.sql` (NO aplicada) + `GET/PUT /api/me/favorites` (sesión, zod, tope 200) en mock/RLS/live. Con sesión: une servidor+local y sube lo nuevo; sin sesión o sin 0006: sigue lo local. Vacío de Favoritas con guía. Tests `favorites.test.ts` (8).
+- Verificación: sin `tsc/test/build` aquí (sin shell); pendiente operador: aplicar 0006, `npx tsc --noEmit`, `npm test`, entrar en 2 navegadores y marcar estrella.
+- Archivos: `0006`, `lib/favorites/merge.ts`, contratos/cliente/ruta, 3 servicios, `use-favorites.ts`, `market-screen.tsx`, i18n, `SUPABASE.md`.
+
+## N11 — Fuera insignia demo en compra (2026-10-06)
+- Hecho: `trade-sheet` sin Badge Demo ni nota (quedó solo en top-bar/cartera donde sí orienta). Import sin uso fuera.
+- Verificación: sin `tsc/lint/build` aquí (sin shell); pendiente operador: `npx tsc --noEmit`, comprar en demo.
+- Archivos: `components/domain/trade-sheet.tsx`.
+- Favoritas (diagnóstico, sin cambio aún): hoy viven solo en este navegador (`a24_favorites`), no en la cuenta; el filtro Favoritas vacío muestra el vacío genérico.
+
 ## N10 — Moneda por defecto: se mantiene CLP (2026-10-06)
 - Revertido el cambio a USD: CLP sigue por defecto (mercado chileno). Sin cambios efectivos vs M40.
 - Pendiente (demo US$1000): ver nota N10 original — pide migración 0006 + reescritura. A confirmar.

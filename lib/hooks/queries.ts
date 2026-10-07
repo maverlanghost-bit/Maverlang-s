@@ -23,8 +23,10 @@ import { useSession } from "@/lib/auth/session-context";
 import type { Range } from "@/lib/types";
 
 const HOUR_MS = 3_600_000;
-/** Polling de precios en vivo (M41): 15 s, también al volver a la pestaña. */
+/** Polling de precios en vivo (M41): 15 s en listas, también al volver a la pestaña. */
 export const PRICE_MS = 15_000;
+/** Detalle y hoja de compra (N13): 5 s. Requiere key de Jupiter (1 req/s en Free). */
+export const SPOT_MS = 5_000;
 /** Historial del gráfico abierto (M41): cache 5 min, repoll cada 60 s visible. */
 export const HISTORY_MS = 5 * 60_000;
 export const HISTORY_REFETCH_MS = 60_000;
@@ -53,15 +55,15 @@ export function useMarketSearch(params: MarketSearchParams, enabled = true) {
   });
 }
 
-export function usePrices(symbols?: readonly string[], enabled = true) {
+export function usePrices(symbols?: readonly string[], enabled = true, intervalMs = PRICE_MS) {
   const list = (symbols ?? []).map((symbol) => symbol.trim()).filter((symbol) => symbol.length > 0);
   const key = [...list].sort();
   return useQuery({
     queryKey: ["prices", key],
     queryFn: () => getPrices(list),
     enabled: enabled && list.length > 0,
-    staleTime: PRICE_MS,
-    refetchInterval: PRICE_MS,
+    staleTime: intervalMs,
+    refetchInterval: intervalMs,
     refetchOnWindowFocus: true,
   });
 }

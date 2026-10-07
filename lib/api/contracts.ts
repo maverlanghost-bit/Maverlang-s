@@ -66,6 +66,9 @@ export const quoteSchema = z.object({
   reference: z.boolean().optional(),
   /** true cuando el precio es el último guardado tras un 429 o un error (M38). */
   stale: z.boolean().optional(),
+  /** Precio del subyacente y liquidez del pozo (N15, sólo live). */
+  marketPriceUsd: z.number().positive().optional(),
+  liquidityUsd: z.number().nonnegative().optional(),
 });
 
 export const pricePointSchema = z.object({
@@ -328,6 +331,15 @@ export const preferencesSchema = z
   })
   .strict();
 
+/** GET/PUT /api/me/favorites. Símbolos saneados (mayúsculas, máx. 12) y tope por cuenta. */
+export const favoritesRequestSchema = z
+  .object({
+    symbols: z.array(z.string().trim().min(1).max(12)).max(200),
+  })
+  .strict();
+
+export const favoritesResponseSchema = z.array(z.string().trim().min(1).max(12)).max(200);
+
 export const geoResponseSchema = z.object({
   country: z.string().min(2),
   blocked: z.boolean(),
@@ -461,11 +473,14 @@ export const apiContracts = {
   "POST /api/me/deletion": { body: deletionRequestSchema, response: deletionStatusSchema },
   "GET /api/me/preferences": { response: preferencesSchema },
   "PUT /api/me/preferences": { body: preferencesSchema, response: preferencesSchema },
+  "GET /api/me/favorites": { response: favoritesResponseSchema },
+  "PUT /api/me/favorites": { body: favoritesRequestSchema, response: favoritesResponseSchema },
   "GET /api/geo": { response: geoResponseSchema },
 } as const;
 
 export type ProfileUpdate = z.infer<typeof profileUpdateSchema>;
 export type ConsentRequest = z.infer<typeof consentRequestSchema>;
+export type FavoritesRequest = z.infer<typeof favoritesRequestSchema>;
 export type DeletionStatus = z.infer<typeof deletionStatusSchema>;
 export type GeoStatus = z.infer<typeof geoResponseSchema>;
 

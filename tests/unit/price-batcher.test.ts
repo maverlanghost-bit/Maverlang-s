@@ -58,7 +58,7 @@ describe("mercado escalable: batcher de precios", () => {
     expect(result.get(mints[0])).toMatchObject({ stale: false });
   });
 
-  it("usa la cache por mint 15 s", async () => {
+  it("usa la cache por mint 5 s", async () => {
     const mints = fakeMints(3);
     let now = NOW;
     const fetchImpl = vi.fn<typeof fetch>(async () => jsonResponse(pricesFor(mints, 10)));
@@ -66,11 +66,11 @@ describe("mercado escalable: batcher de precios", () => {
     const shared = options(fetchImpl, { cache, now: () => now });
 
     await fetchMintBatch(mints, shared);
-    now = NOW + 14_000;
+    now = NOW + 4_000;
     await fetchMintBatch(mints, shared);
     expect(fetchImpl).toHaveBeenCalledOnce();
 
-    now = NOW + 15_000;
+    now = NOW + 5_000;
     await fetchMintBatch(mints, shared);
     expect(fetchImpl).toHaveBeenCalledTimes(2);
   });

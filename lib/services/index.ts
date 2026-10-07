@@ -80,6 +80,9 @@ export interface Services {
     requestDeletion(id: string): Promise<{ requestedAt: string }>;
     prefs(id: string): Promise<Preferences>;
     setPrefs(id: string, prefs: Preferences): Promise<Preferences>;
+    /** Favoritas de la cuenta. En mock viven en memoria; en live/RLS, en `user_favorites`. */
+    listFavorites(id: string): Promise<string[]>;
+    saveFavorites(id: string, symbols: string[]): Promise<string[]>;
   };
   auth: {
     getSession(req: Request): Promise<{ userId: string; walletAddress: string | null } | null>;

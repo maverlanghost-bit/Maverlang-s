@@ -19,7 +19,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/cn";
 import { getPrices, searchMarket, type MarketSearchItem } from "@/lib/api/client";
-import { useFavorites } from "@/lib/hooks/use-favorites";
+import { useFavorites, useSyncFavorites } from "@/lib/hooks/use-favorites";
 import { useFx, useHistories, useMarketStatus } from "@/lib/hooks/queries";
 import { useT } from "@/lib/hooks/use-t";
 import {
@@ -227,6 +227,7 @@ export function MarketScreen({
   const fx = useFx();
   const status = useMarketStatus();
   const { symbols: favorites, toggle } = useFavorites();
+  useSyncFavorites();
 
   const items: MarketSearchItem[] = (() => {
     const seen = new Set<string>();
@@ -625,7 +626,10 @@ export function MarketScreen({
         </section>
       ) : null}
       {!waiting && !failed && listItems.length === 0 ? (
-        <EmptyState title={emptyTitle} description={t.market.emptyHint} />
+        <EmptyState
+          title={emptyTitle}
+          description={filter === "favorites" && !applied.trim() ? t.market.emptyFavoritesHint : t.market.emptyHint}
+        />
       ) : null}
     </div>
   );

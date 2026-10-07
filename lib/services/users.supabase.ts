@@ -4,6 +4,7 @@ import { z } from "zod";
 
 import { DomainError } from "@/lib/api/result";
 import { serverEnv } from "@/lib/env";
+import { sanitizeFavoriteSymbols } from "@/lib/favorites/merge";
 import type { Consent, LegalDoc, Preferences, UserProfile } from "@/lib/types";
 
 /**
@@ -330,6 +331,27 @@ export const supabaseUsers = {
       language: prefs.language,
       displayCurrency: prefs.displayCurrency,
     };
+  },
+
+  async listFavorites(id: string): Promise<string[]> {
+    await readProfile(id);
+    const body = await rest("user_favorites", {
+      query: `${eq("user_id", id)}&select=symbol&order=symbol`,
+    });
+    return sanitizeFavoriteSymbols(asRows(body).map((row) => (row as { symbol?: unknown }).symbol));
+  },
+
+  async saveFavorites(id: string, symbols: string[]): Promise<string[]> {
+    await readProfile(id);
+    const clean = sanitizeFavoriteSymbols(symbols);
+    await rest("user_favorites", { method: "DELETE", query: eq("user_id", id) });
+    if (clean.length > 0) {
+      await rest("user_favorites", {
+        method: "POST",
+        body: clean.map((symbol) => ({ user_id: id, symbol })),
+      });
+    }
+    return clean;
   },
 };
 

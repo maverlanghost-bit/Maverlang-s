@@ -45,6 +45,14 @@ Luego corre `npm run sync:xstocks` (o `node scripts/sync-xstocks.mjs`):
 
 En M37 la app usa el curado (`CATALOG_SCOPE=curated`, ver `.env.example`); `all` queda para M38.
 
+## Favoritas por cuenta (0006)
+
+NO aplicada. Pega **una sola vez** `supabase/migrations/0006_user_favorites.sql` en el SQL Editor y ejecútalo. También es idempotente. Crea:
+
+- `public.user_favorites` (una fila por usuario y símbolo).
+- RLS: cada persona lee, agrega y quita sólo las suyas. Sin update.
+- Sin aplicar `0006`, las favoritas siguen sólo en este navegador y la cuenta no las guarda (la app no se rompe).
+
 ## Auth en el panel
 
 - Site URL: el valor de `NEXT_PUBLIC_SITE_URL` (en local, `http://localhost:3000`)
