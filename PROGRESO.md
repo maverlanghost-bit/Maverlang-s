@@ -1,5 +1,7 @@
 # PROGRESO — Maverlang
 
+M45b-fix — eslint ignora .next-verify (2026-10-07): `npm run lint` fallaba por la salida del build de verificación; se agregó `.next-verify/**` a `globalIgnores`.
+
 > Estado de la base (2026-10-06): las migraciones 0002, 0003 y 0004 YA están aplicadas en el proyecto Supabase actual y `public.assets` está sincronizada. No hay que pegar nada en el SQL Editor; las instrucciones de `docs/SUPABASE.md` sirven sólo para un proyecto nuevo.
 
 ## M45 — Portada demo gratis, copy en US$ y lista de espera (2026-10-07)
