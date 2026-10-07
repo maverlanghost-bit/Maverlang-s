@@ -402,10 +402,6 @@ export function MarketScreen({
   const activeRow =
     suggestRows.length === 0 ? null : (suggestRows[Math.min(suggestActive, suggestRows.length - 1)] ?? null);
 
-  useEffect(() => {
-    setSuggestActive(0);
-  }, [draft, priced]);
-
   function goSuggest(symbol: string) {
     setSuggestOpen(false);
     router.push(tickerHref(symbol));
@@ -542,6 +538,7 @@ export function MarketScreen({
             aria-activedescendant={showSuggest && activeRow ? `${suggestId}-${Math.min(suggestActive, suggestRows.length - 1)}` : undefined}
             onChange={(event) => {
               setDraft(event.target.value);
+              setSuggestActive(0);
               setSuggestOpen(true);
             }}
             onFocus={() => setSuggestOpen(true)}
