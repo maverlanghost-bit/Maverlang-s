@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -11,7 +11,7 @@ import { isShellSectionActive, shellNav } from "@/components/app-shell/nav";
 import { BalanceHeader } from "@/components/domain/balance-header";
 import { Avatar } from "@/components/ui/avatar";
 import { IconButton } from "@/components/ui/icon-button";
-import { IconLogout, IconPanel } from "@/components/ui/icons";
+import { IconChevron, IconLogout, IconPanel } from "@/components/ui/icons";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip } from "@/components/ui/tooltip";
 import { AccountSwitch } from "@/components/app-shell/account-switch";
@@ -40,6 +40,8 @@ export function Sidebar({
   const name = account.name;
   const loading = account.loading;
   const toggleLabel = collapsed ? t.shell.expandSidebar : t.shell.collapseSidebar;
+  /** Menú del perfil: Perfil, Ajustes, moneda y salir. */
+  const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -182,37 +184,66 @@ export function Sidebar({
           <div className="mt-3">
             <BalanceHeader variant="sidebar" />
           </div>
-          <div className="mt-3 flex justify-start">
-            <CurrencySwitch />
-          </div>
-          <Link
-            href="/app/perfil"
-            aria-label={loading ? t.shell.account : `${name}. ${t.shell.account}`}
-            className="mt-2 flex min-h-11 cursor-pointer items-center gap-2 rounded-xl px-1 hover:bg-surface-2"
-          >
+          <div className="relative mt-3">
+            {menuOpen && !loading ? (
+              <div
+                role="menu"
+                aria-label={t.shell.account}
+                className="absolute inset-x-0 bottom-full mb-2 flex flex-col gap-1 rounded-xl border border-border bg-bg p-2 shadow-lg"
+              >
+                <Link
+                  role="menuitem"
+                  href="/app/perfil"
+                  onClick={() => setMenuOpen(false)}
+                  className="flex min-h-11 cursor-pointer items-center rounded-xl px-3 text-sm text-fg-body hover:bg-surface-2"
+                >
+                  {t.nav.profile}
+                </Link>
+                <Link
+                  role="menuitem"
+                  href="/app/ajustes"
+                  onClick={() => setMenuOpen(false)}
+                  className="flex min-h-11 cursor-pointer items-center rounded-xl px-3 text-sm text-fg-body hover:bg-surface-2"
+                >
+                  {t.nav.settings}
+                </Link>
+                <div className="flex justify-start px-3 py-2">
+                  <CurrencySwitch />
+                </div>
+                <button
+                  role="menuitem"
+                  type="button"
+                  onClick={() => void account.logout()}
+                  disabled={account.status === "loading"}
+                  className="flex min-h-11 w-full cursor-pointer items-center rounded-xl px-3 text-left text-sm text-fg-body hover:bg-surface-2 disabled:opacity-40"
+                >
+                  {t.profile.logout}
+                </button>
+              </div>
+            ) : null}
             {loading ? (
-              <>
+              <div className="flex min-h-11 items-center gap-2 rounded-xl px-1">
                 <Skeleton className="size-11 rounded-full" />
                 <Skeleton className="h-4 w-24" />
-              </>
+              </div>
             ) : (
-              <>
+              <button
+                type="button"
+                aria-haspopup="menu"
+                aria-expanded={menuOpen}
+                aria-label={`${name}. ${t.shell.account}`}
+                onClick={() => setMenuOpen((open) => !open)}
+                className="flex min-h-11 w-full cursor-pointer items-center gap-2 rounded-xl px-1 text-left hover:bg-surface-2"
+              >
                 <Avatar alt="" fallback={name} size="md" className="size-11" />
-                <span className="min-w-0">
+                <span className="min-w-0 flex-1">
                   <span className="block truncate text-sm font-medium text-fg">{name}</span>
                   {account.email ? <span className="block truncate text-xs text-fg-muted">{account.email}</span> : null}
                 </span>
-              </>
+                <IconChevron className={cn("size-4 shrink-0 text-fg-muted transition duration-200", menuOpen && "rotate-180")} />
+              </button>
             )}
-          </Link>
-          <button
-            type="button"
-            onClick={() => void account.logout()}
-            disabled={account.status === "loading"}
-            className="mt-1 flex min-h-11 w-full cursor-pointer items-center rounded-xl px-3 text-left text-sm text-fg-body hover:bg-surface-2 disabled:opacity-40"
-          >
-            {t.profile.logout}
-          </button>
+          </div>
         </div>
       )}
     </aside>

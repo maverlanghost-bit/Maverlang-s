@@ -60,7 +60,7 @@ Google no se enciende. El botón del ingreso queda en Próximamente.
 
 El registro manda el enlace de confirmación a `{SITE_URL}/auth/callback?next=…`. Recuperar la contraseña usa `{SITE_URL}/auth/callback?next=/app/restablecer`. Los dos pasan por la misma Redirect URL.
 
-Plantillas, opcionales. En Authentication → Emails puedes dejar las de Supabase o escribirlas en español. El botón del correo tiene que usar la URL de confirmación que arma Supabase (`{{ .ConfirmationURL }}`), que ya incluye el callback de arriba. No prometas rentabilidad. El horario del producto es de lunes a viernes.
+Plantillas, opcionales. En Authentication → Emails puedes dejar las de Supabase o escribirlas en español. El botón del correo tiene que usar la URL de confirmación que arma Supabase (`{{ .ConfirmationURL }}`), que ya incluye el callback de arriba. No prometas rentabilidad. El horario del producto es 24/7.
 
 - Confirmar cuenta: asunto y cuerpo en español, con el enlace para activar.
 - Recuperar contraseña: asunto y cuerpo en español, con el enlace para elegir una clave nueva.

@@ -82,7 +82,7 @@ Contraste: `fg-muted` sobre blanco ≈ 4.0:1 → usar sólo ≥14px; texto peque
 ## 4. Voz y copy (es-CL)
 - Tú, directo, sin jerga cripto en la superficie: "acción tokenizada" se explica una vez; se evita "token", "swap", "wallet" en UI principal → "acción", "compra/venta", "billetera".
 - Números en formato chileno: `$12.345` CLP (sin decimales), `US$ 1.234,56`; acciones con hasta 6 decimales (`0,004213 acc.`).
-- Horario: "24 horas, de lunes a viernes" (EN: "Trade 24 hours a day, Monday to Friday"). Nunca "24/7", "siempre abierto", "a toda hora" ni "casi a cualquier hora".
+- Horario del producto: "24/7" (EN: "Trade 24/7"), según xstocks.fi. Fuera del horario regular de la bolsa de EE.UU. el precio puede variar más.
 - Nunca: "gana", "rentabilidad asegurada", "sin riesgo".
 - Disclaimer corto persistente en footer del /app: "Las acciones tokenizadas no otorgan derechos de accionista. Invertir implica riesgos." (texto final lo revisa abogado — [VERIFICAR]).
 

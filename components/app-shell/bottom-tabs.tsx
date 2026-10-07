@@ -46,7 +46,7 @@ export function BottomTabs() {
       aria-label={t.nav.label}
       className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-bg pb-[env(safe-area-inset-bottom)] lg:hidden"
     >
-      <ul className="grid h-16 grid-cols-5">
+      <ul className="grid h-16 grid-cols-3">
         {shellNav.map((item) => {
           const active = isShellSectionActive(pathname, item.id);
           const Icon = item.icon;

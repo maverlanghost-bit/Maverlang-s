@@ -34,7 +34,10 @@ Fase actual: **frontend primero, con backend real "enchufable"**: todo pasa por 
 | Ruta | Contenido |
 |---|---|
 | `/` | Hero, cinta de tickers, cómo funciona (3 pasos), mock de producto, features, costos transparentes, seguridad/autocustodia, FAQ, CTA final, footer legal |
-| `/ayuda` | FAQ completa (acordeón) |
+| `/como-funciona` | Guía dedicada: los 3 pasos con notas de depósito, compra, custodia y horario |
+| `/costos` | Página dedicada: tabla de costos + concepto por concepto |
+| `/seguridad` | Página dedicada: qué tienes, qué no, emisor y riesgos |
+| `/ayuda` | Centro de ayuda: guías por tema + FAQ completa (acordeón) |
 | `/legal/terminos` | Términos y condiciones (borrador — [REVISIÓN ABOGADO]) |
 | `/legal/privacidad` | Política de privacidad (Ley 19.628 y Ley 21.719 — [REVISIÓN ABOGADO]) |
 | `/legal/riesgos` | Divulgación de riesgos (sin derechos de accionista, emisor, congelamiento, liquidez fuera de horario, no es asesoría) |

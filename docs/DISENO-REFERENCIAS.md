@@ -45,7 +45,7 @@ URL: https://x.ai/bot · CSS: `build/ref/xai_all.css`
 - Fuente xVf, logos, ilustraciones, textos.
 - Modo oscuro (existe como `.dark`; no lo implementamos en v1).
 - Tabla de precios/planes (no aplica).
-- No decir "24/7". El horario es "24 horas, de lunes a viernes"; el fin de semana el mercado está cerrado.
+- Horario del producto "24/7" según xstocks.fi ("tradeable 24/7"). El estado del subyacente (regular/extendido/cerrado) se muestra por acción.
 
 ---
 

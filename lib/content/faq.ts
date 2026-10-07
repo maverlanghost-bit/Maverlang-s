@@ -35,7 +35,7 @@ export function getFaq(brand: string): FaqEntry[] {
           {
             kind: "text",
             value:
-              "Se opera las 24 horas, de lunes a viernes. Los fines de semana el mercado está cerrado y el precio puede moverse al reabrir, el lunes. Fuera del horario regular de la bolsa de EE.UU. el precio puede variar más.",
+              "Se opera 24/7. Fuera del horario regular de la bolsa de EE.UU. el precio puede variar más.",
           },
         ],
       ],

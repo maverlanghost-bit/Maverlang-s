@@ -27,9 +27,9 @@ export const en = {
     real: "Real account",
     badge: "Demo",
     note: "Simulation with real prices; not real money or advice.",
-    comingTitle: "Coming soon: real deposits",
-    comingBody: "The real account can't receive deposits or trade yet. Meanwhile you can try the demo account.",
-    comingProfileNote: "When the Real account becomes available we'll ask for your details and verify your identity.",
+    comingTitle: "Real accounts: coming soon",
+    comingBody: "We don't offer real accounts yet. We'll let you know when they're available. Meanwhile you can try the demo account.",
+    comingProfileNote: "When they're available we'll ask for your details and verify your identity.",
     completeProfile: "Complete my details",
     switchToReal: "Switch to real account",
     switchToDemo: "Switch to demo account",
@@ -58,7 +58,7 @@ export const en = {
   pages: {
     market: {
       title: "Market",
-      lead: "Tokenized U.S. stocks. Trade 24 hours a day, Monday to Friday.",
+      lead: "Tokenized U.S. stocks. Trade 24/7.",
       emptyTitle: "The list is not on this screen yet",
     },
     portfolio: {
@@ -178,7 +178,7 @@ export const en = {
     assetOvernight: "Overnight session: price can move more",
     assetClosed: "Market closed",
     assetReopen: "opens {when}",
-    scheduleAlways: "Trades 24 hours a day, Monday to Friday",
+    scheduleAlways: "Trades 24/7",
     scheduleExchange: "Exchange hours (NY)",
     stats: "Figures",
     priceUsd: "Price in dollars",

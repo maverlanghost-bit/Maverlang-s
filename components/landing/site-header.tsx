@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { esCL } from "@/content/i18n/es-CL";
 import { site } from "@/config/site";
@@ -12,9 +12,9 @@ import { Sheet } from "@/components/ui/sheet";
 
 const NAV = [
   { href: "/app", label: esCL.guest.seeStocks },
-  { href: "/#como-funciona", label: "Cómo funciona" },
-  { href: "/#costos", label: "Costos" },
-  { href: "/#seguridad", label: "Seguridad" },
+  { href: "/como-funciona", label: "Cómo funciona" },
+  { href: "/costos", label: "Costos" },
+  { href: "/seguridad", label: "Seguridad" },
   { href: "/ayuda", label: "Ayuda" },
 ] as const;
 
@@ -39,12 +39,31 @@ const linkClass =
 export function SiteHeader() {
   const [open, setOpen] = useState(false);
   const scrolled = useSyncExternalStore(subscribeScroll, scrolledSnapshot, scrolledServerSnapshot);
+  /** Se oculta al bajar y reaparece al subir (con el menú abierto, siempre visible). */
+  const [hidden, setHidden] = useState(false);
+  const lastY = useRef(0);
+  useEffect(() => {
+    lastY.current = window.scrollY;
+    const onScroll = () => {
+      const y = window.scrollY;
+      const prev = lastY.current;
+      lastY.current = y;
+      if (y < 64) setHidden(false);
+      else if (y < prev - 2) setHidden(false);
+      else if (y > prev + 2) setHidden(true);
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  const show = !hidden || open;
 
   return (
     <header
       className={cn(
-        "fixed inset-x-0 top-0 z-40 h-16 border-b transition-[background-color,border-color,backdrop-filter] duration-[240ms] ease-spring",
+        "fixed inset-x-0 top-0 z-40 h-16 border-b transition-[background-color,border-color,backdrop-filter,transform] duration-[240ms] ease-spring",
         scrolled ? "border-border bg-bg/80 backdrop-blur-md" : "border-transparent bg-transparent",
+        show ? "translate-y-0" : "-translate-y-full",
       )}
     >
       <div className="mx-auto flex h-full max-w-7xl items-center gap-2 px-5 sm:gap-3">

@@ -1,0 +1,94 @@
+import type { Metadata } from "next";
+import Link from "next/link";
+import { HowItWorks } from "@/components/landing/how-it-works";
+import { LandingSection } from "@/components/landing/section";
+import { Card } from "@/components/ui/card";
+import { site } from "@/config/site";
+import { getLandingQuotes } from "@/lib/landing/live-quotes";
+
+export const metadata: Metadata = {
+  title: "Cómo funciona",
+  description: `Deposita pesos, elige la acción y el token queda en tu propia billetera, sin custodia de ${site.name}.`,
+};
+
+/** Guía dedicada: los 3 pasos con más detalle que en la portada. */
+export const revalidate = 30;
+
+export default async function ComoFuncionaPage() {
+  const { quotes, live } = await getLandingQuotes();
+
+  return (
+    <main>
+      <LandingSection titleId="como-funciona-title">
+        <div className="max-w-2xl">
+          <p className="label">Cómo funciona</p>
+          <h1 id="como-funciona-title" className="mt-3 text-3xl sm:text-4xl">
+            Tres pasos, en pesos
+          </h1>
+          <p className="mt-4 text-sm leading-relaxed text-fg-body sm:text-base">
+            Depositas en pesos, eliges la acción y el token queda en tu propia billetera: nosotros no
+            custodiamos tus activos. Los montos de abajo son ejemplos.
+          </p>
+        </div>
+      </LandingSection>
+      <HowItWorks quotes={quotes} live={live} />
+      <LandingSection titleId="como-funciona-notas">
+        <div className="max-w-3xl">
+          <h2 id="como-funciona-notas" className="text-xl sm:text-2xl">
+            Antes de partir
+          </h2>
+          <div className="mt-6 grid gap-4 sm:grid-cols-2">
+            <Card className="p-5">
+              <h3 className="text-base">El depósito</h3>
+              <p className="mt-2 text-sm leading-relaxed text-fg-body">
+                Eliges el monto en pesos y el método que muestre el proveedor. El costo de ese
+                proveedor se ve antes de confirmar.
+              </p>
+            </Card>
+            <Card className="p-5">
+              <h3 className="text-base">La compra</h3>
+              <p className="mt-2 text-sm leading-relaxed text-fg-body">
+                Ves el precio en tu moneda y el desglose completo —comisión, red e impacto— antes de
+                aceptar la orden.
+              </p>
+            </Card>
+            <Card className="p-5">
+              <h3 className="text-base">La custodia</h3>
+              <p className="mt-2 text-sm leading-relaxed text-fg-body">
+                El token es tuyo y queda en tu propia billetera. Tenerlo no te hace accionista ni te
+                da voto.
+              </p>
+            </Card>
+            <Card className="p-5">
+              <h3 className="text-base">El horario</h3>
+              <p className="mt-2 text-sm leading-relaxed text-fg-body">
+                Se opera 24/7. Fuera del horario regular de la bolsa de EE.UU. el precio puede variar
+                más.
+              </p>
+            </Card>
+          </div>
+          <p className="mt-8 flex flex-wrap gap-x-6 gap-y-3">
+            <Link
+              href="/app"
+              className="inline-flex min-h-11 items-center text-sm font-medium text-fg underline decoration-border underline-offset-4 hover:decoration-fg"
+            >
+              Ver acciones
+            </Link>
+            <Link
+              href="/costos"
+              className="inline-flex min-h-11 items-center text-sm font-medium text-fg underline decoration-border underline-offset-4 hover:decoration-fg"
+            >
+              Ver costos
+            </Link>
+            <Link
+              href="/ayuda"
+              className="inline-flex min-h-11 items-center text-sm font-medium text-fg underline decoration-border underline-offset-4 hover:decoration-fg"
+            >
+              Ir al centro de ayuda
+            </Link>
+          </p>
+        </div>
+      </LandingSection>
+    </main>
+  );
+}

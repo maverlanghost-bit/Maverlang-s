@@ -2,6 +2,41 @@
 
 > Estado de la base (2026-10-06): las migraciones 0002, 0003 y 0004 YA están aplicadas en el proyecto Supabase actual y `public.assets` está sincronizada. No hay que pegar nada en el SQL Editor; las instrucciones de `docs/SUPABASE.md` sirven sólo para un proyecto nuevo.
 
+## N7 — Sidebar sin nota demo + real próximamente (2026-10-06)
+- Hecho: `AccountSwitch` sin nota ni insignia (el selector ya dice Cuenta demo). Cuenta real: "Cuentas reales: próximamente. De momento no ofrecemos cuentas reales. Te avisaremos cuando estén disponibles." (es/en). Hoja de compra y resto intactos.
+- Verificación: sin `tsc/lint/build` aquí (sin shell); pendiente operador: `npx tsc --noEmit`, mirar sidebar y cuenta real.
+- Archivos: `account-switch.tsx`, `es-CL.ts`, `en.ts`.
+
+## N6 — Perfil y Ajustes al menú del usuario (2026-10-06)
+- Hecho: sidebar y tabs con 3 ítems (Mercado, Cartera, Billetera). Clic en el perfil del sidebar abre menú con Perfil, Ajustes, switch USD/CLP y salir. En móvil, avatar en el TopBar → `/app/perfil`. Rutas y páginas intactas.
+- Verificación: sin `tsc/lint/build` aquí (sin shell); pendiente operador: `npx tsc --noEmit`, `npm run e2e`, mirar `/app` y `/app/cartera` en 360/1280 (menú, moneda, salir).
+- Archivos: `nav.ts`, `sidebar.tsx`, `bottom-tabs.tsx`, `top-bar.tsx`.
+
+## N5 — Navbar que se oculta al bajar (2026-10-06)
+- Hecho: `SiteHeader` se esconde con `-translate-y-full` al bajar y reaparece al subir o arriba del todo; con menú móvil abierto siempre visible. Transición 240ms con `ease-spring`. Primer render visible (sin flash).
+- Verificación: sin `tsc/lint/build` aquí (sin shell); pendiente operador: `npx tsc --noEmit`, probar en `/` bajar/subir a 360/1280, con menú abierto y con reduced-motion.
+- Archivos: `components/landing/site-header.tsx`.
+
+## N4 — Páginas dedicadas + centro de ayuda (2026-10-06)
+- Hecho: nuevas `/como-funciona` (reusa HowItWorks + notas), `/costos` (reusa CostsSection + detalle), `/seguridad` (reusa SecuritySection + marco). Navbar apunta a páginas (no a `#`). `/ayuda` es centro de ayuda con 6 guías + FAQ. Sitemap y ARQUITECTURA §2.1 al día. Homepage intacta.
+- Verificación: sin `tsc/lint/build` aquí (sin shell); pendiente operador: `npx tsc --noEmit`, `npm run build` (estático), mirar las 4 rutas a 360/1280.
+- Archivos: `app/(marketing)/{como-funciona,costos,seguridad,ayuda}/page.tsx`, `site-header.tsx`, `app/sitemap.ts`.
+
+## N3 — Custodia en lenguaje simple (2026-10-06)
+- Hecho: landing sin "billetera/wallet Solana": hero, grilla, seguridad, paso 3 e intro del cómo funciona dicen "tu propia billetera —nosotros no custodiamos tus activos". Títulos sin "autocustodia". FAQ/legales intactos ([REVISIÓN ABOGADO]).
+- Verificación: sin `tsc/lint/build` aquí (sin shell); pendiente operador: `npx tsc --noEmit`, mirar `/` (hero, grilla, cómo funciona, seguridad).
+- Archivos: `hero.tsx`, `feature-grid.tsx`, `security-section.tsx`, `how-it-works.tsx`, `announcement-pill.tsx` (comentarios).
+
+## N2 — Copy 24/7 según xstocks.fi (2026-10-06)
+- Hecho: hero, pill, grilla, lead de mercado (es/en), FAQ y reglas (AGENTS, DESIGN-SYSTEM, DISENO-REFERENCIAS, SUPABASE) a "24/7". Fuente verificada: xstocks.fi dice "tradeable 24/7" / "24/7 Trading Hours". Aviso conservado: fuera del horario regular el precio puede variar más. Lógica de estado del subyacente intacta (regular/extendido/cerrado, tests).
+- Verificación: sin `tsc/lint/build` aquí (sin shell); pendiente operador: `npx tsc --noEmit`, `npm test`, mirar `/`, `/ayuda`, `/app`.
+- Archivos: `hero.tsx`, `announcement-pill.tsx`, `feature-grid.tsx`, `es-CL.ts`, `en.ts`, `faq.ts`, reglas.
+
+## N1 — Hero sin numerito y menos aire arriba (2026-10-06)
+- Hecho: eliminado `01 — Tokenizadas` de `components/landing/hero.tsx:63`; `pt-12→pt-8`, `md:pt-20→md:pt-14`, `lg:pt-24→lg:pt-16`; pill ahora primera pieza sin `mt-5`.
+- Verificación: sin `tsc/lint/build` aquí (sin shell); pendiente operador: `npx tsc --noEmit`, mirar `/` a 360/1280.
+- No se cambia horario a 24/7: xStocks cierra fin de semana; regla AGENTS.md §4 lo prohíbe.
+
 ## M43b — fix e2e y mínimo de compra (2026-10-06, fix(M43): minimo de compra y e2e smoke)
 - Hecho: `effectiveMinOrderUsd` es el máximo entre `MIN_TRADE_USD` y el de la acción; `amountBlock` recibe `minUsd` y `blockCopy` muestra ese mismo mínimo; la hoja pasa `chips` con `quickTradeAmounts` (nunca bajo el mínimo, sin pasar el disponible cuando cabe) y quedó un solo "Mínimo por orden". Smoke: compra con `$10.000`, precio visitante con `/\$\s?[\d.]+/` (moneda única M40) y perfil con link/heading "Ajustes" → "Settings".
 - Archivos clave: `lib/market/asset-status.shared.ts`, `lib/trade/amount.ts`, `components/domain/trade-sheet.tsx`, `e2e/smoke.spec.ts`, `tests/unit/trade-minimum.test.ts` (6).

@@ -9,6 +9,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   return [
     { url: `${origin}/`, changeFrequency: "weekly", priority: 1 },
     { url: `${origin}/ayuda`, changeFrequency: "monthly", priority: 0.6 },
+    { url: `${origin}/como-funciona`, changeFrequency: "monthly", priority: 0.6 },
+    { url: `${origin}/costos`, changeFrequency: "monthly", priority: 0.6 },
+    { url: `${origin}/seguridad`, changeFrequency: "monthly", priority: 0.6 },
     ...legal.flatMap((doc) =>
       doc
         ? [

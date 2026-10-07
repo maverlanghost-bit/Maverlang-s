@@ -1,6 +1,5 @@
 "use client";
 
-import { Badge } from "@/components/ui/badge";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { Tooltip } from "@/components/ui/tooltip";
 import type { AccountMode } from "@/lib/account/mode";
@@ -60,12 +59,6 @@ export function AccountSwitch({
         ]}
         onChange={(value) => onChange(value === "real" ? "real" : "demo")}
       />
-      {mode === "demo" ? (
-        <p className="flex items-center gap-2 text-xs leading-relaxed text-fg-muted">
-          <Badge tone="warn">{t.account.badge}</Badge>
-          <span>{t.account.note}</span>
-        </p>
-      ) : null}
     </div>
   );
 }

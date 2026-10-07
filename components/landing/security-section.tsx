@@ -8,8 +8,8 @@ import { REVEAL_STAGGER_MS } from "@/lib/hooks/reveal-motion";
 const points: { title: string; body: string; extra?: "risks" }[] = [
   {
     // TODO-VERIFICAR: autocustodia vía billetera embebida. Exportar la clave está marcado [según Privy].
-    title: "Billetera de tu cuenta",
-    body: "El token es tuyo y queda en la billetera de tu cuenta. La idea es que lo controles tú; falta confirmar cómo se exporta la clave.",
+    title: "Tus activos, en tu propia billetera",
+    body: "El token es tuyo y queda en tu propia billetera: nosotros no custodiamos tus activos. La idea es que lo controles tú; falta confirmar cómo se exporta la clave.",
   },
   {
     // TODO-VERIFICAR: no usar «emisor regulado» hasta cerrar la redacción. El catálogo dice issuer "Backed (xStocks)".

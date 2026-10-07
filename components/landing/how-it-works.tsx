@@ -83,7 +83,7 @@ export function HowItWorks({ quotes, live }: { quotes: LandingQuote[]; live: boo
     {
       kicker: "03",
       title: "Listo: el token es tuyo, en tu billetera",
-      body: "Queda en tu billetera y sigue el precio de la acción.",
+      body: "Queda en tu propia billetera —nosotros no custodiamos tus activos— y sigue el precio de la acción.",
       mock: sampleQuote ? <OwnedMock quote={sampleQuote} /> : null,
     },
   ];
@@ -92,7 +92,7 @@ export function HowItWorks({ quotes, live }: { quotes: LandingQuote[]; live: boo
     <LandingSection id="como-funciona" titleId="como-funciona-title">
       <Reveal>
         <SectionIntro id="como-funciona-title" label="03 — Cómo funciona" title="Tres pasos, en pesos">
-          Depositas, eliges la acción y el token queda en tu billetera. Los montos de abajo son ejemplos.
+          Depositas, eliges la acción y el token queda en tu propia billetera, sin custodia de nuestra parte. Los montos de abajo son ejemplos.
         </SectionIntro>
       </Reveal>
       <div className="mt-10 grid gap-4 md:mt-14 md:grid-cols-3">

@@ -14,7 +14,7 @@
 1. Una tarea por sesión. No adelantes tareas futuras.
 2. Datos SIEMPRE vía `lib/api/client.ts` → `/api/*` → `getServices()`. `DATA_MODE=mock` por defecto. Nada de llamadas directas a Jupiter/Solana/Supabase desde componentes.
 3. Sólo mints de `config/tickers.ts`. Mostrar acciones = crudo × multiplicador (ARQUITECTURA §6).
-4. Nunca inventar cifras de negocio, testimonios ni promesas de rentabilidad. Textos legales = borrador marcado "[REVISIÓN ABOGADO]". Horario: "24 horas, de lunes a viernes" (EN: "Trade 24 hours a day, Monday to Friday"). Nunca "24/7", "siempre abierto", "a toda hora" ni "casi a cualquier hora".
+4. Nunca inventar cifras de negocio, testimonios ni promesas de rentabilidad. Textos legales = borrador marcado "[REVISIÓN ABOGADO]". Horario del producto: "24/7" (EN: "Trade 24/7"), según xstocks.fi ("tradeable 24/7"). Fuera del horario regular de la bolsa de EE.UU. el precio puede variar más.
 5. Secretos sólo en servidor (`lib/env.ts`). Nunca commitear `.env.local`.
 6. Componentes pequeños, server components por defecto, `"use client"` sólo donde haga falta.
 7. No instalar dependencias fuera del stack sin anotarlo en PROGRESO.md con el motivo.

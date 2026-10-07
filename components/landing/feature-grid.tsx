@@ -10,14 +10,14 @@ const features: { title: string; body: string; visual: ReactNode }[] = [
   {
     // Piso de producto, el mismo del hero. No es una cifra de mercado.
     title: "Fracciones desde $1.000",
-    body: "Puedes comprar una parte de la acción, no el papel entero. El token queda en tu billetera y operas las 24 horas, de lunes a viernes.",
+    body: "Puedes comprar una parte de la acción, no el papel entero. Queda en tu propia billetera —nosotros no custodiamos tus activos— y operas 24/7.",
     visual: <PriceText value={1000} currency="CLP" size="md" />,
   },
   {
     // TODO-VERIFICAR: autocustodia. Exportar la clave está en el diseño de perfil, marcado [según Privy].
-    title: "Tú controlas tus activos (autocustodia)",
+    title: "Tus activos, en tu propia billetera",
     body: "El token es tuyo y queda en la billetera de tu cuenta. El modelo exacto de la clave sigue en revisión.",
-    visual: <p className="text-sm font-medium text-fg">Billetera de tu cuenta</p>,
+    visual: <p className="text-sm font-medium text-fg">Sin custodia de nuestra parte</p>,
   },
   {
     // ARQUITECTURA §6.3: la comisión se muestra siempre en el desglose, antes de confirmar.

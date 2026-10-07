@@ -29,9 +29,9 @@ export const esCL = {
     real: "Cuenta real",
     badge: "Demo",
     note: "Simulación con precios reales; no es dinero real ni asesoría.",
-    comingTitle: "Próximamente: depósitos reales",
-    comingBody: "La cuenta real todavía no recibe depósitos ni opera. Mientras tanto puedes probar con la cuenta demo.",
-    comingProfileNote: "Cuando la cuenta Real esté disponible te pediremos tus datos y verificaremos tu identidad.",
+    comingTitle: "Cuentas reales: próximamente",
+    comingBody: "De momento no ofrecemos cuentas reales. Te avisaremos cuando estén disponibles. Mientras tanto puedes probar con la cuenta demo.",
+    comingProfileNote: "Cuando estén disponibles te pediremos tus datos y verificaremos tu identidad.",
     completeProfile: "Completar mis datos",
     switchToReal: "Cambiar a cuenta real",
     switchToDemo: "Cambiar a cuenta demo",
@@ -61,7 +61,7 @@ export const esCL = {
   pages: {
     market: {
       title: "Mercado",
-      lead: "Acciones de EE.UU. tokenizadas. Operas las 24 horas, de lunes a viernes.",
+      lead: "Acciones de EE.UU. tokenizadas. Operas 24/7.",
       emptyTitle: "El listado todavía no está en esta pantalla",
     },
     portfolio: {
@@ -181,7 +181,7 @@ export const esCL = {
     assetOvernight: "Sesión nocturna: el precio puede variar más",
     assetClosed: "Mercado cerrado",
     assetReopen: "abre el {when}",
-    scheduleAlways: "Opera las 24 horas, de lunes a viernes",
+    scheduleAlways: "Opera 24/7",
     scheduleExchange: "Horario de bolsa (NY)",
     stats: "Datos",
     priceUsd: "Precio en dólares",

@@ -14,21 +14,21 @@ import { cn } from "@/lib/cn";
 /**
  * Copy en uso:
  * H1: "Acciones de EE.UU. tokenizadas, en tu billetera"
- * Subtítulo: "Compra fracciones desde $1.000. El token queda en tu billetera Solana, pagas en pesos y operas las 24 horas, de lunes a viernes."
+ * Subtítulo: "Compra fracciones desde $1.000. El token queda en tu propia billetera —nosotros no custodiamos tus activos—, pagas en pesos y operas 24/7."
  * CTAs: "Crear cuenta" → /app/ingresar · "Ver acciones" → /app · "Cómo funciona" → #como-funciona
  *
  * ALTERNATIVA:
- * H1: "El token es tuyo, en tu billetera Solana"
- * Subtítulo: "Fracciones de acciones de EE.UU. desde $1.000, pagando con pesos. Operas las 24 horas, de lunes a viernes."
+ * H1: "El token es tuyo, en tu propia billetera"
+ * Subtítulo: "Fracciones de acciones de EE.UU. desde $1.000, pagando con pesos. Operas 24/7."
  *
  * ALTERNATIVA:
  * H1: "Fracciones de EE.UU. en Solana, pagando en pesos"
- * Subtítulo: "Tokenizadas, desde $1.000, en tu billetera. Operas las 24 horas, de lunes a viernes, sin cuenta en una corredora de EE.UU."
+ * Subtítulo: "Tokenizadas, desde $1.000, en tu billetera. Operas 24/7, sin cuenta en una corredora de EE.UU."
  */
 
 const trustChips: { label: string; Icon: ComponentType<SVGProps<SVGSVGElement>> }[] = [
-  { label: "Opera las 24 horas, de lunes a viernes", Icon: IconClock },
-  { label: "Token en tu wallet Solana", Icon: IconWallet },
+  { label: "Opera 24/7", Icon: IconClock },
+  { label: "En tu propia billetera, sin custodia", Icon: IconWallet },
   { label: "Sin cuenta en corredora de EE.UU.", Icon: IconGlobe },
 ];
 
@@ -57,27 +57,24 @@ export function Hero({ quotes, live }: { quotes: LandingQuote[]; live: boolean }
   const heroQuotes = quotes.filter((quote) => HERO_SYMBOLS.has(quote.symbol));
 
   return (
-    <section className="px-5 pt-12 pb-16 md:pt-20 md:pb-24 lg:pt-24">
+    <section className="px-5 pt-8 pb-16 md:pt-14 md:pb-24 lg:pt-16">
       <div className="mx-auto flex w-full max-w-4xl flex-col items-center text-center">
-        <Reveal delay={0}>
-          <p className="label">01 — Tokenizadas</p>
-        </Reveal>
-        <Reveal delay={80} className="mt-5 w-full">
+        <Reveal delay={80} className="w-full">
           <AnnouncementPill />
         </Reveal>
         <Reveal delay={160} className="mt-6 w-full">
           <h1 className="text-4xl leading-[1.05] tracking-tight text-balance sm:text-5xl lg:text-6xl">
             Acciones de EE.UU. tokenizadas, en tu billetera
-            {/* ALTERNATIVA: El token es tuyo, en tu billetera Solana */}
+            {/* ALTERNATIVA: El token es tuyo, en tu propia billetera */}
             {/* ALTERNATIVA: Fracciones de EE.UU. en Solana, pagando en pesos */}
           </h1>
         </Reveal>
         <Reveal delay={240} className="mt-4 w-full">
           <p className="mx-auto max-w-2xl text-sm leading-relaxed text-balance text-fg-body sm:text-base">
-            Compra fracciones desde $1.000. El token queda en tu billetera Solana, pagas en pesos y
-            operas las 24 horas, de lunes a viernes.
-            {/* ALTERNATIVA: Fracciones de acciones de EE.UU. desde $1.000, pagando con pesos. Operas las 24 horas, de lunes a viernes. */}
-            {/* ALTERNATIVA: Tokenizadas, desde $1.000, en tu billetera. Operas las 24 horas, de lunes a viernes, sin cuenta en una corredora de EE.UU. */}
+            Compra fracciones desde $1.000. El token queda en tu propia billetera —nosotros no
+            custodiamos tus activos—, pagas en pesos y operas 24/7.
+            {/* ALTERNATIVA: Fracciones de acciones de EE.UU. desde $1.000, pagando con pesos. Operas 24/7. */}
+            {/* ALTERNATIVA: Tokenizadas, desde $1.000, en tu billetera. Operas 24/7, sin cuenta en una corredora de EE.UU. */}
           </p>
         </Reveal>
         <Reveal delay={320} className="mt-8 w-full">
