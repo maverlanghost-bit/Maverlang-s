@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { HowItWorks } from "@/components/landing/how-it-works";
+import { LiveLandingPrices } from "@/components/landing/live-landing-prices";
 import { LandingSection } from "@/components/landing/section";
 import { Card } from "@/components/ui/card";
 import { site } from "@/config/site";
@@ -15,7 +16,8 @@ export const metadata: Metadata = {
 export const revalidate = 30;
 
 export default async function ComoFuncionaPage() {
-  const { quotes, live } = await getLandingQuotes();
+  const { quotes, live, updatedAt } = await getLandingQuotes();
+  const symbols = quotes.map((quote) => quote.symbol);
 
   return (
     <main>
@@ -31,7 +33,9 @@ export default async function ComoFuncionaPage() {
           </p>
         </div>
       </LandingSection>
-      <HowItWorks quotes={quotes} live={live} />
+      <LiveLandingPrices symbols={symbols} live={live} initial={quotes} updatedAt={updatedAt}>
+        <HowItWorks quotes={quotes} live={live} />
+      </LiveLandingPrices>
       <LandingSection titleId="como-funciona-notas">
         <div className="max-w-3xl">
           <h2 id="como-funciona-notas" className="text-xl sm:text-2xl">

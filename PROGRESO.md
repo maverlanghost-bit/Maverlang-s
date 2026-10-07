@@ -21,6 +21,7 @@
 - Hecho: nuevas `/como-funciona` (reusa HowItWorks + notas), `/costos` (reusa CostsSection + detalle), `/seguridad` (reusa SecuritySection + marco). Navbar apunta a páginas (no a `#`). `/ayuda` es centro de ayuda con 6 guías + FAQ. Sitemap y ARQUITECTURA §2.1 al día. Homepage intacta.
 - Verificación: sin `tsc/lint/build` aquí (sin shell); pendiente operador: `npx tsc --noEmit`, `npm run build` (estático), mirar las 4 rutas a 360/1280.
 - Archivos: `app/(marketing)/{como-funciona,costos,seguridad,ayuda}/page.tsx`, `site-header.tsx`, `app/sitemap.ts`.
+- Fix build (2026-10-06): `/como-funciona` envuelve `HowItWorks` en `<LiveLandingPrices>` (el `LandingPrice` lo exige; era el prerender-error de Vercel).
 
 ## N3 — Custodia en lenguaje simple (2026-10-06)
 - Hecho: landing sin "billetera/wallet Solana": hero, grilla, seguridad, paso 3 e intro del cómo funciona dicen "tu propia billetera —nosotros no custodiamos tus activos". Títulos sin "autocustodia". FAQ/legales intactos ([REVISIÓN ABOGADO]).
