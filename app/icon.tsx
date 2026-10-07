@@ -16,7 +16,9 @@ export default function Icon() {
           background: "#0a0a0a",
         }}
       >
-        <div style={{ width: 14, height: 14, borderRadius: 999, background: "#ff6a08" }} />
+        <div style={{ color: "#fafafa", fontSize: 20, fontWeight: 700, fontFamily: "system-ui, sans-serif" }}>
+          M
+        </div>
       </div>
     ),
     { ...size },

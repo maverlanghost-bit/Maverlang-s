@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -40,6 +41,8 @@ export function Sidebar({
   const loading = account.loading;
   /** Menú del perfil: Perfil, Ajustes, moneda y salir. */
   const [menuOpen, setMenuOpen] = useState(false);
+  /** Marca colapsada: favicon de Maverlang (N17). Si aún no existe el PNG, letra M. */
+  const [markFailed, setMarkFailed] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   /** Clic afuera cierra el menú del perfil. */
@@ -84,9 +87,22 @@ export function Sidebar({
             href="/app"
             aria-label={site.name}
             title={site.name}
-            className="flex size-10 cursor-pointer items-center justify-center rounded-full"
+            className="flex size-10 cursor-pointer items-center justify-center overflow-hidden rounded-full"
           >
-            <span className="size-2 rounded-full bg-brand" aria-hidden />
+            {markFailed ? (
+              <span className="flex size-10 items-center justify-center rounded-full bg-surface-2 text-sm font-bold text-fg" aria-hidden>
+                M
+              </span>
+            ) : (
+              <Image
+                src="/brand/maverlang-mark.png"
+                alt=""
+                width={40}
+                height={40}
+                className="size-10 rounded-full object-cover"
+                onError={() => setMarkFailed(true)}
+              />
+            )}
           </Link>
         </div>
       ) : (

@@ -99,6 +99,14 @@
 
 .ticker-marquee-static { display: none; }
 
+/* N19: tira de chips sin barra de desplazamiento visible (el fundido avisa que hay más). */
+@utility no-scrollbar {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
 .ticker-marquee-motion:hover .animate-marquee {
   animation-play-state: paused;
 }

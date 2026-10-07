@@ -7,6 +7,7 @@ import { useQueries } from "@tanstack/react-query";
 import { FavoriteButton } from "@/components/domain/favorite-button";
 import { MarketStatusPill } from "@/components/domain/market-status-pill";
 import { PriceFreshness } from "@/components/domain/price-freshness";
+import { SearchSuggestions, type SuggestRow } from "@/components/domain/search-suggestions";
 import { TickerCard } from "@/components/domain/ticker-card";
 import { TickerRow } from "@/components/domain/ticker-row";
 import { Button } from "@/components/ui/button";
@@ -27,6 +28,7 @@ import {
   downsample,
   parseFilter,
   parseSort,
+  topSuggestions,
   type MarketFilter,
   type MarketSort,
 } from "@/lib/market/browse";
@@ -107,11 +109,14 @@ function ChipGroup<T extends string>({
   value,
   options,
   onChange,
+  bare = false,
 }: {
   labelId: string;
   value: T;
   options: readonly { value: T; label: string }[];
   onChange: (value: T) => void;
+  /** N19: sin scroll propio, para vivir dentro de una tira combinada. */
+  bare?: boolean;
 }) {
   const baseId = useId();
 
@@ -129,7 +134,7 @@ function ChipGroup<T extends string>({
     <div
       role="radiogroup"
       aria-labelledby={labelId}
-      className="flex min-w-0 gap-2 overflow-x-auto p-1"
+      className={bare ? "flex shrink-0 items-center gap-2 py-1" : "flex min-w-0 gap-2 overflow-x-auto p-1"}
       onKeyDown={(event) => {
         if (indexFromKey(event.key, 0, options.length) === null) return;
         event.preventDefault();
@@ -194,17 +199,26 @@ export function MarketScreen({
   const searchId = useId();
   const filtersLabelId = useId();
   const sortLabelId = useId();
+  const filterSortLabelId = useId();
+  const suggestId = useId();
   const moversTitleId = useId();
 
   const [draft, setDraft] = useState(initialQuery);
   const [applied, setApplied] = useState(initialQuery);
   const [filter, setFilter] = useState<MarketFilter>(() => parseFilter(initialFilter));
-  const [sort, setSort] = useState<MarketSort>(() => parseSort(initialSort));
+  // N19: sin A–Z en la UI; una URL vieja con `orden=az` cae a Popular.
+  const [sort, setSort] = useState<MarketSort>(() => {
+    const parsed = parseSort(initialSort);
+    return parsed === "az" ? "popular" : parsed;
+  });
   const [page, setPage] = useState(1);
+  /** N20: desplegable de sugerencias bajo el buscador. */
+  const [suggestOpen, setSuggestOpen] = useState(false);
+  const [suggestActive, setSuggestActive] = useState(0);
 
   // Favoritas vive en este navegador: el servidor devuelve todo y se filtra aquí.
   const serverCategory = filter === "favorites" ? "all" : filter;
-  const serverSort = sort === "az" ? "name" : "liquidity";
+  const serverSort = "liquidity";
 
   // Una consulta del servidor por página cargada. Al cambiar el criterio, la página vuelve a 1.
   const searchQueries = useQueries({
@@ -308,7 +322,8 @@ export function MarketScreen({
       setDraft(query);
       setApplied(query);
       setFilter(parseFilter(params.get("filtro")));
-      setSort(parseSort(params.get("orden")));
+      const parsed = parseSort(params.get("orden"));
+      setSort(parsed === "az" ? "popular" : parsed);
       setPage(1);
     };
     window.addEventListener("popstate", onPop);
@@ -375,6 +390,32 @@ export function MarketScreen({
     (searchQueries.some((query) => query.isFetching) || priceQueries.some((query) => query.isFetching));
   const moverItems = waiting || failed ? [] : priceRows(moverSource, currency, rate);
   const listItems = waiting || failed ? [] : priceRows(ordered, currency, rate);
+  // N20: sugerencias del buscador (top 6 en orden del servidor, con precio).
+  const suggestRows: SuggestRow[] = useMemo(
+    () =>
+      topSuggestions(priced, currency, rate).map((row) => ({ ...row, href: tickerHref(row.symbol) })),
+    [priced, currency, rate],
+  );
+  const draftTrimmed = draft.trim();
+  const showSuggest = suggestOpen && draftTrimmed !== "";
+  const suggesting = (firstQuery?.isPending ?? false) && suggestRows.length === 0;
+  const activeRow =
+    suggestRows.length === 0 ? null : (suggestRows[Math.min(suggestActive, suggestRows.length - 1)] ?? null);
+
+  useEffect(() => {
+    setSuggestActive(0);
+  }, [draft, priced]);
+
+  function goSuggest(symbol: string) {
+    setSuggestOpen(false);
+    router.push(tickerHref(symbol));
+  }
+
+  function searchAll() {
+    setApplied(draft);
+    setPage(1);
+    setSuggestOpen(false);
+  }
   const failure = searchQueries.find((query) => query.error)?.error ?? firstPrices?.error;
   const failureDetail = failure instanceof Error && failure.message.trim() ? failure.message : undefined;
   const lastWithData = [...searchQueries].reverse().find((query) => query.data);
@@ -398,7 +439,6 @@ export function MarketScreen({
     { value: "popular", label: t.market.popular },
     { value: "gain", label: t.market.gain },
     { value: "loss", label: t.market.loss },
-    { value: "az", label: t.market.az },
   ];
 
   function onSearch(event: FormEvent<HTMLFormElement>) {
@@ -477,7 +517,12 @@ export function MarketScreen({
         <label htmlFor={searchId} className="sr-only">
           {t.market.searchLabel}
         </label>
-        <div className="relative">
+        <div
+          className="relative"
+          onBlur={(event) => {
+            if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setSuggestOpen(false);
+          }}
+        >
           <IconSearch className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-fg-muted" />
           <Input
             ref={searchRef}
@@ -490,7 +535,34 @@ export function MarketScreen({
             autoCorrect="off"
             spellCheck={false}
             enterKeyHint="search"
-            onChange={(event) => setDraft(event.target.value)}
+            role="combobox"
+            aria-expanded={showSuggest}
+            aria-controls={suggestId}
+            aria-autocomplete="list"
+            aria-activedescendant={showSuggest && activeRow ? `${suggestId}-${Math.min(suggestActive, suggestRows.length - 1)}` : undefined}
+            onChange={(event) => {
+              setDraft(event.target.value);
+              setSuggestOpen(true);
+            }}
+            onFocus={() => setSuggestOpen(true)}
+            onKeyDown={(event) => {
+              if (!showSuggest) return;
+              if (event.key === "ArrowDown") {
+                event.preventDefault();
+                setSuggestActive((value) => (suggestRows.length === 0 ? 0 : (value + 1) % suggestRows.length));
+              } else if (event.key === "ArrowUp") {
+                event.preventDefault();
+                setSuggestActive((value) =>
+                  suggestRows.length === 0 ? 0 : (value - 1 + suggestRows.length) % suggestRows.length,
+                );
+              } else if (event.key === "Enter" && activeRow) {
+                event.preventDefault();
+                goSuggest(activeRow.symbol);
+              } else if (event.key === "Escape") {
+                event.preventDefault();
+                setSuggestOpen(false);
+              }
+            }}
             className={draft ? "pr-10 pl-10" : "pr-12 pl-10"}
           />
           {draft ? null : (
@@ -501,21 +573,39 @@ export function MarketScreen({
               /
             </kbd>
           )}
+          {showSuggest ? (
+            <SearchSuggestions
+              id={suggestId}
+              label={t.market.suggestLabel}
+              rows={suggestRows}
+              active={activeRow ? Math.min(suggestActive, suggestRows.length - 1) : 0}
+              searching={suggesting}
+              emptyLabel={t.market.suggestEmpty}
+              searchAllLabel={t.market.suggestSearch.replace("{q}", draftTrimmed.slice(0, 30))}
+              onHover={setSuggestActive}
+              onSelect={goSuggest}
+              onSearchAll={searchAll}
+            />
+          ) : null}
         </div>
       </form>
 
+      {/* N19: ordenar + filtrar en una sola tira con fundido (sin scrollbar). */}
       <div className="flex min-w-0 flex-col gap-2">
-        <p id={filtersLabelId} className="label">
-          {t.market.filtersLabel}
+        <p id={filterSortLabelId} className="label">
+          {t.market.filterSortLabel}
         </p>
-        <ChipGroup labelId={filtersLabelId} value={filter} options={filterOptions} onChange={onFilterChange} />
-      </div>
-
-      <div className="flex min-w-0 flex-col gap-2">
-        <p id={sortLabelId} className="label">
+        <div className="no-scrollbar -mx-1 flex min-w-0 items-center gap-1 overflow-x-auto px-1 [mask-image:linear-gradient(to_right,black_calc(100%-2rem),transparent)]">
+          <ChipGroup bare labelId={sortLabelId} value={sort} options={sortOptions} onChange={onSortChange} />
+          <span aria-hidden className="h-6 w-px shrink-0 bg-border" />
+          <ChipGroup bare labelId={filtersLabelId} value={filter} options={filterOptions} onChange={onFilterChange} />
+        </div>
+        <p id={sortLabelId} className="sr-only">
           {t.market.sortLabel}
         </p>
-        <ChipGroup labelId={sortLabelId} value={sort} options={sortOptions} onChange={onSortChange} />
+        <p id={filtersLabelId} className="sr-only">
+          {t.market.filtersLabel}
+        </p>
       </div>
 
       {waiting ? <ResultsSkeleton label={t.states.loading} /> : null}

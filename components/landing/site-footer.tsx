@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { esCL } from "@/content/i18n/es-CL";
 import { site, supportMailto } from "@/config/site";
@@ -42,9 +43,14 @@ export function SiteFooter() {
   return (
     <footer className="border-t border-border px-5 py-16">
       <div className="mx-auto w-full max-w-7xl">
-        <div className="flex items-center gap-2">
-          <span className="size-2 shrink-0 rounded-full bg-brand" aria-hidden />
-          <span className="text-sm font-medium text-fg">{site.name}</span>
+        <div className="flex items-center">
+          <Image
+            src="/brand/maverlang-logo.png"
+            alt={site.name}
+            width={148}
+            height={26}
+            className="h-6 w-auto dark:invert"
+          />
         </div>
 
         <div className="mt-10 grid gap-10 sm:grid-cols-3">

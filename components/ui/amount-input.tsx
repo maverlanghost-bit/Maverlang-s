@@ -28,8 +28,8 @@ const quickAmounts: Record<AmountCurrency, { label: string; value: number | "max
     { label: "Máx", value: "max" },
   ],
   SHARES: [
-    { label: "0,01", value: 0.01 },
     { label: "0,1", value: 0.1 },
+    { label: "0,5", value: 0.5 },
     { label: "1", value: 1 },
     { label: "Máx", value: "max" },
   ],
@@ -130,7 +130,11 @@ export function AmountInput({
       onChange(asRaw(max, currency));
       return;
     }
-    onChange(asRaw(amount, currency));
+    // Atajos acumulativos (N17): cada clic suma al monto actual (3× US$10 = US$30).
+    const current = Number(value);
+    const base = Number.isFinite(current) && current > 0 ? current : 0;
+    const capped = max === undefined ? base + amount : Math.min(base + amount, max);
+    onChange(asRaw(capped, currency));
   }
 
   return (

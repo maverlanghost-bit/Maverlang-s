@@ -25,6 +25,7 @@ import { formatDateTime, formatMoney, formatShares, type MoneyCurrency } from "@
 import { useAccountMode } from "@/lib/hooks/use-account-mode";
 import { useHideBalance } from "@/lib/hooks/use-hide-balance";
 import { useActivity, useFx, useHistories, usePortfolio, useTickers } from "@/lib/hooks/queries";
+import { priceFlashDirection, type PriceFlash } from "@/lib/hooks/use-price-flash";
 import { useT } from "@/lib/hooks/use-t";
 import { displayPrice } from "@/lib/market/browse";
 import { DETAIL_RANGES, anchorSeriesToSpot, isDetailRange, rangeMove, toneOf } from "@/lib/market/series";
@@ -247,6 +248,9 @@ export function PortfolioScreen() {
     const positionSum = sumUsd(loaded.positions.map((position) => position.valueUsd));
     const shownUsd = hoverUsd ?? loaded.totalUsd;
     const shown = moneyView(shownUsd, currency, rate);
+    // N18: igual que en el detalle, el total sólo se tiñe contra el actual.
+    const hoverForce: PriceFlash | undefined =
+      hoverUsd !== null ? priceFlashDirection(loaded.totalUsd, hoverUsd, "usd", "usd") : undefined;
     const pnl = loaded.pnlUsd === null ? null : moneyView(loaded.pnlUsd, currency, rate);
     const sliceInputs: { key: string; label: string; valueUsd: number; color: string }[] = [];
     for (const position of loaded.positions) {
@@ -296,7 +300,7 @@ export function PortfolioScreen() {
               ) : pendingFx ? (
                 <Skeleton className="h-12 w-48" />
               ) : (
-                <FlashPrice value={shown.amount} currency={shown.currency} size="lg" live={hoverUsd === null} />
+                <FlashPrice value={shown.amount} currency={shown.currency} size="lg" live={hoverUsd === null} force={hoverForce} />
               )}
             </div>
             <PriceFreshness at={portfolio.dataUpdatedAt || loaded.updatedAt} delayedOnly />

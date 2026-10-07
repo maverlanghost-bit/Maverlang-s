@@ -23,6 +23,15 @@ export function IconClose(props: IconProps) {
   );
 }
 
+/** Flecha para volver (N18): detalle → mercado. */
+export function IconBack(props: IconProps) {
+  return (
+    <svg viewBox="0 0 16 16" fill="none" {...base(props)}>
+      <path d="M13.5 8h-9M7 4.5 3.5 8 7 11.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 export function IconChevron(props: IconProps) {
   return (
     <svg viewBox="0 0 16 16" fill="none" {...base(props)}>

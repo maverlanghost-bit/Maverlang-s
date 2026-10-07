@@ -1,6 +1,7 @@
 "use client";
 
 import type { ComponentProps, ReactNode } from "react";
+import Image from "next/image";
 import Link from "next/link";
 
 import { site } from "@/config/site";
@@ -18,9 +19,14 @@ export function AuthFrame({
 }) {
   return (
     <Card className="w-full max-w-md">
-      <Link href="/" className="flex w-fit items-center gap-2 rounded-full text-fg">
-        <span className="size-2 shrink-0 rounded-full bg-brand" aria-hidden />
-        <span className="text-sm font-medium">{site.name}</span>
+      <Link href="/" aria-label={site.name} className="flex w-fit items-center rounded-full text-fg">
+        <Image
+          src="/brand/maverlang-logo.png"
+          alt={site.name}
+          width={148}
+          height={26}
+          className="h-6 w-auto dark:invert"
+        />
       </Link>
       <h1 className="mt-6 text-3xl text-balance">{title}</h1>
       {lead ? <p className="mt-3 text-sm leading-relaxed text-fg-body">{lead}</p> : null}

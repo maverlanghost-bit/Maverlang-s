@@ -29,7 +29,12 @@ export function priceFlashDirection(
   return null;
 }
 
-export function usePriceFlash(value: number | null | undefined, currency?: string | null): PriceFlash {
+export function usePriceFlash(
+  value: number | null | undefined,
+  currency?: string | null,
+  /** N18: en pausa no destella y el previo sigue al valor (para el gráfico). */
+  paused = false,
+): PriceFlash {
   const key = currency ?? null;
   const prevRef = useRef<{ value: number; currency: string | null } | null>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -45,12 +50,16 @@ export function usePriceFlash(value: number | null | undefined, currency?: strin
     if (value === null || value === undefined || !Number.isFinite(value)) return;
     const prev = prevRef.current;
     const current = { value, currency: key };
-    if (!prev) {
-      prevRef.current = current;
+    prevRef.current = current;
+    if (paused || !prev) {
+      if (timerRef.current !== null) {
+        clearTimeout(timerRef.current);
+        timerRef.current = null;
+      }
+      setFlash(null);
       return;
     }
     const direction = priceFlashDirection(prev.value, current.value, prev.currency, current.currency);
-    prevRef.current = current;
     if (!direction) {
       setFlash(null);
       return;
@@ -67,7 +76,7 @@ export function usePriceFlash(value: number | null | undefined, currency?: strin
         timerRef.current = null;
       }
     };
-  }, [value, key]);
+  }, [value, key, paused]);
 
   return flash;
 }

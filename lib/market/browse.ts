@@ -89,6 +89,46 @@ export function displayPrice(priceUsd: number, currency: Currency, rate: number 
   return value !== null && Number.isFinite(value) ? value : null;
 }
 
+/** Fila lista para el desplegable del buscador (N20). Sin precio visible se omite. */
+export interface Suggestion {
+  symbol: string;
+  name: string;
+  underlying: string;
+  logoUrl: string | null;
+  price: number;
+  currency: Currency;
+  change: number | null;
+}
+
+export function topSuggestions(
+  rows: readonly {
+    item: { symbol: string; name: string; underlying: string; logoUrl: string | null };
+    quote: Quote;
+  }[],
+  currency: Currency,
+  rate: number | undefined,
+  limit = 6,
+): Suggestion[] {
+  const fxKnown = typeof rate === "number" && Number.isFinite(rate) && rate > 0;
+  const shown: Currency = currency === "CLP" && fxKnown ? "CLP" : "USD";
+  const out: Suggestion[] = [];
+  for (const row of rows) {
+    if (out.length >= limit) break;
+    const price = displayPrice(row.quote.priceUsd, shown, fxKnown ? rate : undefined);
+    if (price === null) continue;
+    out.push({
+      symbol: row.item.symbol,
+      name: row.item.name,
+      underlying: row.item.underlying,
+      logoUrl: row.item.logoUrl,
+      price,
+      currency: shown,
+      change: Number.isFinite(row.quote.change24hPct) ? row.quote.change24hPct : null,
+    });
+  }
+  return out;
+}
+
 /** Menos puntos para el sparkline, conservando el primero y el último. */
 export function downsample(values: readonly number[], max = 32): number[] {
   if (values.length <= max) return [...values];

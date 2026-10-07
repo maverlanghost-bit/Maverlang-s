@@ -14,7 +14,7 @@ import { Card } from "@/components/ui/card";
 import { CopyButton } from "@/components/ui/copy-button";
 import { ErrorState } from "@/components/ui/error-state";
 import { IconButton } from "@/components/ui/icon-button";
-import { IconShare } from "@/components/ui/icons";
+import { IconBack, IconShare } from "@/components/ui/icons";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/components/ui/toast";
 import { site } from "@/config/site";
@@ -619,6 +619,13 @@ export function DetailScreen({
     <>
     <div data-ticker={ticker.symbol} className="lg:grid lg:grid-cols-[minmax(0,1fr)_17.5rem] lg:items-start lg:gap-8">
       <div className="flex min-w-0 flex-col gap-8">
+        <Link
+          href="/app"
+          className="-ml-2 flex min-h-11 w-fit items-center gap-1.5 rounded-full px-2 text-sm text-fg-muted transition hover:text-fg"
+        >
+          <IconBack className="size-4" />
+          {t.detail.backToMarket}
+        </Link>
         <header className="flex flex-col gap-3">
           <div className="flex items-start gap-3">
             <TickerLogo symbol={ticker.symbol} name={ticker.name} logoUrl={ticker.logo} size={56} decorative />

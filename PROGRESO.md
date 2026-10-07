@@ -2,6 +2,26 @@
 
 > Estado de la base (2026-10-06): las migraciones 0002, 0003 y 0004 YA están aplicadas en el proyecto Supabase actual y `public.assets` está sincronizada. No hay que pegar nada en el SQL Editor; las instrucciones de `docs/SUPABASE.md` sirven sólo para un proyecto nuevo.
 
+## N20 — Buscador con sugerencias (2026-10-07)
+- Hecho: al escribir se abre un desplegable con top 6 (logo, nombre, símbolo, precio y variación), esqueletos al cargar, "Buscar «q»" para aplicar y teclado (↑↓/Enter/Esc). Clic o Enter va al detalle. Lógica pura `topSuggestions` en `browse.ts` + tests (3).
+- Verificación: sin `tsc/test` aquí (sin shell); pendiente operador: `npx tsc --noEmit`, `npm test`, buscar "apple" en `/app` y navegar con teclado y clic.
+- Archivos: `search-suggestions.tsx` (nuevo), `market-screen.tsx`, `browse.ts`, `suggestions.test.ts`, i18n es/en.
+
+## N19 — Ordenar + filtrar en una tira (2026-10-07)
+- Hecho: una sola tira "Ordenar y filtrar": orden (Popular, Mayor alza, Mayor baja) + divisor + filtros; sin A–Z (URL vieja con `orden=az` cae a Popular; API y tipos intactos). Scroll horizontal sin barra visible (`no-scrollbar`) y fundido a la derecha que avisa que hay más.
+- Verificación: sin `tsc/test` aquí (sin shell); pendiente operador: `npx tsc --noEmit`, `npm test`, revisar `/app` en móvil y desktop.
+- Archivos: `market-screen.tsx`, `globals.css`, i18n es/en.
+
+## N18 — Volver al mercado + color del precio en el gráfico (2026-10-07)
+- Hecho: flecha "Volver al mercado" arriba del detalle (`/app`). Al recorrer el gráfico el precio ya no destella por cada punto: se tiñe sólo contra el actual (rojo si el punto es menor, verde si es mayor, neutro si igual); el destello en vivo sigue igual sin hover.
+- Verificación: sin `tsc/test` aquí (sin shell); pendiente operador: `npx tsc --noEmit`, `npm test`, abrir un detalle y pasar el cursor por el gráfico.
+- Archivos: `detail-screen.tsx`, `price-panel.tsx`, `portfolio-screen.tsx` (mismo arreglo en el total), `flash-price.tsx`, `use-price-flash.ts` (pausa), `icons.tsx` (`IconBack`), i18n es/en.
+
+## N17 — Atajos acumulativos + marca Maverlang (2026-10-07)
+- Hecho: chips de compra suman (3× US$10 = US$30, tope en Máx); acciones 0,1 / 0,5 / 1. Punto naranja fuera en header, footer, auth, CTA, BrandMark y sidebar colapsada (ahora favicon `maverlang-mark.png` con respaldo M). `icon.tsx` con M (sin punto).
+- Pendiente operador (sin shell aquí): mover el PNG a `public/brand/` y exportar el mark cuadrado — comandos abajo. `app/favicon.ico` viejo (punto) hay que borrarlo para que rija `icon.tsx`/nuevo favicon. Luego `npx tsc --noEmit`, `npm test`, ver compra y sidebar.
+- Archivos: `amount-input.tsx`, `brand-mark.tsx`, `sidebar.tsx`, `site-header/footer.tsx`, `auth-frame.tsx`, `final-cta.tsx`, `app/icon.tsx`.
+
 ## N16 — Compra en USD o acciones (2026-10-07)
 - Hecho: comprar ofrece USD ⇄ Acciones (sin CLP); venta igual que antes. Etiqueta "USD" (no USDC). Smoke e2e compra con "US$ 100". Backend y tests de montos intactos (CLP sigue válido por API).
 - Verificación: sin `tsc/test/e2e` aquí (sin shell); pendiente operador: `npx tsc --noEmit`, `npm test`, `npm run e2e`, comprar 1 acc en demo.

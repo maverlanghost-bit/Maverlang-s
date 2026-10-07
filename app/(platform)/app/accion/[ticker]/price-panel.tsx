@@ -15,6 +15,7 @@ import { useHistory } from "@/lib/hooks/queries";
 import { useT } from "@/lib/hooks/use-t";
 import { displayPrice } from "@/lib/market/browse";
 import { poolDislocated, poolDislocationPct } from "@/lib/market/dislocation";
+import { priceFlashDirection, type PriceFlash } from "@/lib/hooks/use-price-flash";
 import { DETAIL_RANGES, isDetailRange, rangeMove, seriesForQuote, toneOf } from "@/lib/market/series";
 import type { Currency, PricePoint, Quote, Range } from "@/lib/types";
 
@@ -84,6 +85,13 @@ export function PricePanel({
   const priceCurrency = currency === "CLP" && fxKnown ? "CLP" : "USD";
   const usd = point?.usd ?? quote?.priceUsd ?? null;
   const shown = usd === null || waitingFx ? null : displayPrice(usd, priceCurrency, rate);
+  // N18: al recorrer el gráfico el precio se tiñe sólo contra el actual
+  // (rojo si el punto es menor, verde si es mayor), sin destellar por tramo.
+  const currentUsd = quote?.priceUsd ?? null;
+  const hoverForce: PriceFlash | undefined =
+    point !== null && currentUsd !== null && Number.isFinite(currentUsd)
+      ? priceFlashDirection(currentUsd, point.usd, "usd", "usd")
+      : undefined;
   const showFxNote = Boolean(quote) && currency === "CLP" && !fxKnown && !fxPending;
   const pointIso = point ? new Date(point.timeMs).toISOString() : null;
   const poolPct =
@@ -114,7 +122,7 @@ export function PricePanel({
   } else {
     priceNode = (
       <div className="flex flex-col gap-2">
-        <FlashPrice value={shown} currency={priceCurrency} size="lg" live={point === null} />
+        <FlashPrice value={shown} currency={priceCurrency} size="lg" live={point === null} force={hoverForce} />
         <PriceFreshness at={priceUpdatedAt ?? quote.updatedAt} stale={priceStale || quote.stale === true} delayedOnly />
         {point === null && quote.reference ? (
           <p className="text-sm text-fg-muted">{t.detail.referencePrice}</p>
