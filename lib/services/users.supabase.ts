@@ -55,7 +55,7 @@ const deletionRowSchema = z.object({
 type ProfileRow = z.infer<typeof profileRowSchema>;
 
 type RestInit = {
-  method?: "GET" | "POST" | "PATCH";
+  method?: "GET" | "POST" | "PATCH" | "DELETE";
   query?: string;
   body?: unknown;
   prefer?: string;

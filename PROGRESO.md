@@ -22,6 +22,7 @@
 - Hecho: migración `0006_user_favorites.sql` (NO aplicada) + `GET/PUT /api/me/favorites` (sesión, zod, tope 200) en mock/RLS/live. Con sesión: une servidor+local y sube lo nuevo; sin sesión o sin 0006: sigue lo local. Vacío de Favoritas con guía. Tests `favorites.test.ts` (8).
 - Verificación: sin `tsc/test/build` aquí (sin shell); pendiente operador: aplicar 0006, `npx tsc --noEmit`, `npm test`, entrar en 2 navegadores y marcar estrella.
 - Archivos: `0006`, `lib/favorites/merge.ts`, contratos/cliente/ruta, 3 servicios, `use-favorites.ts`, `market-screen.tsx`, i18n, `SUPABASE.md`.
+- Fix build (2026-10-07): `RestInit` acepta `DELETE` (lo pedía `saveFavorites` en `users.supabase.ts`).
 
 ## N11 — Fuera insignia demo en compra (2026-10-06)
 - Hecho: `trade-sheet` sin Badge Demo ni nota (quedó solo en top-bar/cartera donde sí orienta). Import sin uso fuera.
