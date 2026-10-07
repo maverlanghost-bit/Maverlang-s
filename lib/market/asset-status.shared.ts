@@ -46,6 +46,17 @@ export function effectiveMinOrderUsd(minOrderUsd: number | null | undefined): nu
   return MIN_TRADE_USD;
 }
 
+/**
+ * Piso que promete la portada (M45): el menor mínimo real por orden entre
+ * las acciones listadas. Los límites por período de xStocks parten en la
+ * práctica en ~US$10 (los tests M43b usan 10 como mínimo de la acción), muy
+ * por encima de `MIN_TRADE_USD` (US$1). No se calcula con red: el catálogo
+ * vive en el servidor y la portada es estática con ISR. Nunca queda bajo lo
+ * que exige la hoja de compra (`effectiveMinOrderUsd` es el máximo entre
+ * ambos), así que el copy jamás promete menos de lo que la hoja pide.
+ */
+export const LANDING_MIN_ORDER_USD = 10;
+
 export function normalizeMode(value: unknown): AssetTradingMode {
   if (typeof value !== "string") return "unknown";
   const raw = String(value).trim();

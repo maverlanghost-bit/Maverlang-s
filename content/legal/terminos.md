@@ -6,7 +6,7 @@ updated: 2026-10-05
 
 ## Qué es este servicio
 
-{{brand}} es una interfaz para comprar y vender fracciones de acciones tokenizadas de Estados Unidos, pagando con pesos. El token lo emite un tercero. Este texto es un borrador.
+{{brand}} es una interfaz para comprar y vender fracciones de acciones tokenizadas de Estados Unidos, con órdenes que se ejecutan en dólares (US$). El token lo emite un tercero. Este texto es un borrador.
 
 ## Qué compras
 

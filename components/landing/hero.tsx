@@ -8,22 +8,23 @@ import { Card } from "@/components/ui/card";
 import { IconClock, IconGlobe, IconWallet } from "@/components/ui/icons";
 import { esCL } from "@/content/i18n/es-CL";
 import { landingNotice } from "@/lib/landing/live-quotes";
+import { LANDING_MIN_ORDER_USD } from "@/lib/market/asset-status.shared";
 import { HERO_SYMBOLS, type LandingQuote } from "@/lib/mocks/landing";
 import { cn } from "@/lib/cn";
 
 /**
  * Copy en uso:
  * H1: "Acciones de EE.UU. tokenizadas, en tu billetera"
- * Subtítulo: "Compra fracciones desde $1.000. El token queda en tu propia billetera —nosotros no custodiamos tus activos—, pagas en pesos y operas 24/7."
- * CTAs: "Crear cuenta" → /app/ingresar · "Ver acciones" → /app · "Cómo funciona" → #como-funciona
+ * Subtítulo: "Compra fracciones desde US$10. El token queda en tu propia billetera —nosotros no custodiamos tus activos—, compras en dólares (US$) y operas 24/7."
+ * CTAs: "Prueba la demo gratis" → /app/registro · "Ver acciones" → /app · "Cómo funciona" → #como-funciona
  *
  * ALTERNATIVA:
  * H1: "El token es tuyo, en tu propia billetera"
- * Subtítulo: "Fracciones de acciones de EE.UU. desde $1.000, pagando con pesos. Operas 24/7."
+ * Subtítulo: "Fracciones de acciones de EE.UU. desde US$10, comprando en dólares (US$). Operas 24/7."
  *
  * ALTERNATIVA:
- * H1: "Fracciones de EE.UU. en Solana, pagando en pesos"
- * Subtítulo: "Tokenizadas, desde $1.000, en tu billetera. Operas 24/7, sin cuenta en una corredora de EE.UU."
+ * H1: "Fracciones de EE.UU. en Solana, comprando en dólares"
+ * Subtítulo: "Tokenizadas, desde US$10, en tu billetera. Operas 24/7, sin cuenta en una corredora de EE.UU."
  */
 
 const trustChips: { label: string; Icon: ComponentType<SVGProps<SVGSVGElement>> }[] = [
@@ -66,21 +67,21 @@ export function Hero({ quotes, live }: { quotes: LandingQuote[]; live: boolean }
           <h1 className="text-4xl leading-[1.05] tracking-tight text-balance sm:text-5xl lg:text-6xl">
             Acciones de EE.UU. tokenizadas, en tu billetera
             {/* ALTERNATIVA: El token es tuyo, en tu propia billetera */}
-            {/* ALTERNATIVA: Fracciones de EE.UU. en Solana, pagando en pesos */}
+            {/* ALTERNATIVA: Fracciones de EE.UU. en Solana, comprando en dólares */}
           </h1>
         </Reveal>
         <Reveal delay={240} className="mt-4 w-full">
           <p className="mx-auto max-w-2xl text-sm leading-relaxed text-balance text-fg-body sm:text-base">
-            Compra fracciones desde $1.000. El token queda en tu propia billetera —nosotros no
-            custodiamos tus activos—, pagas en pesos y operas 24/7.
-            {/* ALTERNATIVA: Fracciones de acciones de EE.UU. desde $1.000, pagando con pesos. Operas 24/7. */}
-            {/* ALTERNATIVA: Tokenizadas, desde $1.000, en tu billetera. Operas 24/7, sin cuenta en una corredora de EE.UU. */}
+            Compra fracciones desde US${LANDING_MIN_ORDER_USD}. El token queda en tu propia billetera
+            —nosotros no custodiamos tus activos—, compras en dólares (US$) y operas 24/7.
+            {/* ALTERNATIVA: Fracciones de acciones de EE.UU. desde US$10, comprando en dólares (US$). Operas 24/7. */}
+            {/* ALTERNATIVA: Tokenizadas, desde US$10, en tu billetera. Operas 24/7, sin cuenta en una corredora de EE.UU. */}
           </p>
         </Reveal>
         <Reveal delay={320} className="mt-8 w-full">
           <div className="flex flex-wrap items-center justify-center gap-3">
             <Button asChild size="md" className="min-h-11">
-              <Link href="/app/ingresar">Crear cuenta</Link>
+              <Link href="/app/registro">Prueba la demo gratis</Link>
             </Button>
             <Button asChild variant="secondary" size="md" className="min-h-11">
               <Link href="/app">{esCL.guest.seeStocks}</Link>
@@ -89,6 +90,9 @@ export function Hero({ quotes, live }: { quotes: LandingQuote[]; live: boolean }
               <Link href="/#como-funciona">Cómo funciona</Link>
             </Button>
           </div>
+          <p className="mt-3 text-xs leading-relaxed text-fg-muted">
+            Practica con US$1.000 ficticios y precios reales.
+          </p>
           <ul className="mx-auto mt-6 flex max-w-2xl flex-wrap items-center justify-center gap-2">
             {trustChips.map((chip) => (
               <li

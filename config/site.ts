@@ -9,7 +9,7 @@ export const site = {
   url: siteUrl,
   supportEmail,
   description:
-    "Compra fracciones de acciones de EE.UU. tokenizadas pagando con pesos chilenos.",
+    "Compra fracciones de acciones de EE.UU. tokenizadas, con órdenes que se ejecutan en dólares (US$).",
 } as const;
 
 /** Origen absoluto para metadata, sitemap y robots. Sin barra final. */

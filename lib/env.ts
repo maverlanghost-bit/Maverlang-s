@@ -106,6 +106,18 @@ function supabaseSecretEnv() {
   }, z.string().optional());
 }
 
+/**
+ * Logos de empresas en la UI (M45). `on` (default, visibles como hoy) |
+ * `off` (monogramas). Cualquier otro valor o ausencia cae a `on`: nunca
+ * rompe el arranque por una variable mal escrita.
+ */
+function companyLogosEnv() {
+  return z.preprocess((value) => {
+    const cleaned = cleanEnv(value)?.toLowerCase();
+    return cleaned === "off" ? "off" : "on";
+  }, z.enum(["on", "off"] as const));
+}
+
 const publicSchema = z.object({
   NEXT_PUBLIC_DATA_MODE: dataModeEnv(),
   NEXT_PUBLIC_AUTH_MODE: authFlagEnv(),
@@ -117,6 +129,8 @@ const publicSchema = z.object({
   NEXT_PUBLIC_SOLANA_RPC_URL: optionalText(),
   NEXT_PUBLIC_SUPABASE_URL: optionalText(),
   NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: optionalText(),
+  /** Logos de empresas visibles (`on`) o monogramas (`off`). Default `on`. */
+  NEXT_PUBLIC_COMPANY_LOGOS: companyLogosEnv(),
 });
 
 const serverSchema = publicSchema.extend({

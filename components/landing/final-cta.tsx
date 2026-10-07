@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { BrandMarkImage } from "@/components/app-shell/brand-image";
 import { Reveal } from "@/components/landing/reveal";
+import { WaitlistForm } from "@/components/landing/waitlist-form";
 import { Button } from "@/components/ui/button";
 import { esCL } from "@/content/i18n/es-CL";
 
@@ -17,11 +18,22 @@ export function FinalCTA() {
         </p>
         <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
           <Button asChild size="lg" className="min-h-11">
-            <Link href="/app/ingresar">Crear cuenta</Link>
+            <Link href="/app/registro">Prueba la demo gratis</Link>
           </Button>
           <Button asChild variant="secondary" size="lg" className="min-h-11">
             <Link href="/app">{esCL.guest.seeStocks}</Link>
           </Button>
+        </div>
+        <p className="mt-4 text-sm leading-relaxed text-fg-body">
+          <Link
+            href="#lista-de-espera"
+            className="font-medium underline decoration-border underline-offset-4 hover:decoration-fg"
+          >
+            Avísame cuando abra la cuenta Real
+          </Link>
+        </p>
+        <div id="lista-de-espera" className="mt-8 w-full max-w-md scroll-mt-24">
+          <WaitlistForm source="landing" />
         </div>
       </Reveal>
     </section>

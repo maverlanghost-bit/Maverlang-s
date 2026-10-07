@@ -80,6 +80,15 @@ select count(*) from public.demo_orders;
 select count(*) from public.demo_positions;
 ```
 
+## Lista de espera (0008)
+
+NO aplicada. Después de `0007`, pega **una sola vez** `supabase/migrations/0008_waitlist.sql` en el SQL Editor y ejecútalo. También es idempotente. Crea:
+
+- `public.waitlist` (correo una sola vez vía `email_norm` unique, `source` en `landing`|`cuenta_real`, `consent_version`, país de 2 letras, fecha).
+- RLS activado **sin políticas**: nadie lee ni escribe desde el navegador. Sólo el servidor escribe con la secret key (`POST /api/waitlist`, `upsert` con `ignoreDuplicates`, siempre el mismo 200 "¡Listo! Te avisaremos.").
+
+Sin aplicar `0008` en live, la ruta responde 500. En local con `DATA_MODE=mock` no hace falta: valida y responde 200 sin guardar.
+
 ## Auth en el panel
 
 - Site URL: el valor de `NEXT_PUBLIC_SITE_URL` (en local, `http://localhost:3000`)

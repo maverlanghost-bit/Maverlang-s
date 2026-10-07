@@ -5,13 +5,14 @@ import { LandingSection, SectionIntro } from "@/components/landing/section";
 import { Reveal } from "@/components/landing/reveal";
 import { site } from "@/config/site";
 import { REVEAL_STAGGER_MS } from "@/lib/hooks/reveal-motion";
+import { LANDING_MIN_ORDER_USD } from "@/lib/market/asset-status.shared";
 
 const features: { title: string; body: string; visual: ReactNode }[] = [
   {
-    // Piso de producto, el mismo del hero. No es una cifra de mercado.
-    title: "Fracciones desde $1.000",
+    // Piso de producto, el mismo del hero (LANDING_MIN_ORDER_USD, en dólares). No es una cifra de mercado.
+    title: `Fracciones desde US$${LANDING_MIN_ORDER_USD}`,
     body: "Puedes comprar una parte de la acción, no el papel entero. Queda en tu propia billetera —nosotros no custodiamos tus activos— y operas 24/7.",
-    visual: <PriceText value={1000} currency="CLP" size="md" />,
+    visual: <PriceText value={LANDING_MIN_ORDER_USD} currency="USD" size="md" />,
   },
   {
     // TODO-VERIFICAR: autocustodia. Exportar la clave está en el diseño de perfil, marcado [según Privy].

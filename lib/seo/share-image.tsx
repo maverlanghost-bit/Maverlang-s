@@ -1,11 +1,12 @@
 import { site } from "@/config/site";
+import { LANDING_MIN_ORDER_USD } from "@/lib/market/asset-status.shared";
 
 export const shareImageSize = {
   width: 1200,
   height: 630,
 } as const;
 
-export const shareImageAlt = `${site.name}: acciones de EE.UU. tokenizadas, con pesos.`;
+export const shareImageAlt = `${site.name}: acciones de EE.UU. tokenizadas, en dólares (US$).`;
 
 export function ShareImage() {
   return (
@@ -46,7 +47,7 @@ export function ShareImage() {
       </div>
       <div style={{ display: "flex", flexDirection: "column" }}>
         <div style={{ display: "flex", fontSize: 28, color: "#252525" }}>
-          Fracciones desde $1.000, en Solana, pagando con pesos.
+          Fracciones desde US${LANDING_MIN_ORDER_USD}, en Solana, en dólares (US$).
         </div>
         <div style={{ display: "flex", fontSize: 24, color: "#6c6f75", marginTop: 12 }}>
           No otorgan derechos de accionista.

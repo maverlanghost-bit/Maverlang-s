@@ -11,3 +11,13 @@ Origen de los archivos: metadatos públicos de xStocks / Backed, `https://xstock
 Si un logo de esa fuente no existe, la segunda opción es copiar sólo el SVG necesario del paquete `simple-icons`, con el color de marca, a `public/logos/<underlying>.svg`. En esta versión no hizo falta: los doce respondieron. Si tampoco hubiera archivo, ese ticker queda sin logo y la interfaz muestra el monograma. No se inventan logos.
 
 [REVISIÓN ABOGADO] El uso de estas marcas debe revisarlo un abogado antes de producción.
+
+## Decisiones de Manu a revisar con el abogado (2026-10-07)
+
+[REVISIÓN ABOGADO] (a) La demo no muestra un aviso permanente de "dinero ficticio": sólo aparecen el selector "Cuenta demo" y la insignia en la barra superior y la cartera. ¿Basta con eso o hay que avisar en cada pantalla que el saldo es ficticio?
+
+[REVISIÓN ABOGADO] (b) Los logos de las empresas están visibles para identificar cada activo. Si el abogado lo pide, se apagan sin tocar código con `NEXT_PUBLIC_COMPANY_LOGOS=off` (quedan los monogramas y la app deja de pedir las imágenes de `public/logos`).
+
+[REVISIÓN ABOGADO] (c) La frase "nosotros no custodiamos tus activos": confirmar que es exacta con la billetera embebida de Privy y qué responsabilidad implica para nosotros.
+
+[REVISIÓN ABOGADO] (d) "Opera 24/7" (fuente: xstocks.fi, "tradeable 24/7") junto a la advertencia de que fuera del horario regular de la bolsa de EE.UU. el precio puede variar más. Confirmar que esa combinación no promete disponibilidad ni precio.

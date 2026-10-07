@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Image from "next/image";
 import { cn } from "@/lib/cn";
+import { companyLogosEnabled } from "@/lib/config/brand";
 
 /**
  * Fondos suaves del design system. El texto es `fg` (#0a0a0a): contraste alto sobre todos.
@@ -56,13 +57,20 @@ export function TickerLogo({
 }) {
   const [failedSrc, setFailedSrc] = useState<string | null>(null);
   const [readySrc, setReadySrc] = useState<string | null>(null);
-  const source = logoUrl?.trim() ? logoUrl : null;
+  /**
+   * Flag M45 (`NEXT_PUBLIC_COMPANY_LOGOS`, default `on`): con `off` no se
+   * pide la imagen y queda el monograma. Con `on` todo sigue igual que hoy.
+   */
+  const logosEnabled = companyLogosEnabled();
+  const source = logosEnabled && logoUrl?.trim() ? logoUrl : null;
   const showImage = source !== null && failedSrc !== source;
   const imageReady = showImage && readySrc === source;
   const letters = monogramLetters(symbol);
+  const label = name ? `${name} (${symbol})` : symbol;
 
   return (
     <span
+      aria-label={!logosEnabled && !decorative ? label : undefined}
       className={cn(
         "relative inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full border border-border font-mono leading-none font-medium text-fg select-none",
         showImage ? "bg-bg" : toneFor(symbol),
