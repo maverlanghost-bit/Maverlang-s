@@ -16,6 +16,7 @@
     "audit:deps": "npm audit --omit=dev --audit-level=high",
     "audit:catalog": "node scripts/audit-catalog.mjs",
     "check:upstash": "node scripts/check-upstash.mjs",
+    "check:env": "node scripts/check-env.mjs",
     "sync:xstocks": "node scripts/sync-xstocks.mjs",
     "scan:secrets": "node scripts/scan-secrets.mjs"
   },

@@ -22,6 +22,10 @@ env.NEXT_PUBLIC_DATA_MODE = "mock";
 env.PRICES_MODE = "mock";
 // M49: el e2e no usa la base de Upstash ni comparte límites (memoria local).
 env.RATE_LIMIT_BACKEND = "memory";
+// M59: el e2e corre como development/demo con mock: nunca activa el modo
+// estricto aunque el shell tenga estas variables.
+delete env.APP_ENV;
+delete env.SUPABASE_PROJECT_ENV;
 env.NEXT_DIST_DIR = ".next-e2e";
 
 function run(args) {
