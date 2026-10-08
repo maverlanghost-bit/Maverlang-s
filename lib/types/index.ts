@@ -237,7 +237,7 @@ export interface UserProfile {
   phone: string | null;
 }
 
-export type LegalDoc = "terminos" | "privacidad" | "riesgos";
+export type LegalDoc = "terminos" | "privacidad" | "riesgos" | "us_person";
 
 export interface Consent {
   userId: string;

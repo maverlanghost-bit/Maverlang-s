@@ -30,18 +30,27 @@ export default async function OnboardingPage({
     terminos: serverEnv.TERMS_VERSION,
     privacidad: serverEnv.PRIVACY_VERSION,
     riesgos: serverEnv.RISKS_VERSION,
+    usPersonDeclarationVersion: serverEnv.US_PERSON_DECLARATION_VERSION,
   };
 
   return (
     <main className="flex min-h-dvh items-center justify-center px-5 py-10">
       {isSupabaseAuth() ? (
-        <RegistroWizard mode="completar" next={returnTo} versions={versions} />
+        <RegistroWizard
+          mode="completar"
+          next={returnTo}
+          versions={versions}
+          declarationVersion={serverEnv.US_PERSON_DECLARATION_VERSION}
+          demoForBlocked={serverEnv.DEMO_FOR_BLOCKED}
+        />
       ) : (
         <OnboardingWizard
           terminosVersion={versions.terminos}
           privacidadVersion={versions.privacidad}
           riesgosVersion={versions.riesgos}
           returnTo={returnTo}
+          declarationVersion={serverEnv.US_PERSON_DECLARATION_VERSION}
+          demoForBlocked={serverEnv.DEMO_FOR_BLOCKED}
         />
       )}
     </main>

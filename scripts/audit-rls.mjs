@@ -34,6 +34,8 @@
  * - app_admins y app_flags (M57): nada para anon/authenticated, ni lectura
  *   ni escritura directa (sólo service_role). is_admin sólo la ejecuta
  *   service_role.
+ * - compliance_events (M75): nada para anon/authenticated. residence_country
+ *   no se edita desde authenticated después de onboarding_completed.
  * - funciones demo_trade/demo_reset: anon y authenticated siempre denegados
  *   (sólo service_role), incluso con el user_id propio.
  *
@@ -70,6 +72,8 @@ const AUDIT_TABLES = [
   // M57: sin acceso para anon/authenticated.
   "app_admins",
   "app_flags",
+  // M75: sin acceso para anon/authenticated.
+  "compliance_events",
 ];
 
 /** Columnas sensibles de profiles que authenticated nunca puede cambiar (0009). */
@@ -167,6 +171,8 @@ function dryRun() {
     // M57
     ["app_admins", "anon: nada", "A→B: n/a", "nadie (ni lectura ni escritura directa)"],
     ["app_flags", "anon: nada", "A→B: n/a", "nadie (ni lectura ni escritura directa)"],
+    // M75
+    ["compliance_events", "anon: nada", "A→B: n/a", "nadie (ni lectura ni escritura directa)"],
     ["is_admin()", "anon: denegado", "A: denegado", "sólo service_role"],
     ["demo_trade()", "anon: denegado", "A con user_id de B: denegado", "A con user_id propio: denegado (sólo service_role)"],
     ["demo_reset()", "anon: denegado", "A con user_id de B: denegado", "A con user_id propio: denegado (sólo service_role)"],
@@ -321,6 +327,26 @@ async function main() {
       record("A no cambia columnas sensibles propias", blocked === presentSensitive.length, `${blocked}/${presentSensitive.length} bloqueadas`);
     }
 
+    // M75: residence_country queda fijo después del onboarding. La sonda nace
+    // sin onboarding: primero se marca y después se intenta cambiar a AR.
+    // Si la columna no existe (0015 no aplicada), el audit no falla.
+    await clientA.from("profiles").update({ onboarding_completed: true }).eq("id", idA);
+    const lockedResidence = await clientA.from("profiles").update({ residence_country: "AR" }).eq("id", idA).select("id");
+    const residenceMissing =
+      lockedResidence.error &&
+      (lockedResidence.error.code === "42703" ||
+        lockedResidence.error.code === "PGRST204" ||
+        /does not exist|schema cache|Could not find/i.test(lockedResidence.error.message ?? ""));
+    if (residenceMissing) {
+      record("A no cambia residence_country (0015 no aplicada)", true, "columna ausente");
+    } else {
+      record(
+        "A no cambia residence_country tras el onboarding",
+        !!lockedResidence.error || (lockedResidence.data ?? []).length === 0,
+        lockedResidence.error ? redact(lockedResidence.error.message) : `${lockedResidence.data?.length ?? 0} filas`,
+      );
+    }
+
     // ---- consents ----
     const consentVersion = `rls-${ts}`;
     const insConsentOwn = await clientA.from("consents").insert({ user_id: idA, doc: "terminos", version: consentVersion }).select("id");
@@ -446,6 +472,12 @@ async function main() {
     record("A SELECT app_flags (denegado)", !!selAppFlags.error, selAppFlags.error ? redact(selAppFlags.error.message) : "leyó filas");
     const insAppFlags = await clientA.from("app_flags").insert({ key: `rls-probe-${ts}`, value: false }).select("key");
     record("A INSERT app_flags (denegado)", !!insAppFlags.error, insAppFlags.error ? redact(insAppFlags.error.message) : "insertó");
+
+    // M75: compliance_events sin acceso de clientes.
+    const selCompliance = await clientA.from("compliance_events").select("id").limit(3);
+    record("A SELECT compliance_events (denegado)", !!selCompliance.error, selCompliance.error ? redact(selCompliance.error.message) : "leyó filas");
+    const insCompliance = await clientA.from("compliance_events").insert({ user_id: idA, type: "rls-probe", data: {} }).select("id");
+    record("A INSERT compliance_events (denegado)", !!insCompliance.error, insCompliance.error ? redact(insCompliance.error.message) : "insertó");
 
     // ---- funciones con el user_id de otro (y propio: también denegado) ----
     const tradeAsB = await clientA.rpc("demo_trade", {

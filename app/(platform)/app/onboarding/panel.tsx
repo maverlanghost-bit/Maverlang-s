@@ -4,8 +4,9 @@ import Link from "next/link";
 import { useId, type ReactNode } from "react";
 import { Controller, type Control } from "react-hook-form";
 
+import { US_PERSON_DECLARATION_TEXT } from "@/config/compliance";
 import { site } from "@/config/site";
-import { US_RESIDENT_MESSAGE } from "@/lib/auth/registro-schema";
+import { BLOCKED_COUNTRY_MESSAGE } from "@/lib/auth/registro-schema";
 import { Button } from "@/components/ui/button";
 import { Select, type SelectOption } from "@/components/ui/select";
 import type { LegalVersions, OnboardingStep } from "./draft";
@@ -120,7 +121,8 @@ export function CountryFields({
   return (
     <div className="mt-4">
       <p className="text-sm leading-relaxed text-fg-body">
-        Elige el país donde resides. Si es Estados Unidos, la cuenta no está disponible.
+        Elige el país donde resides y tu nacionalidad. Si alguno está restringido, la cuenta no está disponible.
+        [REVISIÓN ABOGADO]
       </p>
       <div className="mt-4">
         <Select
@@ -137,14 +139,48 @@ export function CountryFields({
   );
 }
 
-export function UnavailableStep({ onChooseAgain }: { onChooseAgain: () => void }) {
+export function NationalityField({
+  options,
+  value,
+  onChange,
+  error,
+}: {
+  options: SelectOption[];
+  value: string;
+  onChange: (value: string) => void;
+  error?: string;
+}) {
+  const errorId = useId();
   return (
     <div className="mt-4">
-      <p className="text-sm leading-relaxed text-fg-body">
-        {US_RESIDENT_MESSAGE}
-      </p>
-      <div className="mt-6">
-        <Button type="button" size="lg" className="w-full" onClick={onChooseAgain}>
+      <Select
+        id="onboarding-nationality"
+        label="Nacionalidad"
+        options={options}
+        value={value}
+        onValueChange={onChange}
+        placeholder="Elige tu nacionalidad"
+      />
+      <FieldError id={errorId} message={error} />
+    </div>
+  );
+}
+
+export function UnavailableStep({
+  onChooseAgain,
+  onLeave,
+}: {
+  onChooseAgain: () => void;
+  onLeave: () => void;
+}) {
+  return (
+    <div className="mt-4">
+      <p className="text-sm leading-relaxed text-fg-body">{BLOCKED_COUNTRY_MESSAGE}</p>
+      <div className="mt-6 flex flex-col gap-3">
+        <Button type="button" size="lg" className="w-full" onClick={onLeave}>
+          Entendido
+        </Button>
+        <Button type="button" variant="secondary" size="lg" className="w-full" onClick={onChooseAgain}>
           Elegir otro país
         </Button>
       </div>
@@ -158,18 +194,20 @@ export function DeclarationStep({
   onBlur,
   inputRef,
   error,
+  onDeclareYes,
 }: {
   checked: boolean;
   onChange: (checked: boolean) => void;
   onBlur: () => void;
   inputRef: (element: HTMLInputElement | null) => void;
   error?: string;
+  onDeclareYes: () => void;
 }) {
   return (
     <div className="mt-4 flex flex-col gap-4">
       <p className="text-sm leading-relaxed text-fg-body">
-        Para usar {site.name} tienes que declarar que no eres ciudadano ni residente de Estados Unidos. Si lo eres, el
-        servicio no está disponible.
+        Para usar {site.name} tienes que declarar que no eres persona de un país restringido. Si lo eres, la cuenta no
+        está disponible. [REVISIÓN ABOGADO]
       </p>
       <CheckField
         checked={checked}
@@ -177,8 +215,11 @@ export function DeclarationStep({
         onBlur={onBlur}
         inputRef={inputRef}
         error={error}
-        label="No soy ciudadano ni residente de EE.UU. (US person)"
+        label={US_PERSON_DECLARATION_TEXT}
       />
+      <Button type="button" variant="ghost" size="lg" className="w-full" onClick={onDeclareYes}>
+        Sí, soy de un país restringido
+      </Button>
     </div>
   );
 }

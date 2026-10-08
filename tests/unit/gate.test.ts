@@ -110,17 +110,12 @@ describe("decideGate", () => {
     });
   });
 
-  it("sigue geobloqueando el mercado público", () => {
-    expect(gate({ countryHeader: "US", pathname: "/app" })).toEqual({
-      kind: "redirect",
-      pathname: "/bloqueado",
-      search: "",
-    });
-    expect(gate({ countryHeader: "US", pathname: "/app/accion/AAPLx", ...SESSION })).toEqual({
-      kind: "redirect",
-      pathname: "/bloqueado",
-      search: "",
-    });
+  it("deja navegar el mercado y bloquea el registro si la IP está en la lista", () => {
+    const ubicacion = { kind: "redirect" as const, pathname: "/bloqueado", search: "?motivo=ubicacion" };
+    expect(gate({ countryHeader: "US", pathname: "/app" })).toEqual(NEXT);
+    expect(gate({ countryHeader: "US", pathname: "/app/accion/AAPLx", ...SESSION })).toEqual(NEXT);
+    expect(gate({ countryHeader: "US", pathname: "/app/registro" })).toEqual(ubicacion);
+    expect(gate({ countryHeader: "US", pathname: "/app/cartera", ...SESSION })).toEqual(ubicacion);
   });
 
   it("con Privy no acepta la cookie mock como sesión", () => {

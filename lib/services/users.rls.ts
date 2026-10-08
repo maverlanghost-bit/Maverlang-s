@@ -2,8 +2,16 @@ import "server-only";
 
 import { z } from "zod";
 
+import { isOperationBlocked } from "@/config/compliance";
 import { DomainError } from "@/lib/api/result";
-import { US_RESIDENT_MESSAGE, formatRut, isValidRut, normalizePhone } from "@/lib/auth/registro-schema";
+import {
+  BLOCKED_COUNTRY_MESSAGE,
+  US_RESIDENT_MESSAGE,
+  formatRut,
+  isValidRut,
+  normalizePhone,
+} from "@/lib/auth/registro-schema";
+import { complianceDbColumns, type ComplianceWriteInput } from "@/lib/compliance/profile-write";
 import { sanitizeFavoriteSymbols } from "@/lib/favorites/merge";
 import { PROFILE_MIGRATION_MESSAGE } from "@/lib/profile/migration";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -42,7 +50,7 @@ const preferenceRowSchema = z.object({
 
 const consentRowSchema = z.object({
   user_id: z.string().min(1),
-  doc: z.enum(["terminos", "privacidad", "riesgos"]),
+  doc: z.enum(["terminos", "privacidad", "riesgos", "us_person"]),
   version: z.string().min(1),
   accepted_at: z.string().min(1),
 });
@@ -129,11 +137,19 @@ export const rlsUsers = {
     return profile;
   },
 
-  async update(id: string, patch: Partial<UserProfile>): Promise<UserProfile> {
+  async update(id: string, patch: Partial<UserProfile> & ComplianceWriteInput): Promise<UserProfile> {
     const { profile, supabase, userId } = await readRow(id);
     const country = patch.country === undefined ? profile.country : patch.country?.trim().toUpperCase() || null;
     const isUsPerson = patch.isUsPerson === undefined ? profile.isUsPerson : patch.isUsPerson;
-    if (country === "US" || isUsPerson === true) throw new DomainError("VALIDATION", US_RESIDENT_MESSAGE);
+    const nationality = patch.nationalityCountry?.trim().toUpperCase() || null;
+    const residence = patch.residenceCountry?.trim().toUpperCase() || country;
+    const blockedCountry = [residence, nationality].find((code) => isOperationBlocked(code)) ?? null;
+    if (blockedCountry || isUsPerson === true) {
+      throw new DomainError(
+        "VALIDATION",
+        blockedCountry === "US" || isUsPerson === true ? US_RESIDENT_MESSAGE : BLOCKED_COUNTRY_MESSAGE,
+      );
+    }
 
     const body: Record<string, unknown> = {};
     if (patch.displayName !== undefined) body.nombre = patch.displayName?.trim() || null;
@@ -155,13 +171,35 @@ export const rlsUsers = {
       } else body.rut = null;
     }
 
+    const compliance = complianceDbColumns(
+      {
+        country,
+        residenceCountry: patch.residenceCountry,
+        nationalityCountry: patch.nationalityCountry,
+        usPersonDeclarationVersion: patch.usPersonDeclarationVersion,
+      },
+      new Date().toISOString(),
+    );
+    if (compliance) Object.assign(body, compliance);
+
     if (Object.keys(body).length === 0) return profile;
-    const { data, error } = await supabase
+    let { data, error } = await supabase
       .from("profiles")
       .update(body)
       .eq("id", userId)
       .select(PROFILE_COLUMNS)
       .maybeSingle();
+    // 0015 todavía no aplicada: se guardan las columnas de siempre y se sigue.
+    if (error && compliance && isMissingSchemaError(error)) {
+      for (const key of Object.keys(compliance)) delete body[key];
+      if (Object.keys(body).length === 0) return profile;
+      ({ data, error } = await supabase
+        .from("profiles")
+        .update(body)
+        .eq("id", userId)
+        .select(PROFILE_COLUMNS)
+        .maybeSingle());
+    }
     if (error) throwDb(error);
     const parsed = profileRowSchema.safeParse(data);
     if (!parsed.success) throw new DomainError("NOT_FOUND", "No encontramos tu perfil.");

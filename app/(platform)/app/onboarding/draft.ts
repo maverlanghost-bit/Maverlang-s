@@ -1,3 +1,5 @@
+import { isOperationBlocked } from "@/config/compliance";
+
 import type { OnboardingInput } from "./schema";
 
 export type OnboardingStep = 1 | 2 | 3 | 4 | 5;
@@ -14,6 +16,7 @@ export type OnboardingDraft = {
   userId: string;
   step: OnboardingStep;
   country: string;
+  nationality: string;
   notUsPerson: boolean;
   terminos: boolean;
   privacidad: boolean;
@@ -36,6 +39,7 @@ export function emptyDraft(userId: string): OnboardingDraft {
     userId,
     step: 1,
     country: "",
+    nationality: "",
     notUsPerson: false,
     terminos: false,
     privacidad: false,
@@ -50,6 +54,7 @@ export function emptyDraft(userId: string): OnboardingDraft {
 export function formValues(draft: OnboardingDraft): OnboardingInput {
   return {
     country: draft.country,
+    nationality: draft.nationality,
     notUsPerson: draft.notUsPerson,
     terminos: draft.terminos,
     privacidad: draft.privacidad,
@@ -80,7 +85,11 @@ function consentsCurrent(draft: OnboardingDraft, versions: LegalVersions): boole
  * el paso 5 sin país, declaración, consentimientos y billetera.
  */
 export function clampDraft(draft: OnboardingDraft, versions: LegalVersions): OnboardingDraft {
-  const countryOk = /^[A-Z]{2}$/.test(draft.country) && draft.country !== "US";
+  const countryOk =
+    /^[A-Z]{2}$/.test(draft.country) &&
+    !isOperationBlocked(draft.country) &&
+    /^[A-Z]{2}$/.test(draft.nationality) &&
+    !isOperationBlocked(draft.nationality);
   const consentsOk = consentsCurrent(draft, versions);
   let step = draft.step;
 
@@ -118,6 +127,7 @@ export function loadDraft(userId: string, versions: LegalVersions): OnboardingDr
         userId,
         step: isStep(parsed.step) ? parsed.step : 1,
         country: typeof parsed.country === "string" ? parsed.country.trim().toUpperCase() : "",
+        nationality: typeof parsed.nationality === "string" ? parsed.nationality.trim().toUpperCase() : "",
         notUsPerson: parsed.notUsPerson === true,
         terminos: parsed.terminos === true,
         privacidad: parsed.privacidad === true,

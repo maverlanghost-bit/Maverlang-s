@@ -550,6 +550,8 @@ export const esCL = {
       privacidad: "Política de privacidad",
       riesgos: "Divulgación de riesgos",
       comisiones: "Comisiones",
+      // M75
+      us_person: "Declaración de no ser persona de EE.UU. [REVISIÓN ABOGADO]",
     },
     legalLinks: "Textos completos",
     legalEmpty: "Todavía no hay consentimientos registrados.",
@@ -612,3 +614,13 @@ export const esCL = {
 type Widen<T> = T extends string ? string : { [K in keyof T]: Widen<T[K]> };
 
 export type Messages = Widen<typeof esCL>;
+
+/** M75: textos de /bloqueado. No listan los países. [REVISIÓN ABOGADO] */
+export const complianceM75Es = {
+  locationTitle: "No podemos ofrecer este servicio en tu ubicación",
+  locationBody:
+    "Desde donde estás no podemos abrir el registro ni la operación. Si llegaste por error, escribe al centro de ayuda. [REVISIÓN ABOGADO]",
+  residenceTitle: "No podemos crear la cuenta con esos datos",
+  residenceBody:
+    "Con el país de residencia, la nacionalidad o el documento que indicaste no podemos abrir la cuenta. No guardamos un perfil para operar. [REVISIÓN ABOGADO]",
+} as const;

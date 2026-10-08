@@ -2,6 +2,7 @@ import "server-only";
 
 import { z } from "zod";
 
+import { BLOCKED_COUNTRIES, complianceBaseGaps, mergeBlockedCountries } from "@/config/compliance";
 import { isOnrampModelSelectable, ONRAMP_MODELS, resolveOnrampModel } from "@/lib/onramp/model";
 import { resolveCspMode } from "@/lib/security/csp";
 
@@ -299,6 +300,17 @@ function buildServerSchema(source: EnvSource) {
      * Sólo informativa (avisos): NUNCA activa el modo estricto.
      */
     VERCEL_ENV: optionalText(),
+    /**
+     * M75: versión de la declaración de no ser U.S. person.
+     * Default `2026-10-draft`. [REVISIÓN ABOGADO]
+     */
+    US_PERSON_DECLARATION_VERSION: requiredText("2026-10-draft"),
+    /**
+     * M75: si es true, una persona en un país bloqueado igual puede usar la
+     * demo (el gate deja el ingreso y el alta). Default false: también se
+     * bloquea la demo. La cotización real no mira este flag (M70).
+     */
+    DEMO_FOR_BLOCKED: boolEnv(false),
   }).superRefine((env, ctx) => {
     /**
      * Guardias de producción (M58): el modelo `api` del on-ramp (descartado)
@@ -391,7 +403,13 @@ function baseStrictGaps(env: ServerEnv): string[] {
   if (!env.SUPABASE_SECRET_KEY) gaps.push("SUPABASE_SECRET_KEY");
   if (!env.CRON_SECRET || env.CRON_SECRET.length < 32) gaps.push("CRON_SECRET");
   if (!env.JUPITER_API_KEY) gaps.push("JUPITER_API_KEY");
-  if (!env.GEO_BLOCKED_COUNTRIES.includes("US")) gaps.push("GEO_BLOCKED_COUNTRIES");
+  // M75: la lista base no se vacía. GEO_BLOCKED_COUNTRIES sólo suma.
+  if (
+    complianceBaseGaps(BLOCKED_COUNTRIES).length > 0 ||
+    BLOCKED_COUNTRIES.some((code) => !mergeBlockedCountries(env.GEO_BLOCKED_COUNTRIES).includes(code))
+  ) {
+    gaps.push("GEO_BLOCKED_COUNTRIES");
+  }
   if (env.CATALOG_SCOPE === "all") gaps.push("CATALOG_SCOPE");
   // DATA_MODE=live sólo si REAL_TRADING_READY=true (lo enciende M90);
   // hasta entonces la cuenta Real sigue en "Próximamente" con DATA_MODE=mock.

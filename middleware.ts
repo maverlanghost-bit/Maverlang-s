@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 
+import { mergeBlockedCountries } from "@/config/compliance";
 import { decideGate, blockedCountryList } from "@/lib/auth/gate";
 import { MOCK_ONBOARDING_COOKIE, MOCK_SESSION_COOKIE, PRIVY_SESSION_COOKIE } from "@/lib/auth/cookies";
 import { isSupabaseAuth, shouldUsePrivy } from "@/lib/auth/mode";
@@ -97,8 +98,13 @@ export async function middleware(request: NextRequest) {
     search,
     countryHeader: request.headers.get("x-vercel-ip-country"),
     countryQuery: request.nextUrl.searchParams.get("country"),
+    // M75: región (Crimea, Donetsk, Luhansk) si Vercel la entrega.
+    regionHeader: request.headers.get("x-vercel-ip-country-region"),
+    regionQuery: request.nextUrl.searchParams.get("region"),
     nodeEnv: process.env.NODE_ENV,
-    blockedCountries: blockedCountryList(process.env.GEO_BLOCKED_COUNTRIES),
+    // M75: el env se suma a la lista base y nunca la achica.
+    blockedCountries: mergeBlockedCountries(blockedCountryList(process.env.GEO_BLOCKED_COUNTRIES)),
+    demoForBlocked: /^(1|true|yes)$/i.test(process.env.DEMO_FOR_BLOCKED?.trim() ?? ""),
     mockSession: request.cookies.get(MOCK_SESSION_COOKIE)?.value ?? null,
     onboarding: request.cookies.get(MOCK_ONBOARDING_COOKIE)?.value ?? null,
     privyToken: request.cookies.get(PRIVY_SESSION_COOKIE)?.value ?? null,

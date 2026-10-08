@@ -19,9 +19,11 @@ test("smoke con datos mock", async ({ page }) => {
 
   await page.getByRole("combobox", { name: "País de residencia" }).click();
   await page.getByRole("option", { name: "Chile", exact: true }).click();
+  await page.getByRole("combobox", { name: "Nacionalidad" }).click();
+  await page.getByRole("option", { name: "Chile", exact: true }).click();
   await page.getByRole("button", { name: "Continuar" }).click();
 
-  await page.getByRole("checkbox", { name: /No soy ciudadano ni residente/ }).check();
+  await page.getByRole("checkbox", { name: /Declaro que no soy ciudadano/ }).check();
   await page.getByRole("button", { name: "Continuar" }).click();
 
   await expect(page.getByRole("heading", { name: "Términos y riesgos" })).toBeVisible();

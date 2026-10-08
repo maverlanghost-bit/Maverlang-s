@@ -321,6 +321,10 @@ export const profileUpdateSchema = z
       .nullable()
       .optional(),
     phone: z.string().trim().max(20).nullable().optional(),
+    // M75: declaración de no ser U.S. person. La versión la pone el servidor si falta.
+    residenceCountry: z.string().trim().length(2).toUpperCase().nullable().optional(),
+    nationalityCountry: z.string().trim().length(2).toUpperCase().nullable().optional(),
+    usPersonDeclarationVersion: z.string().trim().min(1).max(64).optional(),
   })
   .strict();
 
@@ -333,7 +337,8 @@ export const consentRequestSchema = z
 
 export const consentSchema = z.object({
   userId: z.string().min(1),
-  doc: z.enum(["terminos", "privacidad", "riesgos"]),
+  // M75: `us_person` lo escribe el trigger de 0015; el POST sigue en los tres docs.
+  doc: z.enum(["terminos", "privacidad", "riesgos", "us_person"]),
   version: z.string().min(1),
   acceptedAt: isoTimeSchema,
 });

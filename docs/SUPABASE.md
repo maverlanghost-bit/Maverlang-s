@@ -177,3 +177,14 @@ NO aplicada. Después de `0021`, pega **una sola vez** `supabase/migrations/0022
 - RLS: `assets` sigue público de lectura (`audit-rls` ya lo cubre); sin políticas nuevas.
 
 Las filas Ondo se ven con "En revisión" y no se operan; pasan a `listed` solas por la histéresis de `nextSafetyState` (2 pasadas de `audit:catalog`, al menos una en sesión regular). `sync-xstocks` nunca las toca y la app muestra una sola ficha por empresa.
+
+## Cumplimiento geográfico (0015) — M75
+
+NO aplicada. Después de `0011`, pega **una sola vez** `supabase/migrations/0015_compliance.sql` en el SQL Editor y ejecútalo. También es idempotente (se puede pegar dos veces). Agrega:
+
+- En `public.profiles`: `residence_country`, `nationality_country`, `us_person_declared_at` y `us_person_declaration_version`. `is_us_person` ya existía (0002) y no se vuelve a crear. Esas columnas no las puede cambiar `authenticated` después de `onboarding_completed` (trigger `profiles_reject_compliance_change`).
+- `public.compliance_events` (`id`, `user_id`, `type`, `data jsonb`, `created_at`) con RLS y **sin políticas**. `anon` y `authenticated` no leen ni escriben.
+- El check de `consents.doc` suma `us_person`. Lo inserta el trigger `profiles_record_us_person_declaration` cuando queda escrita la versión; el cliente no manda ese documento.
+- `handle_new_user` rechaza residencia o nacionalidad de la lista provisoria (`registro_us_person`, 42501) antes de crear la fila. [REVISIÓN ABOGADO] lista provisoria.
+
+Hasta que se pegue el SQL, el onboarding reintenta el update del perfil sin esas columnas: la declaración y el consentimiento `us_person` no quedan guardados.

@@ -18,6 +18,7 @@ const valid = {
   passwordConfirm: "clave1234",
   nombre: "Ana Soto",
   pais: "cl",
+  nacionalidad: "CL",
   rut: "12.345.678-5",
   fechaNacimiento: "2008-10-05",
   telefono: "+56 9 1234 5678",
@@ -111,6 +112,26 @@ describe("claimsOnboarded", () => {
       ),
     ).toBe(true);
     expect(claimsOnboarded({ user_metadata: { onboarding_completed: true, pais: "US" } }, TODAY)).toBe(false);
+    expect(
+      claimsOnboarded(
+        {
+          user_metadata: {
+            onboarding_completed: true,
+            nombre: "Ana Soto",
+            pais: "CL",
+            nationality_country: "US",
+            rut: "12.345.678-5",
+            fecha_nacimiento: "2008-10-05",
+            telefono: "+56912345678",
+            is_us_person: false,
+            terms_version: "2026-10-draft",
+            privacy_version: "2026-10-draft",
+            risks_version: "2026-10-draft",
+          },
+        },
+        TODAY,
+      ),
+    ).toBe(false);
   });
 });
 

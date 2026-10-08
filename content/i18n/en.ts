@@ -546,6 +546,8 @@ export const en = {
       privacidad: "Privacy policy",
       riesgos: "Risk disclosure",
       comisiones: "Fees",
+      // M75
+      us_person: "Declaration of not being a U.S. person [REVISIÓN ABOGADO]",
     },
     legalLinks: "Full texts",
     legalEmpty: "No consents are recorded yet.",
@@ -604,3 +606,13 @@ export const en = {
     },
   },
 } satisfies Messages;
+
+/** M75: /bloqueado copy. It does not list the countries. [REVISIÓN ABOGADO] */
+export const complianceM75En = {
+  locationTitle: "We can't offer this service in your location",
+  locationBody:
+    "From where you are, we can't open registration or trading. If this looks wrong, write to the help center. [REVISIÓN ABOGADO]",
+  residenceTitle: "We can't create the account with those details",
+  residenceBody:
+    "With the country of residence, nationality, or document you gave us, we can't open the account. We don't save a profile to trade. [REVISIÓN ABOGADO]",
+} as const;

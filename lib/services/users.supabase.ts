@@ -43,7 +43,7 @@ const preferenceRowSchema = z.object({
 
 const consentRowSchema = z.object({
   user_id: z.string().min(1),
-  doc: z.enum(["terminos", "privacidad", "riesgos"]),
+  doc: z.enum(["terminos", "privacidad", "riesgos", "us_person"]),
   version: z.string().min(1),
   accepted_at: z.string().min(1),
 });

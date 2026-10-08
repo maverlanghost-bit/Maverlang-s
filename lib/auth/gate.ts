@@ -1,3 +1,4 @@
+import { isBrowseBlocked, normalizeRegion } from "@/config/compliance";
 import { ONBOARDING_DONE } from "@/lib/auth/cookies";
 import {
   isCredentialPath,
@@ -23,6 +24,16 @@ export type GateInput = {
   onboarding: string | null;
   privyToken: string | null;
   usePrivy: boolean;
+  /** Región de Vercel (`x-vercel-ip-country-region`) o `?region=` fuera de production. */
+  regionHeader?: string | null;
+  regionQuery?: string | null;
+  /**
+   * M75: default false. Si es true, una IP de un país bloqueado igual puede
+   * usar las rutas de la demo: el geobloqueo de operación no redirige.
+   * Los sancionados y las regiones siguen sin poder navegar. La cotización
+   * real no mira este flag (M70).
+   */
+  demoForBlocked?: boolean;
   /** Si es true, manda Supabase: no cuentan la cookie mock ni `privy-token`. */
   useSupabase: boolean;
   /** Sesión verificada con `getClaims` (o `getUser`). No es la cookie en crudo. */
@@ -73,6 +84,27 @@ export function resolveCountry(input: Pick<GateInput, "countryHeader" | "country
   }
   const header = input.countryHeader?.trim().toUpperCase() ?? "";
   return COUNTRY.test(header) ? header : null;
+}
+
+/** `UA-43` a partir del país y del header. `?region=` sólo fuera de production. */
+export function resolveRegion(
+  input: Pick<GateInput, "countryHeader" | "countryQuery" | "regionHeader" | "regionQuery" | "nodeEnv">,
+): string | null {
+  const country = resolveCountry(input);
+  const fromQuery = input.nodeEnv !== "production" ? (input.regionQuery?.trim() ?? "") : "";
+  const raw = fromQuery || input.regionHeader?.trim() || "";
+  return normalizeRegion(country, raw || null);
+}
+
+/** Portada, ayuda, legal y el mercado público (`/app` y el detalle). */
+function isNavigatePath(pathname: string): boolean {
+  if (pathname === "/bloqueado") return true;
+  if (pathname === "/app" || pathname === "/app/accion" || pathname.startsWith("/app/accion/")) return true;
+  return pathname !== "/app" && !pathname.startsWith("/app/");
+}
+
+function blockedRedirect(): GateDecision {
+  return { kind: "redirect", pathname: "/bloqueado", search: "?motivo=ubicacion" };
 }
 
 function present(value: string | null): boolean {
@@ -149,11 +181,16 @@ export function decideGate(input: GateInput): GateDecision {
   if (isSkippedPath(input.pathname)) return NEXT;
   if (isAuthPath(input.pathname)) return NEXT;
 
-  const country = resolveCountry(input);
-  const blocked = country !== null && input.blockedCountries.includes(country);
-  if (blocked) {
-    if (input.pathname === "/bloqueado") return NEXT;
-    return { kind: "redirect", pathname: "/bloqueado", search: "" };
+  // M57b: el TOTP queda fuera del geobloqueo para poder subir de aal1 a aal2.
+  // M57: /admin ni siquiera entra acá (el middleware lo deja pasar antes).
+  if (!isMfaVerifyPath(input.pathname) && input.pathname !== "/bloqueado") {
+    const country = resolveCountry(input);
+    const region = resolveRegion(input);
+    if (isBrowseBlocked(country, region)) return blockedRedirect();
+    const operateBlocked = country !== null && input.blockedCountries.includes(country);
+    if (operateBlocked && !isNavigatePath(input.pathname) && !input.demoForBlocked) {
+      return blockedRedirect();
+    }
   }
 
   if (!isAppPath(input.pathname)) return NEXT;

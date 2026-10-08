@@ -33,7 +33,10 @@ export default async function RegistroPage({
           terminos: serverEnv.TERMS_VERSION,
           privacidad: serverEnv.PRIVACY_VERSION,
           riesgos: serverEnv.RISKS_VERSION,
+          usPersonDeclarationVersion: serverEnv.US_PERSON_DECLARATION_VERSION,
         }}
+        declarationVersion={serverEnv.US_PERSON_DECLARATION_VERSION}
+        demoForBlocked={serverEnv.DEMO_FOR_BLOCKED}
       />
     </main>
   );

@@ -12,11 +12,14 @@ import {
   BrandLink,
   CheckField,
   CountryFields,
+  DeclarationStep,
   FieldError,
+  NationalityField,
   RISK_POINTS,
   UnavailableStep,
 } from "@/app/(platform)/app/onboarding/panel";
 import { Button, buttonClasses } from "@/components/ui/button";
+import { isOperationBlocked } from "@/config/compliance";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -51,6 +54,7 @@ const EMPTY: RegistroValues = {
   passwordConfirm: "",
   nombre: "",
   pais: "",
+  nacionalidad: "",
   rut: "",
   fechaNacimiento: "",
   telefono: "",
@@ -283,10 +287,14 @@ export function RegistroWizard({
   mode,
   next,
   versions,
+  declarationVersion,
+  demoForBlocked = false,
 }: {
   mode: Mode;
   next: string | null;
   versions: RegistroVersions;
+  declarationVersion?: string;
+  demoForBlocked?: boolean;
 }) {
   const { status, login } = useSession();
   const [sentEmail, setSentEmail] = useState<string | null>(null);
@@ -296,7 +304,17 @@ export function RegistroWizard({
   if (status === "loading") return <LoadingCard />;
   if (status !== "authenticated") return <NeedSession />;
 
-  return <RegistroForm mode={mode} next={next} versions={versions} onSent={setSentEmail} login={login} />;
+  return (
+    <RegistroForm
+      mode={mode}
+      next={next}
+      versions={versions}
+      declarationVersion={declarationVersion}
+      demoForBlocked={demoForBlocked}
+      onSent={setSentEmail}
+      login={login}
+    />
+  );
 }
 
 const DEMO_EMPTY: RegistroDemoValues = {
@@ -491,12 +509,16 @@ function RegistroForm({
   mode,
   next,
   versions,
+  declarationVersion,
+  demoForBlocked,
   onSent,
   login,
 }: {
   mode: Mode;
   next: string | null;
   versions: RegistroVersions;
+  declarationVersion?: string;
+  demoForBlocked: boolean;
   onSent: (email: string) => void;
   login: (method?: "email" | "google") => Promise<void>;
 }) {
@@ -531,8 +553,9 @@ function RegistroForm({
   });
 
   const pais = useWatch({ control, name: "pais" });
+  const nacionalidad = useWatch({ control, name: "nacionalidad" });
   const password = useWatch({ control, name: "password" });
-  const unavailable = step === 2 && pais === "US";
+  const unavailable = step === 2 && (isOperationBlocked(pais) || isOperationBlocked(nacionalidad));
   const stepIndex = Math.max(0, steps.indexOf(step));
   const strength = passwordLabel(password ?? "");
 
@@ -552,6 +575,15 @@ function RegistroForm({
     setStep(previous);
   }
 
+  function leaveBlocked() {
+    if (demoForBlocked) {
+      router.push(next ?? "/app");
+      router.refresh();
+      return;
+    }
+    router.push("/bloqueado?motivo=residencia");
+  }
+
   async function finish() {
     if (lock.current) return;
     lock.current = true;
@@ -564,6 +596,10 @@ function RegistroForm({
         return;
       }
       const values = parsed.data;
+      if (isOperationBlocked(values.pais) || isOperationBlocked(values.nacionalidad)) {
+        leaveBlocked();
+        return;
+      }
       if (mode === "alta" && authMode(clientAuthModeInput()) !== "supabase") {
         await login("email");
         writeClientCookie(MOCK_ONBOARDING_COOKIE, ONBOARDING_DONE);
@@ -572,7 +608,14 @@ function RegistroForm({
         return;
       }
       if (mode === "alta") {
-        const result = await signUpRegistro(values, versions, next);
+        const result = await signUpRegistro(
+          values,
+          {
+            ...versions,
+            usPersonDeclarationVersion: declarationVersion ?? versions.usPersonDeclarationVersion,
+          },
+          next,
+        );
         if (!result.ok) {
           setFormError(result.message);
           return;
@@ -603,8 +646,14 @@ function RegistroForm({
         rut: values.pais === "CL" ? formatRut(values.rut) : null,
         birthDate: values.fechaNacimiento,
         phone: normalizePhone(values.telefono),
+        residenceCountry: values.pais,
+        nationalityCountry: values.nacionalidad,
+        usPersonDeclarationVersion: declarationVersion ?? versions.usPersonDeclarationVersion,
       });
-      const metaError = await publishRegistroMetadata(values, versions);
+      const metaError = await publishRegistroMetadata(values, {
+        ...versions,
+        usPersonDeclarationVersion: declarationVersion ?? versions.usPersonDeclarationVersion,
+      });
       if (metaError) {
         setFormError(metaError);
         return;
@@ -626,7 +675,7 @@ function RegistroForm({
       step === 1
         ? (["email", "password", "passwordConfirm"] as const)
         : step === 2
-          ? (["nombre", "pais", "rut", "fechaNacimiento", "telefono", "notUsPerson"] as const)
+          ? (["nombre", "pais", "nacionalidad", "rut", "fechaNacimiento", "telefono", "notUsPerson"] as const)
           : (["terminos", "privacidad", "riesgos"] as const);
     const ok = await trigger([...names]);
     if (!ok) return;
@@ -711,6 +760,18 @@ function RegistroForm({
                 />
               )}
             />
+            <Controller
+              name="nacionalidad"
+              control={control}
+              render={({ field, fieldState }) => (
+                <NationalityField
+                  options={countries}
+                  value={field.value}
+                  onChange={field.onChange}
+                  error={fieldState.error?.message}
+                />
+              )}
+            />
             {pais === "CL" ? (
               <Controller
                 name="rut"
@@ -758,13 +819,13 @@ function RegistroForm({
                 name="notUsPerson"
                 control={control}
                 render={({ field, fieldState }) => (
-                  <CheckField
+                  <DeclarationStep
                     checked={field.value}
                     onChange={field.onChange}
                     onBlur={field.onBlur}
                     inputRef={field.ref}
                     error={fieldState.error?.message}
-                    label="No soy ciudadano ni residente de EE.UU. (US person)"
+                    onDeclareYes={leaveBlocked}
                   />
                 )}
               />
@@ -773,8 +834,10 @@ function RegistroForm({
         ) : null}
         {unavailable ? (
           <UnavailableStep
+            onLeave={leaveBlocked}
             onChooseAgain={() => {
               setValue("pais", "", { shouldValidate: false });
+              setValue("nacionalidad", "", { shouldValidate: false });
               setFormError(null);
             }}
           />

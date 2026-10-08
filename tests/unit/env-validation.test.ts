@@ -86,13 +86,14 @@ describe("M59: production estricta", () => {
     expect(() => assertServerEnv({ ...prodSource(), CATALOG_SCOPE: "all" })).toThrow(/CATALOG_SCOPE/);
   });
 
-  it("rechaza URL http y GEO sin US", () => {
+  it("rechaza URL http y acepta un GEO que solo suma", () => {
     expect(() =>
       assertServerEnv({ ...prodSource(), NEXT_PUBLIC_SITE_URL: "http://insecure.example.com" }),
     ).toThrow(/NEXT_PUBLIC_SITE_URL/);
-    expect(() => assertServerEnv({ ...prodSource(), GEO_BLOCKED_COUNTRIES: "CL,BR" })).toThrow(
-      /GEO_BLOCKED_COUNTRIES/,
-    );
+    expect(assertServerEnv({ ...prodSource(), GEO_BLOCKED_COUNTRIES: "CL,BR" })).toEqual({
+      mode: "production",
+      strict: true,
+    });
   });
 
   it("rechaza DATA_MODE=live sin REAL_TRADING_READY", () => {
@@ -122,7 +123,7 @@ describe("M59: production estricta", () => {
       message = error instanceof Error ? error.message : String(error);
     }
     expect(message).toContain("NEXT_PUBLIC_SITE_URL");
-    expect(message).toContain("GEO_BLOCKED_COUNTRIES");
+    expect(message).not.toContain("GEO_BLOCKED_COUNTRIES");
     expect(message).not.toContain("sentinel-9zqx");
     expect(message).not.toContain("CL,AR");
   });
@@ -206,6 +207,9 @@ const MANAGED_KEYS = [
   "CATALOG_SCOPE",
   "DATA_MODE",
   "REAL_TRADING_READY",
+  // M75
+  "US_PERSON_DECLARATION_VERSION",
+  "DEMO_FOR_BLOCKED",
 ];
 
 /** Reimporta `@/lib/env` con un entorno controlado (el import aplica la regla, como en el build). */

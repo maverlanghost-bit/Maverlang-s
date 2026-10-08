@@ -9,6 +9,7 @@ import { useRouter } from "next/navigation";
 import { Button, buttonClasses } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { isOperationBlocked } from "@/config/compliance";
 import { ApiError, addConsent, updateMe } from "@/lib/api/client";
 import { useSession } from "@/lib/auth";
 import { writeClientCookie, readBrowserCookie } from "@/lib/auth/browser-cookies";
@@ -33,6 +34,7 @@ import {
   CountryFields,
   DeclarationStep,
   DocumentsStep,
+  NationalityField,
   DoneStep,
   StepProgress,
   UnavailableStep,
@@ -116,11 +118,15 @@ export function OnboardingWizard({
   privacidadVersion,
   riesgosVersion,
   returnTo,
+  declarationVersion,
+  demoForBlocked = false,
 }: {
   terminosVersion: string;
   privacidadVersion: string;
   riesgosVersion: string;
   returnTo: string | null;
+  declarationVersion: string;
+  demoForBlocked?: boolean;
 }) {
   const { status, user } = useSession();
   const versions = useMemo<LegalVersions>(
@@ -160,6 +166,8 @@ export function OnboardingWizard({
       versions={versions}
       walletAddress={walletAddress}
       returnTo={returnTo}
+      declarationVersion={declarationVersion}
+      demoForBlocked={demoForBlocked}
     />
   );
 }
@@ -170,12 +178,16 @@ function WizardBody({
   versions,
   walletAddress,
   returnTo,
+  declarationVersion,
+  demoForBlocked,
 }: {
   initial: OnboardingDraft;
   userId: string;
   versions: LegalVersions;
   walletAddress: string | null;
   returnTo: string | null;
+  declarationVersion: string;
+  demoForBlocked: boolean;
 }) {
   const router = useRouter();
   const headingRef = useRef<HTMLHeadingElement>(null);
@@ -205,11 +217,13 @@ function WizardBody({
   });
 
   const country = useWatch({ control, name: "country" });
+  const nationality = useWatch({ control, name: "nationality" });
   const notUsPerson = useWatch({ control, name: "notUsPerson" });
   const terminos = useWatch({ control, name: "terminos" });
   const privacidad = useWatch({ control, name: "privacidad" });
   const riesgos = useWatch({ control, name: "riesgos" });
-  const unavailable = step === 1 && country === "US";
+  const unavailable =
+    step === 1 && (isOperationBlocked(country) || isOperationBlocked(nationality));
   const consentsCurrent =
     consentsSaved &&
     terminos &&
@@ -224,6 +238,7 @@ function WizardBody({
       userId,
       step,
       country,
+      nationality,
       notUsPerson,
       terminos,
       privacidad,
@@ -237,6 +252,7 @@ function WizardBody({
     userId,
     step,
     country,
+    nationality,
     notUsPerson,
     terminos,
     privacidad,
@@ -312,8 +328,10 @@ function WizardBody({
     if (busy || unavailable) return;
     setFormError(null);
     if (step === 1) {
-      const ok = await trigger("country");
-      if (!ok || getValues("country") === "US") return;
+      const ok = await trigger(["country", "nationality"]);
+      if (!ok) return;
+      const picked = getValues();
+      if (isOperationBlocked(picked.country) || isOperationBlocked(picked.nationality)) return;
       setStep(2);
       return;
     }
@@ -345,7 +363,12 @@ function WizardBody({
     try {
       if (!finished) {
         const parsed = onboardingSchema.safeParse(getValues());
-        if (!parsed.success || parsed.data.country === "US" || !walletListed) {
+        if (
+          !parsed.success ||
+          isOperationBlocked(parsed.data.country) ||
+          isOperationBlocked(parsed.data.nationality) ||
+          !walletListed
+        ) {
           setFormError("Faltan datos del registro. Vuelve a los pasos anteriores.");
           setBusyHref(null);
           return;
@@ -359,6 +382,9 @@ function WizardBody({
           country: parsed.data.country,
           isUsPerson: false,
           onboardingCompleted: true,
+          residenceCountry: parsed.data.country,
+          nationalityCountry: parsed.data.nationality,
+          usPersonDeclarationVersion: declarationVersion,
         });
         writeClientCookie(MOCK_ONBOARDING_COOKIE, ONBOARDING_DONE);
         setFinished(true);
@@ -373,6 +399,16 @@ function WizardBody({
     } finally {
       lock.current = false;
     }
+  }
+
+  function leaveBlocked() {
+    if (demoForBlocked) {
+      writeClientCookie(MOCK_ONBOARDING_COOKIE, ONBOARDING_DONE);
+      router.push(returnTo ?? "/app");
+      router.refresh();
+      return;
+    }
+    router.push("/bloqueado?motivo=residencia");
   }
 
   function onSubmit(event: FormEvent<HTMLFormElement>) {
@@ -393,23 +429,39 @@ function WizardBody({
           {title}
         </h1>
         {step === 1 && !unavailable ? (
-          <Controller
-            name="country"
-            control={control}
-            render={({ field, fieldState }) => (
-              <CountryFields
-                options={countries}
-                value={field.value}
-                onChange={field.onChange}
-                error={fieldState.error?.message}
-              />
-            )}
-          />
+          <>
+            <Controller
+              name="country"
+              control={control}
+              render={({ field, fieldState }) => (
+                <CountryFields
+                  options={countries}
+                  value={field.value}
+                  onChange={field.onChange}
+                  error={fieldState.error?.message}
+                />
+              )}
+            />
+            <Controller
+              name="nationality"
+              control={control}
+              render={({ field, fieldState }) => (
+                <NationalityField
+                  options={countries}
+                  value={field.value}
+                  onChange={field.onChange}
+                  error={fieldState.error?.message}
+                />
+              )}
+            />
+          </>
         ) : null}
         {unavailable ? (
           <UnavailableStep
+            onLeave={leaveBlocked}
             onChooseAgain={() => {
               setValue("country", "", { shouldValidate: false });
+              setValue("nationality", "", { shouldValidate: false });
               setFormError(null);
             }}
           />
@@ -425,6 +477,7 @@ function WizardBody({
                 onBlur={field.onBlur}
                 inputRef={field.ref}
                 error={fieldState.error?.message}
+                onDeclareYes={leaveBlocked}
               />
             )}
           />

@@ -179,10 +179,12 @@ function buildRows(mode) {
     },
     {
       name: "GEO_BLOCKED_COUNTRIES",
-      want: "incluye US",
+      want: "ISO-2 extra (M75: se suma a la lista base, no la vacía)",
       check: (s) => {
         if (!isSet(s.GEO_BLOCKED_COUNTRIES)) return "ok";
-        return geoList(s.GEO_BLOCKED_COUNTRIES).includes("US") ? "ok" : "invalid";
+        const list = geoList(s.GEO_BLOCKED_COUNTRIES);
+        if (list.length === 0) return "invalid";
+        return list.every((code) => /^[A-Z]{2}$/.test(code)) ? "ok" : "invalid";
       },
     },
     {

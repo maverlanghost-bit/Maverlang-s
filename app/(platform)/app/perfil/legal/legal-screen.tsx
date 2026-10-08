@@ -10,7 +10,7 @@ import type { Consent, LegalDoc } from "@/lib/types";
 
 import { formatWhen, SettingsFrame, SettingsPanel } from "../ui";
 
-const DOC_ORDER: readonly LegalDoc[] = ["terminos", "privacidad", "riesgos"];
+const DOC_ORDER: readonly LegalDoc[] = ["terminos", "privacidad", "riesgos", "us_person"];
 
 const LINKS = [
   ["terminos", "/legal/terminos"],
@@ -67,12 +67,16 @@ export function LegalScreen() {
               {rows.map((row) => (
                 <tr key={`${row.doc}-${row.version}`} className="border-t border-border">
                   <th scope="row" className="px-4 py-3 font-normal md:px-6">
-                    <Link
-                      href={`/legal/${row.doc}`}
-                      className="text-fg underline decoration-border underline-offset-2 outline-none hover:decoration-fg focus-visible:ring-4 focus-visible:ring-fg/20"
-                    >
-                      {t.profile.docs[row.doc]}
-                    </Link>
+                    {row.doc === "us_person" ? (
+                      <span>{t.profile.docs[row.doc]}</span>
+                    ) : (
+                      <Link
+                        href={`/legal/${row.doc}`}
+                        className="text-fg underline decoration-border underline-offset-2 outline-none hover:decoration-fg focus-visible:ring-4 focus-visible:ring-fg/20"
+                      >
+                        {t.profile.docs[row.doc]}
+                      </Link>
+                    )}
                   </th>
                   <td className="num px-2 py-3 break-all text-fg">{row.version}</td>
                   <td className="px-4 py-3 text-fg-muted md:px-6">

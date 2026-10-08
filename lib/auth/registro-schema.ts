@@ -1,10 +1,15 @@
 import { z } from "zod";
 
-import { site } from "@/config/site";
 import { isResidenceCountry } from "@/app/(platform)/app/onboarding/countries";
+import { US_PERSON_DECLARATION_VERSION, isOperationBlocked } from "@/config/compliance";
+import { site } from "@/config/site";
 
-/** El mismo texto que el paso de país del onboarding. */
+/** El mismo texto que el paso de país del onboarding cuando el país es EE.UU. */
 export const US_RESIDENT_MESSAGE = `${site.name} no está disponible para residentes de Estados Unidos. Si vives en otro país, elige ese país.`;
+
+/** País restringido que no es EE.UU. No lista los países. [REVISIÓN ABOGADO] */
+export const BLOCKED_COUNTRY_MESSAGE =
+  "No podemos crear la cuenta con el país que indicaste. [REVISIÓN ABOGADO]";
 
 /** El mismo texto que la declaración del onboarding si no la marcan. */
 export const DECLARATION_REQUIRED = "Confirma que no eres ciudadano ni residente de EE.UU.";
@@ -22,6 +27,7 @@ export type RegistroValues = {
   passwordConfirm: string;
   nombre: string;
   pais: string;
+  nacionalidad: string;
   rut: string;
   fechaNacimiento: string;
   telefono: string;
@@ -35,6 +41,8 @@ export type RegistroVersions = {
   terminos: string;
   privacidad: string;
   riesgos: string;
+  /** M75. Opcional: los objetos de versiones que ya existen siguen valiendo. */
+  usPersonDeclarationVersion?: string;
 };
 
 /** Registro demo mínimo (M43): correo, contraseña y un solo checkbox legal. */
@@ -127,12 +135,16 @@ export function perfilListo(
     termsVersion: string;
     privacyVersion: string;
     risksVersion: string;
+    /** Si viene y está bloqueada, el perfil no está listo. No es obligatoria: los JWT viejos no la traen. */
+    nationalityCountry?: string | null;
   },
   today = new Date(),
 ): boolean {
   const pais = input.pais.trim().toUpperCase();
+  const nationality = (input.nationalityCountry ?? "").trim().toUpperCase();
   if (!input.nombre.trim() || input.nombre.trim().length > 80) return false;
-  if (!/^[A-Z]{2}$/.test(pais) || pais === "US" || input.isUsPerson) return false;
+  if (!/^[A-Z]{2}$/.test(pais) || isOperationBlocked(pais) || input.isUsPerson) return false;
+  if (nationality && (!/^[A-Z]{2}$/.test(nationality) || isOperationBlocked(nationality))) return false;
   if (!isAtLeast18(input.fechaNacimiento, today)) return false;
   if (!isInternationalPhone(input.telefono)) return false;
   if (pais === "CL" && !isValidRut(input.rut)) return false;
@@ -160,13 +172,20 @@ export function claimsOnboarded(
       termsVersion: text(record.terms_version),
       privacyVersion: text(record.privacy_version),
       risksVersion: text(record.risks_version),
+      nationalityCountry: text(record.nationality_country),
     },
     today,
   );
 }
 
-export function registroUserData(input: Pick<RegistroValues, "nombre" | "rut" | "pais" | "fechaNacimiento" | "telefono">, versions: RegistroVersions) {
+export function registroUserData(
+  input: Pick<RegistroValues, "nombre" | "rut" | "pais" | "fechaNacimiento" | "telefono"> & {
+    nacionalidad?: string;
+  },
+  versions: RegistroVersions,
+) {
   const pais = input.pais.trim().toUpperCase();
+  const nationality = (input.nacionalidad ?? "").trim().toUpperCase();
   return {
     nombre: input.nombre.trim(),
     rut: pais === "CL" ? formatRut(input.rut) : null,
@@ -174,6 +193,10 @@ export function registroUserData(input: Pick<RegistroValues, "nombre" | "rut" | 
     fecha_nacimiento: input.fechaNacimiento.trim(),
     telefono: normalizePhone(input.telefono),
     is_us_person: false,
+    residence_country: pais,
+    nationality_country: /^[A-Z]{2}$/.test(nationality) ? nationality : null,
+    us_person_declaration_version:
+      versions.usPersonDeclarationVersion?.trim() || US_PERSON_DECLARATION_VERSION,
     terms_version: versions.terminos,
     privacy_version: versions.privacidad,
     risks_version: versions.riesgos,
@@ -221,10 +244,18 @@ function checkAccount(data: RegistroValues, ctx: z.RefinementCtx): void {
   }
 }
 
+function blockedCountryMessage(code: string): string {
+  return code === "US" ? US_RESIDENT_MESSAGE : BLOCKED_COUNTRY_MESSAGE;
+}
+
 function checkDatos(data: RegistroValues, ctx: z.RefinementCtx, today: Date): void {
   const pais = data.pais.trim().toUpperCase();
-  if (pais === "US") {
-    ctx.addIssue({ code: "custom", path: ["pais"], message: US_RESIDENT_MESSAGE });
+  const nacionalidad = data.nacionalidad.trim().toUpperCase();
+  if (isOperationBlocked(pais)) {
+    ctx.addIssue({ code: "custom", path: ["pais"], message: blockedCountryMessage(pais) });
+  }
+  if (isOperationBlocked(nacionalidad)) {
+    ctx.addIssue({ code: "custom", path: ["nacionalidad"], message: blockedCountryMessage(nacionalidad) });
   }
   if (!data.notUsPerson) {
     ctx.addIssue({ code: "custom", path: ["notUsPerson"], message: DECLARATION_REQUIRED });
@@ -265,6 +296,12 @@ export function registroSchemaAt(today: Date, account: boolean) {
         .toUpperCase()
         .regex(/^[A-Z]{2}$/, "Elige tu país de residencia.")
         .refine(isResidenceCountry, "Elige tu país de residencia."),
+      nacionalidad: z
+        .string()
+        .trim()
+        .toUpperCase()
+        .regex(/^[A-Z]{2}$/, "Elige tu nacionalidad.")
+        .refine(isResidenceCountry, "Elige tu nacionalidad."),
       rut: z.string(),
       fechaNacimiento: z.string(),
       telefono: z.string(),

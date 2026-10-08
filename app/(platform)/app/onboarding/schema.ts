@@ -12,7 +12,13 @@ export const onboardingSchema = z.object({
     .toUpperCase()
     .regex(/^[A-Z]{2}$/, "Elige tu país de residencia.")
     .refine(isResidenceCountry, "Elige tu país de residencia."),
-  notUsPerson: requiredCheck("Confirma que no eres ciudadano ni residente de EE.UU."),
+  nationality: z
+    .string()
+    .trim()
+    .toUpperCase()
+    .regex(/^[A-Z]{2}$/, "Elige tu nacionalidad.")
+    .refine(isResidenceCountry, "Elige tu nacionalidad."),
+  notUsPerson: requiredCheck("Confirma la declaración de países restringidos."),
   terminos: requiredCheck("Acepta los términos y condiciones."),
   privacidad: requiredCheck("Acepta la política de privacidad."),
   riesgos: requiredCheck("Acepta la divulgación de riesgos."),
@@ -23,6 +29,7 @@ export type OnboardingOutput = z.output<typeof onboardingSchema>;
 
 export const EMPTY_ONBOARDING: OnboardingInput = {
   country: "",
+  nationality: "",
   notUsPerson: false,
   terminos: false,
   privacidad: false,
