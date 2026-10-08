@@ -100,6 +100,7 @@ export const en = {
     energy: "Energy",
     industrial: "Industrial",
     commodity: "Commodities",
+    other: "Other",
     favorites: "Favorites",
     popular: "Popular",
     gain: "Top gainers",
@@ -118,7 +119,11 @@ export const en = {
     noResultsTitle: "We couldn't find stocks by that name",
     loadMore: "Load more",
     showingOf: "Showing {shown} of {total}",
+    stockCount: "{total} stocks",
     lowLiquidity: "Low liquidity",
+    underReview: "Under review",
+    underReviewHint:
+      "Liquidity or price is outside our limits right now. It can't be traded until conditions normalize.",
     favoriteOn: "Remove {name} from favorites",
     favoriteOff: "Save {name} as a favorite",
     open: "Market open",
@@ -232,6 +237,8 @@ export const en = {
     tradeUnavailable: "Not available to trade",
     tradeDisabledNote: "This stock isn't available to trade right now.",
     tradeHaltedNote: "Trading of this stock is halted.",
+    tradeReviewNote:
+      "Liquidity or price is outside our limits right now. It can't be traded until conditions normalize.",
   },
   trade: {
     amount: "Amount",

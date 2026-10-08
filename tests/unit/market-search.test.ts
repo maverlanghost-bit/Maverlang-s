@@ -28,6 +28,13 @@ function asset(patch: Partial<CatalogAsset> & { symbol: string }): CatalogAsset 
     nextChangeAt: null,
     minOrderUsd: null,
     maxOrderUsd: null,
+    safetyStatus: "listed",
+    safetyReasons: [],
+    safetyTier: null,
+    safetyCheckedAt: null,
+    tradable: true,
+    underReview: false,
+    transitionKept: false,
     ...patch,
   };
 }
@@ -55,7 +62,11 @@ describe("mercado escalable: búsqueda del catálogo", () => {
     expect(resolveEffectiveScope("curated", "curated")).toBe("curated");
     expect(resolveEffectiveScope(undefined, "curated")).toBe("curated");
     expect(resolveEffectiveScope("all", "all")).toBe("all");
-    expect(resolveEffectiveScope(undefined, "all")).toBe("curated");
+    expect(resolveEffectiveScope("listed", "all")).toBe("listed");
+    expect(resolveEffectiveScope(undefined, "all")).toBe("listed");
+    expect(resolveEffectiveScope("curated", "listed")).toBe("curated");
+    expect(resolveEffectiveScope("all", "listed")).toBe("listed");
+    expect(resolveEffectiveScope(undefined, "listed")).toBe("listed");
   });
 
   it("filtra por símbolo, subyacente y nombre sin acentos", () => {
@@ -74,27 +85,30 @@ describe("mercado escalable: búsqueda del catálogo", () => {
   it("pagina con hasMore", () => {
     const first = searchAssets(ROWS, { page: 1, pageSize: 2 });
     expect(first.items).toHaveLength(2);
-    expect(first.total).toBe(4);
+    expect(first.total).toBe(5);
     expect(first.hasMore).toBe(true);
     const second = searchAssets(ROWS, { page: 2, pageSize: 2 });
     expect(second.items).toHaveLength(2);
-    expect(second.hasMore).toBe(false);
+    expect(second.hasMore).toBe(true);
     const third = searchAssets(ROWS, { page: 3, pageSize: 2 });
-    expect(third.items).toHaveLength(0);
+    expect(third.items).toHaveLength(1);
     expect(third.hasMore).toBe(false);
   });
 
   it("ordena por liquidez desc por defecto y por nombre si se pide", () => {
     const byLiquidity = searchAssets(ROWS, {}).items.map((item) => item.symbol);
-    expect(byLiquidity).toEqual(["NVDAx", "AAPLx", "SPYx", "KOx"]);
+    expect(byLiquidity).toEqual(["NVDAx", "AAPLx", "SPYx", "FAKEx", "KOx"]);
     const byName = searchAssets(ROWS, { sort: "name" }).items.map((item) => item.symbol);
-    expect(byName).toEqual(["AAPLx", "KOx", "NVDAx", "SPYx"]);
+    expect(byName).toEqual(["AAPLx", "KOx", "FAKEx", "NVDAx", "SPYx"]);
   });
 
-  it("con el máximo por defecto ignora pedidos de all", () => {
-    const result = searchAssets(ROWS, { scope: "all" });
-    expect(result.items.some((item) => item.symbol === "FAKEx")).toBe(false);
-    expect(result.total).toBe(4);
+  it("con scope curated salen sólo curadas; con all pedido y máximo listed, entran listed y watch", () => {
+    const curated = searchAssets(ROWS, { scope: "curated" });
+    expect(curated.items.some((item) => item.symbol === "FAKEx")).toBe(false);
+    expect(curated.total).toBe(4);
+    const listed = searchAssets(ROWS, { scope: "all" });
+    expect(listed.items.some((item) => item.symbol === "FAKEx")).toBe(true);
+    expect(listed.total).toBe(5);
   });
 
   it("marca baja liquidez bajo US$10.000 y no sin dato", () => {
@@ -115,9 +129,26 @@ describe("mercado escalable: búsqueda del catálogo", () => {
       is_trading_halted: false,
       jupiter_liquidity_usd: 12,
       curated: true,
+      safety_status: "listed",
+      safety_reasons: [],
+      safety_tier: "A",
+      safety_checked_at: "2026-10-07T00:00:00.000Z",
     });
-    expect(found).toMatchObject({ symbol: "AAPLx", logoLocal: "/logos/aapl.png", liquidityUsd: 12 });
-    expect(assetFromRow({ symbol: "X", logo_path: null })).toMatchObject({ logoLocal: null });
+    expect(found).toMatchObject({
+      symbol: "AAPLx",
+      logoLocal: "/logos/aapl.png",
+      liquidityUsd: 12,
+      safetyStatus: "listed",
+      safetyTier: "A",
+      tradable: true,
+      underReview: false,
+    });
+    expect(assetFromRow({ symbol: "X", logo_path: null })).toMatchObject({
+      logoLocal: null,
+      // Sin estado de seguridad: conservador (no visible en listed, no operable).
+      safetyStatus: "unknown",
+      tradable: false,
+    });
     expect(assetFromRow({ name: "sin símbolo" })).toBeNull();
   });
 
@@ -158,7 +189,7 @@ describe("mercado escalable: validación de la API", () => {
     const parsed = marketSearchQuerySchema.safeParse({});
     expect(parsed.success).toBe(true);
     if (parsed.success) {
-      expect(parsed.data).toMatchObject({ q: "", page: 1, pageSize: 20, sort: "liquidity", scope: "curated" });
+      expect(parsed.data).toMatchObject({ q: "", page: 1, pageSize: 20, sort: "liquidity", scope: "listed" });
     }
     expect(marketSearchQuerySchema.safeParse({ pageSize: 50 }).success).toBe(true);
     expect(marketSearchQuerySchema.safeParse({ pageSize: 51 }).success).toBe(false);

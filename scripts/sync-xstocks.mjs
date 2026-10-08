@@ -9,6 +9,9 @@
  *
  * Uso:
  *   node scripts/sync-xstocks.mjs [--dry-run] [--no-db] [--no-files]
+ *   node scripts/sync-xstocks.mjs --listed [--dry-run]   (M54: regenera el
+ *     generado con las filas `listed`, sin logos ni escritura en la DB;
+ *     sólo lee; lo corre el operador, no el agente)
  *   npm run sync:xstocks
  */
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -24,6 +27,7 @@ const ARGS = new Set(process.argv.slice(2));
 const DRY_RUN = ARGS.has("--dry-run");
 const NO_DB = ARGS.has("--no-db");
 const NO_FILES = ARGS.has("--no-files");
+const LISTED = ARGS.has("--listed");
 
 const XSTOCKS_BASE = "https://api.xstocks.fi/api/v2/public/assets";
 const JUP_BASE = "https://lite-api.jup.ag/tokens/v2/search";
@@ -279,8 +283,99 @@ function buildGenerated(curatedRows) {
   return lines.join("\n");
 }
 
+/**
+ * M54 (`--listed`): lee las filas con `safety_status = 'listed'` y regenera
+ * `config/tickers.generated.ts` (orden estable por símbolo, sin liquidez ni
+ * campos diarios) como snapshot de respaldo commiteable. No descarga logos
+ * (pendiente legal) ni escribe en la base.
+ */
+async function fetchListedRows() {
+  const url = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? "").trim().replace(/\/$/, "");
+  const secret = (
+    process.env.SUPABASE_SECRET_KEY ??
+    process.env.SUPABASE_SERVICE_ROLE_KEY ??
+    ""
+  ).trim();
+  if (!url || !secret) {
+    console.log("Sin claves Supabase en .env.local: --listed necesita leer la base (lo corre el operador).");
+    return null;
+  }
+  ensureProjectConfirmed({ targetUrl: url, script: "sync-xstocks --listed" });
+  const admin = createClient(url, secret, {
+    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+  });
+  const PAGE = 1000;
+  const rows = [];
+  for (let page = 0; ; page += 1) {
+    const res = await admin
+      .from("assets")
+      .select("symbol,name,underlying,category,mint_solana,logo_path,enabled,is_trading_halted,trading_hours_mode")
+      .eq("safety_status", "listed")
+      .order("symbol", { ascending: true })
+      .range(page * PAGE, (page + 1) * PAGE - 1);
+    if (res.error) {
+      console.error(`--listed leyó falló: ${res.error.message}`);
+      return null;
+    }
+    rows.push(...(res.data ?? []));
+    if ((res.data ?? []).length < PAGE) break;
+  }
+  return rows;
+}
+
+async function runListedSnapshot() {
+  if (NO_DB) {
+    console.log("--listed necesita leer la base: quita --no-db (lo corre el operador).");
+    return;
+  }
+  const rows = await fetchListedRows();
+  if (!rows) return;
+  const curatedRows = [];
+  const missingMint = [];
+  for (const row of rows) {
+    const symbol = text(row?.symbol);
+    if (!symbol) continue;
+    const underlying = text(row?.underlying) ?? symbol.replace(/x$/i, "");
+    if (!text(row?.mint_solana)) {
+      missingMint.push(symbol);
+      continue;
+    }
+    curatedRows.push({
+      symbol,
+      underlying,
+      name: text(row?.name) ?? underlying,
+      category: text(row?.category) ?? "other",
+      mint: row.mint_solana.trim(),
+      logoPath: text(row?.logo_path) ?? `/logos/${safeLogoFileName(underlying)}`,
+      logoUrl: null,
+      enabled: row?.enabled !== false && row?.is_trading_halted !== true,
+      tradingHoursMode: text(row?.trading_hours_mode) ?? "TwentyFourFive",
+      parsed: null,
+    });
+  }
+  curatedRows.sort((a, b) => (a.symbol < b.symbol ? -1 : a.symbol > b.symbol ? 1 : 0));
+  if (missingMint.length > 0) {
+    console.error(`Sin mint para: ${missingMint.join(", ")} (no se genera el archivo)`);
+    return;
+  }
+  if (DRY_RUN) {
+    console.log(`dry-run --listed: ${curatedRows.length} filas listed (no se escribió nada).`);
+    return;
+  }
+  const content = buildGenerated(curatedRows);
+  writeFileSync(GENERATED_PATH, content, "utf8");
+  console.log(`Generado: config/tickers.generated.ts (${curatedRows.length} listed)`);
+}
+
 async function main() {
   loadLocalEnv();
+  // M54: snapshot de respaldo con las filas `listed` (orden estable, sin
+  // campos diarios). Sólo lee la base y escribe el generado; sin logos ni
+  // upsert. Lo corre el operador.
+  if (LISTED) {
+    await runListedSnapshot();
+    return;
+  }
   const curatedMap = readCurated();
   const csv = readCsvLiquidity();
 

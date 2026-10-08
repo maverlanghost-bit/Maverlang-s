@@ -33,12 +33,20 @@ export default async function AccionPage({
   const { ticker: raw } = await params;
   const query = await searchParams;
   const asset = await findAssetBySymbol(raw);
-  if (!asset || !asset.mint) notFound();
+  // `hidden` no aparece (M54): misma página de "no encontrado" actual.
+  if (!asset || !asset.mint || asset.safetyStatus === "hidden") notFound();
   const session = await readServerSession();
   const access: DetailAccess = !session.hasSession ? "guest" : session.demoReady ? "member" : "pending";
 
-  // Operar sólo si está habilitada y no suspendida; si no, CTA deshabilitado con motivo.
-  const tradeBlock: TradeBlock = !asset.enabled ? "disabled" : asset.halted ? "halted" : null;
+  // Operar sólo si está habilitada, no suspendida y `tradable` (M54: sólo
+  // `listed`, con transición). Si no, CTA deshabilitado con motivo.
+  const tradeBlock: TradeBlock = !asset.enabled
+    ? "disabled"
+    : asset.halted
+      ? "halted"
+      : !asset.tradable
+        ? "review"
+        : null;
 
   return (
     <DetailScreen

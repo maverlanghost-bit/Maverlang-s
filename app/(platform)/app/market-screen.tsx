@@ -429,6 +429,7 @@ export function MarketScreen({
     { value: "energy", label: t.market.energy },
     { value: "industrial", label: t.market.industrial },
     { value: "commodity", label: t.market.commodity },
+    { value: "other", label: t.market.other },
     { value: "favorites", label: t.market.favorites },
   ];
   const sortOptions: { value: MarketSort; label: string }[] = [
@@ -653,6 +654,11 @@ export function MarketScreen({
       {!waiting && !failed && listItems.length > 0 ? (
         <section className="flex min-w-0 flex-col gap-2">
           <h2 className="text-base font-medium text-fg">{applied.trim() ? t.market.results : t.market.list}</h2>
+          {total > 0 ? (
+            <p className="text-sm text-fg-muted">
+              {t.market.stockCount.replace("{total}", String(total))}
+            </p>
+          ) : null}
           <PriceFreshness at={freshestAt} stale={anyStale} delayedOnly />
           <ul>
             {listItems.map(({ entry, price, currency: rowCurrency }) => (
@@ -668,6 +674,8 @@ export function MarketScreen({
                   sparkline={sparkBySymbol.get(entry.item.symbol)}
                   sparklineClassName="block"
                   lowLiquidityLabel={entry.item.lowLiquidity ? t.market.lowLiquidity : null}
+                  reviewLabel={entry.item.underReview ? t.market.underReview : null}
+                  reviewHint={entry.item.underReview ? t.market.underReviewHint : null}
                   statusDot={dotFor(entry.item)}
                   action={
                     <FavoriteButton

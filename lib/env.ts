@@ -212,10 +212,12 @@ function buildServerSchema(source: EnvSource) {
     PRIVACY_VERSION: requiredText("2026-10-draft"),
     RISKS_VERSION: requiredText("2026-10-draft"),
     /**
-     * Alcance del catálogo: `curated` (50 símbolos) o `all` (tabla Supabase completa).
-     * Es el máximo permitido: con `curated`, los pedidos de `all` se ignoran.
+     * Alcance del catálogo (M54): `curated` (50 símbolos) | `listed`
+     * (default: filas `listed` + `watch`, más las curadas en transición) |
+     * `all` (todo menos `hidden`, sólo desarrollo: en producción se topa a
+     * `listed` con un aviso). Es el máximo permitido.
      */
-    CATALOG_SCOPE: enumEnv(["curated", "all"] as const, "curated"),
+    CATALOG_SCOPE: enumEnv(["curated", "listed", "all"] as const, "listed"),
     /**
      * Horario real por acción (M39). `live` consulta xStocks (assets + system/status)
      * con timeout 2,5 s y cache 60 s por símbolo; si falla usa el catálogo y si no,

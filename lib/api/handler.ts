@@ -18,9 +18,11 @@ import { requestAccountMode } from "@/lib/account/server";
 import { DEMO_WALLET_ADDRESS } from "@/lib/auth/demo-user";
 import { isSupabaseAuth } from "@/lib/auth/mode";
 import { serverEnv } from "@/lib/env";
+import { requireTradableSymbol } from "@/lib/catalog/tradable";
+import { findAssetBySymbol } from "@/lib/catalog/assets";
 import { withMockError } from "@/lib/mocks/latency";
 import type { Services } from "@/lib/services";
-import { isOfficialMint, tradableTicker } from "@/lib/solana/allowlist";
+import { isOfficialMint } from "@/lib/solana/allowlist";
 
 /** `runtime` se declara en cada `route.ts`: Next sólo lo lee ahí, como literal. */
 export type CacheMode = "no-store" | "hour" | "private" | "short";
@@ -300,11 +302,23 @@ export function requireWallet(session: Session): string {
   throw new DomainError("VALIDATION", "Falta la billetera.");
 }
 
-/** Fuera del allowlist operable (enabled + mint oficial) → MINT_NOT_ALLOWED. */
-export function requireSymbol(symbol: string): string {
-  const ticker = tradableTicker(symbol);
-  if (!ticker) throw new DomainError("MINT_NOT_ALLOWED");
-  return ticker.symbol;
+/** Símbolo con el que se puede operar (allowlist dinámica, M54). Si no → MINT_NOT_ALLOWED. */
+export async function requireSymbol(symbol: string): Promise<string> {
+  return requireTradableSymbol(symbol);
+}
+
+/**
+ * Símbolo visible del catálogo (M54): `listed`, `watch` o en transición;
+ * `hidden` y lo desconocido → MINT_NOT_ALLOWED. Lo usan precios e historial,
+ * que también cubren filas no operables. En mock se acepta cualquier símbolo
+ * bien formado (la ancla cubre todo, así el e2e puede usar un fixture amplio).
+ */
+export async function requireVisibleSymbol(symbol: string): Promise<string> {
+  const wanted = symbol.trim();
+  const asset = await findAssetBySymbol(wanted, { scope: "all" });
+  if (asset) return asset.symbol;
+  if (serverEnv.DATA_MODE !== "live" && /^[A-Za-z0-9.]{1,12}x$/.test(wanted)) return wanted;
+  throw new DomainError("MINT_NOT_ALLOWED");
 }
 
 export function requireMint(mint: string): string {

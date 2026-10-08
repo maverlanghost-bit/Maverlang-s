@@ -19,6 +19,8 @@ export function TickerRow({
   action,
   lowLiquidityLabel = null,
   statusDot = null,
+  reviewLabel = null,
+  reviewHint = null,
   priceSlot = null,
 }: {
   href: string;
@@ -37,6 +39,10 @@ export function TickerRow({
   lowLiquidityLabel?: string | null;
   /** Punto de estado por fila desde el catálogo (M39). Null lo oculta. */
   statusDot?: { kind: "open" | "closed" | "halted"; label: string } | null;
+  /** Chip discreto "En revisión" (M54, filas `watch`). Null lo oculta. */
+  reviewLabel?: string | null;
+  /** Tooltip del chip de revisión (mismo texto que el CTA deshabilitado). */
+  reviewHint?: string | null;
   /**
    * Números en vivo de la portada (M42): reemplaza el bloque de precio y
    * cambio (p. ej. `<LandingPrice>`). El mercado no lo usa.
@@ -70,6 +76,14 @@ export function TickerRow({
             {name}
             {lowLiquidityLabel ? <span> · {lowLiquidityLabel}</span> : null}
           </span>
+          {reviewLabel ? (
+            <span
+              className="mt-1 inline-flex w-fit items-center rounded-full border border-border bg-surface-2 px-2 py-0.5 text-xs leading-4 font-medium text-fg-muted"
+              title={reviewHint ?? undefined}
+            >
+              {reviewLabel}
+            </span>
+          ) : null}
         </span>
         {sparkline ? <Sparkline data={sparkline} width={72} height={28} className={sparklineClassName} /> : null}
         {priceSlot ?? (

@@ -103,6 +103,7 @@ export const esCL = {
     energy: "Energía",
     industrial: "Industrial",
     commodity: "Materias primas",
+    other: "Otras",
     favorites: "Favoritas",
     popular: "Popular",
     gain: "Mayor alza",
@@ -121,7 +122,11 @@ export const esCL = {
     noResultsTitle: "No encontramos acciones con ese nombre",
     loadMore: "Cargar más",
     showingOf: "Mostrando {shown} de {total}",
+    stockCount: "{total} acciones",
     lowLiquidity: "Baja liquidez",
+    underReview: "En revisión",
+    underReviewHint:
+      "Liquidez o precio fuera de nuestros límites ahora. No se puede operar hasta que se normalice.",
     favoriteOn: "Quitar {name} de favoritas",
     favoriteOff: "Marcar {name} como favorita",
     open: "Mercado abierto",
@@ -235,6 +240,8 @@ export const esCL = {
     tradeUnavailable: "No disponible para operar",
     tradeDisabledNote: "Esta acción no está disponible para operar en este momento.",
     tradeHaltedNote: "La negociación de esta acción está suspendida.",
+    tradeReviewNote:
+      "Liquidez o precio fuera de nuestros límites ahora. No se puede operar hasta que se normalice.",
   },
   trade: {
     amount: "Monto",

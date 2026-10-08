@@ -187,10 +187,10 @@ function buildRows(mode) {
     },
     {
       name: "CATALOG_SCOPE",
-      want: "curated (nunca all)",
+      want: "curated o listed (nunca all)",
       check: (s) => {
         const cleaned = lower(s.CATALOG_SCOPE);
-        if (cleaned === "" || cleaned === "curated") return "ok";
+        if (cleaned === "" || cleaned === "curated" || cleaned === "listed") return "ok";
         return "invalid";
       },
     },

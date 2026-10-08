@@ -11,6 +11,7 @@ export const MARKET_FILTERS = [
   "energy",
   "industrial",
   "commodity",
+  "other",
   "favorites",
 ] as const;
 export type MarketFilter = (typeof MARKET_FILTERS)[number];

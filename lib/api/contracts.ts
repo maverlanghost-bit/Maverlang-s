@@ -43,6 +43,7 @@ export const categorySchema = z.enum([
   "energy",
   "industrial",
   "commodity",
+  "other",
 ]);
 export const onrampProviderSchema = z.enum(["koywe", "onramper"]);
 export const amountCurrencySchema = z.enum(["USDC", "SHARES", "CLP"]);
@@ -402,7 +403,7 @@ export const tradeStatusQuerySchema = z
   })
   .strict();
 
-  /** Búsqueda del mercado (M38). `pageSize` máximo 50; `scope` lo topa CATALOG_SCOPE. */
+  /** Búsqueda del mercado (M38). `pageSize` máximo 50; `scope` lo topa CATALOG_SCOPE (M54: default `listed`). */
 export const marketSearchCategorySchema = z.enum([
   "all",
   "tech",
@@ -414,10 +415,11 @@ export const marketSearchCategorySchema = z.enum([
   "energy",
   "industrial",
   "commodity",
+  "other",
 ]);
 
 export const marketSearchSortSchema = z.enum(["liquidity", "name"]);
-export const marketSearchScopeSchema = z.enum(["curated", "all"]);
+export const marketSearchScopeSchema = z.enum(["curated", "listed", "all"]);
 
 export const marketSearchQuerySchema = z
   .object({
@@ -426,7 +428,7 @@ export const marketSearchQuerySchema = z
     page: z.coerce.number().int().min(1).max(1000).optional().default(1),
     pageSize: z.coerce.number().int().min(1).max(50).optional().default(20),
     sort: marketSearchSortSchema.optional().default("liquidity"),
-    scope: marketSearchScopeSchema.optional().default("curated"),
+    scope: marketSearchScopeSchema.optional().default("listed"),
   })
   .strict();
 
@@ -449,6 +451,10 @@ export const marketSearchItemSchema = z.object({
   period: z.string().min(1).nullable().optional(),
   mode: z.string().min(1).nullable().optional(),
   nextChangeAt: z.string().min(1).nullable().optional(),
+  /** true cuando el estado de seguridad permite operar (M54: sólo `listed`, con transición mientras no haya listados). */
+  tradable: z.boolean(),
+  /** true cuando está en `watch`: se muestra con el chip "En revisión" y no se puede operar. */
+  underReview: z.boolean(),
 });
 
 export const marketSearchResponseSchema = z.object({

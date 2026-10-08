@@ -3,12 +3,14 @@ import "server-only";
 import { defaultSlippageBps, feeConfig, priceDeviationMaxBps } from "@/config/fees";
 import { USDC_MINT } from "@/config/tickers";
 import { DomainError } from "@/lib/api/result";
+import { findAssetBySymbol } from "@/lib/catalog/assets";
+import { tradableBySymbol } from "@/lib/catalog/tradable";
 import { getServices } from "@/lib/services";
 import { DEMO_INITIAL_USD, totalUsdOf, validateDemoFunds, validateDemoTradeInput } from "@/lib/services/demo.logic";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { roundDigits } from "@/lib/mocks/number";
 import { hashSeed } from "@/lib/mocks/prng";
-import { tickerBySymbol, tradableTicker } from "@/lib/solana/allowlist";
+import { tickerBySymbol } from "@/lib/solana/allowlist";
 import { NETWORK_FEE_SOL, TOKEN_ACCOUNT_RENT_SOL } from "@/lib/wallet/send-cost";
 import type {
   Activity,
@@ -123,12 +125,24 @@ function failFromSql(error: unknown): Error {
   return new DomainError("INTERNAL", "No pudimos completar la orden.");
 }
 
-function requireTradable(symbol: string) {
-  const ticker = tradableTicker(symbol);
-  if (ticker) return ticker;
+async function requireTradable(symbol: string) {
+  const asset = await tradableBySymbol(symbol);
+  if (asset) return asset;
+  // Visible pero no operable (watch, hidden, transición apagada, deshabilitada) → MINT_NOT_ALLOWED.
+  const visible = await findAssetBySymbol(symbol, { scope: "all", allowHidden: true }).catch(() => null);
+  if (visible) throw new DomainError("MINT_NOT_ALLOWED");
   const known = tickerBySymbol(symbol);
-  if (known && !known.enabled) throw new DomainError("MINT_NOT_ALLOWED");
+  if (known) throw new DomainError("MINT_NOT_ALLOWED");
   throw new DomainError("NOT_FOUND", "No encontramos esa acción.");
+}
+
+/** Mint y decimales para mostrar saldos: snapshot primero, catálogo después (M54). */
+async function mintForBalances(symbol: string): Promise<{ mint: string; decimals: 8 } | null> {
+  const ticker = tickerBySymbol(symbol);
+  if (ticker) return { mint: ticker.mint, decimals: ticker.decimals };
+  const asset = await findAssetBySymbol(symbol, { scope: "all" }).catch(() => null);
+  if (!asset || !asset.mint) return null;
+  return { mint: asset.mint, decimals: 8 };
 }
 
 function deviationFor(symbol: string): number {
@@ -434,14 +448,14 @@ export function createDemoUserService(deps: DemoDeps) {
         },
       ];
       for (const row of positions) {
-        const ticker = tickerBySymbol(row.symbol);
-        if (!ticker) continue;
+        const resolved = await mintForBalances(row.symbol);
+        if (!resolved) continue;
         const spot = spots.get(row.symbol) ?? { priceUsd: row.avgCostUsd, multiplier: 1 };
-        const raw = BigInt(Math.round((row.shares / spot.multiplier) * 10 ** ticker.decimals));
-        const uiAmount = (Number(raw) * spot.multiplier) / 10 ** ticker.decimals;
+        const raw = BigInt(Math.round((row.shares / spot.multiplier) * 10 ** resolved.decimals));
+        const uiAmount = (Number(raw) * spot.multiplier) / 10 ** resolved.decimals;
         balances.push({
-          mint: ticker.mint,
-          symbol: ticker.symbol,
+          mint: resolved.mint,
+          symbol: row.symbol,
           rawAmount: raw.toString(),
           uiAmount,
           valueUsd: roundDigits(uiAmount * spot.priceUsd, 2),
@@ -461,7 +475,7 @@ export function createDemoUserService(deps: DemoDeps) {
         if (!(request.amount > 0) || !Number.isFinite(request.amount)) {
           throw new DomainError("VALIDATION", "El monto tiene que ser mayor que cero.");
         }
-        const ticker = requireTradable(request.symbol);
+        const ticker = await requireTradable(request.symbol);
         if (feeConfig.bps > 0 && !feeConfig.wallet) {
           throw new DomainError("INTERNAL", "Falta la billetera de comisión.");
         }

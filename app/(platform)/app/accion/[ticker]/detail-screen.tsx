@@ -181,8 +181,8 @@ function PositionBlock({
 
 export type DetailAccess = "guest" | "pending" | "member";
 
-/** M38: `disabled` (no habilitada) o `halted` (negociación suspendida): CTA deshabilitado con motivo. */
-export type TradeBlock = "disabled" | "halted" | null;
+/** M38/M54: `disabled` (no habilitada), `halted` (suspendida) o `review` (en revisión): CTA deshabilitado con motivo. */
+export type TradeBlock = "disabled" | "halted" | "review" | null;
 
 function AccountActions({
   variant,
@@ -260,7 +260,14 @@ function TradeActions({
   const wide = variant === "card";
   const barRef = useRef<HTMLDivElement>(null);
   useDetailCtaOffset(variant === "bar", barRef);
-  const blockedReason = blocked === "halted" ? t.detail.tradeHaltedNote : blocked === "disabled" ? t.detail.tradeDisabledNote : null;
+  const blockedReason =
+    blocked === "halted"
+      ? t.detail.tradeHaltedNote
+      : blocked === "review"
+        ? t.detail.tradeReviewNote
+        : blocked === "disabled"
+          ? t.detail.tradeDisabledNote
+          : null;
   const buyDisabled = blocked !== null;
   const sellDisabled = blocked !== null || !canSell;
 

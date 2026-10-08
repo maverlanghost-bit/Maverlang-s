@@ -26,7 +26,7 @@ export function POST(req: Request) {
     const services = getServices();
     await requireSupabaseUser(services, req);
     const body = await parseJson(req, tradeQuoteRequestSchema);
-    const symbol = requireSymbol(body.symbol);
+    const symbol = await requireSymbol(body.symbol);
     if (isRealAccountRequest(req)) {
       throw new DomainError("VALIDATION", "La cuenta real todavía no opera.");
     }

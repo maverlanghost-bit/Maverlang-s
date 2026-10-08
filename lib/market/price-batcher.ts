@@ -1,5 +1,6 @@
 import { tickerBySymbol } from "@/config/tickers";
 import { DomainError } from "@/lib/api/result";
+import { findAssetBySymbol, toTicker } from "@/lib/catalog/assets";
 import { parseJupiterPrices } from "@/lib/market/live-quotes";
 import { roundDigits } from "@/lib/mocks/number";
 import { quoteFor } from "@/lib/mocks/prices";
@@ -186,12 +187,20 @@ export interface BatchedQuoteOptions extends MintBatchOptions {
   prepareMultipliers?: (tickers: readonly Ticker[]) => Promise<ReadonlyMap<string, number>>;
 }
 
-function resolveTickers(symbols: readonly string[]): Ticker[] {
-  return symbols.map((symbol) => {
+async function resolveTickers(symbols: readonly string[]): Promise<Ticker[]> {
+  const out: Ticker[] = [];
+  for (const symbol of symbols) {
     const ticker = tickerBySymbol(symbol);
-    if (!ticker) throw new DomainError("NOT_FOUND", "No encontramos esa acción.");
-    return ticker;
-  });
+    if (ticker) {
+      out.push(ticker);
+      continue;
+    }
+    // Activos nuevos del catálogo (M54): el mint sale de la fila, no del snapshot.
+    const asset = await findAssetBySymbol(symbol, { scope: "all" });
+    if (!asset || !asset.mint) throw new DomainError("NOT_FOUND", "No encontramos esa acción.");
+    out.push(toTicker(asset));
+  }
+  return out;
 }
 
 /**
@@ -203,7 +212,7 @@ export async function listBatchedQuotes(
   symbols: readonly string[],
   options: BatchedQuoteOptions,
 ): Promise<Quote[]> {
-  const tickers = resolveTickers(symbols);
+  const tickers = await resolveTickers(symbols);
   const now = options.now?.() ?? Date.now();
   const multipliers = await (
     options.prepareMultipliers?.(tickers) ?? Promise.resolve(new Map<string, number>())

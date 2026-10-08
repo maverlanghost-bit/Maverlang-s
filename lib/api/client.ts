@@ -139,7 +139,7 @@ export function getTickers(): Promise<Ticker[]> {
 export type MarketSearchItem = z.infer<typeof marketSearchItemSchema>;
 export type MarketSearchResult = z.infer<typeof marketSearchResponseSchema>;
 export type MarketSearchSort = "liquidity" | "name";
-export type MarketSearchScope = "curated" | "all";
+export type MarketSearchScope = "curated" | "listed" | "all";
 
 export interface MarketSearchParams {
   q?: string;

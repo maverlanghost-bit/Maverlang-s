@@ -2,15 +2,20 @@ import "server-only";
 
 import { TICKERS } from "@/config/tickers";
 import { serverEnv } from "@/lib/env";
+import { isTradableStatus } from "@/lib/catalog/safety-core.mjs";
 import { fold } from "@/lib/market/browse";
 import { readSupabasePublicConfig } from "@/lib/supabase/config";
 import type { Ticker } from "@/lib/types";
 
 /**
- * Catálogo escalable (M38). Lee `public.assets` de Supabase con la clave
- * pública (SELECT público) y cache en memoria de 5 min. Si Supabase no está
- * configurado o falla, cae a `config/tickers.ts`.
+ * Catálogo escalable (M38/M38b/M54). Lee `public.assets` de Supabase con la
+ * clave pública (SELECT público) y cache en memoria de 5 min. Si Supabase no
+ * está configurado o falla, cae al snapshot `config/tickers.ts` (los curados
+ * operan, nunca se permite un mint desconocido).
  * Reutiliza `fold` (minúsculas sin acentos) y `selectCurated` de M37.
+ * Desde M54 el filtro por alcance usa el estado de seguridad (M53):
+ * `listed` = filas `listed` + `watch` (más curadas en transición), `hidden`
+ * nunca aparece. Operar exige `tradable` (sólo `listed`, con transición).
  */
 
 export const CATALOG_CACHE_MS = 5 * 60 * 1000;
@@ -32,11 +37,14 @@ const KNOWN_CATEGORIES = [
   "energy",
   "industrial",
   "commodity",
+  "other",
 ] as const;
 
 export type CatalogCategory = (typeof KNOWN_CATEGORIES)[number];
-export type CatalogScope = "curated" | "all";
+export type CatalogScope = "curated" | "listed" | "all";
 export type CatalogSort = "liquidity" | "name";
+/** Estado de seguridad por activo (M53, columna `safety_status`). */
+export type SafetyStatus = "listed" | "watch" | "hidden" | "unknown";
 
 export interface CatalogAsset {
   symbol: string;
@@ -62,6 +70,30 @@ export interface CatalogAsset {
   /** Mínimo/máximo por orden en USD (límites del período, centavos ÷ 100). Null si no hay dato. */
   minOrderUsd: number | null;
   maxOrderUsd: number | null;
+  /** Estado de seguridad (M53). En el fallback sin Supabase, los curados son `listed`. */
+  safetyStatus: SafetyStatus;
+  /** Motivos de la auditoría (`safety_reasons`), vacíos si no hay dato. */
+  safetyReasons: string[];
+  /** Tier informativo de la auditoría (`safety_tier`), o null. */
+  safetyTier: string | null;
+  /** ISO de `safety_checked_at`, o null. */
+  safetyCheckedAt: string | null;
+  /**
+   * Se puede operar (demo hoy, real después). Regla normal: `listed` +
+   * habilitado + no suspendido. En transición (sin ningún `listed` en el
+   * catálogo) los curados no ocultos también operan; en fallback, el snapshot.
+   */
+  tradable: boolean;
+  /**
+   * Va con el chip "En revisión": está en `watch` y la transición no lo
+   * cubre (los curados en transición operan sin chip).
+   */
+  underReview: boolean;
+  /**
+   * La transición lo mantiene visible/operable aunque su estado sea
+   * `unknown` (o `watch` curado). Se apaga sola al aparecer un `listed`.
+   */
+  transitionKept: boolean;
 }
 
 export interface CatalogSearchParams {
@@ -97,6 +129,13 @@ interface AssetRow {
   open_now?: unknown;
   next_change_at?: unknown;
   limits?: unknown;
+  safety_status?: unknown;
+  safety_reasons?: unknown;
+  safety_tier?: unknown;
+  safety_checked_at?: unknown;
+  /** Tipo de producto de la auditoría (M52: `stock` | `etf` | `leveraged`), si la fila lo trae. */
+  product_type?: unknown;
+  safety_metrics?: unknown;
 }
 
 function text(value: unknown): string | null {
@@ -105,9 +144,36 @@ function text(value: unknown): string | null {
   return trimmed.length > 0 ? trimmed : null;
 }
 
-function categoryOf(value: unknown): CatalogCategory {
+function categoryOf(value: unknown, row?: AssetRow): CatalogCategory {
   const raw = typeof value === "string" ? value.trim() : "";
-  return (KNOWN_CATEGORIES as readonly string[]).includes(raw) ? (raw as CatalogCategory) : "tech";
+  if ((KNOWN_CATEGORIES as readonly string[]).includes(raw)) return raw as CatalogCategory;
+  // Activos nuevos sin categoría (M54): `etf` si el tipo de M52 es etf, si no `other`.
+  const direct = typeof row?.product_type === "string" ? row.product_type.trim().toLowerCase() : "";
+  if (direct === "etf") return "etf";
+  if (direct !== "") return "other";
+  if (productTypeFromMetrics(row?.safety_metrics) === "etf") return "etf";
+  return "other";
+}
+
+/** El tipo de producto puede venir en `safety_metrics` (`product` o `product_type`). */
+function productTypeFromMetrics(metrics: unknown): string | null {
+  if (metrics === null || typeof metrics !== "object" || Array.isArray(metrics)) return null;
+  const table = metrics as Record<string, unknown>;
+  for (const key of ["product", "product_type", "type"]) {
+    const value = table[key];
+    if (typeof value === "string" && value.trim() !== "") return value.trim().toLowerCase();
+  }
+  return null;
+}
+
+/** Estado de seguridad normalizado: lo desconocido cae a `unknown` (conservador). */
+export function normalizeSafetyStatus(value: unknown): SafetyStatus {
+  return value === "listed" || value === "watch" || value === "hidden" ? value : "unknown";
+}
+
+function reasonsOf(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((entry): entry is string => typeof entry === "string" && entry.trim() !== "");
 }
 
 function numberOrNull(value: unknown): number | null {
@@ -164,15 +230,18 @@ export function assetFromRow(row: AssetRow): CatalogAsset | null {
   const name = text(row.name) ?? symbol;
   const period = periodOrNull(row.current_period);
   const limits = limitsUsdForPeriod(row.limits, period);
+  const safetyStatus = normalizeSafetyStatus(row.safety_status);
+  const enabled = row.enabled !== false;
+  const halted = row.is_trading_halted === true;
   return {
     symbol,
     name,
     underlying: text(row.underlying) ?? symbol.replace(/x$/i, ""),
-    category: categoryOf(row.category),
+    category: categoryOf(row.category, row),
     mint: text(row.mint_solana) ?? "",
     logoLocal: text(row.logo_path),
-    enabled: row.enabled !== false,
-    halted: row.is_trading_halted === true,
+    enabled,
+    halted,
     liquidityUsd: numberOrNull(row.jupiter_liquidity_usd),
     curated: row.curated === true,
     mode: modeOrNull(row.trading_hours_mode),
@@ -181,6 +250,14 @@ export function assetFromRow(row: AssetRow): CatalogAsset | null {
     nextChangeAt: isoOrNull(row.next_change_at),
     minOrderUsd: limits.min,
     maxOrderUsd: limits.max,
+    safetyStatus,
+    safetyReasons: reasonsOf(row.safety_reasons),
+    safetyTier: text(row.safety_tier),
+    safetyCheckedAt: isoOrNull(row.safety_checked_at),
+    // Regla normal; `annotateSafety` aplica la transición con el catálogo completo.
+    tradable: isTradableStatus(safetyStatus) && enabled && !halted,
+    underReview: safetyStatus === "watch",
+    transitionKept: false,
   };
 }
 
@@ -202,17 +279,98 @@ export function assetFromTicker(ticker: Ticker, curated: boolean): CatalogAsset 
     nextChangeAt: null,
     minOrderUsd: null,
     maxOrderUsd: null,
+    safetyStatus: "unknown",
+    safetyReasons: [],
+    safetyTier: null,
+    safetyCheckedAt: null,
+    tradable: false,
+    underReview: false,
+    transitionKept: false,
   };
 }
 
-/** `CATALOG_SCOPE` es el máximo permitido: con `curated`, un pedido de `all` se ignora. */
-export function resolveEffectiveScope(requested: CatalogScope | undefined, maxScope: CatalogScope): CatalogScope {
-  if (maxScope === "curated") return "curated";
-  return requested === "all" ? "all" : "curated";
+/**
+ * Transición obligatoria (M54, decisión de Manu): mientras el catálogo no
+ * tenga NINGUNA fila `listed`, los curados del snapshot siguen visibles y
+ * operables como hoy aunque su estado sea `unknown` o `watch` (sin chip),
+ * salvo que estén `hidden`. Apenas existe un `listed`, rige la regla normal.
+ * No usa `asset_safety_runs` (quedó una fila huérfana por un bug previo en
+ * `scripts/audit-catalog.mjs`, anotado en PROGRESO.md). Pura: la usan los tests.
+ */
+export function isTransitionActive(
+  rows: readonly Pick<CatalogAsset, "safetyStatus">[],
+  fromSupabase: boolean,
+): boolean {
+  if (!fromSupabase || rows.length === 0) return false;
+  return !rows.some((row) => row.safetyStatus === "listed");
 }
 
+/**
+ * Aplica la regla de operación y el chip "En revisión" sobre filas ya
+ * mapeadas. Un solo lugar: lo usan `search`/`bySymbol` y `tradable.ts`.
+ */
+export function annotateSafety(
+  rows: readonly CatalogAsset[],
+  fromSupabase: boolean,
+): CatalogAsset[] {
+  const transition = isTransitionActive(rows, fromSupabase);
+  return rows.map((asset) => {
+    if (asset.safetyStatus === "hidden") {
+      return { ...asset, tradable: false, underReview: false, transitionKept: false };
+    }
+    if (transition && asset.curated) {
+      const operable = asset.enabled && !asset.halted;
+      return { ...asset, tradable: operable, underReview: false, transitionKept: operable };
+    }
+    return {
+      ...asset,
+      tradable: isTradableStatus(asset.safetyStatus) && asset.enabled && !asset.halted,
+      underReview: asset.safetyStatus === "watch",
+      transitionKept: false,
+    };
+  });
+}
+
+/** `hidden` no aparece nunca (M54). Pura: la usan los tests. */
+export function isVisibleInScope(asset: Pick<CatalogAsset, "safetyStatus" | "curated" | "transitionKept">, scope: CatalogScope): boolean {
+  if (asset.safetyStatus === "hidden") return false;
+  if (scope === "curated") return asset.curated;
+  if (scope === "listed") {
+    return asset.safetyStatus === "listed" || asset.safetyStatus === "watch" || asset.transitionKept;
+  }
+  return true;
+}
+
+/** `CATALOG_SCOPE` es el máximo permitido. Pura: la usan los tests. */
+export function resolveEffectiveScope(requested: CatalogScope | undefined, maxScope: CatalogScope): CatalogScope {
+  if (maxScope === "curated") return "curated";
+  if (maxScope === "listed") return requested === "curated" ? "curated" : "listed";
+  if (requested === "curated" || requested === "listed" || requested === "all") return requested;
+  return "listed";
+}
+
+let warnedAllScopeInProd = false;
+
 export function maxScopeFromEnv(): CatalogScope {
-  return serverEnv.CATALOG_SCOPE === "all" ? "all" : "curated";
+  const configured = serverEnv.CATALOG_SCOPE;
+  if (configured === "curated") return "curated";
+  if (configured === "all") {
+    // `all` queda sólo para desarrollo (M54): en producción se ignora.
+    if (process.env.NODE_ENV === "production") {
+      if (!warnedAllScopeInProd) {
+        warnedAllScopeInProd = true;
+        console.warn("[catalog] CATALOG_SCOPE=all se ignora en producción: se usa listed.");
+      }
+      return "listed";
+    }
+    return "all";
+  }
+  return "listed";
+}
+
+/** Sólo para tests: reinicia el aviso único de `all` en producción. */
+export function __resetScopeWarningsForTests(): void {
+  warnedAllScopeInProd = false;
 }
 
 /** Baja liquidez: menos de US$10.000. Sin dato, no se marca. */
@@ -249,7 +407,7 @@ export function searchAssets(rows: readonly CatalogAsset[], params: CatalogSearc
   const page = normalizePage(params.page, 1);
 
   const filtered = rows.filter((asset) => {
-    if (effectiveScope === "curated" && !asset.curated) return false;
+    if (!isVisibleInScope(asset, effectiveScope)) return false;
     if (category !== "all" && category !== "" && asset.category !== category) return false;
     if (!needle) return true;
     return (
@@ -312,6 +470,11 @@ const ASSETS_COLUMNS = [
   "open_now",
   "next_change_at",
   "limits",
+  "safety_status",
+  "safety_reasons",
+  "safety_tier",
+  "safety_checked_at",
+  "safety_metrics",
 ].join(",");
 
 async function fetchAssetsFromSupabase(fetchImpl: typeof fetch): Promise<CatalogAsset[] | null> {
@@ -362,8 +525,15 @@ async function fetchAssetsFromSupabase(fetchImpl: typeof fetch): Promise<Catalog
 }
 
 function fallbackAssets(): CatalogAsset[] {
-  // Sin Supabase (tests, e2e mock) el catálogo es config/tickers.ts: todo curado.
-  return TICKERS.map((ticker) => assetFromTicker(ticker, true));
+  // Sin Supabase (tests, e2e mock) el catálogo es el snapshot
+  // `config/tickers.generated.ts`: los curados habilitados operan (M54).
+  return TICKERS.map((ticker) => {
+    const asset = assetFromTicker(ticker, true);
+    if (!asset.enabled || asset.halted) {
+      return { ...asset, safetyStatus: "unknown" as SafetyStatus };
+    }
+    return { ...asset, safetyStatus: "listed" as SafetyStatus, tradable: true };
+  });
 }
 
 interface LoadedAssets {
@@ -374,24 +544,29 @@ interface LoadedAssets {
 async function loadAssets(fetchImpl: typeof fetch, now: number): Promise<LoadedAssets> {
   if (isFresh(now) && cache) return { rows: cache.rows, fromSupabase: cache.fromSupabase };
   const rows = await fetchAssetsFromSupabase(fetchImpl);
-  const next = rows ?? fallbackAssets();
-  cache = { at: now, rows: next, fromSupabase: rows !== null };
-  return { rows: next, fromSupabase: rows !== null };
+  if (rows === null) {
+    const fallback = fallbackAssets();
+    cache = { at: now, rows: fallback, fromSupabase: false };
+    return { rows: fallback, fromSupabase: false };
+  }
+  const annotated = annotateSafety(rows, true);
+  cache = { at: now, rows: annotated, fromSupabase: true };
+  return { rows: annotated, fromSupabase: true };
 }
 
 /**
- * Salvaguarda: si Supabase responde filas pero ninguna es curada (sync
- * incompleto) y el alcance efectivo es `curated`, se usa el fallback de
+ * Salvaguarda: si Supabase responde filas pero el alcance efectivo queda
+ * vacío (sync incompleto: sin curadas en `curated`, o sin nada visible en
+ * `listed` mientras la auditoría no lista), se usa el fallback de
  * `config/tickers.ts` para que el mercado nunca quede vacío. No se cachea el
  * reemplazo: el cache guarda las filas de Supabase para otros alcances.
  */
 function withCuratedSafeguard(loaded: LoadedAssets, effectiveScope: CatalogScope): CatalogAsset[] {
-  if (
-    loaded.fromSupabase &&
-    loaded.rows.length > 0 &&
-    effectiveScope === "curated" &&
-    !loaded.rows.some((asset) => asset.curated)
-  ) {
+  if (!loaded.fromSupabase || loaded.rows.length === 0) return loaded.rows;
+  if (effectiveScope === "curated" && !loaded.rows.some((asset) => asset.curated)) {
+    return fallbackAssets();
+  }
+  if (effectiveScope === "listed" && !loaded.rows.some((asset) => isVisibleInScope(asset, "listed"))) {
     return fallbackAssets();
   }
   return loaded.rows;
@@ -408,7 +583,7 @@ export async function searchCatalog(
 
 export async function findAssetBySymbol(
   symbol: string,
-  deps?: { scope?: CatalogScope; fetchImpl?: typeof fetch; now?: () => number },
+  deps?: { scope?: CatalogScope; fetchImpl?: typeof fetch; now?: () => number; allowHidden?: boolean },
 ): Promise<CatalogAsset | null> {
   const wanted = symbol.trim().toLowerCase();
   if (!wanted) return null;
@@ -417,6 +592,21 @@ export async function findAssetBySymbol(
   const rows = withCuratedSafeguard(loaded, effectiveScope);
   const exact = rows.find((asset) => asset.symbol.toLowerCase() === wanted);
   if (!exact) return null;
-  if (effectiveScope === "curated" && !exact.curated) return null;
+  // `hidden` no aparece (sólo la allowlist de operaciones lo consulta con `allowHidden`).
+  if (exact.safetyStatus === "hidden" && !deps?.allowHidden) return null;
+  if (!deps?.allowHidden && !isVisibleInScope(exact, effectiveScope)) return null;
+  return exact;
+}
+
+/** Activo por mint de Solana (allowlist dinámica, M54). `hidden` nunca se devuelve. */
+export async function findAssetByMint(
+  mint: string,
+  deps?: { fetchImpl?: typeof fetch; now?: () => number },
+): Promise<CatalogAsset | null> {
+  const wanted = mint.trim();
+  if (!wanted) return null;
+  const loaded = await loadAssets(deps?.fetchImpl ?? fetch, deps?.now?.() ?? Date.now());
+  const exact = loaded.rows.find((asset) => asset.mint === wanted);
+  if (!exact || exact.safetyStatus === "hidden") return null;
   return exact;
 }

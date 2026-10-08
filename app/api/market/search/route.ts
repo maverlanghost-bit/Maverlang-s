@@ -41,6 +41,8 @@ export function GET(req: Request) {
         period: asset.period,
         mode: asset.mode,
         nextChangeAt: asset.nextChangeAt,
+        tradable: asset.tradable,
+        underReview: asset.underReview,
       })),
       total: result.total,
       page: result.page,

@@ -15,7 +15,7 @@ export interface Ticker {
   mint: string;
   decimals: 8;
   issuer: "Backed (xStocks)";
-  category: "tech" | "etf" | "fintech" | "consumer" | "finance" | "health" | "energy" | "industrial" | "commodity";
+  category: "tech" | "etf" | "fintech" | "consumer" | "finance" | "health" | "energy" | "industrial" | "commodity" | "other";
   logo: string;
   enabled: boolean;
 }

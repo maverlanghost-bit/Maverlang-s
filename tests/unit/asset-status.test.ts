@@ -30,6 +30,13 @@ function catalogAsset(patch: Partial<CatalogAsset> & { symbol: string }): Catalo
     nextChangeAt: null,
     minOrderUsd: null,
     maxOrderUsd: null,
+    safetyStatus: "listed",
+    safetyReasons: [],
+    safetyTier: null,
+    safetyCheckedAt: null,
+    tradable: true,
+    underReview: false,
+    transitionKept: false,
     ...patch,
   };
 }
