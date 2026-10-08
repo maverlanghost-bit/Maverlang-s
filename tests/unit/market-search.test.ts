@@ -205,6 +205,7 @@ describe("mercado escalable: validación de la API", () => {
     expect(pricesQuerySchema.safeParse({ symbols: fifty }).success).toBe(true);
     const fiftyOne = `${fifty},EXTRA`;
     expect(pricesQuerySchema.safeParse({ symbols: fiftyOne }).success).toBe(false);
+    expect(pricesQuerySchema.safeParse({ symbols: "ABNBon" }).success).toBe(true);
     expect(pricesQuerySchema.safeParse({}).success).toBe(true);
   });
 });

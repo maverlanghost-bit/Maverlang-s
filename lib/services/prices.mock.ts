@@ -1,6 +1,7 @@
 import "server-only";
 
 import { ENABLED_TICKERS, tickerBySymbol } from "@/config/tickers";
+import { isCatalogSymbol } from "@/lib/catalog/symbol";
 import { DomainError } from "@/lib/api/result";
 import { mockFx } from "@/lib/mocks/fx";
 import { simulateMock } from "@/lib/mocks/latency";
@@ -14,7 +15,7 @@ function canonicalSymbol(symbol: string): string {
   // Mock permisivo (M54): la ancla cubre cualquier símbolo bien formado, así
   // el e2e puede usar un fixture amplio. En live la ruta ya filtra por visible.
   const wanted = symbol.trim();
-  if (/^[A-Za-z0-9.]{1,12}x$/.test(wanted)) return wanted;
+  if (isCatalogSymbol(wanted)) return wanted;
   throw new DomainError("NOT_FOUND", "No encontramos esa acción.");
 }
 

@@ -18,6 +18,7 @@ import { requestAccountMode } from "@/lib/account/server";
 import { DEMO_WALLET_ADDRESS } from "@/lib/auth/demo-user";
 import { isSupabaseAuth } from "@/lib/auth/mode";
 import { serverEnv } from "@/lib/env";
+import { isCatalogSymbol } from "@/lib/catalog/symbol";
 import { requireOperable, requireTradableSymbol, type TradeSide } from "@/lib/catalog/tradable";
 import { findAssetBySymbol } from "@/lib/catalog/assets";
 import { withMockError } from "@/lib/mocks/latency";
@@ -319,14 +320,15 @@ export async function requireSymbolForSide(symbol: string, side: TradeSide): Pro
 /**
  * Símbolo visible del catálogo (M54): `listed`, `watch` o en transición;
  * `hidden` y lo desconocido → MINT_NOT_ALLOWED. Lo usan precios e historial,
- * que también cubren filas no operables. En mock se acepta cualquier símbolo
- * bien formado (la ancla cubre todo, así el e2e puede usar un fixture amplio).
+ * que también cubren filas no operables. En mock se acepta un símbolo de
+ * catálogo bien formado (`AAPLx` u `ABNBon`): la ancla cubre todo, así el
+ * e2e puede usar un fixture amplio.
  */
 export async function requireVisibleSymbol(symbol: string): Promise<string> {
   const wanted = symbol.trim();
   const asset = await findAssetBySymbol(wanted, { scope: "all" });
   if (asset) return asset.symbol;
-  if (serverEnv.DATA_MODE !== "live" && /^[A-Za-z0-9.]{1,12}x$/.test(wanted)) return wanted;
+  if (serverEnv.DATA_MODE !== "live" && isCatalogSymbol(wanted)) return wanted;
   throw new DomainError("MINT_NOT_ALLOWED");
 }
 

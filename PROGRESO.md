@@ -1,5 +1,10 @@
 # PROGRESO — Maverlang
 
+## Ondo visible en la demo (2026-10-08)
+- Hecho: precios, historial y estado aceptan símbolos Ondo (`ABNBon`), no sólo los que terminan en `x`. El mercado de la demo las dibuja (446 en total, chip «En revisión»). Comprar sigue apagado: están en `watch`.
+- Archivos: `lib/catalog/symbol.ts`, `lib/api/{contracts,handler}.ts`, `lib/services/prices.mock.ts`, tests de validación.
+- Verificación: tests de contratos 29/29. En `next dev` (3210) buscar «airbnb» muestra ABNBon con «En revisión» en 1280px y 390px; la ficha abre con precio Jupiter y «No disponible para operar»; el mercado dice «446 acciones».
+
 ## Barra lateral — favicon y ancho (2026-10-08)
 - Hecho: el encabezado de la barra usa `app/icon.png` (el mismo archivo que el favicon), recortado a la tinta, en vez del texto `site.name`. Ancho expandido 240px → 220px (colapsada sigue en 72px). El interruptor demo/real usa `compact` para quedar en una línea.
 - Archivos: `components/app-shell/{sidebar,brand-image,account-switch}.tsx`, `components/ui/segmented-control.tsx`, `docs/DESIGN-SYSTEM.md`.

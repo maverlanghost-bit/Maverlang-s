@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 
 import {
+  historyParamsSchema,
   marketSearchQuerySchema,
   pricesQuerySchema,
   tradeQuoteRequestSchema,
@@ -305,5 +306,8 @@ describe("M56: comportamiento del blindaje", () => {
     expect(marketSearchQuerySchema.safeParse({ q: "apple" }).success).toBe(true);
     expect(pricesQuerySchema.safeParse({ symbols: "AAPLx, <script>" }).success).toBe(false);
     expect(pricesQuerySchema.safeParse({ symbols: "AAPLx,NVDAx" }).success).toBe(true);
+    expect(pricesQuerySchema.safeParse({ symbols: "ABNBon,AALon" }).success).toBe(true);
+    expect(historyParamsSchema.safeParse({ symbol: "ABNBon" }).success).toBe(true);
+    expect(historyParamsSchema.safeParse({ symbol: "airbnb" }).success).toBe(false);
   });
 });
