@@ -268,6 +268,8 @@ export type ApiErrorCode =
   | "PRICE_DEVIATION"
   | "INSUFFICIENT_FUNDS"
   | "MINT_NOT_ALLOWED"
+  // M55: compra de un activo en revisión (sólo compra; la venta sigue M54c).
+  | "ASSET_UNAVAILABLE"
   | "RATE_LIMITED"
   | "PAYLOAD_TOO_LARGE"
   | "REAL_DISABLED"

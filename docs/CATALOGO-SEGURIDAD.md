@@ -57,3 +57,28 @@ aplica `nextSafetyState` y deja evento en `asset_safety_events`.
 Visible para la app: `listed` y `watch`. Operable: sólo `listed`.
 Las 50 curadas parten con `consecutive_passes = 0`: se ganan el listado
 como todas. `manual_override`/`manual_note` son del operador.
+
+## Vigilancia continua (M55)
+
+`lib/catalog/monitor.ts` (`runSafetyBatch({ offset, limit })`) re-audita por
+lotes (default 25) los activos `listed`/`watch` ordenados por
+`safety_checked_at` (nulos primero): datos de xStocks por símbolo + precio v3
++ 3 cotizaciones (`buy100`, `buy1000`, `sell100`) con el ritmo y backoff de
+M52, después `evaluateAsset` → `nextSafetyState` → update + evento. Las filas
+`issuer = 'ondo'` no se piden a xStocks: usan los chequeos estáticos de Ondo
+y cotizaciones RFQ/JupiterZ (`parseOrderQuote`), con referencia del hermano
+xStocks o `price/v3`; el volumen nunca excluye. Corta limpio a los 50 s y deja
+el resto para la próxima corrida.
+
+`GET /api/cron/catalog-health` (lotes vía `?offset=&limit=`) exige
+`Authorization: Bearer ${CRON_SECRET}` (401 sin él; 503 si no está
+configurado) y responde `{ checked, changed, remaining }`. Cuando un activo
+cruza `listed` (a `watch`/`hidden` o al revés) inserta evento en
+`asset_safety_events` y avisa con `notifyOps` (hoy sólo log `[catalog-health]`;
+M61 conecta Sentry, M51 el correo). `vercel.json` la agenda cada 30 min
+lun–vie. Nota: en el plan Hobby de Vercel los crons corren como máximo una
+vez al día (verificar en M50; si no alcanza, cada 1 h).
+
+Al cotizar, la COMPRA de un activo en revisión responde `ASSET_UNAVAILABLE`
+("Este activo está en revisión y no se puede operar ahora"); la venta de una
+posición sigue M54c (siempre se puede vender lo que se tiene).

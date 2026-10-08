@@ -300,6 +300,8 @@ export const esCL = {
       PRICE_DEVIATION: "El precio se movió más de lo permitido. Cotiza de nuevo.",
       INSUFFICIENT_FUNDS: "No tienes saldo suficiente.",
       MINT_NOT_ALLOWED: "Esta acción no se puede operar.",
+      // M55: compra de un activo en revisión (sólo compra; vender sigue permitido).
+      ASSET_UNAVAILABLE: "Este activo está en revisión y no se puede operar ahora.",
       RATE_LIMITED: "Demasiadas solicitudes. Intenta de nuevo en unos segundos.",
       PAYLOAD_TOO_LARGE: "Los datos son demasiado grandes.",
       REAL_DISABLED: "El dinero real todavía no está disponible en esta demo.",

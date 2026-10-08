@@ -13,6 +13,8 @@ export const API_ERROR_STATUS = {
   PRICE_DEVIATION: 409,
   INSUFFICIENT_FUNDS: 422,
   MINT_NOT_ALLOWED: 400,
+  // M55: el activo en revisión no se puede comprar ahora (sólo compra).
+  ASSET_UNAVAILABLE: 409,
   RATE_LIMITED: 429,
   PAYLOAD_TOO_LARGE: 413,
   REAL_DISABLED: 503,
@@ -30,6 +32,8 @@ const ERROR_MESSAGE: Record<ApiErrorCode, string> = {
   PRICE_DEVIATION: "El precio se movió más de lo permitido.",
   INSUFFICIENT_FUNDS: "No tienes saldo suficiente.",
   MINT_NOT_ALLOWED: "Ese activo no está permitido.",
+  // M55: compra de un activo en revisión.
+  ASSET_UNAVAILABLE: "Este activo está en revisión y no se puede operar ahora.",
   RATE_LIMITED: "Demasiadas solicitudes. Intenta de nuevo en unos segundos.",
   PAYLOAD_TOO_LARGE: "Los datos son demasiado grandes.",
   REAL_DISABLED: "El dinero real todavía no está disponible.",

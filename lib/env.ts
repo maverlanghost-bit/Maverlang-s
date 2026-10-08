@@ -264,6 +264,8 @@ function buildServerSchema(source: EnvSource) {
     /**
      * Token de los crons internos (M46; la ruta de sync llega en M50).
      * Se compara en tiempo constante (`requireCronSecret`). Sólo servidor.
+     * M55: también lo usa GET /api/cron/catalog-health (lotes de 25,
+     * ronda cada 30 min lun–vie según `vercel.json`).
      */
     CRON_SECRET: optionalText(),
     /** Clave de Sentry para subir sourcemaps (M61). Sólo servidor, nunca `NEXT_PUBLIC_*`. */
