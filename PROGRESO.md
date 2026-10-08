@@ -1,7 +1,7 @@
 # PROGRESO — Maverlang
 
 ## Mercado — las nuevas en la primera fila (2026-10-08)
-- Hecho: el listado ya no abre con las 10 xStocks líquidas y deja las Ondo más abajo, ni «Cargar más» vuelve a llenarse sólo de esas. Sin búsqueda se alternan en todo el catálogo, empezando por un nombre nuevo. La primera fila es American Airlines (AALon), chip «En revisión». Comprar sigue apagado. Total 446.
+- Hecho: el listado ya no abre con las 10 xStocks líquidas y deja las Ondo más abajo, ni «Cargar más» vuelve a llenarse sólo de esas. Sin búsqueda se alternan en todo el catálogo, empezando por un nombre nuevo. La primera fila es American Airlines (AALon), chip «En revisión». El monograma quita el sufijo `on` (AAL, no AALON). Comprar sigue apagado. Total 446.
 - Archivos: `lib/catalog/assets.ts`, `tests/unit/market-search.test.ts`.
 - Verificación: tests de búsqueda, alcance y Ondo 46/46. En `next dev` (3210) `/app` muestra AALon en la primera fila visible, en 1280px (y=562) y 390px (y=617), con «En revisión». «Cargar más» sigue mostrando Adobe. La ficha ABNBon dice «No disponible para operar».
 

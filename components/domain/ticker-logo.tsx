@@ -13,10 +13,10 @@ import { companyLogosEnabled } from "@/lib/config/brand";
  */
 const MONOGRAM_TONES = ["bg-up-bg", "bg-info-bg", "bg-warn-bg", "bg-surface-2", "bg-surface-3"] as const;
 
-/** Letras del símbolo. El sufijo "x" de xStocks no entra. Si no hay archivo, este monograma es el respaldo. Uso de marcas: docs/PENDIENTES-LEGALES.md. TODO-VERIFICAR. */
+/** Letras del símbolo. Los sufijos `x` (xStocks) y `on` (Ondo) no entran. Si no hay archivo, este monograma es el respaldo. Uso de marcas: docs/PENDIENTES-LEGALES.md. TODO-VERIFICAR. */
 function monogramLetters(symbol: string) {
   const trimmed = symbol.trim();
-  const withoutSuffix = trimmed.replace(/x$/i, "");
+  const withoutSuffix = trimmed.replace(/(?:on|x)$/i, "");
   const source = withoutSuffix.length > 0 ? withoutSuffix : trimmed;
   const letters = source.toUpperCase().replace(/[^A-Z0-9]/g, "");
   return letters.length > 0 ? letters : trimmed.slice(0, 2).toUpperCase();
