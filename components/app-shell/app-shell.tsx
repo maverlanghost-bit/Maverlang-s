@@ -7,6 +7,7 @@ import { BottomTabs } from "@/components/app-shell/bottom-tabs";
 import { isBarePlatformPath } from "@/components/app-shell/nav";
 import { PublicHeader } from "@/components/app-shell/public-header";
 import { Sidebar } from "@/components/app-shell/sidebar";
+import { StockSearchRoot } from "@/components/app-shell/stock-search";
 import { TopBar } from "@/components/app-shell/top-bar";
 import { serializeSidebarCookie } from "@/lib/app-shell/sidebar";
 import { useAccountMode } from "@/lib/hooks/use-account-mode";
@@ -89,21 +90,23 @@ function ShellFrame({
       >
         {t.shell.skip}
       </a>
-      <div className="min-h-dvh lg:grid lg:grid-cols-[auto_minmax(0,1fr)]">
-        <Sidebar collapsed={collapsed} onToggle={toggleSidebar} accountMode={account.mode} onAccountChange={account.select} />
-        <div className="flex min-h-dvh min-w-0 flex-col">
-          <TopBar accountMode={account.mode} />
-          <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col px-5 pt-6 lg:px-8 lg:pt-8">
-            <main id="contenido" tabIndex={-1} className="flex-1 scroll-mt-16 outline-none">
-              {children}
-            </main>
-            <footer className="pb-[calc(var(--app-tabs-height)+1rem+var(--app-detail-cta))] pt-10 lg:pb-8">
-              <p className="border-t border-border pt-4 text-sm leading-relaxed text-fg-muted">{t.disclaimer}</p>
-            </footer>
+      <StockSearchRoot>
+        <div className="min-h-dvh lg:grid lg:grid-cols-[auto_minmax(0,1fr)]">
+          <Sidebar collapsed={collapsed} onToggle={toggleSidebar} accountMode={account.mode} onAccountChange={account.select} />
+          <div className="flex min-h-dvh min-w-0 flex-col">
+            <TopBar accountMode={account.mode} />
+            <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col px-5 pt-6 lg:px-8 lg:pt-8">
+              <main id="contenido" tabIndex={-1} className="flex-1 scroll-mt-16 outline-none">
+                {children}
+              </main>
+              <footer className="pb-[calc(var(--app-tabs-height)+1rem+var(--app-detail-cta))] pt-10 lg:pb-8">
+                <p className="border-t border-border pt-4 text-sm leading-relaxed text-fg-muted">{t.disclaimer}</p>
+              </footer>
+            </div>
           </div>
         </div>
-      </div>
-      <BottomTabs />
+        <BottomTabs />
+      </StockSearchRoot>
     </div>
   );
 }
@@ -122,15 +125,17 @@ function PublicFrame({ children }: { children: ReactNode }) {
       >
         {t.shell.skip}
       </a>
-      <PublicHeader />
-      <div className="mx-auto flex min-h-[calc(100dvh-3.5rem)] w-full max-w-6xl flex-col px-5 pt-6 lg:px-8">
-        <main id="contenido" tabIndex={-1} className="flex-1 scroll-mt-16 outline-none">
-          {children}
-        </main>
-        <footer className="pb-[calc(1rem+var(--app-detail-cta))] pt-10 lg:pb-8">
-          <p className="border-t border-border pt-4 text-sm leading-relaxed text-fg-muted">{t.disclaimer}</p>
-        </footer>
-      </div>
+      <StockSearchRoot>
+        <PublicHeader />
+        <div className="mx-auto flex min-h-[calc(100dvh-3.5rem)] w-full max-w-6xl flex-col px-5 pt-6 lg:px-8">
+          <main id="contenido" tabIndex={-1} className="flex-1 scroll-mt-16 outline-none">
+            {children}
+          </main>
+          <footer className="pb-[calc(1rem+var(--app-detail-cta))] pt-10 lg:pb-8">
+            <p className="border-t border-border pt-4 text-sm leading-relaxed text-fg-muted">{t.disclaimer}</p>
+          </footer>
+        </div>
+      </StockSearchRoot>
     </div>
   );
 }

@@ -20,6 +20,8 @@ export const en = {
     collapseSidebar: "Collapse sidebar",
     expandSidebar: "Expand sidebar",
     currencyLabel: "Currency",
+    search: "Search",
+    searchClose: "Close search",
   },
   account: {
     typeLabel: "Account type",
@@ -87,6 +89,9 @@ export const en = {
   market: {
     searchLabel: "Search stocks",
     searchPlaceholder: "Symbol, name, or company",
+    searchIdle: "Type a symbol or a company",
+    searchError: "We couldn't search just now.",
+    searchMore: "There are more matches. Refine the name.",
     filtersLabel: "Filter",
     sortLabel: "Sort",
     filterSortLabel: "Sort and filter",

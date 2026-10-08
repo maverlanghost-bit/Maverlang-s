@@ -16,5 +16,5 @@ export default async function MercadoPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const params = await searchParams;
-  return <MarketScreen initialQuery={one(params.q)} initialFilter={one(params.filtro)} initialSort={one(params.orden)} />;
+  return <MarketScreen initialFilter={one(params.filtro)} initialSort={one(params.orden)} />;
 }

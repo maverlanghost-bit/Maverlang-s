@@ -1,20 +1,17 @@
 "use client";
 
-import { useEffect, useId, useMemo, useRef, useState, type FormEvent } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useQueries } from "@tanstack/react-query";
 
 import { FavoriteButton } from "@/components/domain/favorite-button";
 import { MarketStatusPill } from "@/components/domain/market-status-pill";
 import { PriceFreshness } from "@/components/domain/price-freshness";
-import { SearchSuggestions, type SuggestRow } from "@/components/domain/search-suggestions";
 import { TickerCard } from "@/components/domain/ticker-card";
 import { TickerRow } from "@/components/domain/ticker-row";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ErrorState } from "@/components/ui/error-state";
-import { IconSearch } from "@/components/ui/icons";
-import { Input } from "@/components/ui/input";
 import { indexFromKey } from "@/components/ui/keys";
 import { PageHeader } from "@/components/ui/page-header";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -28,14 +25,12 @@ import {
   downsample,
   parseFilter,
   parseSort,
-  topSuggestions,
   type MarketFilter,
   type MarketSort,
 } from "@/lib/market/browse";
 import { anchorSeriesToSpot } from "@/lib/market/series";
 import type { Currency, Quote } from "@/lib/types";
 
-const SEARCH_MS = 300;
 const PAGE_SIZE = 20;
 const SEARCH_STALE_MS = 30_000;
 const PRICE_MS = 15_000;
@@ -48,10 +43,8 @@ function canonicalSearch(search: string): string {
     .join("&");
 }
 
-function withMarketParams(params: URLSearchParams, query: string, filter: MarketFilter, sort: MarketSort) {
-  const trimmed = query.trim();
-  if (trimmed) params.set("q", trimmed);
-  else params.delete("q");
+function withMarketParams(params: URLSearchParams, filter: MarketFilter, sort: MarketSort) {
+  params.delete("q");
   if (filter === "all") params.delete("filtro");
   else params.set("filtro", filter);
   if (sort === "popular") params.delete("orden");
@@ -184,27 +177,20 @@ function ResultsSkeleton({ label }: { label: string }) {
 }
 
 export function MarketScreen({
-  initialQuery,
   initialFilter,
   initialSort,
 }: {
-  initialQuery: string;
   initialFilter: string;
   initialSort: string;
 }) {
   const { t, currency } = useT();
   const router = useRouter();
   const pathname = usePathname();
-  const searchRef = useRef<HTMLInputElement>(null);
-  const searchId = useId();
   const filtersLabelId = useId();
   const sortLabelId = useId();
   const filterSortLabelId = useId();
-  const suggestId = useId();
   const moversTitleId = useId();
 
-  const [draft, setDraft] = useState(initialQuery);
-  const [applied, setApplied] = useState(initialQuery);
   const [filter, setFilter] = useState<MarketFilter>(() => parseFilter(initialFilter));
   // N19: sin A–Z en la UI; una URL vieja con `orden=az` cae a Popular.
   const [sort, setSort] = useState<MarketSort>(() => {
@@ -212,9 +198,6 @@ export function MarketScreen({
     return parsed === "az" ? "popular" : parsed;
   });
   const [page, setPage] = useState(1);
-  /** N20: desplegable de sugerencias bajo el buscador. */
-  const [suggestOpen, setSuggestOpen] = useState(false);
-  const [suggestActive, setSuggestActive] = useState(0);
 
   // Favoritas vive en este navegador: el servidor devuelve todo y se filtra aquí.
   const serverCategory = filter === "favorites" ? "all" : filter;
@@ -225,10 +208,10 @@ export function MarketScreen({
     queries: Array.from({ length: page }, (_, index) => {
       const pageNum = index + 1;
       return {
-        queryKey: ["market-search", applied, serverCategory, pageNum, PAGE_SIZE, serverSort] as const,
+        queryKey: ["market-search", "", serverCategory, pageNum, PAGE_SIZE, serverSort] as const,
         queryFn: () =>
           searchMarket({
-            q: applied,
+            q: "",
             category: serverCategory,
             page: pageNum,
             pageSize: PAGE_SIZE,
@@ -300,27 +283,16 @@ export function MarketScreen({
   const histories = useHistories(loadedSymbols);
 
   useEffect(() => {
-    const id = window.setTimeout(() => {
-      setApplied(draft);
-      setPage(1);
-    }, SEARCH_MS);
-    return () => window.clearTimeout(id);
-  }, [draft]);
-
-  useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    withMarketParams(params, applied, filter, sort);
+    withMarketParams(params, filter, sort);
     const searchText = params.toString();
     if (canonicalSearch(window.location.search) === canonicalSearch(searchText ? `?${searchText}` : "")) return;
     router.replace(searchText ? `${pathname}?${searchText}` : pathname, { scroll: false });
-  }, [applied, filter, pathname, router, sort]);
+  }, [filter, pathname, router, sort]);
 
   useEffect(() => {
     const onPop = () => {
       const params = new URLSearchParams(window.location.search);
-      const query = params.get("q") ?? "";
-      setDraft(query);
-      setApplied(query);
       setFilter(parseFilter(params.get("filtro")));
       const parsed = parseSort(params.get("orden"));
       setSort(parsed === "az" ? "popular" : parsed);
@@ -328,22 +300,6 @@ export function MarketScreen({
     };
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
-  }, []);
-
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key !== "/" || event.metaKey || event.ctrlKey || event.altKey || event.isComposing) return;
-      if (!window.matchMedia("(min-width: 1024px)").matches) return;
-      const target = event.target;
-      if (target instanceof HTMLElement) {
-        const tag = target.tagName;
-        if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || target.isContentEditable) return;
-      }
-      event.preventDefault();
-      searchRef.current?.focus();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
   }, []);
 
   const favoriteSet = useMemo(() => new Set(favorites ?? []), [favorites]);
@@ -358,7 +314,7 @@ export function MarketScreen({
     return rows;
   }, [favoriteSet, filter, items, quotesBySymbol]);
   const ordered = useMemo(() => orderPriced(priced, sort), [priced, sort]);
-  const moverSource = useMemo(() => (applied.trim() ? [] : moversOfPriced(priced)), [applied, priced]);
+  const moverSource = useMemo(() => moversOfPriced(priced), [priced]);
 
   const sparkBySymbol = useMemo(() => {
     const map = new Map<string, number[]>();
@@ -390,28 +346,6 @@ export function MarketScreen({
     (searchQueries.some((query) => query.isFetching) || priceQueries.some((query) => query.isFetching));
   const moverItems = waiting || failed ? [] : priceRows(moverSource, currency, rate);
   const listItems = waiting || failed ? [] : priceRows(ordered, currency, rate);
-  // N20: sugerencias del buscador (top 6 en orden del servidor, con precio).
-  const suggestRows: SuggestRow[] = useMemo(
-    () =>
-      topSuggestions(priced, currency, rate).map((row) => ({ ...row, href: tickerHref(row.symbol) })),
-    [priced, currency, rate],
-  );
-  const draftTrimmed = draft.trim();
-  const showSuggest = suggestOpen && draftTrimmed !== "";
-  const suggesting = (firstQuery?.isPending ?? false) && suggestRows.length === 0;
-  const activeRow =
-    suggestRows.length === 0 ? null : (suggestRows[Math.min(suggestActive, suggestRows.length - 1)] ?? null);
-
-  function goSuggest(symbol: string) {
-    setSuggestOpen(false);
-    router.push(tickerHref(symbol));
-  }
-
-  function searchAll() {
-    setApplied(draft);
-    setPage(1);
-    setSuggestOpen(false);
-  }
   const failure = searchQueries.find((query) => query.error)?.error ?? firstPrices?.error;
   const failureDetail = failure instanceof Error && failure.message.trim() ? failure.message : undefined;
   const lastWithData = [...searchQueries].reverse().find((query) => query.data);
@@ -437,12 +371,6 @@ export function MarketScreen({
     { value: "gain", label: t.market.gain },
     { value: "loss", label: t.market.loss },
   ];
-
-  function onSearch(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setApplied(draft);
-    setPage(1);
-  }
 
   /** Punto de estado por fila desde el catálogo (M39): sin pedir la API por fila. */
   function dotFor(item: MarketSearchItem): { kind: "open" | "closed" | "halted"; label: string } | null {
@@ -501,7 +429,7 @@ export function MarketScreen({
     );
   }
 
-  const emptyTitle = applied.trim() ? t.market.noResultsTitle : `${t.market.emptyFor} «${t.market[filter]}»`;
+  const emptyTitle = `${t.market.emptyFor} «${t.market[filter]}»`;
 
   return (
     <div className="flex min-w-0 flex-col gap-6">
@@ -509,84 +437,6 @@ export function MarketScreen({
       {currency === "CLP" && !fxKnown && !fx.isPending && !waiting && !failed ? (
         <p className="text-sm text-fg-muted">{t.detail.fxFallback}</p>
       ) : null}
-
-      <form role="search" onSubmit={onSearch}>
-        <label htmlFor={searchId} className="sr-only">
-          {t.market.searchLabel}
-        </label>
-        <div
-          className="relative"
-          onBlur={(event) => {
-            if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setSuggestOpen(false);
-          }}
-        >
-          <IconSearch className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-fg-muted" />
-          <Input
-            ref={searchRef}
-            id={searchId}
-            name="q"
-            type="search"
-            value={draft}
-            placeholder={t.market.searchPlaceholder}
-            autoComplete="off"
-            autoCorrect="off"
-            spellCheck={false}
-            enterKeyHint="search"
-            role="combobox"
-            aria-expanded={showSuggest}
-            aria-controls={suggestId}
-            aria-autocomplete="list"
-            aria-activedescendant={showSuggest && activeRow ? `${suggestId}-${Math.min(suggestActive, suggestRows.length - 1)}` : undefined}
-            onChange={(event) => {
-              setDraft(event.target.value);
-              setSuggestActive(0);
-              setSuggestOpen(true);
-            }}
-            onFocus={() => setSuggestOpen(true)}
-            onKeyDown={(event) => {
-              if (!showSuggest) return;
-              if (event.key === "ArrowDown") {
-                event.preventDefault();
-                setSuggestActive((value) => (suggestRows.length === 0 ? 0 : (value + 1) % suggestRows.length));
-              } else if (event.key === "ArrowUp") {
-                event.preventDefault();
-                setSuggestActive((value) =>
-                  suggestRows.length === 0 ? 0 : (value - 1 + suggestRows.length) % suggestRows.length,
-                );
-              } else if (event.key === "Enter" && activeRow) {
-                event.preventDefault();
-                goSuggest(activeRow.symbol);
-              } else if (event.key === "Escape") {
-                event.preventDefault();
-                setSuggestOpen(false);
-              }
-            }}
-            className={draft ? "pr-10 pl-10" : "pr-12 pl-10"}
-          />
-          {draft ? null : (
-            <kbd
-              className="pointer-events-none absolute top-1/2 right-3 hidden -translate-y-1/2 rounded-xs border border-border px-1.5 font-mono text-[11px] text-fg-muted lg:inline"
-              aria-hidden
-            >
-              /
-            </kbd>
-          )}
-          {showSuggest ? (
-            <SearchSuggestions
-              id={suggestId}
-              label={t.market.suggestLabel}
-              rows={suggestRows}
-              active={activeRow ? Math.min(suggestActive, suggestRows.length - 1) : 0}
-              searching={suggesting}
-              emptyLabel={t.market.suggestEmpty}
-              searchAllLabel={t.market.suggestSearch.replace("{q}", draftTrimmed.slice(0, 30))}
-              onHover={setSuggestActive}
-              onSelect={goSuggest}
-              onSearchAll={searchAll}
-            />
-          ) : null}
-        </div>
-      </form>
 
       {/* N19: ordenar + filtrar en una sola tira con fundido (sin scrollbar). */}
       <div className="flex min-w-0 flex-col gap-2">
@@ -653,7 +503,7 @@ export function MarketScreen({
       ) : null}
       {!waiting && !failed && listItems.length > 0 ? (
         <section className="flex min-w-0 flex-col gap-2">
-          <h2 className="text-base font-medium text-fg">{applied.trim() ? t.market.results : t.market.list}</h2>
+          <h2 className="text-base font-medium text-fg">{t.market.list}</h2>
           {total > 0 ? (
             <p className="text-sm text-fg-muted">
               {t.market.stockCount.replace("{total}", String(total))}
@@ -723,7 +573,7 @@ export function MarketScreen({
       {!waiting && !failed && listItems.length === 0 ? (
         <EmptyState
           title={emptyTitle}
-          description={filter === "favorites" && !applied.trim() ? t.market.emptyFavoritesHint : t.market.emptyHint}
+          description={filter === "favorites" ? t.market.emptyFavoritesHint : t.market.emptyHint}
         />
       ) : null}
     </div>

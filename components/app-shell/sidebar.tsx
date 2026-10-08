@@ -8,6 +8,7 @@ import { usePathname } from "next/navigation";
 import { useAccountLabel } from "@/components/app-shell/account-label";
 import { CurrencySwitch } from "@/components/app-shell/currency-switch";
 import { isShellSectionActive, shellNav } from "@/components/app-shell/nav";
+import { StockSearchButton } from "@/components/app-shell/stock-search";
 import { BalanceHeader } from "@/components/domain/balance-header";
 import { Avatar } from "@/components/ui/avatar";
 import { IconChevron } from "@/components/ui/icons";
@@ -96,6 +97,9 @@ export function Sidebar({
       </div>
       <nav aria-label={t.nav.label} className="flex-1 px-2">
         <ul className="flex flex-col gap-1">
+          <li>
+            <StockSearchButton collapsed={collapsed} />
+          </li>
           {shellNav.map((item) => {
             const active = isShellSectionActive(pathname, item.id);
             const Icon = item.icon;

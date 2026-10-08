@@ -22,6 +22,8 @@ export const esCL = {
     collapseSidebar: "Contraer barra lateral",
     expandSidebar: "Expandir barra lateral",
     currencyLabel: "Moneda",
+    search: "Buscar",
+    searchClose: "Cerrar búsqueda",
   },
   account: {
     typeLabel: "Tipo de cuenta",
@@ -90,6 +92,9 @@ export const esCL = {
   market: {
     searchLabel: "Buscar acciones",
     searchPlaceholder: "Símbolo, nombre o empresa",
+    searchIdle: "Escribe un símbolo o una empresa",
+    searchError: "No pudimos buscar ahora.",
+    searchMore: "Hay más coincidencias. Afina el nombre.",
     filtersLabel: "Filtrar",
     sortLabel: "Ordenar",
     filterSortLabel: "Ordenar y filtrar",

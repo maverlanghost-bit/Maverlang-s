@@ -41,6 +41,7 @@ test("smoke con datos mock", async ({ page }) => {
   await expect(page).toHaveURL(/\/app\/?$/);
   await expect(page.getByRole("heading", { name: "Mercado" })).toBeVisible();
 
+  await page.getByRole("button", { name: "Buscar" }).click();
   await page.getByRole("combobox", { name: "Buscar acciones" }).fill("AAPL");
   await page.getByRole("option", { name: /AAPLx|Apple/ }).click();
   await expect(page).toHaveURL(/\/app\/accion\/AAPLx/);
@@ -245,6 +246,7 @@ test("M54: mercado amplio con búsqueda apple", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Mercado" })).toBeVisible();
   await expect(page.getByText("60 acciones")).toBeVisible();
 
+  await page.getByRole("button", { name: "Buscar" }).click();
   await page.getByRole("combobox", { name: "Buscar acciones" }).fill("apple");
   await expect(page.getByRole("option", { name: /AAPLx|Apple/ })).toBeVisible();
 });

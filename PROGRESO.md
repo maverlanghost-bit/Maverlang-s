@@ -1,5 +1,10 @@
 # PROGRESO — Maverlang
 
+## Buscar en un menú (2026-10-08)
+- Hecho: el buscador ya no filtra la página del mercado. En la barra hay un botón «Buscar»; al pulsarlo se abre un menú con el campo y las coincidencias (chip «En revisión»). En el celular el botón está en la barra de arriba, y sin sesión en la cabecera pública. Comprar las nuevas sigue apagado.
+- Archivos: `components/app-shell/stock-search.tsx`, barra, cabecera y `market-screen.tsx`. Se quitó el desplegable de la página.
+- Verificación: en `next dev` (3210) buscar «airbnb» muestra ABNBon sin cambiar «446 acciones» ni la URL, en la barra (1280px, también colapsada), en el celular (390px) y sin sesión. Escape cierra el menú. La ficha dice «No disponible para operar».
+
 ## Primera página del mercado (2026-10-08)
 - Hecho: sin búsqueda, la primera página ya no es sólo las 50 xStocks. Esas tienen liquidez y las Ondo no, así que quedaban detrás. Ahora la mitad de esa página son las nuevas (chip «En revisión»). El total sigue en 446. Comprar sigue apagado.
 - Archivos: `lib/catalog/assets.ts`, `tests/unit/market-search.test.ts`.
