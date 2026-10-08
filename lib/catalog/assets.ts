@@ -526,6 +526,47 @@ function normalizePage(value: number | undefined, fallback: number): number {
   return value as number;
 }
 
+function byName(a: CatalogAsset, b: CatalogAsset): number {
+  return a.name.localeCompare(b.name, "es", { sensitivity: "base" }) || a.symbol.localeCompare(b.symbol);
+}
+
+function byLiquidity(a: CatalogAsset, b: CatalogAsset): number {
+  const left = a.liquidityUsd ?? -1;
+  const right = b.liquidityUsd ?? -1;
+  return right - left || a.symbol.localeCompare(b.symbol);
+}
+
+/**
+ * Sin texto de búsqueda, ordenar sólo por liquidez esconde el catálogo nuevo:
+ * las Ondo no traen liquidez y quedan detrás de las xStocks que sí tienen.
+ * La primera página adelanta la mitad de esos nombres. Con búsqueda, o si
+ * ya entrarían en esa página, el orden de liquidez no cambia.
+ */
+function browseOrder(
+  rows: readonly CatalogAsset[],
+  sort: CatalogSort,
+  needle: string,
+  pageSize: number,
+): CatalogAsset[] {
+  if (sort === "name") return [...rows].sort(byName);
+  const ranked = [...rows].sort(byLiquidity);
+  if (needle || pageSize < 2) return ranked;
+  const withLiquidity: CatalogAsset[] = [];
+  const withoutLiquidity: CatalogAsset[] = [];
+  for (const asset of ranked) {
+    if (asset.liquidityUsd === null) withoutLiquidity.push(asset);
+    else withLiquidity.push(asset);
+  }
+  if (withoutLiquidity.length === 0 || withLiquidity.length < pageSize) return ranked;
+  const take = Math.floor(pageSize / 2);
+  return [
+    ...withLiquidity.slice(0, take),
+    ...withoutLiquidity.slice(0, take),
+    ...withLiquidity.slice(take),
+    ...withoutLiquidity.slice(take),
+  ];
+}
+
 /** Filtro + orden + paginación en memoria sobre filas ya cargadas. Pura: la usan los tests. */
 export function searchAssets(rows: readonly CatalogAsset[], params: CatalogSearchParams): CatalogSearchResult {
   const effectiveScope = resolveEffectiveScope(params.scope, maxScopeFromEnv());
@@ -546,14 +587,7 @@ export function searchAssets(rows: readonly CatalogAsset[], params: CatalogSearc
     );
   });
 
-  const ordered = [...filtered].sort((a, b) => {
-    if (sort === "name") {
-      return a.name.localeCompare(b.name, "es", { sensitivity: "base" }) || a.symbol.localeCompare(b.symbol);
-    }
-    const left = a.liquidityUsd ?? -1;
-    const right = b.liquidityUsd ?? -1;
-    return right - left || a.symbol.localeCompare(b.symbol);
-  });
+  const ordered = browseOrder(filtered, sort, needle, pageSize);
 
   const total = ordered.length;
   const start = (page - 1) * pageSize;

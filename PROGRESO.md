@@ -1,5 +1,10 @@
 # PROGRESO — Maverlang
 
+## Primera página del mercado (2026-10-08)
+- Hecho: sin búsqueda, la primera página ya no es sólo las 50 xStocks. Esas tienen liquidez y las Ondo no, así que quedaban detrás. Ahora la mitad de esa página son las nuevas (chip «En revisión»). El total sigue en 446. Comprar sigue apagado.
+- Archivos: `lib/catalog/assets.ts`, `tests/unit/market-search.test.ts`.
+- Verificación: tests de búsqueda, alcance y Ondo 46/46. En `next dev` (3210) `/app` muestra Airbnb y NVIDIA, «446 acciones», en 1280px y 390px; «Cargar más» llega a 40 sin repetir Airbnb; la ficha ABNBon dice «No disponible para operar».
+
 ## Barra — logo a la mitad (2026-10-08)
 - Hecho: el símbolo del favicon en la barra pasa de 80×26px a 40×13px (colapsada 24×8px). El clic sigue en un área de 44px.
 - Verificación: en `next dev` mock (3210) el logo mide 40×13 expandido y 24×8 colapsado; Mercado, Cartera y Billetera siguen en la barra.

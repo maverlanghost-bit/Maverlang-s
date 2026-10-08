@@ -105,6 +105,40 @@ describe("mercado escalable: búsqueda del catálogo", () => {
     expect(byName).toEqual(["AAPLx", "KOx", "FAKEx", "NVDAx", "SPYx"]);
   });
 
+  it("la primera página de liquidez muestra nombres sin dato cuando el resto llenaría la página", () => {
+    const liquid = Array.from({ length: 20 }, (_, index) =>
+      asset({ symbol: `L${String(index).padStart(2, "0")}x`, liquidityUsd: 1_000 - index }),
+    );
+    const fresh = Array.from({ length: 20 }, (_, index) =>
+      asset({
+        symbol: `N${String(index).padStart(2, "0")}on`,
+        liquidityUsd: null,
+        safetyStatus: "watch",
+        tradable: false,
+        underReview: true,
+      }),
+    );
+    const rows = [...liquid, ...fresh];
+    const first = searchAssets(rows, { page: 1, pageSize: 20 });
+    expect(first.items.filter((item) => item.liquidityUsd === null)).toHaveLength(10);
+    expect(first.items.filter((item) => item.liquidityUsd !== null)).toHaveLength(10);
+    const seen = new Set<string>();
+    let page = 1;
+    for (;;) {
+      const result = searchAssets(rows, { page, pageSize: 20 });
+      for (const item of result.items) {
+        expect(seen.has(item.symbol)).toBe(false);
+        seen.add(item.symbol);
+      }
+      if (!result.hasMore) break;
+      page += 1;
+      expect(page).toBeLessThan(5);
+    }
+    expect(seen.size).toBe(40);
+    const queried = searchAssets(rows, { q: "L00", pageSize: 20 });
+    expect(queried.items.map((item) => item.symbol)).toEqual(["L00x"]);
+  });
+
   it("con scope curated salen sólo curadas; con all pedido y máximo listed, entran listed y watch", () => {
     const curated = searchAssets(ROWS, { scope: "curated" });
     expect(curated.items.some((item) => item.symbol === "FAKEx")).toBe(false);
