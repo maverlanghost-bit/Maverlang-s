@@ -539,8 +539,9 @@ function byLiquidity(a: CatalogAsset, b: CatalogAsset): number {
 /**
  * Sin texto de búsqueda, ordenar sólo por liquidez esconde el catálogo nuevo:
  * las Ondo no traen liquidez y quedan detrás de las xStocks que sí tienen.
- * La primera página adelanta la mitad de esos nombres. Con búsqueda, o si
- * ya entrarían en esa página, el orden de liquidez no cambia.
+ * Se alternan en todo el listado, empezando por un nombre nuevo, para que
+ * cada página las muestre y no sólo un bloque al final de la primera.
+ * Con búsqueda, o si ya entrarían en esa página, el orden de liquidez no cambia.
  */
 function browseOrder(
   rows: readonly CatalogAsset[],
@@ -558,13 +559,15 @@ function browseOrder(
     else withLiquidity.push(asset);
   }
   if (withoutLiquidity.length === 0 || withLiquidity.length < pageSize) return ranked;
-  const take = Math.floor(pageSize / 2);
-  return [
-    ...withLiquidity.slice(0, take),
-    ...withoutLiquidity.slice(0, take),
-    ...withLiquidity.slice(take),
-    ...withoutLiquidity.slice(take),
-  ];
+  const mixed: CatalogAsset[] = [];
+  const count = Math.max(withLiquidity.length, withoutLiquidity.length);
+  for (let index = 0; index < count; index += 1) {
+    const fresh = withoutLiquidity[index];
+    const liquid = withLiquidity[index];
+    if (fresh) mixed.push(fresh);
+    if (liquid) mixed.push(liquid);
+  }
+  return mixed;
 }
 
 /** Filtro + orden + paginación en memoria sobre filas ya cargadas. Pura: la usan los tests. */

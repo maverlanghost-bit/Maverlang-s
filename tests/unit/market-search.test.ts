@@ -120,8 +120,13 @@ describe("mercado escalable: búsqueda del catálogo", () => {
     );
     const rows = [...liquid, ...fresh];
     const first = searchAssets(rows, { page: 1, pageSize: 20 });
+    expect(first.items[0]?.symbol).toBe("N00on");
+    expect(first.items[1]?.symbol).toBe("L00x");
     expect(first.items.filter((item) => item.liquidityUsd === null)).toHaveLength(10);
     expect(first.items.filter((item) => item.liquidityUsd !== null)).toHaveLength(10);
+    const second = searchAssets(rows, { page: 2, pageSize: 20 });
+    expect(second.items[0]?.symbol).toBe("N10on");
+    expect(second.items.filter((item) => item.liquidityUsd === null)).toHaveLength(10);
     const seen = new Set<string>();
     let page = 1;
     for (;;) {
