@@ -5,7 +5,7 @@ import { LandingPrice } from "@/components/landing/live-landing-prices";
 import { TickerRow } from "@/components/domain/ticker-row";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { IconClock, IconGlobe, IconWallet } from "@/components/ui/icons";
+import { IconChart, IconClock, IconWallet } from "@/components/ui/icons";
 import { esCL } from "@/content/i18n/es-CL";
 import { landingNotice } from "@/lib/landing/live-quotes";
 import { LANDING_MIN_ORDER_USD } from "@/lib/market/asset-status.shared";
@@ -30,7 +30,7 @@ import { cn } from "@/lib/cn";
 const trustChips: { label: string; Icon: ComponentType<SVGProps<SVGSVGElement>> }[] = [
   { label: "Opera 24/7", Icon: IconClock },
   { label: "En tu propia billetera, sin custodia", Icon: IconWallet },
-  { label: "Sin cuenta en corredora de EE.UU.", Icon: IconGlobe },
+  { label: "Más de 400 activos", Icon: IconChart },
 ];
 
 function Reveal({

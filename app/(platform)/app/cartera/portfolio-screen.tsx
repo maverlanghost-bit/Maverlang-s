@@ -29,7 +29,6 @@ import { useActivity, useAssetStatus, useFx, useHistories, usePortfolio, useTick
 import { priceFlashDirection, type PriceFlash } from "@/lib/hooks/use-price-flash";
 import { useT } from "@/lib/hooks/use-t";
 import { displayPrice } from "@/lib/market/browse";
-import { safetyNoticeForPosition } from "@/lib/market/asset-status.shared";
 import { DETAIL_RANGES, anchorSeriesToSpot, isDetailRange, rangeMove, toneOf } from "@/lib/market/series";
 import { balancedPortions, decodePoints, encodePoints, portfolioValueSeries, sumUsd, sumsMatch, tradeActivity } from "@/lib/portfolio/series";
 import type { Activity, Currency, OrderStatus, Position, Range, Ticker } from "@/lib/types";
@@ -76,14 +75,15 @@ function moneyView(usd: number, currency: Currency, rate: number | undefined): {
 
 /**
  * Aviso de seguridad por posición (M54c-fix): `hidden` muestra que ya no se
- * puede comprar pero sí vender; `watch` lleva el chip "En revisión" de M54.
+ * puede comprar pero sí vender. El chip "En revisión" sigue a `underReview`
+ * (las Ondo aprobadas quedan en `watch` en la base, pero sin chip).
  * El botón Vender de la fila sigue disponible en ambos casos.
  */
 function PositionSafetyNote({ symbol }: { symbol: string }) {
   const { t } = useT();
   const asset = useAssetStatus(symbol);
   const notice =
-    safetyNoticeForPosition(asset.data?.safetyStatus) ?? (asset.data?.underReview ? "review" : null);
+    asset.data?.safetyStatus === "hidden" ? "hidden" : asset.data?.underReview ? "review" : null;
   if (notice === null) return null;
   if (notice === "hidden") {
     return <p className="px-2 pb-2 text-sm leading-relaxed text-fg-muted">{t.portfolio.hiddenNotice}</p>;

@@ -1,5 +1,10 @@
 # PROGRESO — Maverlang
 
+## Hero +400 y Ondo operables (2026-10-08)
+- Hecho: el chip del hero ya no dice «Sin cuenta en corredora de EE.UU.»; dice «Más de 400 activos» (el catálogo visible es 446). Las Ondo en `watch` quedan operables y sin chip «En revisión». No se escribió `listed` en la base, así las 50 curadas siguen operando. Si la empresa ya tiene xStocks, esa ficha se mantiene. Comprar una xStock en `watch` que no es Ondo sigue apagado.
+- Archivos: `components/landing/hero.tsx`, `lib/catalog/assets.ts`, `portfolio-screen.tsx`, `tests/unit/ondo-issuer.test.ts`.
+- Verificación: tests de Ondo, alcance, operación y búsqueda 55/55. En `next dev` (3210) el chip se ve en 1280px y 390px. AALon no trae «En revisión». La ficha ABNBon no dice «No disponible para operar» y la API la marca `tradable`. NVIDIA tampoco queda bloqueada.
+
 ## Mercado — las nuevas en la primera fila (2026-10-08)
 - Hecho: el listado ya no abre con las 10 xStocks líquidas y deja las Ondo más abajo, ni «Cargar más» vuelve a llenarse sólo de esas. Sin búsqueda se alternan en todo el catálogo, empezando por un nombre nuevo. La primera fila es American Airlines (AALon), chip «En revisión». El monograma quita el sufijo `on` (AAL, no AALON). Comprar sigue apagado. Total 446.
 - Archivos: `lib/catalog/assets.ts`, `tests/unit/market-search.test.ts`.

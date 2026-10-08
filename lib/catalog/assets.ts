@@ -362,6 +362,12 @@ export function annotateSafety(
       const operable = asset.enabled && !asset.halted;
       return { ...asset, tradable: operable, underReview: false, transitionKept: operable };
     }
+    // Ondo en watch: operables y sin chip (decisión de Manu, 2026-10-08).
+    // No se marca `listed` en la base, así la transición de las curadas sigue.
+    // Hidden, suspendidas y las xStocks en watch quedan como estaban.
+    if (asset.issuer === "ondo" && asset.safetyStatus === "watch" && asset.enabled && !asset.halted) {
+      return { ...asset, tradable: true, underReview: false, transitionKept: false };
+    }
     return {
       ...asset,
       tradable: isTradableStatus(asset.safetyStatus) && asset.enabled && !asset.halted,
@@ -467,6 +473,8 @@ export function pickListingPerCompany(candidates: readonly ListingCandidate[]): 
   for (const list of groups.values()) {
     const ordered = [...list].sort((a, b) => {
       if (a.asset.tradable !== b.asset.tradable) return a.asset.tradable ? -1 : 1;
+      // Si las dos se pueden comprar, la curada (xStocks) sigue siendo la ficha.
+      if (a.asset.curated !== b.asset.curated) return a.asset.curated ? -1 : 1;
       const status = listingStatusRank(a.asset.safetyStatus) - listingStatusRank(b.asset.safetyStatus);
       if (status !== 0) return status;
       const costA = a.buy100CostBps;

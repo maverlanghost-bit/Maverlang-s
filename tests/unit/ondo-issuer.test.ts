@@ -6,6 +6,7 @@ import { ONDO_TICKERS } from "@/config/ondo.generated";
 import {
   __clearAssetsCacheForTests,
   __setAssetsCacheForTests,
+  annotateSafety,
   applyListing,
   findAssetBySymbol,
   pickListingPerCompany,
@@ -238,7 +239,63 @@ describe("M52b: allowlist dinámica por emisor", () => {
     __clearAssetsCacheForTests();
   });
 
-  it("Ondo watch no se opera, Ondo listed sí, mint desconocido no", async () => {
+  it("Ondo en watch queda operable y sin chip; la curada sigue siendo la ficha", async () => {
+    const rows = annotateSafety(
+      [
+        asset({
+          symbol: "ABNBon",
+          name: "Airbnb",
+          underlying: "ABNB",
+          companyTicker: "ABNB",
+          mint: ondoMint("ABNB"),
+          issuer: "ondo",
+          safetyStatus: "watch",
+        }),
+        asset({
+          symbol: "W000x",
+          name: "Watch",
+          underlying: "W000",
+          companyTicker: "W000",
+          mint: xsMint(9),
+          safetyStatus: "watch",
+        }),
+        asset({
+          symbol: "AAPLx",
+          name: "Apple",
+          underlying: "AAPL",
+          companyTicker: "AAPL",
+          mint: xsMint(1),
+          curated: true,
+          safetyStatus: "unknown",
+        }),
+        asset({
+          symbol: "AAPLon",
+          name: "Apple",
+          underlying: "AAPL",
+          companyTicker: "AAPL",
+          mint: ondoMint("AAPL"),
+          issuer: "ondo",
+          safetyStatus: "watch",
+        }),
+      ],
+      true,
+    );
+    const airbnb = rows.find((row) => row.symbol === "ABNBon");
+    expect(airbnb?.tradable).toBe(true);
+    expect(airbnb?.underReview).toBe(false);
+    const watch = rows.find((row) => row.symbol === "W000x");
+    expect(watch?.tradable).toBe(false);
+    expect(watch?.underReview).toBe(true);
+    const shown = applyListing(rows, "listed").map((row) => row.symbol);
+    expect(shown).toContain("ABNBon");
+    expect(shown).toContain("AAPLx");
+    expect(shown).not.toContain("AAPLon");
+    __setAssetsCacheForTests(rows, Date.now());
+    expect(await tradableBySymbol("ABNBon")).toEqual({ symbol: "ABNBon", mint: ondoMint("ABNB") });
+    expect(await tradableBySymbol("W000x")).toBeNull();
+  });
+
+  it("Ondo watch no se opera si la fila ya viene bloqueada, Ondo listed sí, mint desconocido no", async () => {
     __setAssetsCacheForTests(
       [
         asset({ symbol: "NVDAon", name: "NVIDIA", underlying: "NVDA", companyTicker: "NVDA", mint: ondoMint("NVDA"), issuer: "ondo", safetyStatus: "watch", tradable: false, underReview: true }),
