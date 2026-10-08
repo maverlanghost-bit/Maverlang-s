@@ -3,17 +3,17 @@ import "server-only";
 import { z } from "zod";
 
 import { serverEnv } from "@/lib/env";
-import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { readSupabaseSecretKey } from "@/lib/supabase/secret";
-import { readSupabasePublicConfig } from "@/lib/supabase/config";
+import { insertWaitlistRow } from "@/lib/services/waitlist.supabase";
 import { WAITLIST_SUCCESS_MESSAGE } from "@/lib/waitlist/message";
+
+export { insertWaitlistRow };
 
 export { WAITLIST_SUCCESS_MESSAGE };
 
 /**
- * Lista de espera de la cuenta Real (M45). Sólo servidor: escribe con la
- * secret key (`service_role`, que pasa el RLS sin políticas de 0008).
- * Nunca escribe el correo en los logs.
+ * Lista de espera de la cuenta Real (M45). Sólo servidor.
+ * La escritura con la secret key está en `lib/services/waitlist.supabase.ts`
+ * (lista blanca M57). Nunca escribe el correo en los logs.
  */
 
 const SOURCES = ["landing", "cuenta_real"] as const;
@@ -47,38 +47,6 @@ export type WaitlistRow = {
 export type WaitlistStore = {
   insert(row: WaitlistRow): Promise<{ duplicate: boolean }>;
 };
-
-/**
- * Inserción real: `upsert` con `ignoreDuplicates` (equivale a
- * `on conflict (email_norm) do nothing`). Si el correo ya estaba, no falla:
- * se responde el mismo 200. Fuera de live y sin Supabase (tests, e2e mock,
- * dev), valida igual pero no persiste.
- */
-export async function insertWaitlistRow(row: WaitlistRow): Promise<{ duplicate: boolean }> {
-  const config = readSupabasePublicConfig();
-  const secret = readSupabaseSecretKey();
-  if (!config || !secret) {
-    const dataMode = (process.env.DATA_MODE ?? "mock").trim();
-    if (dataMode === "live") throw new Error("waitlist: falta Supabase en live");
-    return { duplicate: false };
-  }
-  const admin = createSupabaseAdminClient();
-  const { error } = await admin.from("waitlist").upsert(
-    {
-      email: row.email,
-      source: row.source,
-      consent_version: row.consentVersion,
-      country: row.country,
-    },
-    { onConflict: "email_norm", ignoreDuplicates: true },
-  );
-  if (error) {
-    const code = (error as { code?: unknown }).code;
-    if (code === "23505") return { duplicate: true };
-    throw new Error("waitlist: no se pudo guardar");
-  }
-  return { duplicate: false };
-}
 
 export type WaitlistResult =
   | { status: 200; body: { message: string } }

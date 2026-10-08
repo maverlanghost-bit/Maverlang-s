@@ -125,8 +125,9 @@ describe("M45: lista de espera", () => {
   });
 
   it("la ruta responde 200 sin guardar con on conflict do nothing (estático)", () => {
-    expect(read("lib/waitlist/server.ts")).toContain("ignoreDuplicates: true");
-    expect(read("lib/waitlist/server.ts")).toContain('onConflict: "email_norm"');
+    expect(read("lib/services/waitlist.supabase.ts")).toContain("ignoreDuplicates: true");
+    expect(read("lib/services/waitlist.supabase.ts")).toContain('onConflict: "email_norm"');
+    expect(read("lib/waitlist/server.ts")).toContain("insertWaitlistRow");
     const route = read("app/api/waitlist/route.ts");
     expect(route).toContain('x-vercel-ip-country');
     expect(route).toContain('console.error("waitlist: no se pudo guardar el correo")');

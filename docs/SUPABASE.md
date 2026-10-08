@@ -154,6 +154,20 @@ npm run audit:catalog -- --db --all-events            # un evento por activo (si
 
 El script abre la fila del run, calcula `nextSafetyState` por activo (máquina de estados en `docs/CATALOGO-SEGURIDAD.md`), hace upsert SÓLO de las columnas de seguridad (nunca `mint_solana`, `name` ni `curated`) y cierra el run. Sin 0010 aplicada imprime `aplica 0010` y sale con código 2, sin escribir nada. Las 50 curadas parten con `consecutive_passes = 0`: se ganan el listado con 2 corridas; la app sigue mostrando como hoy hasta M54.
 
+## Rol admin y flags (0011)
+
+NO aplicada. Después de `0010`, pega **una sola vez** `supabase/migrations/0011_admin.sql` en el SQL Editor y ejecútalo. También es idempotente (la segunda pasada no pisa un interruptor ya cambiado: `on conflict do nothing`). Agrega:
+
+- `public.app_admins` (`user_id` referencia `auth.users`, `created_at`, `note`) con RLS y **sin políticas**. `anon` y `authenticated` no leen ni escriben.
+- `public.is_admin(uid uuid)` `security definer` con `search_path` fijo. `execute` sólo para `service_role`.
+- `public.app_flags` (`key`, `value jsonb`, `updated_at`, `updated_by`) con RLS y sin acceso de clientes. Semillas: `trading_enabled=false`, `onramp_enabled=false`, `offramp_enabled=false`, `signup_enabled=true`, `beta_only=true`.
+
+El panel `/admin` exige esa fila y MFA (`aal2`). Alta de un admin (lo corre el operador, con la migración ya aplicada):
+
+```bash
+node scripts/make-admin.mjs <email>
+```
+
 ## Segundo emisor Ondo (0022)
 
 NO aplicada. Después de `0021`, pega **una sola vez** `supabase/migrations/0022_ondo_issuer.sql` en el SQL Editor y ejecútalo. También es idempotente (se puede pegar dos veces). Agrega:

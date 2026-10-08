@@ -31,6 +31,9 @@
  *   escritura directa (revoke total: el SELECT da error de permiso).
  * - asset_safety_runs y asset_safety_events (M53): nada para
  *   anon/authenticated, ni lectura ni escritura directa (sólo service_role).
+ * - app_admins y app_flags (M57): nada para anon/authenticated, ni lectura
+ *   ni escritura directa (sólo service_role). is_admin sólo la ejecuta
+ *   service_role.
  * - funciones demo_trade/demo_reset: anon y authenticated siempre denegados
  *   (sólo service_role), incluso con el user_id propio.
  *
@@ -64,6 +67,9 @@ const AUDIT_TABLES = [
   "_migration_flags",
   "asset_safety_runs",
   "asset_safety_events",
+  // M57: sin acceso para anon/authenticated.
+  "app_admins",
+  "app_flags",
 ];
 
 /** Columnas sensibles de profiles que authenticated nunca puede cambiar (0009). */
@@ -158,6 +164,10 @@ function dryRun() {
     ["_migration_flags", "anon: nada", "A→B: n/a", "nadie (ni lectura ni escritura directa)"],
     ["asset_safety_runs", "anon: nada", "A→B: n/a", "nadie (ni lectura ni escritura directa)"],
     ["asset_safety_events", "anon: nada", "A→B: n/a", "nadie (ni lectura ni escritura directa)"],
+    // M57
+    ["app_admins", "anon: nada", "A→B: n/a", "nadie (ni lectura ni escritura directa)"],
+    ["app_flags", "anon: nada", "A→B: n/a", "nadie (ni lectura ni escritura directa)"],
+    ["is_admin()", "anon: denegado", "A: denegado", "sólo service_role"],
     ["demo_trade()", "anon: denegado", "A con user_id de B: denegado", "A con user_id propio: denegado (sólo service_role)"],
     ["demo_reset()", "anon: denegado", "A con user_id de B: denegado", "A con user_id propio: denegado (sólo service_role)"],
   ];
@@ -427,6 +437,16 @@ async function main() {
     const insEvents = await clientA.from("asset_safety_events").insert({ symbol: "AAPLx", result: "PASA" }).select("id");
     record("A INSERT asset_safety_events (denegado)", !!insEvents.error, insEvents.error ? redact(insEvents.error.message) : "insertó");
 
+    // M57: app_admins y app_flags (sólo service_role).
+    const selAdmins = await clientA.from("app_admins").select("user_id").limit(3);
+    record("A SELECT app_admins (denegado)", !!selAdmins.error, selAdmins.error ? redact(selAdmins.error.message) : "leyó filas");
+    const insAdmins = await clientA.from("app_admins").insert({ user_id: idA }).select("user_id");
+    record("A INSERT app_admins (denegado)", !!insAdmins.error, insAdmins.error ? redact(insAdmins.error.message) : "insertó");
+    const selAppFlags = await clientA.from("app_flags").select("key").limit(3);
+    record("A SELECT app_flags (denegado)", !!selAppFlags.error, selAppFlags.error ? redact(selAppFlags.error.message) : "leyó filas");
+    const insAppFlags = await clientA.from("app_flags").insert({ key: `rls-probe-${ts}`, value: false }).select("key");
+    record("A INSERT app_flags (denegado)", !!insAppFlags.error, insAppFlags.error ? redact(insAppFlags.error.message) : "insertó");
+
     // ---- funciones con el user_id de otro (y propio: también denegado) ----
     const tradeAsB = await clientA.rpc("demo_trade", {
       p_user: idB,
@@ -457,6 +477,11 @@ async function main() {
       p_usdclp: 950,
     });
     record("anon llama demo_trade (denegado)", !!anonTrade.error, anonTrade.error ? redact(anonTrade.message ?? anonTrade.error.message) : "ejecutó");
+    // M57: is_admin sólo service_role.
+    const rpcIsAdmin = await clientA.rpc("is_admin", { uid: idA });
+    record("A llama is_admin (denegado)", !!rpcIsAdmin.error, rpcIsAdmin.error ? redact(rpcIsAdmin.message ?? rpcIsAdmin.error.message) : "ejecutó");
+    const anonIsAdmin = await anon.rpc("is_admin", { uid: idA });
+    record("anon llama is_admin (denegado)", !!anonIsAdmin.error, anonIsAdmin.error ? redact(anonIsAdmin.message ?? anonIsAdmin.error.message) : "ejecutó");
   } catch (error) {
     record("inesperado", false, redact(error instanceof Error ? error.message : error));
   } finally {
@@ -467,6 +492,12 @@ async function main() {
       await admin.from("waitlist").delete().eq("email", probeWaitlistEmail);
     } catch {
       // Sin rastro esperado; si falla, los usuarios igual se borran abajo.
+    }
+    // M57: si la sonda de app_flags hubiese entrado (no debe), se borra.
+    try {
+      await admin.from("app_flags").delete().eq("key", `rls-probe-${ts}`);
+    } catch {
+      // Sin rastro esperado.
     }
     for (const id of [idA, idB]) {
       if (!id) continue;

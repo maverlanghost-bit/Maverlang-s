@@ -82,6 +82,16 @@ export async function middleware(request: NextRequest) {
     refreshed = updated.response;
   }
 
+  // M57: /admin queda fuera del geobloqueo de visitantes.
+  // requireAdmin igual exige sesión y MFA; si no, la página responde 404.
+  if (pathname === "/admin" || pathname.startsWith("/admin/")) {
+    const next = NextResponse.next({ request: { headers: security.requestHeaders } });
+    if (refreshed) {
+      mergeSupabaseIntoNext(refreshed, next);
+    }
+    return applySecurity(next, security);
+  }
+
   const decision = decideGate({
     pathname,
     search,
