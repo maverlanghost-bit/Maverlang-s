@@ -20,6 +20,32 @@ export interface AssetStatus {
   maxOrderUsd: number | null;
   source: AssetStatusSource;
   updatedAt: string;
+  /**
+   * Estado de seguridad del catálogo (M54c-fix, opcional por compatibilidad).
+   * La cartera y el detalle lo usan para avisar en `watch`/`hidden` sin
+   * importar nada de servidor: la venta de lo que ya se tiene sigue disponible.
+   */
+  safetyStatus?: AssetSafetyStatus;
+  /** true cuando se puede comprar hoy (sólo `listed`, con transición). */
+  tradable?: boolean;
+  /** true cuando está en `watch` y la transición no lo cubre. */
+  underReview?: boolean;
+}
+
+/** Estado de seguridad por activo (M53): el mismo de `lib/catalog/assets`. */
+export type AssetSafetyStatus = "listed" | "watch" | "hidden" | "unknown";
+
+/**
+ * Aviso de la posición según seguridad (M54c-fix). Pura: la usan la cartera
+ * y los tests. `hidden` → aviso de sólo-venta; `watch` → chip "En revisión";
+ * el resto → nada.
+ */
+export function safetyNoticeForPosition(
+  safety: AssetSafetyStatus | null | undefined,
+): "hidden" | "review" | null {
+  if (safety === "hidden") return "hidden";
+  if (safety === "watch") return "review";
+  return null;
 }
 
 /** Clave i18n del chip del detalle según el estado real. Pura: la usan los tests. */

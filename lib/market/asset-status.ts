@@ -7,6 +7,7 @@ import {
   normalizeMode,
   normalizePeriod,
   type AssetPeriod,
+  type AssetSafetyStatus,
   type AssetStatus,
   type AssetTradingMode,
 } from "@/lib/market/asset-status.shared";
@@ -15,6 +16,7 @@ import { mockMarketStatus } from "@/lib/mocks/market";
 export type {
   AssetChipKey,
   AssetPeriod,
+  AssetSafetyStatus,
   AssetStatus,
   AssetStatusSource,
   AssetTradingMode,
@@ -24,6 +26,7 @@ export {
   effectiveMinOrderUsd,
   normalizeMode,
   normalizePeriod,
+  safetyNoticeForPosition,
   tradeBlockForStatus,
 } from "@/lib/market/asset-status.shared";
 
@@ -182,6 +185,9 @@ function fromCatalog(asset: CatalogAsset, nowIso: string): AssetStatus {
     maxOrderUsd: asset.maxOrderUsd,
     source: "catalog",
     updatedAt: nowIso,
+    safetyStatus: asset.safetyStatus,
+    tradable: asset.tradable,
+    underReview: asset.underReview,
   };
 }
 
@@ -225,16 +231,36 @@ export async function status(symbol: string, deps?: AssetStatusDeps): Promise<As
   const nowIso = now.toISOString();
   const liveEnabled = deps?.live ?? isLiveStatusEnabled();
 
+  // Señal de seguridad del catálogo (M54c-fix): incluye `hidden` para que la
+  // cartera avise y el detalle abra la venta de lo que ya se tiene.
+  async function safetyOf(): Promise<Pick<AssetStatus, "safetyStatus" | "tradable" | "underReview"> | null> {
+    try {
+      const asset = deps?.findAsset
+        ? await deps.findAsset(wanted)
+        : await findAssetBySymbol(wanted, { scope: "all", allowHidden: true, noListing: true });
+      if (!asset) return null;
+      const safetyStatus: AssetSafetyStatus =
+        asset.safetyStatus === "listed" ||
+        asset.safetyStatus === "watch" ||
+        asset.safetyStatus === "hidden"
+          ? asset.safetyStatus
+          : "unknown";
+      return { safetyStatus, tradable: asset.tradable, underReview: asset.underReview };
+    } catch {
+      return null;
+    }
+  }
+
   if (liveEnabled) {
     const key = wanted.toLowerCase();
     const hit = liveCache.get(key);
     if (hit && nowMs - hit.at < CACHE_MS) {
-      return { ...hit.status, source: "live", updatedAt: nowIso };
+      return { ...hit.status, source: "live", updatedAt: nowIso, ...((await safetyOf()) ?? {}) };
     }
     try {
       const live = await readLive(wanted, deps?.fetchImpl ?? fetch);
       liveCache.set(key, { at: nowMs, status: live });
-      return { ...live, source: "live", updatedAt: nowIso };
+      return { ...live, source: "live", updatedAt: nowIso, ...((await safetyOf()) ?? {}) };
     } catch {
       // Cae al catálogo y luego al mock.
     }
@@ -243,7 +269,7 @@ export async function status(symbol: string, deps?: AssetStatusDeps): Promise<As
   try {
     const asset = deps?.findAsset
       ? await deps.findAsset(wanted)
-      : await findAssetBySymbol(wanted);
+      : await findAssetBySymbol(wanted, { scope: "all", allowHidden: true, noListing: true });
     if (asset) return fromCatalog(asset, nowIso);
   } catch {
     // Cae al mock.

@@ -108,6 +108,10 @@ export const assetStatusSchema = z.object({
   maxOrderUsd: z.number().nonnegative().nullable(),
   source: z.enum(["live", "catalog", "mock"]),
   updatedAt: isoTimeSchema,
+  /** Señal de seguridad del catálogo (M54c-fix, opcional): la cartera avisa y el detalle abre la venta. */
+  safetyStatus: z.enum(["listed", "watch", "hidden", "unknown"]).optional(),
+  tradable: z.boolean().optional(),
+  underReview: z.boolean().optional(),
 });
 
 export const marketStatusQuerySchema = z

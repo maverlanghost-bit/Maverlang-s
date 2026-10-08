@@ -317,6 +317,7 @@ export const esCL = {
     cashSlice: "USDC",
     positions: "Tus acciones",
     shareHint: "incluye ajustes del emisor",
+    hiddenNotice: "Ya no está disponible para comprar. Puedes vender tu posición.",
     available: "Disponible para invertir",
     availableNote: "USDC en tu billetera.",
     availableUsd: "{amount} en USDC",

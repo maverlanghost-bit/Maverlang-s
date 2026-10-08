@@ -15,6 +15,7 @@ import { CopyButton } from "@/components/ui/copy-button";
 import { ErrorState } from "@/components/ui/error-state";
 import { IconButton } from "@/components/ui/icon-button";
 import { IconBack, IconShare } from "@/components/ui/icons";
+import { NotFoundView } from "@/components/ui/not-found-view";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/components/ui/toast";
 import { site } from "@/config/site";
@@ -184,6 +185,9 @@ export type DetailAccess = "guest" | "pending" | "member";
 /** M38/M54: `disabled` (no habilitada), `halted` (suspendida) o `review` (en revisión): CTA deshabilitado con motivo. */
 export type TradeBlock = "disabled" | "halted" | "review" | null;
 
+/** Estado de seguridad del servidor para esta ficha (unión local: sin importar servidor). */
+export type DetailSafetyStatus = "listed" | "watch" | "hidden" | "unknown";
+
 function AccountActions({
   variant,
   aboveTabs,
@@ -244,6 +248,7 @@ function TradeActions({
   variant,
   canSell,
   blocked,
+  isHidden,
   onBuy,
   onSell,
 }: {
@@ -251,6 +256,8 @@ function TradeActions({
   canSell: boolean;
   /** M38: acción deshabilitada o suspendida en el catálogo. */
   blocked: TradeBlock;
+  /** M54c-fix: en `hidden` con posición se vende aunque no se pueda comprar. */
+  isHidden: boolean;
   onBuy: () => void;
   onSell: () => void;
 }) {
@@ -264,12 +271,16 @@ function TradeActions({
     blocked === "halted"
       ? t.detail.tradeHaltedNote
       : blocked === "review"
-        ? t.detail.tradeReviewNote
+        ? isHidden
+          ? t.portfolio.hiddenNotice
+          : t.detail.tradeReviewNote
         : blocked === "disabled"
           ? t.detail.tradeDisabledNote
           : null;
   const buyDisabled = blocked !== null;
-  const sellDisabled = blocked !== null || !canSell;
+  // M54c-fix: en revisión (`watch` o `hidden`) la venta de lo que ya se tiene
+  // sigue habilitada; el resto bloquea ambos lados como siempre.
+  const sellDisabled = blocked === "review" ? !canSell : blocked !== null || !canSell;
 
   const buttons = (
     <div className={wide ? "flex flex-col gap-3" : "flex gap-3"}>
@@ -448,12 +459,15 @@ export function DetailScreen({
   initialOperar,
   access,
   tradeBlock = null,
+  safetyStatus = "unknown",
 }: {
   ticker: Ticker;
   about: { es: string; en: string } | null;
   initialOperar: string;
   access: DetailAccess;
   tradeBlock?: TradeBlock;
+  /** Estado de seguridad del servidor (M54c-fix): `hidden` abre la venta con posición. */
+  safetyStatus?: DetailSafetyStatus;
 }) {
   const { t, language, currency } = useT();
   const pathname = usePathname();
@@ -500,6 +514,12 @@ export function DetailScreen({
   const chipKey = live ? chipKeyForStatus(live) : null;
   const liveHalted = live?.halted === true;
   const effectiveBlock: TradeBlock = tradeBlock ?? tradeBlockForStatus({ halted: liveHalted });
+  // M54c-fix: `hidden` con posición abre la ficha (comprar deshabilitado,
+  // vender habilitado); sin posición muestra el mismo "no encontrado".
+  const isHidden = (live?.safetyStatus ?? safetyStatus) === "hidden";
+  const showGone =
+    isHidden &&
+    (access !== "member" || (portfolio.isSuccess && !canSell));
   const phase = status.data?.session;
   const fallbackChip =
     phase === "closed" ? t.detail.marketClosed : phase === "offHours" ? t.detail.marketOffHours : t.detail.marketOpen;
@@ -598,6 +618,7 @@ export function DetailScreen({
           variant={variant}
           canSell={canSell}
           blocked={effectiveBlock}
+          isHidden={isHidden}
           onBuy={() => openOperar("comprar")}
           onSell={() => openOperar("vender")}
         />
@@ -620,6 +641,12 @@ export function DetailScreen({
         secondary={{ href: enter, label: t.detail.loginToInvest }}
       />
     );
+  }
+
+  // M54c-fix: `hidden` sin posición muestra el mismo "no encontrado" del
+  // servidor; con posición la ficha abre con vender habilitado.
+  if (showGone) {
+    return <NotFoundView kind="ticker" />;
   }
 
   return (
@@ -778,7 +805,8 @@ export function DetailScreen({
 
       {tradeSlot("bar")}
 
-      {access === "member" && effectiveBlock === null ? (
+      {access === "member" &&
+      (effectiveBlock === null || (effectiveBlock === "review" && canSell && operar === "vender")) ? (
         <TradeSheet
           ticker={ticker}
           side={operar === "vender" ? "sell" : "buy"}

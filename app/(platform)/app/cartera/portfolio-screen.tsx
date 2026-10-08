@@ -25,10 +25,11 @@ import { formatDateTime, formatMoney, formatShares, type MoneyCurrency } from "@
 import { useAccountMode } from "@/lib/hooks/use-account-mode";
 import { useHideBalance } from "@/lib/hooks/use-hide-balance";
 import { DEMO_INITIAL_USD } from "@/lib/services/demo.logic";
-import { useActivity, useFx, useHistories, usePortfolio, useTickers } from "@/lib/hooks/queries";
+import { useActivity, useAssetStatus, useFx, useHistories, usePortfolio, useTickers } from "@/lib/hooks/queries";
 import { priceFlashDirection, type PriceFlash } from "@/lib/hooks/use-price-flash";
 import { useT } from "@/lib/hooks/use-t";
 import { displayPrice } from "@/lib/market/browse";
+import { safetyNoticeForPosition } from "@/lib/market/asset-status.shared";
 import { DETAIL_RANGES, anchorSeriesToSpot, isDetailRange, rangeMove, toneOf } from "@/lib/market/series";
 import { balancedPortions, decodePoints, encodePoints, portfolioValueSeries, sumUsd, sumsMatch, tradeActivity } from "@/lib/portfolio/series";
 import type { Activity, Currency, OrderStatus, Position, Range, Ticker } from "@/lib/types";
@@ -71,6 +72,27 @@ function moneyView(usd: number, currency: Currency, rate: number | undefined): {
     if (converted !== null) return { amount: converted, currency: "CLP" };
   }
   return { amount: usd, currency: "USD" };
+}
+
+/**
+ * Aviso de seguridad por posición (M54c-fix): `hidden` muestra que ya no se
+ * puede comprar pero sí vender; `watch` lleva el chip "En revisión" de M54.
+ * El botón Vender de la fila sigue disponible en ambos casos.
+ */
+function PositionSafetyNote({ symbol }: { symbol: string }) {
+  const { t } = useT();
+  const asset = useAssetStatus(symbol);
+  const notice =
+    safetyNoticeForPosition(asset.data?.safetyStatus) ?? (asset.data?.underReview ? "review" : null);
+  if (notice === null) return null;
+  if (notice === "hidden") {
+    return <p className="px-2 pb-2 text-sm leading-relaxed text-fg-muted">{t.portfolio.hiddenNotice}</p>;
+  }
+  return (
+    <p className="px-2 pb-2">
+      <Badge tone="warn">{t.market.underReview}</Badge>
+    </p>
+  );
 }
 
 function EmptyArt() {
@@ -389,6 +411,7 @@ export function PortfolioScreen() {
                           ) : null
                         }
                       />
+                      <PositionSafetyNote symbol={position.symbol} />
                     </li>
                   );
                 })}

@@ -314,6 +314,7 @@ export const en = {
     cashSlice: "USDC",
     positions: "Your stocks",
     shareHint: "includes the issuer's adjustments",
+    hiddenNotice: "No longer available to buy. You can sell your position.",
     available: "Available to invest",
     availableNote: "USDC in your wallet.",
     availableUsd: "{amount} in USDC",

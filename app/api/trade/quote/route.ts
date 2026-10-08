@@ -7,7 +7,7 @@ import {
   readOutput,
   requireSession,
   requireSupabaseUser,
-  requireSymbol,
+  requireSymbolForSide,
   isRealAccountRequest,
   isUserDemoRequest,
 } from "@/lib/api/handler";
@@ -26,7 +26,7 @@ export function POST(req: Request) {
     const services = getServices();
     await requireSupabaseUser(services, req);
     const body = await parseJson(req, tradeQuoteRequestSchema);
-    const symbol = await requireSymbol(body.symbol);
+    const symbol = await requireSymbolForSide(body.symbol, body.side);
     if (isRealAccountRequest(req)) {
       throw new DomainError("VALIDATION", "La cuenta real todavía no opera.");
     }

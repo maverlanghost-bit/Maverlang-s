@@ -4,7 +4,7 @@ import { defaultSlippageBps, feeConfig, priceDeviationMaxBps } from "@/config/fe
 import { USDC_MINT } from "@/config/tickers";
 import { DomainError } from "@/lib/api/result";
 import { findAssetBySymbol } from "@/lib/catalog/assets";
-import { tradableBySymbol } from "@/lib/catalog/tradable";
+import { requireOperable } from "@/lib/catalog/tradable";
 import { getServices } from "@/lib/services";
 import { DEMO_INITIAL_USD, totalUsdOf, validateDemoFunds, validateDemoTradeInput } from "@/lib/services/demo.logic";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
@@ -125,15 +125,11 @@ function failFromSql(error: unknown): Error {
   return new DomainError("INTERNAL", "No pudimos completar la orden.");
 }
 
-async function requireTradable(symbol: string) {
-  const asset = await tradableBySymbol(symbol);
-  if (asset) return asset;
-  // Visible pero no operable (watch, hidden, transición apagada, deshabilitada) → MINT_NOT_ALLOWED.
-  const visible = await findAssetBySymbol(symbol, { scope: "all", allowHidden: true }).catch(() => null);
-  if (visible) throw new DomainError("MINT_NOT_ALLOWED");
-  const known = tickerBySymbol(symbol);
-  if (known) throw new DomainError("MINT_NOT_ALLOWED");
-  throw new DomainError("NOT_FOUND", "No encontramos esa acción.");
+async function requireTradable(symbol: string, side: "buy" | "sell") {
+  // Puerta por lado (M54c-fix): la compra exige `tradable`, la venta basta
+  // con que el símbolo exista con mint válido. Lo desconocido →
+  // MINT_NOT_ALLOWED en ambos lados. El saldo/acciones se valida después.
+  return requireOperable(symbol, side);
 }
 
 /** Mint y decimales para mostrar saldos: snapshot primero, catálogo después (M54). */
@@ -475,7 +471,7 @@ export function createDemoUserService(deps: DemoDeps) {
         if (!(request.amount > 0) || !Number.isFinite(request.amount)) {
           throw new DomainError("VALIDATION", "El monto tiene que ser mayor que cero.");
         }
-        const ticker = await requireTradable(request.symbol);
+        const ticker = await requireTradable(request.symbol, request.side);
         if (feeConfig.bps > 0 && !feeConfig.wallet) {
           throw new DomainError("INTERNAL", "Falta la billetera de comisión.");
         }

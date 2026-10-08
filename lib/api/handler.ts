@@ -18,7 +18,7 @@ import { requestAccountMode } from "@/lib/account/server";
 import { DEMO_WALLET_ADDRESS } from "@/lib/auth/demo-user";
 import { isSupabaseAuth } from "@/lib/auth/mode";
 import { serverEnv } from "@/lib/env";
-import { requireTradableSymbol } from "@/lib/catalog/tradable";
+import { requireOperable, requireTradableSymbol, type TradeSide } from "@/lib/catalog/tradable";
 import { findAssetBySymbol } from "@/lib/catalog/assets";
 import { withMockError } from "@/lib/mocks/latency";
 import type { Services } from "@/lib/services";
@@ -305,6 +305,15 @@ export function requireWallet(session: Session): string {
 /** Símbolo con el que se puede operar (allowlist dinámica, M54). Si no → MINT_NOT_ALLOWED. */
 export async function requireSymbol(symbol: string): Promise<string> {
   return requireTradableSymbol(symbol);
+}
+
+/**
+ * Símbolo operable según el lado (M54c-fix): la compra exige `tradable`, la
+ * venta basta con que el símbolo exista con mint válido. Si no → MINT_NOT_ALLOWED.
+ */
+export async function requireSymbolForSide(symbol: string, side: TradeSide): Promise<string> {
+  const asset = await requireOperable(symbol, side);
+  return asset.symbol;
 }
 
 /**

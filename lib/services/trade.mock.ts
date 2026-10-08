@@ -2,8 +2,7 @@ import "server-only";
 
 import { defaultSlippageBps, feeConfig, priceDeviationMaxBps } from "@/config/fees";
 import { DomainError } from "@/lib/api/result";
-import { findAssetBySymbol } from "@/lib/catalog/assets";
-import { tradableBySymbol } from "@/lib/catalog/tradable";
+import { requireOperable } from "@/lib/catalog/tradable";
 import {
   applyBuy,
   applySell,
@@ -26,7 +25,6 @@ import { simulateMock } from "@/lib/mocks/latency";
 import { roundDigits } from "@/lib/mocks/number";
 import { hashSeed } from "@/lib/mocks/prng";
 import { demoFxRate, demoSpot, demoSpotBook } from "@/lib/services/demo-prices";
-import { tickerBySymbol } from "@/lib/solana/allowlist";
 import { NETWORK_FEE_SOL, TOKEN_ACCOUNT_RENT_SOL } from "@/lib/wallet/send-cost";
 import type {
   Order,
@@ -40,15 +38,14 @@ import type {
 
 const QUOTE_TTL_MS = 60_000;
 
-async function requireTradable(symbol: string) {
-  const asset = await tradableBySymbol(symbol);
-  if (asset) return asset;
-  // Visible pero no operable (watch, hidden, transición apagada, deshabilitada) → MINT_NOT_ALLOWED.
-  const visible = await findAssetBySymbol(symbol, { scope: "all", allowHidden: true }).catch(() => null);
-  if (visible) throw new DomainError("MINT_NOT_ALLOWED");
-  const known = tickerBySymbol(symbol);
-  if (known) throw new DomainError("MINT_NOT_ALLOWED");
-  throw new DomainError("NOT_FOUND", "No encontramos esa acción.");
+/**
+ * Puerta por lado (M54c-fix): la compra exige `tradable`, la venta basta con
+ * que el símbolo exista con mint válido. Lo desconocido → MINT_NOT_ALLOWED
+ * en ambos lados. Que el usuario tenga acciones suficientes se valida
+ * después, en `quoteCore`, como siempre.
+ */
+async function requireTradable(symbol: string, side: "buy" | "sell") {
+  return requireOperable(symbol, side);
 }
 
 function deviationFor(symbol: string): number {
@@ -66,7 +63,7 @@ async function quoteCore(request: TradeQuoteRequest): Promise<TradeQuote> {
   if (!(request.amount > 0) || !Number.isFinite(request.amount)) {
     throw new DomainError("VALIDATION", "El monto tiene que ser mayor que cero.");
   }
-  const ticker = await requireTradable(request.symbol);
+  const ticker = await requireTradable(request.symbol, request.side);
   if (feeConfig.bps > 0 && !feeConfig.wallet) {
     throw new DomainError("INTERNAL", "Falta la billetera de comisión.");
   }

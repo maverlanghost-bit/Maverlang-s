@@ -1,5 +1,11 @@
 # PROGRESO — Maverlang
 
+## M54c-fix — vender siempre lo que se tiene (2026-10-08)
+- Hecho: `requireOperable(symbol, side)` en `lib/catalog/tradable.ts` (buy exige `tradable`; sell basta con existir en catálogo con cualquier estado o snapshots, mint válido por emisor; desconocido → `MINT_NOT_ALLOWED` ambos lados); se usa en `/api/trade/quote` (vía `requireSymbolForSide`) y servicios demo mock/supabase; cartera avisa `hidden` ("Ya no está disponible para comprar…", es/en) y chip "En revisión" en `watch` con Vender disponible; detalle `watch`/`hidden` abre con posición (comprar off, vender on; `?operar=vender` funciona) y muestra "no encontrado" sin posición; `asset-status` expone `safetyStatus`/`tradable`/`underReview` opcionales; test `operable-side` (8).
+- Archivos clave: `tradable.ts`, `handler.ts`, `trade/quote/route.ts`, `trade.mock.ts`, `demo.supabase.ts`, `asset-status(.shared).ts`, `contracts.ts`, `page.tsx`+`detail-screen.tsx`, `portfolio-screen.tsx`, i18n es/en, `tests/unit/operable-side.test.ts`.
+- Verificación: `npx tsc --noEmit` ok; `npm run lint` ok; `npm test` 421/421 (54 archivos, 8 nuevos); `client-imports` verde. Criterios: compra watch→`MINT_NOT_ALLOWED`; venta watch/hidden con posición→ok; venta desconocida→`MINT_NOT_ALLOWED`; venta sin saldo→`INSUFFICIENT_FUNDS`; 50 curadas compran/venden igual. Digo con todas sus letras: NO comprobables aquí build prod ni `npm run e2e` (los corre el operador).
+- Pendiente operador: build prod + `npm run e2e`; mirar cartera con posición `hidden` (aviso + Vender) y detalle `hidden` con/sin posición (`?operar=vender`).
+
 ## M53b-fix — audit-catalog --db usa .in() y cierra la corrida si falla (2026-10-08)
 - Hecho: `.in_("symbol", batch)` → `.in("symbol", batch)` en `syncSafetyToDb`; `git grep -E "\.(in_|eq_|is_|not_)\(" -- scripts lib` vacío (era el único); nuevo `closeSafetyRun` (finished_at + notes corto, sin claves ni cuerpos) en fallos post-insert de lectura/upsert/eventos; `syncSafetyToDb` acepta `admin` inyectable (sólo tests, producción intacta) + JSDoc con opcionales; test `audit-catalog-db.test.ts` (3, cliente falso encadenable sin red).
 - Archivos clave: `scripts/audit-catalog.mjs`, `tests/unit/audit-catalog-db.test.ts`.

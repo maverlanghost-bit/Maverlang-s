@@ -32,9 +32,13 @@ export default async function AccionPage({
 }) {
   const { ticker: raw } = await params;
   const query = await searchParams;
-  const asset = await findAssetBySymbol(raw);
-  // `hidden` no aparece (M54): misma página de "no encontrado" actual.
-  if (!asset || !asset.mint || asset.safetyStatus === "hidden") notFound();
+  // M54c-fix: `hidden` se abre si el usuario tiene posición (la venta de lo
+  // que ya se tiene siempre se permite). Sin posición, el cliente muestra el
+  // mismo "no encontrado"; el mercado y la búsqueda no lo muestran (intacto).
+  const asset =
+    (await findAssetBySymbol(raw)) ??
+    (await findAssetBySymbol(raw, { scope: "all", allowHidden: true, noListing: true }));
+  if (!asset || !asset.mint) notFound();
   // Una ficha por empresa (M52b): el símbolo no elegido redirige a la ficha
   // elegida, nunca a un 404 roto.
   if (asset.symbol.toLowerCase() !== raw.trim().toLowerCase()) {
@@ -60,6 +64,7 @@ export default async function AccionPage({
       initialOperar={one(query.operar)}
       access={access}
       tradeBlock={tradeBlock}
+      safetyStatus={asset.safetyStatus}
     />
   );
 }
