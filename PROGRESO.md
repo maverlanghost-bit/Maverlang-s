@@ -1,5 +1,11 @@
 # PROGRESO — Maverlang
 
+## Cierre bloque 1 (2026-10-08, operador)
+- Integrado en main: M49, M56, M46, M59, M54, M52b, fix M53 (.in), fix M54 (vender siempre), M55 + fix cron diario (Hobby), M57, M57b, M87-base y M75 (main 56f8dfb antes de esta nota).
+- Migraciones aplicadas en dev (pgtool, verificadas por objetos e idempotentes): 0010, 0022, 0011 y 0015. audit:rls 80 OK, 0 FALLA.
+- Verificación pesada sobre main: build (.next-verify) ok; npm run e2e 8 passed, 1 skipped; npm run e2e:auth 1 passed. Geo en 3100: US /app/registro -> /bloqueado, US /app 200, CU / -> /bloqueado. Mercado: 446 visibles, 50 operables.
+- Pendiente: hola@maverlang.com aún no existe en Supabase auth (make-admin cuando Manu se registre); corrida 2 de audit:catalog en horario regular (10:30-17:00 Chile); fila huérfana asset_safety_runs id 1; sync-xstocks --listed; push lo hace Manu.
+
 ## M87-base — CI en GitHub Actions (job checks) (2026-10-08)
 - Hecho: `.github/workflows/ci.yml` (job `checks`: typecheck, lint, test, `scan:secrets`, `audit:deps`; `pull_request` + `push` a `main`; Node 22 según `engines`; `npm ci` con caché; timeout 20 min; sólo env mock/dummy, cero `secrets.*`) + `.github/pull_request_template.md` (checklist: criterios, checks HTTP, capturas UI, migraciones en dev). `scripts/e2e.mjs` ya es portable (`path.join` + `spawn(process.execPath)`, sin PowerShell/win32): sin cambios. NO hecho (ola 21, tras M86): job `e2e`, rama protegida en `docs/DEPLOY.md`, CODEOWNERS.
 - Verificación: YAML parseado con `js-yaml` (8 steps, triggers ok, sin `secrets.*`); `npx tsc --noEmit` ok; `npm run lint` ok; `npm test` 444/444 (58 archivos); `npm run scan:secrets` limpio. Digo con todas sus letras: `npm run audit:deps` sale 1 (4 altas en 2 avisos ya justificados en `docs/SEGURIDAD.md` M58) → el step de auditoría del CI quedará en rojo hasta parche upstream o cambio de política; build prod y `npm run e2e` NO corridos (los corre el operador); el workflow corre en GitHub recién cuando Manu haga push.
