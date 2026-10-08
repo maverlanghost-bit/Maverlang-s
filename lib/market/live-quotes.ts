@@ -22,6 +22,8 @@ const MAX_IDS = 50;
 interface ParsedPrice {
   usdPrice: number;
   changeRatio: number;
+  /** false cuando Jupiter no mandó `priceChange24h` (típico en Ondo, que casi no opera). */
+  changeKnown: boolean;
   /** Liquidez del pozo en USD, si Jupiter la trae. */
   liquidityUsd?: number;
   /** Precio del subyacente (`stockData.price`), si Jupiter lo trae. */
@@ -112,6 +114,7 @@ export function parseJupiterPrices(body: unknown): Map<string, ParsedPrice> {
     rows.set(mint, {
       usdPrice,
       changeRatio: changePct === null ? 0 : changePct / 100,
+      changeKnown: changePct !== null,
       ...(liquidityRaw !== undefined && liquidityRaw !== null ? { liquidityUsd: liquidityRaw } : {}),
       ...(marketRaw !== null ? { marketPriceUsd: marketRaw } : {}),
     });

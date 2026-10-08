@@ -1,7 +1,11 @@
 import "server-only";
 
+import { readdirSync } from "node:fs";
+import path from "node:path";
+
 import { ONDO_TICKERS } from "@/config/ondo.generated";
 import { TICKERS } from "@/config/tickers";
+import { logoPathIfPresent } from "@/lib/catalog/logos";
 import { serverEnv } from "@/lib/env";
 import { isTradableStatus } from "@/lib/catalog/safety-core.mjs";
 import { fold } from "@/lib/market/browse";
@@ -28,6 +32,19 @@ export const LOW_LIQUIDITY_USD = 10_000;
  */
 const ASSETS_PAGE_SIZE = 1000;
 const ASSETS_MAX_PAGES = 10;
+
+let logoFiles: ReadonlySet<string> | null = null;
+
+/** Nombres de archivo en `public/logos`, leídos una vez. Si la carpeta falta, vacío. */
+function logoFileSet(): ReadonlySet<string> {
+  if (logoFiles) return logoFiles;
+  try {
+    logoFiles = new Set(readdirSync(path.join(process.cwd(), "public", "logos")));
+  } catch {
+    logoFiles = new Set();
+  }
+  return logoFiles;
+}
 
 const KNOWN_CATEGORIES = [
   "tech",
@@ -277,7 +294,7 @@ export function assetFromRow(row: AssetRow): CatalogAsset | null {
     issuer: normalizeIssuer(row.issuer),
     companyTicker: text(row.company_ticker) ?? underlying,
     buy100CostBps: buy100CostFromMetrics(row.safety_metrics),
-    logoLocal: text(row.logo_path),
+    logoLocal: text(row.logo_path) ?? logoPathIfPresent(underlying, logoFileSet()),
     enabled,
     halted,
     liquidityUsd: numberOrNull(row.jupiter_liquidity_usd),
@@ -441,7 +458,7 @@ export function toTicker(asset: CatalogAsset): Ticker {
     mint: asset.mint,
     decimals: 8,
     // La ficha muestra el emisor como texto discreto (M52b): xStocks conserva
-    // su nombre legal "Backed (xStocks)"; Ondo muestra "Ondo". Sin logos nuevos.
+    // su nombre legal "Backed (xStocks)"; Ondo muestra "Ondo".
     issuer: asset.issuer === "ondo" ? "Ondo" : "Backed (xStocks)",
     category: asset.category,
     logo: asset.logoLocal ?? "",

@@ -10,6 +10,7 @@ import {
   listBatchedQuotes,
   type PriceBatcherCache,
 } from "@/lib/market/price-batcher";
+import { fetchUnderlyingChanges } from "@/lib/market/underlying-move";
 import { getServerConnection } from "@/lib/solana/connection";
 import { fetchMintMultiplier } from "@/lib/solana/scaled-ui";
 import type { FxRate, MarketStatus, PricePoint, Quote, Ticker } from "@/lib/types";
@@ -119,6 +120,8 @@ export const livePrices = {
       apiKey: serverEnv.JUPITER_API_KEY,
       cache,
       prepareMultipliers: readMultipliers,
+      // Ondo: Jupiter no manda priceChange24h. La variación es la del subyacente.
+      underlyingChange: (underlyings) => fetchUnderlyingChanges(underlyings, { fetchImpl: fetch }),
     });
   },
 

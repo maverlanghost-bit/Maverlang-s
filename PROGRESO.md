@@ -1,5 +1,11 @@
 # PROGRESO — Maverlang
 
+## Precios y logos de Ondo (2026-10-08)
+- Causa: Jupiter no manda `priceChange24h` en las Ondo, porque casi no operan. El precio del token se quedaba quieto y la variación salía 0 %. `logo_path` es null, así que se veía el monograma.
+- Hecho: si falta esa variación, el titular usa el precio del subyacente que Jupiter sí actualiza, y la variación es la del día de esa acción. Las xStocks siguen con el precio del pozo. Se descargaron los logos de Ondo una vez a `public/logos` (396 nuevos, 48 ya estaban y no se pisaron). Sin archivo, queda el monograma.
+- Archivos: `lib/market/{price-batcher,underlying-move,live-quotes}.ts`, `lib/services/prices.live.ts`, `lib/catalog/{assets,logos}.ts`, `scripts/descargar-logos-ondo.mjs`, `public/logos`.
+- Verificación: tests de lote, variación, logos y mercado 29/29. En `next dev` (3210) AALon cotiza 12,80 con −0,39 % y ABNBon +1,62 %; NVIDIA sigue con la variación del pozo. En `/app` (1280 y 390) AALon muestra el logo y «Baja −0,39 %». La ficha carga el mismo logo y la variación de 24 h. El sitio público no cambia hasta que la rama esté en `main`.
+
 ## Ondo en el alcance curado (2026-10-08)
 - Causa: maverlang.vercel.app usa `CATALOG_SCOPE=curated`. Ese alcance dejaba sólo las 50 xStocks (total 50, cero `on`). En local, sin esa variable, ya salían 446 y con precio. Las Ondo en `watch` siguen operables.
 - Hecho: `curated` ahora también muestra las Ondo en `watch` o `listed`. Una xStock que no es curada sigue afuera. Si la empresa ya tiene xStocks, esa ficha se mantiene.

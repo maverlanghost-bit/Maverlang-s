@@ -180,6 +180,28 @@ describe("mercado escalable: batcher de precios", () => {
     expect(unknown[0]).toMatchObject({ symbol: "AAPLx", source: "mock", reference: true });
   });
 
+  it("sin priceChange24h muestra el precio del subyacente y su variación", async () => {
+    const aapl = tickerBySymbol("AAPLx");
+    if (!aapl) throw new Error("falta AAPLx");
+    const fetchImpl = vi.fn<typeof fetch>(async () =>
+      jsonResponse({
+        [aapl.mint]: { usdPrice: 200, stockData: { price: 228.4 } },
+      }),
+    );
+    const quotes = await listBatchedQuotes(["AAPLx"], {
+      ...options(fetchImpl),
+      underlyingChange: async () => new Map([["AAPL", -0.012]]),
+    });
+    expect(quotes[0]).toMatchObject({
+      symbol: "AAPLx",
+      priceUsd: 228.4,
+      change24hPct: -0.012,
+      marketPriceUsd: 228.4,
+      source: "jupiter",
+    });
+    expect(fetchImpl).toHaveBeenCalledOnce();
+  });
+
   it("un símbolo desconocido no llama a la red", async () => {
     const fetchImpl = vi.fn<typeof fetch>(async () => jsonResponse({}));
     await expect(listBatchedQuotes(["NOPE"], options(fetchImpl))).rejects.toBeInstanceOf(DomainError);

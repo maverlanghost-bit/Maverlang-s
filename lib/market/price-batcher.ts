@@ -22,6 +22,11 @@ const DEFAULT_BACKOFF_MS = [250, 800] as const;
 export interface MintPrice {
   usdPrice: number;
   changeRatio: number;
+  /**
+   * false si Jupiter no mandó `priceChange24h`. En ese caso el último canje
+   * queda quieto y el precio que se mueve es el del subyacente.
+   */
+  changeKnown?: boolean;
   liquidityUsd?: number;
   marketPriceUsd?: number;
 }
@@ -32,6 +37,14 @@ export interface BatchedMintPrice extends MintPrice {
 
 interface MintCacheEntry extends MintPrice {
   at: number;
+}
+
+/** Precio que ve la pantalla. Sin variación del pozo, sigue el subyacente. */
+export function shownMintPrice(row: Pick<MintPrice, "usdPrice" | "marketPriceUsd" | "changeKnown">): number {
+  if (row.changeKnown === false && row.marketPriceUsd !== undefined && row.marketPriceUsd > 0) {
+    return row.marketPriceUsd;
+  }
+  return row.usdPrice;
 }
 
 export interface PriceBatcherCache {
@@ -129,6 +142,7 @@ export async function fetchMintBatch(
         usdPrice: hit.usdPrice,
         changeRatio: hit.changeRatio,
         stale: false,
+        ...(hit.changeKnown !== undefined ? { changeKnown: hit.changeKnown } : {}),
         ...(hit.liquidityUsd !== undefined ? { liquidityUsd: hit.liquidityUsd } : {}),
         ...(hit.marketPriceUsd !== undefined ? { marketPriceUsd: hit.marketPriceUsd } : {}),
       });
@@ -161,6 +175,7 @@ export async function fetchMintBatch(
           at: now,
           usdPrice: row.usdPrice,
           changeRatio: row.changeRatio,
+          ...(row.changeKnown !== undefined ? { changeKnown: row.changeKnown } : {}),
           ...(row.liquidityUsd !== undefined ? { liquidityUsd: row.liquidityUsd } : {}),
           ...(row.marketPriceUsd !== undefined ? { marketPriceUsd: row.marketPriceUsd } : {}),
         });
@@ -173,6 +188,7 @@ export async function fetchMintBatch(
           usdPrice: previous.usdPrice,
           changeRatio: previous.changeRatio,
           stale: true,
+          ...(previous.changeKnown !== undefined ? { changeKnown: previous.changeKnown } : {}),
           ...(previous.liquidityUsd !== undefined ? { liquidityUsd: previous.liquidityUsd } : {}),
           ...(previous.marketPriceUsd !== undefined ? { marketPriceUsd: previous.marketPriceUsd } : {}),
         });
@@ -185,6 +201,12 @@ export async function fetchMintBatch(
 export interface BatchedQuoteOptions extends MintBatchOptions {
   multiplierOf?: (symbol: string) => number;
   prepareMultipliers?: (tickers: readonly Ticker[]) => Promise<ReadonlyMap<string, number>>;
+  /**
+   * Variación del día del subyacente, como ratio (0,012 = 1,2 %).
+   * Sólo se pide cuando Jupiter no trajo `priceChange24h`. La clave es el
+   * ticker de la acción (`AAL`), no el símbolo del catálogo (`AALon`).
+   */
+  underlyingChange?: (underlyings: readonly string[]) => Promise<ReadonlyMap<string, number>>;
 }
 
 async function resolveTickers(symbols: readonly string[]): Promise<Ticker[]> {
@@ -206,6 +228,8 @@ async function resolveTickers(symbols: readonly string[]): Promise<Ticker[]> {
 /**
  * Cotizaciones por símbolo vía el batcher. Misma regla que M34: `usdPrice`
  * tal cual, `reference: true` con la ancla si el mint no trajo precio.
+ * Si Jupiter no manda `priceChange24h`, el titular sigue el precio del
+ * subyacente (`stockData.price`) y la variación la pone `underlyingChange`.
  * El valor `stale` avisa que el precio es el último guardado tras un 429/error.
  */
 export async function listBatchedQuotes(
@@ -221,19 +245,36 @@ export async function listBatchedQuotes(
     tickers.map((ticker) => ticker.mint),
     options,
   );
+  const missingChange = [
+    ...new Set(
+      tickers
+        .filter((ticker) => {
+          const row = prices.get(ticker.mint);
+          return row?.changeKnown === false && ticker.underlying.trim().length > 0;
+        })
+        .map((ticker) => ticker.underlying),
+    ),
+  ];
+  const moves =
+    missingChange.length > 0 && options.underlyingChange
+      ? await options.underlyingChange(missingChange).catch(() => new Map<string, number>())
+      : new Map<string, number>();
   return tickers.map((ticker) => {
     const row = prices.get(ticker.mint);
     if (!row) return { ...quoteFor(ticker.symbol, now), reference: true };
     const multiplier = multipliers.get(ticker.symbol) ?? options.multiplierOf?.(ticker.symbol) ?? 1;
     const safeMultiplier = Number.isFinite(multiplier) && multiplier > 0 ? multiplier : 1;
-    const priceUsd = roundDigits(row.usdPrice, 6);
+    const priceUsd = roundDigits(shownMintPrice(row), 6);
     if (!Number.isFinite(priceUsd) || priceUsd <= 0) {
       return { ...quoteFor(ticker.symbol, now), reference: true };
     }
+    const fromUnderlying = row.changeKnown === false ? moves.get(ticker.underlying) : undefined;
+    const changeRatio =
+      fromUnderlying !== undefined && Number.isFinite(fromUnderlying) ? fromUnderlying : row.changeRatio;
     return {
       symbol: ticker.symbol,
       priceUsd,
-      change24hPct: roundDigits(row.changeRatio, 6),
+      change24hPct: roundDigits(changeRatio, 6),
       multiplier: safeMultiplier,
       updatedAt: new Date(now).toISOString(),
       source: "jupiter" as const,

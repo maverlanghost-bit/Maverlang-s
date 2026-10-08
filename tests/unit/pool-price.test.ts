@@ -23,8 +23,13 @@ describe("N15: Jupiter trae liquidez y precio del subyacente", () => {
       MintA: { usdPrice: 72.0, priceChange24h: 3.3, liquidity: 747.7, stockData: { price: 69.08 } },
       MintB: { usdPrice: 10 },
     });
-    expect(rows.get("MintA")).toMatchObject({ usdPrice: 72, liquidityUsd: 747.7, marketPriceUsd: 69.08 });
-    expect(rows.get("MintB")).toMatchObject({ usdPrice: 10 });
+    expect(rows.get("MintA")).toMatchObject({
+      usdPrice: 72,
+      changeKnown: true,
+      liquidityUsd: 747.7,
+      marketPriceUsd: 69.08,
+    });
+    expect(rows.get("MintB")).toMatchObject({ usdPrice: 10, changeKnown: false, changeRatio: 0 });
     expect(rows.get("MintB")).not.toHaveProperty("marketPriceUsd");
   });
   it("el batcher pasa mercado y liquidez hasta la quote", async () => {
