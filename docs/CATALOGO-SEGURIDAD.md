@@ -75,9 +75,15 @@ el resto para la próxima corrida.
 configurado) y responde `{ checked, changed, remaining }`. Cuando un activo
 cruza `listed` (a `watch`/`hidden` o al revés) inserta evento en
 `asset_safety_events` y avisa con `notifyOps` (hoy sólo log `[catalog-health]`;
-M61 conecta Sentry, M51 el correo). `vercel.json` la agenda cada 30 min
-lun–vie. Nota: en el plan Hobby de Vercel los crons corren como máximo una
-vez al día (verificar en M50; si no alcanza, cada 1 h).
+M61 conecta Sentry, M51 el correo). `vercel.json` la agenda una vez al día
+lun–vie (`0 16 * * 1-5`: 16:00 UTC = 13:00 en Chile, dentro del horario
+regular de EE.UU.). El plan Hobby de Vercel sólo admite crons diarios:
+"Cron expressions that would run more frequently [than once per day] will
+fail during deployment" ("Hobby accounts are limited to daily cron jobs",
+según https://vercel.com/docs/cron-jobs/usage-and-pricing). En M50, con
+Vercel Pro, se cambia a `*/30 * * * 1-5`. Como `runSafetyBatch` revisa 25
+por llamada, con una corrida diaria el resto se cubre con
+`audit:catalog --db` desde el PC.
 
 Al cotizar, la COMPRA de un activo en revisión responde `ASSET_UNAVAILABLE`
 ("Este activo está en revisión y no se puede operar ahora"); la venta de una

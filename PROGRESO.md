@@ -1,5 +1,10 @@
 # PROGRESO — Maverlang
 
+## M55b-fix — cron diario compatible con Vercel Hobby (2026-10-08)
+- Hecho: `vercel.json` con `0 16 * * 1-5` (16:00 UTC = 13:00 Chile, horario regular EE.UU.; antes `*/30 * * * 1-5` que Hobby rechaza en deploy); nota del cron en `docs/CATALOGO-SEGURIDAD.md` con la cita de la doc de Vercel y el cambio a `*/30` en M50 con Pro (resto cubierto con `audit:catalog --db`).
+- Verificación: `npx tsc --noEmit` ok; `npm run lint` ok; `npm test` 431/431. Ningún test menciona `*/30` (sólo `vercel.json` lo traía).
+- Pendiente operador: comentarios "cada 30 min" en `.env.example:106` y `lib/env.ts:268` quedaron intactos (alcance mínimo; actualizar en follow-up); deploy para confirmar que el cron diario pasa en Hobby.
+
 ## M55 — monitor de seguridad del catálogo (2026-10-08)
 - Hecho: `runSafetyBatch({offset,limit})` en `lib/catalog/monitor.ts` (server-only: lote listed/watch por `safety_checked_at` nulos primero, xStocks por símbolo + precio v3 + 3 cotizaciones con ritmo/backoff M52 vía `parseOrderQuote`/`quoteCostBps`/`evaluateAsset`/`nextSafetyState` puros; Ondo sin xStocks con ref del hermano o v3, volumen nunca excluye; corte a 50 s); `GET /api/cron/catalog-health` (Bearer `CRON_SECRET` en tiempo constante: 401 sin/mal token, 503 "Cron deshabilitado." sin secreto; `{checked,changed,remaining}`, no-store); evento + `notifyOps` (sólo log `[catalog-health]`) al cruzar `listed`; `ASSET_UNAVAILABLE` (409) SÓLO en compra de activo conocido en revisión (venta intacta M54c, desconocido sigue `MINT_NOT_ALLOWED`); `vercel.json` cada 30 min lun–vie (+ nota Hobby máx. 1/día en `docs/CATALOGO-SEGURIDAD.md`).
 - Archivos clave: `monitor.ts`, `cron/catalog-health/route.ts`, `alerts.ts`, `trade/quote/route.ts`, `result.ts`+`types`+i18n es/en (código nuevo), `vercel.json` (nuevo), `lib/env.ts`+`.env.example` (sólo comentario M55), `docs/CATALOGO-SEGURIDAD.md`, `tests/unit/catalog-health{,-route}.test.ts` (10 nuevos).
