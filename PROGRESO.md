@@ -1,5 +1,10 @@
 # PROGRESO — Maverlang
 
+## M87-base — CI en GitHub Actions (job checks) (2026-10-08)
+- Hecho: `.github/workflows/ci.yml` (job `checks`: typecheck, lint, test, `scan:secrets`, `audit:deps`; `pull_request` + `push` a `main`; Node 22 según `engines`; `npm ci` con caché; timeout 20 min; sólo env mock/dummy, cero `secrets.*`) + `.github/pull_request_template.md` (checklist: criterios, checks HTTP, capturas UI, migraciones en dev). `scripts/e2e.mjs` ya es portable (`path.join` + `spawn(process.execPath)`, sin PowerShell/win32): sin cambios. NO hecho (ola 21, tras M86): job `e2e`, rama protegida en `docs/DEPLOY.md`, CODEOWNERS.
+- Verificación: YAML parseado con `js-yaml` (8 steps, triggers ok, sin `secrets.*`); `npx tsc --noEmit` ok; `npm run lint` ok; `npm test` 444/444 (58 archivos); `npm run scan:secrets` limpio. Digo con todas sus letras: `npm run audit:deps` sale 1 (4 altas en 2 avisos ya justificados en `docs/SEGURIDAD.md` M58) → el step de auditoría del CI quedará en rojo hasta parche upstream o cambio de política; build prod y `npm run e2e` NO corridos (los corre el operador); el workflow corre en GitHub recién cuando Manu haga push.
+- Pendiente operador/Manu: decidir política del step `audit:deps` (¿rojo hasta fix upstream vía Dependabot, o informativo?); build prod + `npm run e2e`; push (prohibido aquí) para ver el primer run en GitHub; protección de rama en ola 21 (Manu hoy hace push directo a `main`: no se cambia nada aún).
+
 ## M55b-fix — cron diario compatible con Vercel Hobby (2026-10-08)
 - Hecho: `vercel.json` con `0 16 * * 1-5` (16:00 UTC = 13:00 Chile, horario regular EE.UU.; antes `*/30 * * * 1-5` que Hobby rechaza en deploy); nota del cron en `docs/CATALOGO-SEGURIDAD.md` con la cita de la doc de Vercel y el cambio a `*/30` en M50 con Pro (resto cubierto con `audit:catalog --db`).
 - Verificación: `npx tsc --noEmit` ok; `npm run lint` ok; `npm test` 431/431. Ningún test menciona `*/30` (sólo `vercel.json` lo traía).

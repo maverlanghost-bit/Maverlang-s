@@ -1,0 +1,54 @@
+# CI base (M87-base, ola 3 adelantada): sólo el job `checks`.
+# La ola 21 (después de M86) agrega el job `e2e`, la sección de rama
+# protegida en `docs/DEPLOY.md` y el CODEOWNERS.
+# Vercel despliega los previews por rama (M50): este CI no despliega.
+# Sin secretos reales: sólo valores mock/dummy (DATA_MODE=mock y cía.).
+
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  checks:
+    name: checks (typecheck, lint, test, secretos, dependencias)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      # Valores mock/dummy no secretos, lo mínimo para que typecheck y
+      # los tests corran como en local (igual que scripts/e2e.mjs).
+      AUTH_MODE: mock
+      NEXT_PUBLIC_AUTH_MODE: mock
+      DATA_MODE: mock
+      NEXT_PUBLIC_DATA_MODE: mock
+      PRICES_MODE: mock
+      RATE_LIMIT_BACKEND: memory
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Node 22 con caché de npm
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Tests
+        run: npm test
+
+      - name: Escáner de secretos
+        run: npm run scan:secrets
+
+      - name: Auditoría de dependencias
+        run: npm run audit:deps
