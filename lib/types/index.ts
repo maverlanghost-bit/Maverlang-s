@@ -269,5 +269,6 @@ export type ApiErrorCode =
   | "MINT_NOT_ALLOWED"
   | "RATE_LIMITED"
   | "PAYLOAD_TOO_LARGE"
+  | "REAL_DISABLED"
   | "UPSTREAM"
   | "INTERNAL";

@@ -1,5 +1,5 @@
 import { onrampSessionRequestSchema, onrampSessionSchema } from "@/lib/api/contracts";
-import { parseJson, assertSameOrigin, callService, handle, readOutput, requireSession } from "@/lib/api/handler";
+import { parseJson, assertSameOrigin, assertRealTradingEnabled, callService, handle, readOutput, requireSession } from "@/lib/api/handler";
 import { withRateLimit } from "@/lib/security/rate-limit";
 import { getServices } from "@/lib/services";
 
@@ -8,6 +8,8 @@ export const runtime = "nodejs";
 export function POST(req: Request) {
   return handle("no-store", async () => {
     assertSameOrigin(req);
+    // M46: dinero real apagado (503 REAL_DISABLED sin tocar servicios).
+    assertRealTradingEnabled();
     const ipLimited = await withRateLimit(req, "tradeIp");
     if (ipLimited) return ipLimited;
     const services = getServices();

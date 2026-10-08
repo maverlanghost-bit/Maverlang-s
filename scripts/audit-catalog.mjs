@@ -27,6 +27,8 @@ import { fileURLToPath } from "node:url";
 
 import { createClient } from "@supabase/supabase-js";
 
+import { ensureProjectConfirmed } from "./project-guard.mjs";
+
 import {
   classifyProduct,
   effectiveMultiplier,
@@ -436,6 +438,12 @@ async function main() {
   const args = parseAuditArgs(process.argv.slice(2));
   const runStartedAt = new Date().toISOString();
   if (args.db) {
+    // M46: imprime el proyecto destino (sólo el ref) y, si no es el de
+    // desarrollo, exige --confirm-project <ref>. Sin --db no toca la DB.
+    ensureProjectConfirmed({
+      targetUrl: (process.env.NEXT_PUBLIC_SUPABASE_URL ?? "").trim(),
+      script: "audit-catalog",
+    });
     const probe = await checkSafetyMigration();
     if (probe === "missing-keys") {
       console.log("falta SUPABASE_SECRET_KEY (o SUPABASE_SERVICE_ROLE_KEY) en .env.local: no se puede escribir en --db.");

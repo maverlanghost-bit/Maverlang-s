@@ -292,6 +292,7 @@ export const en = {
       MINT_NOT_ALLOWED: "This stock can't be traded.",
       RATE_LIMITED: "Too many requests. Try again in a few seconds.",
       PAYLOAD_TOO_LARGE: "The data is too large.",
+      REAL_DISABLED: "Real money isn't available in this demo yet.",
       UPSTREAM: "The provider didn't respond. You can try again.",
       INTERNAL: "Something failed on our side. You can try again.",
     },

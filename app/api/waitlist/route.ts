@@ -16,6 +16,10 @@ export const runtime = "nodejs";
  * llena → el mismo 200 (no revela si ya estaba). Sin el correo en los logs
  * (M49 le pone rate limit). M56: exige el mismo origen y valida el cuerpo
  * con `parseJson` (16 KB, estricto); la forma de la respuesta no cambia.
+ *
+ * EXCEPCIÓN M46 (lista blanca de `admin-routes-protected.test.ts`): usa el
+ * cliente admin vía `lib/waitlist/server` pero no exige sesión: sólo inserta
+ * el correo (`upsert` por `email_norm`, sin leer ni exponer datos de nadie).
  */
 export async function POST(req: Request) {
   try {

@@ -10,6 +10,8 @@ import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { ensureProjectConfirmed } from "./project-guard.mjs";
+
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 function unquote(value) {
@@ -74,6 +76,10 @@ if (missing.length > 0) {
   console.error(`Faltan ${missing.join(", ")}.`);
   process.exit(1);
 }
+
+// M46: imprime el proyecto destino (sólo el ref) y, si no es el de
+// desarrollo, exige --confirm-project <ref>.
+ensureProjectConfirmed({ targetUrl: env.NEXT_PUBLIC_SUPABASE_URL, script: "e2e-auth" });
 
 function run(args) {
   return new Promise((resolve, reject) => {

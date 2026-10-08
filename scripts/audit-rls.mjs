@@ -45,6 +45,8 @@ import { fileURLToPath } from "node:url";
 
 import { createClient } from "@supabase/supabase-js";
 
+import { ensureProjectConfirmed } from "./project-guard.mjs";
+
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const DRY = process.argv.includes("--dry-run");
 
@@ -188,6 +190,10 @@ async function main() {
     record("entorno: URL y claves", false, "faltan claves en .env.local");
     return printSummary();
   }
+
+  // M46: imprime el proyecto destino (sólo el ref) y, si no es el de
+  // desarrollo, exige --confirm-project <ref>. El --dry-run no llega aquí.
+  ensureProjectConfirmed({ targetUrl: url, script: "audit-rls" });
 
   const admin = createClient(url, secret, {
     auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },

@@ -11,6 +11,8 @@ import { fileURLToPath } from "node:url";
 
 import { createClient } from "@supabase/supabase-js";
 
+import { ensureProjectConfirmed } from "./project-guard.mjs";
+
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const results = [];
 
@@ -193,6 +195,10 @@ async function main() {
     record("entorno", "FAIL", `faltan o no sirven: ${missing.join(", ")}`);
     return;
   }
+
+  // M46: imprime el proyecto destino (sólo el ref) y, si no es el de
+  // desarrollo, exige --confirm-project <ref>.
+  ensureProjectConfirmed({ targetUrl: url, script: "verificar-auth" });
 
   const admin = createClient(url, secret, {
     auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },

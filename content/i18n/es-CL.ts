@@ -295,6 +295,7 @@ export const esCL = {
       MINT_NOT_ALLOWED: "Esta acción no se puede operar.",
       RATE_LIMITED: "Demasiadas solicitudes. Intenta de nuevo en unos segundos.",
       PAYLOAD_TOO_LARGE: "Los datos son demasiado grandes.",
+      REAL_DISABLED: "El dinero real todavía no está disponible en esta demo.",
       UPSTREAM: "El proveedor no respondió. Puedes intentar de nuevo.",
       INTERNAL: "Algo falló de nuestro lado. Puedes intentar de nuevo.",
     },

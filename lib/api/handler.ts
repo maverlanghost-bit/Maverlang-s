@@ -1,5 +1,7 @@
 import "server-only";
 
+import { timingSafeEqual } from "node:crypto";
+
 import { NextResponse } from "next/server";
 import type { ZodError, ZodType } from "zod";
 
@@ -15,6 +17,7 @@ import {
 import { requestAccountMode } from "@/lib/account/server";
 import { DEMO_WALLET_ADDRESS } from "@/lib/auth/demo-user";
 import { isSupabaseAuth } from "@/lib/auth/mode";
+import { serverEnv } from "@/lib/env";
 import { withMockError } from "@/lib/mocks/latency";
 import type { Services } from "@/lib/services";
 import { isOfficialMint, tradableTicker } from "@/lib/solana/allowlist";
@@ -256,6 +259,37 @@ export function isUserDemoRequest(req: Request): boolean {
 /** Supabase + cuenta real: todavía sin movimientos. Las rutas devuelven vacío. */
 export function isRealAccountRequest(req: Request): boolean {
   return isSupabaseAuth() && requestAccountMode(req) === "real";
+}
+
+/**
+ * Dinero real (M46). `true` sólo con `REAL_TRADING_READY=true` (default
+ * `false` en `lib/env.ts`). Con `false`, las rutas de dinero real responden
+ * 503 `REAL_DISABLED` sin tocar servicios externos; la demo sigue igual.
+ */
+export function isRealTradingEnabled(): boolean {
+  return serverEnv.REAL_TRADING_READY === true;
+}
+
+/** 503 `REAL_DISABLED` mientras `REAL_TRADING_READY` no sea `true`. */
+export function assertRealTradingEnabled(): void {
+  if (!isRealTradingEnabled()) throw new DomainError("REAL_DISABLED");
+}
+
+/**
+ * Crons internos (M46; la ruta de sync llega en M50). Compara `CRON_SECRET`
+ * (header `Authorization: Bearer <secreto>`) en tiempo constante. Sin secreto
+ * configurado, o si no coincide → 401: nunca se ejecuta sin el token.
+ */
+export function requireCronSecret(req: Request): void {
+  const expected = serverEnv.CRON_SECRET?.trim() ?? "";
+  if (!expected) throw new DomainError("UNAUTHORIZED");
+  const header = req.headers.get("authorization")?.trim() ?? "";
+  const provided = header.startsWith("Bearer ") ? header.slice(7).trim() : "";
+  const a = Buffer.from(provided);
+  const b = Buffer.from(expected);
+  if (a.length !== b.length || a.length === 0 || !timingSafeEqual(a, b)) {
+    throw new DomainError("UNAUTHORIZED");
+  }
 }
 
 export function requireWallet(session: Session): string {

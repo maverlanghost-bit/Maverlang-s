@@ -216,6 +216,23 @@ const serverSchema = publicSchema.extend({
     const parsed = Number(cleaned);
     return Number.isInteger(parsed) && parsed > 0 ? parsed : undefined;
   }, z.number().int().positive().optional()),
+  /**
+   * Dinero real (M46). Default `false`: las rutas de dinero real responden
+   * 503 `REAL_DISABLED` sin tocar servicios externos; la demo sigue igual.
+   * Sólo `true` explícito la enciende (M74 la cablea).
+   */
+  REAL_TRADING_READY: boolEnv(false),
+  /**
+   * Token de los crons internos (M46; la ruta de sync llega en M50).
+   * Se compara en tiempo constante (`requireCronSecret`). Sólo servidor.
+   */
+  CRON_SECRET: optionalText(),
+  /** Clave de Sentry para subir sourcemaps (M61). Sólo servidor, nunca `NEXT_PUBLIC_*`. */
+  SENTRY_AUTH_TOKEN: optionalText(),
+  /** Clave de Resend para correos (M51). Sólo servidor. */
+  RESEND_API_KEY: optionalText(),
+  /** Clave del RPC privado (Helius/Triton). Sólo servidor. */
+  HELIUS_API_KEY: optionalText(),
 });
 
 export type PublicEnv = z.infer<typeof publicSchema>;

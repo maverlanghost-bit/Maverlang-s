@@ -17,6 +17,8 @@ import { fileURLToPath } from "node:url";
 
 import { createClient } from "@supabase/supabase-js";
 
+import { ensureProjectConfirmed } from "./project-guard.mjs";
+
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const ARGS = new Set(process.argv.slice(2));
 const DRY_RUN = ARGS.has("--dry-run");
@@ -406,6 +408,9 @@ async function main() {
     if (!url || !secret) {
       console.log("Sin claves Supabase en .env.local: salto la DB (aplica 0004 y configura el env).");
     } else {
+      // M46: imprime el proyecto destino (sólo el ref) y, si no es el de
+      // desarrollo, exige --confirm-project <ref>.
+      ensureProjectConfirmed({ targetUrl: url, script: "sync-xstocks" });
       const admin = createClient(url, secret, {
         auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
       });

@@ -2,6 +2,7 @@ import { tradeBuildRequestSchema, tradeBuildResponseSchema } from "@/lib/api/con
 import {
   parseJson,
   assertSameOrigin,
+  assertRealTradingEnabled,
   callService,
   handle,
   readOutput,
@@ -26,6 +27,9 @@ export function POST(req: Request) {
     await requireSupabaseUser(services, req);
     const body = await parseJson(req, tradeBuildRequestSchema);
     if (isRealAccountRequest(req)) {
+      // M46: sólo el camino real se apaga (503 REAL_DISABLED sin tocar
+      // servicios externos). El camino demo de abajo sigue igual.
+      assertRealTradingEnabled();
       throw new DomainError("VALIDATION", "La cuenta real todavía no opera.");
     }
     if (isUserDemoRequest(req)) {

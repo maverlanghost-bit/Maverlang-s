@@ -2,6 +2,7 @@ import { tradeSubmitRequestSchema, tradeSubmitResponseSchema } from "@/lib/api/c
 import {
   parseJson,
   assertSameOrigin,
+  assertRealTradingEnabled,
   callService,
   handle,
   readOutput,
@@ -25,6 +26,9 @@ export function POST(req: Request) {
     const session = await requireSession(services, req);
     const body = await parseJson(req, tradeSubmitRequestSchema);
     if (isRealAccountRequest(req)) {
+      // M46: sólo el camino real se apaga (503 REAL_DISABLED sin tocar
+      // servicios externos). El camino demo de abajo sigue igual.
+      assertRealTradingEnabled();
       throw new DomainError("VALIDATION", "La cuenta real todavía no opera.");
     }
     const userLimited = await withRateLimit(req, "trade", [session.userId]);

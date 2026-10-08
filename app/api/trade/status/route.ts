@@ -5,6 +5,7 @@ import {
   parseQuery,
   readOutput,
   requireSession,
+  assertRealTradingEnabled,
   isRealAccountRequest,
   isUserDemoRequest,
 } from "@/lib/api/handler";
@@ -23,6 +24,9 @@ export function GET(req: Request) {
     const { id } = parseQuery(req, tradeStatusQuerySchema);
     const services = getServices();
     if (isRealAccountRequest(req)) {
+      // M46: sólo el camino real se apaga (503 REAL_DISABLED). El camino
+      // demo de abajo sigue igual.
+      assertRealTradingEnabled();
       throw new DomainError("NOT_FOUND", "No encontramos esa orden.");
     }
     if (isUserDemoRequest(req)) {

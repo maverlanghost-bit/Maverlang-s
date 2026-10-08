@@ -164,3 +164,42 @@ Add site, tipo Managed); (2) copiar Site Key y Secret Key; (3) en Supabase
 guardar; (4) el formulario suma el widget y envía el token en el `signUp`.
 Sin el widget activo, el paso (4) no se hace: hoy el registro no lleva
 CAPTCHA.
+
+## Secretos (M46)
+
+Inventario (dónde se crean, quién los tiene, rotación cada 90 días y siempre
+que se filtren; lectura sólo en servidor vía `lib/env.ts` y
+`lib/supabase/secret.ts`; nunca en `NEXT_PUBLIC_*` ni en git):
+
+| Secreto | Se crea en | Lo tienen |
+|---|---|---|
+| `SUPABASE_SECRET_KEY` (alias viejo `SERVICE_ROLE_KEY`) | Supabase → Project Settings → API Keys | servidor + scripts del operador |
+| `PRIVY_APP_SECRET` | Privy → Settings → API Keys | servidor |
+| `JUPITER_API_KEY` | portal.jup.ag | servidor |
+| `KOYWE_SECRET` / `KOYWE_WEBHOOK_SECRET` | panel de Koywe | servidor |
+| `CRON_SECRET` | `openssl rand -base64 32` (Vercel → Environment Variables) | operador + Vercel |
+| `RESEND_API_KEY` (M51) / `SENTRY_AUTH_TOKEN` (M61) / `HELIUS_API_KEY` | sus paneles | servidor |
+
+Verificación: `npm run scan:secrets` (árbol + bundle; `--history` lo corre
+el operador, lento) sale 0 antes de cada deploy. El repo de GitHub (M50)
+debe ser **privado**: el historial puede traer la clave vieja (ya rotada,
+ya no sirve) y no se reescribe (sin `filter-repo` ni `push --force`).
+
+Rotación (Supabase, Privy, Jupiter, Koywe, Resend): (1) crear la clave nueva
+en el panel del proveedor; (2) ponerla en `.env.local` y en Vercel
+(Settings → Environment Variables); (3) redeployar y probar; (4) borrar la
+vieja en el panel. Nunca se pegan claves en chats ni en archivos del repo.
+
+Si se filtra una clave: rotar primero, investigar después. Pasos: (1) rotar
+como arriba (Supabase: crear secret nueva, actualizar envs, borrar la
+vieja); (2) revisar logs de Supabase (Dashboard → Logs) buscando usos
+raros; (3) correr `npm run scan:secrets -- --history` y anotar en
+`PROGRESO.md` qué commit la trae ("clave rotada, el valor del historial ya
+no sirve"); (4) si hubo accesos ajenos, avisar a Manu antes del deploy.
+
+Dinero real apagado: mientras `REAL_TRADING_READY` no sea `true`, las rutas
+de dinero real responden 503 `REAL_DISABLED` sin tocar servicios externos
+(`/api/trade/*` sólo en el camino real; la demo sigue igual). Los scripts
+con secret key imprimen su proyecto (sólo el ref) y, fuera de desarrollo,
+exigen `--confirm-project <ref>`; nunca corren desde una ruta pública (el
+sync en Vercel va por cron con `CRON_SECRET`, M50).

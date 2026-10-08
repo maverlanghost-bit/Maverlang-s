@@ -15,6 +15,7 @@ export const API_ERROR_STATUS = {
   MINT_NOT_ALLOWED: 400,
   RATE_LIMITED: 429,
   PAYLOAD_TOO_LARGE: 413,
+  REAL_DISABLED: 503,
   UPSTREAM: 502,
   INTERNAL: 500,
 } as const satisfies Record<ApiErrorCode, number>;
@@ -31,6 +32,7 @@ const ERROR_MESSAGE: Record<ApiErrorCode, string> = {
   MINT_NOT_ALLOWED: "Ese activo no está permitido.",
   RATE_LIMITED: "Demasiadas solicitudes. Intenta de nuevo en unos segundos.",
   PAYLOAD_TOO_LARGE: "Los datos son demasiado grandes.",
+  REAL_DISABLED: "El dinero real todavía no está disponible.",
   UPSTREAM: "El proveedor no respondió.",
   INTERNAL: "Error interno.",
 };
