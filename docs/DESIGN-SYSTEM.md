@@ -49,7 +49,7 @@ Contraste: `fg-muted` sobre blanco ≈ 4.0:1 → usar sólo ≥14px; texto peque
 ### Espaciado y layout
 - Escala Tailwind estándar (4px). Gaps habituales: 2, 3, 4, 6, 8, 12, 16.
 - Landing: secciones `py-20 md:py-28 lg:py-32`; contenedor `max-w-7xl px-5` (inset 20px); texto `max-w-2xl`.
-- App: contenedor `max-w-6xl`; sidebar 240px (≥lg); bottom tab bar 64px (<lg) con `pb-[env(safe-area-inset-bottom)]`.
+- App: contenedor `max-w-6xl`; sidebar 220px (≥lg); bottom tab bar 64px (<lg) con `pb-[env(safe-area-inset-bottom)]`.
 - Breakpoints: Tailwind default (sm 640, md 768, lg 1024, xl 1280). **Mobile-first**: 80% del tráfico esperado es móvil.
 
 ### Radios, bordes, sombras

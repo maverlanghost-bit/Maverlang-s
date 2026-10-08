@@ -13,6 +13,7 @@ export function SegmentedControl({
   onChange,
   fullWidth = false,
   toggle = false,
+  compact = false,
 }: {
   label: string;
   options: SegmentOption[];
@@ -21,6 +22,8 @@ export function SegmentedControl({
   fullWidth?: boolean;
   /** Botones con aria-pressed. Sin esto sigue siendo un grupo de radio. */
   toggle?: boolean;
+  /** Una línea, con menos relleno. Para el interruptor de la barra lateral. */
+  compact?: boolean;
 }) {
   const baseId = useId();
   const enabled = options.filter((option) => !option.disabled);
@@ -62,6 +65,7 @@ export function SegmentedControl({
             className={cn(
               "min-h-11 rounded-full px-3 text-sm transition duration-[140ms] ease-spring outline-none active:scale-[0.98] focus-visible:relative focus-visible:z-10 focus-visible:ring-4 focus-visible:ring-fg/20",
               fullWidth && "min-w-0 flex-1 px-1 sm:px-3",
+              compact && "whitespace-nowrap px-1 text-[13px] sm:px-1",
               selected ? "bg-surface-3 text-fg" : "text-fg-muted hover:text-fg",
             )}
           >

@@ -3,8 +3,34 @@
 import { useState } from "react";
 import Image from "next/image";
 
+import favicon from "@/app/icon.png";
 import { site } from "@/config/site";
 import { cn } from "@/lib/cn";
+
+/**
+ * `app/icon.png` es un cuadrado de 598px. El símbolo ocupa la franja
+ * vertical 190–388. Con `object-cover` en una caja 598×198, `47.5%`
+ * alinea ese recorte (190 / (598 − 198)).
+ */
+const FAVICON_FRAME = "598 / 198";
+const FAVICON_FOCUS = "center 47.5%";
+
+/** El mismo archivo que el favicon, recortado a la tinta. */
+export function BrandFavicon({ className }: { className?: string }) {
+  return (
+    <span className={cn("relative block overflow-hidden", className)} style={{ aspectRatio: FAVICON_FRAME }}>
+      <Image
+        src={favicon}
+        alt=""
+        fill
+        priority
+        sizes="160px"
+        className="object-cover"
+        style={{ objectPosition: FAVICON_FOCUS }}
+      />
+    </span>
+  );
+}
 
 /**
  * Logo ancho de Maverlang. Si el PNG aún no está en `public/brand/`,

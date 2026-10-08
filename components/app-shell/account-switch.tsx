@@ -52,6 +52,7 @@ export function AccountSwitch({
         label={t.account.typeLabel}
         toggle
         fullWidth
+        compact
         value={mode}
         options={[
           { value: "demo", label: t.account.demo },

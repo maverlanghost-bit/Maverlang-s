@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { BrandMarkImage } from "@/components/app-shell/brand-image";
+import { BrandFavicon } from "@/components/app-shell/brand-image";
 import { usePathname } from "next/navigation";
 
 import { useAccountLabel } from "@/components/app-shell/account-label";
@@ -75,29 +75,23 @@ export function Sidebar({
       className={cn(
         "sticky top-0 hidden h-dvh shrink-0 flex-col overflow-x-hidden overflow-y-auto border-r border-border bg-bg lg:flex",
         WIDTH_ANIMATION,
-        collapsed ? "w-[72px] cursor-e-resize" : "w-[240px] cursor-w-resize",
+        collapsed ? "w-[72px] cursor-e-resize" : "w-[220px] cursor-w-resize",
       )}
     >
-      {/* Marca: siempre el favicon; al expandir aparece el nombre a la derecha. */}
-      <div className="flex items-center gap-0 px-2 py-5">
+      {/* Marca: el mismo archivo que el favicon, sin el nombre en texto. */}
+      <div className={cn("flex items-center px-2 py-5", collapsed && "justify-center")}>
         <Link
           href="/app"
           aria-label={site.name}
           title={site.name}
-          className="flex min-h-11 cursor-pointer items-center gap-2 rounded-xl"
+          className="flex min-h-11 cursor-pointer items-center rounded-xl"
         >
-          <span className="flex size-11 shrink-0 items-center justify-center">
-            <BrandMarkImage />
-          </span>
-          <span
-            aria-hidden
+          <BrandFavicon
             className={cn(
-              "overflow-hidden text-sm font-medium whitespace-nowrap text-fg transition-all duration-200 ease-spring",
-              collapsed ? "max-w-0 opacity-0" : "max-w-44 opacity-100",
+              "transition-[width] duration-200 ease-spring",
+              collapsed ? "w-14" : "w-40",
             )}
-          >
-            {site.name}
-          </span>
+          />
         </Link>
       </div>
       <nav aria-label={t.nav.label} className="flex-1 px-2">

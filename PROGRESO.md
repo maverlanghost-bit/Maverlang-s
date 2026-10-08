@@ -1,5 +1,10 @@
 # PROGRESO — Maverlang
 
+## Barra lateral — favicon y ancho (2026-10-08)
+- Hecho: el encabezado de la barra usa `app/icon.png` (el mismo archivo que el favicon), recortado a la tinta, en vez del texto `site.name`. Ancho expandido 240px → 220px (colapsada sigue en 72px). El interruptor demo/real usa `compact` para quedar en una línea.
+- Archivos: `components/app-shell/{sidebar,brand-image,account-switch}.tsx`, `components/ui/segmented-control.tsx`, `docs/DESIGN-SYSTEM.md`.
+- Verificación: `npx tsc --noEmit` ok. En `next dev` mock (puerto 3210) la barra mide 220px, el símbolo es el favicon, «Cuenta demo / Cuenta real» mide 44px de alto (una línea), el menú (Perfil, Ajustes, USD/CLP, Cerrar sesión) abre, y Mercado/Cartera/Billetera siguen con el ítem activo. En 390px la barra no se muestra y queda la barra superior.
+
 ## Cierre bloque 1 (2026-10-08, operador)
 - Integrado en main: M49, M56, M46, M59, M54, M52b, fix M53 (.in), fix M54 (vender siempre), M55 + fix cron diario (Hobby), M57, M57b, M87-base y M75 (main 56f8dfb antes de esta nota).
 - Migraciones aplicadas en dev (pgtool, verificadas por objetos e idempotentes): 0010, 0022, 0011 y 0015. audit:rls 80 OK, 0 FALLA.
