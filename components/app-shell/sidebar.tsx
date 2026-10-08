@@ -79,7 +79,7 @@ export function Sidebar({
       )}
     >
       {/* Marca: el mismo archivo que el favicon, sin el nombre en texto. */}
-      <div className={cn("flex items-center px-2 py-5", collapsed && "justify-center")}>
+      <div className={cn("flex items-center px-2 py-3", collapsed && "justify-center")}>
         <Link
           href="/app"
           aria-label={site.name}
@@ -89,7 +89,7 @@ export function Sidebar({
           <BrandFavicon
             className={cn(
               "transition-[width] duration-200 ease-spring",
-              collapsed ? "w-14" : "w-40",
+              collapsed ? "w-12" : "w-20",
             )}
           />
         </Link>

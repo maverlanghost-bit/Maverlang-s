@@ -6,7 +6,7 @@
 - Verificación: tests de contratos 29/29. En `next dev` (3210) buscar «airbnb» muestra ABNBon con «En revisión» en 1280px y 390px; la ficha abre con precio Jupiter y «No disponible para operar»; el mercado dice «446 acciones».
 
 ## Barra lateral — favicon y ancho (2026-10-08)
-- Hecho: el encabezado de la barra usa `app/icon.png` (el mismo archivo que el favicon), recortado a la tinta, en vez del texto `site.name`. Ancho expandido 240px → 220px (colapsada sigue en 72px). El interruptor demo/real usa `compact` para quedar en una línea.
+- Hecho: el encabezado de la barra usa `app/icon.png` (el mismo archivo que el favicon), recortado a la tinta, en vez del texto `site.name`. Tamaño de cabecera: 80×26px expandida y 48×16px colapsada. Ancho expandido 240px → 220px (colapsada sigue en 72px). El interruptor demo/real usa `compact` para quedar en una línea.
 - Archivos: `components/app-shell/{sidebar,brand-image,account-switch}.tsx`, `components/ui/segmented-control.tsx`, `docs/DESIGN-SYSTEM.md`.
 - Verificación: `npx tsc --noEmit` ok. En `next dev` mock (puerto 3210) la barra mide 220px, el símbolo es el favicon, «Cuenta demo / Cuenta real» mide 44px de alto (una línea), el menú (Perfil, Ajustes, USD/CLP, Cerrar sesión) abre, y Mercado/Cartera/Billetera siguen con el ítem activo. En 390px la barra no se muestra y queda la barra superior.
 
