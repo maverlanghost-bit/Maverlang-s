@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { loginErrorMessage, type LoginErrorCode } from "@/lib/auth/login-errors";
 import { resendConfirmation, signInWithPassword } from "@/lib/auth/login-client";
 import { loginSchema } from "@/lib/auth/login-schema";
+import { mfaVerifyPath, needsMfaStep } from "@/lib/auth/mfa";
 import { aceptarPath } from "@/lib/auth/paths";
 
 function GoogleIcon() {
@@ -73,12 +74,19 @@ export function SupabaseLogin({
     setFields({});
     setBusy(true);
     const result = await signInWithPassword(parsed.data.email, parsed.data.password);
-    setBusy(false);
     if (!result.ok) {
+      setBusy(false);
       setFailure(result.code);
       return;
     }
     const dest = result.demoReady ? next : aceptarPath(next);
+    if (await needsMfaStep()) {
+      setBusy(false);
+      // Sin refresh de esta pantalla: con sesión, el gate manda /app/ingresar al destino y se salta el código.
+      router.push(mfaVerifyPath(dest));
+      return;
+    }
+    setBusy(false);
     router.refresh();
     router.push(dest);
   }

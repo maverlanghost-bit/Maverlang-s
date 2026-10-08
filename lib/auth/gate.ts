@@ -99,6 +99,11 @@ function isAceptarPath(pathname: string): boolean {
   return pathname === "/app/aceptar" || pathname.startsWith("/app/aceptar/");
 }
 
+/** M57b: el TOTP vive bajo el ingreso y necesita la sesión `aal1` para subir a `aal2`. */
+function isMfaVerifyPath(pathname: string): boolean {
+  return pathname === "/app/ingresar/verificar" || pathname.startsWith("/app/ingresar/verificar/");
+}
+
 function redirectTo(path: string): GateDecision {
   const target = splitPath(path);
   return { kind: "redirect", pathname: target.pathname, search: target.search };
@@ -168,9 +173,12 @@ export function decideGate(input: GateInput): GateDecision {
   if (input.useSupabase) {
     const demoReady = input.supabaseDemoReady ?? input.supabaseOnboarded;
     if (!demoReady) {
-      if (isAceptarPath(input.pathname) || isPublic || isPasswordFlowPath(input.pathname)) return NEXT;
+      if (isAceptarPath(input.pathname) || isPublic || isPasswordFlowPath(input.pathname) || isMfaVerifyPath(input.pathname)) {
+        return NEXT;
+      }
       return aceptarRedirect(input.pathname, input.search);
     }
+    if (isMfaVerifyPath(input.pathname)) return NEXT;
     if (isAceptarPath(input.pathname) || isIngresarPath(input.pathname) || isRegistroPath(input.pathname)) {
       const params = new URLSearchParams(input.search.startsWith("?") ? input.search.slice(1) : input.search);
       const next = safeNextPath(params.get("next"));

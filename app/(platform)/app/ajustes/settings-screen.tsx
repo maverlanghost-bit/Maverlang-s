@@ -1,5 +1,6 @@
 "use client";
 
+import { MfaSettings } from "@/components/auth/mfa-settings";
 import { PageHeader } from "@/components/ui/page-header";
 import { PreferencesForm } from "@/components/domain/preferences-form";
 import { useT } from "@/lib/hooks/use-t";
@@ -15,6 +16,7 @@ export function SettingsScreen() {
       <SettingsPanel label={t.pages.settings.title}>
         <PreferencesForm currencyFirst />
       </SettingsPanel>
+      <MfaSettings />
     </div>
   );
 }
