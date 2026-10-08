@@ -89,7 +89,7 @@ export function Sidebar({
           <BrandFavicon
             className={cn(
               "transition-[width] duration-200 ease-spring",
-              collapsed ? "w-12" : "w-20",
+              collapsed ? "w-6" : "w-10",
             )}
           />
         </Link>

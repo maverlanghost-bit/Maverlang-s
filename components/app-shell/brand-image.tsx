@@ -24,7 +24,7 @@ export function BrandFavicon({ className }: { className?: string }) {
         alt=""
         fill
         priority
-        sizes="80px"
+        sizes="40px"
         className="object-cover"
         style={{ objectPosition: FAVICON_FOCUS }}
       />

@@ -1,5 +1,9 @@
 # PROGRESO — Maverlang
 
+## Barra — logo a la mitad (2026-10-08)
+- Hecho: el símbolo del favicon en la barra pasa de 80×26px a 40×13px (colapsada 24×8px). El clic sigue en un área de 44px.
+- Verificación: en `next dev` mock (3210) el logo mide 40×13 expandido y 24×8 colapsado; Mercado, Cartera y Billetera siguen en la barra.
+
 ## Ondo visible en la demo (2026-10-08)
 - Hecho: precios, historial y estado aceptan símbolos Ondo (`ABNBon`), no sólo los que terminan en `x`. El mercado de la demo las dibuja (446 en total, chip «En revisión»). Comprar sigue apagado: están en `watch`.
 - Archivos: `lib/catalog/symbol.ts`, `lib/api/{contracts,handler}.ts`, `lib/services/prices.mock.ts`, tests de validación.
