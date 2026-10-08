@@ -1,12 +1,17 @@
 /**
- * Auditoría de seguridad del catálogo xStocks (M52).
+ * Auditoría de seguridad del catálogo xStocks + Ondo (M52/M52b).
  * No cambia la base ni la interfaz. No firma ni envía transacciones.
  *
- * - Pagina la API oficial de xStocks (única fuente de mints).
+ * - Pagina la API oficial de xStocks (única fuente de mints xStocks) y suma
+ *   el universo Ondo desde config/ondo.generated.ts (única fuente Ondo).
  * - Trae tokens de Jupiter en lotes de 100 y precios en lotes de 50.
- * - Cotiza sólo los que pasan los filtros estáticos.
+ * - Cotiza sólo los que pasan los filtros estáticos (Ondo: con cotizaciones
+ *   reales RFQ/JupiterZ, decimales reales del token y referencia del hermano
+ *   xStocks; el volumen 24h nunca excluye).
  * - Reintenta ante 429/5xx con espera exponencial; timeout de 20 s.
- * - Guarda cada respuesta en data/audit-cache/<fecha>.jsonl y la reutiliza.
+ * - Guarda cada respuesta en data/audit-cache/<fecha>.jsonl y la reutiliza
+ *   SÓLO dentro de la misma sesión (la clave de cotizaciones incluye la
+ *   sesión: la corrida nocturna no ciega la de horario regular).
  *
  * Uso:
  *   node scripts/audit-catalog.mjs [--limit N] [--symbols AAPLx,NVDAx] [--no-quotes] [--out <ruta>]
@@ -35,6 +40,8 @@ import {
   evaluateAsset,
   nextSafetyState,
   normalizeSafetySession,
+  orderRouteLabel,
+  parseOrderQuote,
   quoteCostBps,
   staticChecks,
 } from "../lib/catalog/safety-core.mjs";
@@ -42,6 +49,7 @@ import {
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const CURATED_PATH = path.join(ROOT, "data", "curated-symbols.json");
 const GENERATED_PATH = path.join(ROOT, "config", "tickers.generated.ts");
+const ONDO_GENERATED_PATH = path.join(ROOT, "config", "ondo.generated.ts");
 const BOX_CSV_PATH = path.join(ROOT, "data", "catalogo-ampliado-2026-10-06.csv");
 const CACHE_DIR = path.join(ROOT, "data", "audit-cache");
 
@@ -286,8 +294,7 @@ function readCuratedSet() {
 }
 
 /** Mints del snapshot oficial: generado + CSV del box como respaldo. */
-function readSnapshotMints() {
-  const map = new Map();
+function readSnapshotMints() {  const map = new Map();
   try {
     const source = readFileSync(GENERATED_PATH, "utf8");
     const re = /symbol:\s*"([^"]+)"[\s\S]*?mint:\s*"([^"]+)"/g;
@@ -303,6 +310,49 @@ function readSnapshotMints() {
     if (detail.mint && !map.has(symbol)) map.set(symbol, detail.mint);
   }
   return map;
+}
+
+/**
+ * Universo Ondo desde `config/ondo.generated.ts` (M52b, sin DB).
+ * Orden estable por ticker. Cada entrada: { symbol, ticker, name, mint,
+ * kind, winner, volumeWinner }.
+ */
+export function readOndoUniverse() {
+  const list = [];
+  let source = "";
+  try {
+    source = readFileSync(ONDO_GENERATED_PATH, "utf8");
+  } catch {
+    return list;
+  }
+  const entryRe =
+    /\{\s*symbol:\s*"([^"]+)",\s*ticker:\s*"([^"]+)",\s*name:\s*"((?:[^"\\]|\\.)*)",\s*mint:\s*"([^"]+)",\s*kind:\s*"(stock|etf)",\s*winner:\s*"((?:[^"\\]|\\.)*)",\s*volumeWinner:\s*(null|"(?:xstocks|ondo)")\s*\}/g;
+  let match = entryRe.exec(source);
+  while (match) {
+    let name = match[3];
+    let winner = match[6];
+    try {
+      name = JSON.parse(`"${match[3]}"`);
+    } catch {
+      // Se conserva crudo.
+    }
+    try {
+      winner = JSON.parse(`"${match[6]}"`);
+    } catch {
+      // Se conserva crudo.
+    }
+    list.push({
+      symbol: match[1],
+      ticker: match[2],
+      name,
+      mint: match[4],
+      kind: match[5],
+      winner,
+      volumeWinner: match[7] === "null" ? null : match[7].slice(1, -1),
+    });
+    match = entryRe.exec(source);
+  }
+  return list;
 }
 
 /** Detalles por símbolo del CSV del box (respaldo para símbolos delistados). */
@@ -395,23 +445,11 @@ function priceEntryOf(body, mint) {
 }
 
 /**
+ * Etiqueta de ruta (M52b: alias de `orderRouteLabel` del core).
  * @param {unknown} body cuerpo del order de Jupiter
  */
 export function buildRouteLabel(body) {
-  if (typeof body !== "object" || body === null) return "";
-  const root = /** @type {Record<string, unknown>} */ (body);
-  const swapType = typeof root.swapType === "string" ? root.swapType : "";
-  const plan = Array.isArray(root.routePlan) ? root.routePlan : [];
-  const labels = [];
-  for (const step of plan) {
-    const label = step?.swapInfo?.label;
-    if (typeof label === "string" && label.length > 0) labels.push(label);
-  }
-  if (swapType && labels.length > 0) return `${swapType}/${labels.join("+")}`;
-  if (typeof root.router === "string" && root.router.length > 0) {
-    return swapType ? `${swapType}/${root.router}` : root.router;
-  }
-  return swapType;
+  return orderRouteLabel(body);
 }
 
 function csvCell(value) {
@@ -557,11 +595,56 @@ async function main() {
 
   const curated = readCuratedSet();
   const snapshots = readSnapshotMints();
+
+  // Universo Ondo (M52b): del snapshot generado, sin DB. Con --symbols sólo
+  // los pedidos; el resto siempre entra (en watch hasta ganar el listado).
+  const ondoUniverse = readOndoUniverse();
+  let ondoAssets = ondoUniverse.map((entry) => ({
+    symbol: entry.symbol,
+    name: entry.name,
+    underlying: entry.ticker,
+    underlyingCurrency: "USD",
+    exchangeMic: null,
+    mint: entry.mint,
+    tradingHoursMode: null,
+    currentPeriod: null,
+    isTradingHalted: false,
+    trading: null,
+    refPrice: NaN,
+    issuer: "ondo",
+    kind: entry.kind,
+    volumeWinner: entry.volumeWinner,
+    companyTicker: entry.ticker,
+  }));
+  if (args.symbols) {
+    const wanted = new Set(args.symbols);
+    ondoAssets = ondoAssets.filter((a) => wanted.has(a.symbol));
+  }
+  for (const asset of assets) {
+    asset.issuer = "xstocks";
+    asset.companyTicker = asset.underlying;
+  }
+  assets.push(...ondoAssets);
+  const ondoMintList = ondoAssets.map((a) => a.mint).filter(Boolean);
+
+  // Sesión temprana (M52b, punto 6): el período mayoritario de xStocks define
+  // la sesión ANTES de cotizar; la clave del cache de cotizaciones la incluye
+  // para no reutilizar cotizaciones de otra sesión (reintento en horario
+  // regular de los xStocks que fallaron de noche).
+  const earlyPeriodCounts = new Map();
+  for (const asset of assets) {
+    if (asset.issuer === "ondo" || !asset.currentPeriod) continue;
+    earlyPeriodCounts.set(asset.currentPeriod, (earlyPeriodCounts.get(asset.currentPeriod) ?? 0) + 1);
+  }
+  const quoteSession = resolveAuditSession(args.session, earlyPeriodCounts);
+
   const mints = assets.map((a) => a.mint).filter(Boolean);
 
   // 2. Tokens Jupiter en lotes de 100.
   /** @type {Map<string, unknown>} */
   const tokensByMint = new Map();
+  /** Decimales reales por mint (M52b: el costo Ondo usa los del token). */
+  const tokenDecimalsByMint = new Map();
   const uniqueMints = [...new Set(mints)];
   for (let i = 0; i < uniqueMints.length; i += 100) {
     const batch = uniqueMints.slice(i, i + 100);
@@ -574,7 +657,13 @@ async function main() {
     }
     for (const token of list) {
       const id = textOf(token?.id) ?? textOf(token?.mint) ?? textOf(token?.address);
-      if (id) tokensByMint.set(id, token);
+      if (id) {
+        tokensByMint.set(id, token);
+        const decimals = Number(token?.decimals);
+        if (Number.isInteger(decimals) && decimals >= 0 && decimals <= 18) {
+          tokenDecimalsByMint.set(id, decimals);
+        }
+      }
     }
   }
 
@@ -611,13 +700,36 @@ async function main() {
   for (const asset of assets) {
     if (!asset.mint) continue;
     const info = pricesByMint.get(asset.mint);
-    const mult = effectiveMultiplier(info?.scaled ?? null, nowIso);
+    const mult = asset.issuer === "ondo" ? 1 : effectiveMultiplier(info?.scaled ?? null, nowIso);
     multiplierByMint.set(asset.mint, mult);
     asset.refPrice = info && Number.isFinite(info.refPrice) ? info.refPrice : NaN;
   }
+  // Referencia Ondo (M52b): precio del xStocks hermano de la misma empresa;
+  // si no hay, el precio de Jupiter price/v3 del propio mint.
+  const siblingRefByCompany = new Map();
+  for (const asset of assets) {
+    if (asset.issuer !== "xstocks" || !asset.companyTicker) continue;
+    if (Number.isFinite(asset.refPrice) && !siblingRefByCompany.has(asset.companyTicker)) {
+      siblingRefByCompany.set(asset.companyTicker, asset.refPrice);
+    }
+  }
+  for (const asset of assets) {
+    if (asset.issuer !== "ondo" || !asset.mint) continue;
+    if (!Number.isFinite(asset.refPrice)) {
+      const sibling = siblingRefByCompany.get(asset.companyTicker);
+      if (Number.isFinite(sibling)) {
+        asset.refPrice = sibling;
+      } else {
+        const info = pricesByMint.get(asset.mint);
+        asset.refPrice = info && Number.isFinite(info.usdPrice) ? info.usdPrice : NaN;
+      }
+    }
+  }
 
   async function fetchQuote(inputMint, outputMint, amount) {
-    const key = `quote:${inputMint}:${outputMint}:${amount}`;
+    // La clave incluye la sesión (M52b, punto 6): nunca se reutilizan
+    // cotizaciones de otra sesión entre corridas.
+    const key = `quote:${quoteSession}:${inputMint}:${outputMint}:${amount}`;
     const cached = cacheGet(key);
     if (cached !== undefined) return cached;
     const url = `${JUP_ORDER_BASE}?inputMint=${encodeURIComponent(inputMint)}&outputMint=${encodeURIComponent(outputMint)}&amount=${encodeURIComponent(String(amount))}`;
@@ -646,20 +758,41 @@ async function main() {
 
   for (const asset of assets) {
     const token = asset.mint ? (tokensByMint.get(asset.mint) ?? null) : null;
-    const staticReasons = staticChecks({
-      node: {
-        symbol: asset.symbol,
-        name: asset.name,
-        mint: asset.mint,
-        exchangeMic: asset.exchangeMic,
-        underlyingCurrency: asset.underlyingCurrency,
-        isTradingHalted: asset.isTradingHalted,
-        trading: asset.trading,
-        refPrice: asset.refPrice,
-      },
-      jupToken: token,
-      snapshotMint: snapshots.get(asset.symbol) ?? null,
-    });
+    const isOndo = asset.issuer === "ondo";
+    // Decimales reales del token (M52b): 8 en xStocks; en Ondo los de Jupiter.
+    const assetDecimals = isOndo ? (tokenDecimalsByMint.get(asset.mint) ?? NaN) : 8;
+    const staticReasons = isOndo
+      ? staticChecks({
+          node: {
+            symbol: asset.symbol,
+            name: asset.name,
+            mint: asset.mint,
+            exchangeMic: asset.exchangeMic,
+            underlyingCurrency: asset.underlyingCurrency,
+            isTradingHalted: asset.isTradingHalted,
+            trading: asset.trading,
+            refPrice: asset.refPrice,
+          },
+          jupToken: null,
+          snapshotMint: null,
+          issuer: "ondo",
+          ondoMints: ondoMintList,
+          ondoKind: asset.kind,
+        })
+      : staticChecks({
+          node: {
+            symbol: asset.symbol,
+            name: asset.name,
+            mint: asset.mint,
+            exchangeMic: asset.exchangeMic,
+            underlyingCurrency: asset.underlyingCurrency,
+            isTradingHalted: asset.isTradingHalted,
+            trading: asset.trading,
+            refPrice: asset.refPrice,
+          },
+          jupToken: token,
+          snapshotMint: snapshots.get(asset.symbol) ?? null,
+        });
 
     const info = asset.mint ? pricesByMint.get(asset.mint) : undefined;
     const mult = asset.mint ? (multiplierByMint.get(asset.mint) ?? 1) : 1;
@@ -679,19 +812,32 @@ async function main() {
     let buy100Route = "";
 
     if (staticReasons.length === 0) staticPass += 1;
-    if (staticReasons.length === 0 && !args.noQuotes && asset.mint && Number.isFinite(refPrice)) {
+    // Ondo sin referencia ni decimales no se cotiza: queda sin ruta de compra
+    // (motivo de cotización, nunca oculta de noche) hasta tener datos reales.
+    const quotable =
+      staticReasons.length === 0 &&
+      !args.noQuotes &&
+      asset.mint &&
+      Number.isFinite(refPrice) &&
+      (!isOndo || Number.isInteger(assetDecimals));
+    if (!quotable && isOndo && staticReasons.length === 0 && !args.noQuotes && asset.mint) {
+      buy100 = { ok: false, costBps: NaN };
+    }
+    if (quotable) {
       quoted += 1;
       const buyAmount = 100 * 1e6;
       try {
         const res = await fetchQuote(USDC_MINT, asset.mint, buyAmount);
-        if (res.status === 200 && res.body?.outAmount) {
-          const route = buildRouteLabel(res.body);
+        const parsed = res.status === 200 ? parseOrderQuote(res.body) : { ok: false };
+        if (parsed.ok) {
+          const route = parsed.route;
           const cost = quoteCostBps({
             side: "buy",
-            inAmount: res.body.inAmount ?? buyAmount,
-            outAmount: res.body.outAmount,
+            inAmount: parsed.inAmount,
+            outAmount: parsed.outAmount,
             multiplier: mult,
             refPrice,
+            assetDecimals,
           });
           buy100 = { ok: true, costBps: cost, route };
           buy100Route = route;
@@ -705,15 +851,17 @@ async function main() {
       if (buy100.ok && Number.isFinite(buyCost) && buyCost <= 100) {
         try {
           const res = await fetchQuote(USDC_MINT, asset.mint, 1000 * 1e6);
-          if (res.status === 200 && res.body?.outAmount) {
+          const parsed = res.status === 200 ? parseOrderQuote(res.body) : { ok: false };
+          if (parsed.ok) {
             buy1000 = {
               ok: true,
               costBps: quoteCostBps({
                 side: "buy",
-                inAmount: res.body.inAmount ?? 1000 * 1e6,
-                outAmount: res.body.outAmount,
+                inAmount: parsed.inAmount,
+                outAmount: parsed.outAmount,
                 multiplier: mult,
                 refPrice,
+                assetDecimals,
               }),
             };
           } else {
@@ -724,17 +872,19 @@ async function main() {
         }
       }
       try {
-        const crude = Math.round((100 / (refPrice * mult)) * 1e8);
+        const crude = Math.round((100 / (refPrice * mult)) * 10 ** assetDecimals);
         const res = await fetchQuote(asset.mint, USDC_MINT, crude);
-        if (res.status === 200 && res.body?.outAmount) {
+        const parsed = res.status === 200 ? parseOrderQuote(res.body) : { ok: false };
+        if (parsed.ok) {
           sell100 = {
             ok: true,
             costBps: quoteCostBps({
               side: "sell",
-              inAmount: res.body.inAmount ?? crude,
-              outAmount: res.body.outAmount,
+              inAmount: parsed.inAmount,
+              outAmount: parsed.outAmount,
               multiplier: mult,
               refPrice,
+              assetDecimals,
             }),
           };
         } else {
@@ -753,12 +903,15 @@ async function main() {
       jupUsdPrice: usdPrice,
       refPrice,
       liquidityUsd: liquidity,
+      rfqOnly: isOndo,
     });
     for (const reason of verdict.reasons) {
       reasonCounts.set(reason, (reasonCounts.get(reason) ?? 0) + 1);
     }
     outcomes.push({
       symbol: asset.symbol,
+      issuer: asset.issuer,
+      companyTicker: asset.companyTicker ?? null,
       verdict,
       usdPrice: Number.isFinite(usdPrice) ? usdPrice : null,
       refPrice: Number.isFinite(refPrice) ? refPrice : null,
@@ -775,7 +928,7 @@ async function main() {
       periodCounts.set(asset.currentPeriod, (periodCounts.get(asset.currentPeriod) ?? 0) + 1);
     }
 
-    const product = classifyProduct(asset.name, asset.exchangeMic);
+    const product = asset.issuer === "ondo" ? asset.kind : classifyProduct(asset.name, asset.exchangeMic);
     rows.push(
       [
         asset.symbol,
@@ -883,14 +1036,28 @@ export async function syncSafetyToDb({ outcomes, session, runStartedAt, source, 
   }
   const checkedAt = new Date().toISOString();
   const list = Array.isArray(outcomes) ? outcomes : [];
-  const passed = list.filter((o) => o?.verdict?.result === "pass").length;
+  // Filas Ondo (M52b): sin la migración 0022 aplicada no existen las columnas
+  // `issuer`/`company_ticker` ni las filas Ondo: van sólo al CSV, con un aviso.
+  let writable = list;
+  if (list.some((o) => o?.issuer === "ondo")) {
+    const probe = await admin.from("assets").select("issuer,company_ticker").limit(1);
+    const message = probe.error?.message ?? "";
+    if (probe.error && /does not exist|schema cache|could not find|could not identify|column/i.test(message)) {
+      const skipped = list.filter((o) => o?.issuer === "ondo").length;
+      console.log(
+        `0022 sin aplicar: ${skipped} resultados Ondo no se escriben (sólo CSV). Aplica supabase/migrations/0022_ondo_issuer.sql y vuelve a correr con --db.`,
+      );
+      writable = list.filter((o) => o?.issuer !== "ondo");
+    }
+  }
+  const passed = writable.filter((o) => o?.verdict?.result === "pass").length;
 
   const runRes = await admin
     .from("asset_safety_runs")
     .insert({
       started_at: runStartedAt,
       session,
-      total: list.length,
+      total: writable.length,
       passed,
       source: source ?? "audit-catalog",
       notes: `audit-catalog ${checkedAt}`,
@@ -904,7 +1071,7 @@ export async function syncSafetyToDb({ outcomes, session, runStartedAt, source, 
   }
   const runId = runRes.data.id;
 
-  const symbols = [...new Set(list.map((o) => o?.symbol).filter((s) => typeof s === "string"))];
+  const symbols = [...new Set(writable.map((o) => o?.symbol).filter((s) => typeof s === "string"))];
   /** @type {Map<string, Record<string, unknown>>} */
   const prevBySymbol = new Map();
   for (let i = 0; i < symbols.length; i += 200) {
@@ -924,7 +1091,7 @@ export async function syncSafetyToDb({ outcomes, session, runStartedAt, source, 
   const payloads = [];
   const events = [];
   let skipped = 0;
-  for (const outcome of list) {
+  for (const outcome of writable) {
     const prev = prevBySymbol.get(outcome.symbol);
     if (!prev) {
       console.log(`Aviso: ${outcome.symbol} no está en public.assets; se omite en --db.`);

@@ -34,6 +34,7 @@ const JUP_BASE = "https://lite-api.jup.ag/tokens/v2/search";
 const LOGO_SOURCE = "https://xstocks-metadata.backed.fi/logos/tokens";
 const CSV_PATH = path.join(ROOT, "data", "xstocks-solana-2026-10-06.csv");
 const CURATED_PATH = path.join(ROOT, "data", "curated-symbols.json");
+const ONDO_GENERATED_PATH = path.join(ROOT, "config", "ondo.generated.ts");
 const LOGOS_DIR = path.join(ROOT, "public", "logos");
 const GENERATED_PATH = path.join(ROOT, "config", "tickers.generated.ts");
 
@@ -187,6 +188,26 @@ function readCsvLiquidity() {
     }
   }
   return { out, meta };
+}
+
+/**
+ * Símbolos Ondo (`<TICKER>on`, M52b): sync-xstocks jamás los deshabilita,
+ * borra ni pisa. Se filtran del upsert aunque la API los devolviera.
+ */
+export function readOndoSymbols() {
+  const set = new Set();
+  try {
+    const source = readFileSync(ONDO_GENERATED_PATH, "utf8");
+    const re = /symbol:\s*"([^"]+)"/g;
+    let match = re.exec(source);
+    while (match) {
+      set.add(match[1]);
+      match = re.exec(source);
+    }
+  } catch {
+    // Sin snapshot: sin protección extra.
+  }
+  return set;
 }
 
 async function fetchAllAssets() {
@@ -517,7 +538,16 @@ async function main() {
         console.error(`DB sonda falló: ${probe.error.message}`);
         dbErrors.push("sonda");
       } else {
-        const rows = working.map((p) => {
+        // M52b: las filas `issuer = 'ondo'` no se tocan (ni deshabilitar, ni
+        // borrar, ni pisar): se filtran del upsert aunque la API las devolviera.
+        const ondoSymbols = readOndoSymbols();
+        const protectedCount = working.filter((p) => ondoSymbols.has(p.symbol)).length;
+        if (protectedCount > 0) {
+          console.log(`Ondo protegidos: ${protectedCount} símbolos no se tocan.`);
+        }
+        const rows = working
+          .filter((p) => !ondoSymbols.has(p.symbol))
+          .map((p) => {
           const isCurated = curatedMap.has(p.symbol);
           const liq = p.mintSolana ? (liquidity.get(p.mintSolana) ?? csv.out.get(p.symbol) ?? null) : null;
           return {
@@ -581,4 +611,9 @@ async function main() {
   }
 }
 
-await main();
+const isMain =
+  typeof process.argv[1] === "string" &&
+  path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+if (isMain) {
+  await main();
+}

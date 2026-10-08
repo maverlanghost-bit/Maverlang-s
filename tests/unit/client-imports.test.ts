@@ -30,6 +30,7 @@ function bannedImportReason(source: string): string | null {
     }
     if (trimmed.includes("server-only")) return `importa "server-only": ${trimmed}`;
     if (trimmed.includes("lib/catalog/assets")) return `importa lib/catalog/assets: ${trimmed}`;
+    if (trimmed.includes("lib/catalog/tradable")) return `importa lib/catalog/tradable: ${trimmed}`;
     // lib/env completo (server-only): cualquier import es build error en cliente.
     if (trimmed.includes("lib/env")) return `importa lib/env: ${trimmed}`;
     // asset-status sin .shared: el módulo con server-only. Con .shared está permitido.

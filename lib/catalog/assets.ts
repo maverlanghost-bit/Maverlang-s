@@ -1,5 +1,6 @@
 import "server-only";
 
+import { ONDO_TICKERS } from "@/config/ondo.generated";
 import { TICKERS } from "@/config/tickers";
 import { serverEnv } from "@/lib/env";
 import { isTradableStatus } from "@/lib/catalog/safety-core.mjs";
@@ -45,6 +46,8 @@ export type CatalogScope = "curated" | "listed" | "all";
 export type CatalogSort = "liquidity" | "name";
 /** Estado de seguridad por activo (M53, columna `safety_status`). */
 export type SafetyStatus = "listed" | "watch" | "hidden" | "unknown";
+/** Emisor del token (M52b, columna `issuer`): Backed/xStocks u Ondo Stocks. */
+export type AssetIssuer = "xstocks" | "ondo";
 
 export interface CatalogAsset {
   symbol: string;
@@ -53,6 +56,18 @@ export interface CatalogAsset {
   category: CatalogCategory;
   /** Mint en Solana (vacío si la fila no lo trae). */
   mint: string;
+  /** Emisor del token (M52b). Sin columna en la base, es `xstocks`. */
+  issuer: AssetIssuer;
+  /**
+   * Ticker del subyacente (M52b, columna `company_ticker`): agrupa una ficha
+   * por empresa entre emisores. Sin dato, cae al subyacente.
+   */
+  companyTicker: string;
+  /**
+   * Costo de compra US$100 en bps de la última corrida (`safety_metrics`),
+   * o null. Desempata la ficha por empresa (M52b).
+   */
+  buy100CostBps: number | null;
   /** Ruta local (`/logos/…`) o null: nunca se hace hotlinking al logo remoto. */
   logoLocal: string | null;
   enabled: boolean;
@@ -119,6 +134,8 @@ interface AssetRow {
   underlying?: unknown;
   category?: unknown;
   mint_solana?: unknown;
+  issuer?: unknown;
+  company_ticker?: unknown;
   logo_path?: unknown;
   enabled?: unknown;
   is_trading_halted?: unknown;
@@ -224,10 +241,27 @@ function isoOrNull(value: unknown): string | null {
   return Number.isNaN(Date.parse(trimmed)) ? null : trimmed;
 }
 
+/** Emisor normalizado: lo desconocido cae a `xstocks` (filas viejas). */
+export function normalizeIssuer(value: unknown): AssetIssuer {
+  return value === "ondo" ? "ondo" : "xstocks";
+}
+
+/** Costo de compra US$100 en bps desde `safety_metrics`, o null. */
+function buy100CostFromMetrics(metrics: unknown): number | null {
+  if (metrics === null || typeof metrics !== "object" || Array.isArray(metrics)) return null;
+  const table = metrics as Record<string, unknown>;
+  for (const key of ["buy100_cost_bps", "buy100CostBps"]) {
+    const parsed = numberOrNull(table[key]);
+    if (parsed !== null) return parsed;
+  }
+  return null;
+}
+
 export function assetFromRow(row: AssetRow): CatalogAsset | null {
   const symbol = text(row.symbol);
   if (!symbol) return null;
   const name = text(row.name) ?? symbol;
+  const underlying = text(row.underlying) ?? symbol.replace(/x$/i, "");
   const period = periodOrNull(row.current_period);
   const limits = limitsUsdForPeriod(row.limits, period);
   const safetyStatus = normalizeSafetyStatus(row.safety_status);
@@ -236,9 +270,12 @@ export function assetFromRow(row: AssetRow): CatalogAsset | null {
   return {
     symbol,
     name,
-    underlying: text(row.underlying) ?? symbol.replace(/x$/i, ""),
+    underlying,
     category: categoryOf(row.category, row),
     mint: text(row.mint_solana) ?? "",
+    issuer: normalizeIssuer(row.issuer),
+    companyTicker: text(row.company_ticker) ?? underlying,
+    buy100CostBps: buy100CostFromMetrics(row.safety_metrics),
     logoLocal: text(row.logo_path),
     enabled,
     halted,
@@ -268,6 +305,9 @@ export function assetFromTicker(ticker: Ticker, curated: boolean): CatalogAsset 
     underlying: ticker.underlying,
     category: ticker.category,
     mint: ticker.mint,
+    issuer: "xstocks",
+    companyTicker: ticker.underlying,
+    buy100CostBps: null,
     logoLocal: ticker.logo,
     enabled: ticker.enabled,
     halted: false,
@@ -385,11 +425,100 @@ export function toTicker(asset: CatalogAsset): Ticker {
     name: asset.name,
     mint: asset.mint,
     decimals: 8,
-    issuer: "Backed (xStocks)",
+    // La ficha muestra el emisor como texto discreto (M52b): xStocks conserva
+    // su nombre legal "Backed (xStocks)"; Ondo muestra "Ondo". Sin logos nuevos.
+    issuer: asset.issuer === "ondo" ? "Ondo" : "Backed (xStocks)",
     category: asset.category,
     logo: asset.logoLocal ?? "",
     enabled: asset.enabled,
   };
+}
+
+/** Candidata a ficha de una empresa (un emisor). Pura: la usan los tests. */
+export interface ListingCandidate {
+  asset: CatalogAsset;
+  companyTicker: string;
+  buy100CostBps: number | null;
+  volumeWinner: "xstocks" | "ondo" | null;
+}
+
+function listingStatusRank(status: SafetyStatus): number {
+  if (status === "listed") return 0;
+  if (status === "watch") return 1;
+  return 2;
+}
+
+/**
+ * Una ficha por empresa (M52b). Agrupa por `company_ticker` y elige en orden:
+ * 1) la fila `tradable`, 2) la visible (`listed` antes que `watch`), 3) la de
+ * menor costo de compra US$100 de la última corrida, 4) el ganador por volumen
+ * del CSV (sólo desempata). Así, mientras el Ondo no esté `listed`, una empresa
+ * curada sigue mostrando y operando su xStocks. Pura: la usan los tests.
+ */
+export function pickListingPerCompany(candidates: readonly ListingCandidate[]): CatalogAsset[] {
+  const groups = new Map<string, ListingCandidate[]>();
+  for (const candidate of candidates) {
+    const key = candidate.companyTicker.trim() || candidate.asset.symbol;
+    const list = groups.get(key) ?? [];
+    list.push(candidate);
+    groups.set(key, list);
+  }
+  const chosen: CatalogAsset[] = [];
+  for (const list of groups.values()) {
+    const ordered = [...list].sort((a, b) => {
+      if (a.asset.tradable !== b.asset.tradable) return a.asset.tradable ? -1 : 1;
+      const status = listingStatusRank(a.asset.safetyStatus) - listingStatusRank(b.asset.safetyStatus);
+      if (status !== 0) return status;
+      const costA = a.buy100CostBps;
+      const costB = b.buy100CostBps;
+      if (costA !== null || costB !== null) {
+        if (costA === null) return 1;
+        if (costB === null) return -1;
+        if (costA !== costB) return costA - costB;
+      }
+      const winA = a.volumeWinner !== null && a.asset.issuer === a.volumeWinner ? 0 : 1;
+      const winB = b.volumeWinner !== null && b.asset.issuer === b.volumeWinner ? 0 : 1;
+      if (winA !== winB) return winA - winB;
+      if (a.asset.symbol < b.asset.symbol) return -1;
+      if (a.asset.symbol > b.asset.symbol) return 1;
+      return 0;
+    });
+    const first = ordered[0];
+    if (first) chosen.push(first.asset);
+  }
+  chosen.sort((a, b) => (a.symbol < b.symbol ? -1 : a.symbol > b.symbol ? 1 : 0));
+  return chosen;
+}
+
+/** Ganador por volumen del CSV por `company_ticker` (sólo desempate). */
+const volumeWinnerByCompanyCache = new Map<string, "xstocks" | "ondo">();
+
+function volumeWinnerByCompany(): Map<string, "xstocks" | "ondo"> {
+  if (volumeWinnerByCompanyCache.size === 0) {
+    for (const entry of ONDO_TICKERS) {
+      if (entry.volumeWinner !== null) volumeWinnerByCompanyCache.set(entry.ticker, entry.volumeWinner);
+    }
+  }
+  return volumeWinnerByCompanyCache;
+}
+
+/**
+ * Filtra por alcance y deja una ficha por empresa. `hidden` no aparece nunca.
+ * Pura sobre filas ya anotadas: la usan `searchCatalog`/`bySymbol`.
+ */
+export function applyListing(rows: readonly CatalogAsset[], scope: CatalogScope): CatalogAsset[] {
+  const winners = volumeWinnerByCompany();
+  const visible = rows.filter(
+    (asset) => asset.safetyStatus !== "hidden" && isVisibleInScope(asset, scope),
+  );
+  return pickListingPerCompany(
+    visible.map((asset) => ({
+      asset,
+      companyTicker: asset.companyTicker,
+      buy100CostBps: asset.buy100CostBps,
+      volumeWinner: winners.get(asset.companyTicker) ?? null,
+    })),
+  );
 }
 
 function normalizePage(value: number | undefined, fallback: number): number {
@@ -460,6 +589,35 @@ const ASSETS_COLUMNS = [
   "underlying",
   "category",
   "mint_solana",
+  "issuer",
+  "company_ticker",
+  "logo_path",
+  "enabled",
+  "is_trading_halted",
+  "jupiter_liquidity_usd",
+  "curated",
+  "trading_hours_mode",
+  "current_period",
+  "open_now",
+  "next_change_at",
+  "limits",
+  "safety_status",
+  "safety_reasons",
+  "safety_tier",
+  "safety_checked_at",
+  "safety_metrics",
+].join(",");
+
+/**
+ * Columnas sin 0022 (compatibilidad): si la base todavía no tiene
+ * `issuer`/`company_ticker`, el select completo falla y se reintenta con este.
+ */
+const ASSETS_COLUMNS_LEGACY = [
+  "symbol",
+  "name",
+  "underlying",
+  "category",
+  "mint_solana",
   "logo_path",
   "enabled",
   "is_trading_halted",
@@ -481,9 +639,12 @@ async function fetchAssetsFromSupabase(fetchImpl: typeof fetch): Promise<Catalog
   const config = readSupabasePublicConfig();
   if (!config) return null;
   const collected: CatalogAsset[] = [];
+  // Columnas 0022 primero; si la base aún no las tiene, reintento legacy.
+  let columns = ASSETS_COLUMNS;
+  let legacyTried = false;
   for (let page = 0; page < ASSETS_MAX_PAGES; page += 1) {
     const url = new URL(`${config.url}/rest/v1/assets`);
-    url.searchParams.set("select", ASSETS_COLUMNS);
+    url.searchParams.set("select", columns);
     // Orden estable: las filas curadas primero y el resto por símbolo.
     url.searchParams.set("order", "curated.desc,symbol.asc");
     url.searchParams.set("limit", String(ASSETS_PAGE_SIZE));
@@ -504,7 +665,15 @@ async function fetchAssetsFromSupabase(fetchImpl: typeof fetch): Promise<Catalog
       // se usan las obtenidas para no dejar el mercado vacío.
       return collected.length > 0 ? collected : null;
     }
-    if (!response.ok) return collected.length > 0 ? collected : null;
+    if (!response.ok) {
+      if (!legacyTried && columns !== ASSETS_COLUMNS_LEGACY) {
+        legacyTried = true;
+        columns = ASSETS_COLUMNS_LEGACY;
+        page -= 1;
+        continue;
+      }
+      return collected.length > 0 ? collected : null;
+    }
     let body: unknown;
     try {
       body = await response.json();
@@ -578,12 +747,14 @@ export async function searchCatalog(
 ): Promise<CatalogSearchResult> {
   const loaded = await loadAssets(deps?.fetchImpl ?? fetch, deps?.now?.() ?? Date.now());
   const effectiveScope = resolveEffectiveScope(params.scope, maxScopeFromEnv());
-  return searchAssets(withCuratedSafeguard(loaded, effectiveScope), params);
+  // Una ficha por empresa (M52b): el total del mercado cuenta empresas.
+  const listed = applyListing(withCuratedSafeguard(loaded, effectiveScope), effectiveScope);
+  return searchAssets(listed, params);
 }
 
 export async function findAssetBySymbol(
   symbol: string,
-  deps?: { scope?: CatalogScope; fetchImpl?: typeof fetch; now?: () => number; allowHidden?: boolean },
+  deps?: { scope?: CatalogScope; fetchImpl?: typeof fetch; now?: () => number; allowHidden?: boolean; noListing?: boolean },
 ): Promise<CatalogAsset | null> {
   const wanted = symbol.trim().toLowerCase();
   if (!wanted) return null;
@@ -595,6 +766,16 @@ export async function findAssetBySymbol(
   // `hidden` no aparece (sólo la allowlist de operaciones lo consulta con `allowHidden`).
   if (exact.safetyStatus === "hidden" && !deps?.allowHidden) return null;
   if (!deps?.allowHidden && !isVisibleInScope(exact, effectiveScope)) return null;
+  // Una ficha por empresa (M52b): el símbolo no elegido devuelve la ficha
+  // elegida (la página redirige a ella). `noListing` conserva la fila exacta
+  // (puerta de operaciones: el mint cotizado es el pedido, sin cambios).
+  // Uso interno con `allowHidden` intacto.
+  if (!deps?.allowHidden && !deps?.noListing) {
+    const chosen = applyListing(rows, effectiveScope).find(
+      (asset) => asset.companyTicker === exact.companyTicker,
+    );
+    if (chosen) return chosen;
+  }
   return exact;
 }
 

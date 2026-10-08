@@ -14,7 +14,8 @@ export interface Ticker {
   name: string;
   mint: string;
   decimals: 8;
-  issuer: "Backed (xStocks)";
+  /** Emisor visible en la ficha (M52b): Backed/xStocks u Ondo. */
+  issuer: "Backed (xStocks)" | "Ondo";
   category: "tech" | "etf" | "fintech" | "consumer" | "finance" | "health" | "energy" | "industrial" | "commodity" | "other";
   logo: string;
   enabled: boolean;

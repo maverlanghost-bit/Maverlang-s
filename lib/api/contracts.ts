@@ -57,7 +57,7 @@ export const tickerSchema = z.object({
   name: z.string().min(1),
   mint: z.string().min(32),
   decimals: z.literal(8),
-  issuer: z.literal("Backed (xStocks)"),
+  issuer: z.union([z.literal("Backed (xStocks)"), z.literal("Ondo")]),
   category: categorySchema,
   logo: z.string().min(1),
   enabled: z.boolean(),

@@ -153,3 +153,13 @@ npm run audit:catalog -- --db --all-events            # un evento por activo (si
 ```
 
 El script abre la fila del run, calcula `nextSafetyState` por activo (máquina de estados en `docs/CATALOGO-SEGURIDAD.md`), hace upsert SÓLO de las columnas de seguridad (nunca `mint_solana`, `name` ni `curated`) y cierra el run. Sin 0010 aplicada imprime `aplica 0010` y sale con código 2, sin escribir nada. Las 50 curadas parten con `consecutive_passes = 0`: se ganan el listado con 2 corridas; la app sigue mostrando como hoy hasta M54.
+
+## Segundo emisor Ondo (0022)
+
+NO aplicada. Después de `0021`, pega **una sola vez** `supabase/migrations/0022_ondo_issuer.sql` en el SQL Editor y ejecútalo. También es idempotente (se puede pegar dos veces). Agrega:
+
+- Columna `issuer` en `public.assets` (`xstocks`|`ondo`, default `xstocks`) y `company_ticker` (ticker del subyacente, con índice) para agrupar una ficha por empresa. Rellena `company_ticker` de las filas xStocks existentes.
+- 444 filas Ondo (`<TICKER>on`, generadas por `node scripts/gen-ondo-seed.mjs` desde `data/ondo/ondo-vs-xstocks-2026-10-07.csv`, única fuente de mints): `curated = false`, `enabled = true`, `safety_status = 'watch'`, contadores en 0.
+- RLS: `assets` sigue público de lectura (`audit-rls` ya lo cubre); sin políticas nuevas.
+
+Las filas Ondo se ven con "En revisión" y no se operan; pasan a `listed` solas por la histéresis de `nextSafetyState` (2 pasadas de `audit:catalog`, al menos una en sesión regular). `sync-xstocks` nunca las toca y la app muestra una sola ficha por empresa.

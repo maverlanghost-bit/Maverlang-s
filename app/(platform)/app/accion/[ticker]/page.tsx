@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 
 import { aboutForTicker } from "@/content/tickers";
 import { readServerSession } from "@/lib/auth/server-session";
@@ -35,6 +35,11 @@ export default async function AccionPage({
   const asset = await findAssetBySymbol(raw);
   // `hidden` no aparece (M54): misma página de "no encontrado" actual.
   if (!asset || !asset.mint || asset.safetyStatus === "hidden") notFound();
+  // Una ficha por empresa (M52b): el símbolo no elegido redirige a la ficha
+  // elegida, nunca a un 404 roto.
+  if (asset.symbol.toLowerCase() !== raw.trim().toLowerCase()) {
+    redirect(`/app/accion/${asset.symbol}`);
+  }
   const session = await readServerSession();
   const access: DetailAccess = !session.hasSession ? "guest" : session.demoReady ? "member" : "pending";
 

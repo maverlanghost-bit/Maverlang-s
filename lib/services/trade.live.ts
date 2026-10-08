@@ -19,6 +19,9 @@ export const liveTrade = {
    *   amount en unidades crudas del mint de entrada (`sharesToRaw` si el usuario pidió acciones),
    *   slippageBps = DEFAULT_SLIPPAGE_BPS. Sin `taker`: cotización, sin transacción.
    *   Sólo mints de `operableMints()`.
+   * Respuesta RFQ (M52b, Ondo/JupiterZ): una orden sin `routePlan` AMM pero con
+   *   router/swapType RFQ y montos válidos CUENTA como ruta (no se excluye el
+   *   router `jupiterz`); validar con `parseOrderQuote` de safety-core.
    * Mapeo a TradeQuote: inAmountUi / outAmountUi ya en acciones o USDC (÷ 10^decimals × multiplicador);
    *   pricePerShareUsd = usdPrice de Jupiter (ya es por acción; no dividir de nuevo); costs.platformFeeBps = FEE_BPS y
    *   platformFeeUsd desde `computeFee` (bps 0 → 0 USD); priceImpactPct y slippageBps de la respuesta;
