@@ -1023,12 +1023,30 @@ export async function checkSafetyMigration() {
 }
 
 /**
+ * Cierra una corrida abierta con finished_at + motivo corto (sin claves ni
+ * cuerpos de respuesta). Así no quedan filas huérfanas en asset_safety_runs.
+ */
+async function closeSafetyRun(admin, runId, notes) {
+  try {
+    const res = await admin
+      .from("asset_safety_runs")
+      .update({ finished_at: new Date().toISOString(), notes })
+      .eq("id", runId);
+    if (res?.error) console.error(`DB cierre del run falló: ${res.error.message}`);
+  } catch (err) {
+    console.error(`DB cierre del run falló: ${err?.message ?? err}`);
+  }
+}
+
+/**
  * Guarda el resultado de la auditoría en Supabase (M53). Sólo con --db y con
  * 0010 aplicada (main() lo sonda antes). Nunca toca mint_solana, name ni
  * curated: el upsert sólo lleva symbol + SAFETY_UPSERT_COLUMNS.
+ * `admin` es sólo para tests (inyecta un cliente falso encadenable, sin red).
+ * @param {{ outcomes: unknown[], session: string, runStartedAt: string, source?: string, allEvents?: boolean, admin?: unknown }} args
  */
-export async function syncSafetyToDb({ outcomes, session, runStartedAt, source, allEvents }) {
-  const { admin } = readSafetyAdmin();
+export async function syncSafetyToDb({ outcomes, session, runStartedAt, source, allEvents, admin: adminOverride }) {
+  const admin = adminOverride ?? readSafetyAdmin().admin;
   if (!admin) {
     console.log("falta SUPABASE_SECRET_KEY (o SUPABASE_SERVICE_ROLE_KEY) en .env.local: no se puede escribir en --db.");
     process.exitCode = 1;
@@ -1079,9 +1097,10 @@ export async function syncSafetyToDb({ outcomes, session, runStartedAt, source, 
     const res = await admin
       .from("assets")
       .select("symbol,safety_status,consecutive_passes,consecutive_fails,manual_override,safety_session,listed_at,hidden_at")
-      .in_("symbol", batch);
+      .in("symbol", batch);
     if (res.error) {
       console.error(`DB lectura de assets falló: ${res.error.message}`);
+      await closeSafetyRun(admin, runId, "lectura de assets falló");
       process.exitCode = 1;
       return;
     }
@@ -1132,6 +1151,7 @@ export async function syncSafetyToDb({ outcomes, session, runStartedAt, source, 
     const res = await admin.from("assets").upsert(batch, { onConflict: "symbol" });
     if (res.error) {
       console.error(`DB upsert de seguridad falló: ${res.error.message}`);
+      await closeSafetyRun(admin, runId, "upsert de seguridad falló");
       process.exitCode = 1;
       return;
     }
@@ -1141,6 +1161,7 @@ export async function syncSafetyToDb({ outcomes, session, runStartedAt, source, 
     const res = await admin.from("asset_safety_events").insert(batch);
     if (res.error) {
       console.error(`DB eventos falló: ${res.error.message}`);
+      await closeSafetyRun(admin, runId, "eventos falló");
       process.exitCode = 1;
       return;
     }
