@@ -1,5 +1,11 @@
 # PROGRESO — Maverlang
 
+## Ondo en el alcance curado (2026-10-08)
+- Causa: maverlang.vercel.app usa `CATALOG_SCOPE=curated`. Ese alcance dejaba sólo las 50 xStocks (total 50, cero `on`). En local, sin esa variable, ya salían 446 y con precio. Las Ondo en `watch` siguen operables.
+- Hecho: `curated` ahora también muestra las Ondo en `watch` o `listed`. Una xStock que no es curada sigue afuera. Si la empresa ya tiene xStocks, esa ficha se mantiene.
+- Archivos: `lib/catalog/assets.ts`, `tests/unit/market-search.test.ts`.
+- Verificación: tests de búsqueda, alcance y Ondo 48/48. Con `scope=curated` el API devuelve total 446 y la primera página abre en AALon. En `/app` (3210, 1280px) se ven American Airlines y Airbnb, «446 acciones». El sitio público no cambia hasta que esta rama esté en `main`.
+
 ## Cuenta real — aviso, sólo demo (2026-10-08)
 - Hecho: pulsar «Cuenta real» (barra o perfil) no cambia de cuenta. Abre un aviso: estará disponible en poco tiempo y, mientras tanto, se conoce la plataforma. El botón lleva al mercado y la demo sigue activa. Una cookie vieja `mv_account=real` vuelve a demo.
 - Archivos: `components/app-shell/account-switch.tsx`, `lib/hooks/use-account-mode.ts`, `content/i18n/es-CL.ts`, `en.ts`.

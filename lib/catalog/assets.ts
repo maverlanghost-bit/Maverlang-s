@@ -16,7 +16,8 @@ import type { Ticker } from "@/lib/types";
  * Reutiliza `fold` (minúsculas sin acentos) y `selectCurated` de M37.
  * Desde M54 el filtro por alcance usa el estado de seguridad (M53):
  * `listed` = filas `listed` + `watch` (más curadas en transición), `hidden`
- * nunca aparece. Operar exige `tradable` (sólo `listed`, con transición).
+ * nunca aparece. `curated` incluye además las Ondo en `watch` o `listed`,
+ * porque la demo pública fija `CATALOG_SCOPE=curated`. Operar exige `tradable`.
  */
 
 export const CATALOG_CACHE_MS = 5 * 60 * 1000;
@@ -378,9 +379,17 @@ export function annotateSafety(
 }
 
 /** `hidden` no aparece nunca (M54). Pura: la usan los tests. */
-export function isVisibleInScope(asset: Pick<CatalogAsset, "safetyStatus" | "curated" | "transitionKept">, scope: CatalogScope): boolean {
+export function isVisibleInScope(
+  asset: Pick<CatalogAsset, "safetyStatus" | "curated" | "transitionKept"> & Partial<Pick<CatalogAsset, "issuer">>,
+  scope: CatalogScope,
+): boolean {
   if (asset.safetyStatus === "hidden") return false;
-  if (scope === "curated") return asset.curated;
+  if (scope === "curated") {
+    if (asset.curated) return true;
+    // La demo pública deja el alcance en `curated`. Las Ondo listas (watch o
+    // listed) se ven igual. Una xStock que no es curada sigue afuera.
+    return asset.issuer === "ondo" && (asset.safetyStatus === "watch" || asset.safetyStatus === "listed");
+  }
   if (scope === "listed") {
     return asset.safetyStatus === "listed" || asset.safetyStatus === "watch" || asset.transitionKept;
   }

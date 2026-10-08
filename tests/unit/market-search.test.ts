@@ -144,6 +144,25 @@ describe("mercado escalable: búsqueda del catálogo", () => {
     expect(queried.items.map((item) => item.symbol)).toEqual(["L00x"]);
   });
 
+  it("con scope curated salen las curadas y las Ondo en watch; una xStock suelta no", () => {
+    const rows = [
+      ...ROWS,
+      asset({
+        symbol: "ABNBon",
+        name: "Airbnb",
+        underlying: "ABNB",
+        curated: false,
+        issuer: "ondo",
+        safetyStatus: "watch",
+        liquidityUsd: null,
+      }),
+    ];
+    const curated = searchAssets(rows, { scope: "curated" });
+    expect(curated.items.some((item) => item.symbol === "FAKEx")).toBe(false);
+    expect(curated.items.some((item) => item.symbol === "ABNBon")).toBe(true);
+    expect(curated.total).toBe(5);
+  });
+
   it("con scope curated salen sólo curadas; con all pedido y máximo listed, entran listed y watch", () => {
     const curated = searchAssets(ROWS, { scope: "curated" });
     expect(curated.items.some((item) => item.symbol === "FAKEx")).toBe(false);
