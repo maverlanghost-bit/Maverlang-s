@@ -16,7 +16,7 @@ export const metadata: Metadata = {
 export const revalidate = 30;
 
 export default async function ComoFuncionaPage() {
-  const { quotes, live, updatedAt } = await getLandingQuotes();
+  const { quotes, live } = await getLandingQuotes();
   const symbols = quotes.map((quote) => quote.symbol);
 
   return (
@@ -33,7 +33,7 @@ export default async function ComoFuncionaPage() {
           </p>
         </div>
       </LandingSection>
-      <LiveLandingPrices symbols={symbols} live={live} initial={quotes} updatedAt={updatedAt}>
+      <LiveLandingPrices symbols={symbols} live={live} initial={quotes}>
         <HowItWorks quotes={quotes} live={live} />
       </LiveLandingPrices>
       <LandingSection titleId="como-funciona-notas">

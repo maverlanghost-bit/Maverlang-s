@@ -25,19 +25,16 @@ export function LandingSection({
 
 export function SectionIntro({
   id,
-  label,
   title,
   children,
 }: {
   id: string;
-  label: string;
   title: string;
   children: ReactNode;
 }) {
   return (
     <div className="max-w-2xl">
-      <p className="label">{label}</p>
-      <h2 id={id} className="mt-3 text-3xl sm:text-4xl">
+      <h2 id={id} className="text-3xl sm:text-4xl">
         {title}
       </h2>
       <p className="mt-4 text-sm leading-relaxed text-fg-body sm:text-base">{children}</p>

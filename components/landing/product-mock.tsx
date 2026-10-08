@@ -18,7 +18,7 @@ export function ProductMock({ quotes, live }: { quotes: LandingQuote[]; live: bo
   return (
     <LandingSection titleId="elige-title">
       <Reveal>
-        <SectionIntro id="elige-title" label="04 — Elige tu acción" title="Mira una acción de cerca">
+        <SectionIntro id="elige-title" title="Mira una acción de cerca">
           {live
             ? `Cada pestaña sigue el precio del catálogo. ${landingNotice(true)}.`
             : `Cada pestaña es un ejemplo del catálogo. ${ILLUSTRATIVE_NOTICE}: no son cotizaciones.`}

@@ -67,21 +67,18 @@ function OwnedMock({ quote }: { quote: LandingQuote }) {
 export function HowItWorks({ quotes, live }: { quotes: LandingQuote[]; live: boolean }) {
   const sampleQuote = quotes.find((quote) => quote.symbol === "AAPLx") ?? quotes[0];
 
-  const steps: { kicker: string; title: string; body: string; mock: ReactNode }[] = [
+  const steps: { title: string; body: string; mock: ReactNode }[] = [
     {
-      kicker: "01",
       title: "Deposita pesos (Khipu, transferencia)",
       body: "El método y el costo del proveedor se ven al depositar.",
       mock: <DepositMock />,
     },
     {
-      kicker: "02",
       title: "Elige una acción",
       body: "Apple, NVIDIA y las demás del catálogo.",
       mock: sampleQuote ? <PickMock quote={sampleQuote} live={live} /> : null,
     },
     {
-      kicker: "03",
       title: "Listo: el token es tuyo, en tu billetera",
       body: "Queda en tu propia billetera —nosotros no custodiamos tus activos— y sigue el precio de la acción.",
       mock: sampleQuote ? <OwnedMock quote={sampleQuote} /> : null,
@@ -91,17 +88,16 @@ export function HowItWorks({ quotes, live }: { quotes: LandingQuote[]; live: boo
   return (
     <LandingSection id="como-funciona" titleId="como-funciona-title">
       <Reveal>
-        <SectionIntro id="como-funciona-title" label="03 — Cómo funciona" title="Tres pasos, en pesos">
+        <SectionIntro id="como-funciona-title" title="Tres pasos, en pesos">
           Depositas, eliges la acción y el token queda en tu propia billetera, sin custodia de nuestra parte. Los montos de abajo son ejemplos.
         </SectionIntro>
       </Reveal>
       <div className="mt-10 grid gap-4 md:mt-14 md:grid-cols-3">
         {steps.map((step, index) => (
-          <Reveal key={step.kicker} delay={(index + 1) * REVEAL_STAGGER_MS} className="h-full">
+          <Reveal key={step.title} delay={(index + 1) * REVEAL_STAGGER_MS} className="h-full">
             <Card className="flex h-full flex-col gap-6">
               <div>
-                <p className="label">{step.kicker}</p>
-                <h3 className="mt-3 text-base leading-relaxed">{step.title}</h3>
+                <h3 className="text-base leading-relaxed">{step.title}</h3>
                 <p className="mt-2 text-sm leading-relaxed text-fg-body">{step.body}</p>
               </div>
               <div className="mt-auto">{step.mock}</div>

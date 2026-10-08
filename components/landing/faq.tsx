@@ -55,7 +55,7 @@ export function FaqSection() {
   return (
     <LandingSection id="preguntas" titleId="preguntas-title">
       <Reveal>
-        <SectionIntro id="preguntas-title" label="08 — Preguntas" title="Antes de abrir la cuenta">
+        <SectionIntro id="preguntas-title" title="Antes de abrir la cuenta">
           Siete respuestas cortas. El detalle legal sigue en borrador.
         </SectionIntro>
       </Reveal>

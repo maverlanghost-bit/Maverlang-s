@@ -27,7 +27,7 @@ export function SecuritySection() {
   return (
     <LandingSection id="seguridad" titleId="seguridad-title">
       <Reveal>
-        <SectionIntro id="seguridad-title" label="07 — Seguridad" title="Qué tienes y qué no">
+        <SectionIntro id="seguridad-title" title="Qué tienes y qué no">
           {site.name} no es una corredora de EE.UU. El token es tuyo y queda en tu billetera. Sigue el precio de la acción.
         </SectionIntro>
       </Reveal>

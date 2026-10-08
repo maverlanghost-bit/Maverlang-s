@@ -11,18 +11,14 @@ function changeWord(change: number) {
 
 /**
  * Cinta con precio en dólares (US$) y variación (M42). Los números son
- * cliente (`<LandingPrice>` liviano); la etiqueta es "en vivo" sólo con
- * precios reales, si no "Precios ilustrativos".
+ * cliente (`<LandingPrice>` liviano). La línea de abajo nombra el catálogo;
+ * no es un contador de frescura.
  */
 export function TickerMarquee({ quotes, live }: { quotes: LandingQuote[]; live: boolean }) {
   const tape = [...quotes, ...quotes];
 
   return (
-    <section aria-labelledby="cinta-label" className="overflow-hidden border-y border-border py-6 md:py-8">
-      <h2 id="cinta-label" className="label mb-4 text-center">
-        {live ? "02 — En vivo" : "02 — Variación ilustrativa"}
-      </h2>
-
+    <section aria-label="Cinta de precios" className="overflow-hidden border-y border-border py-6 md:py-8">
       <div className="ticker-marquee-motion" aria-hidden>
         <ul className="flex w-max animate-marquee">
           {tape.map((quote, index) => (
@@ -48,6 +44,10 @@ export function TickerMarquee({ quotes, live }: { quotes: LandingQuote[]; live: 
           </li>
         ))}
       </ul>
+
+      <p className="mt-5 px-5 text-center text-sm leading-relaxed text-fg-muted">
+        Opera con más de 400 acciones tokenizadas.
+      </p>
 
       <p className="sr-only">
         {live ? `${landingNotice(true)}.` : `${ILLUSTRATIVE_NOTICE}. No son cotizaciones en vivo.`}

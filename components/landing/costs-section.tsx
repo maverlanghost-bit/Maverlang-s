@@ -30,7 +30,7 @@ export function CostsSection() {
   return (
     <LandingSection id="costos" titleId="costos-title">
       <Reveal>
-        <SectionIntro id="costos-title" label="06 — Costos" title="Lo que pagas, antes de confirmar">
+        <SectionIntro id="costos-title" title="Lo que pagas, antes de confirmar">
           La comisión de lanzamiento es 0%. El resto depende del mercado, la red y el proveedor. Si hay
           que crear la cuenta del activo, ese costo también aparece en el desglose.
         </SectionIntro>

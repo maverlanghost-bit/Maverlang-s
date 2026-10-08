@@ -1,5 +1,10 @@
 # PROGRESO — Maverlang
 
+## Portada — etiquetas y cinta (2026-10-08)
+- Hecho: se quitaron las etiquetas numeradas de la portada («02 — En vivo», «03 — Cómo funciona» y las demás, más los números 01–03 de los pasos). Bajo la cinta ya no dice «Actualizado hace…»; dice «Opera con más de 400 acciones tokenizadas.» El catálogo visible es 446, así que no se escribió «+450».
+- Archivos: `components/landing/ticker-marquee.tsx`, `section.tsx`, secciones de la portada y `live-landing-prices.tsx`. También `app/(marketing)/page.tsx` y `como-funciona/page.tsx`.
+- Verificación: eslint de esos archivos ok. En `next dev` (3210) la portada en 1280px y 390px muestra la línea, los precios de la cinta y los títulos, sin esas etiquetas ni «Actualizado hace». `/como-funciona` igual.
+
 ## Buscar en un menú (2026-10-08)
 - Hecho: el buscador ya no filtra la página del mercado. En la barra hay un botón «Buscar»; al pulsarlo se abre un menú con el campo y las coincidencias (chip «En revisión»). En el celular el botón está en la barra de arriba, y sin sesión en la cabecera pública. Comprar las nuevas sigue apagado.
 - Archivos: `components/app-shell/stock-search.tsx`, barra, cabecera y `market-screen.tsx`. Se quitó el desplegable de la página.

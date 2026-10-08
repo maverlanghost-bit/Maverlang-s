@@ -5,13 +5,10 @@ import { useQuery } from "@tanstack/react-query";
 
 import { ChangeBadge } from "@/components/domain/change-badge";
 import { FlashPrice } from "@/components/domain/flash-price";
-import { PriceFreshness } from "@/components/domain/price-freshness";
 import { PriceText } from "@/components/domain/price-text";
 import { getPrices } from "@/lib/api/client";
 import { cn } from "@/lib/cn";
 import { formatPercent, formatUsd } from "@/lib/format";
-import { useMounted } from "@/lib/hooks/use-mounted";
-import { FRESHNESS_PLACEHOLDER_TEXT } from "@/lib/market/freshness";
 import type { LandingQuote } from "@/lib/mocks/landing";
 import type { Quote } from "@/lib/types";
 
@@ -33,13 +30,8 @@ export interface LandingInitial {
 }
 
 interface LandingLiveState {
-  live: boolean;
   initialBySymbol: ReadonlyMap<string, LandingInitial>;
   liveBySymbol: ReadonlyMap<string, Quote>;
-  /** ms del último fetch, o null antes del primero. */
-  dataUpdatedAt: number | null;
-  /** `updatedAt` del servidor, respaldo para el indicador de frescura. */
-  fallbackUpdatedAt: string;
 }
 
 const LandingLiveContext = createContext<LandingLiveState | null>(null);
@@ -54,13 +46,11 @@ export function LiveLandingPrices({
   symbols,
   live,
   initial,
-  updatedAt,
   children,
 }: {
   symbols: readonly string[];
   live: boolean;
   initial: readonly LandingQuote[];
-  updatedAt: string;
   children: ReactNode;
 }) {
   const sorted = useMemo(() => [...symbols].sort(), [symbols]);
@@ -74,15 +64,12 @@ export function LiveLandingPrices({
   });
   const value = useMemo<LandingLiveState>(
     () => ({
-      live,
       initialBySymbol: new Map(
         initial.map((quote) => [quote.symbol, { priceUsd: quote.priceUsd, change: quote.change }]),
       ),
       liveBySymbol: new Map((query.data ?? []).map((quote) => [quote.symbol, quote])),
-      dataUpdatedAt: query.dataUpdatedAt > 0 ? query.dataUpdatedAt : null,
-      fallbackUpdatedAt: updatedAt,
     }),
-    [live, initial, query.data, query.dataUpdatedAt, updatedAt],
+    [initial, query.data],
   );
   return <LandingLiveContext.Provider value={value}>{children}</LandingLiveContext.Provider>;
 }
@@ -150,34 +137,4 @@ export function LandingSharesValue({
   const { priceUsd } = useLandingQuote(symbol, { priceUsd: initialPrice, change: 0 });
   const valueUsd = Math.round(priceUsd * shares * 100) / 100;
   return <PriceText value={valueUsd} currency="USD" size="sm" className="shrink-0" />;
-}
-
-/**
- * Un solo "Actualizado hace Xs" para la portada (bajo la cinta). Con la
- * muestra no hay nada que refrescar: devuelve null.
- *
- * Hidratación (M42b): la página es ISR (`revalidate = 30`), así que el HTML
- * del servidor puede tener hasta 30 s y el relativo dependería de la hora de
- * cada lado (error #418). En el primer render se muestra un marcador estable
- * con la misma altura y el contador parte sólo tras montar, con los mismos
- * datos iniciales del servidor. Los números usan locale fijo "es-CL".
- */
-export function LandingFreshness({ className }: { className?: string }) {
-  const state = useLandingLiveState();
-  const mounted = useMounted();
-  if (!state.live) return null;
-  if (!mounted) {
-    return (
-      <div className={cn("flex justify-center px-5", className)}>
-        <p aria-live="off" className="text-xs text-fg-muted">
-          {FRESHNESS_PLACEHOLDER_TEXT}
-        </p>
-      </div>
-    );
-  }
-  return (
-    <div className={cn("flex justify-center px-5", className)}>
-      <PriceFreshness at={state.dataUpdatedAt ?? state.fallbackUpdatedAt} />
-    </div>
-  );
 }

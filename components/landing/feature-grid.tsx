@@ -49,7 +49,7 @@ export function FeatureGrid() {
   return (
     <LandingSection titleId="idea-title">
       <Reveal>
-        <SectionIntro id="idea-title" label="05 — La idea" title="Fracciones, con los costos a la vista">
+        <SectionIntro id="idea-title" title="Fracciones, con los costos a la vista">
           Cuatro reglas de {site.name}. Ninguna es una promesa de ganancia.
         </SectionIntro>
       </Reveal>
