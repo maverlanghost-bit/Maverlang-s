@@ -1,5 +1,10 @@
 # PROGRESO — Maverlang
 
+## Cuenta real — aviso, sólo demo (2026-10-08)
+- Hecho: pulsar «Cuenta real» (barra o perfil) no cambia de cuenta. Abre un aviso: estará disponible en poco tiempo y, mientras tanto, se conoce la plataforma. El botón lleva al mercado y la demo sigue activa. Una cookie vieja `mv_account=real` vuelve a demo.
+- Archivos: `components/app-shell/account-switch.tsx`, `lib/hooks/use-account-mode.ts`, `content/i18n/es-CL.ts`, `en.ts`.
+- Verificación: en `next dev` (3210, sesión mock) la cartera en 1280px abre el aviso al pulsar «Cuenta real», la demo sigue marcada y no aparece el vacío de la cuenta real. «Conocer la plataforma» va a `/app` y cierra el aviso. Escape lo cierra. La billetera sigue en demo. En 390px el aviso cabe en el perfil. Una cookie `mv_account=real` vuelve a demo al cargar el cliente.
+
 ## Hero +400 y Ondo operables (2026-10-08)
 - Hecho: el chip del hero ya no dice «Sin cuenta en corredora de EE.UU.»; dice «Más de 400 activos» (el catálogo visible es 446). Las Ondo en `watch` quedan operables y sin chip «En revisión». No se escribió `listed` en la base, así las 50 curadas siguen operando. Si la empresa ya tiene xStocks, esa ficha se mantiene. Comprar una xStock en `watch` que no es Ondo sigue apagado.
 - Archivos: `components/landing/hero.tsx`, `lib/catalog/assets.ts`, `portfolio-screen.tsx`, `tests/unit/ondo-issuer.test.ts`.
