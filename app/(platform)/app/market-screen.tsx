@@ -477,7 +477,7 @@ export function MarketScreen({
         />
       ) : null}
       {!waiting && !failed && moverItems.length > 0 ? (
-        <section className="flex min-w-0 flex-col gap-2" aria-labelledby={moversTitleId}>
+        <section className="order-2 flex min-w-0 flex-col gap-2 lg:order-1" aria-labelledby={moversTitleId}>
           <div>
             <h2 id={moversTitleId} className="text-base font-medium text-fg">
               {t.market.movers}
@@ -512,7 +512,7 @@ export function MarketScreen({
         </section>
       ) : null}
       {!waiting && !failed && listRows.length > 0 ? (
-        <section className="flex min-w-0 flex-col gap-2">
+        <section className="order-1 flex min-w-0 flex-col gap-2 lg:order-2">
           <h2 className="text-base font-medium text-fg">{t.market.list}</h2>
           {total > 0 ? (
             <p className="text-sm text-fg-muted">
