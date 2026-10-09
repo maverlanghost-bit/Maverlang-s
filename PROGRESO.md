@@ -1,5 +1,11 @@
 # PROGRESO — Maverlang
 
+## Mercado — la lista aparece antes (2026-10-08)
+- Causa: la página no dibujaba nada hasta tener catálogo, precios y 20 gráficos. Cada gráfico volvía a pedir el precio, y la variación diaria frenaba todo el lote.
+- Hecho: los nombres salen al llegar el catálogo. Los precios se completan después, sin la barra gris. Los gráficos esperan a que el lote de precios ya haya vuelto. Esa variación no retiene la lista más de 400 ms; si falta, entra en el refresco.
+- Archivos: `market-screen.tsx`, `lib/market/{price-batcher,underlying-move}.ts`, `lib/services/prices.live.ts`.
+- Verificación: tests de precios 23/23. En `next dev` (3210) la primera fila sale con el catálogo, sin `aria-busy`; los precios ~0,7 s después y ningún gráfico parte antes. «446 acciones». «Cargar más» llega a 40. En 390px la barra sigue oculta.
+
 ## Barra — logo fijo (2026-10-08)
 - Hecho: el símbolo del favicon ya no cambia de tamaño ni se centra al colapsar. Queda en el mismo recuadro de 44px que los íconos (40×13px siempre).
 - Archivo: `components/app-shell/sidebar.tsx`.

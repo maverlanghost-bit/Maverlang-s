@@ -2,6 +2,7 @@ import { tickerBySymbol } from "@/config/tickers";
 import { DomainError } from "@/lib/api/result";
 import { findAssetBySymbol, toTicker } from "@/lib/catalog/assets";
 import { parseJupiterPrices } from "@/lib/market/live-quotes";
+import { cachedUnderlyingChanges } from "@/lib/market/underlying-move";
 import { roundDigits } from "@/lib/mocks/number";
 import { quoteFor } from "@/lib/mocks/prices";
 import type { Quote, Ticker } from "@/lib/types";
@@ -207,6 +208,12 @@ export interface BatchedQuoteOptions extends MintBatchOptions {
    * ticker de la acción (`AAL`), no el símbolo del catálogo (`AALon`).
    */
   underlyingChange?: (underlyings: readonly string[]) => Promise<ReadonlyMap<string, number>>;
+  /**
+   * Tope de espera de esa variación, en ms, contado desde que ya está el
+   * precio. Si se cumple, la lista sale con lo que haya en caché y el resto
+   * sigue en segundo plano. Sin este tope se espera el mapa completo.
+   */
+  underlyingBudgetMs?: number;
 }
 
 async function resolveTickers(symbols: readonly string[]): Promise<Ticker[]> {
@@ -225,6 +232,25 @@ async function resolveTickers(symbols: readonly string[]): Promise<Ticker[]> {
   return out;
 }
 
+async function underlyingMoves(
+  missingChange: readonly string[],
+  options: BatchedQuoteOptions,
+  now: number,
+): Promise<ReadonlyMap<string, number>> {
+  if (missingChange.length === 0 || !options.underlyingChange) return new Map();
+  const pending = options.underlyingChange(missingChange).catch(() => new Map<string, number>());
+  const budget = options.underlyingBudgetMs;
+  if (budget === undefined) return pending;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const limited = new Promise<ReadonlyMap<string, number> | null>((resolve) => {
+    timer = setTimeout(() => resolve(null), budget);
+  });
+  const ready = await Promise.race([pending.then((moves) => moves), limited]);
+  if (timer !== undefined) clearTimeout(timer);
+  if (ready) return ready;
+  return cachedUnderlyingChanges(missingChange, now);
+}
+
 /**
  * Cotizaciones por símbolo vía el batcher. Misma regla que M34: `usdPrice`
  * tal cual, `reference: true` con la ancla si el mint no trajo precio.
@@ -238,13 +264,15 @@ export async function listBatchedQuotes(
 ): Promise<Quote[]> {
   const tickers = await resolveTickers(symbols);
   const now = options.now?.() ?? Date.now();
-  const multipliers = await (
-    options.prepareMultipliers?.(tickers) ?? Promise.resolve(new Map<string, number>())
-  ).catch(() => new Map<string, number>());
-  const prices = await fetchMintBatch(
-    tickers.map((ticker) => ticker.mint),
-    options,
-  );
+  const [multipliers, prices] = await Promise.all([
+    (options.prepareMultipliers?.(tickers) ?? Promise.resolve(new Map<string, number>())).catch(
+      () => new Map<string, number>(),
+    ),
+    fetchMintBatch(
+      tickers.map((ticker) => ticker.mint),
+      options,
+    ),
+  ]);
   const missingChange = [
     ...new Set(
       tickers
@@ -255,10 +283,7 @@ export async function listBatchedQuotes(
         .map((ticker) => ticker.underlying),
     ),
   ];
-  const moves =
-    missingChange.length > 0 && options.underlyingChange
-      ? await options.underlyingChange(missingChange).catch(() => new Map<string, number>())
-      : new Map<string, number>();
+  const moves = await underlyingMoves(missingChange, options, now);
   return tickers.map((ticker) => {
     const row = prices.get(ticker.mint);
     if (!row) return { ...quoteFor(ticker.symbol, now), reference: true };

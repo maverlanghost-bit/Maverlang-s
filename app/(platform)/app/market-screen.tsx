@@ -59,12 +59,14 @@ function withName(template: string, name: string) {
   return template.replace("{name}", name);
 }
 
-type PricedItem = {
+type MarketRow = {
   item: MarketSearchItem;
-  quote: Quote;
+  quote: Quote | null;
   /** Posición acumulada (orden Popular del servidor). */
   index: number;
 };
+
+type PricedItem = MarketRow & { quote: Quote };
 
 function priceRows(items: readonly PricedItem[], currency: Currency, rate: number | undefined) {
   const fxKnown = typeof rate === "number" && Number.isFinite(rate) && rate > 0;
@@ -88,6 +90,13 @@ function orderPriced(rows: readonly PricedItem[], sort: MarketSort): PricedItem[
     const directed = sort === "gain" ? -delta : delta;
     return directed || a.index - b.index;
   });
+}
+
+/** Mayor alza o baja espera a tener todos los precios, para no reordenar la lista a medias. */
+function orderRows(rows: readonly MarketRow[], sort: MarketSort): MarketRow[] {
+  if (sort !== "gain" && sort !== "loss") return [...rows];
+  if (rows.some((row) => row.quote === null)) return [...rows];
+  return orderPriced(rows as PricedItem[], sort);
 }
 
 /** Top por |variación| sobre filas ya cotizadas. Criterio objetivo: no es una selección editorial. */
@@ -279,8 +288,14 @@ export function MarketScreen({
     return false;
   })();
 
-  const loadedSymbols = useMemo(() => items.map((item) => item.symbol), [items]);
-  const histories = useHistories(loadedSymbols);
+  // El gráfico de cada fila pide otro precio. Se pide cuando el lote de la
+  // página ya volvió, para no frenar la lista con veinte consultas a la vez.
+  const sparkSymbols = symbolsByPage.flatMap((symbols, index) => {
+    const query = priceQueries[index];
+    if (!query || query.isPending) return [];
+    return symbols;
+  });
+  const histories = useHistories(sparkSymbols);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -303,22 +318,23 @@ export function MarketScreen({
   }, []);
 
   const favoriteSet = useMemo(() => new Set(favorites ?? []), [favorites]);
-  const priced = useMemo(() => {
-    const rows: PricedItem[] = [];
+  const shown = useMemo(() => {
+    const rows: MarketRow[] = [];
     items.forEach((item, index) => {
       if (filter === "favorites" && !favoriteSet.has(item.symbol)) return;
-      const quote = quotesBySymbol.get(item.symbol);
-      if (!quote) return;
-      rows.push({ item, quote, index });
+      rows.push({ item, quote: quotesBySymbol.get(item.symbol) ?? null, index });
     });
     return rows;
   }, [favoriteSet, filter, items, quotesBySymbol]);
-  const ordered = useMemo(() => orderPriced(priced, sort), [priced, sort]);
-  const moverSource = useMemo(() => moversOfPriced(priced), [priced]);
+  const ordered = useMemo(() => orderRows(shown, sort), [shown, sort]);
+  const moverSource = useMemo(
+    () => moversOfPriced(shown.filter((row): row is PricedItem => row.quote !== null)),
+    [shown],
+  );
 
   const sparkBySymbol = useMemo(() => {
     const map = new Map<string, number[]>();
-    loadedSymbols.forEach((symbol, index) => {
+    sparkSymbols.forEach((symbol, index) => {
       const points = histories[index]?.data;
       if (!points || points.length < 2) return;
       const spot = quotesBySymbol.get(symbol)?.priceUsd;
@@ -326,7 +342,7 @@ export function MarketScreen({
       map.set(symbol, downsample(series.map((point) => point.p)));
     });
     return map;
-  }, [loadedSymbols, histories, quotesBySymbol]);
+  }, [sparkSymbols, histories, quotesBySymbol]);
 
   const favoritesPending = filter === "favorites" && favorites === null;
   const rate = fx.data?.rate;
@@ -334,18 +350,12 @@ export function MarketScreen({
   const firstQuery = searchQueries[0];
   const firstPrices = priceQueries[0];
   const quotesFailed = items.length > 0 && quotesBySymbol.size === 0 && (firstPrices?.isError ?? false);
-  const failed = (firstQuery?.isError && items.length === 0) || quotesFailed;
-  const waiting =
-    !failed &&
-    (favoritesPending ||
-      (items.length === 0 && ((firstQuery?.isPending ?? true) || (firstPrices?.isPending ?? false))) ||
-      (items.length === 0 && currency === "CLP" && !fxKnown && fx.isPending));
+  const failed = (firstQuery?.isError ?? false) && items.length === 0;
+  const waiting = !failed && (favoritesPending || (items.length === 0 && (firstQuery?.isPending ?? true)));
   const pageFailed = !failed && items.length > 0 && searchQueries.some((query) => query.isError);
-  const loadingMore =
-    items.length > 0 &&
-    (searchQueries.some((query) => query.isFetching) || priceQueries.some((query) => query.isFetching));
+  const loadingMore = searchQueries.some((query) => !query.data && query.isFetching);
   const moverItems = waiting || failed ? [] : priceRows(moverSource, currency, rate);
-  const listItems = waiting || failed ? [] : priceRows(ordered, currency, rate);
+  const listRows = waiting || failed ? [] : ordered;
   const failure = searchQueries.find((query) => query.error)?.error ?? firstPrices?.error;
   const failureDetail = failure instanceof Error && failure.message.trim() ? failure.message : undefined;
   const lastWithData = [...searchQueries].reverse().find((query) => query.data);
@@ -501,7 +511,7 @@ export function MarketScreen({
           </div>
         </section>
       ) : null}
-      {!waiting && !failed && listItems.length > 0 ? (
+      {!waiting && !failed && listRows.length > 0 ? (
         <section className="flex min-w-0 flex-col gap-2">
           <h2 className="text-base font-medium text-fg">{t.market.list}</h2>
           {total > 0 ? (
@@ -510,23 +520,38 @@ export function MarketScreen({
             </p>
           ) : null}
           <PriceFreshness at={freshestAt} stale={anyStale} delayedOnly />
+          {quotesFailed ? (
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="text-sm text-fg-muted">{t.market.loadError}</p>
+              <Button variant="secondary" onClick={retry}>
+                {t.states.retry}
+              </Button>
+            </div>
+          ) : null}
           <ul>
-            {listItems.map(({ entry, price, currency: rowCurrency }) => (
-              <li key={entry.item.symbol}>
+            {listRows.map((entry) => {
+              const shownPrice = entry.quote
+                ? priceRows([{ item: entry.item, quote: entry.quote, index: entry.index }], currency, rate)[0]
+                : undefined;
+              return (
+                <li key={entry.item.symbol}>
                 <TickerRow
                   href={tickerHref(entry.item.symbol)}
                   symbol={entry.item.symbol}
                   name={entry.item.name}
                   logoUrl={entry.item.logoUrl}
-                  price={price}
-                  currency={rowCurrency}
-                  change={entry.quote.change24hPct}
+                  price={shownPrice?.price ?? 0}
+                  currency={shownPrice?.currency ?? "USD"}
+                  change={entry.quote?.change24hPct ?? 0}
                   sparkline={sparkBySymbol.get(entry.item.symbol)}
                   sparklineClassName="block"
                   lowLiquidityLabel={entry.item.lowLiquidity ? t.market.lowLiquidity : null}
                   reviewLabel={entry.item.underReview ? t.market.underReview : null}
                   reviewHint={entry.item.underReview ? t.market.underReviewHint : null}
                   statusDot={dotFor(entry.item)}
+                  priceSlot={
+                    shownPrice ? null : <span className="block h-8 w-16 shrink-0" aria-hidden />
+                  }
                   action={
                     <FavoriteButton
                       pressed={favoriteSet.has(entry.item.symbol)}
@@ -538,12 +563,13 @@ export function MarketScreen({
                     />
                   }
                 />
-              </li>
-            ))}
+                </li>
+              );
+            })}
           </ul>
           {total > 0 ? (
             <p className="text-sm text-fg-muted" aria-live="polite">
-              {t.market.showingOf.replace("{shown}", String(listItems.length)).replace("{total}", String(total))}
+              {t.market.showingOf.replace("{shown}", String(listRows.length)).replace("{total}", String(total))}
             </p>
           ) : null}
           {pageFailed ? (
@@ -570,7 +596,7 @@ export function MarketScreen({
           ) : null}
         </section>
       ) : null}
-      {!waiting && !failed && listItems.length === 0 ? (
+      {!waiting && !failed && listRows.length === 0 ? (
         <EmptyState
           title={emptyTitle}
           description={filter === "favorites" ? t.market.emptyFavoritesHint : t.market.emptyHint}

@@ -121,7 +121,10 @@ export const livePrices = {
       cache,
       prepareMultipliers: readMultipliers,
       // Ondo: Jupiter no manda priceChange24h. La variación es la del subyacente.
+      // La lista no espera el último gráfico: con 400 ms extra sale con lo ya
+      // guardado y el resto entra en el próximo refresco (caché de 60 s).
       underlyingChange: (underlyings) => fetchUnderlyingChanges(underlyings, { fetchImpl: fetch }),
+      underlyingBudgetMs: 400,
     });
   },
 

@@ -55,6 +55,8 @@ export function parseYahooDailyChange(body: unknown): number | null {
   return percent / 100;
 }
 
+const inflightChanges = new Map<string, Promise<number | null>>();
+
 async function fetchOne(
   underlying: string,
   options: UnderlyingMoveOptions,
@@ -63,6 +65,21 @@ async function fetchOne(
 ): Promise<number | null> {
   const hit = cache.get(underlying);
   if (hit && now - hit.at < hit.ttl) return hit.ratio;
+  const pending = inflightChanges.get(underlying);
+  if (pending) return pending;
+  const job = fetchUnderlyingOnce(underlying, options, cache, now).finally(() => {
+    inflightChanges.delete(underlying);
+  });
+  inflightChanges.set(underlying, job);
+  return job;
+}
+
+async function fetchUnderlyingOnce(
+  underlying: string,
+  options: UnderlyingMoveOptions,
+  cache: Map<string, MoveCacheEntry>,
+  now: number,
+): Promise<number | null> {
   const symbol = yahooSymbol(underlying);
   if (!/^[A-Z0-9-]{1,16}$/.test(symbol)) return null;
   const fetchImpl = options.fetchImpl ?? fetch;
@@ -82,6 +99,21 @@ async function fetchOne(
     cache.set(underlying, { at: now, ratio: null, ttl: MISS_TTL_MS });
     return null;
   }
+}
+
+/** Lo ya guardado, sin esperar a la red. Sirve si la lista no puede quedarse hasta el último gráfico. */
+export function cachedUnderlyingChanges(
+  underlyings: readonly string[],
+  now = Date.now(),
+  cache: Map<string, MoveCacheEntry> = sharedCache,
+): Map<string, number> {
+  const out = new Map<string, number>();
+  for (const underlying of underlyings) {
+    const hit = cache.get(underlying);
+    if (!hit || now - hit.at >= hit.ttl || hit.ratio === null) continue;
+    out.set(underlying, hit.ratio);
+  }
+  return out;
 }
 
 /** Una entrada por subyacente. La clave es el ticker que llegó (`AAL`), no el de Yahoo. */
