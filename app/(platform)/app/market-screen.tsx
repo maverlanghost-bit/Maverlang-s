@@ -3,6 +3,7 @@
 import { useEffect, useId, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useQueries } from "@tanstack/react-query";
+import { motion } from "framer-motion";
 
 import { FavoriteButton } from "@/components/domain/favorite-button";
 import { MarketStatusPill } from "@/components/domain/market-status-pill";
@@ -442,7 +443,12 @@ export function MarketScreen({
   const emptyTitle = `${t.market.emptyFor} «${t.market[filter]}»`;
 
   return (
-    <div className="flex min-w-0 flex-col gap-6">
+    <motion.div
+      className="flex min-w-0 flex-col gap-6"
+      initial={{ opacity: 0, scale: 0.98 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+    >
       <PageHeader title={t.pages.market.title} description={t.pages.market.lead} action={statusNode} />
       {currency === "CLP" && !fxKnown && !fx.isPending && !waiting && !failed ? (
         <p className="text-sm text-fg-muted">{t.detail.fxFallback}</p>
@@ -602,6 +608,6 @@ export function MarketScreen({
           description={filter === "favorites" ? t.market.emptyFavoritesHint : t.market.emptyHint}
         />
       ) : null}
-    </div>
+    </motion.div>
   );
 }
