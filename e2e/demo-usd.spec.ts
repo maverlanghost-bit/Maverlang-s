@@ -1,20 +1,19 @@
 import { expect, test, type Locator } from "@playwright/test";
 
 /**
- * M44: la demo mock parte con US$1.000 ficticios.
- * Registro → cartera en US$1.000 (o su equivalente en CLP con el dólar
- * mock de 950) → comprar US$100 → reiniciar → vuelve a US$1.000.
+ * La demo mock parte con US$10.000 ficticios.
+ * Registro → cartera (o su equivalente en CLP con el dólar mock de 950) →
+ * comprar US$100 → reiniciar → vuelve al inicial.
  * El estado en memoria lo comparten las pruebas, así que se reinicia
  * primero para partir de un estado conocido.
  *
- * Los montos se dibujan con NumberFlow (cada dígito en columnas con 0–9),
- * así que el textContent no sirve: se lee el árbol accesible
- * (`ariaSnapshot`), que sí dice `$ 9 5 0 . 0 0 0`.
+ * Los montos se leen del árbol accesible (`ariaSnapshot`) para ser robusto
+ * al formateo es-CL.
  */
 async function monto(locator: Locator) {
   return (await locator.ariaSnapshot()).replace(/[\s"]/g, "");
 }
-test("demo mock: US$1.000, compra US$100 y reinicio", async ({ page }) => {
+test("demo mock: US$10.000, compra US$100 y reinicio", async ({ page }) => {
   await page.goto("/app/registro");
   await expect(page.getByRole("heading", { name: "Crea tu cuenta demo" })).toBeVisible();
 
@@ -34,7 +33,7 @@ test("demo mock: US$1.000, compra US$100 y reinicio", async ({ page }) => {
   await page.getByRole("button", { name: "Reiniciar cuenta demo" }).click();
   await page.getByRole("button", { name: "Reiniciar", exact: true }).click();
   await expect(page.locator('a[href="/app/accion/AAPLx"]')).toHaveCount(0);
-  await expect.poll(() => monto(disponible)).toContain("$950.000");
+  await expect.poll(() => monto(disponible)).toContain("$9.500.000");
 
   await page.goto("/app/accion/AAPLx");
   await page.getByRole("button", { name: "Comprar", exact: true }).click();
@@ -48,12 +47,12 @@ test("demo mock: US$1.000, compra US$100 y reinicio", async ({ page }) => {
   await sheet.getByRole("link", { name: "Ver en cartera" }).click();
 
   await expect(page).toHaveURL(/\/app\/cartera/);
-  await expect.poll(() => monto(disponible)).toContain("$855.000");
+  await expect.poll(() => monto(disponible)).toContain("$9.405.000");
   await expect(page.locator('a[href="/app/accion/AAPLx"]')).toBeVisible();
 
   await page.getByRole("button", { name: "Reiniciar cuenta demo" }).click();
   await page.getByRole("button", { name: "Reiniciar", exact: true }).click();
   await expect(page.locator('a[href="/app/accion/AAPLx"]')).toHaveCount(0);
-  await expect.poll(() => monto(disponible)).not.toContain("$855.000");
-  await expect.poll(() => monto(disponible)).toContain("$950.000");
+  await expect.poll(() => monto(disponible)).not.toContain("$9.405.000");
+  await expect.poll(() => monto(disponible)).toContain("$9.500.000");
 });

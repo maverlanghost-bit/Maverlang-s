@@ -6,8 +6,8 @@
  * `DomainError` en `lib/services/demo.supabase.ts`.
  */
 
-/** Saldo inicial de la demo: US$1.000 ficticios (M44). */
-export const DEMO_INITIAL_USD = 1000;
+/** Saldo inicial de la demo: US$10.000 ficticios. */
+export const DEMO_INITIAL_USD = 10_000;
 
 export type DemoSide = "buy" | "sell";
 

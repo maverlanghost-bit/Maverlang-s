@@ -91,7 +91,7 @@ export function Hero({ quotes, live }: { quotes: LandingQuote[]; live: boolean }
             </Button>
           </div>
           <p className="mt-3 text-xs leading-relaxed text-fg-muted">
-            Practica con US$1.000 ficticios y precios reales.
+            Practica con US$10.000 ficticios y precios reales.
           </p>
           <ul className="mx-auto mt-6 flex max-w-2xl flex-wrap items-center justify-center gap-2">
             {trustChips.map((chip) => (

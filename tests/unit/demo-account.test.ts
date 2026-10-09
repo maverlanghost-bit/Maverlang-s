@@ -37,8 +37,8 @@ describe("serializeAccountCookie", () => {
 });
 
 describe("lógica demo en USD (refleja demo_trade de 0007)", () => {
-  it("la demo parte con US$1.000 ficticios", () => {
-    expect(DEMO_INITIAL_USD).toBe(1000);
+  it("la demo parte con US$10.000 ficticios", () => {
+    expect(DEMO_INITIAL_USD).toBe(10_000);
   });
 
   it("costo promedio ponderado en USD (CLP sólo informativo)", () => {
@@ -119,10 +119,10 @@ type FakeState = {
 function fakeDeps(state: FakeState, overrides?: Partial<DemoDeps>): DemoDeps {
   return {
     async loadAccount() {
-      return { cashUsd: state.cash, initialUsd: 1000, resetCount: 0 };
+      return { cashUsd: state.cash, initialUsd: 10_000, resetCount: 0 };
     },
     async createAccount() {
-      return { cashUsd: state.cash, initialUsd: 1000, resetCount: 0 };
+      return { cashUsd: state.cash, initialUsd: 10_000, resetCount: 0 };
     },
     async listPositions() {
       return [...state.positions.entries()].map(([symbol, lot]) => ({
@@ -178,7 +178,7 @@ function fakeDeps(state: FakeState, overrides?: Partial<DemoDeps>): DemoDeps {
       return { cashUsd: state.cash, totalUsd: total, priceUsd: input.priceUsd };
     },
     async runReset() {
-      state.cash = 1000;
+      state.cash = 10_000;
       state.positions.clear();
       state.orders.length = 0;
       return { cashUsd: state.cash, resetCount: 1 };
@@ -194,7 +194,7 @@ function fakeDeps(state: FakeState, overrides?: Partial<DemoDeps>): DemoDeps {
 }
 
 function freshState(): FakeState {
-  return { cash: 1000, positions: new Map(), orders: [], seq: 0 };
+  return { cash: 10_000, positions: new Map(), orders: [], seq: 0 };
 }
 
 const USER = "11111111-1111-4111-8111-111111111111";
@@ -215,18 +215,18 @@ async function buyAndSubmit(
 }
 
 describe("servicio demo por usuario en USD", () => {
-  it("cuenta nueva = 1000 USD", async () => {
+  it("cuenta nueva = 10000 USD", async () => {
     const service = createDemoUserService(fakeDeps(freshState()));
     const account = await service.getAccount(USER);
-    expect(account.cashUsd).toBe(1000);
-    expect(account.initialUsd).toBe(1000);
+    expect(account.cashUsd).toBe(10_000);
+    expect(account.initialUsd).toBe(10_000);
     const portfolio = await service.getPortfolio(USER);
-    expect(portfolio.cashUsdc).toBe(1000);
-    expect(portfolio.totalUsd).toBe(1000);
+    expect(portfolio.cashUsdc).toBe(10_000);
+    expect(portfolio.totalUsd).toBe(10_000);
     expect(portfolio.pnlUsd).toBe(0);
   });
 
-  it("comprar US$100 deja 900", async () => {
+  it("comprar US$100 deja 9900", async () => {
     const service = createDemoUserService(fakeDeps(freshState()));
     const quote = await buyAndSubmit(service, { side: "buy", symbol: "AAPLx", amount: 100, amountCurrency: "USDC" });
     expect(quote.outAmountUi).toBeCloseTo(1, 6);
@@ -236,10 +236,10 @@ describe("servicio demo por usuario en USD", () => {
     expect(portfolio.positions[0]?.shares).toBeCloseTo(1, 6);
     expect(portfolio.positions[0]?.avgCostUsd).toBeCloseTo(100, 6);
     const account = await service.getAccount(USER);
-    expect(account.cashUsd).toBe(900);
+    expect(account.cashUsd).toBe(9_900);
   });
 
-  it("comprar 0,5 acciones a US$200 deja 900", async () => {
+  it("comprar 0,5 acciones a US$200 deja 9900", async () => {
     const service = createDemoUserService(
       fakeDeps(freshState(), {
         async getSpot() {
@@ -249,7 +249,7 @@ describe("servicio demo por usuario en USD", () => {
     );
     await buyAndSubmit(service, { side: "buy", symbol: "AAPLx", amount: 0.5, amountCurrency: "SHARES" });
     const account = await service.getAccount(USER);
-    expect(account.cashUsd).toBe(900);
+    expect(account.cashUsd).toBe(9_900);
   });
 
   it("vender devuelve según el precio", async () => {
@@ -265,7 +265,7 @@ describe("servicio demo por usuario en USD", () => {
     price = 120;
     await buyAndSubmit(service, { side: "sell", symbol: "AAPLx", amount: 1, amountCurrency: "SHARES" });
     const account = await service.getAccount(USER);
-    expect(account.cashUsd).toBeCloseTo(1020, 2);
+    expect(account.cashUsd).toBeCloseTo(10_020, 2);
   });
 
   it("compra sin saldo -> INSUFFICIENT_FUNDS", async () => {
@@ -294,9 +294,9 @@ describe("servicio demo por usuario en USD", () => {
     );
     await buyAndSubmit(service, { side: "buy", symbol: "AAPLx", amount: 100, amountCurrency: "USDC" });
     const account = await service.getAccount(USER);
-    expect(account.cashUsd).toBe(900);
+    expect(account.cashUsd).toBe(9_900);
     const portfolio = await service.getPortfolio(USER);
-    expect(portfolio.totalUsd).toBe(1000);
+    expect(portfolio.totalUsd).toBe(10_000);
   });
 
   it("monto en CLP por API sin dólar -> 400 con mensaje claro", async () => {
@@ -325,19 +325,19 @@ describe("servicio demo por usuario en USD", () => {
     });
     expect(quote.outAmountUi).toBeCloseTo(1, 6);
     const account = await service.getAccount(USER);
-    expect(account.cashUsd).toBe(900);
+    expect(account.cashUsd).toBe(9_900);
   });
 
-  it("reset vuelve a US$1.000 y 0 posiciones", async () => {
+  it("reset vuelve a US$10.000 y 0 posiciones", async () => {
     const state = freshState();
     const service = createDemoUserService(fakeDeps(state));
     await buyAndSubmit(service, { side: "buy", symbol: "AAPLx", amount: 100, amountCurrency: "USDC" });
     expect((await service.getPortfolio(USER)).positions).toHaveLength(1);
     const result = await service.reset(USER);
-    expect(result.cashUsd).toBe(1000);
+    expect(result.cashUsd).toBe(10_000);
     const portfolio = await service.getPortfolio(USER);
     expect(portfolio.positions).toHaveLength(0);
-    expect(portfolio.totalUsd).toBe(1000);
+    expect(portfolio.totalUsd).toBe(10_000);
     const activity = await service.getActivity(USER);
     expect(activity).toHaveLength(0);
   });

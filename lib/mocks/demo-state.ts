@@ -108,8 +108,8 @@ function consent(doc: LegalDoc, version: string): Consent {
 function createState(): DemoState {
   return {
     seq: 0,
-    // M44: la demo parte con US$1.000 ficticios, sin posiciones.
-    cashUsdc: 1000,
+    // La demo parte con US$10.000 ficticios, sin posiciones.
+    cashUsdc: 10_000,
     solUi: MOCK_SOL_UI,
     positions: new Map(),
     activities: [],
