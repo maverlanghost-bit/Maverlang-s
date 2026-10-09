@@ -79,20 +79,17 @@ export function Sidebar({
         collapsed ? "w-[72px] cursor-e-resize" : "w-[220px] cursor-w-resize",
       )}
     >
-      {/* Marca: el mismo archivo que el favicon, sin el nombre en texto. */}
-      <div className={cn("flex items-center px-2 py-3", collapsed && "justify-center")}>
+      {/* Marca: el mismo archivo que el favicon. Mismo slot fijo que los íconos. */}
+      <div className="flex items-center px-2 py-3">
         <Link
           href="/app"
           aria-label={site.name}
           title={site.name}
           className="flex min-h-11 cursor-pointer items-center rounded-xl"
         >
-          <BrandFavicon
-            className={cn(
-              "transition-[width] duration-200 ease-spring",
-              collapsed ? "w-6" : "w-10",
-            )}
-          />
+          <span className="flex size-11 shrink-0 items-center justify-center">
+            <BrandFavicon className="w-10" />
+          </span>
         </Link>
       </div>
       <nav aria-label={t.nav.label} className="flex-1 px-2">

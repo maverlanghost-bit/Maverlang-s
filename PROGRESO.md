@@ -1,5 +1,10 @@
 # PROGRESO — Maverlang
 
+## Barra — logo fijo (2026-10-08)
+- Hecho: el símbolo del favicon ya no cambia de tamaño ni se centra al colapsar. Queda en el mismo recuadro de 44px que los íconos (40×13px siempre).
+- Archivo: `components/app-shell/sidebar.tsx`.
+- Verificación: en `next dev` mock (3210) el centro del logo queda en x=30 abierto, cerrado y al reabrir; el ícono de Mercado también. En 390px la barra sigue oculta.
+
 ## Logos en la cartera (2026-10-08)
 - Causa: la cartera y la billetera pedían el logo a `/api/tickers`, que sólo trae las xStocks. Una Ondo no está en esa lista, así que la fila quedaba en monograma.
 - Hecho: si esa lista no trae logo, la fila usa el archivo local del símbolo (`AALon` → `/logos/aal.png`). Si el archivo no existe, sigue el monograma. Apple y el resto de xStocks no cambian.
