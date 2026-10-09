@@ -245,7 +245,7 @@ function realDeps(): DemoDeps {
       const admin = createSupabaseAdminClient();
       const { data, error } = await admin
         .from("demo_accounts")
-        .insert({ user_id: userId })
+        .insert({ user_id: userId, cash_usd: DEMO_INITIAL_USD, initial_usd: DEMO_INITIAL_USD })
         .select("cash_usd,initial_usd,reset_count")
         .single();
       if (error || !data) {
