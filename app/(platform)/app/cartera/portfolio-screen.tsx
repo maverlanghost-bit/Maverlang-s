@@ -28,6 +28,7 @@ import { DEMO_INITIAL_USD } from "@/lib/services/demo.logic";
 import { useActivity, useAssetStatus, useFx, useHistories, usePortfolio, useTickers } from "@/lib/hooks/queries";
 import { priceFlashDirection, type PriceFlash } from "@/lib/hooks/use-price-flash";
 import { useT } from "@/lib/hooks/use-t";
+import { logoPathFromSymbol } from "@/lib/catalog/logos";
 import { displayPrice } from "@/lib/market/browse";
 import { DETAIL_RANGES, anchorSeriesToSpot, isDetailRange, rangeMove, toneOf } from "@/lib/market/series";
 import { balancedPortions, decodePoints, encodePoints, portfolioValueSeries, sumUsd, sumsMatch, tradeActivity } from "@/lib/portfolio/series";
@@ -386,7 +387,7 @@ export function PortfolioScreen() {
                         href={tickerHref(position.symbol)}
                         symbol={position.symbol}
                         name={ticker?.name ?? position.symbol}
-                        logoUrl={ticker?.logo}
+                        logoUrl={ticker?.logo || logoPathFromSymbol(position.symbol)}
                         shares={position.shares}
                         shareHint={t.portfolio.shareHint}
                         value={value.amount}

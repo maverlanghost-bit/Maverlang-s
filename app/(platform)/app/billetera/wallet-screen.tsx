@@ -16,6 +16,7 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useSession } from "@/lib/auth";
+import { logoPathFromSymbol } from "@/lib/catalog/logos";
 import { formatDateTime, formatMoney, type MoneyCurrency } from "@/lib/format";
 import { useAccountMode } from "@/lib/hooks/use-account-mode";
 import { useHideBalance } from "@/lib/hooks/use-hide-balance";
@@ -314,7 +315,7 @@ function AssetLine({
       href={href}
       symbol={row.symbol}
       name={name}
-      logoUrl={ticker?.logo}
+      logoUrl={ticker?.logo || logoPathFromSymbol(row.symbol)}
       amount={formatAssetAmount(row.symbol, row.uiAmount)}
       value={value.amount}
       currency={value.currency}

@@ -1,5 +1,11 @@
 # PROGRESO — Maverlang
 
+## Logos en la cartera (2026-10-08)
+- Causa: la cartera y la billetera pedían el logo a `/api/tickers`, que sólo trae las xStocks. Una Ondo no está en esa lista, así que la fila quedaba en monograma.
+- Hecho: si esa lista no trae logo, la fila usa el archivo local del símbolo (`AALon` → `/logos/aal.png`). Si el archivo no existe, sigue el monograma. Apple y el resto de xStocks no cambian.
+- Archivos: `lib/catalog/logos.ts`, `portfolio-screen.tsx`, `wallet-screen.tsx`.
+- Verificación: test del camino del logo. En `next dev` (3210, sesión mock) la cartera en 1280px y 390px muestra el logo de AALon (48px) y el de Apple. Sin errores de página.
+
 ## Precios y logos de Ondo (2026-10-08)
 - Causa: Jupiter no manda `priceChange24h` en las Ondo, porque casi no operan. El precio del token se quedaba quieto y la variación salía 0 %. `logo_path` es null, así que se veía el monograma.
 - Hecho: si falta esa variación, el titular usa el precio del subyacente que Jupiter sí actualiza, y la variación es la del día de esa acción. Las xStocks siguen con el precio del pozo. Se descargaron los logos de Ondo una vez a `public/logos` (396 nuevos, 48 ya estaban y no se pisaron). Sin archivo, queda el monograma.
