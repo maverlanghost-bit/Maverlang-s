@@ -67,7 +67,11 @@ describe("fetchJupiterOrder", () => {
   };
 
   it("devuelve el cuerpo en un 200", async () => {
-    const fetchImpl = vi.fn(async (_url: string) => jsonResponse(okOrder()));
+    let seenUrl = "";
+    const fetchImpl = vi.fn(async (url: string) => {
+      seenUrl = url;
+      return jsonResponse(okOrder());
+    });
     const body = await fetchJupiterOrder({
       url: URL_ORDER,
       fetchImpl: fetchImpl as unknown as typeof fetch,
@@ -75,9 +79,8 @@ describe("fetchJupiterOrder", () => {
     });
     expect(body).toEqual(okOrder());
     // La key viaja por header, nunca en la URL.
-    const calledUrl = fetchImpl.mock.calls[0]?.[0];
-    expect(calledUrl).toBe(URL_ORDER);
-    expect(String(calledUrl)).not.toContain("mi-key");
+    expect(seenUrl).toBe(URL_ORDER);
+    expect(seenUrl).not.toContain("mi-key");
   });
 
   it("reintenta en 429 y acierta en el segundo intento", async () => {

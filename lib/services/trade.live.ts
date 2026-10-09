@@ -15,11 +15,9 @@ import { jupiterSwapUrl, jupiterOrderParams, parseJupiterOrder } from "@/lib/mar
 import { NETWORK_FEE_SOL, TOKEN_ACCOUNT_RENT_SOL } from "@/lib/wallet/send-cost";
 import type {
   Order,
-  TradeBuildRequest,
   TradeBuildResponse,
   TradeQuote,
   TradeQuoteRequest,
-  TradeSubmitRequest,
   TradeSubmitResponse,
 } from "@/lib/types";
 
@@ -183,7 +181,7 @@ export const liveTrade = {
    * Errores: cotización vencida → QUOTE_EXPIRED. El mismo guardia de precio que en quote. Red → UPSTREAM.
    * Cache: no. Una cotización, una transacción.
    */
-  async build(_request: TradeBuildRequest): Promise<TradeBuildResponse> {
+  async build(): Promise<TradeBuildResponse> {
     throw new Error("NOT_IMPLEMENTED: armado de transacción live (llega con la firma on-chain)");
   },
 
@@ -199,7 +197,7 @@ export const liveTrade = {
    *   Red → UPSTREAM. No acreditar la orden dos veces si el mismo requestId ya está `submitted`.
    * Cache: no.
    */
-  async submit(_request: TradeSubmitRequest, _userId: string): Promise<TradeSubmitResponse> {
+  async submit(): Promise<TradeSubmitResponse> {
     throw new Error("NOT_IMPLEMENTED: envío live (llega con la firma on-chain)");
   },
 
@@ -211,7 +209,7 @@ export const liveTrade = {
    * Errores: id ajeno o inexistente → NOT_FOUND. RPC caído al confirmar → UPSTREAM y no pisar un `confirmed`.
    * Cache: no. El cliente hace polling.
    */
-  async status(_id: string): Promise<Order> {
+  async status(): Promise<Order> {
     throw new Error("NOT_IMPLEMENTED: estado live (llega con las órdenes en Supabase)");
   },
 };
