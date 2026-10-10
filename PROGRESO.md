@@ -1,5 +1,12 @@
 # PROGRESO — Maverlang
 
+## Estados vacíos y guía del registro demo (2026-10-10)
+- Hecho: sólo copy y UI, sin tocar lógica de registro, trading ni rutas API. (1) Cartera vacía: `EmptyState` con "Todavía no tienes inversiones" + guía demo US$10.000 y botón "Explorar el mercado" a `/app`. (2) Registro demo: guía bajo el título (US$10.000 ficticios, crear cuenta → explorar → primera compra) y errores claros de correo usado y clave débil (guía 12+ con letras y números). (3) Historial, activos y actividad con guía accionable en vez de texto muerto.
+- Archivos: `content/i18n/{es-CL,en}.ts`, `cartera/portfolio-screen.tsx`, `registro/wizard.tsx`, `lib/auth/{registro-errors,registro-schema}.ts`.
+- Verificación: paridad es/en comprobada por grep (`emptyBody` en ambos, `MARKET_HREF="/app"`). Digo con todas sus letras: `npx tsc`, `lint` y `vitest` NO corridos (`node_modules` incompleto en esta sesión).
+- Pendiente operador: `npx tsc --noEmit`, `npm run lint`, `npm test`, y revisar en `next dev` la cartera vacía y el registro demo en 1280px y 390px.
+- Próximos pasos: nada más de esta tarea.
+
 ## Mercado — primeras filas con precio antes (2026-10-10)
 - Hecho: sólo orden de carga, caché y UI de carga; sin tocar trading, Jupiter ni formato. (1) `fetchMintBatch` pide los lotes de 50 en paralelo (antes secuenciales): el primer lote no espera al resto; mismo reintento, TTL 5 s y `stale`. (2) Precios del mercado: sin refetch al enfocar la pestaña ni en segundo plano (el intervalo de 15 s los mantiene), y `placeholderData` conserva los últimos precios mientras revalida (sin parpadeo al placeholder). `staleTime` 15 s intacto. (3) `ResultsSkeleton` estático sin pulso (misma caja, pintado inicial más barato) y placeholder por fila con fondo (mismo tamaño, sin saltos).
 - Archivos: `lib/market/price-batcher.ts`, `app/(platform)/app/market-screen.tsx`.
