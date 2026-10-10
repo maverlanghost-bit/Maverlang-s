@@ -3,8 +3,8 @@ import { US_RESIDENT_MESSAGE } from "@/lib/auth/registro-schema";
 export type RegistroErrorCode = "already" | "weak" | "rate" | "network" | "blocked" | "unknown";
 
 export function registroErrorMessage(code: RegistroErrorCode): string {
-  if (code === "already") return "Ese correo ya tiene una cuenta. Ingresa o usa otro correo.";
-  if (code === "weak") return "La contraseña es muy débil. Usa al menos 8 caracteres.";
+  if (code === "already") return "Ese correo ya tiene una cuenta. Ingresa con ese correo o usa otro.";
+  if (code === "weak") return "Esa contraseña es muy débil. Usa al menos 8 caracteres; te recomendamos 12 o más con letras y números.";
   if (code === "rate") return "Llegamos al límite de correos. Espera un rato e inténtalo de nuevo.";
   if (code === "network") return "No pudimos conectar. Revisa tu red e inténtalo de nuevo.";
   if (code === "blocked") return US_RESIDENT_MESSAGE;

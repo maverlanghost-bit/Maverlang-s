@@ -286,7 +286,7 @@ export function registroSchemaAt(today: Date, account: boolean) {
         ? z.string().trim().regex(EMAIL, "Ingresa un correo válido.")
         : z.string(),
       password: account
-        ? z.string().min(8, "La contraseña debe tener al menos 8 caracteres.")
+        ? z.string().min(8, "Usa al menos 8 caracteres; te recomendamos 12 o más con letras y números.")
         : z.string(),
       passwordConfirm: z.string(),
       nombre: z.string().trim().min(1, "Ingresa tu nombre completo.").max(80, "El nombre es muy largo."),
@@ -324,7 +324,7 @@ export function registroDemoSchema() {
   return z
     .object({
       email: z.string().trim().regex(EMAIL, "Ingresa un correo válido."),
-      password: z.string().min(8, "La contraseña debe tener al menos 8 caracteres."),
+      password: z.string().min(8, "Usa al menos 8 caracteres; te recomendamos 12 o más con letras y números."),
       passwordConfirm: z.string(),
       aceptaLegal: z.boolean(),
     })
