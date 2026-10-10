@@ -25,6 +25,7 @@ import { livePrices } from "@/lib/services/prices.live";
 import { isValidSolanaAddress } from "@/lib/solana/address";
 import { DomainError } from "@/lib/api/result";
 import { listOrdersForActivity } from "@/lib/services/orders.supabase";
+import { insertCryptoDeposit, listDepositSignatures } from "@/lib/services/deposits.supabase";
 
 const USDC_DECIMALS = 6;
 const STOCK_DECIMALS = 8;
@@ -255,5 +256,66 @@ export const livePortfolio = {
       transactionBase64: Buffer.from(transaction.serialize()).toString("base64"),
       expiresAt: new Date(Date.now() + 60_000).toISOString(),
     };
+  },
+
+  /**
+   * Detecta depósitos de cripto (USDC u otro mint conocido) que entraron a la
+   * billetera y los registra en `crypto_deposits`. Compara los balances de
+   * token antes/después de cada firma reciente: si el ATA del usuario subió,
+   * es un depósito. Idempotente por firma (no cuenta dos veces).
+   * Devuelve los depósitos nuevos encontrados en esta pasada.
+   */
+  async detectDeposits(input: { address: string; userId: string }): Promise<{ mint: string; amountUi: number; signature: string }[]> {
+    if (!isValidSolanaAddress(input.address)) {
+      throw new DomainError("VALIDATION", "La direccion de la billetera no es valida.");
+    }
+    const connection = getServerConnection();
+    const owner = new PublicKey(input.address);
+    const alreadySeen = await listDepositSignatures(input.userId);
+
+    // Firmas recientes de la billetera (lote acotado para no barrer historia).
+    const signatures = await connection.getSignaturesForAddress(owner, { limit: 25 });
+    const fresh = signatures.filter((sig) => !alreadySeen.has(sig.signature));
+    if (fresh.length === 0) return [];
+
+    const parsed = await connection.getParsedTransactions(
+      fresh.map((sig) => sig.signature),
+      { maxSupportedTransactionVersion: 0 },
+    );
+
+    const found: { mint: string; amountUi: number; signature: string; from: string | null }[] = [];
+    for (const tx of parsed) {
+      if (!tx || !tx.meta || tx.meta.err) continue;
+      const pre = tx.meta.preTokenBalances ?? [];
+      const post = tx.meta.postTokenBalances ?? [];
+      for (const after of post) {
+        if (after.owner !== input.address) continue;
+        const before = pre.find((b) => b.accountIndex === after.accountIndex && b.mint === after.mint);
+        const delta = (after.uiTokenAmount.uiAmount ?? 0) - (before?.uiTokenAmount.uiAmount ?? 0);
+        if (delta <= 0) continue;
+        const kind = classifyMint(after.mint);
+        if (kind !== "usdc" && kind !== "stock") continue;
+        found.push({
+          mint: after.mint,
+          amountUi: delta,
+          signature: tx.transaction.signatures[0] ?? "",
+          from: null,
+        });
+      }
+    }
+
+    const registrados: { mint: string; amountUi: number; signature: string }[] = [];
+    for (const dep of found) {
+      if (!dep.signature) continue;
+      const ok = await insertCryptoDeposit({
+        userId: input.userId,
+        mint: dep.mint,
+        amountUi: dep.amountUi,
+        signature: dep.signature,
+        fromAddress: dep.from,
+      });
+      if (ok) registrados.push({ mint: dep.mint, amountUi: dep.amountUi, signature: dep.signature });
+    }
+    return registrados;
   },
 };

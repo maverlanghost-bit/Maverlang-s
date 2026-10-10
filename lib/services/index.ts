@@ -64,6 +64,8 @@ export interface Services {
     balances(address: string): Promise<Balance[]>;
     activity(input: { address: string; userId: string }): Promise<Activity[]>;
     sendBuild(request: SendBuildRequest): Promise<TradeBuildResponse>;
+    /** Detecta y registra depósitos de cripto on-chain (sólo live). */
+    detectDeposits?(input: { address: string; userId: string }): Promise<{ mint: string; amountUi: number; signature: string }[]>;
   };
   onramp: {
     createSession(request: OnrampSessionRequest, userId: string): Promise<OnrampSession>;
