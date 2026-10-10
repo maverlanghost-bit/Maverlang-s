@@ -121,7 +121,7 @@ export function PricePanel({
     );
   } else {
     priceNode = (
-      <div className="flex flex-col gap-2">
+      <div className="flex min-w-0 max-w-full flex-col gap-2">
         <FlashPrice value={shown} currency={priceCurrency} size="lg" live={point === null} force={hoverForce} />
         <PriceFreshness at={priceUpdatedAt ?? quote.updatedAt} stale={priceStale || quote.stale === true} delayedOnly />
         {point === null && quote.reference ? (
@@ -138,7 +138,7 @@ export function PricePanel({
   }
 
   return (
-    <section className="flex flex-col gap-4" data-range={range} data-points={points.length}>
+    <section className="flex min-w-0 max-w-full flex-col gap-4" data-range={range} data-points={points.length}>
       {priceNode}
 
       <div className="flex h-7 min-w-0 items-center gap-2 overflow-hidden">
@@ -170,7 +170,7 @@ export function PricePanel({
         }}
       />
 
-      <div className="relative">
+      <div className="relative min-w-0 max-w-full">
         {illustrative ? (
           <div className="absolute top-2 right-2 z-20">
             <Tooltip content={t.detail.chartIllustrativeNote}>
