@@ -133,7 +133,7 @@ export function SupabaseLogin({
         <p className="mt-3 text-sm">
           <Link
             href="/app/recuperar"
-            className="font-medium text-fg underline decoration-border underline-offset-4 hover:decoration-fg"
+            className="inline-flex min-h-11 items-center rounded-sm px-1 font-medium text-fg underline decoration-border underline-offset-4 outline-none hover:decoration-fg focus-visible:ring-4 focus-visible:ring-fg/20"
           >
             Olvidé mi contraseña
           </Link>
@@ -154,7 +154,7 @@ export function SupabaseLogin({
         Próximamente
       </Button>
       {alert ? (
-        <p className={`mt-4 text-center text-sm ${alertIsError ? "text-down" : "text-fg-body"}`} role={alertIsError ? "alert" : "status"}>
+        <p className={`mt-4 text-center text-sm break-words leading-relaxed ${alertIsError ? "text-down" : "text-fg-body"}`} role={alertIsError ? "alert" : "status"}>
           {alert}
         </p>
       ) : null}
@@ -164,7 +164,7 @@ export function SupabaseLogin({
         </Button>
       ) : null}
       <p className="mt-6 text-center text-sm leading-relaxed text-fg-muted">
-        <Link href={createHref} className="font-medium text-fg underline decoration-border underline-offset-4 hover:decoration-fg">
+        <Link href={createHref} className="inline-flex min-h-11 items-center justify-center rounded-sm px-2 font-medium text-fg underline decoration-border underline-offset-4 outline-none hover:decoration-fg focus-visible:ring-4 focus-visible:ring-fg/20">
           Crear cuenta
         </Link>
       </p>
