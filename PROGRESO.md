@@ -1,5 +1,10 @@
 # PROGRESO — Maverlang
 
+## Revisión login y recuperar contraseña (2026-10-10)
+- Hecho: sólo clases CSS + aclaración del mensaje de envío, sin tocar lógica de auth, `lib/auth`, APIs ni flujo Supabase. (1) Login: "Ingresar" ya era protagonista (`size="lg"`); "Olvidé mi contraseña" y "Crear cuenta" a `min-h-11` con `focus-visible:ring-4`; alerta con `break-words`. (2) Recuperar: estado enviado dice "Te enviamos un correo con un enlace" + guía anti-enumeración; error y "Volver a ingresar" igual patrón. (3) Restablecer: error sin cortes + "Pedir otro enlace" a 44px. (4) `AuthFrame` compartido: logo y links legales con foco visible (patrón de `registro/wizard.tsx`).
+- Archivos: `app/(platform)/app/ingresar/supabase-login.tsx`, `app/(platform)/app/{recuperar/recuperar-form,restablecer/restablecer-form}.tsx`, `components/auth/auth-frame.tsx`. 3 commits atómicos en rama `b/login-recuperar`.
+- Verificación: digo con todas sus letras: `npx tsc` NO corrido (`typescript` no instalado); sin revisión visual en `next dev`. Diff sólo clases + copy (13+/13-), revisado a mano; sin variables ni props nuevas.
+- Pendiente operador: ver `/app/ingresar`, `/app/recuperar`, `/app/restablecer` en 390px (toques 44px, focos, sin cortes) y 1280px.
 ## Revisión estructura páginas legales (2026-10-10)
 - Hecho: sólo estructura/links/CSS, sin tocar cláusulas. (1) Nuevo `LegalNav` al pie de cada `/legal/[doc]` con links a los otros 3 docs (touch min-h-11, focus-visible). (2) `LegalBody`: `break-words` + `text-pretty` anti-cortes en móvil; tablas ya tenían `overflow-x-auto`.
 - Archivos: `app/(marketing)/legal/[doc]/page.tsx`, `components/landing/legal-document.tsx`. Commit atómico en rama `b/legal-docs`.

@@ -99,14 +99,14 @@ export function RestablecerForm() {
       </form>
       {formError ? (
         <div className="mt-4">
-          <p className="text-center text-sm text-down" role="alert">
+          <p className="text-center text-sm break-words leading-relaxed text-down" role="alert">
             {formError}
           </p>
           {formError === loginErrorMessage("expired") ? (
             <p className="mt-3 text-center text-sm">
               <Link
                 href="/app/recuperar"
-                className="font-medium text-fg underline decoration-border underline-offset-4 hover:decoration-fg"
+                className="inline-flex min-h-11 items-center justify-center rounded-sm px-2 font-medium text-fg underline decoration-border underline-offset-4 outline-none hover:decoration-fg focus-visible:ring-4 focus-visible:ring-fg/20"
               >
                 Pedir otro enlace
               </Link>
