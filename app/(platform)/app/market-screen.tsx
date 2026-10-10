@@ -3,7 +3,7 @@
 import { useEffect, useId, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useQueries } from "@tanstack/react-query";
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 
 import { FavoriteButton } from "@/components/domain/favorite-button";
 import { MarketStatusPill } from "@/components/domain/market-status-pill";
@@ -156,7 +156,7 @@ function ChipGroup<T extends string>({
             tabIndex={selected ? 0 : -1}
             onClick={() => onChange(option.value)}
             className={cn(
-              "h-11 shrink-0 rounded-full px-3 text-sm transition duration-[140ms] ease-spring active:scale-[0.98]",
+              "h-11 shrink-0 rounded-full px-3 text-sm outline-none transition duration-[140ms] ease-spring focus-visible:ring-4 focus-visible:ring-fg/20 active:scale-[0.98]",
               selected ? "bg-surface-3 text-fg" : "bg-surface-2 text-fg-muted hover:text-fg",
             )}
           >
@@ -441,13 +441,14 @@ export function MarketScreen({
   }
 
   const emptyTitle = `${t.market.emptyFor} «${t.market[filter]}»`;
+  const reduceMotion = useReducedMotion();
 
   return (
     <motion.div
       className="flex min-w-0 flex-col gap-6"
-      initial={{ opacity: 0, scale: 0.98 }}
+      initial={reduceMotion ? false : { opacity: 0, scale: 0.98 }}
       animate={{ opacity: 1, scale: 1 }}
-      transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+      transition={reduceMotion ? { duration: 0 } : { duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
     >
       <PageHeader title={t.pages.market.title} description={t.pages.market.lead} action={statusNode} />
       {currency === "CLP" && !fxKnown && !fx.isPending && !waiting && !failed ? (

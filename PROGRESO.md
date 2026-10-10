@@ -1,5 +1,12 @@
 # PROGRESO — Maverlang
 
+## Accesibilidad y pulido mobile del flujo demo (2026-10-10)
+- Hecho: sólo a11y + CSS mobile, sin tocar lógica de negocio ni trading. (1) Botones sólo-ícono ya tenían `aria-label`; se subió a 44px el buscar móvil y el avatar del top-bar (`size-10` → `size-11`). (2) Anillo `focus-visible:ring-4 ring-fg/20` donde faltaba: bottom-tabs, top-bar, stock-search (botón, cierre, reintento, opciones), sidebar, public-header, tabs, amount-input (campo + chips), input, links de registro/trade-sheet/detalle. (3) Toque ≥44px en móvil: confirmar/volver/reintentar/revisar de la hoja (`size="lg"` + `min-h-11`), links de pie del registro (`min-h-11`), chips y filtros ya eran `h-11`. (4) `useReducedMotion` en `market-screen.tsx` y `detail-screen.tsx` (`initial={false}` + `duration: 0` si reduce).
+- Archivos: `registro/wizard.tsx`, `app-shell/{bottom-tabs,top-bar,stock-search,sidebar,public-header}`, `domain/trade-sheet.tsx`, `ui/{amount-input,input,tabs}`, `market-screen.tsx`, `accion/[ticker]/detail-screen.tsx`.
+- Verificación: `tsc --noEmit` y `lint` PENDIENTES de corrida verde (ver nota). Sin cambios de copy ni de negocio.
+- Pendiente operador: correr `npx tsc --noEmit` + `npm run lint` con `node_modules` completo (`npm ci` quedó a medias por timeout en esta sesión); revisar en 390px focos y tamaños.
+- Próximos pasos: nada más de esta tarea; seguir con TAREAS.md.
+
 ## Mercado — la lista aparece antes (2026-10-08)
 - Causa: la página no dibujaba nada hasta tener catálogo, precios y 20 gráficos. Cada gráfico volvía a pedir el precio, y la variación diaria frenaba todo el lote.
 - Hecho: los nombres salen al llegar el catálogo. Los precios se completan después, sin la barra gris. Los gráficos esperan a que el lote de precios ya haya vuelto. Esa variación no retiene la lista más de 400 ms; si falta, entra en el refresco.

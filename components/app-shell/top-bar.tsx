@@ -28,7 +28,7 @@ export function TopBar({ accountMode = "demo" }: { accountMode?: AccountMode }) 
         <Link
           href="/app/perfil"
           aria-label={account.loading ? t.shell.account : `${account.name}. ${t.shell.account}`}
-          className="flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-full transition duration-140 ease-spring hover:bg-surface-2 active:scale-[0.98]"
+          className="flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-full outline-none transition duration-140 ease-spring hover:bg-surface-2 focus-visible:ring-4 focus-visible:ring-fg/20 active:scale-[0.98]"
         >
           {account.loading ? (
             <Skeleton className="size-8 rounded-full" />

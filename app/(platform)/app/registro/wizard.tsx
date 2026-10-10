@@ -204,7 +204,7 @@ function MailScreen({ email, next }: { email: string; next: string | null }) {
         </Button>
       </div>
       <p className="mt-4 text-center text-sm text-fg-muted">
-        <Link href={enter} className="font-medium text-fg underline decoration-border underline-offset-4 hover:decoration-fg">
+        <Link href={enter} className="inline-flex min-h-11 items-center justify-center rounded-sm px-2 font-medium text-fg underline decoration-border underline-offset-4 outline-none hover:decoration-fg focus-visible:ring-4 focus-visible:ring-fg/20">
           Ingresar
         </Link>
       </p>
@@ -270,7 +270,7 @@ function DocCheck({
                 href={href}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="font-medium underline decoration-border underline-offset-4 hover:decoration-fg"
+                className="rounded-sm font-medium underline decoration-border underline-offset-4 outline-none hover:decoration-fg focus-visible:ring-4 focus-visible:ring-fg/20"
               >
                 {label}
               </Link>
@@ -464,7 +464,7 @@ function DemoRegistroForm({
                       href="/legal/terminos"
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="font-medium underline decoration-border underline-offset-4 hover:decoration-fg"
+                      className="rounded-sm font-medium underline decoration-border underline-offset-4 outline-none hover:decoration-fg focus-visible:ring-4 focus-visible:ring-fg/20"
                     >
                       Términos y Condiciones
                     </Link>{" "}
@@ -473,7 +473,7 @@ function DemoRegistroForm({
                       href="/legal/privacidad"
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="font-medium underline decoration-border underline-offset-4 hover:decoration-fg"
+                      className="rounded-sm font-medium underline decoration-border underline-offset-4 outline-none hover:decoration-fg focus-visible:ring-4 focus-visible:ring-fg/20"
                     >
                       Política de Privacidad
                     </Link>
@@ -496,7 +496,7 @@ function DemoRegistroForm({
           </Button>
         </div>
         <p className="mt-4 text-center text-sm text-fg-muted">
-          <Link href={enter} className="font-medium text-fg underline decoration-border underline-offset-4 hover:decoration-fg">
+          <Link href={enter} className="inline-flex min-h-11 items-center justify-center rounded-sm px-2 font-medium text-fg underline decoration-border underline-offset-4 outline-none hover:decoration-fg focus-visible:ring-4 focus-visible:ring-fg/20">
             Ya tengo cuenta
           </Link>
         </p>
@@ -732,7 +732,7 @@ function RegistroForm({
               {...register("passwordConfirm")}
             />
             <p className="mt-4 text-center text-sm text-fg-muted">
-              <Link href={enter} className="font-medium text-fg underline decoration-border underline-offset-4 hover:decoration-fg">
+              <Link href={enter} className="inline-flex min-h-11 items-center justify-center rounded-sm px-2 font-medium text-fg underline decoration-border underline-offset-4 outline-none hover:decoration-fg focus-visible:ring-4 focus-visible:ring-fg/20">
                 Ya tengo cuenta
               </Link>
             </p>

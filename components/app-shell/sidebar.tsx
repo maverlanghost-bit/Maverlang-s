@@ -85,7 +85,7 @@ export function Sidebar({
           href="/app"
           aria-label={site.name}
           title={site.name}
-          className="flex min-h-11 cursor-pointer items-center rounded-xl"
+          className="flex min-h-11 cursor-pointer items-center rounded-xl outline-none focus-visible:ring-4 focus-visible:ring-fg/20"
         >
           <span className="flex size-11 shrink-0 items-center justify-center">
             <BrandFavicon className="w-10" />
@@ -106,7 +106,7 @@ export function Sidebar({
                 aria-label={collapsed ? t.nav[item.id] : undefined}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "flex min-h-11 cursor-pointer items-center gap-2 rounded-xl text-sm transition duration-200 ease-spring active:scale-[0.98]",
+                  "flex min-h-11 cursor-pointer items-center gap-2 rounded-xl text-sm outline-none transition duration-200 ease-spring focus-visible:ring-4 focus-visible:ring-fg/20 active:scale-[0.98]",
                   active ? "bg-surface-2 font-medium text-fg" : "text-fg-body hover:bg-surface-2",
                 )}
               >
@@ -157,7 +157,7 @@ export function Sidebar({
                 role="menuitem"
                 href="/app/perfil"
                 onClick={() => setMenuOpen(false)}
-                className="flex min-h-11 cursor-pointer items-center rounded-xl px-3 text-sm text-fg-body hover:bg-surface-2"
+                className="flex min-h-11 cursor-pointer items-center rounded-xl px-3 text-sm text-fg-body outline-none hover:bg-surface-2 focus-visible:ring-4 focus-visible:ring-fg/20"
               >
                 {t.nav.profile}
               </Link>
@@ -165,7 +165,7 @@ export function Sidebar({
                 role="menuitem"
                 href="/app/ajustes"
                 onClick={() => setMenuOpen(false)}
-                className="flex min-h-11 cursor-pointer items-center rounded-xl px-3 text-sm text-fg-body hover:bg-surface-2"
+                className="flex min-h-11 cursor-pointer items-center rounded-xl px-3 text-sm text-fg-body outline-none hover:bg-surface-2 focus-visible:ring-4 focus-visible:ring-fg/20"
               >
                 {t.nav.settings}
               </Link>
@@ -177,7 +177,7 @@ export function Sidebar({
                 type="button"
                 onClick={() => void account.logout()}
                 disabled={account.status === "loading"}
-                className="flex min-h-11 w-full cursor-pointer items-center rounded-xl px-3 text-left text-sm text-fg-body hover:bg-surface-2 disabled:opacity-40"
+                className="flex min-h-11 w-full cursor-pointer items-center rounded-xl px-3 text-left text-sm text-fg-body outline-none hover:bg-surface-2 focus-visible:ring-4 focus-visible:ring-fg/20 disabled:opacity-40"
               >
                 {t.profile.logout}
               </button>
@@ -195,7 +195,7 @@ export function Sidebar({
               href="/app/perfil"
               aria-label={loading ? t.shell.account : `${name}. ${t.shell.account}`}
               title={loading ? t.shell.account : name}
-              className="flex min-h-11 cursor-pointer items-center rounded-xl hover:bg-surface-2"
+              className="flex min-h-11 cursor-pointer items-center rounded-xl outline-none hover:bg-surface-2 focus-visible:ring-4 focus-visible:ring-fg/20"
             >
               <span className="flex size-11 shrink-0 items-center justify-center">
                 <Avatar alt="" fallback={name} size="md" className="size-10" />
@@ -208,7 +208,7 @@ export function Sidebar({
               aria-expanded={menuOpen}
               aria-label={`${name}. ${t.shell.account}`}
               onClick={() => setMenuOpen((open) => !open)}
-              className="flex min-h-11 w-full cursor-pointer items-center rounded-xl text-left hover:bg-surface-2"
+              className="flex min-h-11 w-full cursor-pointer items-center rounded-xl text-left outline-none hover:bg-surface-2 focus-visible:ring-4 focus-visible:ring-fg/20"
             >
               <span className="flex size-11 shrink-0 items-center justify-center">
                 <Avatar alt="" fallback={name} size="md" className="size-10" />

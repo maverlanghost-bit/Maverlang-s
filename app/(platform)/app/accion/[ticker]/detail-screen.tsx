@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, type ReactNode, type RefObject } from "rea
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import { ChangeBadge } from "@/components/domain/change-badge";
 import { FavoriteButton } from "@/components/domain/favorite-button";
 import { RealAccountEmpty } from "@/components/domain/real-account-empty";
@@ -570,6 +570,7 @@ export function DetailScreen({
   const enter = ingresarPath(back);
   const create = registroPath(back);
   const resume = aceptarPath(back);
+  const reduceMotion = useReducedMotion();
 
   function openOperar(next: "comprar" | "vender" | null) {
     const params = new URLSearchParams(window.location.search);
@@ -655,14 +656,14 @@ export function DetailScreen({
     <motion.div
       data-ticker={ticker.symbol}
       className="lg:grid lg:grid-cols-[minmax(0,1fr)_17.5rem] lg:items-start lg:gap-8"
-      initial={{ opacity: 0, scale: 0.97 }}
+      initial={reduceMotion ? false : { opacity: 0, scale: 0.97 }}
       animate={{ opacity: 1, scale: 1 }}
-      transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
+      transition={reduceMotion ? { duration: 0 } : { duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
     >
       <div className="flex min-w-0 flex-col gap-8">
         <Link
           href="/app"
-          className="-ml-2 flex min-h-11 w-fit items-center gap-1.5 rounded-full px-2 text-sm text-fg-muted transition hover:text-fg"
+          className="-ml-2 flex min-h-11 w-fit items-center gap-1.5 rounded-full px-2 text-sm text-fg-muted outline-none transition hover:text-fg focus-visible:ring-4 focus-visible:ring-fg/20"
         >
           <IconBack className="size-4" />
           {t.detail.backToMarket}
@@ -776,7 +777,7 @@ export function DetailScreen({
                     href={solscanMintUrl(ticker.mint)}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-sm font-medium text-fg underline underline-offset-4"
+                    className="rounded-sm text-sm font-medium text-fg underline underline-offset-4 outline-none focus-visible:ring-4 focus-visible:ring-fg/20"
                   >
                     {t.detail.explorer}
                     <span className="sr-only">. {t.detail.explorerNew}</span>
@@ -798,7 +799,7 @@ export function DetailScreen({
             </div>
           </dl>
           <p className="text-sm leading-relaxed text-fg-body">{t.detail.risks}</p>
-          <Link href="/legal/riesgos" className="text-sm font-medium text-fg underline underline-offset-4">
+          <Link href="/legal/riesgos" className="rounded-sm text-sm font-medium text-fg underline underline-offset-4 outline-none focus-visible:ring-4 focus-visible:ring-fg/20">
             {t.detail.risksLink}
           </Link>
         </section>

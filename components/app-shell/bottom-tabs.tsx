@@ -56,7 +56,7 @@ export function BottomTabs() {
                 href={item.href}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "relative flex h-full flex-col items-center justify-center gap-1 px-1 text-xs transition duration-[140ms] ease-spring active:scale-[0.98]",
+                  "relative flex h-full flex-col items-center justify-center gap-1 rounded-lg px-1 text-xs outline-none transition duration-[140ms] ease-spring focus-visible:ring-4 focus-visible:ring-fg/20 active:scale-[0.98]",
                   active ? "font-medium text-fg" : "text-fg-muted hover:text-fg",
                 )}
               >
