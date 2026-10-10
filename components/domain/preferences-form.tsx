@@ -84,7 +84,7 @@ export function PreferencesForm({ currencyFirst = true }: { currencyFirst?: bool
   );
 
   const languageBlock = (
-    <div className="flex flex-col gap-3 px-4 py-4 md:px-6">
+    <div className="flex flex-col gap-3 border-t border-border px-4 py-4 first:border-t-0 md:px-6">
       <p className="text-sm text-fg-muted">{t.profile.languageLabel}</p>
       <SegmentedControl
         label={t.profile.languageLabel}
