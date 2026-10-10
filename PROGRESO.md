@@ -1,5 +1,11 @@
 # PROGRESO — Maverlang
 
+## Mercado — primeras filas con precio antes (2026-10-10)
+- Hecho: sólo orden de carga, caché y UI de carga; sin tocar trading, Jupiter ni formato. (1) `fetchMintBatch` pide los lotes de 50 en paralelo (antes secuenciales): el primer lote no espera al resto; mismo reintento, TTL 5 s y `stale`. (2) Precios del mercado: sin refetch al enfocar la pestaña ni en segundo plano (el intervalo de 15 s los mantiene), y `placeholderData` conserva los últimos precios mientras revalida (sin parpadeo al placeholder). `staleTime` 15 s intacto. (3) `ResultsSkeleton` estático sin pulso (misma caja, pintado inicial más barato) y placeholder por fila con fondo (mismo tamaño, sin saltos).
+- Archivos: `lib/market/price-batcher.ts`, `app/(platform)/app/market-screen.tsx`.
+- Verificación: sintaxis OK con `node --check` en ambos. PENDIENTE operador: `npx tsc --noEmit`, `npm run lint`, `npm test`, y medir en `next dev` que las 20 primeras filas muestren precio antes.
+- Próximos pasos: nada más de esta tarea.
+
 ## Accesibilidad y pulido mobile del flujo demo (2026-10-10)
 - Hecho: sólo a11y + CSS mobile, sin tocar lógica de negocio ni trading. (1) Botones sólo-ícono ya tenían `aria-label`; se subió a 44px el buscar móvil y el avatar del top-bar (`size-10` → `size-11`). (2) Anillo `focus-visible:ring-4 ring-fg/20` donde faltaba: bottom-tabs, top-bar, stock-search (botón, cierre, reintento, opciones), sidebar, public-header, tabs, amount-input (campo + chips), input, links de registro/trade-sheet/detalle. (3) Toque ≥44px en móvil: confirmar/volver/reintentar/revisar de la hoja (`size="lg"` + `min-h-11`), links de pie del registro (`min-h-11`), chips y filtros ya eran `h-11`. (4) `useReducedMotion` en `market-screen.tsx` y `detail-screen.tsx` (`initial={false}` + `duration: 0` si reduce).
 - Archivos: `registro/wizard.tsx`, `app-shell/{bottom-tabs,top-bar,stock-search,sidebar,public-header}`, `domain/trade-sheet.tsx`, `ui/{amount-input,input,tabs}`, `market-screen.tsx`, `accion/[ticker]/detail-screen.tsx`.
