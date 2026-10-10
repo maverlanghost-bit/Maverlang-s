@@ -420,6 +420,10 @@ function DemoRegistroForm({
     <Shell>
       <form className="mt-6" onSubmit={(event) => void onSubmit(event)} noValidate>
         <h1 className="text-3xl text-balance">Crea tu cuenta demo</h1>
+        <p className="mt-3 text-sm leading-relaxed text-fg-body">
+          Te damos US$10.000 ficticios para practicar. Crea tu cuenta, explora el mercado y haz tu primera
+          compra sin dinero real.
+        </p>
         <TextField
           id="registro-email"
           label="Correo"

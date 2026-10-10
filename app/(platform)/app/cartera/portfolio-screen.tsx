@@ -358,6 +358,7 @@ export function PortfolioScreen() {
           <EmptyState
             media={<EmptyArt />}
             title={t.portfolio.emptyTitle}
+            description={t.portfolio.emptyBody}
             action={
               <Button asChild>
                 <Link href={MARKET_HREF}>{t.portfolio.explore}</Link>
