@@ -27,6 +27,89 @@ export function getFaq(brand: string): FaqEntry[] {
       ],
     },
     {
+      id: "demo",
+      home: false,
+      question: "¿Qué es la demo?",
+      paragraphs: [
+        [
+          {
+            kind: "text",
+            value:
+              "Es una práctica con US$10.000 ficticios y precios reales. No se cobra dinero real.",
+          },
+        ],
+        [
+          { kind: "link", href: "/como-funciona", label: "Ver cómo funciona" },
+        ],
+      ],
+    },
+    {
+      id: "registro",
+      home: false,
+      question: "¿Cómo me registro?",
+      paragraphs: [
+        [
+          {
+            kind: "text",
+            value:
+              "Entras a /app/registro y creas tu cuenta demo con correo y contraseña. Aceptas los documentos y te enviamos un enlace para confirmar el correo.",
+          },
+        ],
+        [
+          { kind: "link", href: "/app/registro", label: "Ir al registro" },
+        ],
+      ],
+    },
+    {
+      id: "contrasena",
+      home: false,
+      question: "¿Qué hago si olvido mi contraseña?",
+      paragraphs: [
+        [
+          {
+            kind: "text",
+            value:
+              "Entras a /app/recuperar, escribes tu correo y te enviamos un enlace. Lo abres para elegir una nueva; si no llega, revisa el correo no deseado.",
+          },
+        ],
+        [
+          { kind: "link", href: "/app/recuperar", label: "Recuperar contraseña" },
+        ],
+      ],
+    },
+    {
+      id: "comprar-vender",
+      home: false,
+      question: "¿Cómo compro y vendo?",
+      paragraphs: [
+        [
+          {
+            kind: "text",
+            value:
+              "En /app eliges la acción, pulsas Comprar o Vender y revisas el desglose antes de confirmar. Al vender, el valor queda en USDC en tu billetera.",
+          },
+        ],
+        [{ kind: "link", href: "/app", label: "Ver el mercado" }],
+      ],
+    },
+    {
+      id: "cartera",
+      home: false,
+      question: "¿Dónde veo mi cartera?",
+      paragraphs: [
+        [
+          {
+            kind: "text",
+            value:
+              "En /app/cartera ves tus posiciones y el disponible. En /app/billetera ves el saldo en USDC.",
+          },
+        ],
+        [
+          { kind: "link", href: "/app/cartera", label: "Ver mi cartera" },
+        ],
+      ],
+    },
+    {
       id: "horario",
       home: true,
       question: "¿En qué horario puedo operar?",
@@ -113,6 +196,23 @@ export function getFaq(brand: string): FaqEntry[] {
               "No está cerrado. Hay que verificar cómo xStocks refleja un dividendo. No afirmamos que llegue como dinero a tu cuenta ni que se sume al precio del token. ",
           },
           { kind: "marker", value: "[VERIFICAR]" },
+        ],
+      ],
+    },
+    {
+      id: "autocustodia",
+      home: false,
+      question: "¿Qué es la autocustodia?",
+      paragraphs: [
+        [
+          {
+            kind: "text",
+            value:
+              "El token queda en tu propia billetera y nosotros no lo custodiamos. Quien controle la cuenta controla los activos: no compartas tu acceso.",
+          },
+        ],
+        [
+          { kind: "link", href: "/seguridad", label: "Ver seguridad" },
         ],
       ],
     },
