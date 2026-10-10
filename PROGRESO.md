@@ -1,5 +1,11 @@
 # PROGRESO — Maverlang
 
+## Revisión estructura páginas legales (2026-10-10)
+- Hecho: sólo estructura/links/CSS, sin tocar cláusulas. (1) Nuevo `LegalNav` al pie de cada `/legal/[doc]` con links a los otros 3 docs (touch min-h-11, focus-visible). (2) `LegalBody`: `break-words` + `text-pretty` anti-cortes en móvil; tablas ya tenían `overflow-x-auto`.
+- Archivos: `app/(marketing)/legal/[doc]/page.tsx`, `components/landing/legal-document.tsx`. Commit atómico en rama `b/legal-docs`.
+- Verificación: digo con todas sus letras: `npx tsc` NO corrido (`typescript` no instalado); sin revisión visual en `next dev`. Diff revisado a mano.
+- Pendiente operador: ver `/legal/terminos|privacidad|riesgos|comisiones` en 1280px y 390px (nav + fecha/versión).
+
 ## Página /costos honesta y completa (2026-10-10)
 - Hecho: sólo copy, sin tocar API ni lógica. La tabla (`CostsSection`) y el detalle (`/costos`) agregan la fila que faltaba —"Cuenta del activo, la primera vez" (costo de red por abrir la cuenta del token, se muestra en el desglose)— con el lenguaje exacto de `content/legal/comisiones.md`. Comentario interno TODO-VERIFICAR/[POR DECIDIR] reemplazado por cita de fuente (`lib/wallet/send-cost.ts`, ARQUITECTURA §6: montos en SOL, sin conversión).
 - Archivos: `components/landing/costs-section.tsx`, `app/(marketing)/costos/page.tsx`. 2 commits atómicos en rama `b/costos-page`.
