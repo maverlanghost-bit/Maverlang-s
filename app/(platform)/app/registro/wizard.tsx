@@ -107,7 +107,7 @@ function StepBar({ index, total }: { index: number; total: number }) {
         Paso {current} de {total}
       </p>
       <div
-        className="mt-2 h-1 overflow-hidden rounded-full bg-surface-3"
+        className="mt-2 h-2 overflow-hidden rounded-full bg-surface-3"
         role="progressbar"
         aria-valuemin={1}
         aria-valuemax={total}
@@ -115,7 +115,7 @@ function StepBar({ index, total }: { index: number; total: number }) {
         aria-valuetext={`Paso ${current} de ${total}`}
       >
         <div
-          className="h-full rounded-full bg-fg transition-[width] duration-[240ms] ease-spring"
+          className="h-full rounded-full bg-fg transition-[width] duration-[240ms] ease-spring motion-reduce:transition-none"
           style={{ width: `${(current / total) * 100}%` }}
         />
       </div>
@@ -191,7 +191,7 @@ function MailScreen({ email, next }: { email: string; next: string | null }) {
         Revisa tu correo
       </h1>
       <p className="mt-3 text-sm leading-relaxed text-fg-body">
-        Te enviamos un enlace a <span className="font-medium text-fg">{email}</span>. Ábrelo para confirmar la cuenta.
+        Te enviamos un enlace a <span className="font-medium break-all text-fg">{email}</span>. Ábrelo para confirmar la cuenta.
       </p>
       {error ? (
         <p className="mt-4 text-sm text-down" role="alert">
