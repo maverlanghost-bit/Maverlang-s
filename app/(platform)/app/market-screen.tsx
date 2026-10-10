@@ -181,7 +181,7 @@ function ResultsSkeleton({ label }: { label: string }) {
       </div>
       <div className="flex flex-col gap-2" aria-hidden>
         {["a", "b", "c", "d", "e", "f"].map((key) => (
-          <div key={key} className="h-16 w-full rounded-xl bg-surface-2" />
+          <div key={key} className="min-h-14 w-full rounded-xl bg-surface-2" />
         ))}
       </div>
     </div>
@@ -543,7 +543,7 @@ export function MarketScreen({
               </Button>
             </div>
           ) : null}
-          <ul>
+          <ul className="flex min-w-0 flex-col gap-1">
             {listRows.map((entry) => {
               const shownPrice = entry.quote
                 ? priceRows([{ item: entry.item, quote: entry.quote, index: entry.index }], currency, rate)[0]
@@ -605,8 +605,8 @@ export function MarketScreen({
               {loadingMore ? (
                 <div role="status" aria-live="polite" aria-busy="true" className="mt-2 flex flex-col gap-2">
                   <span className="sr-only">{t.states.loading}</span>
-                  <Skeleton className="h-16 w-full rounded-xl" />
-                  <Skeleton className="h-16 w-full rounded-xl" />
+                  <Skeleton className="min-h-14 w-full rounded-xl" />
+                  <Skeleton className="min-h-14 w-full rounded-xl" />
                 </div>
               ) : null}
             </div>
