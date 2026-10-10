@@ -15,10 +15,14 @@ const rows: { concept: string; detail: string }[] = [
     detail: "Variable. Se muestra antes de confirmar.",
   },
   {
-    // TODO-VERIFICAR: el patrocinio del fee-payer está [POR DECIDIR] (§6.5).
-    // La rent de la cuenta (≈0,0016 SOL) se muestra la primera vez; no se convierte a dólares aquí.
+    // Red y cuenta del activo: montos en SOL desde lib/wallet/send-cost.ts
+    // (ARQUITECTURA §6: se muestran en SOL, sin conversión a dólares aquí).
     concept: "Red Solana",
     detail: "Del orden de centavos de dólar. El monto se muestra antes de confirmar.",
+  },
+  {
+    concept: "Cuenta del activo, la primera vez",
+    detail: "Costo de red por abrir la cuenta del token. Se muestra en el desglose.",
   },
   {
     concept: "Proveedor de depósito",
