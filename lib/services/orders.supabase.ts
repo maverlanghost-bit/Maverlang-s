@@ -101,3 +101,16 @@ export async function updateOrderStatus(
   const admin = createSupabaseAdminClient();
   await admin.from("orders").update({ status, updated_at: new Date().toISOString() }).eq("id", id);
 }
+
+/** Lista las órdenes reales de un usuario (más recientes primero) para el historial. */
+export async function listOrdersForActivity(userId: string, limit = 100): Promise<OrderRow[]> {
+  const admin = createSupabaseAdminClient();
+  const { data, error } = await admin
+    .from("orders")
+    .select("id,user_id,side,symbol,in_amount_ui,out_amount_ui,fee_bps,status,signature,error,created_at")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  if (error || !data) return [];
+  return data as OrderRow[];
+}

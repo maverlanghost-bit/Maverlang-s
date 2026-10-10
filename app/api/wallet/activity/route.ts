@@ -27,7 +27,7 @@ export function GET(req: Request) {
       return readOutput(activityResponseSchema, data);
     }
     const address = requireWallet(session);
-    const data = await callService(req, () => services.portfolio.activity(address));
+    const data = await callService(req, () => services.portfolio.activity({ address, userId: session.userId }));
     return readOutput(activityResponseSchema, data);
   });
 }

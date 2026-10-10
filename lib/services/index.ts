@@ -62,7 +62,7 @@ export interface Services {
   portfolio: {
     get(address: string): Promise<Portfolio>;
     balances(address: string): Promise<Balance[]>;
-    activity(address: string): Promise<Activity[]>;
+    activity(input: { address: string; userId: string }): Promise<Activity[]>;
     sendBuild(request: SendBuildRequest): Promise<TradeBuildResponse>;
   };
   onramp: {

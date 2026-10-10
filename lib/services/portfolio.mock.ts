@@ -40,8 +40,8 @@ export const mockPortfolio = {
     });
   },
 
-  async activity(address: string): Promise<Activity[]> {
-    return simulateMock(`activity:${address}`, () => buildDemoActivity(address));
+  async activity(input: { address: string; userId: string }): Promise<Activity[]> {
+    return simulateMock(`activity:${input.address}`, () => buildDemoActivity(input.address));
   },
 
   /**
