@@ -33,9 +33,9 @@ export async function POST(req: Request) {
   } catch {
     return NextResponse.json({ error: "El origen de la solicitud no está permitido." }, { status: 403 });
   }
-  let body: unknown;
+  let parsed: { email: string };
   try {
-    body = await parseJson(req, bodySchema);
+    parsed = await parseJson(req, bodySchema);
   } catch (error) {
     if (error instanceof DomainError && error.code === "PAYLOAD_TOO_LARGE") {
       return NextResponse.json({ error: "Los datos son demasiado grandes." }, { status: 413 });
@@ -46,7 +46,7 @@ export async function POST(req: Request) {
   }
   try {
     const { subject, html } = plantillaBienvenida();
-    await enviarEmail(remitenteDefault(), body.email, subject, html);
+    await enviarEmail(remitenteDefault(), parsed.email, subject, html);
   } catch {
     console.warn("[email] no se pudo enviar la bienvenida");
   }
