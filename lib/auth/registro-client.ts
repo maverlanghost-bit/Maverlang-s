@@ -21,6 +21,23 @@ export function registroRedirectTo(next: string | null): string {
 /** Con sesión (confirmación apagada) entra al `next` saneado. Sin sesión, queda la pantalla del correo. */
 export type SignUpDestination = { kind: "app"; path: string } | { kind: "email" };
 
+/**
+ * Dispara el correo de bienvenida (`POST /api/email/bienvenida`) sin
+ * bloquear ni romper el registro: cualquier fallo se ignora.
+ */
+function avisarBienvenida(email: string): void {
+  try {
+    void fetch("/api/email/bienvenida", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ email }),
+      credentials: "same-origin",
+    }).catch(() => undefined);
+  } catch {
+    // El registro ya fue exitoso: el correo nunca lo revierte.
+  }
+}
+
 export function signUpDestination(session: unknown, next: string | null): SignUpDestination {
   if (session === null || session === undefined) return { kind: "email" };
   return { kind: "app", path: safeNextPath(next) ?? "/app" };
@@ -50,6 +67,7 @@ export async function signUpRegistro(
     if (data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
       return { ok: false, message: registroErrorMessage("already") };
     }
+    avisarBienvenida(values.email.trim());
     return {
       ok: true,
       email: values.email.trim(),
@@ -83,6 +101,7 @@ export async function signUpDemo(
     if (data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
       return { ok: false, message: registroErrorMessage("already") };
     }
+    avisarBienvenida(values.email.trim());
     return {
       ok: true,
       email: values.email.trim(),

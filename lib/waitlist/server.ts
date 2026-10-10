@@ -3,6 +3,8 @@ import "server-only";
 import { z } from "zod";
 
 import { serverEnv } from "@/lib/env";
+import { enviarEmail, remitenteDefault } from "@/lib/email/resend";
+import { plantillaListaEspera } from "@/lib/email/templates";
 import { insertWaitlistRow } from "@/lib/services/waitlist.supabase";
 import { WAITLIST_SUCCESS_MESSAGE } from "@/lib/waitlist/message";
 
@@ -80,5 +82,13 @@ export async function postWaitlist(
     consentVersion: serverEnv.TERMS_VERSION,
     country,
   });
+  // Confirmación por correo: nunca rompe el guardado ni escribe el correo
+  // en los logs. Sin RESEND_API_KEY se omite con un aviso.
+  try {
+    const { subject, html } = plantillaListaEspera();
+    await enviarEmail(remitenteDefault(), input.email, subject, html);
+  } catch {
+    console.warn("[waitlist] no se pudo enviar la confirmación");
+  }
   return { status: 200, body: { message: WAITLIST_SUCCESS_MESSAGE } };
 }
