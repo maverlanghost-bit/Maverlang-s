@@ -266,7 +266,7 @@ export function MarketScreen({
       refetchIntervalInBackground: false,
       // Mientras revalida, se siguen viendo los últimos precios en vez de
       // volver al placeholder vacío.
-      placeholderData: (previous) => previous,
+      placeholderData: (previous: Quote[] | undefined) => previous,
     })),
   });
   const quotesBySymbol = (() => {
