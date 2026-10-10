@@ -185,7 +185,7 @@ export function MfaSettings() {
               <p translate="no" className="mt-2 break-all font-mono text-sm text-fg">
                 {enrollment.secret}
               </p>
-              <Button type="button" variant="ghost" size="sm" className="mt-2" onClick={() => void copySecret()}>
+              <Button type="button" variant="ghost" size="sm" className="mt-2 min-h-11" onClick={() => void copySecret()}>
                 {copied ? t.mfa.copied : t.mfa.copySecret}
               </Button>
             </div>
