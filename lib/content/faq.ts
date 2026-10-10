@@ -21,7 +21,7 @@ export function getFaq(brand: string): FaqEntry[] {
         [
           {
             kind: "text",
-            value: `Es un token en Solana que sigue el precio de una acción o un ETF de Estados Unidos. En ${brand} lo compras por fracciones, pagas con pesos y queda en tu billetera. No queda inscrito a tu nombre en una corredora de EE.UU.`,
+            value: `Es un token en Solana que sigue el precio de una acción o un ETF de Estados Unidos. En ${brand} lo compras por fracciones en dólares (US$) y queda en tu billetera. No queda inscrito a tu nombre en una corredora de EE.UU.`,
           },
         ],
       ],
@@ -60,13 +60,13 @@ export function getFaq(brand: string): FaqEntry[] {
     {
       id: "deposito",
       home: true,
-      question: "¿Cómo deposito pesos?",
+      question: "¿Cómo es el depósito?",
       paragraphs: [
         [
           {
             kind: "text",
             value:
-              "En la app eliges el monto en pesos y el método que muestre el proveedor, por ejemplo Khipu o transferencia. Antes de confirmar ves el estimado y el costo de ese proveedor.",
+              "La demo no pide dinero real: practicas con US$10.000 ficticios. Cuando haya cuentas reales, el monto, el método y el costo del proveedor se ven en ese paso, antes de confirmar.",
           },
         ],
       ],

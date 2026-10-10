@@ -17,9 +17,9 @@ const SAMPLE_SHARES = 0.0438;
 function DepositMock() {
   return (
     <div className="rounded-xl bg-bg px-4 py-5">
-      <p className="label">Ejemplo de depósito</p>
-      <PriceText value={10000} currency="CLP" size="md" className="mt-2" />
-      <p className="mt-3 text-sm text-fg-muted">Khipu · Transferencia</p>
+      <p className="label">Ejemplo de saldo demo</p>
+      <PriceText value={10000} currency="USD" size="md" className="mt-2" />
+      <p className="mt-3 text-sm text-fg-muted">US$10.000 ficticios · precios reales</p>
     </div>
   );
 }
@@ -61,16 +61,18 @@ function OwnedMock({ quote }: { quote: LandingQuote }) {
 }
 
 /**
- * El depósito sigue en pesos (se deposita en CLP); los precios de acciones
- * van en dólares (M42), en vivo cuando la fuente responde.
+ * La demo opera en dólares (US$): saldo ficticio de US$10.000 y precios de
+ * acciones en vivo cuando la fuente responde. El depósito de dinero real
+ * queda en neutro ("cuando haya cuentas reales"), sin afirmar pesos como
+ * método activo.
  */
 export function HowItWorks({ quotes, live }: { quotes: LandingQuote[]; live: boolean }) {
   const sampleQuote = quotes.find((quote) => quote.symbol === "AAPLx") ?? quotes[0];
 
   const steps: { title: string; body: string; mock: ReactNode }[] = [
     {
-      title: "Deposita pesos (Khipu, transferencia)",
-      body: "El método y el costo del proveedor se ven al depositar.",
+      title: "Practica con US$10.000 ficticios",
+      body: "La demo trae saldo ficticio en dólares. Cuando haya cuentas reales, el método y el costo del proveedor se ven al depositar.",
       mock: <DepositMock />,
     },
     {
@@ -88,8 +90,8 @@ export function HowItWorks({ quotes, live }: { quotes: LandingQuote[]; live: boo
   return (
     <LandingSection id="como-funciona" titleId="como-funciona-title">
       <Reveal>
-        <SectionIntro id="como-funciona-title" title="Tres pasos, en pesos">
-          Depositas, eliges la acción y el token queda en tu propia billetera, sin custodia de nuestra parte. Los montos de abajo son ejemplos.
+        <SectionIntro id="como-funciona-title" title="Tres pasos, en dólares (US$)">
+          Practicas con US$10.000 ficticios, eliges la acción y el token queda en tu propia billetera, sin custodia de nuestra parte. Los montos de abajo son ejemplos. Cuando haya cuentas reales, el depósito y su costo se muestran en ese paso.
         </SectionIntro>
       </Reveal>
       <div className="mt-10 grid gap-4 md:mt-14 md:grid-cols-3">
