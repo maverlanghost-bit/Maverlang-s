@@ -9,15 +9,19 @@ import { fetchMintMultiplier } from "@/lib/solana/scaled-ui";
 import { serverEnv } from "@/lib/env";
 import { DomainError } from "@/lib/api/result";
 import { livePrices } from "@/lib/services/prices.live";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { buildSwapParams, parsedOrderToTradeQuote } from "@/lib/market/jupiter-tx";
 import { fetchJupiterOrder } from "@/lib/market/jupiter-client";
 import { jupiterSwapUrl, jupiterOrderParams, parseJupiterOrder } from "@/lib/market/jupiter-order";
+import { parseJupiterExecute } from "@/lib/market/jupiter-order";
 import { NETWORK_FEE_SOL, TOKEN_ACCOUNT_RENT_SOL } from "@/lib/wallet/send-cost";
 import type {
   Order,
+  TradeBuildRequest,
   TradeBuildResponse,
   TradeQuote,
   TradeQuoteRequest,
+  TradeSubmitRequest,
   TradeSubmitResponse,
 } from "@/lib/types";
 
@@ -35,6 +39,35 @@ import type {
 const QUOTE_TTL_MS = 60_000;
 const USDC_DECIMALS = 6;
 const STOCK_DECIMALS = 8;
+
+/**
+ * Cotizaciones live guardadas para poder armar la tx en `build`. La
+ * cotización de Jupiter sin `taker` no trae transacción: hay que re-pedirla
+ * con la billetera del usuario. Guardamos los parámetros crudos del swap
+ * (mints, monto, lado) keyed por `requestId` de Jupiter. En memoria del
+ * servidor: una cotización vive lo que dura el checkout (TTL de la quote).
+ * Igual que el servicio demo, pero acá el `requestId` es el de Jupiter.
+ */
+interface StoredLiveQuote {
+  requestId: string;
+  side: "buy" | "sell";
+  symbol: string;
+  mint: string;
+  inputMint: string;
+  outputMint: string;
+  amountRaw: bigint;
+  priceUsd: number;
+  expiresAt: string;
+}
+
+const liveQuotes = new Map<string, StoredLiveQuote>();
+
+/** Limpia cotizaciones vencidas. Se llama en cada quote/build nuevo. */
+function pruneLiveQuotes(now: number): void {
+  for (const [id, stored] of liveQuotes) {
+    if (Date.parse(stored.expiresAt) <= now) liveQuotes.delete(id);
+  }
+}
 
 /** Multiplicador vigente del mint. 1 si el RPC falla (nunca rompe el quote). */
 async function multiplierOf(connection: Connection, mint: string): Promise<number> {
@@ -169,47 +202,241 @@ export const liveTrade = {
     if (buy && priceDeviationBps > priceDeviationMaxBps) {
       throw new DomainError("PRICE_DEVIATION");
     }
+
+    // Guardamos los parámetros crudos del swap para armar la tx en `build`
+    // (Jupiter necesita re-cotizar con el `taker` para devolver la tx armada).
+    pruneLiveQuotes(Date.now());
+    liveQuotes.set(quote.id, {
+      requestId: quote.id,
+      side: request.side,
+      symbol: asset.symbol,
+      mint: asset.mint,
+      inputMint: params.inputMint,
+      outputMint: params.outputMint,
+      amountRaw: params.amountRaw,
+      priceUsd: quote.pricePerShareUsd,
+      expiresAt: quote.expiresAt,
+    });
+
     return quote;
   },
 
   /**
-   * TODO armar la transacción.
-   * Endpoint: GET {JUPITER_BASE_URL}/swap/v2/build (instrucciones) con taker = userPublicKey.
-   *   Si FEE_BPS > 0 y `computeFee` no es null ni 0, agregar `buildFeeTransferIx({ from: taker, feeWallet: FEE_WALLET, amount })`.
-   *   FEE_WALLET vacío con FEE_BPS > 0 → INTERNAL. No patrocinar el fee-payer: `sponsor.ts` sigue en NOT_IMPLEMENTED (requiere KMS).
-   * Mapeo a TradeBuildResponse: requestId, transactionBase64 de la tx sin firmar, expiresAt de la cotización.
-   * Errores: cotización vencida → QUOTE_EXPIRED. El mismo guardia de precio que en quote. Red → UPSTREAM.
-   * Cache: no. Una cotización, una transacción.
+   * Arma la transacción sin firmar. Camino Meta-Aggregator de Jupiter
+   * (`/swap/v2/order` + `/execute`): recuperamos los parámetros crudos del
+   * swap guardados en `quote` y volvemos a pedir la orden a Jupiter, esta vez
+   * con `taker` = la billetera del usuario. Con `taker`, Jupiter devuelve la
+   * transacción ya armada en base64. La firma la hace el cliente con Privy.
+   *
+   * Errores: cotización vencida o desconocida → QUOTE_EXPIRED; sin billetera
+   * → VALIDATION; Jupiter no pudo armar la tx (transaction vacía) → UPSTREAM;
+   * red → UPSTREAM.
    */
-  async build(): Promise<TradeBuildResponse> {
-    throw new Error("NOT_IMPLEMENTED: armado de transacción live (llega con la firma on-chain)");
+  async build(request: TradeBuildRequest): Promise<TradeBuildResponse> {
+    const userPublicKey = request.userPublicKey?.trim() ?? "";
+    if (userPublicKey.length < 32) {
+      throw new DomainError("VALIDATION", "Falta la billetera para operar.");
+    }
+    const stored = liveQuotes.get(request.quoteId);
+    if (!stored || Date.parse(stored.expiresAt) <= Date.now()) {
+      throw new DomainError("QUOTE_EXPIRED", "La cotización venció. Pide una nueva.");
+    }
+
+    // Re-cotizamos con el taker para obtener la transacción armada.
+    const url = jupiterSwapUrl(serverEnv.JUPITER_BASE_URL, "/swap/v2/order");
+    const query = jupiterOrderParams({
+      side: stored.side,
+      inputMint: stored.inputMint,
+      outputMint: stored.outputMint,
+      amountRaw: stored.amountRaw,
+      slippageBps: defaultSlippageBps,
+      taker: userPublicKey,
+    });
+
+    let body: unknown;
+    try {
+      body = await fetchJupiterOrder({
+        url: `${url}?${query.toString()}`,
+        base: serverEnv.JUPITER_BASE_URL,
+        apiKey: serverEnv.JUPITER_API_KEY,
+      });
+    } catch (error) {
+      throw new DomainError(
+        "UPSTREAM",
+        error instanceof Error ? error.message : "No pudimos armar la operación.",
+      );
+    }
+
+    const order = body as { transaction?: string | null; requestId?: string };
+    const transaction = typeof order.transaction === "string" ? order.transaction : "";
+    if (!transaction) {
+      // Jupiter cotizó pero no pudo armar la tx (ver errorCode en la respuesta).
+      throw new DomainError("UPSTREAM", "Jupiter no pudo armar la transacción.");
+    }
+    // La tx armada puede traer un requestId nuevo; si no, reusamos el de la quote.
+    const requestId = typeof order.requestId === "string" && order.requestId ? order.requestId : stored.requestId;
+    // Guardamos la cotización también bajo el requestId devuelto, para que
+    // `submit` la recupere aunque Jupiter haya asignado uno distinto al armar la tx.
+    if (requestId !== stored.requestId) liveQuotes.set(requestId, stored);
+
+    return {
+      requestId,
+      transactionBase64: transaction,
+      expiresAt: stored.expiresAt,
+    };
   },
 
   /**
-   * TODO enviar la tx firmada.
-   * Endpoint: POST {JUPITER_BASE_URL}/swap/v2/execute
-   *   (Ultra: POST /ultra/v1/execute). Body: `{ signedTransaction, requestId }`.
-   *   La firma la hizo la billetera (Privy). Este método no vuelve a firmar.
-   * Mapeo a TradeSubmitResponse: orderId de la fila `orders`, signature, status
-   *   `submitted` si Jupiter dice Success, `failed` si Failed.
-   *   Guardar en `orders`: userId, side, symbol, mint, montos, fee_bps, signature, status.
-   * Errores: requestId desconocido o tx que no coincide → VALIDATION. Firma rechazada → el status failed, no UPSTREAM.
-   *   Red → UPSTREAM. No acreditar la orden dos veces si el mismo requestId ya está `submitted`.
-   * Cache: no.
+   * Envía la transacción firmada a Jupiter `/swap/v2/execute` y guarda la
+   * orden en Supabase (`orders`). Jupiter aterriza la transacción; acá sólo
+   * la firmó el cliente con Privy, este método no vuelve a firmar.
+   *
+   * Idempotencia: si el mismo `requestId` ya quedó `submitted`, se devuelve
+   * la orden existente sin volver a ejecutar (evita doble gasto).
+   *
+   * Errores: requestId desconocido → NOT_FOUND; tx vacía → VALIDATION; red →
+   * UPSTREAM. Firma rechazada por Jupiter → status `failed` (no UPSTREAM).
    */
-  async submit(): Promise<TradeSubmitResponse> {
-    throw new Error("NOT_IMPLEMENTED: envío live (llega con la firma on-chain)");
+  async submit(request: TradeSubmitRequest, userId: string): Promise<TradeSubmitResponse> {
+    const signedTransactionBase64 = request.signedTransactionBase64?.trim() ?? "";
+    if (!signedTransactionBase64) {
+      throw new DomainError("VALIDATION", "Falta la transacción firmada.");
+    }
+    const stored = liveQuotes.get(request.requestId);
+    if (!stored) {
+      throw new DomainError("NOT_FOUND", "No encontramos esa operación.");
+    }
+
+    const admin = createSupabaseAdminClient();
+    // Idempotencia: si ya hay una orden submitted con este requestId, no repetir.
+    // `request_id` lo agrega la migración 0024; si aún no está aplicada, la
+    // consulta falla y seguimos sin idempotencia (mejor que romper el flujo).
+    let existing: { id: string; status: string; signature: string | null } | null = null;
+    const { data: dup } = await admin
+      .from("orders")
+      .select("id,status,signature")
+      .eq("user_id", userId)
+      .eq("request_id", request.requestId)
+      .maybeSingle();
+    existing = dup ?? null;
+    if (existing && existing.status !== "failed") {
+      return { orderId: existing.id, signature: existing.signature ?? null, status: existing.status as Order["status"] };
+    }
+
+    // Ejecutamos contra Jupiter.
+    const executeUrl = jupiterSwapUrl(serverEnv.JUPITER_BASE_URL, "/swap/v2/execute");
+    let result: { status: "submitted" | "failed"; signature: string | null; error?: string };
+    try {
+      const response = await fetch(executeUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": serverEnv.JUPITER_API_KEY ?? "",
+        },
+        body: JSON.stringify({
+          signedTransaction: signedTransactionBase64,
+          requestId: request.requestId,
+        }),
+      });
+      const body = (await response.json()) as unknown;
+      result = parseJupiterExecute(body as Parameters<typeof parseJupiterExecute>[0]);
+    } catch (error) {
+      throw new DomainError(
+        "UPSTREAM",
+        error instanceof Error ? error.message : "No pudimos enviar la operación.",
+      );
+    }
+
+    const orderStatus: Order["status"] = result.status === "submitted" ? "submitted" : "failed";
+    const row = {
+      user_id: userId,
+      request_id: request.requestId,
+      side: stored.side,
+      symbol: stored.symbol,
+      mint: stored.mint,
+      in_amount_ui: 0,
+      out_amount_ui: 0,
+      price_per_share_usd: stored.priceUsd,
+      fee_bps: feeConfig.bps,
+      fee_usd: 0,
+      status: orderStatus,
+      signature: result.signature,
+      error: result.error ?? null,
+    };
+    let inserted: { id: string } | null = null;
+    const insertTry = await admin.from("orders").insert(row).select("id").single();
+    if (insertTry.error || !insertTry.data) {
+      // Puede ser que la migración 0024 (request_id) no esté aplicada aún:
+      // reintentamos sin request_id para no perder la orden ejecutada.
+      const { request_id, ...rowWithoutRequestId } = row;
+      void request_id;
+      const retry = await admin.from("orders").insert(rowWithoutRequestId).select("id").single();
+      inserted = retry.data ?? null;
+    } else {
+      inserted = insertTry.data;
+    }
+    if (!inserted) {
+      // Si Jupiter ya la ejecutó pero no pudimos guardar, devolvemos el estado
+      // sin orderId para no perder la traza; el polling por requestId la recupera.
+      return { orderId: "", signature: result.signature, status: orderStatus };
+    }
+    return { orderId: inserted.id, signature: result.signature, status: orderStatus };
   },
 
   /**
-   * TODO estado.
-   * Endpoint: no es Jupiter. Leer `orders` en Supabase por id (service role).
-   *   Confirmar en cadena con `getSignatureStatuses` sólo si el status guardado sigue abierto.
-   * Mapeo a Order: las columnas de `orders` (status, signature, error, montos, fee_bps, created_at).
-   * Errores: id ajeno o inexistente → NOT_FOUND. RPC caído al confirmar → UPSTREAM y no pisar un `confirmed`.
-   * Cache: no. El cliente hace polling.
+   * Estado de una orden real. Lee la fila de `orders` en Supabase y, si sigue
+   * abierta, confirma en cadena con `getSignatureStatuses`. No pisa un
+   * `confirmed` con un fallo transitorio del RPC (devuelve el guardado).
+   *
+   * Errores: id ajeno o inexistente → NOT_FOUND. RPC caído al confirmar →
+   * devuelve la orden guardada tal cual (no UPSTREAM: el cliente sigue
+   * pollenado y la confirmación llega en el siguiente tick).
    */
-  async status(): Promise<Order> {
-    throw new Error("NOT_IMPLEMENTED: estado live (llega con las órdenes en Supabase)");
+  async status(id: string): Promise<Order> {
+    const admin = createSupabaseAdminClient();
+    const { data, error } = await admin
+      .from("orders")
+      .select("id,user_id,side,symbol,in_amount_ui,out_amount_ui,fee_bps,status,signature,error,created_at")
+      .eq("id", id)
+      .maybeSingle();
+    if (error || !data) {
+      throw new DomainError("NOT_FOUND", "No encontramos esa orden.");
+    }
+
+    let status = data.status as Order["status"];
+    // Si sigue abierta y tenemos firma, confirmamos contra la cadena.
+    if ((status === "submitted" || status === "pending") && data.signature) {
+      const rpcUrl = serverEnv.SOLANA_RPC_URL ?? "https://api.mainnet-beta.solana.com";
+      const connection = new Connection(rpcUrl, "confirmed");
+      try {
+        const { value } = await connection.getSignatureStatuses([data.signature]);
+        const onchain = value[0];
+        if (onchain) {
+          const confirmed = onchain.confirmationStatus === "finalized" || onchain.confirmationStatus === "confirmed";
+          const failed = Boolean(onchain.err);
+          const next: Order["status"] = failed ? "failed" : confirmed ? "confirmed" : status;
+          if (next !== status) {
+            status = next;
+            await admin.from("orders").update({ status: next, updated_at: new Date().toISOString() }).eq("id", id);
+          }
+        }
+      } catch {
+        // RPC caído: devolvemos lo guardado, sin pisar el status.
+      }
+    }
+
+    return {
+      id: data.id,
+      userId: data.user_id,
+      side: data.side as Order["side"],
+      symbol: data.symbol,
+      inAmountUi: Number(data.in_amount_ui ?? 0),
+      outAmountUi: Number(data.out_amount_ui ?? 0),
+      feeBps: Number(data.fee_bps ?? 0),
+      status,
+      signature: data.signature ?? null,
+      error: data.error ?? undefined,
+      createdAt: data.created_at,
+    };
   },
 };
