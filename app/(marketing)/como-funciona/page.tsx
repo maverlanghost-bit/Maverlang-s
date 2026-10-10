@@ -9,7 +9,7 @@ import { getLandingQuotes } from "@/lib/landing/live-quotes";
 
 export const metadata: Metadata = {
   title: "Cómo funciona",
-  description: `Deposita pesos, elige la acción y el token queda en tu propia billetera, sin custodia de ${site.name}.`,
+  description: `Practica con US$10.000 ficticios, elige la acción y el token queda en tu propia billetera, sin custodia de ${site.name}.`,
 };
 
 /** Guía dedicada: los 3 pasos con más detalle que en la portada. */
@@ -25,11 +25,12 @@ export default async function ComoFuncionaPage() {
         <div className="max-w-2xl">
           <p className="label">Cómo funciona</p>
           <h1 id="como-funciona-title" className="mt-3 text-3xl sm:text-4xl">
-            Tres pasos, en pesos
+            Tres pasos, en dólares (US$)
           </h1>
           <p className="mt-4 text-sm leading-relaxed text-fg-body sm:text-base">
-            Depositas en pesos, eliges la acción y el token queda en tu propia billetera: nosotros no
-            custodiamos tus activos. Los montos de abajo son ejemplos.
+            Practicas con US$10.000 ficticios, eliges la acción y el token queda en tu propia
+            billetera: nosotros no custodiamos tus activos. Los montos de abajo son ejemplos.
+            Cuando haya cuentas reales, el depósito y su costo se muestran en ese paso.
           </p>
         </div>
       </LandingSection>
@@ -45,15 +46,15 @@ export default async function ComoFuncionaPage() {
             <Card className="p-5">
               <h3 className="text-base">El depósito</h3>
               <p className="mt-2 text-sm leading-relaxed text-fg-body">
-                Eliges el monto en pesos y el método que muestre el proveedor. El costo de ese
-                proveedor se ve antes de confirmar.
+                La demo no pide dinero real: practicas con US$10.000 ficticios. Cuando haya
+                cuentas reales, el monto, el método y el costo del proveedor se ven en ese paso.
               </p>
             </Card>
             <Card className="p-5">
               <h3 className="text-base">La compra</h3>
               <p className="mt-2 text-sm leading-relaxed text-fg-body">
-                Ves el precio en tu moneda y el desglose completo —comisión, red e impacto— antes de
-                aceptar la orden.
+                Ves el precio en dólares (US$) y el desglose completo —comisión, red e impacto—
+                antes de aceptar la orden.
               </p>
             </Card>
             <Card className="p-5">
