@@ -2,6 +2,7 @@ import { tradeQuoteRequestSchema, tradeQuoteSchema } from "@/lib/api/contracts";
 import {
   parseJson,
   assertSameOrigin,
+  assertRealTradingEnabled,
   callService,
   handle,
   readOutput,
@@ -62,7 +63,10 @@ export function POST(req: Request) {
     const body = await parseJson(req, tradeQuoteRequestSchema);
     const symbol = await requireSymbolForBuyGuard(body.symbol, body.side);
     if (isRealAccountRequest(req)) {
-      throw new DomainError("VALIDATION", "La cuenta real todavía no opera.");
+      // El camino real se apaga (503 REAL_DISABLED) hasta que
+      // REAL_TRADING_READY=true. Cotizar no mueve dinero, pero se mantiene
+      // coherente con build/submit: apagado hasta encender el flag.
+      assertRealTradingEnabled();
     }
     if (isUserDemoRequest(req)) {
       const session = await requireSession(services, req);

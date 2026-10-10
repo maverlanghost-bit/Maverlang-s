@@ -11,7 +11,6 @@ import {
   isRealAccountRequest,
   isUserDemoRequest,
 } from "@/lib/api/handler";
-import { DomainError } from "@/lib/api/result";
 import { withRateLimit } from "@/lib/security/rate-limit";
 import { getServices } from "@/lib/services";
 import { demoSupabase } from "@/lib/services/demo.supabase";
@@ -27,10 +26,10 @@ export function POST(req: Request) {
     await requireSupabaseUser(services, req);
     const body = await parseJson(req, tradeBuildRequestSchema);
     if (isRealAccountRequest(req)) {
-      // M46: sólo el camino real se apaga (503 REAL_DISABLED sin tocar
-      // servicios externos). El camino demo de abajo sigue igual.
+      // M46: el camino real se apaga (503 REAL_DISABLED) hasta que
+      // REAL_TRADING_READY=true. Con el flag encendido, pasa al motor live
+      // de abajo. El camino demo sigue igual.
       assertRealTradingEnabled();
-      throw new DomainError("VALIDATION", "La cuenta real todavía no opera.");
     }
     if (isUserDemoRequest(req)) {
       const session = await requireSession(services, req);
