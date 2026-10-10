@@ -24,6 +24,7 @@ import { USDC_MINT } from "@/config/tickers";
 import { livePrices } from "@/lib/services/prices.live";
 import { isValidSolanaAddress } from "@/lib/solana/address";
 import { DomainError } from "@/lib/api/result";
+import { listOrdersForActivity } from "@/lib/services/orders.supabase";
 
 const USDC_DECIMALS = 6;
 const STOCK_DECIMALS = 8;
@@ -171,16 +172,25 @@ export const livePortfolio = {
   },
 
   /**
-   * TODO actividad.
-   * Dos fuentes: filas `orders` del usuario (buy/sell) y firmas de la address
-   *   (`getSignaturesForAddress`) para send/receive. El proveedor de parseo de esas
-   *   firmas está [POR DEFINIR]: no adivinar el tipo de instrucción.
-   * Mapeo a Activity: kind, symbol, amountUi (ya con multiplicador), valueUsd, status, signature, at.
-   * Errores: address inválida → VALIDATION. Supabase o RPC → UPSTREAM. Sin filas → lista vacía, no un error.
-   * Cache: no.
+   * Historial real: las órdenes (compra/venta) del usuario desde `orders`.
+   * Recibe `address` (para futuras firmas on-chain de send/receive) y
+   * `userId` (las órdenes se guardan por usuario). Sin órdenes → lista vacía.
    */
-  async activity(): Promise<Activity[]> {
-    throw new Error("NOT_IMPLEMENTED: actividad on-chain / orders");
+  async activity(input: { address: string; userId: string }): Promise<Activity[]> {
+    if (!isValidSolanaAddress(input.address)) {
+      throw new DomainError("VALIDATION", "La direccion de la billetera no es valida.");
+    }
+    const rows = await listOrdersForActivity(input.userId);
+    return rows.map((row) => ({
+      id: row.id,
+      kind: row.side as Activity["kind"],
+      symbol: row.symbol,
+      amountUi: Number(row.in_amount_ui ?? 0),
+      valueUsd: Number(row.out_amount_ui ?? 0) || null,
+      status: row.status,
+      signature: row.signature,
+      at: row.created_at,
+    }));
   },
 
   /**
