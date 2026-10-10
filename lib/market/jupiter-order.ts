@@ -22,6 +22,20 @@ export interface JupiterOrderLike {
   slippageBps?: string | number;
   routePlan?: unknown;
   router?: string;
+  mode?: string;
+  /** Transacción armada en base64 (sólo cuando se pasa `taker`). */
+  transaction?: string | null;
+  transactionVersion?: string | number;
+}
+
+/** Subset de la respuesta de `POST /swap/v2/execute` que nos interesa. */
+export interface JupiterExecuteLike {
+  status?: string;
+  signature?: string;
+  code?: number;
+  error?: string;
+  inputAmountResult?: string | number;
+  outputAmountResult?: string | number;
 }
 
 export interface OrderParseOptions {
@@ -154,4 +168,36 @@ export function parseJupiterOrder(body: JupiterOrderLike, options: OrderParseOpt
     platformFeeBps: options.platformFeeBps,
     isRfq,
   };
+}
+
+/**
+ * Parser PURO de la respuesta de EJECUCIÓN (`POST /swap/v2/execute`).
+ * `status` "Success" → "submitted", "Failed" → "failed".
+ * Si es submitted exige signature no vacía; si no, lanza.
+ */
+export function parseJupiterExecute(body: JupiterExecuteLike): {
+  status: "submitted" | "failed";
+  signature: string | null;
+  error?: string;
+} {
+  const status = typeof body.status === "string" ? body.status.trim() : "";
+  if (status === "Success") {
+    const signature = typeof body.signature === "string" ? body.signature.trim() : "";
+    if (!signature) throw new Error("Jupiter execute sin signature");
+    return { status: "submitted", signature };
+  }
+  if (status === "Failed") {
+    const rawError = typeof body.error === "string" ? body.error.trim() : "";
+    return {
+      status: "failed",
+      signature: null,
+      ...(rawError ? { error: rawError } : {}),
+    };
+  }
+  throw new Error("Jupiter execute con status desconocido");
+}
+
+/** true si la orden trae transacción base64 no vacía (con `taker`). */
+export function orderHasTransaction(order: JupiterOrderLike): boolean {
+  return typeof order.transaction === "string" && order.transaction.trim() !== "";
 }
