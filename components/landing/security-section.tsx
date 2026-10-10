@@ -7,18 +7,16 @@ import { REVEAL_STAGGER_MS } from "@/lib/hooks/reveal-motion";
 
 const points: { title: string; body: string; extra?: "risks" }[] = [
   {
-    // TODO-VERIFICAR: autocustodia vía billetera embebida. Exportar la clave está marcado [según Privy].
     title: "Tus activos, en tu propia billetera",
-    body: "El token es tuyo y queda en tu propia billetera: nosotros no custodiamos tus activos. La idea es que lo controles tú; falta confirmar cómo se exporta la clave.",
+    body: "El token es tuyo y queda en la billetera de tu cuenta: nosotros no custodiamos tus activos. Quien controle la cuenta controla los activos; el modo de exportar la clave sigue en revisión.",
   },
   {
-    // TODO-VERIFICAR: no usar «emisor regulado» hasta cerrar la redacción. El catálogo dice issuer "Backed (xStocks)".
     title: "Emisor: Backed (xStocks)",
-    body: "Las acciones tokenizadas del catálogo las emite Backed (xStocks). Cómo describir su marco todavía está en revisión.",
+    body: "Los tokens del catálogo los emite Backed (xStocks), no nosotros: la app es la interfaz para comprarlos y tenerlos en tu billetera. El emisor puede restringir el activo.",
   },
   {
     title: "Qué no es",
-    body: "El token es tuyo, en tu billetera, y sigue el precio de la acción. No te convierte en accionista registrado ni te da voto. El emisor puede restringir el activo. Puedes perder lo que invertiste. [REVISIÓN ABOGADO]",
+    body: "El token es tuyo, en tu billetera, y sigue el precio de la acción. No te convierte en accionista registrado ni te da voto. El emisor puede restringir el activo. Puedes perder lo que invertiste.",
     extra: "risks",
   },
 ];
