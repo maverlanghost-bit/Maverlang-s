@@ -46,7 +46,7 @@ export default function CostosPage() {
             </li>
             <li>
               <strong className="font-medium text-fg">Proveedor de depósito.</strong> Depende del
-              método que elijas al depositar pesos. Lo ves en ese paso.
+              método que elijas al depositar. Lo ves en ese paso, antes de confirmar.
             </li>
           </ul>
           <p className="mt-8 flex flex-wrap gap-x-6 gap-y-3">

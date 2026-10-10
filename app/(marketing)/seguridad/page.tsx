@@ -62,8 +62,8 @@ export default function SeguridadPage() {
             <Card className="p-5">
               <h3 className="text-base">Revisa antes de confirmar</h3>
               <p className="mt-2 text-sm leading-relaxed text-fg-body">
-                Mira el precio en tu moneda y el desglose completo —comisión, red e impacto— antes
-                de aceptar cada orden.
+                Mira el precio en dólares (US$) y el desglose completo —comisión, red e impacto—
+                antes de aceptar cada orden.
               </p>
             </Card>
             <Card className="p-5">
