@@ -102,11 +102,11 @@ function AssetRow({
         <span className="block truncate font-medium text-fg">{symbol}</span>
         <span className="mt-0.5 block truncate text-sm text-fg-muted">{name}</span>
       </span>
-      <span className="flex shrink-0 flex-col items-end gap-1 text-right">
+      <span className="flex min-w-0 max-w-full shrink-0 flex-col items-end gap-1 text-right">
         {hidden && (symbol === "USDC" || symbol === "SOL") ? (
           <Masked label={hiddenLabel} />
         ) : (
-          <span className="num text-sm text-fg">{amount}</span>
+          <span className="num max-w-full text-sm break-words text-fg">{amount}</span>
         )}
         {hidden ? null : pending ? (
           <Skeleton className="h-5 w-16" />
@@ -184,13 +184,13 @@ export function WalletScreen() {
 
       <Card>
         <p className="label">{t.wallet.usdcLabel}</p>
-        <div className="mt-2" aria-live="polite">
+        <div className="mt-2 min-w-0 max-w-full" aria-live="polite">
           {masked ? (
             <Masked label={t.shell.balanceHidden} className="text-4xl sm:text-5xl" />
           ) : pendingFx ? (
             <Skeleton className="h-12 w-48" />
           ) : (
-            <PriceText value={usdcView.amount} currency={usdcView.currency} size="lg" />
+            <PriceText value={usdcView.amount} currency={usdcView.currency} size="lg" className="max-w-full break-words" />
           )}
           {masked || pendingFx ? null : currency === "CLP" && !fxKnown ? (
             <p className="mt-2 text-sm text-fg-muted">{t.detail.fxMissing}</p>
@@ -202,7 +202,7 @@ export function WalletScreen() {
           <p className="label">{t.wallet.solLabel}</p>
           {sol ? (
             <>
-              <p className="mt-2 text-lg text-fg">{masked ? <Masked label={t.shell.balanceHidden} /> : <span className="num">{formatSol(solUi)}</span>}</p>
+              <p className="mt-2 max-w-full text-lg break-words text-fg">{masked ? <Masked label={t.shell.balanceHidden} /> : <span className="num">{formatSol(solUi)}</span>}</p>
               <p className="mt-1 max-w-xl text-sm leading-relaxed text-fg-muted">{t.wallet.solExplain}</p>
               {lowSol ? (
                 <p role="status" className="mt-3 rounded-xl bg-warn-bg px-4 py-3 text-sm leading-relaxed text-fg">
@@ -233,7 +233,7 @@ export function WalletScreen() {
         {rows.length === 0 ? (
           <p className="mt-3 text-sm text-fg-muted">{t.wallet.assetsEmpty}</p>
         ) : (
-          <ul className="mt-2 divide-y divide-border">
+          <ul className="mt-2 min-w-0 divide-y divide-border">
             {rows.map((row) => (
               <li key={row.mint}>
                 <AssetLine
@@ -373,7 +373,7 @@ function ActivityList({
           <h3 id={`day-${group.key}`} className="label">
             {group.label}
           </h3>
-          <ul className="divide-y divide-border">
+          <ul className="min-w-0 divide-y divide-border">
             {group.rows.map((row) => (
               <li key={row.id}>
                 <ActivityItem
