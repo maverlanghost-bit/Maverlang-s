@@ -284,8 +284,8 @@ function TradeActions({
   const sellDisabled = blocked === "review" ? !canSell : blocked !== null || !canSell;
 
   const buttons = (
-    <div className={wide ? "flex flex-col gap-3" : "flex gap-3"}>
-      <Button size="lg" className={wide ? "w-full" : "h-auto min-h-11 flex-1 whitespace-nowrap px-4 text-base md:h-auto md:px-5"} disabled={buyDisabled} aria-describedby={blockedReason ? blockedId : undefined} onClick={() => {
+    <div className={wide ? "flex flex-col gap-3" : "flex gap-2"}>
+      <Button size="lg" className={wide ? "w-full" : "h-auto min-h-11 w-full min-w-0 flex-1 whitespace-nowrap px-3 text-base md:h-auto md:px-5"} disabled={buyDisabled} aria-describedby={blockedReason ? blockedId : undefined} onClick={() => {
           if (!buyDisabled) onBuy();
         }}>
         {t.detail.buy}
@@ -293,7 +293,7 @@ function TradeActions({
       <Button
         size="lg"
         variant="secondary"
-        className={wide ? "w-full" : "h-auto min-h-11 flex-1 whitespace-nowrap px-4 text-base md:h-auto md:px-5"}
+        className={wide ? "w-full" : "h-auto min-h-11 w-full min-w-0 flex-1 whitespace-nowrap px-3 text-base md:h-auto md:px-5"}
         disabled={sellDisabled}
         aria-describedby={blockedReason ? blockedId : sellDisabled ? hintId : undefined}
         onClick={() => {
@@ -371,9 +371,9 @@ function MissingFigure({ label }: { label: string }) {
 
 function StatCell({ label, pending, children }: { label: string; pending: boolean; children: ReactNode }) {
   return (
-    <div className="min-w-0 bg-surface-1 px-3 py-3" aria-busy={pending || undefined}>
-      <dt className="text-xs text-fg-muted">{label}</dt>
-      <dd className="mt-1">{pending ? <Skeleton className="h-5 w-20" /> : children}</dd>
+    <div className="min-w-0 max-w-full bg-surface-1 px-3 py-3" aria-busy={pending || undefined}>
+      <dt className="label max-w-full break-words">{label}</dt>
+      <dd className="mt-1 min-w-0 max-w-full break-words tabular-nums">{pending ? <Skeleton className="h-5 w-20" /> : children}</dd>
     </div>
   );
 }
@@ -660,7 +660,7 @@ export function DetailScreen({
       animate={{ opacity: 1, scale: 1 }}
       transition={reduceMotion ? { duration: 0 } : { duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
     >
-      <div className="flex min-w-0 flex-col gap-8">
+      <div className="flex min-w-0 max-w-full flex-col gap-8">
         <Link
           href="/app"
           className="-ml-2 flex min-h-11 w-fit items-center gap-1.5 rounded-full px-2 text-sm text-fg-muted outline-none transition hover:text-fg focus-visible:ring-4 focus-visible:ring-fg/20"
@@ -672,8 +672,8 @@ export function DetailScreen({
           <div className="flex items-start gap-3">
             <TickerLogo symbol={ticker.symbol} name={ticker.name} logoUrl={ticker.logo} size={56} decorative />
             <div className="min-w-0 flex-1">
-              <h1 className="text-2xl text-balance">{ticker.name}</h1>
-              <p className="mt-1 text-sm text-fg-muted">
+              <h1 className="max-w-full text-2xl break-words text-balance">{ticker.name}</h1>
+              <p className="mt-1 max-w-full break-words text-sm text-fg-muted">
                 <span className="num text-fg">{ticker.symbol}</span>
                 <span aria-hidden> · </span>
                 <span>
@@ -761,12 +761,12 @@ export function DetailScreen({
           <p className="text-sm leading-relaxed text-fg-body">
             {fill(t.detail.tokenLead, { issuer: ticker.issuer, brand: site.name, name: ticker.name })}
           </p>
-          <dl className="grid gap-4 border-t border-border pt-4">
-            <div>
+          <dl className="grid min-w-0 max-w-full gap-4 border-t border-border pt-4">
+            <div className="min-w-0 max-w-full">
               <dt className="label">{t.detail.issuer}</dt>
               <dd className="mt-1 text-sm text-fg">{ticker.issuer}</dd>
             </div>
-            <div>
+            <div className="min-w-0 max-w-full">
               <dt className="label">{t.detail.mint}</dt>
               <dd className="mt-1">
                 <p className="text-sm text-fg-muted">{t.detail.mintHint}</p>
@@ -785,7 +785,7 @@ export function DetailScreen({
                 </div>
               </dd>
             </div>
-            <div>
+            <div className="min-w-0 max-w-full">
               <dt className="label">{t.detail.multiplier}</dt>
               <dd className="mt-1 text-sm leading-relaxed text-fg-body">
                 {quote && Number.isFinite(quote.multiplier) ? (
