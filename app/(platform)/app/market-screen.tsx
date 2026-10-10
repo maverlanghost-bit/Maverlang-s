@@ -169,17 +169,19 @@ function ChipGroup<T extends string>({
 }
 
 function ResultsSkeleton({ label }: { label: string }) {
+  // Placeholder estático (sin pulso): misma caja que la lista, primer pintado
+  // más barato y sin saltos cuando llega el catálogo.
   return (
     <div role="status" aria-live="polite" aria-busy="true" className="flex flex-col gap-6">
       <span className="sr-only">{label}</span>
-      <div className="flex gap-3 overflow-hidden">
-        <Skeleton className="h-28 w-60 shrink-0 rounded-3xl" />
-        <Skeleton className="h-28 w-60 shrink-0 rounded-3xl" />
-        <Skeleton className="h-28 w-60 shrink-0 rounded-3xl" />
+      <div className="flex gap-3 overflow-hidden" aria-hidden>
+        <div className="h-28 w-60 shrink-0 rounded-3xl bg-surface-2" />
+        <div className="h-28 w-60 shrink-0 rounded-3xl bg-surface-2" />
+        <div className="h-28 w-60 shrink-0 rounded-3xl bg-surface-2" />
       </div>
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-col gap-2" aria-hidden>
         {["a", "b", "c", "d", "e", "f"].map((key) => (
-          <Skeleton key={key} className="h-16 w-full rounded-xl" />
+          <div key={key} className="h-16 w-full rounded-xl bg-surface-2" />
         ))}
       </div>
     </div>
@@ -258,7 +260,13 @@ export function MarketScreen({
       enabled: symbols.length > 0,
       staleTime: PRICE_MS,
       refetchInterval: PRICE_MS,
-      refetchOnWindowFocus: true,
+      // Sin refetch al volver a la pestaña: el intervalo de 15 s ya mantiene
+      // la lista viva y se evita una ráfaga de llamadas al enfocar.
+      refetchOnWindowFocus: false,
+      refetchIntervalInBackground: false,
+      // Mientras revalida, se siguen viendo los últimos precios en vez de
+      // volver al placeholder vacío.
+      placeholderData: (previous) => previous,
     })),
   });
   const quotesBySymbol = (() => {
@@ -557,7 +565,9 @@ export function MarketScreen({
                   reviewHint={entry.item.underReview ? t.market.underReviewHint : null}
                   statusDot={dotFor(entry.item)}
                   priceSlot={
-                    shownPrice ? null : <span className="block h-8 w-16 shrink-0" aria-hidden />
+                    shownPrice ? null : (
+                      <span className="block h-8 w-16 shrink-0 rounded-md bg-surface-2" aria-hidden />
+                    )
                   }
                   action={
                     <FavoriteButton

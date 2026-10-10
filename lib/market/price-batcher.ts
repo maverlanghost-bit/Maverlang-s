@@ -151,8 +151,13 @@ export async function fetchMintBatch(
       pending.push(mint);
     }
   }
+  const chunks: string[][] = [];
   for (let index = 0; index < pending.length; index += PRICE_BATCH_MAX_IDS) {
-    const chunk = pending.slice(index, index + PRICE_BATCH_MAX_IDS);
+    chunks.push(pending.slice(index, index + PRICE_BATCH_MAX_IDS));
+  }
+  // Los lotes se piden en paralelo (mismo reintento, mismo TTL, mismo
+  // formato): el primer lote visible no espera al resto en llamadas > 50.
+  const jobs = chunks.map((chunk) => {
     const key = chunkKey(chunk);
     let job = cache.inflight.get(key);
     if (!job) {
@@ -163,12 +168,14 @@ export async function fetchMintBatch(
       };
       void job.then(cleanup, cleanup);
     }
-    let rows: Map<string, MintPrice> | null = null;
-    try {
-      rows = await job;
-    } catch {
-      rows = null;
-    }
+    return job.then(
+      (rows) => rows,
+      () => null as Map<string, MintPrice> | null,
+    );
+  });
+  const settled = await Promise.all(jobs);
+  chunks.forEach((chunk, chunkIndex) => {
+    const rows = settled[chunkIndex] ?? null;
     for (const mint of chunk) {
       const row = rows?.get(mint);
       if (row) {
@@ -195,7 +202,7 @@ export async function fetchMintBatch(
         });
       }
     }
-  }
+  });
   return out;
 }
 
