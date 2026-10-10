@@ -1,12 +1,25 @@
 import "server-only";
 
-import { Connection, PublicKey } from "@solana/web3.js";
-import { TOKEN_2022_PROGRAM_ID, TOKEN_PROGRAM_ID } from "@solana/spl-token";
+import { Connection, PublicKey, VersionedTransaction, TransactionMessage } from "@solana/web3.js";
+import {
+  TOKEN_2022_PROGRAM_ID,
+  TOKEN_PROGRAM_ID,
+  createAssociatedTokenAccountIdempotentInstruction,
+  createTransferInstruction,
+  getAssociatedTokenAddressSync,
+} from "@solana/spl-token";
 
-import type { Activity, Balance, Position, Portfolio, TradeBuildResponse } from "@/lib/types";
+import type {
+  Activity,
+  Balance,
+  Position,
+  Portfolio,
+  SendBuildRequest,
+  TradeBuildResponse,
+} from "@/lib/types";
 import { getServerConnection } from "@/lib/solana/connection";
 import { classifyMint, tickerByMint } from "@/lib/solana/allowlist";
-import { fetchMintMultiplier, rawToShares } from "@/lib/solana/scaled-ui";
+import { fetchMintMultiplier, rawToShares, sharesToRaw } from "@/lib/solana/scaled-ui";
 import { USDC_MINT } from "@/config/tickers";
 import { livePrices } from "@/lib/services/prices.live";
 import { isValidSolanaAddress } from "@/lib/solana/address";
@@ -171,17 +184,66 @@ export const livePortfolio = {
   },
 
   /**
-   * TODO armar un envío.
-   * Parámetros: to, mint, amountUi, userPublicKey. `isValidSolanaAddress` en las dos claves.
-   *   `classifyMint`: `unknown`, `sol` o `disabled` → MINT_NOT_ALLOWED. `stock` usa Token-2022;
-   *   `usdc` usa el programa clásico. amountUi → crudo con `sharesToRaw` (USDC: × 10^6, multiplicador 1).
-   * Mapeo a TradeBuildResponse: transacción de transferencia (ATA destino idempotente) en base64,
-   *   sin firmar. requestId propio. La firma y el débito ocurren en submit, como en el mock.
-   * Errores: destino = origen → VALIDATION. Saldo insuficiente → INSUFFICIENT_FUNDS.
-   *   Renta de ATA (~0,0016 SOL) se muestra; no se patrocina (`sponsor.ts`, requiere KMS).
-   * Cache: no.
+   * Arma un envío de tokens (transferencia SPL/Token-2022) sin firmar.
+   * Valida origen/destino/mint, calcula el crudo con el multiplicador
+   * Token-2022, arma el ATA destino idempotente y la transferencia, y
+   * devuelve la transacción en base64. La firma y el envío van en submit.
    */
-  async sendBuild(): Promise<TradeBuildResponse> {
-    throw new Error("NOT_IMPLEMENTED: transferencia SPL Token-2022 o USDC");
+  async sendBuild(request: SendBuildRequest): Promise<TradeBuildResponse> {
+    const to = request.to?.trim() ?? "";
+    const from = request.userPublicKey?.trim() ?? "";
+    if (!isValidSolanaAddress(to)) {
+      throw new DomainError("VALIDATION", "La direccion de destino no es valida.");
+    }
+    if (!isValidSolanaAddress(from)) {
+      throw new DomainError("VALIDATION", "Falta la billetera de origen.");
+    }
+    if (to === from) {
+      throw new DomainError("VALIDATION", "El destino no puede ser la misma billetera.");
+    }
+    if (!(request.amountUi > 0) || !Number.isFinite(request.amountUi)) {
+      throw new DomainError("VALIDATION", "El monto tiene que ser mayor que cero.");
+    }
+    const kind = classifyMint(request.mint);
+    if (kind === "unknown" || kind === "sol" || kind === "disabled") {
+      throw new DomainError("MINT_NOT_ALLOWED");
+    }
+
+    const connection = getServerConnection();
+    const owner = new PublicKey(from);
+    const decimals = kind === "usdc" ? USDC_DECIMALS : STOCK_DECIMALS;
+    const multiplier = kind === "stock" ? await fetchMintMultiplier(connection, request.mint) : 1;
+    const rawAmount = kind === "usdc"
+      ? BigInt(Math.round(request.amountUi * 10 ** USDC_DECIMALS))
+      : sharesToRaw(request.amountUi, decimals, multiplier);
+
+    // Verificamos saldo leyendo el ATA de origen.
+    const source = getAssociatedTokenAddressSync(new PublicKey(request.mint), owner, false);
+    const sourceAccount = await connection.getTokenAccountBalance(source).catch(() => null);
+    const balance = sourceAccount ? BigInt(sourceAccount.value.amount) : BigInt(0);
+    if (balance < rawAmount) {
+      throw new DomainError("INSUFFICIENT_FUNDS");
+    }
+
+    // Armamos la transferencia (ATA destino idempotente + transferencia).
+    const destination = getAssociatedTokenAddressSync(new PublicKey(request.mint), new PublicKey(to), true);
+    const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash("confirmed");
+    const transaction = new VersionedTransaction(
+      new TransactionMessage({
+        payerKey: owner,
+        recentBlockhash: blockhash,
+        instructions: [
+          createAssociatedTokenAccountIdempotentInstruction(owner, destination, new PublicKey(to), new PublicKey(request.mint)),
+          createTransferInstruction(source, destination, owner, rawAmount),
+        ],
+      }).compileToV0Message(),
+    );
+    void lastValidBlockHeight;
+
+    return {
+      requestId: `send:${request.mint}:${rawAmount.toString()}:${Date.now()}`,
+      transactionBase64: Buffer.from(transaction.serialize()).toString("base64"),
+      expiresAt: new Date(Date.now() + 60_000).toISOString(),
+    };
   },
 };
