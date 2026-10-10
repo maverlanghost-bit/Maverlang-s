@@ -1,5 +1,12 @@
 # PROGRESO — Maverlang
 
+## Consistencia de copy landing: demo en dólares, depósito futuro en neutro (2026-10-10)
+- Hecho: sólo copy, sin tocar API ni lógica. La demo habla en dólares (US$10.000 ficticios, precios en US$) como el hero; el depósito de dinero real queda en neutro ("cuando haya cuentas reales"), sin afirmar "en pesos" como método activo y sin nombrar proveedores.
+- Archivos: `components/landing/how-it-works.tsx`, `app/(marketing)/{como-funciona,ayuda,costos,seguridad}/page.tsx`, `lib/content/faq.ts`. 5 commits atómicos en rama `b/landing-copy`.
+- Verificación: grep sin "pesos/Khipu/en tu moneda" en `components/landing` ni `app/(marketing)` (sólo 1 comentario interno y el FAQ de retiro, condicional "si el proveedor permite…"). Digo con todas sus letras: `npx tsc` NO corrido (`typescript` no instalado); sin revisión visual en `next dev`.
+- Pendiente operador: `npx tsc --noEmit` y ver `/`, `/como-funciona`, `/ayuda`, `/costos` en 1280px y 390px. Fuera de alcance (plataforma, intacto): `billetera/depositar/peso-deposit.tsx`, `onboarding/panel.tsx` ("depositar pesos").
+- Próximos pasos: nada más de esta tarea.
+
 ## Página /seguridad completa y sobria (2026-10-10)
 - Hecho: sólo copy y secciones, sin tocar lógica ni props. (1) `SecuritySection`: las 2 tarjetas con texto interno ("falta confirmar…", "en revisión") ahora usan frases ya publicadas del sitio (billetera de tu cuenta + "quien controle la cuenta…", Backed emite y puede restringir); se quitó el `[REVISIÓN ABOGADO]` inline de la tarjeta (el enlace lleva al borrador marcado). (2) `/seguridad`: nuevas secciones "La demo no es dinero real" (US$10.000 ficticios, precios reales, sin cobro — copy del hero/i18n) y "Buenas prácticas" (4 Cards reusadas: acceso, revisar desglose, practicar, leer riesgos), más el marco completo intacto.
 - Archivos: `components/landing/security-section.tsx`, `app/(marketing)/seguridad/page.tsx`.
