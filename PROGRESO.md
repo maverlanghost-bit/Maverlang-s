@@ -6,6 +6,12 @@
 - Cifras: 0% lanzamiento (fuente: `lib/env.ts` `FEE_BPS` default 0 + `config/fees.ts` + `comisiones.md`); "centavos de dólar" para red (fuente: `comisiones.md` + FAQ, sin endurecer a número: `NETWORK_FEE_SOL`=0.000005 y rent 0.0016 SOL se muestran en SOL según §6); diferencia de precio y proveedor sin montos (variables, se muestran antes de confirmar). Sin "gratis"/"sin costo" (grep OK). Link a `/legal/comisiones` existe (slug en `LEGAL_SLUGS`).
 - Verificación: digo con todas sus letras: `npx tsc` NO corrido (`typescript` no instalado); sin revisión visual en `next dev`. Cambio sólo texto JSX + comentario, riesgo mínimo.
 - Pendiente operador: `npx tsc --noEmit` y ver `/costos` en 1280px y 390px.
+## Centro /ayuda: 6 FAQ demo + grupos (2026-10-10)
+- Hecho: sólo contenido, sin tocar API ni lógica. 6 FAQ nuevas en `lib/content/faq.ts` (`home:false`, la portada intacta): demo, registro, contraseña, comprar-vender, cartera, autocustodia. Respuestas de 1–2 frases, es-CL sobrio, enlaces sólo a rutas reales.
+- Hecho: `/ayuda` agrupa el FAQ en 3 secciones (Para partir / Para operar / Seguridad y costos) con el mismo `Accordion` (`min-h-11`, apilado en móvil). Sin buscador: no había y añadirlo sería lógica nueva.
+- Archivos: `lib/content/faq.ts`, `app/(marketing)/ayuda/page.tsx`. 2 commits atómicos en rama `b/ayuda-page`.
+- Verificación: copy contrastado con `registro/wizard.tsx` (correo+clave+enlace), `recuperar-form.tsx` (enlace+spam), `/seguridad` y `/como-funciona` (US$10.000, billetera propia, desglose previo). Digo con todas sus letras: `npx tsc` NO corrido (`typescript` no instalado); sin revisión visual en `next dev`.
+- Pendiente operador: `npx tsc --noEmit` y ver `/ayuda` en 1280px y 390px (3 grupos, acordeones).
 - Próximos pasos: nada más de esta tarea.
 
 ## Consistencia de copy landing: demo en dólares, depósito futuro en neutro (2026-10-10)
