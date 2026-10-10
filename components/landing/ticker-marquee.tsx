@@ -20,7 +20,7 @@ export function TickerMarquee({ quotes, live }: { quotes: LandingQuote[]; live: 
   return (
     <section aria-label="Cinta de precios" className="overflow-hidden border-y border-border py-6 md:py-8">
       <div className="ticker-marquee-motion" aria-hidden>
-        <ul className="flex w-max animate-marquee">
+        <ul className="flex w-max animate-marquee will-change-transform">
           {tape.map((quote, index) => (
             <li key={`${quote.symbol}-${index}`} className="flex">
               <LandingPrice

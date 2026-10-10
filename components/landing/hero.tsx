@@ -43,7 +43,7 @@ function Reveal({
   children: ReactNode;
 }) {
   return (
-    <div className={cn("animate-reveal", className)} style={{ animationDelay: `${delay}ms` }}>
+    <div className={cn("motion-safe:animate-reveal", className)} style={{ animationDelay: `${delay}ms` }}>
       {children}
     </div>
   );
@@ -79,14 +79,14 @@ export function Hero({ quotes, live }: { quotes: LandingQuote[]; live: boolean }
           </p>
         </Reveal>
         <Reveal delay={320} className="mt-8 w-full">
-          <div className="flex flex-wrap items-center justify-center gap-3">
-            <Button asChild size="md" className="min-h-11">
+          <div className="flex w-full flex-col items-stretch gap-3 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center sm:justify-center">
+            <Button asChild size="md" className="min-h-11 w-full sm:w-auto">
               <Link href="/app/registro">Prueba la demo gratis</Link>
             </Button>
-            <Button asChild variant="secondary" size="md" className="min-h-11">
+            <Button asChild variant="secondary" size="md" className="min-h-11 w-full sm:w-auto">
               <Link href="/app">{esCL.guest.seeStocks}</Link>
             </Button>
-            <Button asChild variant="secondary" size="md" className="min-h-11">
+            <Button asChild variant="secondary" size="md" className="min-h-11 w-full sm:w-auto">
               <Link href="/#como-funciona">Cómo funciona</Link>
             </Button>
           </div>

@@ -5,6 +5,12 @@
 - Archivos: `app/(marketing)/legal/[doc]/page.tsx`, `components/landing/legal-document.tsx`. Commit atómico en rama `b/legal-docs`.
 - Verificación: digo con todas sus letras: `npx tsc` NO corrido (`typescript` no instalado); sin revisión visual en `next dev`. Diff revisado a mano.
 - Pendiente operador: ver `/legal/terminos|privacidad|riesgos|comisiones` en 1280px y 390px (nav + fecha/versión).
+## Pulido visual de la portada (2026-10-10)
+- Hecho: sólo clases CSS, sin tocar copy, props, imports, datos ni lógica de precios. (1) Hero y CTA final: botones apilados a ancho completo en móvil (`flex-col`/`w-full`, fila centrada desde `sm`), escritorio idéntico; CTA "Prueba la demo gratis" a 44px y protagonista en 360px. (2) Reveal del hero con `motion-safe:animate-reveal` (con movimiento reducido el contenido aparece directo, sin parpadeo). (3) Cinta con `will-change-transform` (capa de compositor, sin saltos; el fallback estático con `prefers-reduced-motion` ya existía). (4) H2 del CTA final con `leading-[1.05]`, misma jerarquía que el H1.
+- Archivos: `components/landing/{hero,ticker-marquee,final-cta}.tsx`. 3 commits atómicos en rama `b/portada-hero`.
+- Verificación: diff sólo clases (10+/10-). Digo con todas sus letras: `npx tsc` NO corrido (sin `node_modules`); sin revisión visual en `next dev`.
+- Pendiente operador: ver `/` en 360px y 1440px (CTAs apilados/centrados, cinta fluida, sin scroll horizontal) y con movimiento reducido.
+- Próximos pasos: nada más de esta tarea.
 
 ## Página /costos honesta y completa (2026-10-10)
 - Hecho: sólo copy, sin tocar API ni lógica. La tabla (`CostsSection`) y el detalle (`/costos`) agregan la fila que faltaba —"Cuenta del activo, la primera vez" (costo de red por abrir la cuenta del token, se muestra en el desglose)— con el lenguaje exacto de `content/legal/comisiones.md`. Comentario interno TODO-VERIFICAR/[POR DECIDIR] reemplazado por cita de fuente (`lib/wallet/send-cost.ts`, ARQUITECTURA §6: montos en SOL, sin conversión).
