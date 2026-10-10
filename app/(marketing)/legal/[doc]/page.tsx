@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { LegalBody } from "@/components/landing/legal-document";
+import { LegalBody, LegalNav } from "@/components/landing/legal-document";
 import { LandingSection } from "@/components/landing/section";
 import { site } from "@/config/site";
 import { formatLegalDate, getLegalDocument, LEGAL_SLUGS } from "@/lib/content/legal";
@@ -44,6 +44,7 @@ export default async function LegalPage({ params }: { params: Promise<{ doc: str
             Versión {legal.version} · Actualizado el {formatLegalDate(legal.updated)}
           </p>
           <LegalBody blocks={legal.blocks} />
+          <LegalNav current={doc} />
         </article>
       </LandingSection>
     </main>

@@ -43,7 +43,7 @@ function Inlines({ items }: { items: Inline[] }) {
 
 export function LegalBody({ blocks }: { blocks: Block[] }) {
   return (
-    <div className="mt-10 space-y-4 text-sm leading-relaxed text-fg-body sm:text-base">
+    <div className="mt-10 space-y-4 break-words text-sm leading-relaxed text-fg-body sm:text-base">
       {blocks.map((block, index) => {
         if (block.type === "h2") {
           return (
@@ -109,11 +109,39 @@ export function LegalBody({ blocks }: { blocks: Block[] }) {
           );
         }
         return (
-          <p key={index}>
+          <p key={index} className="text-pretty">
             <Inlines items={block.inlines} />
           </p>
         );
       })}
     </div>
+  );
+}
+
+const LEGAL_NAV: { slug: string; label: string }[] = [
+  { slug: "terminos", label: "Términos y condiciones" },
+  { slug: "privacidad", label: "Política de privacidad" },
+  { slug: "riesgos", label: "Divulgación de riesgos" },
+  { slug: "comisiones", label: "Comisiones" },
+];
+
+export function LegalNav({ current }: { current: string }) {
+  const others = LEGAL_NAV.filter((item) => item.slug !== current);
+  return (
+    <nav aria-label="Documentos legales" className="mt-12 border-t border-border pt-6">
+      <h2 className="text-sm font-medium text-fg">Documentos legales</h2>
+      <ul className="mt-2 divide-y divide-border">
+        {others.map((item) => (
+          <li key={item.slug}>
+            <Link
+              href={`/legal/${item.slug}`}
+              className="flex min-h-11 items-center py-2 text-sm font-medium text-fg underline decoration-border underline-offset-4 outline-none hover:decoration-fg focus-visible:ring-4 focus-visible:ring-fg/20"
+            >
+              {item.label}
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </nav>
   );
 }
