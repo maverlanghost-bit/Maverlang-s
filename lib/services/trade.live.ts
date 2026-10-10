@@ -9,7 +9,12 @@ import { fetchMintMultiplier } from "@/lib/solana/scaled-ui";
 import { serverEnv } from "@/lib/env";
 import { DomainError } from "@/lib/api/result";
 import { livePrices } from "@/lib/services/prices.live";
-import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import {
+  findOrderByRequestId,
+  getOrderById,
+  insertOrder,
+  updateOrderStatus,
+} from "@/lib/services/orders.supabase";
 import { buildSwapParams, parsedOrderToTradeQuote } from "@/lib/market/jupiter-tx";
 import { fetchJupiterOrder } from "@/lib/market/jupiter-client";
 import { jupiterSwapUrl, jupiterOrderParams, parseJupiterOrder } from "@/lib/market/jupiter-order";
@@ -307,20 +312,10 @@ export const liveTrade = {
       throw new DomainError("NOT_FOUND", "No encontramos esa operación.");
     }
 
-    const admin = createSupabaseAdminClient();
-    // Idempotencia: si ya hay una orden submitted con este requestId, no repetir.
-    // `request_id` lo agrega la migración 0024; si aún no está aplicada, la
-    // consulta falla y seguimos sin idempotencia (mejor que romper el flujo).
-    let existing: { id: string; status: string; signature: string | null } | null = null;
-    const { data: dup } = await admin
-      .from("orders")
-      .select("id,status,signature")
-      .eq("user_id", userId)
-      .eq("request_id", request.requestId)
-      .maybeSingle();
-    existing = dup ?? null;
+    // Idempotencia: si ya hay una orden viva con este requestId, no repetir.
+    const existing = await findOrderByRequestId(userId, request.requestId);
     if (existing && existing.status !== "failed") {
-      return { orderId: existing.id, signature: existing.signature ?? null, status: existing.status as Order["status"] };
+      return { orderId: existing.id, signature: existing.signature, status: existing.status };
     }
 
     // Ejecutamos contra Jupiter.
@@ -348,36 +343,21 @@ export const liveTrade = {
     }
 
     const orderStatus: Order["status"] = result.status === "submitted" ? "submitted" : "failed";
-    const row = {
-      user_id: userId,
-      request_id: request.requestId,
+    const inserted = await insertOrder({
+      userId,
+      requestId: request.requestId,
       side: stored.side,
       symbol: stored.symbol,
       mint: stored.mint,
-      in_amount_ui: 0,
-      out_amount_ui: 0,
-      price_per_share_usd: stored.priceUsd,
-      fee_bps: feeConfig.bps,
-      fee_usd: 0,
+      priceUsd: stored.priceUsd,
+      feeBps: feeConfig.bps,
       status: orderStatus,
       signature: result.signature,
       error: result.error ?? null,
-    };
-    let inserted: { id: string } | null = null;
-    const insertTry = await admin.from("orders").insert(row).select("id").single();
-    if (insertTry.error || !insertTry.data) {
-      // Puede ser que la migración 0024 (request_id) no esté aplicada aún:
-      // reintentamos sin request_id para no perder la orden ejecutada.
-      const { request_id, ...rowWithoutRequestId } = row;
-      void request_id;
-      const retry = await admin.from("orders").insert(rowWithoutRequestId).select("id").single();
-      inserted = retry.data ?? null;
-    } else {
-      inserted = insertTry.data;
-    }
+    });
     if (!inserted) {
-      // Si Jupiter ya la ejecutó pero no pudimos guardar, devolvemos el estado
-      // sin orderId para no perder la traza; el polling por requestId la recupera.
+      // Jupiter ya la ejecutó pero no pudimos guardar: devolvemos el estado
+      // sin orderId; el polling por requestId la recupera.
       return { orderId: "", signature: result.signature, status: orderStatus };
     }
     return { orderId: inserted.id, signature: result.signature, status: orderStatus };
@@ -393,17 +373,12 @@ export const liveTrade = {
    * pollenado y la confirmación llega en el siguiente tick).
    */
   async status(id: string): Promise<Order> {
-    const admin = createSupabaseAdminClient();
-    const { data, error } = await admin
-      .from("orders")
-      .select("id,user_id,side,symbol,in_amount_ui,out_amount_ui,fee_bps,status,signature,error,created_at")
-      .eq("id", id)
-      .maybeSingle();
-    if (error || !data) {
+    const data = await getOrderById(id);
+    if (!data) {
       throw new DomainError("NOT_FOUND", "No encontramos esa orden.");
     }
 
-    let status = data.status as Order["status"];
+    let status = data.status;
     // Si sigue abierta y tenemos firma, confirmamos contra la cadena.
     if ((status === "submitted" || status === "pending") && data.signature) {
       const rpcUrl = serverEnv.SOLANA_RPC_URL ?? "https://api.mainnet-beta.solana.com";
@@ -417,7 +392,7 @@ export const liveTrade = {
           const next: Order["status"] = failed ? "failed" : confirmed ? "confirmed" : status;
           if (next !== status) {
             status = next;
-            await admin.from("orders").update({ status: next, updated_at: new Date().toISOString() }).eq("id", id);
+            await updateOrderStatus(id, next as "confirmed" | "failed");
           }
         }
       } catch {
@@ -428,13 +403,13 @@ export const liveTrade = {
     return {
       id: data.id,
       userId: data.user_id,
-      side: data.side as Order["side"],
+      side: data.side,
       symbol: data.symbol,
       inAmountUi: Number(data.in_amount_ui ?? 0),
       outAmountUi: Number(data.out_amount_ui ?? 0),
       feeBps: Number(data.fee_bps ?? 0),
       status,
-      signature: data.signature ?? null,
+      signature: data.signature,
       error: data.error ?? undefined,
       createdAt: data.created_at,
     };
