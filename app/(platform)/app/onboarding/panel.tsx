@@ -41,7 +41,7 @@ export function StepProgress({ step }: { step: OnboardingStep }) {
     <div className="mt-6">
       <p className="label">Paso {step} de 5</p>
       <div
-        className="mt-2 h-1 overflow-hidden rounded-full bg-surface-3"
+        className="mt-2 h-2 overflow-hidden rounded-full bg-surface-3"
         role="progressbar"
         aria-valuemin={1}
         aria-valuemax={5}
@@ -49,7 +49,7 @@ export function StepProgress({ step }: { step: OnboardingStep }) {
         aria-valuetext={`Paso ${step} de 5`}
       >
         <div
-          className="h-full rounded-full bg-fg transition-[width] duration-[240ms] ease-spring"
+          className="h-full rounded-full bg-fg transition-[width] duration-[240ms] ease-spring motion-reduce:transition-none"
           style={{ width: `${(step / 5) * 100}%` }}
         />
       </div>
