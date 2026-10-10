@@ -89,6 +89,8 @@ export function AmountInput({
   describedBy,
   invalid = false,
   chips,
+  inputClassName,
+  chipClassName,
 }: {
   label?: string;
   value: string;
