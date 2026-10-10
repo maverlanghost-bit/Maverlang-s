@@ -1,5 +1,12 @@
 # PROGRESO — Maverlang
 
+## Página /seguridad completa y sobria (2026-10-10)
+- Hecho: sólo copy y secciones, sin tocar lógica ni props. (1) `SecuritySection`: las 2 tarjetas con texto interno ("falta confirmar…", "en revisión") ahora usan frases ya publicadas del sitio (billetera de tu cuenta + "quien controle la cuenta…", Backed emite y puede restringir); se quitó el `[REVISIÓN ABOGADO]` inline de la tarjeta (el enlace lleva al borrador marcado). (2) `/seguridad`: nuevas secciones "La demo no es dinero real" (US$10.000 ficticios, precios reales, sin cobro — copy del hero/i18n) y "Buenas prácticas" (4 Cards reusadas: acceso, revisar desglose, practicar, leer riesgos), más el marco completo intacto.
+- Archivos: `components/landing/security-section.tsx`, `app/(marketing)/seguridad/page.tsx`.
+- Verificación: `Card` acepta `className` (`ui/card.tsx:4`); `npx tsc` NO corrido (`typescript` no instalado, `node_modules` incompleto). Digo con todas sus letras: sin build ni revisión visual en `next dev`.
+- Pendiente operador: `npx tsc --noEmit`, `npm run lint`, y ver `/seguridad` en 1280px y 390px (portada `#seguridad` hereda el nuevo copy).
+- Próximos pasos: nada más de esta tarea.
+
 ## Estados vacíos y guía del registro demo (2026-10-10)
 - Hecho: sólo copy y UI, sin tocar lógica de registro, trading ni rutas API. (1) Cartera vacía: `EmptyState` con "Todavía no tienes inversiones" + guía demo US$10.000 y botón "Explorar el mercado" a `/app`. (2) Registro demo: guía bajo el título (US$10.000 ficticios, crear cuenta → explorar → primera compra) y errores claros de correo usado y clave débil (guía 12+ con letras y números). (3) Historial, activos y actividad con guía accionable en vez de texto muerto.
 - Archivos: `content/i18n/{es-CL,en}.ts`, `cartera/portfolio-screen.tsx`, `registro/wizard.tsx`, `lib/auth/{registro-errors,registro-schema}.ts`.
