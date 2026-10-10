@@ -15,7 +15,7 @@ const GUIDES = [
   {
     href: "/como-funciona",
     title: "Cómo funciona",
-    body: "Deposita pesos, elige la acción y recibe el token en tu propia billetera.",
+    body: "Practica con US$10.000 ficticios, elige la acción y recibe el token en tu propia billetera.",
   },
   {
     href: "/costos",
