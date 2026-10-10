@@ -45,6 +45,10 @@ export default function CostosPage() {
               dólar. El monto exacto aparece antes de confirmar.
             </li>
             <li>
+              <strong className="font-medium text-fg">Cuenta del activo, la primera vez.</strong>{" "}
+              Costo de red por abrir la cuenta del token. Se muestra en el desglose.
+            </li>
+            <li>
               <strong className="font-medium text-fg">Proveedor de depósito.</strong> Depende del
               método que elijas al depositar. Lo ves en ese paso, antes de confirmar.
             </li>
