@@ -502,6 +502,20 @@ export const waitlistRequestSchema = z
   })
   .strict();
 
+/** POST /api/email/bienvenida: correo de bienvenida tras un registro demo. */
+export const emailBienvenidaSchema = z
+  .object({
+    email: z
+      .string()
+      .trim()
+      .min(1, "Revisa el correo e inténtalo de nuevo.")
+      .max(254, "Revisa el correo e inténtalo de nuevo.")
+      .refine((value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value), {
+        message: "Revisa el correo e inténtalo de nuevo.",
+      }),
+  })
+  .strict();
+
 export function apiResultSchema<T extends z.ZodType>(data: T) {
   return z.discriminatedUnion("ok", [
     z.object({ ok: z.literal(true), data }),
