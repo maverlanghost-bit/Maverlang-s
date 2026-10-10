@@ -1,5 +1,13 @@
 # PROGRESO — Maverlang
 
+## Centro /ayuda: 6 FAQ demo + grupos (2026-10-10)
+- Hecho: sólo contenido, sin tocar API ni lógica. 6 FAQ nuevas en `lib/content/faq.ts` (`home:false`, la portada intacta): demo, registro, contraseña, comprar-vender, cartera, autocustodia. Respuestas de 1–2 frases, es-CL sobrio, enlaces sólo a rutas reales.
+- Hecho: `/ayuda` agrupa el FAQ en 3 secciones (Para partir / Para operar / Seguridad y costos) con el mismo `Accordion` (`min-h-11`, apilado en móvil). Sin buscador: no había y añadirlo sería lógica nueva.
+- Archivos: `lib/content/faq.ts`, `app/(marketing)/ayuda/page.tsx`. 2 commits atómicos en rama `b/ayuda-page`.
+- Verificación: copy contrastado con `registro/wizard.tsx` (correo+clave+enlace), `recuperar-form.tsx` (enlace+spam), `/seguridad` y `/como-funciona` (US$10.000, billetera propia, desglose previo). Digo con todas sus letras: `npx tsc` NO corrido (`typescript` no instalado); sin revisión visual en `next dev`.
+- Pendiente operador: `npx tsc --noEmit` y ver `/ayuda` en 1280px y 390px (3 grupos, acordeones).
+- Próximos pasos: nada más de esta tarea.
+
 ## Consistencia de copy landing: demo en dólares, depósito futuro en neutro (2026-10-10)
 - Hecho: sólo copy, sin tocar API ni lógica. La demo habla en dólares (US$10.000 ficticios, precios en US$) como el hero; el depósito de dinero real queda en neutro ("cuando haya cuentas reales"), sin afirmar "en pesos" como método activo y sin nombrar proveedores.
 - Archivos: `components/landing/how-it-works.tsx`, `app/(marketing)/{como-funciona,ayuda,costos,seguridad}/page.tsx`, `lib/content/faq.ts`. 5 commits atómicos en rama `b/landing-copy`.
