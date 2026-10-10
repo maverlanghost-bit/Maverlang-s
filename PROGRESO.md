@@ -1,5 +1,13 @@
 # PROGRESO — Maverlang
 
+## Página /costos honesta y completa (2026-10-10)
+- Hecho: sólo copy, sin tocar API ni lógica. La tabla (`CostsSection`) y el detalle (`/costos`) agregan la fila que faltaba —"Cuenta del activo, la primera vez" (costo de red por abrir la cuenta del token, se muestra en el desglose)— con el lenguaje exacto de `content/legal/comisiones.md`. Comentario interno TODO-VERIFICAR/[POR DECIDIR] reemplazado por cita de fuente (`lib/wallet/send-cost.ts`, ARQUITECTURA §6: montos en SOL, sin conversión).
+- Archivos: `components/landing/costs-section.tsx`, `app/(marketing)/costos/page.tsx`. 2 commits atómicos en rama `b/costos-page`.
+- Cifras: 0% lanzamiento (fuente: `lib/env.ts` `FEE_BPS` default 0 + `config/fees.ts` + `comisiones.md`); "centavos de dólar" para red (fuente: `comisiones.md` + FAQ, sin endurecer a número: `NETWORK_FEE_SOL`=0.000005 y rent 0.0016 SOL se muestran en SOL según §6); diferencia de precio y proveedor sin montos (variables, se muestran antes de confirmar). Sin "gratis"/"sin costo" (grep OK). Link a `/legal/comisiones` existe (slug en `LEGAL_SLUGS`).
+- Verificación: digo con todas sus letras: `npx tsc` NO corrido (`typescript` no instalado); sin revisión visual en `next dev`. Cambio sólo texto JSX + comentario, riesgo mínimo.
+- Pendiente operador: `npx tsc --noEmit` y ver `/costos` en 1280px y 390px.
+- Próximos pasos: nada más de esta tarea.
+
 ## Consistencia de copy landing: demo en dólares, depósito futuro en neutro (2026-10-10)
 - Hecho: sólo copy, sin tocar API ni lógica. La demo habla en dólares (US$10.000 ficticios, precios en US$) como el hero; el depósito de dinero real queda en neutro ("cuando haya cuentas reales"), sin afirmar "en pesos" como método activo y sin nombrar proveedores.
 - Archivos: `components/landing/how-it-works.tsx`, `app/(marketing)/{como-funciona,ayuda,costos,seguridad}/page.tsx`, `lib/content/faq.ts`. 5 commits atómicos en rama `b/landing-copy`.
