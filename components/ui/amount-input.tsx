@@ -107,6 +107,9 @@ export function AmountInput({
   invalid?: boolean;
   /** Si no se pasa, los atajos son los de la moneda. */
   chips?: readonly { label: string; value: number | "max" }[];
+  /** Ajustes sólo visuales (móvil) del campo y los atajos, sin tocar lógica. */
+  inputClassName?: string;
+  chipClassName?: string;
 }) {
   const places = placesOf(currency);
   const display = places === 0 ? groupClp(value.replace(/\D/g, "")) : decimalToDisplay(value);
@@ -167,7 +170,10 @@ export function AmountInput({
           value={display}
           onChange={onInput}
           style={{ width: `${Math.max(display.length, 1) + 1}ch` }}
-          className="min-w-0 max-w-full overflow-x-auto rounded-lg bg-transparent text-center font-mono text-4xl text-fg tabular-nums outline-none placeholder:text-fg-subtle focus-visible:ring-4 focus-visible:ring-fg/20 sm:text-5xl"
+          className={cn(
+            "min-w-0 max-w-full overflow-x-auto rounded-lg bg-transparent text-center font-mono text-4xl text-fg tabular-nums outline-none placeholder:text-fg-subtle focus-visible:ring-4 focus-visible:ring-fg/20 sm:text-5xl",
+            inputClassName,
+          )}
         />
         {suffix ? <span className="text-sm text-fg-muted">{suffix}</span> : null}
       </div>
@@ -185,6 +191,7 @@ export function AmountInput({
               className={cn(
                 "min-h-11 rounded-full px-3 text-sm outline-none transition duration-[140ms] ease-spring focus-visible:ring-4 focus-visible:ring-fg/20 active:scale-[0.98] disabled:opacity-40",
                 pressed ? "bg-surface-3 text-fg" : "bg-surface-2 text-fg hover:bg-surface-3",
+                chipClassName,
               )}
             >
               {chip.label}
