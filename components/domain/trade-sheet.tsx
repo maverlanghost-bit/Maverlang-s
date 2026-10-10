@@ -504,7 +504,7 @@ function TradeFlow({ side, ticker }: { side: Side; ticker: Ticker }) {
         : fill(t.trade.sellOf, { amount: formatShares(quote.inAmountUi), name: ticker.name })
       : null;
     return (
-      <div className="flex flex-col gap-5">
+      <div className="flex w-full min-w-0 flex-col gap-5">
         <TradeMark ticker={ticker} />
         {fresh && quote && estimate ? (
           <div>
@@ -546,10 +546,10 @@ function TradeFlow({ side, ticker }: { side: Side; ticker: Ticker }) {
           {t.detail.risksLink}
         </Link>
         {pubkey ? null : <p className="text-center text-sm text-down">{t.trade.noWallet}</p>}
-        <Button size="lg" className="min-h-11 w-full" disabled={!canConfirm} onClick={() => void confirm()}>
+        <Button size="lg" className="min-h-12 w-full text-base" disabled={!canConfirm} onClick={() => void confirm()}>
           {t.trade.confirm}
         </Button>
-        <Button variant="ghost" size="lg" className="min-h-11 w-full" onClick={() => setPhase("form")}>
+        <Button variant="ghost" size="lg" className="min-h-12 w-full" onClick={() => setPhase("form")}>
           {t.trade.back}
         </Button>
       </div>
@@ -557,7 +557,7 @@ function TradeFlow({ side, ticker }: { side: Side; ticker: Ticker }) {
   }
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex w-full min-w-0 flex-col gap-5">
       <TradeMark ticker={ticker} />
       <AmountInput
         id={`${hintId}-amount`}
@@ -574,6 +574,8 @@ function TradeFlow({ side, ticker }: { side: Side; ticker: Ticker }) {
         describedBy={hint ? hintId : undefined}
         invalid={block === "min" || block === "funds"}
         chips={quickChips}
+        inputClassName="min-h-14 py-2"
+        chipClassName="min-h-12 px-4 text-base"
         onCurrencyChange={(next) => {
           if (next !== "CLP" && next !== "USDC" && next !== "SHARES") return;
           setAmountRaw(convertAmount(amount, currency, next, fxRate, priceUsd));
@@ -583,7 +585,7 @@ function TradeFlow({ side, ticker }: { side: Side; ticker: Ticker }) {
       {available ? <p className="text-center text-sm text-fg-muted">{available}</p> : null}
       {side === "buy" ? <p className="text-center text-xs text-fg-muted">{minHelp}</p> : null}
       {halted ? (
-        <p role="alert" className="text-center text-sm text-down">
+        <p role="alert" className="w-full max-w-full text-center text-sm leading-relaxed break-words text-balance text-down">
           {t.detail.tradeHaltedNote}
         </p>
       ) : null}
@@ -593,13 +595,13 @@ function TradeFlow({ side, ticker }: { side: Side; ticker: Ticker }) {
         </p>
       ) : null}
       {hint ? (
-        <p id={hintId} role="alert" className="text-center text-sm text-down">
+        <p id={hintId} role="alert" className="w-full max-w-full text-center text-sm leading-relaxed break-words text-balance text-down">
           {hint}
         </p>
       ) : null}
       {quoteError ? (
-        <div role="alert" className="flex flex-col items-center gap-3 text-center">
-          <p className="text-sm text-down">{quoteError}</p>
+        <div role="alert" className="flex w-full max-w-full flex-col items-center gap-3 text-center">
+          <p className="w-full max-w-full text-sm leading-relaxed break-words text-balance text-down">{quoteError}</p>
           <Button
             variant="secondary"
             size="lg"
@@ -639,11 +641,11 @@ function TradeFlow({ side, ticker }: { side: Side; ticker: Ticker }) {
         </Button>
       ) : null}
       {showDeposit ? (
-        <Button asChild size="lg" className="min-h-11 w-full">
+        <Button asChild size="lg" className="min-h-12 w-full text-base">
           <Link href={DEPOSIT_HREF}>{t.trade.deposit}</Link>
         </Button>
       ) : (
-        <Button size="lg" className="min-h-11 w-full" disabled={!canReview} onClick={() => setPhase("review")}>
+        <Button size="lg" className="min-h-12 w-full text-base" disabled={!canReview} onClick={() => setPhase("review")}>
           {t.trade.review}
         </Button>
       )}

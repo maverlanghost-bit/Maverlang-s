@@ -5,6 +5,10 @@
 - Archivos: `content/i18n/{es-CL,en}.ts`, `cartera/portfolio-screen.tsx`, `registro/wizard.tsx`, `lib/auth/{registro-errors,registro-schema}.ts`.
 - Verificación: paridad es/en comprobada por grep (`emptyBody` en ambos, `MARKET_HREF="/app"`). Digo con todas sus letras: `npx tsc`, `lint` y `vitest` NO corridos (`node_modules` incompleto en esta sesión).
 - Pendiente operador: `npx tsc --noEmit`, `npm run lint`, `npm test`, y revisar en `next dev` la cartera vacía y el registro demo en 1280px y 390px.
+## Pulido mobile de la hoja de compra/venta (2026-10-10)
+- Hecho: sólo CSS mobile + copy de errores, sin tocar lógica de trading, montos ni API. (1) CTAs principales de la hoja (revisar, confirmar, depositar) a `min-h-12` (48px) con `text-base`; la hoja ya era bottom full-width en móvil (`inset-x-0`, `max-h-[85dvh]` con scroll) y se agregó `w-full min-w-0` anti-overflow. (2) `AmountInput` acepta `inputClassName`/`chipClassName` opcionales (otras pantallas intactas); la hoja los usa: campo `min-h-14 py-2`, atajos `min-h-12 px-4 text-base`. (3) Errores (`hint`, `quoteError`, halt) con `break-words text-balance leading-relaxed` y `max-w-full` para que se lean completos en 390px. (4) Copy es-CL más claro y con acción (monto menor o depositar); paridad en en. Sin cambios de negocio.
+- Archivos: `components/domain/trade-sheet.tsx`, `components/ui/amount-input.tsx`, `content/i18n/es-CL.ts`, `content/i18n/en.ts`.
+- Verificación: `npx eslint` y `npx tsc --noEmit` PENDIENTES (`node_modules` incompleto en esta sesión, `npm ci` previo con timeout); diff revisado a mano, sin cambios de lógica. PENDIENTE operador: correr ambos y revisar en 390px la hoja (`?operar=comprar|vender`), errores de fondos insuficientes y mínimo, y confirmar a 48px.
 - Próximos pasos: nada más de esta tarea.
 
 ## Mercado — primeras filas con precio antes (2026-10-10)
