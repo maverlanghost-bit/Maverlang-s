@@ -8,7 +8,7 @@ import { getFaq } from "@/lib/content/faq";
 
 export const metadata: Metadata = {
   title: "Ayuda",
-  description: `Centro de ayuda de ${site.name}: guías de cómo funciona, costos y seguridad, más preguntas sobre acciones tokenizadas, depósitos y riesgos.`,
+  description: `Centro de ayuda de ${site.name}: qué es la demo, cómo registrarte, cómo comprar y vender, dónde ver tu cartera, qué es la autocustodia y cómo recuperar tu contraseña.`,
 };
 
 const GUIDES = [
@@ -46,6 +46,16 @@ const GUIDES = [
 
 /** Centro de ayuda: guías dedicadas arriba, preguntas frecuentes abajo. */
 export default function AyudaPage() {
+  const faq = getFaq(site.name);
+  const partir = faq.filter((entry) =>
+    ["demo", "registro", "contrasena", "que-es"].includes(entry.id),
+  );
+  const operar = faq.filter((entry) =>
+    ["comprar-vender", "cartera", "horario", "deposito"].includes(entry.id),
+  );
+  const seguridad = faq.filter(
+    (entry) => ![...partir, ...operar].some((item) => item.id === entry.id),
+  );
   return (
     <main>
       <LandingSection titleId="ayuda-title">
@@ -55,7 +65,8 @@ export default function AyudaPage() {
             Centro de ayuda
           </h1>
           <p className="mt-4 text-sm leading-relaxed text-fg-body sm:text-base">
-            Guías por tema y respuestas cortas. Términos, privacidad, riesgos y comisiones siguen en
+            Guías por tema y respuestas cortas. Si partes de cero, empieza por
+            “Para partir”. Términos, privacidad, riesgos y comisiones siguen en
             borrador.
           </p>
         </div>
@@ -73,11 +84,31 @@ export default function AyudaPage() {
             </li>
           ))}
         </ul>
-        <div className="mt-10 max-w-3xl md:mt-14">
-          <h2 className="text-xl sm:text-2xl">Preguntas frecuentes</h2>
-          <div className="mt-6">
-            <FaqList entries={getFaq(site.name)} type="multiple" />
-          </div>
+        <div className="mt-10 max-w-3xl space-y-10 md:mt-14">
+          <section aria-labelledby="ayuda-partir">
+            <h2 id="ayuda-partir" className="text-xl sm:text-2xl">
+              Para partir
+            </h2>
+            <div className="mt-6">
+              <FaqList entries={partir} type="multiple" />
+            </div>
+          </section>
+          <section aria-labelledby="ayuda-operar">
+            <h2 id="ayuda-operar" className="text-xl sm:text-2xl">
+              Para operar
+            </h2>
+            <div className="mt-6">
+              <FaqList entries={operar} type="multiple" />
+            </div>
+          </section>
+          <section aria-labelledby="ayuda-seguridad">
+            <h2 id="ayuda-seguridad" className="text-xl sm:text-2xl">
+              Seguridad y costos
+            </h2>
+            <div className="mt-6">
+              <FaqList entries={seguridad} type="multiple" />
+            </div>
+          </section>
         </div>
       </LandingSection>
     </main>
