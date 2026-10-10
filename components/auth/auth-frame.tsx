@@ -19,7 +19,7 @@ export function AuthFrame({
 }) {
   return (
     <Card className="w-full max-w-md">
-      <Link href="/" aria-label={site.name} className="flex w-fit items-center rounded-full text-fg">
+      <Link href="/" aria-label={site.name} className="flex w-fit items-center rounded-sm text-fg outline-none focus-visible:ring-4 focus-visible:ring-fg/20">
         <BrandLogoImage />
       </Link>
       <h1 className="mt-6 text-3xl text-balance">{title}</h1>
@@ -63,14 +63,14 @@ export function AuthLegal() {
       Al continuar aceptas los{" "}
       <Link
         href="/legal/terminos"
-        className="font-medium text-fg underline decoration-border underline-offset-4 hover:decoration-fg"
+        className="rounded-sm font-medium text-fg underline decoration-border underline-offset-4 outline-none hover:decoration-fg focus-visible:ring-4 focus-visible:ring-fg/20"
       >
         Términos y condiciones
       </Link>{" "}
       y la{" "}
       <Link
         href="/legal/privacidad"
-        className="font-medium text-fg underline decoration-border underline-offset-4 hover:decoration-fg"
+        className="rounded-sm font-medium text-fg underline decoration-border underline-offset-4 outline-none hover:decoration-fg focus-visible:ring-4 focus-visible:ring-fg/20"
       >
         Política de privacidad
       </Link>
