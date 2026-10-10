@@ -542,14 +542,14 @@ function TradeFlow({ side, ticker }: { side: Side; ticker: Ticker }) {
         {halted ? <p className="text-center text-sm text-down">{t.detail.tradeHaltedNote}</p> : null}
         {fresh && quote ? <CostBreakdown rows={costRows(t, quote, side, displayCurrency, fxRate)} /> : null}
         {dollarsNote ? <p className="text-center text-xs text-fg-muted">{dollarsNote}</p> : null}
-        <Link href="/legal/riesgos" className="text-sm font-medium text-fg underline underline-offset-4">
+        <Link href="/legal/riesgos" className="inline-flex min-h-11 items-center rounded-sm text-sm font-medium text-fg underline underline-offset-4 outline-none focus-visible:ring-4 focus-visible:ring-fg/20">
           {t.detail.risksLink}
         </Link>
         {pubkey ? null : <p className="text-center text-sm text-down">{t.trade.noWallet}</p>}
-        <Button size="lg" className="w-full" disabled={!canConfirm} onClick={() => void confirm()}>
+        <Button size="lg" className="min-h-11 w-full" disabled={!canConfirm} onClick={() => void confirm()}>
           {t.trade.confirm}
         </Button>
-        <Button variant="ghost" className="w-full" onClick={() => setPhase("form")}>
+        <Button variant="ghost" size="lg" className="min-h-11 w-full" onClick={() => setPhase("form")}>
           {t.trade.back}
         </Button>
       </div>
@@ -602,6 +602,8 @@ function TradeFlow({ side, ticker }: { side: Side; ticker: Ticker }) {
           <p className="text-sm text-down">{quoteError}</p>
           <Button
             variant="secondary"
+            size="lg"
+            className="min-h-11"
             onClick={() => {
               setRefreshKey((key) => key + 1);
             }}
@@ -627,7 +629,8 @@ function TradeFlow({ side, ticker }: { side: Side; ticker: Ticker }) {
       {block === "fx" || block === "price" ? (
         <Button
           variant="secondary"
-          className="w-full"
+          size="lg"
+          className="min-h-11 w-full"
           onClick={() => {
             void (block === "fx" ? fx.refetch() : prices.refetch());
           }}
@@ -636,11 +639,11 @@ function TradeFlow({ side, ticker }: { side: Side; ticker: Ticker }) {
         </Button>
       ) : null}
       {showDeposit ? (
-        <Button asChild size="lg" className="w-full">
+        <Button asChild size="lg" className="min-h-11 w-full">
           <Link href={DEPOSIT_HREF}>{t.trade.deposit}</Link>
         </Button>
       ) : (
-        <Button size="lg" className="w-full" disabled={!canReview} onClick={() => setPhase("review")}>
+        <Button size="lg" className="min-h-11 w-full" disabled={!canReview} onClick={() => setPhase("review")}>
           {t.trade.review}
         </Button>
       )}

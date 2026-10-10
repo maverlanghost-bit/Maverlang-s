@@ -163,7 +163,7 @@ export function StockSearchButton({
         aria-expanded={api.open}
         aria-haspopup="dialog"
         onClick={onClick}
-        className="flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-full text-fg-body hover:bg-surface-2"
+        className="flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-full text-fg-body outline-none hover:bg-surface-2 focus-visible:ring-4 focus-visible:ring-fg/20"
       >
         <IconSearch />
       </button>
@@ -180,7 +180,7 @@ export function StockSearchButton({
       aria-haspopup="dialog"
       onClick={onClick}
       className={cn(
-        "flex min-h-11 w-full cursor-pointer items-center gap-2 rounded-xl text-sm transition duration-200 ease-spring active:scale-[0.98]",
+        "flex min-h-11 w-full cursor-pointer items-center gap-2 rounded-xl text-sm outline-none transition duration-200 ease-spring focus-visible:ring-4 focus-visible:ring-fg/20 active:scale-[0.98]",
         api.open ? "bg-surface-2 font-medium text-fg" : "text-fg-body hover:bg-surface-2",
       )}
     >
@@ -384,7 +384,7 @@ function StockSearchPanel({
           type="button"
           aria-label={t.shell.searchClose}
           onClick={onDismiss}
-          className="flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-full text-fg-muted hover:bg-surface-2 hover:text-fg"
+          className="flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-full text-fg-muted outline-none hover:bg-surface-2 hover:text-fg focus-visible:ring-4 focus-visible:ring-fg/20"
         >
           <IconClose />
         </button>
@@ -413,7 +413,7 @@ function StockSearchPanel({
             <button
               type="button"
               onClick={() => void search.refetch()}
-              className="flex h-11 cursor-pointer items-center rounded-full bg-surface-2 px-4 text-sm text-fg"
+              className="flex h-11 min-h-11 cursor-pointer items-center rounded-full bg-surface-2 px-4 text-sm text-fg outline-none focus-visible:ring-4 focus-visible:ring-fg/20"
             >
               {t.states.retry}
             </button>
@@ -436,8 +436,8 @@ function StockSearchPanel({
                     onMouseEnter={() => setActive(index)}
                     onClick={() => openSymbol(row.item.symbol)}
                     className={cn(
-                      "flex min-h-11 w-full cursor-pointer items-center gap-3 rounded-lg px-2 py-2 text-left transition duration-[140ms] ease-spring",
-                      selected ? "bg-surface-3" : "hover:bg-surface-2",
+                      "flex min-h-11 w-full cursor-pointer items-center gap-3 rounded-lg px-2 py-2 text-left outline-none transition duration-[140ms] ease-spring focus-visible:ring-4 focus-visible:ring-fg/20",
+                      selected ? "bg-surface-3" : "hover:bg-surface-2 focus-visible:bg-surface-3",
                     )}
                   >
                     <TickerLogo

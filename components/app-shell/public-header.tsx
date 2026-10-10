@@ -47,7 +47,7 @@ function PublicHeaderBar({ here }: { here: string }) {
               href={item.href}
               aria-current={item.current ? "page" : undefined}
               className={cn(
-                "rounded-full px-3 py-2 text-sm whitespace-nowrap",
+                "rounded-full px-3 py-2 text-sm whitespace-nowrap outline-none focus-visible:ring-4 focus-visible:ring-fg/20",
                 item.current ? "font-medium text-fg" : "text-fg-body hover:text-fg",
               )}
             >
@@ -82,7 +82,7 @@ function PublicHeaderBar({ here }: { here: string }) {
               key={item.href}
               href={item.href}
               aria-current={item.current ? "page" : undefined}
-              className="flex h-12 items-center rounded-xl px-3 text-base text-fg hover:bg-surface-2"
+              className="flex h-12 min-h-11 items-center rounded-xl px-3 text-base text-fg outline-none hover:bg-surface-2 focus-visible:ring-4 focus-visible:ring-fg/20"
               onClick={() => setOpen(false)}
             >
               {item.label}
