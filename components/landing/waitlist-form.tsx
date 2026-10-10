@@ -31,6 +31,7 @@ export function WaitlistForm({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
+  const isLanding = source === "landing";
 
   async function onSubmit(event: React.FormEvent) {
     event.preventDefault();
@@ -77,10 +78,45 @@ export function WaitlistForm({
   }
 
   if (done) {
+    // Cuenta Real: comportamiento intacto (e2e/unit lo esperan simple).
+    if (!isLanding) {
+      return (
+        <p role="status" className={cn("text-sm font-medium text-fg", className)}>
+          {WAITLIST_SUCCESS_MESSAGE}
+        </p>
+      );
+    }
+    // Landing: estado "gracias" claro, con animación suave del design
+    // system (`animate-fade-in`). Reemplaza el form: no se puede reenviar.
     return (
-      <p role="status" className={cn("text-sm font-medium text-fg", className)}>
-        {WAITLIST_SUCCESS_MESSAGE}
-      </p>
+      <div
+        role="status"
+        aria-live="polite"
+        className={cn(
+          "animate-fade-in rounded-2xl border border-border bg-surface-1 px-5 py-6 text-center",
+          className,
+        )}
+      >
+        <span
+          aria-hidden="true"
+          className="mx-auto flex size-11 items-center justify-center rounded-full bg-fg text-white"
+        >
+          <svg viewBox="0 0 24 24" fill="none" className="size-5" aria-hidden="true">
+            <path
+              d="m5 12.5 4.5 4.5L19 7.5"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </span>
+        <p className="mt-3 text-base font-medium text-fg">¡Gracias por sumarte!</p>
+        <p className="mt-1 text-sm leading-relaxed text-fg-body">{WAITLIST_SUCCESS_MESSAGE}</p>
+        <p className="mt-1 text-sm leading-relaxed text-fg-muted">
+          Te escribiremos cuando abra la cuenta Real.
+        </p>
+      </div>
     );
   }
 
@@ -100,8 +136,10 @@ export function WaitlistForm({
         autoComplete="email"
         inputMode="email"
         placeholder="tu@correo.cl"
+        aria-label="Correo"
         value={email}
         onChange={(event) => setEmail(event.target.value)}
+        disabled={busy}
         aria-invalid={error ? true : undefined}
         aria-describedby={error ? errorId : undefined}
         className="mt-2"
@@ -112,6 +150,7 @@ export function WaitlistForm({
           type="checkbox"
           checked={consent}
           onChange={(event) => setConsent(event.target.checked)}
+          disabled={busy}
           className="mt-0.5 size-5 shrink-0 accent-fg"
         />
         <label htmlFor={consentId} className="cursor-pointer text-sm leading-relaxed text-fg">
@@ -139,12 +178,12 @@ export function WaitlistForm({
         className="hidden"
       />
       {error ? (
-        <p id={errorId} role="alert" className="mt-2 text-sm text-down">
+        <p id={errorId} role="alert" aria-live="assertive" className="mt-2 text-sm text-down">
           {error}
         </p>
       ) : null}
       <Button type="submit" loading={busy} className="mt-3 w-full min-h-11">
-        Avísame
+        {busy ? "Enviando…" : "Avísame"}
       </Button>
     </form>
   );
