@@ -40,7 +40,7 @@ function ProfileMenu({
   version: string;
 }) {
   return (
-    <>
+    <div className="flex flex-col gap-3">
       <nav aria-label={t.profile.menu}>
         <ul className="overflow-hidden rounded-3xl border border-border bg-surface-1">
           {LINKS.map((item) => (
@@ -54,12 +54,16 @@ function ProfileMenu({
               </Link>
             </li>
           ))}
-          <li className="border-b border-border last:border-b-0">
+        </ul>
+      </nav>
+      <nav aria-label={t.profile.logout}>
+        <ul className="overflow-hidden rounded-3xl border border-border bg-surface-1">
+          <li>
             <button
               type="button"
               onClick={onLogout}
               disabled={status === "loading"}
-              className="flex min-h-11 w-full items-center px-4 py-3 text-left text-sm text-fg outline-none transition duration-[140ms] hover:bg-surface-2 focus-visible:ring-4 focus-visible:ring-fg/20 focus-visible:ring-inset disabled:opacity-40"
+              className="flex min-h-11 w-full items-center px-4 py-3 text-left text-sm text-down outline-none transition duration-[140ms] hover:bg-surface-2 focus-visible:ring-4 focus-visible:ring-fg/20 focus-visible:ring-inset disabled:opacity-40"
             >
               {t.profile.logout}
             </button>
@@ -67,7 +71,7 @@ function ProfileMenu({
         </ul>
       </nav>
       <p className="text-center text-sm text-fg-muted">{fill(t.profile.version, { version })}</p>
-    </>
+    </div>
   );
 }
 
@@ -96,7 +100,7 @@ export function ProfileScreen({ version }: { version: string }) {
         </p>
         <Card className="flex items-center gap-4 p-4 md:p-6">
           <Avatar alt={heading} fallback={heading} size="lg" className="size-16 text-lg" />
-          <p className="min-w-0 truncate text-lg text-fg">{heading}</p>
+          <p className="min-w-0 flex-1 break-words text-lg text-fg">{heading}</p>
         </Card>
         <ProfileMenu t={t} status={status} onLogout={() => void logout()} version={version} />
       </div>
@@ -125,9 +129,9 @@ export function ProfileScreen({ version }: { version: string }) {
       <PageHeader title={t.pages.profile.title} description={t.pages.profile.lead} />
       <Card className="flex items-center gap-4 p-4 md:p-6">
         <Avatar alt={heading} fallback={heading} size="lg" className="size-16 text-lg" />
-        <div className="min-w-0">
-          <p className="truncate text-lg text-fg">{heading}</p>
-          {profile.displayName ? <p className="truncate text-sm text-fg-muted">{email}</p> : null}
+        <div className="min-w-0 flex-1">
+          <p className="break-words text-lg text-fg">{heading}</p>
+          {profile.displayName ? <p className="break-all text-sm text-fg-muted">{email}</p> : null}
           <p className="text-sm text-fg-muted">{country}</p>
         </div>
       </Card>

@@ -50,7 +50,7 @@ export function SettingsFrame({
       <div className="flex flex-col gap-3">
         <Link
           href="/app/perfil"
-          className="w-fit rounded-full text-sm text-fg-muted outline-none transition duration-[140ms] hover:text-fg focus-visible:ring-4 focus-visible:ring-fg/20"
+          className="inline-flex min-h-11 w-fit items-center rounded-full px-2 text-sm text-fg-muted outline-none transition duration-[140ms] hover:text-fg focus-visible:ring-4 focus-visible:ring-fg/20"
         >
           {t.profile.back}
         </Link>
