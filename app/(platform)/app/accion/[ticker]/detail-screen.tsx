@@ -393,6 +393,9 @@ function KeyStats({
   range,
   currency,
   rate,
+  issuer,
+  categoryLabel,
+  tradeBlock,
 }: {
   quote: Quote | null;
   quotePending: boolean;
@@ -402,6 +405,12 @@ function KeyStats({
   range: Range;
   currency: Currency;
   rate: number | undefined;
+  /** Del objeto `ticker` (page.tsx → toTicker): "Backed (xStocks)" u "Ondo". */
+  issuer: Ticker["issuer"];
+  /** Etiqueta ya resuelta con `t.market` en la pantalla. */
+  categoryLabel: string;
+  /** Estado de operación del servidor (`page.tsx`); null = operable. */
+  tradeBlock: TradeBlock;
 }) {
   const { t } = useT();
   const caption = t.detail.rangeCaption[range];
@@ -413,11 +422,31 @@ function KeyStats({
   const quoteCellPending = quotePending && quote === null;
   const high = bounds ? moneyText(bounds.high, shownCurrency, rate) : null;
   const low = bounds ? moneyText(bounds.low, shownCurrency, rate) : null;
+  const priceNow =
+    quote && Number.isFinite(quote.priceUsd) ? moneyText(quote.priceUsd, shownCurrency, rate) : null;
+  // Estado con textos ya publicados (i18n existente); "Operable" lo pide la
+  // tarea en es-CL. Sin market cap ni volumen: no existen en Ticker/Quote.
+  const estadoText =
+    tradeBlock === "halted"
+      ? t.detail.assetHalted
+      : tradeBlock === "review"
+        ? t.market.underReview
+        : tradeBlock === "disabled"
+          ? t.detail.tradeUnavailable
+          : "Operable";
 
   return (
     <Card className="p-5 md:p-6">
       <h2 className="text-lg">{t.detail.stats}</h2>
       <dl className="mt-4 grid grid-cols-2 gap-px overflow-hidden rounded-xl bg-border">
+        {/* Precio actual: mismo `quote.priceUsd` del titular, en tu moneda. */}
+        <StatCell label={shownCurrency === "CLP" ? t.detail.priceClp : t.detail.priceUsd} pending={quoteCellPending}>
+          {priceNow === null ? (
+            <MissingFigure label={t.detail.unavailable} />
+          ) : (
+            <span className="num text-sm text-fg">{priceNow}</span>
+          )}
+        </StatCell>
         {/* 24 h: quote.change24hPct. En vivo es Jupiter priceChange24h, igual que el mercado. */}
         <StatCell label={t.detail.change24h} pending={quoteCellPending}>
           {quote && Number.isFinite(quote.change24hPct) ? (
@@ -448,6 +477,16 @@ function KeyStats({
           ) : (
             <MissingFigure label={t.detail.unavailable} />
           )}
+        </StatCell>
+        {/* Ficha del activo: sólo campos que existen en `ticker` (sin cifras inventadas). */}
+        <StatCell label={t.detail.issuer} pending={false}>
+          <span className="text-sm text-fg">{issuer}</span>
+        </StatCell>
+        <StatCell label="Categoría" pending={false}>
+          <span className="text-sm text-fg">{categoryLabel}</span>
+        </StatCell>
+        <StatCell label="Estado" pending={false}>
+          <span className="text-sm text-fg">{estadoText}</span>
         </StatCell>
       </dl>
     </Card>
@@ -735,6 +774,9 @@ export function DetailScreen({
           range={range}
           currency={currency}
           rate={rate}
+          issuer={ticker.issuer}
+          categoryLabel={category}
+          tradeBlock={effectiveBlock}
         />
 
         {access === "guest" ? null : (
