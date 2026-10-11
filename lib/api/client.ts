@@ -186,13 +186,18 @@ export function getAssetStatus(symbol: string): Promise<AssetStatus> {
   return request(`/api/market/status?${query.toString()}`, assetStatusSchema, { cache: "no-store" });
 }
 
-export function getHistory(symbol: string, range: Range = "1M"): Promise<PricePoint[]> {
+export interface HistoryResponse {
+  points: PricePoint[];
+  real: boolean;
+}
+
+export function getHistory(symbol: string, range: Range = "1M"): Promise<HistoryResponse> {
   const query = new URLSearchParams({ range });
   return request(
     `/api/tickers/${encodeURIComponent(symbol)}/history?${query.toString()}`,
     historyResponseSchema,
     { cache: "no-store" },
-  );
+  ) as Promise<HistoryResponse>;
 }
 
 export function quoteTrade(body: TradeQuoteRequest, mockError?: string | null): Promise<TradeQuote> {

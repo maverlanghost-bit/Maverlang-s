@@ -11,9 +11,10 @@ import {
   type PriceBatcherCache,
 } from "@/lib/market/price-batcher";
 import { fetchUnderlyingChanges } from "@/lib/market/underlying-move";
+import { readHistory } from "@/lib/services/price-ticks.supabase";
 import { getServerConnection } from "@/lib/solana/connection";
 import { fetchMintMultiplier } from "@/lib/solana/scaled-ui";
-import type { FxRate, MarketStatus, PricePoint, Quote, Ticker } from "@/lib/types";
+import type { FxRate, MarketStatus, PricePoint, Quote, Range, Ticker } from "@/lib/types";
 
 /**
  * Precio actual real y dólar observado. El historial real sigue sin proveedor:
@@ -129,16 +130,19 @@ export const livePrices = {
   },
 
   /**
-   * TODO historial. Proveedor [POR DEFINIR]: precio del subyacente o de los pools del mint.
-   * Parámetros: symbol operable y range `1W | 1M | 3M | 1Y | ALL`.
-   * Mapeo a PricePoint: `t` en unix ms, `p` en USD por acción (precio crudo ÷ multiplicador).
-   *   Si el proveedor no guarda el multiplicador de ese día, usar el vigente y dejarlo anotado.
-   * Errores: símbolo no operable → MINT_NOT_ALLOWED. Proveedor caído → UPSTREAM.
-   * Cache: por symbol y range, unos minutos, cuando exista proveedor. Hoy no hay endpoint.
-   * `getServices` sigue sirviendo el historial mock.
+   * Historial REAL de precios para los gráficos. Lee las observaciones
+   * acumuladas en `price_ticks` (backfill de CoinGecko + el grabador
+   * periódico del spot de Jupiter). Ya no hay random walk: si hay datos
+   * reales para el rango, se pintan tal cual. Devuelve [] sólo si todavía
+   * no hay historia grabada para ese símbolo (el front cae al mock).
+   * Errores de lectura devuelven [] (no rompen el gráfico).
    */
-  async history(): Promise<PricePoint[]> {
-    throw new Error("NOT_IMPLEMENTED: historial de precios (proveedor por definir)");
+  async history(symbol: string, range: Range): Promise<PricePoint[]> {
+    try {
+      return await readHistory(symbol, range);
+    } catch {
+      return [];
+    }
   },
 
   /**

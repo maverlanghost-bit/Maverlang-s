@@ -525,7 +525,11 @@ export function apiResultSchema<T extends z.ZodType>(data: T) {
 
 export const tickersResponseSchema = z.array(tickerSchema);
 export const quotesResponseSchema = z.array(quoteSchema);
-export const historyResponseSchema = z.array(pricePointSchema);
+/** Historial con marca de realidad: `real=false` sigue siendo serie mock. */
+export const historyResponseSchema = z.object({
+  points: z.array(pricePointSchema),
+  real: z.boolean(),
+});
 export const balancesResponseSchema = z.array(balanceSchema);
 export const activityResponseSchema = z.array(activitySchema);
 

@@ -103,15 +103,26 @@ function liveOnramp(): Services["onramp"] {
 /**
  * `PRICES_MODE=mock` (default) no consulta Jupiter, el RPC ni el dólar.
  * Con `live`, el precio actual sale de Jupiter y el dólar de mindicador.
- * El historial sigue siendo la serie de referencia, reescalada para terminar en ese spot.
- * Si Jupiter no trae un ticker, la ancla queda en toda la ficha (`reference`).
+ * El historial, cuando hay observaciones reales en `price_ticks` (backfill de
+ * CoinGecko + el grabador del spot), se pinta real y termina sólo anclado al
+ * spot. Sin datos todavía, cae a la serie de referencia (mock) como hasta ahora.
  * `DATA_MODE` sigue eligiendo trade, cartera on-chain y auth.
  */
 async function anchoredHistory(symbol: string, range: Range): Promise<PricePoint[]> {
-  const [series, quotes] = await Promise.all([mockPrices.history(symbol, range), livePrices.list([symbol])]);
+  const [real, series, quotes] = await Promise.all([
+    livePrices.history(symbol, range),
+    mockPrices.history(symbol, range),
+    livePrices.list([symbol]),
+  ]);
   const quote = quotes[0];
-  if (!quote || quote.reference || !(quote.priceUsd > 0)) return series;
-  return anchorSeriesToSpot(series, quote.priceUsd);
+  const spot = quote && !quote.reference && quote.priceUsd > 0 ? quote.priceUsd : null;
+  // Datos reales suficientes: se pintan tal cual, anclados al spot actual.
+  if (real.length >= 2) {
+    return spot !== null ? anchorSeriesToSpot(real, spot) : real;
+  }
+  // Sin historia real aún: serie de referencia anclada al spot (como antes).
+  if (spot !== null) return anchorSeriesToSpot(series, spot);
+  return series;
 }
 
 function priceServices(): Services["prices"] {

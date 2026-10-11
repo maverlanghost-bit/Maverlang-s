@@ -34,9 +34,32 @@ export function balancedPortions(values: readonly number[], total: number): numb
 }
 
 /**
- * Valor con la tenencia de hoy: acciones × precio histórico + USDC actual.
- * No reconstruye las compras. `shares` ya incluye el multiplicador.
- * El último punto es `totalUsd`, así el gráfico cierra en el total del header.
+ * Precio de una serie en el instante `t` (el punto más cercano en el tiempo).
+ * Las series reales de cada símbolo no comparten timestamps exactos, así que
+ * alinear por índice daba saltos erráticos: se alinea por tiempo.
+ */
+function priceAt(series: readonly PricePoint[], t: number): number | null {
+  if (series.length === 0) return null;
+  let best = series[0];
+  if (!best) return null;
+  let bestGap = Math.abs(best.t - t);
+  for (const point of series) {
+    const gap = Math.abs(point.t - t);
+    if (gap < bestGap) {
+      best = point;
+      bestGap = gap;
+    }
+    // La serie está ordenada por tiempo: una vez que pasamos de t, no seguir.
+    if (point.t > t && gap > bestGap) break;
+  }
+  return best.p;
+}
+
+/**
+ * Serie de valor de la cartera en el tiempo. Suma, en cada instante, el
+ * efectivo más el valor de cada posición al precio real de ESE momento. El
+ * timestamp de referencia lo da la serie con más puntos; el último punto se
+ * fija en `totalUsd` (el total vivo del servicio) para que cierre exacto.
  */
 export function portfolioValueSeries(
   positions: readonly Pick<Position, "shares">[],
@@ -45,24 +68,24 @@ export function portfolioValueSeries(
   totalUsd: number,
 ): PricePoint[] {
   if (positions.length === 0 || histories.length !== positions.length) return [];
-  let length = histories[0]?.length ?? 0;
+  // Rejilla temporal: unión ordenada de todos los timestamps (serie más larga
+  // como base; el resto aporta sus puntos para no perder variaciones reales).
+  const stamps = new Set<number>();
   for (const series of histories) {
-    if (series.length < length) length = series.length;
+    for (const point of series) stamps.add(point.t);
   }
-  if (length < 2) return [];
+  const grid = [...stamps].sort((a, b) => a - b);
+  if (grid.length < 2) return [];
 
   const points: PricePoint[] = [];
-  for (let index = 0; index < length; index += 1) {
-    const stamp = histories[0]?.[index]?.t;
-    if (stamp === undefined) continue;
+  grid.forEach((t, index) => {
     let value = cashUsdc;
     for (let slot = 0; slot < positions.length; slot += 1) {
-      const price = histories[slot]?.[index]?.p;
-      if (price === undefined) continue;
-      value += (positions[slot]?.shares ?? 0) * price;
+      const price = priceAt(histories[slot] ?? [], t);
+      if (price !== null) value += (positions[slot]?.shares ?? 0) * price;
     }
-    points.push({ t: stamp, p: index === length - 1 ? totalUsd : cents(value) });
-  }
+    points.push({ t, p: index === grid.length - 1 ? totalUsd : cents(value) });
+  });
   return points.length >= 2 ? points : [];
 }
 
