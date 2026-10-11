@@ -9,7 +9,18 @@
  * (`instrumentation.ts` en la raíz, exporta `register`, una llamada por
  * instancia antes de atender; el import va dentro de `register`).
  */
+import * as Sentry from "@sentry/nextjs";
+
 export async function register(): Promise<void> {
   const { assertServerEnv } = await import("@/lib/env");
   assertServerEnv();
+
+  // Observabilidad: registra Sentry en el servidor si hay DSN (errores reales
+  // de cotizar/armar/enviar operaciones llegan a Sentry en vez de perderse).
+  if (process.env.SENTRY_DSN?.trim() && process.env.NEXT_RUNTIME === "nodejs") {
+    await import("./sentry.server.config");
+  }
 }
+
+/** Captura errores del servidor (render y rutas) y los manda a Sentry. */
+export const onRequestError = Sentry.captureRequestError;

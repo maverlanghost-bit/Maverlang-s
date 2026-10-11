@@ -52,3 +52,32 @@ jobs:
 
       - name: Auditoría de dependencias
         run: npm run audit:deps
+
+  # El build de producción es el gate más importante: si un merge lo rompe,
+  # Vercel no despliega. Este job lo detecta antes de llegar a main.
+  build:
+    name: build (producción)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      AUTH_MODE: mock
+      NEXT_PUBLIC_AUTH_MODE: mock
+      DATA_MODE: mock
+      NEXT_PUBLIC_DATA_MODE: mock
+      PRICES_MODE: mock
+      RATE_LIMIT_BACKEND: memory
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Node 22 con caché de npm
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Build de producción
+        run: npm run build
