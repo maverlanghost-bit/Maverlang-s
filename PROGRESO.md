@@ -1,5 +1,10 @@
 # PROGRESO — Maverlang
 
+## Más movidas hoy: variación prominente y tira sin cortes (2026-10-11)
+- Hecho: sólo clases/orden visual en `ticker-card.tsx` y `market-screen.tsx`, sin tocar lógica de movidas (`moversOfPriced`), APIs ni props/datos. (1) Tarjeta: mantiene logo, símbolo, nombre corto y precio; la variación (`ChangeBadge` con sus colores `up`/`down` existentes) ahora va en bloque propio grande (`px-3 py-1 text-base font-semibold`) sobre el precio (`FlashPrice sm`). (2) Encabezado "Más movidas hoy" (`t.market.movers` es-CL intacto) sube a `text-lg font-semibold`. (3) Tira móvil: `-mx-1 px-1 pt-1 pb-2` para que el foco no se corte; tarjeta `w-64 sm:w-60` + `min-h-32` para toque adecuado.
+- Archivos: `components/domain/ticker-card.tsx`, `app/(platform)/app/market-screen.tsx`. 2 commits atómicos en rama `b/mas-movidas`.
+- Verificación: digo con todas sus letras: `npx tsc` NO corrido (`typescript` no instalado); sin revisión visual en `next dev`. Diff revisado a mano; `ChangeBadge` ya aceptaba `className`; sin props/datos nuevos ni variables sin declarar.
+- Pendiente operador: ver `/app` en 390px (tira con snap, tarjetas completas) y 1280px; confirmar verde/rojo legibles.
 ## Ficha: Datos con precio, emisor, categoría y estado (2026-10-11)
 - Hecho: sólo `KeyStats` ("Datos") en `detail-screen.tsx`, sin tocar trading, gráfico, APIs ni `price-panel.tsx`. (1) Nueva celda Precio actual (`quote.priceUsd` en tu moneda, etiqueta `priceClp/priceUsd` existente). (2) Nuevas celdas Emisor (`ticker.issuer`: Backed (xStocks)/Ondo), Categoría (etiqueta `t.market` ya resuelta) y Estado (`tradeBlock`: Operable / En revisión / Suspendida / No disponible, textos i18n existentes salvo "Operable" pedido en es-CL). (3) Sin market cap ni volumen: no existen en `Ticker`/`Quote`/`CatalogAsset` (grep: sólo `liquidityUsd` del pozo y `volumeWinner` interno de desempate). Grilla 2 col intacta, `tabular-nums` ya en `StatCell`.
 - Archivos: `app/(platform)/app/accion/[ticker]/detail-screen.tsx` (+42). Commit atómico en rama `b/ordenes-limite`.

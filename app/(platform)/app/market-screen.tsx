@@ -492,14 +492,14 @@ export function MarketScreen({
         />
       ) : null}
       {!waiting && !failed && moverItems.length > 0 ? (
-        <section className="order-2 flex min-w-0 flex-col gap-2 lg:order-1" aria-labelledby={moversTitleId}>
+        <section className="order-2 flex min-w-0 flex-col gap-3 lg:order-1" aria-labelledby={moversTitleId}>
           <div>
-            <h2 id={moversTitleId} className="text-base font-medium text-fg">
+            <h2 id={moversTitleId} className="text-lg font-semibold text-fg">
               {t.market.movers}
             </h2>
             <p className="mt-1 text-sm text-fg-muted">{t.market.moversNote}</p>
           </div>
-          <div className="flex min-w-0 snap-x snap-mandatory gap-3 overflow-x-auto p-1">
+          <div className="-mx-1 flex min-w-0 snap-x snap-mandatory gap-3 overflow-x-auto px-1 pt-1 pb-2">
             {moverItems.map(({ entry, price, currency: rowCurrency }) => (
               <TickerCard
                 key={entry.item.symbol}
