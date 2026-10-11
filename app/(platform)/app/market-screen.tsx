@@ -614,10 +614,19 @@ export function MarketScreen({
         </section>
       ) : null}
       {!waiting && !failed && listRows.length === 0 ? (
-        <EmptyState
-          title={emptyTitle}
-          description={filter === "favorites" ? t.market.emptyFavoritesHint : t.market.emptyHint}
-        />
+        filter === "favorites" ? (
+          <EmptyState
+            title={t.market.emptyFavoritesTitle}
+            description={t.market.emptyFavoritesHint}
+            action={
+              <Button variant="secondary" onClick={() => onFilterChange("all")}>
+                {t.market.emptyFavoritesAction}
+              </Button>
+            }
+          />
+        ) : (
+          <EmptyState title={emptyTitle} description={t.market.emptyHint} />
+        )
       ) : null}
     </motion.div>
   );
