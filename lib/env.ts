@@ -187,6 +187,7 @@ function buildServerSchema(source: EnvSource) {
     SOLANA_RPC_URL: optionalText(),
     JUPITER_BASE_URL: urlEnv("https://api.jup.ag"),
     JUPITER_API_KEY: optionalText(),
+    COINGECKO_API_KEY: optionalText(),
     FEE_BPS: intEnv(0, 10_000),
     FEE_WALLET: optionalText(),
     PRICE_DEVIATION_MAX_BPS: intEnv(150, 10_000),

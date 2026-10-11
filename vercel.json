@@ -3,6 +3,14 @@
     {
       "path": "/api/cron/catalog-health",
       "schedule": "0 16 * * 1-5"
+    },
+    {
+      "path": "/api/cron/price-ticks",
+      "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/price-backfill",
+      "schedule": "0 6 * * *"
     }
   ]
 }
