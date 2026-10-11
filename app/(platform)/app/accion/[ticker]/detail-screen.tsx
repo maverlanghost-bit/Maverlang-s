@@ -424,8 +424,8 @@ function KeyStats({
   const low = bounds ? moneyText(bounds.low, shownCurrency, rate) : null;
   const priceNow =
     quote && Number.isFinite(quote.priceUsd) ? moneyText(quote.priceUsd, shownCurrency, rate) : null;
-  // Estado con textos ya publicados (i18n existente); "Operable" lo pide la
-  // tarea en es-CL. Sin market cap ni volumen: no existen en Ticker/Quote.
+  // Estado con textos ya publicados (i18n). Sin market cap ni volumen: no
+  // existen en Ticker/Quote, no se inventan.
   const estadoText =
     tradeBlock === "halted"
       ? t.detail.assetHalted
@@ -433,7 +433,7 @@ function KeyStats({
         ? t.market.underReview
         : tradeBlock === "disabled"
           ? t.detail.tradeUnavailable
-          : "Operable";
+          : t.detail.operable;
 
   return (
     <Card className="p-5 md:p-6">
@@ -482,10 +482,10 @@ function KeyStats({
         <StatCell label={t.detail.issuer} pending={false}>
           <span className="text-sm text-fg">{issuer}</span>
         </StatCell>
-        <StatCell label="Categoría" pending={false}>
+        <StatCell label={t.detail.category} pending={false}>
           <span className="text-sm text-fg">{categoryLabel}</span>
         </StatCell>
-        <StatCell label="Estado" pending={false}>
+        <StatCell label={t.detail.status} pending={false}>
           <span className="text-sm text-fg">{estadoText}</span>
         </StatCell>
       </dl>
