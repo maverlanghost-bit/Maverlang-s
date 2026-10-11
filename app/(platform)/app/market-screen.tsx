@@ -344,7 +344,7 @@ export function MarketScreen({
   const sparkBySymbol = useMemo(() => {
     const map = new Map<string, number[]>();
     sparkSymbols.forEach((symbol, index) => {
-      const points = histories[index]?.data;
+      const points = histories[index]?.data?.points;
       if (!points || points.length < 2) return;
       const spot = quotesBySymbol.get(symbol)?.priceUsd;
       const series = spot !== undefined && spot > 0 ? anchorSeriesToSpot(points, spot) : points;

@@ -157,7 +157,7 @@ const ValueChart = memo(function ValueChart({
   const symbols = useMemo(() => positions.map((position) => position.symbol), [positions]);
   const histories = useHistories(symbols, range);
   const rows = histories.map((query, index) => {
-    const series = query.data ?? [];
+    const series = query.data?.points ?? [];
     const spot = positions[index]?.priceUsd;
     if (!(typeof spot === "number" && spot > 0) || series.length === 0) return series;
     return anchorSeriesToSpot(series, spot);

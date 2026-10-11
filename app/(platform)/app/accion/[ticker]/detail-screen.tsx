@@ -541,7 +541,7 @@ export function DetailScreen({
   }, [canTrade]);
 
   const quote = prices.data?.find((item) => item.symbol === ticker.symbol) ?? null;
-  const points = seriesForQuote(history.data ?? [], quote?.priceUsd);
+  const points = seriesForQuote(history.data?.points ?? [], quote?.priceUsd);
   const position = portfolio.data?.positions.find((item) => item.symbol === ticker.symbol) ?? null;
   const canSell = (position?.shares ?? 0) > 0;
   const saved = symbols?.includes(ticker.symbol) ?? false;

@@ -56,12 +56,15 @@ export function PricePanel({
 }) {
   const { t } = useT();
   const history = useHistory(symbol, range);
-  const points = seriesForQuote(history.data ?? NO_POINTS, quote?.priceUsd);
+  const points = seriesForQuote(history.data?.points ?? NO_POINTS, quote?.priceUsd);
   const move = rangeMove(points);
+  // "Ilustrativo" sólo cuando NO hay datos reales (serie de referencia) y el
+  // precio es de Jupiter. Con observaciones reales en price_ticks, no se muestra.
   const illustrative =
     !history.isPending &&
     !history.isError &&
     points.length > 1 &&
+    history.data?.real !== true &&
     quote?.source === "jupiter" &&
     quote.reference !== true;
   const tone = toneOf(move);
