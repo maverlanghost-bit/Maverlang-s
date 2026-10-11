@@ -1,5 +1,11 @@
 # PROGRESO — Maverlang
 
+## Accesos rápidos en la cartera (2026-10-11)
+- Hecho: sólo UI en `portfolio-screen.tsx`, sin tocar lógica, cálculos ni APIs. (1) Con posiciones: nuevo `nav` "Accesos rápidos" sobre asignación/posiciones con 3 `Button asChild size="lg"` + `Link`: Explorar el mercado (`/app`, `t.portfolio.explore`), Depositar (`/app/billetera/depositar`, `t.trade.deposit`), Enviar (`/app/billetera/enviar`, `t.wallet.send`, nueva const `SEND_HREF`). (2) Cartera vacía: el CTA del `EmptyState` pasa a `size="lg"` como acción principal. (3) Móvil: botones apilados a ancho completo (`flex-col gap-2`, `w-full sm:w-auto`) con `min-h-11` (44px); fila desde `sm`. Sin imports/props nuevos, sin variables sin declarar.
+- Archivos: `app/(platform)/app/cartera/portfolio-screen.tsx` (+13/-1). Commit atómico (sólo ese archivo + PROGRESO.md; `run-opencode.bat` sin seguimiento quedó fuera).
+- Verificación: digo con todas sus letras: `npx tsc` NO corrido (`typescript` no instalado); sin revisión visual en `next dev`. Diff revisado a mano.
+- Pendiente operador: ver `/app/cartera` con y sin posiciones en 390px (botones a 44px sin amontonarse) y 1280px.
+
 ## Ficha: Datos con precio, emisor, categoría y estado (2026-10-11)
 - Hecho: sólo `KeyStats` ("Datos") en `detail-screen.tsx`, sin tocar trading, gráfico, APIs ni `price-panel.tsx`. (1) Nueva celda Precio actual (`quote.priceUsd` en tu moneda, etiqueta `priceClp/priceUsd` existente). (2) Nuevas celdas Emisor (`ticker.issuer`: Backed (xStocks)/Ondo), Categoría (etiqueta `t.market` ya resuelta) y Estado (`tradeBlock`: Operable / En revisión / Suspendida / No disponible, textos i18n existentes salvo "Operable" pedido en es-CL). (3) Sin market cap ni volumen: no existen en `Ticker`/`Quote`/`CatalogAsset` (grep: sólo `liquidityUsd` del pozo y `volumeWinner` interno de desempate). Grilla 2 col intacta, `tabular-nums` ya en `StatCell`.
 - Archivos: `app/(platform)/app/accion/[ticker]/detail-screen.tsx` (+42). Commit atómico en rama `b/ordenes-limite`.

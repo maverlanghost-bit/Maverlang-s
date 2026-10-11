@@ -35,6 +35,7 @@ import { balancedPortions, decodePoints, encodePoints, portfolioValueSeries, sum
 import type { Activity, Currency, OrderStatus, Position, Range, Ticker } from "@/lib/types";
 
 const DEPOSIT_HREF = "/app/billetera/depositar";
+const SEND_HREF = "/app/billetera/enviar";
 const MARKET_HREF = "/app";
 
 const POSITION_COLORS = ["#0a0a0a", "#ff6a08", "#1c7c5b", "#2b7fd9", "#99651a", "#5c6570", "#cc2c55", "#3d6b58"] as const;
@@ -360,13 +361,24 @@ export function PortfolioScreen() {
             title={t.portfolio.emptyTitle}
             description={t.portfolio.emptyBody}
             action={
-              <Button asChild>
+              <Button asChild size="lg" className="min-h-11 w-full sm:w-auto">
                 <Link href={MARKET_HREF}>{t.portfolio.explore}</Link>
               </Button>
             }
           />
         ) : (
           <>
+            <nav aria-label="Accesos rápidos" className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+              <Button asChild size="lg" className="min-h-11 w-full sm:w-auto">
+                <Link href={MARKET_HREF}>{t.portfolio.explore}</Link>
+              </Button>
+              <Button asChild variant="secondary" size="lg" className="min-h-11 w-full sm:w-auto">
+                <Link href={DEPOSIT_HREF}>{t.trade.deposit}</Link>
+              </Button>
+              <Button asChild variant="secondary" size="lg" className="min-h-11 w-full sm:w-auto">
+                <Link href={SEND_HREF}>{t.wallet.send}</Link>
+              </Button>
+            </nav>
             {slices.length > 0 ? (
               <Card>
                 <h2 className="text-lg">{t.portfolio.allocation}</h2>
