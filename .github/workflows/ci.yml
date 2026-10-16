@@ -35,6 +35,9 @@ jobs:
           node-version: 22
           cache: npm
 
+      - name: npm 11 (el lockfile se genera con npm 11)
+        run: npm install -g npm@11
+
       - name: Instalar dependencias
         run: npm ci
 
@@ -75,6 +78,9 @@ jobs:
         with:
           node-version: 22
           cache: npm
+
+      - name: npm 11 (el lockfile se genera con npm 11)
+        run: npm install -g npm@11
 
       - name: Instalar dependencias
         run: npm ci

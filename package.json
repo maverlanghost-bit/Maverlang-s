@@ -63,6 +63,7 @@
     "vitest": "^3.2.4"
   },
   "overrides": {
-    "@solana-program/memo": "0.10.0"
+    "@solana-program/memo": "0.10.0",
+    "ws": "^8.22.0"
   }
 }
