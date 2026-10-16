@@ -151,6 +151,9 @@ describe("M57: ocultar un activo", () => {
       async find() {
         return { symbol: "AAPLx", safety_status: "listed" };
       },
+      async findLastAuditStatus() {
+        return "listed";
+      },
       async update(_symbol, next) {
         patch = next;
         return true;
@@ -189,20 +192,25 @@ describe("M57: ocultar un activo", () => {
     expect(kept.status).toBe("hidden");
   });
 
-  it("exige nota y quitar override no vuelve a listar", async () => {
+  it("exige nota y el parche de ocultar queda completo", async () => {
     expect(parseAdminNote("  ")).toBeNull();
     expect(parseAdminNote("a")).toBe("a");
     expect(parseAdminNote("x".repeat(ADMIN_NOTE_MAX))).toHaveLength(ADMIN_NOTE_MAX);
     expect(parseAdminNote("x".repeat(ADMIN_NOTE_MAX + 1))).toBeNull();
-    const cleared = clearOverrideUpdate("ya no hace falta el forzado");
+    // M57-fix: el parche de "Quitar override" limpia el forzado Y devuelve
+    // safety_status al estado de la última auditoría previa al override.
+    const cleared = clearOverrideUpdate("ya no hace falta el forzado", "listed");
     expect(cleared.manual_override).toBeNull();
-    expect(cleared).not.toHaveProperty("safety_status");
+    expect(cleared.safety_status).toBe("listed");
     const hidden = hideUpdate("motivo", "2026-10-08T15:00:00.000Z");
     expect(hidden.safety_status).toBe("hidden");
 
     const store: AssetOverrideStore = {
       async find() {
         return { symbol: "AAPLx", safety_status: "listed" };
+      },
+      async findLastAuditStatus() {
+        return "listed";
       },
       async update() {
         return true;
@@ -229,6 +237,126 @@ describe("M57: ocultar un activo", () => {
         nowIso: "2026-10-08T15:00:00.000Z",
       }),
     ).toBe("missing");
+  });
+
+  it("M57-fix: quitar override restaura el estado de la última auditoría previa", async () => {
+    const note = "Se resolvió el problema con el emisor.";
+    const events: Record<string, unknown>[] = [];
+    let patch: Record<string, unknown> | null = null;
+    const store: AssetOverrideStore = {
+      async find() {
+        // El activo quedó oculto por el override que estamos quitando.
+        return { symbol: "AAPLx", safety_status: "hidden" };
+      },
+      async findLastAuditStatus() {
+        // La última corrida de auditoría lo había aprobado.
+        return "listed";
+      },
+      async update(_symbol, next) {
+        patch = next;
+        return true;
+      },
+      async insertEvent(event) {
+        events.push(event);
+        return true;
+      },
+    };
+    const result = await applyOverride(store, {
+      symbol: "AAPLx",
+      note,
+      action: "clear_override",
+      userId: "admin-1",
+      nowIso: "2026-10-08T15:00:00.000Z",
+    });
+    expect(result).toBe("ok");
+    expect(patch).toMatchObject({
+      manual_override: null,
+      manual_note: note,
+      safety_status: "listed",
+    });
+    expect(events).toHaveLength(1);
+    expect(events[0]?.result).toBe("QUITAR_OVERRIDE");
+    expect(events[0]?.status_before).toBe("hidden");
+    expect(events[0]?.status_after).toBe("listed");
+    const metrics = events[0]?.metrics as { note?: string; action?: string };
+    expect(metrics.note).toBe(note);
+    expect(metrics.action).toBe("clear_override");
+    // Restaurado a listed/watch: el monitor lo vuelve a evaluar (ya no
+    // queda atrapado fuera del lote listed/watch del catálogo).
+    expect(isVisibleStatus("listed")).toBe(true);
+  });
+
+  it("M57-fix: sin corrida previa de auditoría, quitar override vuelve a watch", async () => {
+    const note = "Nunca se auditó; que empiece en revisión.";
+    const events: Record<string, unknown>[] = [];
+    let patch: Record<string, unknown> | null = null;
+    let asked = 0;
+    const store: AssetOverrideStore = {
+      async find() {
+        return { symbol: "TSLAx", safety_status: "hidden" };
+      },
+      async findLastAuditStatus() {
+        asked += 1;
+        // Nunca hubo una corrida de auditoría para este símbolo.
+        return null;
+      },
+      async update(_symbol, next) {
+        patch = next;
+        return true;
+      },
+      async insertEvent(event) {
+        events.push(event);
+        return true;
+      },
+    };
+    const result = await applyOverride(store, {
+      symbol: "TSLAx",
+      note,
+      action: "clear_override",
+      userId: "admin-1",
+      nowIso: "2026-10-08T15:00:00.000Z",
+    });
+    expect(result).toBe("ok");
+    expect(asked).toBe(1);
+    expect(patch).toMatchObject({
+      manual_override: null,
+      manual_note: note,
+      safety_status: "watch",
+    });
+    expect(events[0]?.status_after).toBe("watch");
+    expect(isVisibleStatus("watch")).toBe(true);
+  });
+
+  it("M57-fix: un estado de auditoría inválido o desconocido cae a watch", async () => {
+    let patch: Record<string, unknown> | null = null;
+    const store: AssetOverrideStore = {
+      async find() {
+        return { symbol: "NVDAx", safety_status: "hidden" };
+      },
+      async findLastAuditStatus() {
+        // Basura en la base: nunca debe restaurar a hidden/unknown.
+        return "hidden";
+      },
+      async update(_symbol, next) {
+        patch = next;
+        return true;
+      },
+      async insertEvent() {
+        return true;
+      },
+    };
+    const result = await applyOverride(store, {
+      symbol: "NVDAx",
+      note: "La fila traía un dato viejo.",
+      action: "clear_override",
+      userId: "admin-1",
+      nowIso: "2026-10-08T15:00:00.000Z",
+    });
+    expect(result).toBe("ok");
+    expect(patch).toMatchObject({
+      manual_override: null,
+      safety_status: "watch",
+    });
   });
 
   it("el buscador filtra por símbolo o nombre", () => {

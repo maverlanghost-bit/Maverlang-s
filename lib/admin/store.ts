@@ -90,6 +90,28 @@ export function createAssetOverrideStore(): AssetOverrideStore {
         safety_status: typeof data.safety_status === "string" ? data.safety_status : null,
       };
     },
+    /**
+     * M57-fix: último estado que dejó una corrida de auditoría para el
+     * símbolo (eventos `result` PASA/NO PASA; los del panel traen
+     * OCULTAR/QUITAR_OVERRIDE y quedan fuera). `null` = sin corrida previa.
+     */
+    async findLastAuditStatus(symbol: string): Promise<string | null> {
+      const admin = adminClient();
+      if (!admin) return null;
+      const { data, error } = await admin
+        .from("asset_safety_events")
+        .select("status_after")
+        .eq("symbol", symbol)
+        .in("result", ["PASA", "NO PASA"])
+        .order("created_at", { ascending: false })
+        .order("id", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (error || !data) return null;
+      return typeof data.status_after === "string" && data.status_after.length > 0
+        ? data.status_after
+        : null;
+    },
     async update(symbol: string, patch: Record<string, unknown>): Promise<boolean> {
       const admin = adminClient();
       if (!admin) return false;

@@ -173,7 +173,7 @@ export default async function AdminPage({
           </Button>
         </form>
         <p className="text-sm text-fg-muted">
-          Quitar override borra el forzado. El activo sigue oculto hasta la próxima auditoría.
+          Quitar override borra el forzado y devuelve el activo al estado de su última auditoría (o a revisión si nunca se auditó).
         </p>
 
         {!assetsResult.ok ? (

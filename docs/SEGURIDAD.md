@@ -80,10 +80,12 @@ CSP por hashes (SRI experimental) o por ruta, fuera de esta tarea.
 
 ## Dependencias (M58 — 2026-10-07)
 
-Política: `npm run audit:deps` (`npm audit --omit=dev --audit-level=high`)
-falla si hay altas. Dependabot semanal de npm, minor+patch agrupados, tope
-de 5 PR (`.github/dependabot.yml`; rige cuando M87 suba el repo).
-`engines: node >= 22` (PC en Node 24; el runtime 22/24 de Vercel lo
+Política: `npm run audit:deps` corre `scripts/audit-deps.mjs`: falla si hay
+altas o críticas FUERA de las aceptadas abajo (el gate es por advisory, URL
+de GHSA; una recalentura a crítica también rompe). Fail-closed: si `npm
+audit` no responde, sale 1. Dependabot semanal de npm, minor+patch
+agrupados, tope de 5 PR (`.github/dependabot.yml`; rige cuando M87 suba el
+repo). `engines: node >= 22` (PC en Node 24; el runtime 22/24 de Vercel lo
 confirma M50).
 
 `npm audit --omit=dev` (2026-10-07): 0 críticas y 4 altas en 2 avisos (el

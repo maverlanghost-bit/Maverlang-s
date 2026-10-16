@@ -31,6 +31,13 @@ export type AssetSnapshot = {
 
 export type AssetOverrideStore = {
   find(symbol: string): Promise<AssetSnapshot | null>;
+  /**
+   * Último estado que dejó una corrida de auditoría antes del override
+   * (eventos con `result` PASA/NO PASA; los del panel traen
+   * OCULTAR/QUITAR_OVERRIDE y no cuentan). `null` = sin corrida previa
+   * y "Quitar override" restaura a "watch" (M57-fix).
+   */
+  findLastAuditStatus(symbol: string): Promise<string | null>;
   update(symbol: string, patch: Record<string, unknown>): Promise<boolean>;
   insertEvent(event: Record<string, unknown>): Promise<boolean>;
 };
@@ -76,10 +83,16 @@ export function hideUpdate(note: string, nowIso: string): Record<string, unknown
   };
 }
 
-export function clearOverrideUpdate(note: string): Record<string, unknown> {
+/**
+ * Parche de "Quitar override" (M57-fix): además de limpiar el forzado,
+ * devuelve `safety_status` al último estado de auditoría previo al
+ * override (`restoreStatus`); sin corrida previa se restaura a "watch".
+ */
+export function clearOverrideUpdate(note: string, restoreStatus: string): Record<string, unknown> {
   return {
     manual_override: null,
     manual_note: note,
+    safety_status: restoreStatus,
   };
 }
 
@@ -124,9 +137,20 @@ export async function applyOverride(
   const row = await store.find(symbol);
   if (!row) return "missing";
   const before = row.safety_status && row.safety_status.length > 0 ? row.safety_status : "unknown";
-  const patch =
-    input.action === "force_hide" ? hideUpdate(note, input.nowIso) : clearOverrideUpdate(note);
-  const after = input.action === "force_hide" ? "hidden" : before;
+  let patch: Record<string, unknown>;
+  let after: string;
+  if (input.action === "force_hide") {
+    patch = hideUpdate(note, input.nowIso);
+    after = "hidden";
+  } else {
+    // M57-fix: restaurar al último estado de auditoría previo al override;
+    // sin corrida previa (null) se vuelve a "watch" para que el monitor la
+    // re-evalúe (sólo procesa listed/watch) y no quede oculto para siempre.
+    const lastAudit = await store.findLastAuditStatus(symbol);
+    const restoreStatus = lastAudit === "listed" || lastAudit === "watch" ? lastAudit : "watch";
+    patch = clearOverrideUpdate(note, restoreStatus);
+    after = restoreStatus;
+  }
   const updated = await store.update(symbol, patch);
   if (!updated) return "fallo";
   const saved = await store.insertEvent(
