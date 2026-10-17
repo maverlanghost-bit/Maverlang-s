@@ -74,6 +74,9 @@ const AUDIT_TABLES = [
   "app_flags",
   // M75: sin acceso para anon/authenticated.
   "compliance_events",
+  // M74: el usuario lee sólo su fila; escritura sólo service_role.
+  "user_limits",
+  "beta_users",
 ];
 
 /** Columnas sensibles de profiles que authenticated nunca puede cambiar (0009). */
@@ -173,6 +176,9 @@ function dryRun() {
     ["app_flags", "anon: nada", "A→B: n/a", "nadie (ni lectura ni escritura directa)"],
     // M75
     ["compliance_events", "anon: nada", "A→B: n/a", "nadie (ni lectura ni escritura directa)"],
+    // M74: el usuario lee sólo su fila; nadie escribe desde clientes.
+    ["user_limits", "anon: nada", "A→B: no ve la de B", "A propio: sólo lectura; sin escritura"],
+    ["beta_users", "anon: nada", "A→B: no ve la de B", "A propio: sólo lectura; sin escritura"],
     ["is_admin()", "anon: denegado", "A: denegado", "sólo service_role"],
     ["demo_trade()", "anon: denegado", "A con user_id de B: denegado", "A con user_id propio: denegado (sólo service_role)"],
     ["demo_reset()", "anon: denegado", "A con user_id de B: denegado", "A con user_id propio: denegado (sólo service_role)"],
@@ -478,6 +484,32 @@ async function main() {
     record("A SELECT compliance_events (denegado)", !!selCompliance.error, selCompliance.error ? redact(selCompliance.error.message) : "leyó filas");
     const insCompliance = await clientA.from("compliance_events").insert({ user_id: idA, type: "rls-probe", data: {} }).select("id");
     record("A INSERT compliance_events (denegado)", !!insCompliance.error, insCompliance.error ? redact(insCompliance.error.message) : "insertó");
+
+    // M74: user_limits y beta_users — el usuario lee sólo su fila, no escribe.
+    const selLimits = await clientA.from("user_limits").select("user_id").limit(3);
+    record(
+      "A SELECT user_limits (sólo propias)",
+      !selLimits.error && (selLimits.data ?? []).every((r) => r.user_id === idA),
+      selLimits.error ? redact(selLimits.error.message) : `${selLimits.data?.length ?? 0} filas propias`,
+    );
+    const selLimitsB = await clientA.from("user_limits").select("user_id").eq("user_id", idB);
+    record("A SELECT user_limits de B (nada)", readDenied(selLimitsB, [idB]), selLimitsB.error ? redact(selLimitsB.error.message) : "0 filas");
+    const insLimits = await clientA.from("user_limits").insert({ user_id: idA, daily_usd: 20 }).select("user_id");
+    record("A INSERT user_limits (denegado)", !!insLimits.error, insLimits.error ? redact(insLimits.error.message) : "insertó");
+    const updLimits = await clientA.from("user_limits").update({ daily_usd: 999999 }).eq("user_id", idA).select("user_id");
+    record("A UPDATE user_limits (denegado)", !!updLimits.error, updLimits.error ? redact(updLimits.error.message) : "editó");
+    const selBeta = await clientA.from("beta_users").select("user_id").limit(3);
+    record(
+      "A SELECT beta_users (sólo propias)",
+      !selBeta.error && (selBeta.data ?? []).every((r) => r.user_id === idA),
+      selBeta.error ? redact(selBeta.error.message) : `${selBeta.data?.length ?? 0} filas propias`,
+    );
+    const selBetaB = await clientA.from("beta_users").select("user_id").eq("user_id", idB);
+    record("A SELECT beta_users de B (nada)", readDenied(selBetaB, [idB]), selBetaB.error ? redact(selBetaB.error.message) : "0 filas");
+    const insBeta = await clientA.from("beta_users").insert({ user_id: idA }).select("user_id");
+    record("A INSERT beta_users (denegado)", !!insBeta.error, insBeta.error ? redact(insBeta.error.message) : "insertó");
+    const delBeta = await clientA.from("beta_users").delete().eq("user_id", idA).select("user_id");
+    record("A DELETE beta_users (denegado)", !!delBeta.error, delBeta.error ? redact(delBeta.error.message) : "borró");
 
     // ---- funciones con el user_id de otro (y propio: también denegado) ----
     const tradeAsB = await clientA.rpc("demo_trade", {

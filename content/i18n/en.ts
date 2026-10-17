@@ -315,6 +315,13 @@ export const en = {
       RATE_LIMITED: "Too many requests. Try again in a few seconds.",
       PAYLOAD_TOO_LARGE: "The data is too large.",
       REAL_DISABLED: "Real money isn't available in this demo yet.",
+      // M74: user limits and kill switches.
+      LIMIT_ORDER: "This order is over your per-order limit. Try a smaller amount.",
+      LIMIT_DAILY: "You reached your daily limit. You can keep trading tomorrow.",
+      LIMIT_MONTHLY: "You reached your monthly limit.",
+      LIMIT_GLOBAL: "We reached today's global cap. Try again tomorrow.",
+      TRADING_PAUSED: "Real trading is paused. Please try again later.",
+      BETA_CLOSED: "We're in a closed beta. We'll let you know.",
       UPSTREAM: "The provider didn't respond. You can try again.",
       INTERNAL: "Something failed on our side. You can try again.",
     },

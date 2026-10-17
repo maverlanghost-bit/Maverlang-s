@@ -168,6 +168,30 @@ El panel `/admin` exige esa fila y MFA (`aal2`). Alta de un admin (lo corre el o
 node scripts/make-admin.mjs <email>
 ```
 
+## Límites por usuario, beta y kill switches (0028) — M74
+
+NO aplicada. Después de `0027`, pega **una sola vez** `supabase/migrations/0028_limits.sql` en el SQL Editor y ejecútalo. También es idempotente (se puede pegar dos veces: la segunda no pisa un valor ya cambiado, `on conflict do nothing`). Agrega:
+
+- `public.user_limits` (`user_id` referencia `auth.users`, `per_order_usd`, `daily_usd`, `monthly_usd` con check de positivos, `note`, `updated_at`). `null` = usa el default de `app_flags.limits_default`.
+- `public.beta_users` (`user_id`, `invited_by`, `invited_at`, `note`): la lista cerrada de la beta.
+- RLS: cada usuario **lee sólo su fila** (`auth.uid() = user_id`, `select` para `authenticated`); nadie escribe desde el navegador (`revoke all` + sólo `grant select`). Las escrituras las hace el servidor con la secret key (panel `/admin`).
+- Semillas en `app_flags` (columna `value jsonb` de 0011): `limits_default = {"per_order_usd":200,"daily_usd":500,"monthly_usd":2000}` y `global_daily_usd = 10000`.
+
+Sin aplicar `0028`, los límites usan los defaults de código (los mismos números) y `/admin` muestra la sección de límites/beta con error de lectura.
+
+Comprobación (SQL Editor):
+
+```sql
+-- 1. Semillas:
+select key, value from public.app_flags
+  where key in ('limits_default', 'global_daily_usd');
+-- 2. Tablas con RLS:
+select tablename, rowsecurity from pg_tables
+  where schemaname = 'public' and tablename in ('user_limits', 'beta_users');
+-- 3. Auditoría RLS (la corre el operador):
+-- npm run audit:rls
+```
+
 ## Segundo emisor Ondo (0022)
 
 NO aplicada. Después de `0021`, pega **una sola vez** `supabase/migrations/0022_ondo_issuer.sql` en el SQL Editor y ejecútalo. También es idempotente (se puede pegar dos veces). Agrega:

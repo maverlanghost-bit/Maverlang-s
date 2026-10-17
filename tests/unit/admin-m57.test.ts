@@ -434,12 +434,14 @@ describe("M57: migración, panel y middleware", () => {
 
     const actions = read("app/admin/actions.ts");
     const chunks = actions.split("export async function ").slice(1);
-    expect(chunks.length).toBe(3);
+    // M74: 3 acciones originales + setUserLimits + addBetaMember +
+    // removeBetaMember. Todas con requireAdmin() antes del trabajo.
+    expect(chunks.length).toBe(6);
     for (const chunk of chunks) {
       const guardAt = chunk.indexOf("requireAdmin()");
       expect(guardAt).toBeGreaterThan(-1);
       const workAt = Math.min(
-        ...["applyOverride(", "writeFlagValue("].map((token) => {
+        ...["applyOverride(", "writeFlagValue(", "writeUserLimitsRow(", "addBetaUser(", "removeBetaUser("].map((token) => {
           const at = chunk.indexOf(token);
           return at === -1 ? Number.POSITIVE_INFINITY : at;
         }),

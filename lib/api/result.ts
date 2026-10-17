@@ -18,6 +18,14 @@ export const API_ERROR_STATUS = {
   RATE_LIMITED: 429,
   PAYLOAD_TOO_LARGE: 413,
   REAL_DISABLED: 503,
+  // M74: límites por usuario y globales.
+  LIMIT_ORDER: 422,
+  LIMIT_DAILY: 422,
+  LIMIT_MONTHLY: 422,
+  LIMIT_GLOBAL: 422,
+  // M74: kill switches de producto.
+  TRADING_PAUSED: 503,
+  BETA_CLOSED: 403,
   UPSTREAM: 502,
   INTERNAL: 500,
 } as const satisfies Record<ApiErrorCode, number>;
@@ -37,6 +45,14 @@ const ERROR_MESSAGE: Record<ApiErrorCode, string> = {
   RATE_LIMITED: "Demasiadas solicitudes. Intenta de nuevo en unos segundos.",
   PAYLOAD_TOO_LARGE: "Los datos son demasiado grandes.",
   REAL_DISABLED: "El dinero real todavía no está disponible.",
+  // M74: límites por usuario y globales.
+  LIMIT_ORDER: "La operación supera tu tope por orden.",
+  LIMIT_DAILY: "Alcanzaste tu límite diario.",
+  LIMIT_MONTHLY: "Alcanzaste tu límite mensual.",
+  LIMIT_GLOBAL: "Alcanzamos el tope global del día. Intenta mañana.",
+  // M74: kill switches de producto.
+  TRADING_PAUSED: "Las operaciones reales están pausadas.",
+  BETA_CLOSED: "Estamos en beta cerrada. Te avisaremos.",
   UPSTREAM: "El proveedor no respondió.",
   INTERNAL: "Error interno.",
 };

@@ -1,7 +1,18 @@
 import type { Metadata } from "next";
 
-import { clearOverride, hideAsset, setFlag } from "@/app/admin/actions";
+import {
+  addBetaMember,
+  clearOverride,
+  hideAsset,
+  removeBetaMember,
+  setFlag,
+  setUserLimits,
+} from "@/app/admin/actions";
 import { requireAdmin } from "@/lib/admin/guard";
+import {
+  betaRowView,
+  limitFieldValue,
+} from "@/lib/admin/limits-panel";
 import {
   ADMIN_AVISO,
   ADMIN_VISIBLE_CAP,
@@ -13,7 +24,13 @@ import {
   statusLabel,
   type AdminAsset,
 } from "@/lib/admin/override";
-import { listAdminAssets, readFlagMap } from "@/lib/admin/store";
+import {
+  listAdminAssets,
+  listBetaUsers,
+  readFlagMap,
+  readFlagValue,
+  readUserLimitsRow,
+} from "@/lib/admin/store";
 import { site } from "@/config/site";
 import { Badge, type BadgeTone } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -23,6 +40,7 @@ import { ErrorState } from "@/components/ui/error-state";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/ui/page-header";
 import { ADMIN_FLAGS, panelFlags } from "@/lib/flags";
+import { parseLimitsDefault } from "@/lib/trade/limits";
 
 export const metadata: Metadata = {
   title: "Administración",
@@ -34,6 +52,8 @@ const AVISO_TEXT: Record<string, string> = {
   [ADMIN_AVISO.faltaNota]: "La nota es obligatoria.",
   [ADMIN_AVISO.confirma]: "Confirma el cambio del interruptor.",
   [ADMIN_AVISO.noSePudo]: "No se pudo guardar. Inténtalo de nuevo.",
+  "falta-email": "Escribe el correo del usuario.",
+  "sin-usuario": "No encontramos una cuenta con ese correo.",
 };
 
 function toneOf(status: string): BadgeTone {
@@ -41,6 +61,14 @@ function toneOf(status: string): BadgeTone {
   if (status === "watch") return "warn";
   if (status === "hidden") return "down";
   return "neutral";
+}
+
+/** Límites de un correo: resuelve el usuario y lee su fila. */
+async function readUserLimitsRowByEmail(email: string) {
+  const { findUserByEmail, readUserLimitsRow } = await import("@/lib/admin/store");
+  const user = await findUserByEmail(email);
+  if (!user) return null;
+  return readUserLimitsRow(user.id);
 }
 
 function AssetRow({ asset, q }: { asset: AdminAsset; q: string }) {
@@ -106,6 +134,28 @@ export default async function AdminPage({
   const filtered = assetsResult.ok ? filterAdminAssets(assetsResult.assets, q) : [];
   const shown = filtered.slice(0, ADMIN_VISIBLE_CAP);
 
+  // M74: límites y beta.
+  const limitsEmail = firstQuery(params.limitsEmail);
+  let savedLimits: Awaited<ReturnType<typeof readUserLimitsRow>> = null;
+  let limitsError = false;
+  if (limitsEmail) {
+    try {
+      savedLimits = await readUserLimitsRowByEmail(limitsEmail);
+    } catch {
+      limitsError = true;
+    }
+  }
+  let defaults = parseLimitsDefault(null);
+  let globalDailyUsd = 10_000;
+  try {
+    defaults = parseLimitsDefault(await readFlagValue("limits_default"));
+    globalDailyUsd = Number(await readFlagValue("global_daily_usd")) || 10_000;
+  } catch {
+    // defaults de código
+  }
+  const beta = await listBetaUsers().catch(() => ({ ok: false, users: [] as never[] }));
+  const betaRows = beta.ok ? beta.users.map(betaRowView) : [];
+
   return (
     <main className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-5 py-8">
       <div>
@@ -152,6 +202,89 @@ export default async function AdminPage({
             title="No se pudieron leer los interruptores"
             description="No se muestran acciones para no guardar un valor a ciegas."
           />
+        )}
+      </Card>
+
+      <Card className="flex flex-col gap-4">
+        <h2 className="text-lg text-fg">Límites por usuario</h2>
+        <p className="text-sm text-fg-muted">
+          Defaults: US${defaults.per_order_usd} por orden · US${defaults.daily_usd} al día ·
+          US${defaults.monthly_usd} al mes · tope global del día US${globalDailyUsd}. Deja un
+          campo vacío para usar el default. Huso contable: America/Santiago.
+        </p>
+        <form action={setUserLimits} className="grid gap-3 sm:grid-cols-2">
+          <label className="flex flex-col gap-1 text-sm text-fg">
+            Correo del usuario
+            <Input name="email" type="email" required defaultValue={limitsEmail} maxLength={254} autoComplete="off" />
+          </label>
+          <label className="flex flex-col gap-1 text-sm text-fg">
+            Tope por orden (US$)
+            <Input name="perOrderUsd" inputMode="decimal" defaultValue={savedLimits ? limitFieldValue(savedLimits.per_order_usd) : ""} placeholder={`Default ${defaults.per_order_usd}`} />
+          </label>
+          <label className="flex flex-col gap-1 text-sm text-fg">
+            Tope diario (US$)
+            <Input name="dailyUsd" inputMode="decimal" defaultValue={savedLimits ? limitFieldValue(savedLimits.daily_usd) : ""} placeholder={`Default ${defaults.daily_usd}`} />
+          </label>
+          <label className="flex flex-col gap-1 text-sm text-fg">
+            Tope mensual (US$)
+            <Input name="monthlyUsd" inputMode="decimal" defaultValue={savedLimits ? limitFieldValue(savedLimits.monthly_usd) : ""} placeholder={`Default ${defaults.monthly_usd}`} />
+          </label>
+          <label className="flex flex-col gap-1 text-sm text-fg sm:col-span-2">
+            Nota
+            <Input name="note" maxLength={500} placeholder="Motivo del cambio" />
+          </label>
+          {limitsError ? (
+            <p className="text-sm text-fg-muted sm:col-span-2">No se pudieron leer los límites guardados.</p>
+          ) : null}
+          <div className="sm:col-span-2">
+            <Button type="submit" variant="secondary" size="sm">
+              Guardar límites
+            </Button>
+          </div>
+        </form>
+      </Card>
+
+      <Card className="flex flex-col gap-4">
+        <h2 className="text-lg text-fg">Beta cerrada</h2>
+        <p className="text-sm text-fg-muted">
+          Con el interruptor «Sólo beta» encendido, sólo estas cuentas operan en la cuenta real.
+        </p>
+        <form action={addBetaMember} className="flex flex-col gap-3 sm:flex-row sm:items-end">
+          <label className="flex flex-1 flex-col gap-1 text-sm text-fg">
+            Correo
+            <Input name="email" type="email" required maxLength={254} autoComplete="off" />
+          </label>
+          <label className="flex flex-1 flex-col gap-1 text-sm text-fg">
+            Nota
+            <Input name="note" maxLength={500} placeholder="Quién la invitó" />
+          </label>
+          <Button type="submit" variant="secondary" size="sm">
+            Agregar
+          </Button>
+        </form>
+        {betaRows.length === 0 ? (
+          <p className="text-sm text-fg-muted">Sin usuarios en la beta todavía.</p>
+        ) : (
+          <ul className="flex flex-col gap-2">
+            {betaRows.map((row) => (
+              <li
+                key={row.userId}
+                className="flex flex-col gap-2 border-t border-border pt-2 sm:flex-row sm:items-center sm:justify-between"
+              >
+                <div>
+                  <p className="text-sm font-medium text-fg">{row.email}</p>
+                  <p className="text-sm text-fg-muted">Invitado {formatAdminDate(row.invitedAt === "—" ? null : row.invitedAt)}</p>
+                </div>
+                <form action={removeBetaMember}>
+                  <input type="hidden" name="userId" value={row.userId} />
+                  <input type="hidden" name="q" value={q} />
+                  <Button type="submit" variant="danger" size="sm">
+                    Quitar
+                  </Button>
+                </form>
+              </li>
+            ))}
+          </ul>
         )}
       </Card>
 

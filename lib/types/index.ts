@@ -273,5 +273,13 @@ export type ApiErrorCode =
   | "RATE_LIMITED"
   | "PAYLOAD_TOO_LARGE"
   | "REAL_DISABLED"
+  // M74: límites por usuario y globales.
+  | "LIMIT_ORDER"
+  | "LIMIT_DAILY"
+  | "LIMIT_MONTHLY"
+  | "LIMIT_GLOBAL"
+  // M74: kill switches de producto (cache de 30 s en /admin).
+  | "TRADING_PAUSED"
+  | "BETA_CLOSED"
   | "UPSTREAM"
   | "INTERNAL";

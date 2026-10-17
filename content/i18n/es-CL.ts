@@ -318,6 +318,13 @@ export const esCL = {
       RATE_LIMITED: "Demasiadas solicitudes. Intenta de nuevo en unos segundos.",
       PAYLOAD_TOO_LARGE: "Los datos son demasiado grandes.",
       REAL_DISABLED: "El dinero real todavía no está disponible en esta demo.",
+      // M74: límites y kill switches.
+      LIMIT_ORDER: "La operación supera tu tope por orden. Prueba con un monto menor.",
+      LIMIT_DAILY: "Alcanzaste tu límite diario. Mañana puedes seguir operando.",
+      LIMIT_MONTHLY: "Alcanzaste tu límite mensual.",
+      LIMIT_GLOBAL: "Alcanzamos el tope global del día. Intenta mañana.",
+      TRADING_PAUSED: "Las operaciones reales están pausadas. Vuelve a intentar más tarde.",
+      BETA_CLOSED: "Estamos en beta cerrada. Te avisaremos.",
       UPSTREAM: "El proveedor no respondió. Puedes intentar de nuevo.",
       INTERNAL: "Algo falló de nuestro lado. Puedes intentar de nuevo.",
     },

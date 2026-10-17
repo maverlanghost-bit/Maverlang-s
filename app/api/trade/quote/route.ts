@@ -18,6 +18,9 @@ import { SAFETY_THRESHOLDS } from "@/lib/catalog/safety-core.mjs";
 import { withRateLimit } from "@/lib/security/rate-limit";
 import { getServices } from "@/lib/services";
 import { demoSupabase } from "@/lib/services/demo.supabase";
+import {
+  assertRealTradeAllowed,
+} from "@/lib/trade/real-guards";
 
 export const runtime = "nodejs";
 
@@ -53,6 +56,26 @@ function assertLiveBuyCost(side: "buy" | "sell", priceDeviationBps: number): voi
   }
 }
 
+/**
+ * Notional en dólares de un quote real cuyo monto no viene en USDC
+ * (acciones o CLP, o venta): lo cotiza el motor live y se toma el lado
+ * en dólares del resultado. Sólo se llama en la cuenta real.
+ */
+async function realQuoteAmountUsd(
+  body: { side: "buy" | "sell"; symbol: string; amount: number; amountCurrency: "USDC" | "SHARES" | "CLP" },
+): Promise<number> {
+  const services = getServices();
+  try {
+    const quote = await services.trade.quote({ ...body, symbol: body.symbol });
+    return quote.side === "buy" ? quote.inAmountUi : quote.outAmountUi;
+  } catch {
+    // Sin precio no se puede valorar: la venta o el quote en acciones/CLP
+    // sigue su curso y los límites se aplican de nuevo en build/submit con
+    // el notional guardado.
+    return 0;
+  }
+}
+
 export function POST(req: Request) {
   return handle("no-store", async () => {
     assertSameOrigin(req);
@@ -67,6 +90,15 @@ export function POST(req: Request) {
       // REAL_TRADING_READY=true. Cotizar no mueve dinero, pero se mantiene
       // coherente con build/submit: apagado hasta encender el flag.
       assertRealTradingEnabled();
+      // M74: kill switch → beta → límites (por orden, día, mes y global).
+      // El notional del quote en dólares sale del motor live; con la cuenta
+      // demo el flujo demo no pasa por acá.
+      const session = await requireSession(services, req);
+      const amountUsd =
+        body.side === "buy" && body.amountCurrency === "USDC"
+          ? body.amount
+          : await realQuoteAmountUsd(body);
+      await assertRealTradeAllowed(session.userId, amountUsd);
     }
     if (isUserDemoRequest(req)) {
       const session = await requireSession(services, req);

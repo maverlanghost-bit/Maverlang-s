@@ -17,6 +17,9 @@ export function isAllowedAdminImporter(relativePath: string): boolean {
   if (normalized === "lib/health/checks.ts") return true;
   if (/^lib\/admin\/.+\.tsx?$/.test(normalized)) return true;
   if (/^app\/api\/cron\/.+\.tsx?$/.test(normalized)) return true;
+  // M74: los límites leen user_limits/beta_users/orders con el cliente admin.
+  if (normalized === "lib/trade/limits.ts") return true;
+  if (normalized === "lib/trade/real-guards.ts") return true;
   return false;
 }
 

@@ -14,6 +14,7 @@ import {
 import { withRateLimit } from "@/lib/security/rate-limit";
 import { getServices } from "@/lib/services";
 import { demoSupabase } from "@/lib/services/demo.supabase";
+import { assertRealTradeAllowed } from "@/lib/trade/real-guards";
 
 export const runtime = "nodejs";
 
@@ -30,6 +31,11 @@ export function POST(req: Request) {
       // REAL_TRADING_READY=true. Con el flag encendido, pasa al motor live
       // de abajo. El camino demo sigue igual.
       assertRealTradingEnabled();
+      // M74: kill switch → beta → límites. La carrera de dos builds
+      // simultáneos se corta acá: cada build re-comprueba los topes antes
+      // de armar la tx y submit vuelve a comprobarlos al firmar.
+      const session = await requireSession(services, req);
+      await assertRealTradeAllowed(session.userId, null);
     }
     if (isUserDemoRequest(req)) {
       const session = await requireSession(services, req);

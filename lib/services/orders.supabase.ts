@@ -114,3 +114,69 @@ export async function listOrdersForActivity(userId: string, limit = 100): Promis
   if (error || !data) return [];
   return data as OrderRow[];
 }
+
+/**
+ * Órdenes de un usuario para los límites (M74). Trayecto completo del día/mes
+ * local: las ventanas se cortan en `lib/trade/limits.ts` con `created_at`.
+ * `price_per_share_usd` viene para valorar ventas sin `out_amount_ui`.
+ */
+export async function listOrdersForLimits(
+  userId: string,
+  limit = 200,
+): Promise<
+  Array<{
+    side: "buy" | "sell";
+    in_amount_ui: number | null;
+    out_amount_ui: number | null;
+    price_per_share_usd: number | null;
+    status: string;
+    created_at: string;
+  }>
+> {
+  const admin = createSupabaseAdminClient();
+  const { data, error } = await admin
+    .from("orders")
+    .select("side,in_amount_ui,out_amount_ui,price_per_share_usd,status,created_at")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  if (error || !data) return [];
+  return data as Array<{
+    side: "buy" | "sell";
+    in_amount_ui: number | null;
+    out_amount_ui: number | null;
+    price_per_share_usd: number | null;
+    status: string;
+    created_at: string;
+  }>;
+}
+
+/** Órdenes contables de TODOS los usuarios del día (tope global). */
+export async function listAllOrdersForLimits(
+  limit = 1000,
+): Promise<
+  Array<{
+    side: "buy" | "sell";
+    in_amount_ui: number | null;
+    out_amount_ui: number | null;
+    price_per_share_usd: number | null;
+    status: string;
+    created_at: string;
+  }>
+> {
+  const admin = createSupabaseAdminClient();
+  const { data, error } = await admin
+    .from("orders")
+    .select("side,in_amount_ui,out_amount_ui,price_per_share_usd,status,created_at")
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  if (error || !data) return [];
+  return data as Array<{
+    side: "buy" | "sell";
+    in_amount_ui: number | null;
+    out_amount_ui: number | null;
+    price_per_share_usd: number | null;
+    status: string;
+    created_at: string;
+  }>;
+}
