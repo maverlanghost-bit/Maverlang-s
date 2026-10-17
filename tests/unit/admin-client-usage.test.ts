@@ -13,6 +13,8 @@ export function isAllowedAdminImporter(relativePath: string): boolean {
   const normalized = relativePath.replaceAll("\\", "/");
   if (/^lib\/services\/[^/]+\.supabase\.ts$/.test(normalized)) return true;
   if (normalized === "lib/catalog/monitor.ts") return true;
+  // M62: el chequeo profundo de /api/health/deep sondea la base.
+  if (normalized === "lib/health/checks.ts") return true;
   if (/^lib\/admin\/.+\.tsx?$/.test(normalized)) return true;
   if (/^app\/api\/cron\/.+\.tsx?$/.test(normalized)) return true;
   return false;
