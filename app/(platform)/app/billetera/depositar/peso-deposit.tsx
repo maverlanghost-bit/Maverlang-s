@@ -178,6 +178,11 @@ export function PesoDeposit() {
             <p className="text-sm leading-relaxed text-fg-muted">{t.wallet.depositMethodsNote}</p>
           </div>
           <p className="text-sm leading-relaxed text-fg-muted">{t.wallet.depositNote}</p>
+          {/* M83: el contrato y el pago son con el proveedor, no con Maverlang. */}
+          <p className="rounded-xl bg-warn-bg px-4 py-3 text-sm font-medium leading-relaxed text-fg">
+            Compra a Koywe. Tu contrato y tu pago son con Koywe.{" "}
+            <span className="font-medium text-warn">[REVISIÓN ABOGADO]</span>
+          </p>
           {live.error ? (
             <p role="alert" className="text-sm text-down">
               {live.error}

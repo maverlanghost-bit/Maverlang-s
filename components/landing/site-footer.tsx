@@ -85,6 +85,13 @@ export function SiteFooter() {
             El token es tuyo y está en tu billetera. No te convierte en accionista registrado ni te da derecho a voto. Invertir implica riesgos.{" "}
             <span className="font-medium text-warn">[REVISIÓN ABOGADO]</span>
           </p>
+          {/* M83: atribución de marcas. Los logos siguen encendidos
+              (NEXT_PUBLIC_COMPANY_LOGOS=on por defecto) mientras el abogado
+              no decida lo contrario (docs/legal/aprobados/logos.md). */}
+          <p className="text-fg-body">
+            Las marcas pertenecen a sus dueños; se usan solo para identificar el activo.{" "}
+            <span className="font-medium text-warn">[REVISIÓN ABOGADO]</span>
+          </p>
           <p className="font-medium text-fg">No disponible para personas de EE.UU.</p>
           <p className="text-fg-muted">
             © {year} {site.name}

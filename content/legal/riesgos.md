@@ -40,6 +40,10 @@ La compra se registra en Solana. Una transacción puede fallar, demorarse o tene
 
 Los activos están en una billetera embebida de tu cuenta. El modo de exportar la clave sigue en revisión. Quien controle la cuenta controla los activos.
 
+## Marcas
+
+Los nombres y logos de las empresas del catálogo (Apple, NVIDIA, Tesla y las demás) son marcas de sus dueños. En {{brand}} se usan solo para identificar el activo. No implican relación, patrocinio ni autorización de esas empresas. [REVISIÓN ABOGADO]
+
 ## Texto en revisión
 
 Esta divulgación es un borrador. [REVISIÓN ABOGADO]

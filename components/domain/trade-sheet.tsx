@@ -542,6 +542,12 @@ function TradeFlow({ side, ticker }: { side: Side; ticker: Ticker }) {
         {halted ? <p className="text-center text-sm text-down">{t.detail.tradeHaltedNote}</p> : null}
         {fresh && quote ? <CostBreakdown rows={costRows(t, quote, side, displayCurrency, fxRate)} /> : null}
         {dollarsNote ? <p className="text-center text-xs text-fg-muted">{dollarsNote}</p> : null}
+        {/* M83: aviso antes de confirmar. Texto borrador hasta la revisión
+            del abogado; si la exige, cambia en un solo lugar. */}
+        <p className="text-center text-xs leading-relaxed text-fg-muted">
+          El precio puede variar. Operación ejecutada en Solana vía Jupiter. No es asesoría.{" "}
+          <span className="font-medium text-warn">[REVISIÓN ABOGADO]</span>
+        </p>
         <Link href="/legal/riesgos" className="inline-flex min-h-11 items-center rounded-sm text-sm font-medium text-fg underline underline-offset-4 outline-none focus-visible:ring-4 focus-visible:ring-fg/20">
           {t.detail.risksLink}
         </Link>
