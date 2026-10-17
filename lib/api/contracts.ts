@@ -353,6 +353,32 @@ export const deletionStatusSchema = z.object({
   requestedAt: isoTimeSchema.nullable(),
 });
 
+/**
+ * M66: billeteras verificadas del usuario. `address` NO existe aquí a
+ * propósito: la dirección guardada sale siempre de la verificación en
+ * servidor contra Privy (`syncVerifiedPrivyWallet`); una `address` enviada
+ * por el cliente es rechazada con 400 por `.strict()` y jamás persiste.
+ */
+export const walletSyncRequestSchema = z.object({}).strict();
+
+export const storedWalletSchema = z.object({
+  userId: z.string().min(1),
+  chain: z.literal("solana"),
+  address: z.string().min(32),
+  walletClientType: z.enum(["privy", "external"]),
+  privyWalletId: z.string().min(1).nullable(),
+  isPrimary: z.boolean(),
+  verifiedAt: isoTimeSchema,
+  createdAt: isoTimeSchema,
+  /** `privy` = verificada contra la API; `mock` = demo determinista. */
+  source: z.enum(["privy", "mock"]).optional(),
+});
+
+export const walletsResponseSchema = z.object({
+  wallets: z.array(storedWalletSchema),
+  primaryAddress: z.string().min(32).nullable(),
+});
+
 export const preferencesSchema = z
   .object({
     notifyOrders: z.boolean(),
@@ -561,6 +587,8 @@ export const apiContracts = {
   "GET /api/me/consents": { response: consentsResponseSchema },
   "GET /api/me/deletion": { response: deletionStatusSchema },
   "POST /api/me/deletion": { body: deletionRequestSchema, response: deletionStatusSchema },
+  "GET /api/me/wallet": { response: walletsResponseSchema },
+  "POST /api/me/wallet": { body: walletSyncRequestSchema, response: walletsResponseSchema },
   "GET /api/me/preferences": { response: preferencesSchema },
   "PUT /api/me/preferences": { body: preferencesSchema, response: preferencesSchema },
   "GET /api/me/favorites": { response: favoritesResponseSchema },
