@@ -180,3 +180,71 @@ export async function listAllOrdersForLimits(
     created_at: string;
   }>;
 }
+
+/**
+ * Cliente admin tipado para inyección en tests (M72): la conciliación de
+ * órdenes pasa un falso encadenable y nunca toca la red en `vitest`.
+ */
+export type OrdersAdmin = ReturnType<typeof createSupabaseAdminClient>;
+
+/** Fila abierta que revisa la conciliación (M72). */
+export interface ReconcileRow {
+  id: string;
+  status: "pending" | "submitted" | "confirmed" | "failed" | "expired";
+  tx_signature: string | null;
+  quote_expires_at: string | null;
+  created_at: string;
+}
+
+/** Cambios que puede hacer la conciliación (M72). */
+export interface ReconcileOrderPatch {
+  status: "confirmed" | "failed" | "expired";
+  error_code?: string;
+  error?: string;
+  confirmed_at?: string;
+}
+
+/**
+ * Órdenes reales abiertas para la conciliación (M72): `is_demo = false`, en
+ * `pending`/`submitted` y con antigüedad mínima (`created_at <= cutoffIso`).
+ * Devuelve `null` si la lectura falla (la corrida se reporta `ok: false`,
+ * nunca inventa estados sobre una base que no se pudo leer).
+ */
+export async function listOpenRealOrders(opts: {
+  cutoffIso: string;
+  limit?: number;
+  admin?: OrdersAdmin;
+}): Promise<ReconcileRow[] | null> {
+  const client = opts.admin ?? createSupabaseAdminClient();
+  const { data, error } = await client
+    .from("orders")
+    .select("id,status,tx_signature,quote_expires_at,created_at")
+    .eq("is_demo", false)
+    .in("status", ["pending", "submitted"])
+    .lte("created_at", opts.cutoffIso)
+    .order("created_at", { ascending: true })
+    .limit(opts.limit ?? 200);
+  if (error || !Array.isArray(data)) return null;
+  return data as ReconcileRow[];
+}
+
+/**
+ * Aplica el resultado de la conciliación (M72). El update exige que la orden
+ * SIGA abierta (`status in pending, submitted`): dos corridas concurrentes
+ * jamás retroceden una `confirmed`/`failed` (idempotencia a nivel fila).
+ * Devuelve `false` si el update no se pudo aplicar.
+ */
+export async function updateOrderReconciled(
+  id: string,
+  patch: ReconcileOrderPatch,
+  admin?: OrdersAdmin,
+): Promise<boolean> {
+  const client = admin ?? createSupabaseAdminClient();
+  const { error } = await client
+    .from("orders")
+    .update({ ...patch, updated_at: new Date().toISOString() })
+    .eq("id", id)
+    .in("status", ["pending", "submitted"]);
+  return !error;
+}
+
