@@ -23,7 +23,9 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
     <div className="flex flex-col gap-2 border-b border-border px-4 py-4 last:border-b-0 md:px-6">
       <div>
         <p className="text-sm text-fg-muted">{label}</p>
-        {hint ? <p className="mt-1 text-sm text-fg-subtle">{hint}</p> : null}
+        {hint ? (
+          <p className="mt-1 text-sm text-fg-muted">{hint}</p>
+        ) : null}
       </div>
       {children}
     </div>

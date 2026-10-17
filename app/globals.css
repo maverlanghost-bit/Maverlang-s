@@ -9,8 +9,9 @@
   --color-bg: #ffffff;
   --color-fg: #0a0a0a;
   --color-fg-body: #252525;
-  /* Más oscuro que el gris del sistema: #7d8188 queda en 3,9:1. Este pasa 4,5:1 sobre blanco y sobre las cards. */
-  --color-fg-muted: #6c6f75;
+  /* M85 (WCAG AA): #7d8188 daba 3,9:1. Este gris pasa 4,5:1 con margen sobre
+     blanco, surface-1/2/3 y los fondos up/down/warn/info (mínimo ~4,7:1). */
+  --color-fg-muted: #66696e;
   --color-fg-subtle: #a3a7ad;
   --color-surface-1: #f8f7f5;
   --color-surface-2: #f2f2f2;

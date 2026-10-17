@@ -11,6 +11,11 @@ import type { MoneyCurrency } from "@/lib/format";
  * la transición): queda sólo el cambio breve.
  * `force` (N18) fija el tono: al recorrer el gráfico el precio se tiñe sólo
  * contra el precio actual, sin destellar por cada punto intermedio.
+ *
+ * M85 (accesibilidad): el destello es puramente visual (fondo del span, sin
+ * texto). El anuncio a lectores de pantalla lo maneja `PriceText` con
+ * `aria-live="polite"` y throttle (`PRICE_ANNOUNCE_MS`): un tick de 5 s no
+ * dispara un aviso por cambio. El `live` del flash es el de `PriceText`.
  */
 export function FlashPrice({
   value,

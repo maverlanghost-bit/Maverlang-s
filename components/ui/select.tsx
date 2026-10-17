@@ -117,7 +117,8 @@ export function Select({
           onKeyDown={onKeyDown}
           className="flex h-11 w-full items-center justify-between gap-2 rounded-md border border-border bg-surface-2 px-3 text-left text-base text-fg transition duration-[140ms] focus:border-border-strong disabled:opacity-40"
         >
-          <span className={cn("truncate", !selectedOption && "text-fg-subtle")}>
+          {/* M85: el placeholder es texto visible; AA exige 4,5:1 (fg-subtle da 2,2:1). */}
+          <span className={cn("truncate", !selectedOption && "text-fg-muted")}>
             {selectedOption?.label ?? placeholder}
           </span>
           <IconChevron className={cn("shrink-0 text-fg-muted transition duration-[140ms]", open && "rotate-180")} />

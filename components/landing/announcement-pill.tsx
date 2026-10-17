@@ -14,7 +14,9 @@ export function AnnouncementPill() {
       <span>Opera 24/7</span>
       {/* ALTERNATIVA: En tu propia billetera */}
       {/* ALTERNATIVA: Comisión 0% en el lanzamiento */}
-      <span aria-hidden className="text-fg-subtle">
+      {/* M85: decorativo para lectores (aria-hidden) pero con contraste AA
+          visual (fg-muted): axe mide el texto visible aunque sea decorativo. */}
+      <span aria-hidden className="text-fg-muted">
         •
       </span>
       <span className="font-medium text-fg">Cómo funciona</span>
