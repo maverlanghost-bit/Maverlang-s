@@ -45,6 +45,8 @@ export function TickerLogo({
   logoUrl,
   size = 36,
   decorative = false,
+  loading,
+  sizes,
   className,
 }: {
   symbol: string;
@@ -53,6 +55,10 @@ export function TickerLogo({
   logoUrl?: string | null;
   size?: number;
   decorative?: boolean;
+  /** M84: `eager` en la primera pantalla (LCP), `lazy` en el resto del listado. */
+  loading?: "eager" | "lazy";
+  /** M84: hint del `srcset` de next/image (p. ej. `sizes="40px"` en filas). */
+  sizes?: string;
   className?: string;
 }) {
   const [failedSrc, setFailedSrc] = useState<string | null>(null);
@@ -92,6 +98,8 @@ export function TickerLogo({
           alt={decorative ? "" : (name ?? symbol)}
           width={size}
           height={size}
+          loading={loading}
+          sizes={sizes}
           className={cn("absolute inset-0 size-full object-cover", imageReady ? "opacity-100" : "opacity-0")}
           onLoad={() => setReadySrc(source)}
           onError={() => setFailedSrc(source)}

@@ -446,6 +446,8 @@ function StockSearchPanel({
                       logoUrl={row.item.logoUrl}
                       size={36}
                       decorative
+                      loading="lazy"
+                      sizes="40px"
                     />
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-sm font-medium text-fg">{row.item.name}</span>

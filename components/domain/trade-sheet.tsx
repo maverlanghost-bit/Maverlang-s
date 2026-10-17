@@ -183,7 +183,7 @@ function Spinner() {
 function TradeMark({ ticker }: { ticker: Ticker }) {
   return (
     <div className="flex items-center gap-3">
-      <TickerLogo symbol={ticker.symbol} name={ticker.name} logoUrl={ticker.logo} size={40} decorative />
+      <TickerLogo symbol={ticker.symbol} name={ticker.name} logoUrl={ticker.logo} size={40} decorative loading="eager" sizes="48px" />
       <div className="min-w-0">
         <p className="truncate font-medium text-fg">{ticker.name}</p>
         <p className="truncate text-sm text-fg-muted">{ticker.symbol}</p>

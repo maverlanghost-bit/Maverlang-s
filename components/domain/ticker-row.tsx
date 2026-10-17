@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { isValidElement, memo, type ReactNode } from "react";
 import Link from "next/link";
 import { ChangeBadge } from "@/components/domain/change-badge";
 import { FlashPrice } from "@/components/domain/flash-price";
@@ -6,7 +6,7 @@ import { Sparkline } from "@/components/domain/sparkline";
 import { TickerLogo } from "@/components/domain/ticker-logo";
 import type { MoneyCurrency } from "@/lib/format";
 
-export function TickerRow({
+function TickerRowBase({
   href,
   symbol,
   name,
@@ -61,7 +61,7 @@ export function TickerRow({
         href={href}
         className="flex min-h-14 min-w-0 flex-1 items-center gap-2 rounded-xl px-2 py-1 sm:gap-3 sm:px-3"
       >
-        <TickerLogo symbol={symbol} name={name} logoUrl={logoUrl} size={36} decorative />
+        <TickerLogo symbol={symbol} name={name} logoUrl={logoUrl} size={36} decorative loading="lazy" sizes="40px" />
         <span className="min-w-0 flex-1">
           <span className="flex items-center gap-1.5 truncate font-medium text-fg">
             {statusDot ? (
@@ -97,3 +97,68 @@ export function TickerRow({
     </div>
   );
 }
+
+/**
+ * M84: una fila del mercado no se re-renderiza con cada tick de precios de
+ * las otras. `memo` con comparador por contenido: sólo re-pinta si cambian
+ * los datos visibles de esta fila (precio, variación, sparkline, favorito…).
+ * `action` y `priceSlot` son JSX inline del padre (cambian de identidad en
+ * cada render aunque el contenido sea igual): se comparan por lo que pinta
+ * el favorito (estado `pressed`) y por el placeholder, no por referencia.
+ */
+function sameRow(prev: TickerRowProps, next: TickerRowProps): boolean {
+  if (
+    prev.href !== next.href ||
+    prev.symbol !== next.symbol ||
+    prev.name !== next.name ||
+    prev.logoUrl !== next.logoUrl ||
+    prev.price !== next.price ||
+    prev.currency !== next.currency ||
+    prev.change !== next.change ||
+    prev.sparkline !== next.sparkline ||
+    prev.sparklineClassName !== next.sparklineClassName ||
+    prev.lowLiquidityLabel !== next.lowLiquidityLabel ||
+    prev.statusDot?.kind !== next.statusDot?.kind ||
+    prev.statusDot?.label !== next.statusDot?.label ||
+    prev.reviewLabel !== next.reviewLabel ||
+    prev.reviewHint !== next.reviewHint
+  ) {
+    return false;
+  }
+  if (prev.action === next.action && prev.priceSlot === next.priceSlot) return true;
+  // Ambos lados son nodos React (JSX inline). Igualdad por referencia basta
+  // para detectar el placeholder del precio; para el botón de favorito se
+  // compara el estado `pressed` que es lo único que cambia su pintado.
+  const pressedOf = (node: ReactNode): boolean | undefined => {
+    if (!isValidElement(node)) return undefined;
+    const props = node.props as { pressed?: boolean };
+    return typeof props.pressed === "boolean" ? props.pressed : undefined;
+  };
+  const prevPressed = pressedOf(prev.action);
+  const nextPressed = pressedOf(next.action);
+  if (prevPressed !== undefined && nextPressed !== undefined && prevPressed !== nextPressed) return false;
+  const prevPlaceholder = prev.priceSlot === null || prev.priceSlot === undefined;
+  const nextPlaceholder = next.priceSlot === null || next.priceSlot === undefined;
+  return prevPlaceholder === nextPlaceholder;
+}
+
+/** Props del memo (M84): exportadas para el comparador `sameRow`. */
+export type TickerRowProps = {
+  href: string;
+  symbol: string;
+  name: string;
+  logoUrl?: string | null;
+  price: number;
+  currency?: MoneyCurrency;
+  change: number;
+  sparkline?: number[];
+  sparklineClassName?: string;
+  action?: ReactNode;
+  lowLiquidityLabel?: string | null;
+  statusDot?: { kind: "open" | "closed" | "halted"; label: string } | null;
+  reviewLabel?: string | null;
+  reviewHint?: string | null;
+  priceSlot?: ReactNode;
+};
+
+export const TickerRow = memo(TickerRowBase, sameRow);

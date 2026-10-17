@@ -6,9 +6,12 @@ import { getServices } from "@/lib/services";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-/** Precios: no-store. Sin `symbols`, el servicio devuelve los tickers enabled. */
+/**
+ * Precios públicos del catálogo (M84): CDN 15 s + stale-while-revalidate,
+ * coherente con el polling de 15 s de la lista. Nunca datos de usuario.
+ */
 export function GET(req: Request) {
-  return handle("no-store", async () => {
+  return handle("swr15", async () => {
     const ipLimited = await withRateLimit(req, "prices");
     if (ipLimited) return ipLimited;
     const { symbols } = parseQuery(req, pricesQuerySchema);

@@ -7,7 +7,7 @@ import { ActivityItem } from "@/components/domain/activity-item";
 import { AllocationBar, type AllocationSlice } from "@/components/domain/allocation-bar";
 import { ChangeBadge } from "@/components/domain/change-badge";
 import { FlashPrice } from "@/components/domain/flash-price";
-import { PriceChart } from "@/components/domain/price-chart";
+import { LazyPriceChart } from "@/components/domain/lazy-price-chart";
 import { PriceFreshness } from "@/components/domain/price-freshness";
 import { PositionRow } from "@/components/domain/position-row";
 import { RealAccountEmpty } from "@/components/domain/real-account-empty";
@@ -197,7 +197,7 @@ const ValueChart = memo(function ValueChart({
           }}
         />
       ) : (
-        <PriceChart
+        <LazyPriceChart
           points={points}
           tone={toneOf(rangeMove(points))}
           label={fill(t.portfolio.chartLabel, { range: t.detail.rangeCaption[range] })}

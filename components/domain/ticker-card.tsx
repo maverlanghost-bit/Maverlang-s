@@ -38,7 +38,7 @@ export function TickerCard({
         className="flex h-full min-h-32 flex-col gap-3 rounded-3xl border border-border bg-surface-1 p-4 pr-14 transition duration-[140ms] hover:bg-surface-2"
       >
         <span className="flex items-center gap-2">
-          <TickerLogo symbol={symbol} name={name} logoUrl={logoUrl} size={36} decorative />
+          <TickerLogo symbol={symbol} name={name} logoUrl={logoUrl} size={36} decorative loading="eager" sizes="40px" />
           <span className="min-w-0">
             <span className="block truncate font-medium text-fg">{symbol}</span>
             <span className="block truncate text-sm text-fg-muted">

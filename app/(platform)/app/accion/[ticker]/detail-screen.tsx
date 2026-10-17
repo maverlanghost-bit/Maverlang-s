@@ -709,7 +709,7 @@ export function DetailScreen({
         </Link>
         <header className="flex flex-col gap-3">
           <div className="flex items-start gap-3">
-            <TickerLogo symbol={ticker.symbol} name={ticker.name} logoUrl={ticker.logo} size={56} decorative />
+            <TickerLogo symbol={ticker.symbol} name={ticker.name} logoUrl={ticker.logo} size={56} decorative loading="eager" sizes="64px" />
             <div className="min-w-0 flex-1">
               <h1 className="max-w-full text-2xl break-words text-balance">{ticker.name}</h1>
               <p className="mt-1 max-w-full break-words text-sm text-fg-muted">

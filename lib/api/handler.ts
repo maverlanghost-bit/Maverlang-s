@@ -25,15 +25,22 @@ import { withMockError } from "@/lib/mocks/latency";
 import type { Services } from "@/lib/services";
 import { isOfficialMint } from "@/lib/solana/allowlist";
 
-/** `runtime` se declara en cada `route.ts`: Next sólo lo lee ahí, como literal. */
-export type CacheMode = "no-store" | "hour" | "private" | "short";
+/**
+ * `runtime` se declara en cada `route.ts`: Next sólo lo lee ahí, como literal.
+ * M84: los presets públicos llevan `stale-while-revalidate` para que el CDN
+ * sirva copia vencida mientras revalida (LCP estable en celular 4G). Nunca
+ * se usan en rutas con datos de usuario: ésas son `private` o `no-store`.
+ */
+export type CacheMode = "no-store" | "hour" | "private" | "short" | "swr15";
 
 const CACHE_CONTROL: Record<CacheMode, string> = {
   "no-store": "no-store",
   hour: "public, max-age=3600, s-maxage=3600",
   private: "private, no-store",
-  /** Respuestas de búsqueda del mercado: 30 s en el navegador, 60 s en el CDN. */
-  short: "public, max-age=30, s-maxage=60",
+  /** Búsqueda del mercado (M84): 30 s navegador / 60 s CDN + revalidación en segundo plano. */
+  short: "public, max-age=30, s-maxage=60, stale-while-revalidate=60",
+  /** Precios del mercado (M84): 15 s CDN, coherente con el polling de 15 s del cliente. */
+  swr15: "public, max-age=15, s-maxage=15, stale-while-revalidate=30",
 };
 
 export type Session = { userId: string; walletAddress: string | null };

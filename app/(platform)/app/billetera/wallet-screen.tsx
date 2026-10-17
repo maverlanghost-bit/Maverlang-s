@@ -97,7 +97,7 @@ function AssetRow({
 }) {
   const body = (
     <>
-      <TickerLogo symbol={symbol} name={name} logoUrl={logoUrl} size={36} decorative />
+      <TickerLogo symbol={symbol} name={name} logoUrl={logoUrl} size={36} decorative loading="lazy" sizes="40px" />
       <span className="min-w-0 flex-1">
         <span className="block truncate font-medium text-fg">{symbol}</span>
         <span className="mt-0.5 block truncate text-sm text-fg-muted">{name}</span>

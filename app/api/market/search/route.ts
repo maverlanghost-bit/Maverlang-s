@@ -9,7 +9,8 @@ export const dynamic = "force-dynamic";
 /**
  * Búsqueda del mercado (M38). Filtra por texto (símbolo, subyacente, nombre,
  * sin acentos), categoría y alcance; pagina en el servidor. `logoUrl` es la
- * ruta local o null (monograma, sin hotlinking). Cache corto de 30/60 s.
+ * ruta local o null (monograma, sin hot-linking). Cache corto de 30/60 s
+ * con stale-while-revalidate (M84): datos públicos, nunca de usuario.
  */
 export function GET(req: Request) {
   return handle("short", async () => {

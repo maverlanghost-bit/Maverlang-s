@@ -4,7 +4,7 @@ import { useCallback, useState, type ReactNode } from "react";
 
 import { ChangeBadge } from "@/components/domain/change-badge";
 import { FlashPrice } from "@/components/domain/flash-price";
-import { PriceChart } from "@/components/domain/price-chart";
+import { LazyPriceChart } from "@/components/domain/lazy-price-chart";
 import { PriceFreshness } from "@/components/domain/price-freshness";
 import { ErrorState } from "@/components/ui/error-state";
 import { SegmentedControl } from "@/components/ui/segmented-control";
@@ -186,7 +186,7 @@ export function PricePanel({
             </Tooltip>
           </div>
         ) : null}
-        <PriceChart
+        <LazyPriceChart
           points={points}
           tone={tone}
           quiet={history.isPending || history.isError}
