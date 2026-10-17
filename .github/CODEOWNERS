@@ -1,0 +1,14 @@
+# CODEOWNERS (M87): revisión obligatoria en zonas sensibles.
+# Sintaxis: https://docs.github.com/es/repositories/managing-saved-repository-settings-and-features/customizing-your-repository/about-code-owners
+
+# Migraciones de base de datos: una mala migración es difícil de revertir.
+/supabase/migrations/ @Mbrop-13
+
+# Motor de compra/venta (órdenes, slippage, ejecución).
+/lib/trade/ @Mbrop-13
+
+# On-ramp de pesos a USDC (dinero real entrando).
+/lib/onramp/ @Mbrop-13
+
+# Verificación de identidad (KYC): datos sensibles y compliance.
+/lib/kyc/ @Mbrop-13

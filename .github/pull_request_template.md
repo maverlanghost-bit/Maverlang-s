@@ -8,6 +8,7 @@
 
 - [ ] Criterios de aceptación del prompt cumplidos (uno por uno en PROGRESO.md, con comando/test/archivo; si alguno no se pudo comprobar sin build o servidor, decirlo con todas sus letras).
 - [ ] Checks del prompt pasados: `npx tsc --noEmit`, `npm run lint`, `npm test` (y los que pida la tarea: HTTP, SQL o pantalla, corridos por el operador con datos reales).
+- [ ] CI de GitHub en verde en este PR (jobs `checks`, `build` y `e2e`; si `e2e` falla, adjuntar el artefacto `playwright-e2e` y explicar la causa).
 - [ ] Capturas adjuntas (sólo si hay UI: antes/después en 360 y 1280).
 - [ ] Migraciones aplicadas en desarrollo en orden (sólo si la tarea trae migración; nunca se commitean aplicadas, sólo el SQL).
 
