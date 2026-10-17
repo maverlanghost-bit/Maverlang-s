@@ -49,7 +49,7 @@ export function BalanceHeader({
   } else if (amount !== null) {
     value = (
       <>
-        <PriceText value={amount} currency={shownCurrency} size="sm" className="block truncate" />
+        <PriceText value={amount} currency={shownCurrency} size="sm" className="block truncate font-medium tracking-tight" />
         {currency === "CLP" && shownCurrency === "USD" ? (
           <p className="text-xs text-fg-muted">{t.detail.fxMissing}</p>
         ) : null}
@@ -58,7 +58,7 @@ export function BalanceHeader({
   } else if (portfolio.isError) {
     value = <span className="text-sm text-fg-muted">{t.shell.balanceUnavailable}</span>;
   } else {
-    value = <Skeleton className="h-5 w-24" />;
+    value = <Skeleton className="h-5 w-28" />;
   }
 
   return (

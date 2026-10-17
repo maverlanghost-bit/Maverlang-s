@@ -12,7 +12,10 @@ export function MarketStatusPill({
 }) {
   const tone: BadgeTone = halted ? "down" : open ? "up" : "warn";
   return (
-    <Badge tone={tone} className="max-w-full text-left text-sm leading-snug whitespace-normal">
+    <Badge
+      tone={tone}
+      className="max-w-full rounded-full px-3 py-1 text-left text-[13px] font-medium leading-snug whitespace-normal"
+    >
       {label}
     </Badge>
   );

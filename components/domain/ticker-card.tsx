@@ -35,12 +35,12 @@ export function TickerCard({
     <div className={cn("relative w-64 shrink-0 snap-start sm:w-60", className)}>
       <Link
         href={href}
-        className="flex h-full min-h-32 flex-col gap-3 rounded-3xl border border-border bg-surface-1 p-4 pr-14 transition duration-[140ms] hover:bg-surface-2"
+        className="flex h-full min-h-32 flex-col gap-3 rounded-2xl border border-border/70 bg-surface-1/50 p-4 pr-14 transition-colors duration-150 hover:bg-surface-1/80 active:bg-surface-2/60"
       >
         <span className="flex items-center gap-2">
           <TickerLogo symbol={symbol} name={name} logoUrl={logoUrl} size={36} decorative loading="eager" sizes="40px" />
           <span className="min-w-0">
-            <span className="block truncate font-medium text-fg">{symbol}</span>
+            <span className="block truncate font-semibold tracking-tight text-fg">{symbol}</span>
             <span className="block truncate text-sm text-fg-muted">
               {name}
               {lowLiquidityLabel ? <span> · {lowLiquidityLabel}</span> : null}
@@ -49,7 +49,9 @@ export function TickerCard({
         </span>
         <span className="flex flex-col items-start gap-1.5">
           <ChangeBadge value={change} className="px-3 py-1 text-base font-semibold" />
-          <FlashPrice value={price} currency={currency} size="sm" />
+          <span className="font-medium">
+            <FlashPrice value={price} currency={currency} size="sm" />
+          </span>
         </span>
       </Link>
       {action ? <div className="absolute top-1 right-1">{action}</div> : null}

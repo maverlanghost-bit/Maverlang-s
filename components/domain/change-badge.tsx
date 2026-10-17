@@ -9,7 +9,7 @@ export function ChangeBadge({ value, className }: { value: number; className?: s
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 font-mono text-xs tabular-nums",
+        "inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 font-mono text-xs font-medium tabular-nums",
         direction === "up" && "bg-up-bg text-up",
         direction === "down" && "bg-down-bg text-down",
         direction === "flat" && "bg-surface-2 text-fg-muted",

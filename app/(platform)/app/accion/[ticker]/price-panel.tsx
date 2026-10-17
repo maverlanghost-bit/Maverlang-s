@@ -7,9 +7,10 @@ import { FlashPrice } from "@/components/domain/flash-price";
 import { LazyPriceChart } from "@/components/domain/lazy-price-chart";
 import { PriceFreshness } from "@/components/domain/price-freshness";
 import { ErrorState } from "@/components/ui/error-state";
-import { SegmentedControl } from "@/components/ui/segmented-control";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip } from "@/components/ui/tooltip";
+import { indexFromKey } from "@/components/ui/keys";
+import { cn } from "@/lib/cn";
 import { formatDateTime, formatMoney, formatPercent } from "@/lib/format";
 import { useHistory } from "@/lib/hooks/queries";
 import { useT } from "@/lib/hooks/use-t";
@@ -25,6 +26,70 @@ function fill(template: string, values: Record<string, string>) {
   let next = template;
   for (const [key, value] of Object.entries(values)) next = next.split(`{${key}}`).join(value);
   return next;
+}
+
+/**
+ * Cápsula de rangos estilo broker (x.ai/bot light). Reemplaza al
+ * `SegmentedControl` aquí para poder fijar el look de la ficha sin tocar el
+ * componente compartido: contenedor `role="group"` con el mismo
+ * `aria-label` ("Rango del gráfico") y botones con `aria-pressed`, tal como
+ * los busca `e2e/detail.spec.ts`; el rango activo marca `data-range` en la
+ * sección del panel. Teclado igual: ←→/Home/End mueven y enfocan.
+ */
+function RangeCapsule({
+  label,
+  options,
+  value,
+  onChange,
+}: {
+  label: string;
+  options: readonly { value: string; label: string }[];
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  const enabled = options;
+
+  function move(current: string, key: string) {
+    const index = Math.max(0, enabled.findIndex((option) => option.value === current));
+    const nextIndex = indexFromKey(key, index, enabled.length);
+    if (nextIndex === null) return;
+    const option = enabled[nextIndex];
+    if (!option) return;
+    onChange(option.value);
+    document.getElementById(`range-${option.value}`)?.focus();
+  }
+
+  return (
+    <div
+      role="group"
+      aria-label={label}
+      className="inline-flex max-w-full items-center gap-0.5 overflow-x-auto rounded-full border border-border/70 bg-surface-1/80 p-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      onKeyDown={(event) => {
+        if (indexFromKey(event.key, 0, enabled.length) === null) return;
+        event.preventDefault();
+        move(value, event.key);
+      }}
+    >
+      {options.map((option) => {
+        const selected = option.value === value;
+        return (
+          <button
+            key={option.value}
+            id={`range-${option.value}`}
+            type="button"
+            aria-pressed={selected}
+            onClick={() => onChange(option.value)}
+            className={cn(
+              "min-h-9 shrink-0 rounded-full px-3.5 text-[13px] font-medium whitespace-nowrap outline-none transition-all duration-150 ease-spring focus-visible:ring-4 focus-visible:ring-fg/20 active:scale-[0.98]",
+              selected ? "bg-fg text-bg shadow-xs" : "text-fg-muted hover:bg-surface-2 hover:text-fg",
+            )}
+          >
+            {option.label}
+          </button>
+        );
+      })}
+    </div>
+  );
 }
 
 export function PricePanel({
@@ -125,7 +190,9 @@ export function PricePanel({
   } else {
     priceNode = (
       <div className="flex min-w-0 max-w-full flex-col gap-2">
-        <FlashPrice value={shown} currency={priceCurrency} size="lg" live={point === null} force={hoverForce} />
+        <span className="font-medium">
+          <FlashPrice value={shown} currency={priceCurrency} size="lg" live={point === null} force={hoverForce} />
+        </span>
         <PriceFreshness at={priceUpdatedAt ?? quote.updatedAt} stale={priceStale || quote.stale === true} delayedOnly />
         {point === null && quote.reference ? (
           <p className="text-sm text-fg-muted">{t.detail.referencePrice}</p>
@@ -162,12 +229,10 @@ export function PricePanel({
         )}
       </div>
 
-      <SegmentedControl
-        toggle
+      <RangeCapsule
         label={t.detail.rangesLabel}
         options={rangeOptions}
         value={range}
-        fullWidth
         onChange={(value) => {
           if (isDetailRange(value)) onRangeChange(value);
         }}

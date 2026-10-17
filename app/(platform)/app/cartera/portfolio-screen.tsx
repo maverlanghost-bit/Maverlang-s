@@ -325,7 +325,9 @@ export function PortfolioScreen() {
               ) : pendingFx ? (
                 <Skeleton className="h-12 w-48" />
               ) : (
-                <FlashPrice value={shown.amount} currency={shown.currency} size="lg" live={hoverUsd === null} force={hoverForce} />
+                <span className="block font-medium">
+                  <FlashPrice value={shown.amount} currency={shown.currency} size="lg" live={hoverUsd === null} force={hoverForce} />
+                </span>
               )}
             </div>
             <PriceFreshness at={portfolio.dataUpdatedAt || loaded.updatedAt} delayedOnly />
@@ -381,15 +383,15 @@ export function PortfolioScreen() {
             </nav>
             {slices.length > 0 ? (
               <Card>
-                <h2 className="text-lg">{t.portfolio.allocation}</h2>
+                <h2 className="text-lg font-semibold tracking-tight">{t.portfolio.allocation}</h2>
                 <div className="mt-4">
                   <AllocationBar label={t.portfolio.allocationLabel} slices={slices} />
                 </div>
               </Card>
             ) : null}
             <Card>
-              <h2 className="text-lg">{t.portfolio.positions}</h2>
-              <ul className="mt-2">
+              <h2 className="text-lg font-semibold tracking-tight">{t.portfolio.positions}</h2>
+              <ul className="mt-2 divide-y divide-border/60">
                 {loaded.positions.map((position) => {
                   const ticker = tickerBySymbol.get(position.symbol);
                   const value = moneyView(position.valueUsd, currency, rate);
@@ -436,25 +438,27 @@ export function PortfolioScreen() {
 
         <Card className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h2 className="text-lg">{t.portfolio.available}</h2>
+            <h2 className="text-lg font-semibold tracking-tight">{t.portfolio.available}</h2>
             <div className="mt-2">
               {masked ? (
                 <Masked label={t.shell.balanceHidden} className="text-2xl" />
               ) : pendingFx ? (
                 <Skeleton className="h-8 w-36" />
               ) : (
-                <FlashPrice value={cashView.amount} currency={cashView.currency} size="md" />
+                <span className="block font-medium">
+                  <FlashPrice value={cashView.amount} currency={cashView.currency} size="md" />
+                </span>
               )}
             </div>
             <p className="mt-1 text-sm text-fg-muted">{t.portfolio.availableNote}</p>
           </div>
-          <Button asChild>
+          <Button asChild className="min-h-11 px-6">
             <Link href={DEPOSIT_HREF}>{t.trade.deposit}</Link>
           </Button>
         </Card>
 
         <Card>
-          <h2 className="text-lg">{t.portfolio.history}</h2>
+          <h2 className="text-lg font-semibold tracking-tight">{t.portfolio.history}</h2>
           <div className="mt-2">
             {activity.isPending ? (
               <div role="status" aria-live="polite" aria-busy="true">
@@ -473,7 +477,7 @@ export function PortfolioScreen() {
             ) : orders.length === 0 ? (
               <p className="py-4 text-sm text-fg-muted">{t.portfolio.historyEmpty}</p>
             ) : (
-              <ul className="divide-y divide-border">
+              <ul className="divide-y divide-border/60">
                 {orders.map((row) => {
                   const name = tickerBySymbol.get(row.symbol)?.name ?? row.symbol;
                   const kind = row.kind === "buy" ? t.portfolio.buy : t.portfolio.sell;

@@ -116,10 +116,11 @@ function AssetRow({
       </span>
     </>
   );
-  const className = "flex min-h-16 items-center gap-3 rounded-xl px-2 py-3";
+  const className =
+    "flex min-h-16 items-center gap-3 rounded-2xl px-2 py-3 transition-colors duration-150 hover:bg-surface-1/80 active:bg-surface-2/60";
   if (!href) return <div className={className}>{body}</div>;
   return (
-    <Link href={href} className={`${className} transition duration-[140ms] hover:bg-surface-2`}>
+    <Link href={href} className={className}>
       {body}
     </Link>
   );
@@ -186,11 +187,11 @@ export function WalletScreen() {
         <p className="label">{t.wallet.usdcLabel}</p>
         <div className="mt-2 min-w-0 max-w-full" aria-live="polite">
           {masked ? (
-            <Masked label={t.shell.balanceHidden} className="text-4xl sm:text-5xl" />
+            <Masked label={t.shell.balanceHidden} className="text-4xl tracking-tight sm:text-5xl" />
           ) : pendingFx ? (
             <Skeleton className="h-12 w-48" />
           ) : (
-            <PriceText value={usdcView.amount} currency={usdcView.currency} size="lg" className="max-w-full break-words" />
+            <PriceText value={usdcView.amount} currency={usdcView.currency} size="lg" className="max-w-full break-words font-medium" />
           )}
           {masked || pendingFx ? null : currency === "CLP" && !fxKnown ? (
             <p className="mt-2 text-sm text-fg-muted">{t.detail.fxMissing}</p>
@@ -198,14 +199,14 @@ export function WalletScreen() {
         </div>
         <p className="mt-1 text-sm text-fg-muted">{t.wallet.usdcHint}</p>
 
-        <div className="mt-6 border-t border-border pt-4">
+        <div className="mt-6 border-t border-border/60 pt-4">
           <p className="label">{t.wallet.solLabel}</p>
           {sol ? (
             <>
-              <p className="mt-2 max-w-full text-lg break-words text-fg">{masked ? <Masked label={t.shell.balanceHidden} /> : <span className="num">{formatSol(solUi)}</span>}</p>
+              <p className="mt-2 max-w-full text-lg break-words text-fg">{masked ? <Masked label={t.shell.balanceHidden} /> : <span className="num font-medium tabular-nums">{formatSol(solUi)}</span>}</p>
               <p className="mt-1 max-w-xl text-sm leading-relaxed text-fg-muted">{t.wallet.solExplain}</p>
               {lowSol ? (
-                <p role="status" className="mt-3 rounded-xl bg-warn-bg px-4 py-3 text-sm leading-relaxed text-fg">
+                <p role="status" className="mt-3 rounded-2xl border border-border/70 bg-warn-bg px-4 py-3 text-sm leading-relaxed text-fg">
                   {t.wallet.solLow}
                 </p>
               ) : null}
@@ -229,11 +230,11 @@ export function WalletScreen() {
       </Card>
 
       <Card>
-        <h2 className="text-lg">{t.wallet.assets}</h2>
+        <h2 className="text-lg font-semibold tracking-tight">{t.wallet.assets}</h2>
         {rows.length === 0 ? (
           <p className="mt-3 text-sm text-fg-muted">{t.wallet.assetsEmpty}</p>
         ) : (
-          <ul className="mt-2 min-w-0 divide-y divide-border">
+          <ul className="mt-2 min-w-0 divide-y divide-border/60">
             {rows.map((row) => (
               <li key={row.mint}>
                 <AssetLine
@@ -254,7 +255,7 @@ export function WalletScreen() {
       </Card>
 
       <Card>
-        <h2 className="text-lg">{t.wallet.address}</h2>
+        <h2 className="text-lg font-semibold tracking-tight">{t.wallet.address}</h2>
         <p className="mt-1 text-sm text-fg-muted">{t.wallet.addressHint}</p>
         {address ? (
           <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -267,7 +268,7 @@ export function WalletScreen() {
       </Card>
 
       <Card>
-        <h2 id="actividad" className="text-lg scroll-mt-24">
+        <h2 id="actividad" className="text-lg font-semibold tracking-tight scroll-mt-24">
           {t.wallet.activity}
         </h2>
         <ActivityList
@@ -373,7 +374,7 @@ function ActivityList({
           <h3 id={`day-${group.key}`} className="label">
             {group.label}
           </h3>
-          <ul className="min-w-0 divide-y divide-border">
+          <ul className="min-w-0 divide-y divide-border/60">
             {group.rows.map((row) => (
               <li key={row.id}>
                 <ActivityItem

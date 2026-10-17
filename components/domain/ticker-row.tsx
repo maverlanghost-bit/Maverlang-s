@@ -56,14 +56,14 @@ function TickerRowBase({
         ? "bg-down"
         : "bg-warn";
   return (
-    <div className="flex min-h-14 items-center rounded-xl transition duration-[140ms] sm:hover:bg-surface-2">
+    <div className="flex min-h-14 items-center rounded-2xl border border-border/70 transition-colors duration-150 hover:bg-surface-1/80 active:bg-surface-2/60">
       <Link
         href={href}
-        className="flex min-h-14 min-w-0 flex-1 items-center gap-2 rounded-xl px-2 py-1 sm:gap-3 sm:px-3"
+        className="flex min-h-14 min-w-0 flex-1 items-center gap-2 rounded-2xl px-2 py-1 sm:gap-3 sm:px-3"
       >
         <TickerLogo symbol={symbol} name={name} logoUrl={logoUrl} size={36} decorative loading="lazy" sizes="40px" />
         <span className="min-w-0 flex-1">
-          <span className="flex items-center gap-1.5 truncate font-medium text-fg">
+          <span className="flex items-center gap-1.5 truncate font-semibold tracking-tight text-fg">
             {statusDot ? (
               <span className="inline-flex shrink-0 items-center" aria-hidden>
                 <span className={`size-1.5 rounded-full ${dotClass}`} />
@@ -78,7 +78,7 @@ function TickerRowBase({
           </span>
           {reviewLabel ? (
             <span
-              className="mt-1 inline-flex w-fit items-center rounded-full border border-border bg-surface-2 px-2 py-0.5 text-xs leading-4 font-medium text-fg-muted"
+              className="mt-1 inline-flex w-fit items-center rounded-full border border-border/70 bg-surface-2/60 px-2 py-0.5 text-xs leading-4 font-medium text-fg-muted"
               title={reviewHint ?? undefined}
             >
               {reviewLabel}
@@ -87,7 +87,7 @@ function TickerRowBase({
         </span>
         {sparkline ? <Sparkline data={sparkline} width={72} height={28} className={sparklineClassName} /> : null}
         {priceSlot ?? (
-          <span className="flex shrink-0 flex-col items-end gap-0.5 text-right tabular-nums">
+          <span className="flex shrink-0 flex-col items-end gap-0.5 text-right font-medium tabular-nums">
             <FlashPrice value={price} currency={currency} size="sm" />
             <ChangeBadge value={change} />
           </span>

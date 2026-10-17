@@ -43,13 +43,16 @@ export function PositionRow({
 }) {
   return (
     <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-2">
-      <Link href={href} className="flex min-h-16 min-w-0 flex-1 items-center gap-3 rounded-xl px-2 py-3 transition duration-[140ms] hover:bg-surface-2">
+      <Link
+        href={href}
+        className="flex min-h-16 min-w-0 flex-1 items-center gap-3 rounded-2xl px-2 py-3 transition-colors duration-150 hover:bg-surface-1/80 active:bg-surface-2/60"
+      >
         <TickerLogo symbol={symbol} name={name} logoUrl={logoUrl} size={36} decorative loading="lazy" sizes="40px" />
         <span className="min-w-0 flex-1">
-          <span className="block truncate font-medium text-fg">{name}</span>
+          <span className="block truncate font-semibold tracking-tight text-fg">{name}</span>
           <span className="mt-0.5 block text-sm text-fg-muted">
             <Tooltip content={shareHint}>
-              <span className="num">{formatShares(shares)}</span>
+              <span className="num tabular-nums">{formatShares(shares)}</span>
             </Tooltip>
             <span className="sr-only">. {shareHint}</span>
           </span>
@@ -61,7 +64,9 @@ export function PositionRow({
             <Skeleton className="h-9 w-16" />
           ) : (
             <>
-              <FlashPrice value={value} currency={currency} size="sm" />
+              <span className="font-medium">
+                <FlashPrice value={value} currency={currency} size="sm" />
+              </span>
               <span className="flex flex-col items-end gap-1 sm:flex-row sm:items-center">
                 {pnl === null ? <span className="num text-sm text-fg-muted">—</span> : <FlashPrice value={pnl} currency={currency} size="sm" colorBySign />}
                 {pnlPct === null ? <span className="num text-sm text-fg-muted">—</span> : <ChangeBadge value={pnlPct} />}

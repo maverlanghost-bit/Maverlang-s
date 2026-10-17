@@ -24,10 +24,10 @@ export function ActivityItem({
   explorerNew: string;
 }) {
   return (
-    <div className="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:gap-4">
+    <div className="flex flex-col gap-2 border-b border-border/60 py-3 last:border-b-0 sm:flex-row sm:items-center sm:gap-4">
       <div className="min-w-0 flex-1">
         <p className="truncate font-medium text-fg">{title}</p>
-        <p className="num mt-0.5 text-sm text-fg-muted">{detail}</p>
+        <p className="num mt-0.5 text-sm tabular-nums text-fg-muted">{detail}</p>
       </div>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 sm:justify-end">
         <Badge tone={tone}>{status}</Badge>

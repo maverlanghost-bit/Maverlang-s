@@ -156,8 +156,12 @@ function ChipGroup<T extends string>({
             tabIndex={selected ? 0 : -1}
             onClick={() => onChange(option.value)}
             className={cn(
-              "h-11 shrink-0 rounded-full px-3 text-sm outline-none transition duration-[140ms] ease-spring focus-visible:ring-4 focus-visible:ring-fg/20 active:scale-[0.98]",
-              selected ? "bg-surface-3 text-fg" : "bg-surface-2 text-fg-muted hover:text-fg",
+              // Píldora broker pro (x.ai/bot light): compacta, táctil, con el
+              // rango activo en negativo de alto contraste.
+              "inline-flex min-h-11 shrink-0 items-center justify-center rounded-full px-3.5 text-[13px] font-medium whitespace-nowrap outline-none transition-all duration-150 ease-spring focus-visible:ring-4 focus-visible:ring-fg/20 active:scale-[0.98]",
+              selected
+                ? "bg-fg text-bg shadow-xs"
+                : "bg-surface-1/80 text-fg-muted hover:bg-surface-2 hover:text-fg",
             )}
           >
             {option.label}
@@ -175,13 +179,13 @@ function ResultsSkeleton({ label }: { label: string }) {
     <div role="status" aria-live="polite" aria-busy="true" className="flex flex-col gap-6">
       <span className="sr-only">{label}</span>
       <div className="flex gap-3 overflow-hidden" aria-hidden>
-        <div className="h-28 w-60 shrink-0 rounded-3xl bg-surface-2" />
-        <div className="h-28 w-60 shrink-0 rounded-3xl bg-surface-2" />
-        <div className="h-28 w-60 shrink-0 rounded-3xl bg-surface-2" />
+        <div className="h-28 w-60 shrink-0 rounded-2xl bg-surface-2" />
+        <div className="h-28 w-60 shrink-0 rounded-2xl bg-surface-2" />
+        <div className="h-28 w-60 shrink-0 rounded-2xl bg-surface-2" />
       </div>
       <div className="flex flex-col gap-2" aria-hidden>
         {["a", "b", "c", "d", "e", "f"].map((key) => (
-          <div key={key} className="min-h-14 w-full rounded-xl bg-surface-2" />
+          <div key={key} className="min-h-14 w-full rounded-2xl bg-surface-2" />
         ))}
       </div>
     </div>
@@ -463,14 +467,16 @@ export function MarketScreen({
         <p className="text-sm text-fg-muted">{t.detail.fxFallback}</p>
       ) : null}
 
-      {/* N19: ordenar + filtrar en una sola tira con fundido (sin scrollbar). */}
+      {/* N19: ordenar + filtrar en una sola tira. Móvil: tira horizontal
+          deslizable que no ocupa varias filas antes de la lista; desktop:
+          envuelve y alinea a la izquierda. */}
       <div className="flex min-w-0 flex-col gap-2">
         <p id={filterSortLabelId} className="label">
           {t.market.filterSortLabel}
         </p>
-        <div className="no-scrollbar -mx-1 flex min-w-0 items-center gap-1 overflow-x-auto px-1 [mask-image:linear-gradient(to_right,black_calc(100%-2rem),transparent)]">
+        <div className="-mx-5 flex items-center gap-1.5 overflow-x-auto px-5 pb-1 [scrollbar-width:none] max-sm:[mask-image:linear-gradient(to_right,black_calc(100%-2rem),transparent)] sm:mx-0 sm:flex-wrap sm:px-0 [&::-webkit-scrollbar]:hidden">
           <ChipGroup bare labelId={sortLabelId} value={sort} options={sortOptions} onChange={onSortChange} />
-          <span aria-hidden className="h-6 w-px shrink-0 bg-border" />
+          <span aria-hidden className="h-6 w-px shrink-0 bg-border/70" />
           <ChipGroup bare labelId={filtersLabelId} value={filter} options={filterOptions} onChange={onFilterChange} />
         </div>
         <p id={sortLabelId} className="sr-only">
@@ -494,12 +500,12 @@ export function MarketScreen({
       {!waiting && !failed && moverItems.length > 0 ? (
         <section className="order-2 flex min-w-0 flex-col gap-3 lg:order-1" aria-labelledby={moversTitleId}>
           <div>
-            <h2 id={moversTitleId} className="text-lg font-semibold text-fg">
+            <h2 id={moversTitleId} className="text-lg font-semibold tracking-tight text-fg">
               {t.market.movers}
             </h2>
             <p className="mt-1 text-sm text-fg-muted">{t.market.moversNote}</p>
           </div>
-          <div className="-mx-1 flex min-w-0 snap-x snap-mandatory gap-3 overflow-x-auto px-1 pt-1 pb-2">
+          <div className="-mx-5 flex min-w-0 snap-x snap-mandatory gap-3 overflow-x-auto px-5 pt-1 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:-mx-1 sm:px-1">
             {moverItems.map(({ entry, price, currency: rowCurrency }) => (
               <TickerCard
                 key={entry.item.symbol}
@@ -528,9 +534,12 @@ export function MarketScreen({
       ) : null}
       {!waiting && !failed && listRows.length > 0 ? (
         <section className="order-1 flex min-w-0 flex-col gap-2 lg:order-2">
-          <h2 className="text-base font-medium text-fg">{t.market.list}</h2>
+          {/* El contador queda como hermano directo del h2 y del ul:
+              e2e/market.spec.ts localiza la lista con
+              `heading "Acciones" + following-sibling::ul`. */}
+          <h2 className="text-base font-semibold tracking-tight text-fg">{t.market.list}</h2>
           {total > 0 ? (
-            <p className="text-sm text-fg-muted">
+            <p className="num text-sm font-medium tabular-nums text-fg-muted">
               {t.market.stockCount.replace("{total}", String(total))}
             </p>
           ) : null}
@@ -543,7 +552,7 @@ export function MarketScreen({
               </Button>
             </div>
           ) : null}
-          <ul className="flex min-w-0 flex-col gap-1">
+          <ul className="flex min-w-0 flex-col gap-1.5">
             {listRows.map((entry) => {
               const shownPrice = entry.quote
                 ? priceRows([{ item: entry.item, quote: entry.quote, index: entry.index }], currency, rate)[0]
@@ -605,8 +614,8 @@ export function MarketScreen({
               {loadingMore ? (
                 <div role="status" aria-live="polite" aria-busy="true" className="mt-2 flex flex-col gap-2">
                   <span className="sr-only">{t.states.loading}</span>
-                  <Skeleton className="min-h-14 w-full rounded-xl" />
-                  <Skeleton className="min-h-14 w-full rounded-xl" />
+                  <Skeleton className="min-h-14 w-full rounded-2xl" />
+                  <Skeleton className="min-h-14 w-full rounded-2xl" />
                 </div>
               ) : null}
             </div>

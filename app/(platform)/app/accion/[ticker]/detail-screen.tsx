@@ -148,7 +148,7 @@ function PositionBlock({
 
   return (
     <Card className="p-5 md:p-6">
-      <h2 className="text-lg">{t.detail.position}</h2>
+      <h2 className="text-lg font-semibold tracking-tight">{t.detail.position}</h2>
       <dl className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3">
         <div>
           <dt className="label">{t.detail.shares}</dt>
@@ -230,7 +230,7 @@ function AccountActions({
     return (
       <div
         ref={barRef}
-        className="fixed inset-x-0 z-20 border-t border-border bg-bg px-4 pt-3 min-[400px]:px-5 lg:hidden"
+        className="fixed inset-x-0 z-20 border-t border-border/70 bg-bg/90 px-4 pt-3 pb-1 backdrop-blur-xl min-[400px]:px-5 lg:hidden"
         style={
           aboveTabs
             ? { bottom: "var(--app-tabs-height)" }
@@ -309,7 +309,7 @@ function TradeActions({
     return (
       <div
         ref={barRef}
-        className="fixed inset-x-0 z-20 border-t border-border bg-bg px-4 py-3 min-[400px]:px-5 lg:hidden"
+        className="fixed inset-x-0 z-20 border-t border-border/70 bg-bg/90 px-4 py-3 backdrop-blur-xl min-[400px]:px-5 lg:hidden"
         style={{ bottom: "var(--app-tabs-height)" }}
       >
         <div className="mx-auto max-w-6xl">
@@ -330,7 +330,7 @@ function TradeActions({
 
   return (
     <Card className="p-5 md:p-6">
-      <h2 className="text-lg">{t.detail.actions}</h2>
+      <h2 className="text-lg font-semibold tracking-tight">{t.detail.actions}</h2>
       <div className="mt-4">{buttons}</div>
       {blockedReason ? (
         <p id={blockedId} className="mt-3 text-sm leading-relaxed text-fg-muted">
@@ -354,7 +354,7 @@ function categoryName(
 
 function FactChip({ children }: { children: ReactNode }) {
   return (
-    <li className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-border bg-surface-1 px-2 py-0.5 text-xs leading-4 font-medium text-fg-body">
+    <li className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-border/70 bg-surface-1/60 px-2.5 py-0.5 text-xs leading-4 font-medium text-fg-body">
       {children}
     </li>
   );
@@ -371,7 +371,10 @@ function MissingFigure({ label }: { label: string }) {
 
 function StatCell({ label, pending, children }: { label: string; pending: boolean; children: ReactNode }) {
   return (
-    <div className="min-w-0 max-w-full bg-surface-1 px-3 py-3" aria-busy={pending || undefined}>
+    <div
+      className="min-w-0 max-w-full rounded-2xl border border-border/70 bg-surface-1/50 px-3.5 py-3 sm:px-4 sm:py-3.5"
+      aria-busy={pending || undefined}
+    >
       <dt className="label max-w-full break-words">{label}</dt>
       <dd className="mt-1 min-w-0 max-w-full break-words tabular-nums">{pending ? <Skeleton className="h-5 w-20" /> : children}</dd>
     </div>
@@ -437,14 +440,14 @@ function KeyStats({
 
   return (
     <Card className="p-5 md:p-6">
-      <h2 className="text-lg">{t.detail.stats}</h2>
-      <dl className="mt-4 grid grid-cols-2 gap-px overflow-hidden rounded-xl bg-border">
+      <h2 className="text-lg font-semibold tracking-tight">{t.detail.stats}</h2>
+      <dl className="mt-4 grid grid-cols-2 gap-2 sm:gap-2.5 lg:grid-cols-4">
         {/* Precio actual: mismo `quote.priceUsd` del titular, en tu moneda. */}
         <StatCell label={shownCurrency === "CLP" ? t.detail.priceClp : t.detail.priceUsd} pending={quoteCellPending}>
           {priceNow === null ? (
             <MissingFigure label={t.detail.unavailable} />
           ) : (
-            <span className="num text-sm text-fg">{priceNow}</span>
+            <span className="num text-sm font-medium text-fg">{priceNow}</span>
           )}
         </StatCell>
         {/* 24 h: quote.change24hPct. En vivo es Jupiter priceChange24h, igual que el mercado. */}
@@ -459,34 +462,34 @@ function KeyStats({
           {move === null ? <MissingFigure label={rangeMissing} /> : <ChangeBadge value={move} />}
         </StatCell>
         <StatCell label={fill(t.detail.rangeHigh, { range: caption })} pending={historyPending}>
-          {high === null ? <MissingFigure label={rangeMissing} /> : <span className="num text-sm text-fg">{high}</span>}
+          {high === null ? <MissingFigure label={rangeMissing} /> : <span className="num text-sm font-medium text-fg">{high}</span>}
         </StatCell>
         <StatCell label={fill(t.detail.rangeLow, { range: caption })} pending={historyPending}>
-          {low === null ? <MissingFigure label={rangeMissing} /> : <span className="num text-sm text-fg">{low}</span>}
+          {low === null ? <MissingFigure label={rangeMissing} /> : <span className="num text-sm font-medium text-fg">{low}</span>}
         </StatCell>
         <StatCell label={t.detail.marketPrice} pending={quoteCellPending}>
           {quote?.marketPriceUsd !== undefined && Number.isFinite(quote.marketPriceUsd) ? (
-            <span className="num text-sm text-fg">{moneyText(quote.marketPriceUsd, shownCurrency, rate)}</span>
+            <span className="num text-sm font-medium text-fg">{moneyText(quote.marketPriceUsd, shownCurrency, rate)}</span>
           ) : (
             <MissingFigure label={t.detail.unavailable} />
           )}
         </StatCell>
         <StatCell label={t.detail.poolLiquidity} pending={quoteCellPending}>
           {quote?.liquidityUsd !== undefined && Number.isFinite(quote.liquidityUsd) ? (
-            <span className="num text-sm text-fg">{formatMoney(quote.liquidityUsd, "USD")}</span>
+            <span className="num text-sm font-medium text-fg">{formatMoney(quote.liquidityUsd, "USD")}</span>
           ) : (
             <MissingFigure label={t.detail.unavailable} />
           )}
         </StatCell>
         {/* Ficha del activo: sólo campos que existen en `ticker` (sin cifras inventadas). */}
         <StatCell label={t.detail.issuer} pending={false}>
-          <span className="text-sm text-fg">{issuer}</span>
+          <span className="text-sm font-medium text-fg">{issuer}</span>
         </StatCell>
         <StatCell label={t.detail.category} pending={false}>
-          <span className="text-sm text-fg">{categoryLabel}</span>
+          <span className="text-sm font-medium text-fg">{categoryLabel}</span>
         </StatCell>
         <StatCell label={t.detail.status} pending={false}>
-          <span className="text-sm text-fg">{estadoText}</span>
+          <span className="text-sm font-medium text-fg">{estadoText}</span>
         </StatCell>
       </dl>
     </Card>
@@ -642,7 +645,7 @@ export function DetailScreen({
     if (mode === "real") {
       if (variant === "bar") {
         return (
-          <div className="fixed inset-x-0 z-20 border-t border-border bg-bg px-4 py-3 min-[400px]:px-5 lg:hidden" style={{ bottom: "var(--app-tabs-height)" }}>
+          <div className="fixed inset-x-0 z-20 border-t border-border/70 bg-bg/90 px-4 py-3 backdrop-blur-xl min-[400px]:px-5 lg:hidden" style={{ bottom: "var(--app-tabs-height)" }}>
             <p className="mx-auto max-w-6xl text-center text-sm text-fg-muted">{t.account.comingTitle}</p>
           </div>
         );
@@ -702,18 +705,20 @@ export function DetailScreen({
       <div className="flex min-w-0 max-w-full flex-col gap-8">
         <Link
           href="/app"
-          className="-ml-2 flex min-h-11 w-fit items-center gap-1.5 rounded-full px-2 text-sm text-fg-muted outline-none transition hover:text-fg focus-visible:ring-4 focus-visible:ring-fg/20"
+          className="-ml-2 flex min-h-9 w-fit items-center gap-1.5 rounded-full bg-surface-1 px-3 py-1.5 text-xs font-medium text-fg-muted outline-none transition-colors duration-150 hover:bg-surface-2 hover:text-fg focus-visible:ring-4 focus-visible:ring-fg/20"
         >
           <IconBack className="size-4" />
           {t.detail.backToMarket}
         </Link>
         <header className="flex flex-col gap-3">
           <div className="flex items-start gap-3">
-            <TickerLogo symbol={ticker.symbol} name={ticker.name} logoUrl={ticker.logo} size={56} decorative loading="eager" sizes="64px" />
+            <span className="rounded-full border border-border/70 p-0.5">
+              <TickerLogo symbol={ticker.symbol} name={ticker.name} logoUrl={ticker.logo} size={48} decorative loading="eager" sizes="64px" />
+            </span>
             <div className="min-w-0 flex-1">
               <h1 className="max-w-full text-2xl break-words text-balance">{ticker.name}</h1>
               <p className="mt-1 max-w-full break-words text-sm text-fg-muted">
-                <span className="num text-fg">{ticker.symbol}</span>
+                <span className="num font-medium text-fg">{ticker.symbol}</span>
                 <span aria-hidden> · </span>
                 <span>
                   <span className="sr-only">{t.detail.underlying} </span>
@@ -793,13 +798,13 @@ export function DetailScreen({
         )}
 
         <section className="flex flex-col gap-3">
-          <h2 className="text-lg">{t.detail.aboutTitle}</h2>
+          <h2 className="text-lg font-semibold tracking-tight">{t.detail.aboutTitle}</h2>
           <p className="text-sm leading-relaxed text-fg-muted">{t.detail.aboutNote}</p>
           <p className="text-sm leading-relaxed text-fg-body">{aboutText ?? t.detail.aboutMissing}</p>
         </section>
 
         <section className="flex flex-col gap-3">
-          <h2 className="text-lg">{t.detail.tokenTitle}</h2>
+          <h2 className="text-lg font-semibold tracking-tight">{t.detail.tokenTitle}</h2>
           <p className="text-sm leading-relaxed text-fg-body">
             {fill(t.detail.tokenLead, { issuer: ticker.issuer, brand: site.name, name: ticker.name })}
           </p>
