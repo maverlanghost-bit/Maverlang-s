@@ -37,9 +37,9 @@ function PublicHeaderBar({ here }: { here: string }) {
   ] as const;
 
   return (
-    <header className="sticky top-0 z-30 overflow-x-clip border-b border-border bg-bg/90 backdrop-blur-md pt-[env(safe-area-inset-top)]">
+    <header className="sticky top-0 z-30 overflow-x-clip border-b border-border/70 bg-bg/85 pt-[env(safe-area-inset-top)] backdrop-blur-xl">
       <div className="mx-auto flex h-14 max-w-6xl items-center gap-1.5 px-3 min-[400px]:px-5">
-        <BrandMark className="min-w-0 shrink" />
+        <BrandMark compactOnMobile className="min-w-0 shrink" />
         <nav aria-label={t.guest.nav} className="ml-3 hidden items-center gap-1 md:flex">
           {links.map((item) => (
             <Link
@@ -47,8 +47,8 @@ function PublicHeaderBar({ here }: { here: string }) {
               href={item.href}
               aria-current={item.current ? "page" : undefined}
               className={cn(
-                "rounded-full px-3 py-2 text-sm whitespace-nowrap outline-none focus-visible:ring-4 focus-visible:ring-fg/20",
-                item.current ? "font-medium text-fg" : "text-fg-body hover:text-fg",
+                "rounded-full px-3 py-1.5 text-[13px] font-medium whitespace-nowrap outline-none transition-colors focus-visible:ring-4 focus-visible:ring-fg/20",
+                item.current ? "text-fg hover:bg-fg/[0.04]" : "text-fg-body hover:bg-fg/[0.04] hover:text-fg",
               )}
             >
               {item.label}
@@ -57,11 +57,11 @@ function PublicHeaderBar({ here }: { here: string }) {
         </nav>
         <div className="ml-auto flex shrink-0 items-center gap-1.5">
           <StockSearchButton variant="icon" />
-          <CurrencySwitch className="mr-1 hidden min-[400px]:inline-flex" />
-          <Button asChild variant="ghost" size="sm" className="h-11 shrink-0 px-2 text-sm whitespace-nowrap">
+          <CurrencySwitch compact className="mr-1 hidden min-[400px]:inline-flex" />
+          <Button asChild variant="ghost" size="sm" className="h-11 shrink-0 rounded-full px-2 text-sm whitespace-nowrap">
             <Link href={enter}>{t.guest.login}</Link>
           </Button>
-          <Button asChild size="sm" className="h-11 shrink-0 px-2.5 text-sm whitespace-nowrap">
+          <Button asChild size="sm" className="h-11 shrink-0 rounded-full px-2.5 text-sm whitespace-nowrap">
             <Link href={create}>{t.guest.signup}</Link>
           </Button>
           <IconButton
@@ -82,7 +82,7 @@ function PublicHeaderBar({ here }: { here: string }) {
               key={item.href}
               href={item.href}
               aria-current={item.current ? "page" : undefined}
-              className="flex h-12 min-h-11 items-center rounded-xl px-3 text-base text-fg outline-none hover:bg-surface-2 focus-visible:ring-4 focus-visible:ring-fg/20"
+              className="flex h-12 min-h-11 items-center rounded-xl px-3 text-base text-fg outline-none transition-colors hover:bg-fg/[0.04] focus-visible:ring-4 focus-visible:ring-fg/20"
               onClick={() => setOpen(false)}
             >
               {item.label}

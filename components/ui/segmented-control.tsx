@@ -42,7 +42,7 @@ export function SegmentedControl({
     <div
       role={toggle ? "group" : "radiogroup"}
       aria-label={label}
-      className={cn("inline-flex max-w-full rounded-full bg-surface-2 p-1", fullWidth && "flex w-full")}
+      className={cn("inline-flex max-w-full rounded-full border border-border/70 bg-surface-2 p-1", fullWidth && "flex w-full")}
       onKeyDown={(event) => {
         if (indexFromKey(event.key, 0, enabled.length) === null) return;
         event.preventDefault();
@@ -66,7 +66,9 @@ export function SegmentedControl({
               "min-h-11 rounded-full px-3 text-sm transition duration-[140ms] ease-spring outline-none active:scale-[0.98] focus-visible:relative focus-visible:z-10 focus-visible:ring-4 focus-visible:ring-fg/20",
               fullWidth && "min-w-0 flex-1 px-1 sm:px-3",
               compact && "whitespace-nowrap px-1 text-[13px] sm:px-1",
-              selected ? "bg-surface-3 text-fg" : "text-fg-muted hover:text-fg",
+              selected
+                ? "bg-bg text-fg shadow-card ring-1 ring-border/60"
+                : "text-fg-muted hover:text-fg",
             )}
           >
             {option.label}

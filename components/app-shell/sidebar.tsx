@@ -74,7 +74,7 @@ export function Sidebar({
         if (shouldToggleSidebarClick(event.target as Element | null)) onToggle();
       }}
       className={cn(
-        "sticky top-0 hidden h-dvh shrink-0 flex-col overflow-x-hidden overflow-y-auto border-r border-border bg-bg lg:flex",
+        "sticky top-0 hidden h-dvh shrink-0 flex-col overflow-x-hidden overflow-y-auto border-r border-border/70 bg-surface-1/40 lg:flex",
         WIDTH_ANIMATION,
         collapsed ? "w-[72px] cursor-e-resize" : "w-[220px] cursor-w-resize",
       )}
@@ -107,7 +107,7 @@ export function Sidebar({
                 aria-current={active ? "page" : undefined}
                 className={cn(
                   "flex min-h-11 cursor-pointer items-center gap-2 rounded-xl text-sm outline-none transition duration-200 ease-spring focus-visible:ring-4 focus-visible:ring-fg/20 active:scale-[0.98]",
-                  active ? "bg-surface-2 font-medium text-fg" : "text-fg-body hover:bg-surface-2",
+                  active ? "bg-fg/[0.06] font-medium text-fg" : "text-fg-body hover:bg-fg/[0.04] hover:text-fg",
                 )}
               >
                 <span className="flex size-11 shrink-0 items-center justify-center">
@@ -131,7 +131,7 @@ export function Sidebar({
           })}
         </ul>
       </nav>
-      <div className="border-t border-border px-2 py-2">
+      <div className="border-t border-border/70 px-2 py-2">
         {!collapsed ? (
           <>
             <AccountSwitch mode={accountMode} onChange={onAccountChange ?? (() => {})} />
@@ -151,7 +151,7 @@ export function Sidebar({
             <div
               role="menu"
               aria-label={t.shell.account}
-              className="absolute inset-x-0 bottom-full mb-2 flex flex-col gap-1 rounded-xl border border-border bg-bg p-2 shadow-lg"
+              className="absolute inset-x-0 bottom-full mb-2 flex flex-col gap-1 rounded-xl border border-border/70 bg-bg p-2 shadow-float"
             >
               <Link
                 role="menuitem"

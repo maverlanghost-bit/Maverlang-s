@@ -95,11 +95,11 @@ function ShellFrame({
           <Sidebar collapsed={collapsed} onToggle={toggleSidebar} accountMode={account.mode} onAccountChange={account.select} />
           <div className="flex min-h-dvh min-w-0 flex-col">
             <TopBar accountMode={account.mode} />
-            <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col px-5 pt-6 lg:px-8 lg:pt-8">
+            <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col px-4 pt-4 sm:px-5 sm:pt-6 lg:px-8 lg:pt-8">
               <main id="contenido" tabIndex={-1} className="flex-1 scroll-mt-16 outline-none">
                 {children}
               </main>
-              <footer className="pb-[calc(var(--app-tabs-height)+1rem+var(--app-detail-cta))] pt-10 lg:pb-8">
+              <footer className="pb-[calc(var(--app-tabs-height)+1rem+var(--app-detail-cta))] pt-8 lg:pb-8">
                 <p className="border-t border-border pt-4 text-sm leading-relaxed text-fg-muted">{t.disclaimer}</p>
               </footer>
             </div>
@@ -127,11 +127,11 @@ function PublicFrame({ children }: { children: ReactNode }) {
       </a>
       <StockSearchRoot>
         <PublicHeader />
-        <div className="mx-auto flex min-h-[calc(100dvh-3.5rem)] w-full max-w-6xl flex-col px-5 pt-6 lg:px-8">
+        <div className="mx-auto flex min-h-[calc(100dvh-3.5rem)] w-full max-w-6xl flex-col px-4 pt-4 sm:px-5 sm:pt-6 lg:px-8 lg:pt-8">
           <main id="contenido" tabIndex={-1} className="flex-1 scroll-mt-16 outline-none">
             {children}
           </main>
-          <footer className="pb-[calc(1rem+var(--app-detail-cta))] pt-10 lg:pb-8">
+          <footer className="pb-[calc(1rem+var(--app-detail-cta))] pt-8 lg:pb-8">
             <p className="border-t border-border pt-4 text-sm leading-relaxed text-fg-muted">{t.disclaimer}</p>
           </footer>
         </div>
