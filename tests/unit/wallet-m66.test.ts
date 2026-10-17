@@ -36,7 +36,8 @@ function readMigration(): string {
   return readFileSync(path.join(ROOT, "supabase", "migrations", "0029_wallets.sql"), "utf8");
 }
 
-function jsonResponse(payload: unknown, ok = true, status = 200): Response {
+function jsonResponse(payload: unknown, _ok = true, status = 200): Response {
+  void _ok;
   return new Response(JSON.stringify(payload), {
     status,
     headers: { "content-type": "application/json" },

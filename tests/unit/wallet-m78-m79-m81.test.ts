@@ -227,7 +227,6 @@ describe("M81: reconcileWalletMovements, mergeUnifiedWalletActivity y cron /api/
       {
         kind: "deposit",
         mint: USDC_MINT,
-        mintSymbol: "USDC",
         amountUi: 100,
         reference: "sig-1",
         status: "confirmed",
