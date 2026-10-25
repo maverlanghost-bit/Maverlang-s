@@ -270,6 +270,12 @@ function buildServerSchema(source: EnvSource) {
      * ronda cada 30 min lun–vie según `vercel.json`).
      */
     CRON_SECRET: optionalText(),
+    /**
+     * Bearer de POST /api/revalidate (tag `underlying-prices`).
+     * Lo usa GitHub Actions tras guardar cierres. Sólo servidor. Opcional:
+     * sin valor la ruta responde 503 y el resto de la app no cambia.
+     */
+    REVALIDATE_SECRET: optionalText(),
     /** Clave de Sentry para subir sourcemaps (M61). Sólo servidor, nunca `NEXT_PUBLIC_*`. */
     SENTRY_AUTH_TOKEN: optionalText(),
     /** Clave de Resend para correos (M51). Sólo servidor. */

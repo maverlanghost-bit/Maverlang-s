@@ -105,6 +105,7 @@ export function PricePanel({
   onRangeChange,
   priceUpdatedAt = null,
   priceStale = false,
+  underlying = "",
 }: {
   symbol: string;
   name: string;
@@ -118,6 +119,8 @@ export function PricePanel({
   onRangeChange: (range: Range) => void;
   priceUpdatedAt?: string | number | null;
   priceStale?: boolean;
+  /** Acción subyacente (AAPL). La muestra la fuente del cierre diario. */
+  underlying?: string;
 }) {
   const { t } = useT();
   const history = useHistory(symbol, range);
@@ -174,6 +177,21 @@ export function PricePanel({
   const marketShown = marketValue === null ? null : formatMoney(marketValue, priceCurrency);
 
   const rangeOptions = DETAIL_RANGES.map((value) => ({ value, label: t.detail.rangeShort[value] }));
+  const historySource = history.data?.source;
+  const lastT = points[points.length - 1]?.t;
+  const sourceLine =
+    !history.isPending &&
+    !history.isError &&
+    points.length >= 2 &&
+    lastT !== undefined &&
+    (historySource === "closes" || historySource === "ticks")
+      ? historySource === "closes"
+        ? fill(t.detail.chartSourceClose, {
+            symbol: underlying.trim() || symbol,
+            when: formatDateTime(new Date(lastT).toISOString()),
+          })
+        : fill(t.detail.chartSourceTicks, { when: formatDateTime(new Date(lastT).toISOString()) })
+      : null;
 
   let priceNode: ReactNode;
   if ((pending && !quote) || waitingFx) {
@@ -279,6 +297,7 @@ export function PricePanel({
           </div>
         ) : null}
       </div>
+      {sourceLine ? <p className="text-xs text-fg-muted">{sourceLine}</p> : null}
     </section>
   );
 }

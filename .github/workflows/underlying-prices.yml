@@ -1,0 +1,31 @@
+name: Precios subyacentes (Yahoo)
+on:
+  schedule:
+    - cron: "30 22 * * 1-5"   # 22:30 UTC = después del cierre de NY (16:00 ET) en horario de verano e invierno
+  workflow_dispatch:
+    inputs:
+      dry_run: { description: "Solo probar", type: boolean, default: false }
+concurrency: { group: underlying-prices, cancel-in-progress: false }
+permissions: { contents: read }
+jobs:
+  prices:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      HAS_APP_URL: ${{ secrets.APP_URL != '' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci --ignore-scripts
+      - name: Descargar y guardar
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: npm run prices:underlying -- ${{ inputs.dry_run && '--dry-run' || '' }}
+      - name: Revalidar caché (/api/revalidate)
+        if: ${{ inputs.dry_run != true && env.HAS_APP_URL == 'true' }}
+        env: { APP_URL: "${{ secrets.APP_URL }}", REVALIDATE_SECRET: "${{ secrets.REVALIDATE_SECRET }}" }
+        run: |
+          code=$(curl -s -o /dev/null -w "%{http_code}" -X POST -H "Authorization: Bearer ${REVALIDATE_SECRET}" --max-time 30 "${APP_URL%/}/api/revalidate")
+          echo "HTTP $code"; [ "$code" = "200" ] || echo "::warning::/api/revalidate respondió $code"

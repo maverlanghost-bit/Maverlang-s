@@ -189,6 +189,7 @@ export function getAssetStatus(symbol: string): Promise<AssetStatus> {
 export interface HistoryResponse {
   points: PricePoint[];
   real: boolean;
+  source: "ticks" | "closes" | "mock";
 }
 
 export function getHistory(symbol: string, range: Range = "1M"): Promise<HistoryResponse> {

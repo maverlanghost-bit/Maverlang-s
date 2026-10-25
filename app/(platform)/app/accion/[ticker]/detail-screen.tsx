@@ -768,6 +768,7 @@ export function DetailScreen({
           onRangeChange={setRange}
           priceUpdatedAt={prices.dataUpdatedAt || quote?.updatedAt || null}
           priceStale={quote?.stale === true}
+          underlying={ticker.underlying}
         />
 
         <KeyStats

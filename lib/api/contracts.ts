@@ -551,11 +551,20 @@ export function apiResultSchema<T extends z.ZodType>(data: T) {
 
 export const tickersResponseSchema = z.array(tickerSchema);
 export const quotesResponseSchema = z.array(quoteSchema);
-/** Historial con marca de realidad: `real=false` sigue siendo serie mock. */
+/**
+ * Historial: `source` es `ticks` (intradía), `closes` (cierre Yahoo × multiplier) o `mock`.
+ * `real` es true sólo con al menos 2 puntos y fuente distinta de mock.
+ */
 export const historyResponseSchema = z.object({
   points: z.array(pricePointSchema),
   real: z.boolean(),
+  source: z.enum(["ticks", "closes", "mock"]),
 });
+/** POST /api/revalidate: el workflow manda el cuerpo vacío. */
+export const revalidateBodySchema = z.preprocess(
+  (value) => (value == null ? {} : value),
+  z.object({}).strict(),
+);
 export const balancesResponseSchema = z.array(balanceSchema);
 export const activityResponseSchema = z.array(activitySchema);
 
