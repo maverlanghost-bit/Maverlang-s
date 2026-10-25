@@ -157,7 +157,15 @@ export async function historyWithSource(
   if (!pricesLive && !dataLive) {
     return { points: await mockPrices.history(symbol, range), source: "mock" };
   }
-  return anchoredHistory(symbol, range);
+  const anchored = await anchoredHistory(symbol, range).catch(() => null);
+  if (anchored && anchored.points.length >= 2) return anchored;
+  // Sin 0032_underlying_prices, sin secretos de Supabase o sin datos aún:
+  // vuelve a la serie de referencia (como antes), anclada al spot si existe.
+  const series = await mockPrices.history(symbol, range);
+  const quote =
+    serverEnv.PRICES_MODE === "live" ? (await livePrices.list([symbol]).catch(() => [] as Quote[]))[0] : undefined;
+  const spot = quote && !quote.reference && quote.priceUsd > 0 ? quote.priceUsd : null;
+  return { points: spot !== null ? anchorSeriesToSpot(series, spot) : series, source: "mock" };
 }
 
 function priceServices(): Services["prices"] {
