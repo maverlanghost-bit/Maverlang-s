@@ -8,8 +8,8 @@ import type { PricePoint } from "@/lib/types";
 import { cn } from "@/lib/cn";
 
 const PALETTE: Record<ChartTone, { line: string; top: string; bottom: string }> = {
-  up: { line: "#1c7c5b", top: "rgba(28, 124, 91, 0.28)", bottom: "rgba(28, 124, 91, 0)" },
-  down: { line: "#cc2c55", top: "rgba(204, 44, 85, 0.22)", bottom: "rgba(204, 44, 85, 0)" },
+  up: { line: "#0f7a32", top: "rgba(15, 122, 50, 0.28)", bottom: "rgba(15, 122, 50, 0)" },
+  down: { line: "#c81e1e", top: "rgba(200, 30, 30, 0.22)", bottom: "rgba(200, 30, 30, 0)" },
   flat: { line: "#6c6f75", top: "rgba(108, 111, 117, 0.22)", bottom: "rgba(108, 111, 117, 0)" },
 };
 
@@ -280,7 +280,7 @@ function PriceChartBase({
           autoSize: true,
           layout: {
             background: { type: charts.ColorType.Solid, color: "transparent" },
-            textColor: "#6c6f75",
+            textColor: "#6b6b6b",
             fontFamily,
             fontSize: 12,
             attributionLogo: true,
@@ -294,14 +294,14 @@ function PriceChartBase({
           crosshair: {
             mode: charts.CrosshairMode.Magnet,
             vertLine: {
-              color: "#d5dae3",
+              color: "#c4c4c4",
               width: 1,
               style: charts.LineStyle.Dashed,
               visible: true,
               labelVisible: false,
             },
             horzLine: {
-              color: "#d5dae3",
+              color: "#c4c4c4",
               width: 1,
               style: charts.LineStyle.Dashed,
               visible: true,
