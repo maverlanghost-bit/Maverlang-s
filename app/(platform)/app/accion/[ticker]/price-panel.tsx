@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useState, type ReactNode } from "react";
+import { useCallback, useMemo, useState, type ReactNode } from "react";
+import { useQuery } from "@tanstack/react-query";
 
 import { ChangeBadge } from "@/components/domain/change-badge";
 import { FlashPrice } from "@/components/domain/flash-price";
@@ -10,9 +11,10 @@ import { ErrorState } from "@/components/ui/error-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip } from "@/components/ui/tooltip";
 import { indexFromKey } from "@/components/ui/keys";
+import { getPrices } from "@/lib/api/client";
 import { cn } from "@/lib/cn";
 import { formatDateTime, formatMoney, formatPercent } from "@/lib/format";
-import { useHistory } from "@/lib/hooks/queries";
+import { useHistory, useMarketStatus } from "@/lib/hooks/queries";
 import { useT } from "@/lib/hooks/use-t";
 import { displayPrice } from "@/lib/market/browse";
 import { poolDislocated, poolDislocationPct } from "@/lib/market/dislocation";
@@ -21,6 +23,12 @@ import { DETAIL_RANGES, isDetailRange, rangeMove, seriesForQuote, toneOf } from 
 import type { Currency, PricePoint, Quote, Range } from "@/lib/types";
 
 const NO_POINTS: readonly PricePoint[] = [];
+const LIVE_RANGE_MS = 15_000;
+const CLOSED_RANGE_MS = 60_000;
+
+function pollsLiveChart(range: Range): boolean {
+  return range === "1W" || range === "1M";
+}
 
 function fill(template: string, values: Record<string, string>) {
   let next = template;
@@ -121,6 +129,24 @@ export function PricePanel({
 }) {
   const { t } = useT();
   const history = useHistory(symbol, range);
+  const market = useMarketStatus();
+  const marketOpen = market.data?.underlyingOpen === true;
+  const pollChart = pollsLiveChart(range);
+  const liveQuote = useQuery({
+    queryKey: ["quote", symbol],
+    queryFn: () => getPrices([symbol]),
+    enabled: pollChart && symbol.trim().length > 0,
+    refetchInterval: marketOpen ? LIVE_RANGE_MS : CLOSED_RANGE_MS,
+    refetchIntervalInBackground: false,
+  });
+  const polledRow = pollChart ? liveQuote.data?.find((item) => item.symbol === symbol) : undefined;
+  const polledAt = pollChart && liveQuote.dataUpdatedAt > 0 ? liveQuote.dataUpdatedAt : 0;
+  const livePoint = useMemo(() => {
+    if (!polledRow || polledAt <= 0 || !Number.isFinite(polledRow.priceUsd) || polledRow.priceUsd <= 0) {
+      return undefined;
+    }
+    return { t: polledAt, p: polledRow.priceUsd };
+  }, [polledRow, polledAt]);
   const points = seriesForQuote(history.data?.points ?? NO_POINTS, quote?.priceUsd);
   const move = rangeMove(points);
   // "Ilustrativo" sólo cuando NO hay datos reales (serie de referencia) y el
@@ -193,7 +219,12 @@ export function PricePanel({
         <span className="font-medium">
           <FlashPrice value={shown} currency={priceCurrency} size="lg" live={point === null} force={hoverForce} />
         </span>
-        <PriceFreshness at={priceUpdatedAt ?? quote.updatedAt} stale={priceStale || quote.stale === true} delayedOnly />
+        <PriceFreshness
+          at={polledAt > 0 ? polledAt : (priceUpdatedAt ?? quote.updatedAt)}
+          stale={polledAt > 0 ? polledRow?.stale === true : priceStale || quote.stale === true}
+          delayedOnly={polledAt <= 0}
+          live={polledAt > 0 && polledRow?.stale !== true}
+        />
         {point === null && quote.reference ? (
           <p className="text-sm text-fg-muted">{t.detail.referencePrice}</p>
         ) : null}
@@ -254,6 +285,7 @@ export function PricePanel({
         <LazyPriceChart
           points={points}
           tone={tone}
+          livePoint={livePoint}
           quiet={history.isPending || history.isError}
           label={fill(t.detail.chartLabel, { name, range: t.detail.rangeCaption[range] })}
           emptyLabel={t.detail.chartEmpty}

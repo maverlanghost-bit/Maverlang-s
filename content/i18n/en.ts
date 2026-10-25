@@ -147,6 +147,7 @@ export const en = {
   },
   prices: {
     delayed: "Delayed price",
+    live: "Live",
   },
   detail: {
     underlying: "Underlying",
