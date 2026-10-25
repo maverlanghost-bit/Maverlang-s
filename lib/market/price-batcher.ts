@@ -9,14 +9,14 @@ import type { Quote, Ticker } from "@/lib/types";
 
 /**
  * Precios en lote (M38). Agrupa mints en lotes de hasta 50 (límite de
- * Jupiter Price v3), junta pedidos iguales en vuelo, guarda cada mint 5 s y,
+ * Jupiter Price v3), junta pedidos iguales en vuelo, guarda cada mint 15 s y,
  * ante un 429 o un error, devuelve el último valor guardado marcado `stale`
  * (o la referencia si nunca hubo precio). Reintenta con espera (backoff).
  * `usdPrice` de Jupiter ya es precio por acción: no se divide (regla M34).
  */
 
 export const PRICE_BATCH_MAX_IDS = 50;
-export const PRICE_BATCH_TTL_MS = 5_000;
+export const PRICE_BATCH_TTL_MS = 15_000;
 const DEFAULT_TIMEOUT_MS = 2_500;
 const DEFAULT_BACKOFF_MS = [250, 800] as const;
 

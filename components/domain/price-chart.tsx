@@ -16,6 +16,14 @@ const PALETTE: Record<ChartTone, { line: string; top: string; bottom: string }> 
 type AreaPoint = { time: UTCTimestamp; value: number };
 type ChartBundle = { chart: IChartApi; series: ISeriesApi<"Area", Time> };
 
+function latestPointMs(points: readonly PricePoint[]): number {
+  let max = Number.NEGATIVE_INFINITY;
+  for (const point of points) {
+    if (Number.isFinite(point.t) && point.t > max) max = point.t;
+  }
+  return max;
+}
+
 function toAreaData(points: readonly PricePoint[]): AreaPoint[] {
   const sorted = [...points].sort((a, b) => a.t - b.t);
   const rows: AreaPoint[] = [];
@@ -189,6 +197,7 @@ function PriceChartBase({
   emptyLabel,
   errorLabel,
   onHover,
+  livePoint,
   quiet = false,
 }: {
   points: readonly PricePoint[];
@@ -197,6 +206,8 @@ function PriceChartBase({
   emptyLabel: string;
   errorLabel: string;
   onHover: (usd: number | null, timeMs?: number | null) => void;
+  /** Polling del detalle. Se ignora si `t` no es posterior al último punto. */
+  livePoint?: PricePoint;
   /** El padre tapa el gráfico (carga o error) y anuncia ese estado. */
   quiet?: boolean;
 }) {
@@ -207,14 +218,20 @@ function PriceChartBase({
   const rowsRef = useRef(rows);
   const toneRef = useRef(tone);
   const onHoverRef = useRef(onHover);
+  const paintedMs = useRef(Number.NEGATIVE_INFINITY);
+  const syncedKey = useRef(key);
   const [ready, setReady] = useState(false);
   const [failure, setFailure] = useState(false);
   const drawn = !failure && rows.length >= 2;
 
   useLayoutEffect(() => {
-    rowsRef.current = rows;
     toneRef.current = tone;
-  }, [rows, tone]);
+    // El padre recrea `points` en cada render. No pisar el punto ya pintado
+    // con `series.update` mientras la serie histórica no cambió.
+    if (syncedKey.current === key && rowsRef.current.length > rows.length) return;
+    syncedKey.current = key;
+    rowsRef.current = rows;
+  }, [rows, tone, key]);
 
   useEffect(() => {
     onHoverRef.current = onHover;
@@ -357,6 +374,34 @@ function PriceChartBase({
     onHoverRef.current(null, null);
     if (next.length > 1) bundle.chart.timeScale().fitContent();
   }, [key, ready]);
+
+  useLayoutEffect(() => {
+    paintedMs.current = Number.NEGATIVE_INFINITY;
+  }, [key]);
+
+  useLayoutEffect(() => {
+    const bundle = chartRef.current;
+    if (!bundle || !ready || !livePoint) return;
+    const { t, p } = livePoint;
+    if (!Number.isFinite(t) || !Number.isFinite(p)) return;
+    const lastMs = Math.max(latestPointMs(points), paintedMs.current);
+    if (!(t > lastMs)) return;
+    const time = Math.floor(t / 1000);
+    const rowsNow = rowsRef.current;
+    const lastRow = rowsNow.length > 0 ? rowsNow[rowsNow.length - 1] : undefined;
+    if (lastRow && time < lastRow.time) return;
+    const stamp = time as UTCTimestamp;
+    bundle.series.update({ time: stamp, value: p });
+    paintedMs.current = t;
+    if (!lastRow || time > lastRow.time) {
+      rowsRef.current = [...rowsNow, { time: stamp, value: p }];
+    } else {
+      const next = rowsNow.slice();
+      next[next.length - 1] = { time: stamp, value: p };
+      rowsRef.current = next;
+    }
+    if (rowsRef.current.length > 1) bundle.chart.timeScale().fitContent();
+  }, [livePoint, ready, key, points]);
 
   useLayoutEffect(() => {
     const bundle = chartRef.current;

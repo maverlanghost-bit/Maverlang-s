@@ -150,6 +150,7 @@ export const esCL = {
   },
   prices: {
     delayed: "Precio con retraso",
+    live: "En vivo",
   },
   detail: {
     underlying: "Subyacente",

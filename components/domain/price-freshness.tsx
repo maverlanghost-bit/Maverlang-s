@@ -23,17 +23,22 @@ import {
  * primer render (servidor y cliente) se muestra un marcador estable con la
  * misma altura y el reloj parte sólo tras montar, en `useEffect`.
  */
+const LIVE_UNDER_SEC = 30;
+
 export function PriceFreshness({
   at,
   stale = false,
   className,
   delayedOnly = false,
+  live = false,
 }: {
   at: string | number | Date | null | undefined;
   stale?: boolean;
   className?: string;
   /** Sólo muestra algo con retraso significativo (stale o > 60 s). */
   delayedOnly?: boolean;
+  /** Punto animado "En vivo" si el dato tiene menos de 30 s y no viene stale. */
+  live?: boolean;
 }) {
   const { t, language } = useT();
   const mounted = useMounted();
@@ -66,6 +71,17 @@ export function PriceFreshness({
   const elapsed = elapsedSeconds(now, atMs);
   const delayed = freshnessDelayed(elapsed, stale);
   if (delayedOnly && !delayed) return null;
+  if (live && !stale && elapsed < LIVE_UNDER_SEC) {
+    return (
+      <p aria-live="off" className={cn("inline-flex items-center gap-1.5 text-xs text-fg-muted", className)}>
+        <span className="relative flex size-1.5 shrink-0" aria-hidden>
+          <span className="absolute inline-flex size-full animate-ping rounded-full bg-up opacity-75" />
+          <span className="relative inline-flex size-1.5 rounded-full bg-up" />
+        </span>
+        {t.prices.live}
+      </p>
+    );
+  }
 
   return (
     <p aria-live="off" className={cn("text-xs", delayed ? "text-warn" : "text-fg-muted", className)}>
