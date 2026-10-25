@@ -8,27 +8,27 @@ import { isShellSectionActive, shellNav } from "@/components/app-shell/nav";
 import { cn } from "@/lib/cn";
 import { useT } from "@/lib/hooks/use-t";
 
-/** Publica el alto real de las tabs (iconos + borde + safe-area) para la barra de compra. */
+/** Publica el alto real (píldora + margen + safe-area) para la barra de compra y los toasts. */
 function useTabsHeight(ref: RefObject<HTMLElement | null>) {
   useEffect(() => {
     const root = document.documentElement;
     const query = window.matchMedia("(min-width: 1024px)");
     const apply = () => {
       const nav = ref.current;
-      if (query.matches || !nav) {
-        root.style.setProperty("--app-tabs-height", "0px");
-        return;
-      }
-      root.style.setProperty("--app-tabs-height", `${nav.getBoundingClientRect().height}px`);
+      if (query.matches || !nav) return root.style.setProperty("--app-tabs-height", "0px");
+      const rect = nav.getBoundingClientRect();
+      root.style.setProperty("--app-tabs-height", `${window.innerHeight - rect.top}px`);
     };
     apply();
     const nav = ref.current;
     const observer = new ResizeObserver(apply);
     if (nav) observer.observe(nav);
     query.addEventListener("change", apply);
+    window.addEventListener("resize", apply);
     return () => {
       observer.disconnect();
       query.removeEventListener("change", apply);
+      window.removeEventListener("resize", apply);
       root.style.removeProperty("--app-tabs-height");
     };
   }, [ref]);
@@ -44,9 +44,9 @@ export function BottomTabs() {
     <nav
       ref={navRef}
       aria-label={t.nav.label}
-      className="fixed inset-x-0 bottom-0 z-30 border-t border-border/70 bg-bg/88 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl lg:hidden"
+      className="pointer-events-none fixed inset-x-0 bottom-0 z-30 flex justify-center px-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] lg:hidden"
     >
-      <ul className="grid h-16 grid-cols-3">
+      <ul className="glass-tabbar pointer-events-auto grid h-16 w-full max-w-md grid-cols-4 rounded-full p-1.5">
         {shellNav.map((item) => {
           const active = isShellSectionActive(pathname, item.id);
           const Icon = item.icon;
@@ -56,18 +56,11 @@ export function BottomTabs() {
                 href={item.href}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "relative flex h-full flex-col items-center justify-center gap-1 rounded-lg px-1 text-[11px] font-medium tracking-tight outline-none transition duration-150 ease-spring focus-visible:ring-4 focus-visible:ring-fg/20 active:scale-[0.98]",
-                  active ? "text-fg" : "text-fg-muted hover:text-fg",
+                  "flex h-full min-h-11 flex-col items-center justify-center gap-0.5 rounded-full px-1 text-[11px] font-medium tracking-tight outline-none transition duration-150 ease-spring focus-visible:ring-2 focus-visible:ring-fg active:scale-[0.96]",
+                  active ? "bg-fg text-bg" : "text-fg-muted hover:text-fg",
                 )}
               >
-                <span
-                  className={cn(
-                    "absolute top-0 h-0.5 rounded-full transition duration-150 ease-spring",
-                    active ? "left-1/2 w-6 -translate-x-1/2 bg-fg" : "inset-x-4 bg-transparent",
-                  )}
-                  aria-hidden
-                />
-                <Icon className="size-5" />
+                <Icon className="size-5" aria-hidden />
                 <span className="max-w-full truncate">{t.nav[item.id]}</span>
               </Link>
             </li>

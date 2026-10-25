@@ -97,7 +97,7 @@ export function Sidebar({
           <li>
             <StockSearchButton collapsed={collapsed} />
           </li>
-          {shellNav.map((item) => {
+          {shellNav.filter((item) => item.id !== "profile").map((item) => {
             const active = isShellSectionActive(pathname, item.id);
             const Icon = item.icon;
             const link = (
