@@ -160,6 +160,11 @@ function buildRows(mode) {
       check: (s) => (norm(s.CRON_SECRET).length >= 32 ? "ok" : present(s.CRON_SECRET)),
     },
     {
+      name: "REVALIDATE_SECRET",
+      want: "definida (POST /api/revalidate)",
+      check: (s) => (isSet(s.REVALIDATE_SECRET) ? "ok" : "missing"),
+    },
+    {
       name: "JUPITER_API_KEY",
       want: "definida",
       check: (s) => (isSet(s.JUPITER_API_KEY) ? "ok" : "missing"),

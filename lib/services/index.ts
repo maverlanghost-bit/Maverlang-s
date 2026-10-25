@@ -1,7 +1,9 @@
 import "server-only";
 
+import { tickerBySymbol } from "@/config/tickers";
 import { serverEnv } from "@/lib/env";
 import { anchorSeriesToSpot } from "@/lib/market/series";
+import { yahooSymbol } from "@/lib/market/underlying-move";
 import { mockAuth } from "@/lib/services/auth.mock";
 import { privyAuth } from "@/lib/services/auth.privy";
 import { koyweOnramp } from "@/lib/services/onramp.koywe";
@@ -11,6 +13,7 @@ import { mockPortfolio } from "@/lib/services/portfolio.mock";
 import { livePortfolio } from "@/lib/services/portfolio.live";
 import { livePrices } from "@/lib/services/prices.live";
 import { mockPrices } from "@/lib/services/prices.mock";
+import { readUnderlyingCloses } from "@/lib/services/underlying-prices.supabase";
 import { liveTrade } from "@/lib/services/trade.live";
 import { mockTrade } from "@/lib/services/trade.mock";
 import { isSupabaseAuth } from "@/lib/auth/mode";
@@ -103,43 +106,76 @@ function liveOnramp(): Services["onramp"] {
 /**
  * `PRICES_MODE=mock` (default) no consulta Jupiter, el RPC ni el dólar.
  * Con `live`, el precio actual sale de Jupiter y el dólar de mindicador.
- * El historial, cuando hay observaciones reales en `price_ticks` (backfill de
- * CoinGecko + el grabador del spot), se pinta real y termina sólo anclado al
- * spot. Sin datos todavía, cae a la serie de referencia (mock) como hasta ahora.
- * `DATA_MODE` sigue eligiendo trade, cartera on-chain y auth.
+ * El historial en live (y con `DATA_MODE=live`) usa `price_ticks` si hay
+ * al menos 20 puntos en 1W/1M; si no, los cierres de `underlying_prices`
+ * por el multiplicador. Sin datos devuelve []. En mock (dev, CI, e2e) la
+ * serie de referencia no cambia. `DATA_MODE` sigue eligiendo trade, cartera y auth.
  */
-async function anchoredHistory(symbol: string, range: Range): Promise<PricePoint[]> {
-  const [real, series, quotes] = await Promise.all([
-    livePrices.history(symbol, range),
-    mockPrices.history(symbol, range),
-    livePrices.list([symbol]),
+const INTRADAY: ReadonlySet<Range> = new Set(["1W", "1M"]);
+const MIN_TICKS = 20;
+
+export type HistorySource = "ticks" | "closes" | "mock";
+
+async function anchoredHistory(
+  symbol: string,
+  range: Range,
+): Promise<{ points: PricePoint[]; source: "ticks" | "closes" }> {
+  const pricesLive = serverEnv.PRICES_MODE === "live";
+  const intraday = INTRADAY.has(range);
+  const [ticks, quotes] = await Promise.all([
+    intraday ? livePrices.history(symbol, range).catch(() => [] as PricePoint[]) : Promise.resolve([] as PricePoint[]),
+    pricesLive ? livePrices.list([symbol]).catch(() => [] as Quote[]) : Promise.resolve([] as Quote[]),
   ]);
   const quote = quotes[0];
   const spot = quote && !quote.reference && quote.priceUsd > 0 ? quote.priceUsd : null;
-  // Datos reales suficientes: se pintan tal cual, anclados al spot actual.
-  if (real.length >= 2) {
-    return spot !== null ? anchorSeriesToSpot(real, spot) : real;
+  const multiplier = quote && Number.isFinite(quote.multiplier) && quote.multiplier > 0 ? quote.multiplier : 1;
+
+  let points: PricePoint[] = [];
+  let source: "ticks" | "closes" = "closes";
+  if (intraday && ticks.length >= MIN_TICKS) {
+    points = ticks;
+    source = "ticks";
+  } else {
+    const ticker = tickerBySymbol(symbol);
+    const underlying = ticker?.underlying ? yahooSymbol(ticker.underlying) : "";
+    const closes = underlying ? await readUnderlyingCloses(underlying, range).catch(() => [] as PricePoint[]) : [];
+    points = closes
+      .map((point) => ({ t: point.t, p: point.p * multiplier }))
+      .filter((point) => Number.isFinite(point.t) && Number.isFinite(point.p) && point.p > 0);
   }
-  // Sin historia real aún: serie de referencia anclada al spot (como antes).
-  if (spot !== null) return anchorSeriesToSpot(series, spot);
-  return series;
+  if (spot !== null && points.length > 0) points = anchorSeriesToSpot(points, spot);
+  return { points, source };
+}
+
+/** Mock intacto si precios y datos están en mock. Si no: ticks → cierres → []. */
+export async function historyWithSource(
+  symbol: string,
+  range: Range,
+): Promise<{ points: PricePoint[]; source: HistorySource }> {
+  const pricesLive = serverEnv.PRICES_MODE === "live";
+  const dataLive = serverEnv.DATA_MODE === "live";
+  if (!pricesLive && !dataLive) {
+    return { points: await mockPrices.history(symbol, range), source: "mock" };
+  }
+  return anchoredHistory(symbol, range);
 }
 
 function priceServices(): Services["prices"] {
   const dataLive = serverEnv.DATA_MODE === "live";
   const pricesLive = serverEnv.PRICES_MODE === "live";
   if (!pricesLive && !dataLive) return mockPrices;
+  const history = (symbol: string, range: Range) => historyWithSource(symbol, range).then((row) => row.points);
   if (!pricesLive) {
     return {
       list: (symbols) => mockPrices.list(symbols),
-      history: (symbol, range) => mockPrices.history(symbol, range),
+      history,
       fx: () => mockPrices.fx(),
       market: () => livePrices.market(),
     };
   }
   return {
     list: (symbols) => livePrices.list(symbols),
-    history: (symbol, range) => anchoredHistory(symbol, range),
+    history,
     fx: () => livePrices.fx(),
     market: () => (dataLive ? livePrices.market() : mockPrices.market()),
   };

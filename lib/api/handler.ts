@@ -170,8 +170,8 @@ export function parseQuery<T>(input: Request | URL | string, schema: ZodType<T>)
   return parsed.data;
 }
 
-/** Rutas exentas de `Origin`: el webhook (firma propia) y los crons (token). */
-const ORIGIN_EXEMPT_PREFIXES = ["/api/onramp/webhook", "/api/cron/"] as const;
+/** Rutas exentas de `Origin`: el webhook (firma propia), los crons (token) y la revalidación (Bearer). */
+const ORIGIN_EXEMPT_PREFIXES = ["/api/onramp/webhook", "/api/cron/", "/api/revalidate"] as const;
 
 export function isOriginExempt(pathname: string): boolean {
   return ORIGIN_EXEMPT_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(prefix));
@@ -193,7 +193,7 @@ function siteOriginOf(): string | null {
  * (`x-forwarded-host`, `host` o el host de `req.url`: `new URL(req.url).host`
  * no es confiable tras proxies, así que se acepta cualquiera de los tres).
  * Sin ambos, o con otro origen → 403 `FORBIDDEN_ORIGIN`. GET/HEAD/OPTIONS y
- * las exentas (`/api/onramp/webhook`, `/api/cron/*`) pasan.
+ * las exentas (`/api/onramp/webhook`, `/api/cron/*`, `/api/revalidate`) pasan.
  */
 export function assertSameOrigin(req: Request): void {
   const method = req.method.toUpperCase();
