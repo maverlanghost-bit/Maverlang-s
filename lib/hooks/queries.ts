@@ -1,7 +1,9 @@
 "use client";
 
-import { useQueries, useQuery } from "@tanstack/react-query";
+import { useMemo } from "react";
+import { useQueries, useQuery, type Query } from "@tanstack/react-query";
 
+import { HISTORY_EMPTY_STALE_MS, historyStaleMs } from "@/lib/api/contracts";
 import {
   getActivity,
   getAssetStatus,
@@ -27,7 +29,7 @@ const HOUR_MS = 3_600_000;
 export const PRICE_MS = 15_000;
 /** Detalle y hoja de compra (N13): 5 s. Requiere key de Jupiter (1 req/s en Free). */
 export const SPOT_MS = 5_000;
-/** Historial del gráfico abierto (M41): cache 5 min, repoll cada 60 s visible. */
+/** Historial con datos (M41): fresco 5 min, repoll cada 60 s visible. Un vacío no pasa de 30 s. */
 export const HISTORY_MS = 5 * 60_000;
 export const HISTORY_REFETCH_MS = 60_000;
 
@@ -71,29 +73,40 @@ export function usePrices(symbols?: readonly string[], enabled = true, intervalM
 export function useHistory(symbol: string, range: Range = "1M") {
   const trimmed = symbol.trim();
   return useQuery({
-    queryKey: ["history", trimmed, range],
+    queryKey: ["history", trimmed, range] as const,
     queryFn: () => getHistory(trimmed, range),
     enabled: trimmed.length > 0,
-    staleTime: HISTORY_MS,
-    refetchInterval: HISTORY_REFETCH_MS,
+    staleTime: (query) => historyStaleMs(query.state.data, HISTORY_MS),
+    refetchInterval: (query) => historyStaleMs(query.state.data, HISTORY_REFETCH_MS),
     refetchIntervalInBackground: false,
     refetchOnWindowFocus: true,
   });
 }
 
-/** Una serie por símbolo. Misma clave que `useHistory`, para compartir caché. */
+/**
+ * Una serie por símbolo. Misma clave que `useHistory`, para compartir caché.
+ * El rango por defecto es 1W (sparklines del mercado). La lista va memoizada:
+ * un array nuevo en cada render vuelve a suscribir y repite el fetch mientras
+ * la primera respuesta sigue en vuelo.
+ */
 export function useHistories(symbols: readonly string[], range: Range = "1W") {
-  return useQueries({
-    queries: symbols.map((symbol) => {
-      const trimmed = symbol.trim();
-      return {
-        queryKey: ["history", trimmed, range] as const,
-        queryFn: () => getHistory(trimmed, range),
-        enabled: trimmed.length > 0,
-        staleTime: HISTORY_MS,
-      };
-    }),
-  });
+  const serialized = `${symbols.length}:${symbols.map((symbol) => symbol.trim()).join("\u0000")}`;
+  const queries = useMemo(() => {
+    const colon = serialized.indexOf(":");
+    const count = Number(serialized.slice(0, colon));
+    const list = count === 0 ? [] : serialized.slice(colon + 1).split("\u0000");
+    return list.map((trimmed) => ({
+      queryKey: ["history", trimmed, range] as const,
+      queryFn: () => getHistory(trimmed, range),
+      enabled: trimmed.length > 0,
+      staleTime: (query: Query) => historyStaleMs(query.state.data, HISTORY_MS),
+      refetchInterval: (query: Query) =>
+        historyStaleMs(query.state.data, HISTORY_MS) === HISTORY_EMPTY_STALE_MS ? HISTORY_EMPTY_STALE_MS : false,
+      refetchIntervalInBackground: false,
+      refetchOnWindowFocus: false,
+    }));
+  }, [serialized, range]);
+  return useQueries({ queries });
 }
 
 export function useMarketStatus() {

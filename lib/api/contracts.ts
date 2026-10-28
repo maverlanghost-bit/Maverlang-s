@@ -560,6 +560,66 @@ export const historyResponseSchema = z.object({
   real: z.boolean(),
   source: z.enum(["ticks", "closes", "mock"]),
 });
+
+/** Serie con datos: CDN 60 s y revalidación en segundo plano. */
+export const HISTORY_CACHE_DATA = "public, s-maxage=60, stale-while-revalidate=300";
+/**
+ * Vacío o error: sólo el navegador, 30 s como máximo.
+ * `private` evita que un CDN guarde el fallo durante horas.
+ */
+export const HISTORY_CACHE_MISS = "private, max-age=30";
+/** El cliente no trata una serie vacía o fallida como fresca más de 30 s. */
+export const HISTORY_EMPTY_STALE_MS = 30_000;
+
+const HISTORY_SOURCES = ["ticks", "closes", "mock"] as const;
+export type HistorySourceName = (typeof HISTORY_SOURCES)[number];
+
+export function historySourceOf(source: string): HistorySourceName {
+  return source === "ticks" || source === "closes" || source === "mock" ? source : "mock";
+}
+
+/**
+ * Cuerpo de `/api/tickers/[symbol]/history`.
+ * Siempre trae `source` y `real`. `real` sólo con 2+ puntos y fuente distinta de mock.
+ */
+export function historyFields(points: readonly { t: number; p: number }[], source: string) {
+  const safeSource = historySourceOf(source);
+  const safePoints: { t: number; p: number }[] = [];
+  for (const point of points) {
+    if (!Number.isFinite(point.t) || !Number.isFinite(point.p) || point.t < 0 || point.p < 0) continue;
+    const t = Math.round(point.t);
+    if (!Number.isInteger(t)) continue;
+    safePoints.push({ t, p: point.p });
+  }
+  return {
+    points: safePoints,
+    real: safePoints.length >= 2 && safeSource !== "mock",
+    source: safeSource,
+  };
+}
+
+/** Con datos se puede cachear 60 s. Vacío, mock o error: como máximo 30 s y nunca en CDN. */
+export function historyCacheControl(data: { points: readonly unknown[]; real: boolean; source: string }): string {
+  const cacheable = data.points.length >= 2 && data.real === true && data.source !== "mock";
+  return cacheable ? HISTORY_CACHE_DATA : HISTORY_CACHE_MISS;
+}
+
+/** Los cierres de Supabase sólo entran a `unstable_cache` si hay serie. Un vacío no se guarda. */
+export function shouldCacheUnderlyingPoints(count: number): boolean {
+  return count >= 2;
+}
+
+/**
+ * `staleTime` de la historia en el cliente.
+ * Una respuesta vacía, mock o sin `real` no se considera fresca más de 30 s.
+ */
+export function historyStaleMs(data: unknown, freshMs: number): number {
+  if (!data || typeof data !== "object") return HISTORY_EMPTY_STALE_MS;
+  const row = data as { points?: unknown; real?: unknown; source?: unknown };
+  const count = Array.isArray(row.points) ? row.points.length : 0;
+  if (row.real !== true || row.source === "mock" || count < 2) return HISTORY_EMPTY_STALE_MS;
+  return freshMs;
+}
 /** POST /api/revalidate: el workflow manda el cuerpo vacío. */
 export const revalidateBodySchema = z.preprocess(
   (value) => (value == null ? {} : value),

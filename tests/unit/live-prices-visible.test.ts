@@ -100,7 +100,8 @@ describe("M41: opciones de polling", () => {
   it("useHistory revalida cada 60 s visible y al volver a la pestaña", () => {
     expect(source).toContain("export const HISTORY_REFETCH_MS = 60_000");
     const block = blockOf("useHistory");
-    expect(block).toContain("refetchInterval: HISTORY_REFETCH_MS");
+    expect(block).toContain("HISTORY_REFETCH_MS");
+    expect(block).toContain("historyStaleMs");
     expect(block).toContain("refetchIntervalInBackground: false");
     expect(block).toContain("refetchOnWindowFocus: true");
   });

@@ -43,9 +43,13 @@ describe("historial real", () => {
     expect(closes).toContain('export const PRICES_TAG = "underlying-prices"');
   });
 
-  it("los cierres de la ruta llevan caché corta y el cron diario revalida el tag", () => {
-    expect(route).toContain('real: points.length >= 2 && source !== "mock"');
-    expect(route).toContain('"public, s-maxage=60, stale-while-revalidate=300"');
+  it("la ruta valida source y real; un vacío no entra al caché largo", () => {
+    expect(route).toContain("historyFields(");
+    expect(route).toContain("historyCacheControl(");
+    expect(route).toContain("historyResponseSchema");
+    expect(closes).toContain("shouldCacheUnderlyingPoints");
+    expect(closes).toContain("underlying-closes-v3");
+    expect(closes).not.toContain("if (error || !data || data.length === 0) break");
     expect(cron).toContain("revalidateTag(PRICES_TAG, \"max\")");
   });
 });

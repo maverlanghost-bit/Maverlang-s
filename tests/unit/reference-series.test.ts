@@ -73,7 +73,8 @@ describe("rangos 1Y y 1D", () => {
     expect(read("lib/api/contracts.ts")).toContain('z.enum(["1D", "1W", "1M", "3M", "1Y", "ALL"])');
     expect(read("lib/services/index.ts")).toContain('new Set(["1D", "1W", "1M"])');
     expect(read("lib/services/underlying-prices.supabase.ts")).toContain('"1Y": 366');
-    expect(read("app/api/tickers/[symbol]/history/route.ts")).toContain('source !== "mock"');
+    expect(read("app/api/tickers/[symbol]/history/route.ts")).toContain("historyFields(");
+    expect(read("lib/api/contracts.ts")).toContain('source !== "mock"');
   });
 
   it("el schema separa mock de ticks y de cierres", () => {

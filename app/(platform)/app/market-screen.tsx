@@ -221,23 +221,27 @@ export function MarketScreen({
   const serverSort = "liquidity";
 
   // Una consulta del servidor por página cargada. Al cambiar el criterio, la página vuelve a 1.
-  const searchQueries = useQueries({
-    queries: Array.from({ length: page }, (_, index) => {
-      const pageNum = index + 1;
-      return {
-        queryKey: ["market-search", "", serverCategory, pageNum, PAGE_SIZE, serverSort] as const,
-        queryFn: () =>
-          searchMarket({
-            q: "",
-            category: serverCategory,
-            page: pageNum,
-            pageSize: PAGE_SIZE,
-            sort: serverSort,
-          }),
-        staleTime: SEARCH_STALE_MS,
-      };
-    }),
-  });
+  // Opciones memoizadas: un array nuevo en cada render vuelve a suscribir useQueries.
+  const searchQueryOptions = useMemo(
+    () =>
+      Array.from({ length: page }, (_, index) => {
+        const pageNum = index + 1;
+        return {
+          queryKey: ["market-search", "", serverCategory, pageNum, PAGE_SIZE, serverSort] as const,
+          queryFn: () =>
+            searchMarket({
+              q: "",
+              category: serverCategory,
+              page: pageNum,
+              pageSize: PAGE_SIZE,
+              sort: serverSort,
+            }),
+          staleTime: SEARCH_STALE_MS,
+        };
+      }),
+    [page, serverCategory, serverSort],
+  );
+  const searchQueries = useQueries({ queries: searchQueryOptions });
   const fx = useFx();
   const status = useMarketStatus();
   const { symbols: favorites, toggle } = useFavorites();
@@ -257,23 +261,32 @@ export function MarketScreen({
   })();
 
   // Precios y sparklines sólo de las filas cargadas: una llamada de precios por página.
-  const symbolsByPage = searchQueries.map((query) => (query.data?.items ?? []).map((item) => item.symbol));
-  const priceQueries = useQueries({
-    queries: symbolsByPage.map((symbols) => ({
-      queryKey: ["prices", [...symbols].sort()] as const,
-      queryFn: () => getPrices(symbols),
-      enabled: symbols.length > 0,
-      staleTime: PRICE_MS,
-      refetchInterval: PRICE_MS,
-      // Sin refetch al volver a la pestaña: el intervalo de 15 s ya mantiene
-      // la lista viva y se evita una ráfaga de llamadas al enfocar.
-      refetchOnWindowFocus: false,
-      refetchIntervalInBackground: false,
-      // Mientras revalida, se siguen viendo los últimos precios en vez de
-      // volver al placeholder vacío.
-      placeholderData: (previous: Quote[] | undefined) => previous,
-    })),
-  });
+  const pageSymbolKey = searchQueries
+    .map((query) => (query.data?.items ?? []).map((item) => item.symbol).join(","))
+    .join("|");
+  const symbolsByPage = useMemo(
+    () => pageSymbolKey.split("|").map((part) => (part ? part.split(",") : [])),
+    [pageSymbolKey],
+  );
+  const priceQueryOptions = useMemo(
+    () =>
+      symbolsByPage.map((symbols) => ({
+        queryKey: ["prices", [...symbols].sort()] as const,
+        queryFn: () => getPrices(symbols),
+        enabled: symbols.length > 0,
+        staleTime: PRICE_MS,
+        refetchInterval: PRICE_MS,
+        // Sin refetch al volver a la pestaña: el intervalo de 15 s ya mantiene
+        // la lista viva y se evita una ráfaga de llamadas al enfocar.
+        refetchOnWindowFocus: false as const,
+        refetchIntervalInBackground: false,
+        // Mientras revalida, se siguen viendo los últimos precios en vez de
+        // volver al placeholder vacío.
+        placeholderData: (previous: Quote[] | undefined) => previous,
+      })),
+    [symbolsByPage],
+  );
+  const priceQueries = useQueries({ queries: priceQueryOptions });
   const quotesBySymbol = (() => {
     const map = new Map<string, Quote>();
     for (const query of priceQueries) {
@@ -302,13 +315,15 @@ export function MarketScreen({
     return false;
   })();
 
-  // El gráfico de cada fila pide otro precio. Se pide cuando el lote de la
-  // página ya volvió, para no frenar la lista con veinte consultas a la vez.
-  const sparkSymbols = symbolsByPage.flatMap((symbols, index) => {
-    const query = priceQueries[index];
-    if (!query || query.isPending) return [];
-    return symbols;
-  });
+  // Sparklines 1W: sólo cuando el lote de precios ya tiene datos. `isPending`
+  // parpadea al rearmar useQueries y relanzaba ~20 veces el mismo history.
+  const sparkKey = symbolsByPage
+    .map((symbols, index) => (priceQueries[index]?.data ? symbols.join(",") : ""))
+    .join("|");
+  const sparkSymbols = useMemo(() => {
+    if (!sparkKey) return [];
+    return sparkKey.split("|").flatMap((part) => (part ? part.split(",") : []));
+  }, [sparkKey]);
   const histories = useHistories(sparkSymbols);
 
   useEffect(() => {
