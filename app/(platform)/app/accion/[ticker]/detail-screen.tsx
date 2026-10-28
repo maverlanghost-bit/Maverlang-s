@@ -9,9 +9,12 @@ import { ChangeBadge } from "@/components/domain/change-badge";
 import { FavoriteButton } from "@/components/domain/favorite-button";
 import { RealAccountEmpty } from "@/components/domain/real-account-empty";
 import { TickerLogo } from "@/components/domain/ticker-logo";
+import { TokenGapCard } from "@/components/domain/token-gap-card";
 import { TradeSheet } from "@/components/domain/trade-sheet";
+import { Accordion } from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { carteraCopy } from "@/content/i18n/extra-cartera";
 import { CopyButton } from "@/components/ui/copy-button";
 import { ErrorState } from "@/components/ui/error-state";
 import { IconButton } from "@/components/ui/icon-button";
@@ -178,6 +181,16 @@ function PositionBlock({
       </dl>
       <p className="mt-4 text-sm leading-relaxed text-fg-muted">{t.detail.positionNote}</p>
     </Card>
+  );
+}
+
+function StockTokenGuide() {
+  const { language } = useT();
+  const copy = carteraCopy(language);
+  return (
+    <section aria-label={copy.tokenGuideTitle}>
+      <Accordion items={[{ id: "stock-token", title: copy.tokenGuideTitle, content: copy.tokenGuideBody }]} />
+    </section>
   );
 }
 
@@ -770,6 +783,9 @@ export function DetailScreen({
           priceStale={quote?.stale === true}
           underlying={ticker.underlying}
         />
+
+        <TokenGapCard symbol={ticker.symbol} quote={quote} />
+        <StockTokenGuide />
 
         <KeyStats
           quote={quote}
