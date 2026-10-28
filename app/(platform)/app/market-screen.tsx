@@ -24,6 +24,7 @@ import { useT } from "@/lib/hooks/use-t";
 import {
   displayPrice,
   downsample,
+  isRealSparkHistory,
   parseFilter,
   parseSort,
   type MarketFilter,
@@ -348,7 +349,10 @@ export function MarketScreen({
   const sparkBySymbol = useMemo(() => {
     const map = new Map<string, number[]>();
     sparkSymbols.forEach((symbol, index) => {
-      const points = histories[index]?.data?.points;
+      const data = histories[index]?.data;
+      // Sólo ticks, closes o real === true. Con source "mock" no hay sparkline.
+      if (!data || !isRealSparkHistory(data)) return;
+      const points = data.points;
       if (!points || points.length < 2) return;
       const spot = quotesBySymbol.get(symbol)?.priceUsd;
       const series = spot !== undefined && spot > 0 ? anchorSeriesToSpot(points, spot) : points;

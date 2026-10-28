@@ -130,6 +130,18 @@ export function topSuggestions(
   return out;
 }
 
+/**
+ * Historia que el mercado puede dibujar como sparkline.
+ * `ticks`, `closes` o `real === true`. `source === "mock"` nunca: es serie de referencia.
+ */
+export function isRealSparkHistory<T extends { source?: string | null; real?: boolean | null }>(
+  history: T | null | undefined,
+): history is T {
+  if (history == null) return false;
+  if (history.source === "mock") return false;
+  return history.source === "ticks" || history.source === "closes" || history.real === true;
+}
+
 /** Menos puntos para el sparkline, conservando el primero y el último. */
 export function downsample(values: readonly number[], max = 32): number[] {
   if (values.length <= max) return [...values];

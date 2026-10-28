@@ -391,7 +391,8 @@ function CatalogBody() {
         </div>
       </Section>
 
-      <Section title="Sparkline">
+      <Section title="Sparkline de ejemplo">
+        <p className="text-sm text-fg-muted">Estas series son de ejemplo. No son precios de mercado.</p>
         <div className="flex flex-wrap items-center gap-6">
           <Sparkline data={upSeries} label="Serie de ejemplo al alza" width={120} height={40} />
           <Sparkline data={downSeries} label="Serie de ejemplo a la baja" width={120} height={40} />
@@ -399,6 +400,7 @@ function CatalogBody() {
       </Section>
 
       <Section id="filas" title="TickerRow">
+        <p className="text-sm text-fg-muted">Las series de estas filas son de ejemplo.</p>
         <div className="overflow-hidden rounded-xl border border-border">
           <TickerRow
             href="/dev/ui#filas"
