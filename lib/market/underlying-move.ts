@@ -1,3 +1,5 @@
+import { toYahooSymbol } from "@/lib/market/yahoo-symbol";
+
 /**
  * Variación del día de la acción subyacente.
  * Jupiter Price v3 no manda `priceChange24h` en los mints Ondo (casi no hay
@@ -12,6 +14,8 @@ const SUCCESS_TTL_MS = 60_000;
 const MISS_TTL_MS = 30_000;
 const CONCURRENCY = 6;
 const CHART_URL = "https://query1.finance.yahoo.com/v8/finance/chart";
+/** El punto separa el sufijo de mercado (`ADS.DE`). Sin MIC el símbolo no lo trae. */
+const YAHOO_SYMBOL = /^[A-Z0-9.-]{1,32}$/;
 
 interface MoveCacheEntry {
   at: number;
@@ -29,13 +33,22 @@ export interface UnderlyingMoveOptions {
 
 const sharedCache = new Map<string, MoveCacheEntry>();
 
+/** Un subyacente del catálogo. `exchangeMic` es opcional: sin él no cambia la URL de hoy. */
+export interface UnderlyingMoveInput {
+  underlying: string;
+  exchangeMic?: string | null;
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
-/** `BRK.B` en Yahoo es `BRK-B`. */
-export function yahooSymbol(underlying: string): string {
-  return underlying.trim().toUpperCase().replace(/\./g, "-");
+/**
+ * Símbolo de Yahoo. Sin MIC: mayúsculas y `.` → `-` (`BRK.B` → `BRK-B`).
+ * Con MIC de la tabla: letra de mercado pegada y sufijo (`ADSD` + XETR → `ADS.DE`).
+ */
+export function yahooSymbol(underlying: string, exchangeMic?: string | null): string {
+  return toYahooSymbol(underlying, exchangeMic);
 }
 
 /**
@@ -59,6 +72,7 @@ const inflightChanges = new Map<string, Promise<number | null>>();
 
 async function fetchOne(
   underlying: string,
+  exchangeMic: string | null | undefined,
   options: UnderlyingMoveOptions,
   cache: Map<string, MoveCacheEntry>,
   now: number,
@@ -67,7 +81,7 @@ async function fetchOne(
   if (hit && now - hit.at < hit.ttl) return hit.ratio;
   const pending = inflightChanges.get(underlying);
   if (pending) return pending;
-  const job = fetchUnderlyingOnce(underlying, options, cache, now).finally(() => {
+  const job = fetchUnderlyingOnce(underlying, exchangeMic, options, cache, now).finally(() => {
     inflightChanges.delete(underlying);
   });
   inflightChanges.set(underlying, job);
@@ -76,12 +90,13 @@ async function fetchOne(
 
 async function fetchUnderlyingOnce(
   underlying: string,
+  exchangeMic: string | null | undefined,
   options: UnderlyingMoveOptions,
   cache: Map<string, MoveCacheEntry>,
   now: number,
 ): Promise<number | null> {
-  const symbol = yahooSymbol(underlying);
-  if (!/^[A-Z0-9-]{1,16}$/.test(symbol)) return null;
+  const symbol = toYahooSymbol(underlying, exchangeMic);
+  if (!YAHOO_SYMBOL.test(symbol)) return null;
   const fetchImpl = options.fetchImpl ?? fetch;
   const url = `${CHART_URL}/${encodeURIComponent(symbol)}?interval=1d&range=1d`;
   try {
@@ -116,24 +131,36 @@ export function cachedUnderlyingChanges(
   return out;
 }
 
-/** Una entrada por subyacente. La clave es el ticker que llegó (`AAL`), no el de Yahoo. */
+function asInput(item: string | UnderlyingMoveInput): UnderlyingMoveInput {
+  return typeof item === "string" ? { underlying: item } : item;
+}
+
+/** Una entrada por subyacente. La clave es el ticker que llegó (`AAL`, `ADSD`), no el de Yahoo. */
 export async function fetchUnderlyingChanges(
-  underlyings: readonly string[],
+  underlyings: readonly (string | UnderlyingMoveInput)[],
   options: UnderlyingMoveOptions = {},
 ): Promise<Map<string, number>> {
   const cache = options.cache ?? sharedCache;
   const now = options.now?.() ?? Date.now();
-  const unique = [...new Set(underlyings.map((item) => item.trim()).filter((item) => item.length > 0))];
+  const seen = new Set<string>();
+  const unique: UnderlyingMoveInput[] = [];
+  for (const item of underlyings) {
+    const input = asInput(item);
+    const underlying = input.underlying.trim();
+    if (!underlying || seen.has(underlying)) continue;
+    seen.add(underlying);
+    unique.push({ underlying, exchangeMic: input.exchangeMic });
+  }
   const out = new Map<string, number>();
   let next = 0;
   async function worker(): Promise<void> {
     while (next < unique.length) {
       const index = next;
       next += 1;
-      const underlying = unique[index];
-      if (!underlying) continue;
-      const ratio = await fetchOne(underlying, options, cache, now);
-      if (ratio !== null) out.set(underlying, ratio);
+      const input = unique[index];
+      if (!input) continue;
+      const ratio = await fetchOne(input.underlying, input.exchangeMic, options, cache, now);
+      if (ratio !== null) out.set(input.underlying, ratio);
     }
   }
   const workers = Math.min(CONCURRENCY, unique.length);
