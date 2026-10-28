@@ -79,7 +79,7 @@ function indexAt(clientX: number, rect: DOMRect, points: readonly { x: number }[
  * Sólo un gesto claramente horizontal elige un punto del historial.
  */
 function bindHorizontalScrub(
-  root: HTMLElement,
+  root: SVGSVGElement,
   getPoints: () => readonly { x: number }[],
   onIndex: (index: number | null) => void,
   onTouch: () => void,

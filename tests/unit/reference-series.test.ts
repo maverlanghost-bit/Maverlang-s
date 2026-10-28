@@ -89,7 +89,7 @@ describe("copy y pantallas", () => {
     const pricePanel = read("app/(platform)/app/accion/[ticker]/price-panel.tsx");
     expect(pricePanel).toContain("isReferenceHistory(history.data)");
     expect(pricePanel).toContain("t.detail.chartReference");
-    expect(pricePanel).toContain("reference: illustrative");
+    expect(pricePanel).toContain("reference={illustrative}");
     expect(pricePanel).toContain("DETAIL_RANGES");
     expect(pricePanel).not.toMatch(/const illustrative[\s\S]{0,240}jupiter/);
     expect(pricePanel).not.toContain("chartIllustrative");
@@ -99,7 +99,7 @@ describe("copy y pantallas", () => {
     const portfolio = read("app/(platform)/app/cartera/portfolio-screen.tsx");
     expect(portfolio).toContain("histories.some((query) => isReferenceHistory(query.data))");
     expect(portfolio).toContain("t.detail.chartReference");
-    expect(portfolio).toContain("{...({ reference } as object as ComponentProps<typeof LazyPriceChart>)}");
+    expect(portfolio).toContain("reference={reference}");
     expect(portfolio).toContain("DETAIL_RANGES");
   });
 });

@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useCallback, useMemo, useState, type ComponentProps, type ReactNode } from "react";
+import { memo, useCallback, useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
 
 import { ActivityItem } from "@/components/domain/activity-item";
@@ -208,7 +208,7 @@ const ValueChart = memo(function ValueChart({
           emptyLabel={t.detail.chartEmpty}
           errorLabel={t.detail.chartLibError}
           onHover={onHover}
-          {...({ reference } as object as ComponentProps<typeof LazyPriceChart>)}
+          reference={reference}
         />
       )}
     </>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState, type ComponentProps, type ReactNode } from "react";
+import { useCallback, useMemo, useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 import { ChangeBadge } from "@/components/domain/change-badge";
@@ -292,7 +292,7 @@ export function PricePanel({
           emptyLabel={t.detail.chartEmpty}
           errorLabel={t.detail.chartLibError}
           onHover={onHover}
-          {...({ reference: illustrative } as object as ComponentProps<typeof LazyPriceChart>)}
+          reference={illustrative}
         />
         {history.isPending ? (
           <div className="absolute inset-0 z-10 bg-bg" role="status" aria-live="polite" aria-busy="true">
