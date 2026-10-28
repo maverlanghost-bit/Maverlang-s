@@ -160,6 +160,7 @@ export const esCL = {
     shareFailed: "No pudimos compartir el enlace.",
     rangesLabel: "Rango del gráfico",
     rangeShort: {
+      "1D": "1D",
       "1W": "1S",
       "1M": "1M",
       "3M": "3M",
@@ -167,6 +168,7 @@ export const esCL = {
       ALL: "Todo",
     },
     rangeCaption: {
+      "1D": "hoy",
       "1W": "en 1 semana",
       "1M": "en 1 mes",
       "3M": "en 3 meses",
@@ -177,8 +179,8 @@ export const esCL = {
     backToMarket: "Volver al mercado",
     chartLabel: "Gráfico de {name}, {range}",
     chartEmpty: "No hay suficientes precios para este rango.",
+    chartEmptyHint: "Aún no hay cierres guardados para este período.",
     chartError: "No pudimos cargar el gráfico.",
-    chartLibError: "No pudimos dibujar el gráfico.",
     chartIllustrative: "Ilustrativo",
     chartIllustrativeNote: "Historial de referencia; el precio actual es real.",
     chartReference: "Referencia: no es el precio real",

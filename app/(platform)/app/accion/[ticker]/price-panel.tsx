@@ -5,7 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 
 import { ChangeBadge } from "@/components/domain/change-badge";
 import { FlashPrice } from "@/components/domain/flash-price";
-import { LazyPriceChart } from "@/components/domain/lazy-price-chart";
+import { SvgPriceChart } from "@/components/domain/svg-price-chart";
 import { PriceFreshness } from "@/components/domain/price-freshness";
 import { ErrorState } from "@/components/ui/error-state";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -18,12 +18,52 @@ import { useT } from "@/lib/hooks/use-t";
 import { displayPrice } from "@/lib/market/browse";
 import { poolDislocated, poolDislocationPct } from "@/lib/market/dislocation";
 import { priceFlashDirection, type PriceFlash } from "@/lib/hooks/use-price-flash";
-import { DETAIL_RANGES, isDetailRange, isReferenceHistory, rangeMove, seriesForQuote, toneOf } from "@/lib/market/series";
+import { DETAIL_RANGES, isDetailRange, isReferenceHistory, rangeMove, toneOf } from "@/lib/market/series";
 import type { Currency, PricePoint, Quote, Range } from "@/lib/types";
 
 const NO_POINTS: readonly PricePoint[] = [];
 const LIVE_RANGE_MS = 15_000;
 const CLOSED_RANGE_MS = 60_000;
+
+const periodDateFormatter = new Intl.DateTimeFormat("es-CL", {
+  day: "numeric",
+  month: "short",
+  year: "numeric",
+  timeZone: "America/Santiago",
+});
+
+function formatPeriodDate(timeMs: number): string {
+  return periodDateFormatter.format(timeMs);
+}
+
+/** Extremos de la serie que pinta el gráfico. El vivo sólo alarga el final. */
+function periodBounds(
+  points: readonly PricePoint[],
+  livePoint: PricePoint | undefined,
+): { start: number; end: number } | null {
+  let start = Number.POSITIVE_INFINITY;
+  let end = Number.NEGATIVE_INFINITY;
+  let count = 0;
+  for (const point of points) {
+    if (!Number.isFinite(point.t) || !Number.isFinite(point.p) || point.p <= 0) continue;
+    count += 1;
+    if (point.t < start) start = point.t;
+    if (point.t > end) end = point.t;
+  }
+  if (
+    livePoint &&
+    Number.isFinite(livePoint.t) &&
+    Number.isFinite(livePoint.p) &&
+    livePoint.p > 0 &&
+    count > 0 &&
+    livePoint.t > end
+  ) {
+    end = livePoint.t;
+    count += 1;
+  }
+  if (count < 2) return null;
+  return { start, end };
+}
 
 function pollsLiveChart(range: Range): boolean {
   return range === "1W" || range === "1M";
@@ -149,7 +189,8 @@ export function PricePanel({
     }
     return { t: polledAt, p: polledRow.priceUsd };
   }, [polledRow, polledAt]);
-  const points = seriesForQuote(history.data?.points ?? NO_POINTS, quote?.priceUsd);
+  const points = history.data?.points ?? NO_POINTS;
+  const period = periodBounds(points, livePoint);
   const move = rangeMove(points);
   // Referencia si el historial es mock o no está marcado real, sea cual sea
   // la fuente del precio actual. Sin datos cargados no hay serie que rotular.
@@ -282,34 +323,42 @@ export function PricePanel({
 
       {illustrative ? <p className="text-sm text-fg-muted">{t.detail.chartReference}</p> : null}
 
-      <div className="relative min-w-0 max-w-full">
-        <LazyPriceChart
-          points={points}
-          tone={tone}
-          livePoint={livePoint}
-          quiet={history.isPending || history.isError}
-          label={fill(t.detail.chartLabel, { name, range: t.detail.rangeCaption[range] })}
-          emptyLabel={t.detail.chartEmpty}
-          errorLabel={t.detail.chartLibError}
-          onHover={onHover}
-          reference={illustrative}
-        />
-        {history.isPending ? (
-          <div className="absolute inset-0 z-10 bg-bg" role="status" aria-live="polite" aria-busy="true">
-            <span className="sr-only">{t.states.loading}</span>
-            <Skeleton className="size-full rounded-xl" />
-          </div>
-        ) : null}
-        {history.isError ? (
-          <div className="absolute inset-0 z-10 overflow-y-auto bg-bg">
-            <ErrorState
-              title={t.detail.chartError}
-              label={t.states.error}
-              retryLabel={t.states.retry}
-              onRetry={() => {
-                void history.refetch();
-              }}
-            />
+      <div className="min-w-0 max-w-full rounded-2xl bg-white p-5 shadow-[0_1px_2px_rgba(16,24,40,0.04),0_8px_24px_rgba(16,24,40,0.08)] sm:p-7">
+        <div className="relative min-w-0 max-w-full">
+          <SvgPriceChart
+            points={points}
+            tone={tone}
+            livePoint={livePoint}
+            quiet={history.isPending || history.isError}
+            label={fill(t.detail.chartLabel, { name, range: t.detail.rangeCaption[range] })}
+            emptyLabel={t.detail.chartEmpty}
+            emptyHint={t.detail.chartEmptyHint}
+            onHover={onHover}
+            reference={illustrative}
+          />
+          {history.isPending ? (
+            <div className="absolute inset-0 z-10 bg-bg" role="status" aria-live="polite" aria-busy="true">
+              <span className="sr-only">{t.states.loading}</span>
+              <Skeleton className="size-full rounded-xl" />
+            </div>
+          ) : null}
+          {history.isError ? (
+            <div className="absolute inset-0 z-10 overflow-y-auto bg-bg">
+              <ErrorState
+                title={t.detail.chartError}
+                label={t.states.error}
+                retryLabel={t.states.retry}
+                onRetry={() => {
+                  void history.refetch();
+                }}
+              />
+            </div>
+          ) : null}
+        </div>
+        {period ? (
+          <div className="mt-2 flex justify-between gap-3 text-xs text-fg-muted">
+            <time dateTime={new Date(period.start).toISOString()}>{formatPeriodDate(period.start)}</time>
+            <time dateTime={new Date(period.end).toISOString()}>{formatPeriodDate(period.end)}</time>
           </div>
         ) : null}
       </div>

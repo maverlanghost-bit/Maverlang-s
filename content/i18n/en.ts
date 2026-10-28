@@ -157,6 +157,7 @@ export const en = {
     shareFailed: "We couldn't share the link.",
     rangesLabel: "Chart range",
     rangeShort: {
+      "1D": "1D",
       "1W": "1W",
       "1M": "1M",
       "3M": "3M",
@@ -164,6 +165,7 @@ export const en = {
       ALL: "All",
     },
     rangeCaption: {
+      "1D": "today",
       "1W": "over 1 week",
       "1M": "over 1 month",
       "3M": "over 3 months",
@@ -174,8 +176,8 @@ export const en = {
     backToMarket: "Back to the market",
     chartLabel: "Chart of {name}, {range}",
     chartEmpty: "There aren't enough prices for this range.",
+    chartEmptyHint: "No saved closes for this period yet.",
     chartError: "We couldn't load the chart.",
-    chartLibError: "We couldn't draw the chart.",
     chartIllustrative: "Illustrative",
     chartIllustrativeNote: "Reference history; the current price is real.",
     chartReference: "Reference only, not real prices",

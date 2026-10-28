@@ -6,7 +6,7 @@ import { historyQuerySchema, historyResponseSchema, rangeSchema } from "@/lib/ap
 import { en } from "@/content/i18n/en";
 import { esCL } from "@/content/i18n/es-CL";
 import { priceHistory } from "@/lib/mocks/prices";
-import { DETAIL_RANGES, isReferenceHistory } from "@/lib/market/series";
+import { DETAIL_RANGES, isReferenceHistory, toneOf } from "@/lib/market/series";
 
 const ROOT = path.resolve(__dirname, "..", "..");
 
@@ -53,7 +53,7 @@ describe("serie de referencia", () => {
 
 describe("rangos 1Y y 1D", () => {
   it("1Y está en el selector y en el contrato de historia", () => {
-    expect(DETAIL_RANGES).toEqual(["1W", "1M", "3M", "1Y", "ALL"]);
+    expect(DETAIL_RANGES).toEqual(["1D", "1W", "1M", "3M", "1Y", "ALL"]);
     expect(rangeSchema.parse("1Y")).toBe("1Y");
     expect(historyQuerySchema.parse({ range: "1Y" }).range).toBe("1Y");
     expect(historyQuerySchema.parse({}).range).toBe("1M");
@@ -61,13 +61,18 @@ describe("rangos 1Y y 1D", () => {
     expect(priceHistory("AAPLx", "1Y", 1_700_000_000_000)).toHaveLength(365);
   });
 
-  it("1D está en Range y lo acepta la API", () => {
+  it("1D abre el selector y el contrato de historia lo acepta", () => {
+    expect(DETAIL_RANGES[0]).toBe("1D");
     expect(rangeSchema.parse("1D")).toBe("1D");
     expect(historyQuerySchema.parse({ range: "1D" }).range).toBe("1D");
+    expect(esCL.detail.rangeShort["1D"]).toBe("1D");
+    expect(en.detail.rangeShort["1D"]).toBe("1D");
+    expect(esCL.detail.rangeCaption["1D"]).toBe("hoy");
+    expect(en.detail.rangeCaption["1D"]).toBe("today");
     expect(read("lib/types/index.ts")).toContain('export type Range = "1D" | "1W" | "1M" | "3M" | "1Y" | "ALL"');
     expect(read("lib/api/contracts.ts")).toContain('z.enum(["1D", "1W", "1M", "3M", "1Y", "ALL"])');
-    expect(read("lib/services/index.ts")).toContain('new Set(["1D", "1W", "1M"])');
-    expect(read("lib/services/underlying-prices.supabase.ts")).toContain("ALL: 3650");
+    expect(read("lib/services/index.ts")).toContain('new Set(["1W", "1M"])');
+    expect(read("lib/services/underlying-prices.supabase.ts")).toContain('"1Y": 366');
     expect(read("app/api/tickers/[symbol]/history/route.ts")).toContain('source !== "mock"');
   });
 
@@ -79,10 +84,23 @@ describe("rangos 1Y y 1D", () => {
   });
 });
 
+describe("tono del gráfico", () => {
+  it("un movimiento de cero es positivo", () => {
+    expect(toneOf(0)).toBe("up");
+    expect(toneOf(0.01)).toBe("up");
+    expect(toneOf(-0.01)).toBe("down");
+    expect(toneOf(null)).toBe("flat");
+  });
+});
+
 describe("copy y pantallas", () => {
   it("la etiqueta visible dice que no es el precio real", () => {
     expect(esCL.detail.chartReference).toBe("Referencia: no es el precio real");
     expect(en.detail.chartReference).toBe("Reference only, not real prices");
+    expect(esCL.detail.chartEmptyHint).toBe("Aún no hay cierres guardados para este período.");
+    expect(en.detail.chartEmptyHint).toBe("No saved closes for this period yet.");
+    expect(read("content/i18n/es-CL.ts")).not.toContain("chartLibError");
+    expect(read("content/i18n/en.ts")).not.toContain("chartLibError");
   });
 
   it("el detalle rotula por el historial y pasa reference", () => {
@@ -91,6 +109,18 @@ describe("copy y pantallas", () => {
     expect(pricePanel).toContain("t.detail.chartReference");
     expect(pricePanel).toContain("reference={illustrative}");
     expect(pricePanel).toContain("DETAIL_RANGES");
+    expect(pricePanel).toContain('import { SvgPriceChart } from "@/components/domain/svg-price-chart"');
+    expect(pricePanel).toContain("history.data?.points ?? NO_POINTS");
+    expect(pricePanel).toContain("emptyHint={t.detail.chartEmptyHint}");
+    expect(pricePanel).toContain("rounded-2xl bg-white p-5");
+    expect(pricePanel).toContain(
+      "shadow-[0_1px_2px_rgba(16,24,40,0.04),0_8px_24px_rgba(16,24,40,0.08)]",
+    );
+    expect(pricePanel).not.toContain("seriesForQuote");
+    expect(pricePanel).not.toContain("anchorSeriesToSpot");
+    expect(pricePanel).not.toContain("LazyPriceChart");
+    expect(pricePanel).not.toContain("errorLabel");
+    expect(pricePanel).not.toContain("chartLibError");
     expect(pricePanel).not.toMatch(/const illustrative[\s\S]{0,240}jupiter/);
     expect(pricePanel).not.toContain("chartIllustrative");
   });
@@ -101,5 +131,11 @@ describe("copy y pantallas", () => {
     expect(portfolio).toContain("t.detail.chartReference");
     expect(portfolio).toContain("reference={reference}");
     expect(portfolio).toContain("DETAIL_RANGES");
+    expect(portfolio).toContain('import { SvgPriceChart } from "@/components/domain/svg-price-chart"');
+    expect(portfolio).toContain("emptyHint={t.detail.chartEmptyHint}");
+    expect(portfolio).not.toContain("anchorSeriesToSpot");
+    expect(portfolio).not.toContain("LazyPriceChart");
+    expect(portfolio).not.toContain("errorLabel");
+    expect(portfolio).not.toContain("chartLibError");
   });
 });

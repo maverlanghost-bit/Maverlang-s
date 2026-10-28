@@ -7,7 +7,7 @@ import { ActivityItem } from "@/components/domain/activity-item";
 import { AllocationBar, type AllocationSlice } from "@/components/domain/allocation-bar";
 import { ChangeBadge } from "@/components/domain/change-badge";
 import { FlashPrice } from "@/components/domain/flash-price";
-import { LazyPriceChart } from "@/components/domain/lazy-price-chart";
+import { SvgPriceChart } from "@/components/domain/svg-price-chart";
 import { PriceFreshness } from "@/components/domain/price-freshness";
 import { PositionRow } from "@/components/domain/position-row";
 import { RealAccountEmpty } from "@/components/domain/real-account-empty";
@@ -30,7 +30,7 @@ import { priceFlashDirection, type PriceFlash } from "@/lib/hooks/use-price-flas
 import { useT } from "@/lib/hooks/use-t";
 import { logoPathFromSymbol } from "@/lib/catalog/logos";
 import { displayPrice } from "@/lib/market/browse";
-import { DETAIL_RANGES, anchorSeriesToSpot, isDetailRange, isReferenceHistory, rangeMove, toneOf } from "@/lib/market/series";
+import { DETAIL_RANGES, isDetailRange, isReferenceHistory, rangeMove, toneOf } from "@/lib/market/series";
 import { balancedPortions, decodePoints, encodePoints, portfolioValueSeries, sumUsd, sumsMatch, tradeActivity } from "@/lib/portfolio/series";
 import type { Activity, Currency, OrderStatus, Position, Range, Ticker } from "@/lib/types";
 
@@ -156,12 +156,7 @@ const ValueChart = memo(function ValueChart({
   const [range, setRange] = useState<Range>("1M");
   const symbols = useMemo(() => positions.map((position) => position.symbol), [positions]);
   const histories = useHistories(symbols, range);
-  const rows = histories.map((query, index) => {
-    const series = query.data?.points ?? [];
-    const spot = positions[index]?.priceUsd;
-    if (!(typeof spot === "number" && spot > 0) || series.length === 0) return series;
-    return anchorSeriesToSpot(series, spot);
-  });
+  const rows = histories.map((query) => query.data?.points ?? []);
   const ready = rows.length === positions.length && rows.every((row) => row.length >= 2);
   const encoded = encodePoints(ready ? portfolioValueSeries(positions, rows, cashUsdc, totalUsd) : []);
   const points = useMemo(() => decodePoints(encoded), [encoded]);
@@ -201,12 +196,12 @@ const ValueChart = memo(function ValueChart({
           }}
         />
       ) : (
-        <LazyPriceChart
+        <SvgPriceChart
           points={points}
           tone={toneOf(rangeMove(points))}
           label={fill(t.portfolio.chartLabel, { range: t.detail.rangeCaption[range] })}
           emptyLabel={t.detail.chartEmpty}
-          errorLabel={t.detail.chartLibError}
+          emptyHint={t.detail.chartEmptyHint}
           onHover={onHover}
           reference={reference}
         />

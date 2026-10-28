@@ -5,11 +5,11 @@ import type { PricePoint, Range } from "@/lib/types";
  * (el rango elegido). "Variación 24 h" no sale de aquí: es `Quote.change24hPct`
  * (en vivo, Jupiter `priceChange24h`).
  *
- * `1Y` entra en el selector de detalle y cartera: el schema de historia lo acepta
+ * `1D` abre el selector (hoy). `1Y` también: el schema de historia lo acepta
  * y el mock arma 365 cierres diarios. En live, 1W/1M pueden salir de ticks;
- * 1Y sale de cierres diarios (366 días). `1D` no está en `Range` ni en la API.
+ * 1Y sale de cierres diarios (366 días).
  */
-export const DETAIL_RANGES = ["1W", "1M", "3M", "1Y", "ALL"] as const satisfies readonly Range[];
+export const DETAIL_RANGES = ["1D", "1W", "1M", "3M", "1Y", "ALL"] as const satisfies readonly ("1D" | Range)[];
 
 export function isDetailRange(value: string): value is Range {
   return (DETAIL_RANGES as readonly string[]).includes(value);
@@ -56,8 +56,8 @@ export function rangeBounds(points: readonly Pick<PricePoint, "p">[]): { high: n
 export type ChartTone = "up" | "down" | "flat";
 
 export function toneOf(move: number | null): ChartTone {
-  if (move === null || move === 0) return "flat";
-  return move > 0 ? "up" : "down";
+  if (move === null) return "flat";
+  return move >= 0 ? "up" : "down";
 }
 
 function round4(value: number): number {

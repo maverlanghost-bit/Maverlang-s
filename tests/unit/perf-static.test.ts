@@ -9,9 +9,7 @@ import { describe, expect, it } from "vitest";
  *    bajo app/api que toque sesión/cartera/billetera/perfil usa
  *    `handle("private")` o `handle("no-store")`, nunca los presets públicos.
  * 2. Las rutas públicas de catálogo/precios llevan `stale-while-revalidate`.
- * 3. `lightweight-charts` no llega al JS inicial: sólo se importa con
- *    `next/dynamic` + `ssr:false` (LazyPriceChart) o `import()` dinámico.
- * 4. El provider de Privy y `@solana/web3.js` viven en módulos que sólo se
+ * 3. El provider de Privy y `@solana/web3.js` viven en módulos que sólo se
  *    cargan con `import()` dinámico desde el cliente (`lib/auth/provider.tsx`).
  */
 
@@ -101,20 +99,13 @@ describe("M84: ninguna ruta con datos de usuario es cacheable", () => {
 describe("M84: carga diferida de librerías pesadas", () => {
   const scanDirs = ["app", "components", "lib"].map((dir) => path.join(ROOT, dir));
 
-  it("lightweight-charts sólo entra por dynamic import", () => {
+  it("ningún archivo importa lightweight-charts", () => {
     const violations: string[] = [];
     for (const dir of scanDirs) {
       for (const file of listFiles(dir)) {
         const source = readFileSync(file, "utf8");
-        for (const line of source.split("\n")) {
-          const trimmed = line.trim();
-          const isStatic = /^import\s/.test(trimmed) || /^}\s*from\s/.test(trimmed);
-          if (!isStatic) continue;
-          if (trimmed.includes('"lightweight-charts"') || trimmed.includes("'lightweight-charts'")) {
-            // type-only imports no generan bundle: se permiten.
-            if (trimmed.startsWith("import type")) continue;
-            violations.push(`${rel(file)}: import estático de lightweight-charts → ${trimmed}`);
-          }
+        if (source.includes('"lightweight-charts"') || source.includes("'lightweight-charts'")) {
+          violations.push(`${rel(file)}: importa lightweight-charts`);
         }
       }
     }
