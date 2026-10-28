@@ -194,7 +194,9 @@ export function PricePanel({
   const move = rangeMove(points);
   // Referencia si el historial es mock o no está marcado real, sea cual sea
   // la fuente del precio actual. Sin datos cargados no hay serie que rotular.
-  const illustrative = !history.isPending && !history.isError && isReferenceHistory(history.data);
+  // Sin línea dibujada (menos de 2 puntos) no hay serie que rotular.
+  const illustrative =
+    !history.isPending && !history.isError && points.length >= 2 && isReferenceHistory(history.data);
   const tone = toneOf(move);
   const seriesKey = `${range}:${points.length}:${points[0]?.t ?? 0}:${points[points.length - 1]?.p ?? 0}`;
   const [hover, setHover] = useState<{ key: string; usd: number; timeMs: number } | null>(null);

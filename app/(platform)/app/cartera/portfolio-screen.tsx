@@ -164,7 +164,8 @@ const ValueChart = memo(function ValueChart({
   const failed = histories.some((query) => query.isError);
   // Si alguna historia usada es mock (o no está marcada real), la curva
   // mezclada tampoco es un precio real.
-  const reference = !pending && !failed && histories.some((query) => isReferenceHistory(query.data));
+  const reference =
+    !pending && !failed && points.length >= 2 && histories.some((query) => isReferenceHistory(query.data));
   const rangeOptions = DETAIL_RANGES.map((value) => ({ value, label: t.detail.rangeShort[value] }));
 
   return (
