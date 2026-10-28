@@ -181,6 +181,7 @@ export const esCL = {
     chartLibError: "No pudimos dibujar el gráfico.",
     chartIllustrative: "Ilustrativo",
     chartIllustrativeNote: "Historial de referencia; el precio actual es real.",
+    chartReference: "Referencia: no es el precio real",
     chartSourceClose: "Cierre diario de {symbol} (Yahoo) · actualizado {when} Chile",
     chartSourceTicks: "Precio del token · actualizado {when} Chile",
     priceError: "No pudimos cargar el precio.",

@@ -178,6 +178,7 @@ export const en = {
     chartLibError: "We couldn't draw the chart.",
     chartIllustrative: "Illustrative",
     chartIllustrativeNote: "Reference history; the current price is real.",
+    chartReference: "Reference only, not real prices",
     chartSourceClose: "Daily close of {symbol} (Yahoo) · updated {when} Chile",
     chartSourceTicks: "Token price · updated {when} Chile",
     priceError: "We couldn't load the price.",

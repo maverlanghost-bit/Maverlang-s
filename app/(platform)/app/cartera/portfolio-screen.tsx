@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useCallback, useMemo, useState, type ReactNode } from "react";
+import { memo, useCallback, useMemo, useState, type ComponentProps, type ReactNode } from "react";
 import Link from "next/link";
 
 import { ActivityItem } from "@/components/domain/activity-item";
@@ -30,7 +30,7 @@ import { priceFlashDirection, type PriceFlash } from "@/lib/hooks/use-price-flas
 import { useT } from "@/lib/hooks/use-t";
 import { logoPathFromSymbol } from "@/lib/catalog/logos";
 import { displayPrice } from "@/lib/market/browse";
-import { DETAIL_RANGES, anchorSeriesToSpot, isDetailRange, rangeMove, toneOf } from "@/lib/market/series";
+import { DETAIL_RANGES, anchorSeriesToSpot, isDetailRange, isReferenceHistory, rangeMove, toneOf } from "@/lib/market/series";
 import { balancedPortions, decodePoints, encodePoints, portfolioValueSeries, sumUsd, sumsMatch, tradeActivity } from "@/lib/portfolio/series";
 import type { Activity, Currency, OrderStatus, Position, Range, Ticker } from "@/lib/types";
 
@@ -167,6 +167,9 @@ const ValueChart = memo(function ValueChart({
   const points = useMemo(() => decodePoints(encoded), [encoded]);
   const pending = histories.some((query) => query.isPending);
   const failed = histories.some((query) => query.isError);
+  // Si alguna historia usada es mock (o no está marcada real), la curva
+  // mezclada tampoco es un precio real.
+  const reference = !pending && !failed && histories.some((query) => isReferenceHistory(query.data));
   const rangeOptions = DETAIL_RANGES.map((value) => ({ value, label: t.detail.rangeShort[value] }));
 
   return (
@@ -182,6 +185,7 @@ const ValueChart = memo(function ValueChart({
           onHover(null);
         }}
       />
+      {reference ? <p className="text-sm text-fg-muted">{t.detail.chartReference}</p> : null}
       {pending ? (
         <div role="status" aria-live="polite" aria-busy="true">
           <span className="sr-only">{t.states.loading}</span>
@@ -204,6 +208,7 @@ const ValueChart = memo(function ValueChart({
           emptyLabel={t.detail.chartEmpty}
           errorLabel={t.detail.chartLibError}
           onHover={onHover}
+          {...({ reference } as object as ComponentProps<typeof LazyPriceChart>)}
         />
       )}
     </>

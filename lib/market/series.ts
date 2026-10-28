@@ -4,11 +4,28 @@ import type { PricePoint, Range } from "@/lib/types";
  * El % bajo el titular y "Variación {rango}" salen de `rangeMove` sobre esta serie
  * (el rango elegido). "Variación 24 h" no sale de aquí: es `Quote.change24hPct`
  * (en vivo, Jupiter `priceChange24h`).
+ *
+ * `1Y` entra en el selector de detalle y cartera: el schema de historia lo acepta
+ * y el mock arma 365 cierres diarios. En live, 1W/1M pueden salir de ticks;
+ * 1Y sale de cierres diarios (366 días). `1D` no está en `Range` ni en la API.
  */
 export const DETAIL_RANGES = ["1W", "1M", "3M", "1Y", "ALL"] as const satisfies readonly Range[];
 
 export function isDetailRange(value: string): value is Range {
   return (DETAIL_RANGES as readonly string[]).includes(value);
+}
+
+/**
+ * Serie que no se puede pintar como precio real.
+ * `source: "mock"` es la ancla inventada. `real !== true` cubre ese caso y
+ * también una respuesta sin dos observaciones. Sin payload (carga o error)
+ * no hay serie que rotular. No mira la fuente del precio actual.
+ */
+export function isReferenceHistory(
+  history: { source?: string | null; real?: boolean | null } | null | undefined,
+): boolean {
+  if (history == null) return false;
+  return history.source === "mock" || history.real !== true;
 }
 
 /** Variación del primer al último punto, como ratio. null si no alcanza. */

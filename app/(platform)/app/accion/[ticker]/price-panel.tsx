@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useMemo, useState, type ComponentProps, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 import { ChangeBadge } from "@/components/domain/change-badge";
@@ -9,7 +9,6 @@ import { LazyPriceChart } from "@/components/domain/lazy-price-chart";
 import { PriceFreshness } from "@/components/domain/price-freshness";
 import { ErrorState } from "@/components/ui/error-state";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Tooltip } from "@/components/ui/tooltip";
 import { indexFromKey } from "@/components/ui/keys";
 import { getPrices } from "@/lib/api/client";
 import { cn } from "@/lib/cn";
@@ -19,7 +18,7 @@ import { useT } from "@/lib/hooks/use-t";
 import { displayPrice } from "@/lib/market/browse";
 import { poolDislocated, poolDislocationPct } from "@/lib/market/dislocation";
 import { priceFlashDirection, type PriceFlash } from "@/lib/hooks/use-price-flash";
-import { DETAIL_RANGES, isDetailRange, rangeMove, seriesForQuote, toneOf } from "@/lib/market/series";
+import { DETAIL_RANGES, isDetailRange, isReferenceHistory, rangeMove, seriesForQuote, toneOf } from "@/lib/market/series";
 import type { Currency, PricePoint, Quote, Range } from "@/lib/types";
 
 const NO_POINTS: readonly PricePoint[] = [];
@@ -152,15 +151,9 @@ export function PricePanel({
   }, [polledRow, polledAt]);
   const points = seriesForQuote(history.data?.points ?? NO_POINTS, quote?.priceUsd);
   const move = rangeMove(points);
-  // "Ilustrativo" sólo cuando NO hay datos reales (serie de referencia) y el
-  // precio es de Jupiter. Con observaciones reales en price_ticks, no se muestra.
-  const illustrative =
-    !history.isPending &&
-    !history.isError &&
-    points.length > 1 &&
-    history.data?.real !== true &&
-    quote?.source === "jupiter" &&
-    quote.reference !== true;
+  // Referencia si el historial es mock o no está marcado real, sea cual sea
+  // la fuente del precio actual. Sin datos cargados no hay serie que rotular.
+  const illustrative = !history.isPending && !history.isError && isReferenceHistory(history.data);
   const tone = toneOf(move);
   const seriesKey = `${range}:${points.length}:${points[0]?.t ?? 0}:${points[points.length - 1]?.p ?? 0}`;
   const [hover, setHover] = useState<{ key: string; usd: number; timeMs: number } | null>(null);
@@ -287,19 +280,9 @@ export function PricePanel({
         }}
       />
 
+      {illustrative ? <p className="text-sm text-fg-muted">{t.detail.chartReference}</p> : null}
+
       <div className="relative min-w-0 max-w-full">
-        {illustrative ? (
-          <div className="absolute top-2 right-2 z-20">
-            <Tooltip content={t.detail.chartIllustrativeNote}>
-              <button
-                type="button"
-                className="rounded-full bg-surface-2 px-2 py-1 text-xs text-fg-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fg"
-              >
-                {t.detail.chartIllustrative}
-              </button>
-            </Tooltip>
-          </div>
-        ) : null}
         <LazyPriceChart
           points={points}
           tone={tone}
@@ -309,6 +292,7 @@ export function PricePanel({
           emptyLabel={t.detail.chartEmpty}
           errorLabel={t.detail.chartLibError}
           onHover={onHover}
+          {...({ reference: illustrative } as object as ComponentProps<typeof LazyPriceChart>)}
         />
         {history.isPending ? (
           <div className="absolute inset-0 z-10 bg-bg" role="status" aria-live="polite" aria-busy="true">
