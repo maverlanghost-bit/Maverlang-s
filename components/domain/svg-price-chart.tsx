@@ -8,17 +8,22 @@ import {
   CHART_W,
   PAD_B,
   PAD_T,
+  buildChartModel,
   changeFromOpen,
+  nearestPointWithin,
   openingPriceY,
-  plotSeries,
-  smoothPath,
   toRows,
+  type ChartBenchmark,
+  type ChartLayerModel,
+  type ChartOverlay,
   type PlottedPoint,
 } from "@/lib/market/chart-geometry";
 import type { ChartTone } from "@/lib/market/series";
 import type { PricePoint } from "@/lib/types";
 
-const TONE_STROKE: Record<ChartTone, string> = {
+export type { ChartBenchmark, ChartOverlay };
+
+export const TONE_STROKE: Record<ChartTone, string> = {
   up: "var(--color-up, #0f7a32)",
   down: "var(--color-down, #c81e1e)",
   flat: "var(--color-fg-muted, #6c6f75)",
@@ -32,6 +37,7 @@ const OPEN_DASH = "3 4";
 const SCRUB_SLOP_PX = 8;
 const TOUCH_GHOST_MS = 700;
 const TOUCH_RELEASE_MS = 400;
+const EMPTY_OVERLAYS: readonly ChartOverlay[] = [];
 
 export interface PriceChartProps {
   points: readonly PricePoint[];
@@ -47,7 +53,13 @@ export interface PriceChartProps {
   quiet?: boolean;
   /** Serie de referencia, no es un precio real: línea gris punteada, sin gradiente. */
   reference?: boolean;
+  /** Medias u otras series, en la misma escala Y que el precio (o en % si hay benchmark). */
+  overlays?: readonly ChartOverlay[];
+  /** SPYx u otra serie de referencia, rebasada a % desde el inicio. */
+  benchmark?: ChartBenchmark | null;
 }
+
+type DrawnPoint = PlottedPoint & { usd: number };
 
 function areaUnder(line: string, points: readonly { x: number }[]): string {
   const first = points[0];
@@ -165,7 +177,7 @@ function hoverWhen(t: number): string {
 
 function commitHover(
   index: number | null,
-  points: readonly PlottedPoint[],
+  points: readonly DrawnPoint[],
   hoverRef: { current: number | null },
   setHoverIndex: (index: number | null) => void,
   onHover: (usd: number | null, timeMs: number | null) => void,
@@ -182,7 +194,7 @@ function commitHover(
   if (hoverRef.current === index) return;
   hoverRef.current = index;
   setHoverIndex(index);
-  onHover(point.p, point.t);
+  onHover(point.usd, point.t);
 }
 
 function historyKey(points: readonly PricePoint[]): string {
@@ -191,6 +203,15 @@ function historyKey(points: readonly PricePoint[]): string {
   const last = rows[rows.length - 1];
   if (!first || !last) return "0";
   return `${rows.length}:${first.t}:${last.t}:${last.p}`;
+}
+
+function layerText(layer: ChartLayerModel, t: number, percentMode: boolean, assetOpen: number): string | null {
+  const point = nearestPointWithin(layer.points, t);
+  if (!point || !Number.isFinite(point.usd)) return null;
+  if (!percentMode) return formatUsd(point.usd);
+  const base = layer.id === "benchmark" ? layer.points[0]?.usd : assetOpen;
+  if (base === undefined) return null;
+  return changeFromOpen(base, point.usd)?.label ?? null;
 }
 
 function DrawnChart({
@@ -202,8 +223,10 @@ function DrawnChart({
   label,
   gradId,
   onHover,
+  layers,
+  percentMode,
 }: {
-  points: readonly PlottedPoint[];
+  points: readonly DrawnPoint[];
   line: string;
   area: string;
   stroke: string;
@@ -211,6 +234,8 @@ function DrawnChart({
   label: string;
   gradId: string;
   onHover: (usd: number | null, timeMs?: number | null) => void;
+  layers: readonly ChartLayerModel[];
+  percentMode: boolean;
 }) {
   const svgRef = useRef<SVGSVGElement>(null);
   const plotRef = useRef(points);
@@ -251,9 +276,17 @@ function DrawnChart({
 
   const hoverPoint = hoverIndex !== null && hoverIndex < points.length ? points[hoverIndex] : undefined;
   const hoverLeft = hoverPoint ? Math.min(85, Math.max(15, (hoverPoint.x / CHART_W) * 100)) : 0;
-  const openPrice = points[0]?.p;
-  const periodMove = hoverPoint && openPrice !== undefined ? changeFromOpen(openPrice, hoverPoint.p) : null;
+  const openPrice = points[0]?.usd;
+  const periodMove = hoverPoint && openPrice !== undefined ? changeFromOpen(openPrice, hoverPoint.usd) : null;
   const openY = openingPriceY(points);
+  const hints =
+    hoverPoint && openPrice !== undefined
+      ? layers.flatMap((layer) => {
+          const text = layerText(layer, hoverPoint.t, percentMode, openPrice);
+          if (!text || layer.label.length === 0) return [];
+          return [{ id: layer.id, label: layer.label, text }];
+        })
+      : [];
 
   const onMouseMove = (event: MouseEvent<SVGSVGElement>) => {
     if (performance.now() < ignorePointerUntil.current) return;
@@ -278,12 +311,13 @@ function DrawnChart({
         focusable="false"
         data-points={points.length}
         data-reference={reference ? "true" : "false"}
+        data-percent={percentMode ? "true" : "false"}
         className="absolute inset-0 h-full w-full touch-pan-y"
         style={{ touchAction: "pan-y" }}
         onMouseMove={onMouseMove}
         onMouseLeave={onMouseLeave}
       >
-        {reference ? null : (
+        {reference || !area ? null : (
           <defs>
             <linearGradient id={gradId} x1="0" x2="0" y1="0" y2="1">
               <stop offset="0%" stopColor={stroke} stopOpacity="0.22" />
@@ -314,6 +348,20 @@ function DrawnChart({
           strokeDasharray={reference ? "4 4" : undefined}
           vectorEffect="non-scaling-stroke"
         />
+        {layers.map((layer) => (
+          <path
+            key={layer.id}
+            data-overlay={layer.id}
+            d={layer.line}
+            fill="none"
+            stroke={layer.color}
+            strokeWidth={layer.width}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeDasharray={layer.dash}
+            vectorEffect="non-scaling-stroke"
+          />
+        ))}
         {hoverPoint ? (
           <line
             x1={hoverPoint.x}
@@ -341,10 +389,16 @@ function DrawnChart({
           >
             {reference ? <p>Referencia</p> : null}
             <p className="opacity-70">{hoverWhen(hoverPoint.t)}</p>
-            <p className="num font-medium">{formatUsd(hoverPoint.p)}</p>
+            <p className="num font-medium">{formatUsd(hoverPoint.usd)}</p>
             {periodMove ? (
               <p className={`num font-medium ${periodMove.up ? "text-up" : "text-down"}`}>{periodMove.label}</p>
             ) : null}
+            {hints.map((hint) => (
+              <p key={hint.id} className="num">
+                <span className="opacity-70">{hint.label} </span>
+                {hint.text}
+              </p>
+            ))}
           </div>
         </>
       ) : null}
@@ -362,29 +416,30 @@ function SvgPriceChartBase({
   livePoint,
   quiet = false,
   reference = false,
+  overlays,
+  benchmark = null,
 }: PriceChartProps) {
   const gradRaw = useId().replace(/:/g, "");
   const gradId = `svg-price-${gradRaw}`;
   const model = useMemo(() => {
     const rows = toRows(points, livePoint);
-    const plot = plotSeries(rows);
-    const line = plot ? smoothPath(plot.points) : "";
+    const built = buildChartModel(rows, overlays ?? EMPTY_OVERLAYS, benchmark);
+    if (!built) return null;
     return {
+      ...built,
       key: historyKey(points),
-      plot,
-      line,
-      area: plot ? areaUnder(line, plot.points) : "",
+      area: built.percentMode ? "" : areaUnder(built.line, built.points),
     };
-  }, [points, livePoint]);
-  const drawn = model.plot !== null && model.plot.points.length >= 2;
+  }, [points, livePoint, overlays, benchmark]);
+  const drawn = model !== null && model.points.length >= 2;
   const stroke = reference ? REFERENCE_STROKE : TONE_STROKE[tone];
 
   return (
     <div className="relative h-56 w-full touch-pan-y sm:h-64" style={{ touchAction: "pan-y" }} data-tone={tone}>
-      {drawn && model.plot ? (
+      {drawn && model ? (
         <DrawnChart
-          key={model.key}
-          points={model.plot.points}
+          key={`${model.key}:${model.percentMode ? "pct" : "px"}:${model.layers.map((layer) => layer.id).join(".")}`}
+          points={model.points}
           line={model.line}
           area={model.area}
           stroke={stroke}
@@ -392,6 +447,8 @@ function SvgPriceChartBase({
           label={label}
           gradId={gradId}
           onHover={onHover}
+          layers={model.layers}
+          percentMode={model.percentMode}
         />
       ) : quiet ? null : (
         <div className="absolute inset-0 flex flex-col items-center justify-center rounded-xl bg-neutral-50 px-4 text-center">

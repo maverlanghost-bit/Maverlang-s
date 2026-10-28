@@ -4,24 +4,29 @@ import { useCallback, useMemo, useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 import { ChangeBadge } from "@/components/domain/change-badge";
+import { ChartLegend, ChartStudyBar, RsiPanel, SMA_COLOR } from "@/components/domain/chart-overlays";
 import { FlashPrice } from "@/components/domain/flash-price";
-import { SvgPriceChart } from "@/components/domain/svg-price-chart";
 import { PriceFreshness } from "@/components/domain/price-freshness";
+import { SvgPriceChart, TONE_STROKE } from "@/components/domain/svg-price-chart";
 import { ErrorState } from "@/components/ui/error-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { indexFromKey } from "@/components/ui/keys";
+import { graficoCopy } from "@/content/i18n/extra-grafico";
 import { getPrices } from "@/lib/api/client";
 import { cn } from "@/lib/cn";
 import { formatDateTime, formatMoney, formatPercent } from "@/lib/format";
 import { useHistory, useMarketStatus } from "@/lib/hooks/queries";
 import { useT } from "@/lib/hooks/use-t";
 import { displayPrice } from "@/lib/market/browse";
+import { BENCHMARK_COLOR, type ChartOverlay } from "@/lib/market/chart-geometry";
 import { poolDislocated, poolDislocationPct } from "@/lib/market/dislocation";
 import { priceFlashDirection, type PriceFlash } from "@/lib/hooks/use-price-flash";
+import { SMA_PERIODS, SPY_SYMBOL, chartStudies, type SmaPeriod } from "@/lib/market/indicators";
 import { DETAIL_RANGES, isDetailRange, isReferenceHistory, rangeMove, toneOf } from "@/lib/market/series";
 import type { Currency, PricePoint, Quote, Range } from "@/lib/types";
 
 const NO_POINTS: readonly PricePoint[] = [];
+const NO_OVERLAYS: readonly ChartOverlay[] = [];
 const LIVE_RANGE_MS = 15_000;
 const CLOSED_RANGE_MS = 60_000;
 
@@ -169,8 +174,11 @@ export function PricePanel({
   /** Acción subyacente (AAPL). La muestra la fuente del cierre diario. */
   underlying?: string;
 }) {
-  const { t } = useT();
+  const { t, language } = useT();
+  const copy = graficoCopy(language);
   const history = useHistory(symbol, range);
+  const spyHistory = useHistory(SPY_SYMBOL, range);
+  const longHistory = useHistory(symbol, "ALL");
   const market = useMarketStatus();
   const marketOpen = market.data?.underlyingOpen === true;
   const pollChart = pollsLiveChart(range);
@@ -198,8 +206,73 @@ export function PricePanel({
   const illustrative =
     !history.isPending && !history.isError && points.length >= 2 && isReferenceHistory(history.data);
   const tone = toneOf(move);
-  const seriesKey = `${range}:${points.length}:${points[0]?.t ?? 0}:${points[points.length - 1]?.p ?? 0}`;
   const [hover, setHover] = useState<{ key: string; usd: number; timeMs: number } | null>(null);
+  const [spyOn, setSpyOn] = useState(false);
+  const [smaOn, setSmaOn] = useState<Record<SmaPeriod, boolean>>({ 20: false, 50: false, 200: false });
+  const [rsiOn, setRsiOn] = useState(false);
+  const chartReady = !history.isPending && !history.isError && points.length >= 2;
+  const windowStart = period?.start;
+  const windowEnd = period?.end;
+  const studies = useMemo(
+    () =>
+      chartStudies({
+        symbol,
+        range,
+        illustrative,
+        window:
+          windowStart === undefined || windowEnd === undefined ? null : { start: windowStart, end: windowEnd },
+        spy: spyHistory.data
+          ? { points: spyHistory.data.points, reference: isReferenceHistory(spyHistory.data) }
+          : null,
+        closes: longHistory.data
+          ? { points: longHistory.data.points, reference: isReferenceHistory(longHistory.data) }
+          : null,
+      }),
+    [symbol, range, illustrative, windowStart, windowEnd, spyHistory.data, longHistory.data],
+  );
+  const overlays = useMemo(() => {
+    if (!chartReady) return NO_OVERLAYS;
+    const list: ChartOverlay[] = [];
+    for (const periodKey of SMA_PERIODS) {
+      if (!smaOn[periodKey]) continue;
+      const series = studies.sma[periodKey];
+      if (series.length < 2) continue;
+      list.push({
+        id: `sma-${periodKey}`,
+        points: series,
+        color: SMA_COLOR[periodKey],
+        label: periodKey === 20 ? copy.sma20 : periodKey === 50 ? copy.sma50 : copy.sma200,
+      });
+    }
+    return list;
+  }, [chartReady, smaOn, studies, copy]);
+  const benchmark = useMemo(() => {
+    if (!chartReady || !spyOn || studies.spyPoints.length < 2) return null;
+    return { points: studies.spyPoints, label: copy.spyLegend };
+  }, [chartReady, spyOn, studies.spyPoints, copy.spyLegend]);
+  const showSpy = chartReady && studies.spyPoints.length >= 2;
+  const smaChoices = chartReady ? SMA_PERIODS.filter((periodKey) => studies.sma[periodKey].length >= 2) : [];
+  const showRsi = chartReady && studies.rsi.length >= 2;
+  const legendItems = [
+    ...(benchmark
+      ? [
+          {
+            id: "asset",
+            label: symbol,
+            color: illustrative ? BENCHMARK_COLOR : TONE_STROKE[tone],
+            dashed: illustrative,
+          },
+          { id: "benchmark", label: copy.spyLegend, color: BENCHMARK_COLOR, dashed: true },
+        ]
+      : []),
+    ...overlays.map((item) => ({
+      id: item.id,
+      label: item.label,
+      color: item.color,
+      dashed: Boolean(item.dash),
+    })),
+  ];
+  const seriesKey = `${range}:${points.length}:${points[0]?.t ?? 0}:${points[points.length - 1]?.p ?? 0}`;
   const point = hover && hover.key === seriesKey ? hover : null;
 
   const onHover = useCallback(
@@ -326,6 +399,16 @@ export function PricePanel({
       {illustrative ? <p className="text-sm text-fg-muted">{t.detail.chartReference}</p> : null}
 
       <div className="min-w-0 max-w-full rounded-2xl bg-white p-5 shadow-[0_1px_2px_rgba(16,24,40,0.04),0_8px_24px_rgba(16,24,40,0.08)] sm:p-7">
+        <ChartStudyBar
+          copy={copy}
+          spy={showSpy ? { on: spyOn, onToggle: () => setSpyOn((value) => !value) } : null}
+          smas={smaChoices.map((periodKey) => ({
+            period: periodKey,
+            on: smaOn[periodKey],
+            onToggle: () => setSmaOn((current) => ({ ...current, [periodKey]: !current[periodKey] })),
+          }))}
+          rsi={showRsi ? { on: rsiOn, onToggle: () => setRsiOn((value) => !value) } : null}
+        />
         <div className="relative min-w-0 max-w-full">
           <SvgPriceChart
             points={points}
@@ -337,6 +420,8 @@ export function PricePanel({
             emptyHint={t.detail.chartEmptyHint}
             onHover={onHover}
             reference={illustrative}
+            overlays={overlays}
+            benchmark={benchmark}
           />
           {history.isPending ? (
             <div className="absolute inset-0 z-10 bg-bg" role="status" aria-live="polite" aria-busy="true">
@@ -362,6 +447,17 @@ export function PricePanel({
             <time dateTime={new Date(period.start).toISOString()}>{formatPeriodDate(period.start)}</time>
             <time dateTime={new Date(period.end).toISOString()}>{formatPeriodDate(period.end)}</time>
           </div>
+        ) : null}
+        <ChartLegend label={copy.legend} items={legendItems} />
+        {rsiOn && showRsi && period ? (
+          <RsiPanel
+            points={studies.rsi}
+            t0={period.start}
+            t1={period.end}
+            label={copy.rsi}
+            axisLabel={copy.rsiAxis}
+            emptyLabel={copy.rsiEmpty}
+          />
         ) : null}
       </div>
       {sourceLine ? <p className="text-xs text-fg-muted">{sourceLine}</p> : null}

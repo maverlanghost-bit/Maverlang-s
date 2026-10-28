@@ -218,4 +218,74 @@ describe("SvgPriceChart", () => {
     expect(markup).not.toContain('fill="url(#');
     expect(openingLine(markup)).toContain('stroke-dasharray="3 4"');
   });
+
+  it("sin capas no dibuja medias ni la serie en porcentaje", () => {
+    const markup = markupOf({
+      ...chartProps,
+      points: [
+        { t: 1_000, p: 100 },
+        { t: 2_000, p: 110 },
+      ],
+    });
+    expect(markup).toContain('data-percent="false"');
+    expect(markup).not.toContain("data-overlay");
+    expect(markup).not.toContain('stroke-dasharray="5 5"');
+  });
+
+  it("dibuja una media en la misma escala, con su color", () => {
+    const markup = markupOf({
+      ...chartProps,
+      points: [
+        { t: 1_000, p: 100 },
+        { t: 2_000, p: 110 },
+      ],
+      overlays: [
+        {
+          id: "sma-20",
+          label: "SMA 20",
+          color: "#2b7fd9",
+          points: [
+            { t: 1_000, p: 100 },
+            { t: 2_000, p: 140 },
+          ],
+        },
+      ],
+    });
+    const tag = markup.match(/<path\b[^>]*data-overlay="sma-20"[^>]*>/)?.[0] ?? "";
+    expect(tag).toContain('stroke="#2b7fd9"');
+    expect(tag).toContain('stroke-width="1.5"');
+    expect(tag).not.toContain("stroke-dasharray");
+    const openAt = markup.indexOf('stroke="#e5e5e5"');
+    const curveAt = markup.indexOf('stroke-width="2.25"');
+    const overlayAt = markup.indexOf('data-overlay="sma-20"');
+    expect(openAt).toBeGreaterThan(-1);
+    expect(curveAt).toBeGreaterThan(openAt);
+    expect(overlayAt).toBeGreaterThan(curveAt);
+  });
+
+  it("el S&P 500 es una línea gris punteada 5 5 de 1,5 px y el eje pasa a porcentaje", () => {
+    const markup = markupOf({
+      ...chartProps,
+      points: [
+        { t: 1_000, p: 100 },
+        { t: 2_000, p: 110 },
+      ],
+      benchmark: {
+        label: "S&P 500",
+        points: [
+          { t: 1_000, p: 200 },
+          { t: 2_000, p: 220 },
+        ],
+      },
+    });
+    const tag = markup.match(/<path\b[^>]*data-overlay="benchmark"[^>]*>/)?.[0] ?? "";
+    expect(tag).toContain('stroke="#a3a3a3"');
+    expect(tag).toContain('stroke-dasharray="5 5"');
+    expect(tag).toContain('stroke-width="1.5"');
+    expect(tag).toContain('vector-effect="non-scaling-stroke"');
+    expect(markup).toContain('data-percent="true"');
+    expect(markup).not.toContain('fill="url(#');
+    expect(openingLine(markup)).toContain('stroke-dasharray="3 4"');
+    expect(markup.indexOf('stroke-width="2.25"')).toBeLessThan(markup.indexOf('data-overlay="benchmark"'));
+  });
 });
