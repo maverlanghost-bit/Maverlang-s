@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  coingeckoMarketsUrl,
   coingeckoSymbol,
   fetchCoinGeckoHistory,
   resolveCoinGeckoId,
+  resolveCoinGeckoIdMap,
 } from "@/lib/market/coingecko-history";
 
 /**
@@ -97,6 +99,60 @@ describe("fetchCoinGeckoHistory", () => {
       if (input === MARKETS) return json([{ id: "apple-xstock", symbol: "aaplx", current_price: 230 }]);
       return json({ error: "rate limited" }, 429);
     };
-    expect(await fetchCoinGeckoHistory("AAPLx", { fetchImpl: fetchImpl as typeof fetch })).toBeNull();
+    const slept: number[] = [];
+    const state = { rateLimited: false };
+    expect(
+      await fetchCoinGeckoHistory("AAPLx", {
+        fetchImpl: fetchImpl as typeof fetch,
+        state,
+        sleep: async (ms) => {
+          slept.push(ms);
+        },
+      }),
+    ).toBeNull();
+    expect(state.rateLimited).toBe(true);
+    expect(slept).toEqual([]);
+  });
+
+  it("resuelve un id de la categoría ondo", async () => {
+    const ondo = coingeckoMarketsUrl("ondo-tokenized-assets", 1);
+    const fetchImpl = async (input: string) => {
+      if (input === MARKETS) return json([]);
+      if (input === ondo) return json([{ id: "circle-ondo", symbol: "crclon" }]);
+      return json({}, 404);
+    };
+    expect(await resolveCoinGeckoId("CRCLon", { fetchImpl: fetchImpl as typeof fetch })).toBe("circle-ondo");
+  });
+
+  it("conserva la primera página si la segunda responde 429", async () => {
+    const page = Array.from({ length: 250 }, (_, index) => ({ id: `id-${index}`, symbol: `s${index}x` }));
+    page[0] = { id: "apple-xstock", symbol: "aaplx" };
+    const calls: string[] = [];
+    const fetchImpl = async (input: string) => {
+      calls.push(input);
+      if (input === MARKETS) return json(page);
+      if (input === coingeckoMarketsUrl("xstocks-ecosystem", 2)) return json({}, 429);
+      return json({}, 404);
+    };
+    const state = { rateLimited: false };
+    const map = await resolveCoinGeckoIdMap({ fetchImpl: fetchImpl as typeof fetch, state });
+    expect(map.get("aaplx")).toBe("apple-xstock");
+    expect(state.rateLimited).toBe(true);
+    expect(calls.some((url) => url.includes("ondo-tokenized-assets"))).toBe(false);
+  });
+
+  it("reintenta el chart sin interval si el plan responde 400", async () => {
+    const plain = "https://api.coingecko.com/api/v3/coins/apple-xstock/market_chart?vs_currency=usd&days=365";
+    const fetchImpl = async (input: string) => {
+      if (input === MARKETS) return json([{ id: "apple-xstock", symbol: "aaplx" }]);
+      if (input === CHART) return json({}, 400);
+      if (input === plain) return json({ prices: [[1700000000000, 10], [1700086400000, 11]] });
+      return json({}, 404);
+    };
+    const result = await fetchCoinGeckoHistory("AAPLx", { fetchImpl: fetchImpl as typeof fetch });
+    expect(result?.points).toEqual([
+      { t: 1700000000000, p: 10 },
+      { t: 1700086400000, p: 11 },
+    ]);
   });
 });

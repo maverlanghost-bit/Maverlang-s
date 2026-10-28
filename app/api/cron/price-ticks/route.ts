@@ -2,24 +2,29 @@ import { timingSafeEqual } from "node:crypto";
 
 import { handle } from "@/lib/api/handler";
 import { DomainError } from "@/lib/api/result";
-import { getServices } from "@/lib/services";
-import { recordTicks } from "@/lib/services/price-ticks.supabase";
+import { serverEnv } from "@/lib/env";
+import { safeJobError } from "@/lib/market/cron-safe";
+import { runJupiterTickJob } from "@/lib/market/price-cron-job";
+import {
+  assertPriceTicksWritable,
+  listVisiblePriceAssets,
+  writePriceTicks,
+} from "@/lib/services/price-ticks.supabase";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+/** Hobby corta cerca de los 60 s. El presupuesto interno es menor para alcanzar a escribir. */
+export const maxDuration = 60;
 
 /**
- * Grabador de historial real (gráficos). Vercel lo llama cada ~5 min
+ * Spot real para los gráficos. Vercel lo llama una vez al día
  * (`Authorization: Bearer *** — ver `vercel.json`). Sin token → 401.
  * Sin `CRON_SECRET` → 503 "cron deshabilitado".
  *
- * Toma el spot que la app YA consulta de Jupiter para todo el catálogo
- * operable y lo persiste en `price_ticks`. Así el historial crece solo con
- * datos reales (no random walk) y los gráficos dejan de ser ilustrativos.
- *
- * Sólo guarda cotizaciones vivas de Jupiter (`source==="jupiter"`, sin
- * `reference`): una ancla mock no es una observación real. Fallos de red o de
- * base devuelven lo que se pudo; nunca rompen.
+ * Lee los activos visibles del catálogo y guarda el precio que Jupiter
+ * devuelve (`usdPrice`, o el del subyacente si no hay `priceChange24h`).
+ * No usa `PRICES_MODE`: una lista vacía no es el catálogo, y un precio mock
+ * no se escribe. Si la base falla, `dbError` lo dice (no un 0 silencioso).
  */
 function assertCronSecret(req: Request): void {
   const expected = (process.env.CRON_SECRET ?? "").trim();
@@ -33,19 +38,33 @@ function assertCronSecret(req: Request): void {
   }
 }
 
+const BUDGET_MS = 45_000;
+
 export function GET(req: Request) {
   return handle("no-store", async () => {
     assertCronSecret(req);
-    const services = getServices();
-    // [] = todo el catálogo operable (el batcher ya trocea en lotes de 50).
-    const quotes = await services.prices.list([]).catch(() => []);
-    const now = Date.now();
-    // Un mismo instante para todo el lote: la clave es (symbol, t, source).
-    const tickAt = Math.floor(now / 60_000) * 60_000;
-    const ticks = quotes
-      .filter((quote) => quote.source === "jupiter" && quote.reference !== true && quote.priceUsd > 0)
-      .map((quote) => ({ symbol: quote.symbol, t: tickAt, priceUsd: quote.priceUsd, source: "jupiter" as const }));
-    const recorded = await recordTicks(ticks).catch(() => 0);
-    return { recorded, candidates: quotes.length };
+    const started = Date.now();
+    const blocked = await assertPriceTicksWritable();
+    if (blocked) return { recorded: 0, candidates: 0, quoted: 0, dbError: blocked, rateLimited: false };
+    try {
+      const assets = await listVisiblePriceAssets();
+      const result = await runJupiterTickJob({
+        assets,
+        priceUrl: serverEnv.JUPITER_BASE_URL,
+        apiKey: serverEnv.JUPITER_API_KEY,
+        now: started,
+        deadline: started + BUDGET_MS,
+        write: (ticks) => writePriceTicks(ticks),
+      });
+      return {
+        recorded: result.recorded,
+        candidates: result.candidates,
+        quoted: result.quoted,
+        dbError: result.dbError,
+        rateLimited: result.rateLimited,
+      };
+    } catch (error) {
+      return { recorded: 0, candidates: 0, quoted: 0, dbError: safeJobError(error), rateLimited: false };
+    }
   });
 }
