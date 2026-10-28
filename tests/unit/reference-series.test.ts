@@ -71,7 +71,7 @@ describe("rangos 1Y y 1D", () => {
     expect(en.detail.rangeCaption["1D"]).toBe("today");
     expect(read("lib/types/index.ts")).toContain('export type Range = "1D" | "1W" | "1M" | "3M" | "1Y" | "ALL"');
     expect(read("lib/api/contracts.ts")).toContain('z.enum(["1D", "1W", "1M", "3M", "1Y", "ALL"])');
-    expect(read("lib/services/index.ts")).toContain('new Set(["1W", "1M"])');
+    expect(read("lib/services/index.ts")).toContain('new Set(["1D", "1W", "1M"])');
     expect(read("lib/services/underlying-prices.supabase.ts")).toContain('"1Y": 366');
     expect(read("app/api/tickers/[symbol]/history/route.ts")).toContain('source !== "mock"');
   });

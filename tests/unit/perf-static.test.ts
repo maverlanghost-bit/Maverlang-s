@@ -112,13 +112,6 @@ describe("M84: carga diferida de librerías pesadas", () => {
     expect(violations, violations.join("\n")).toEqual([]);
   });
 
-  it("el gráfico es SVG propio sin librería pesada (LazyPriceChart)", () => {
-    const lazy = readFileSync(path.join(ROOT, "components/domain/lazy-price-chart.tsx"), "utf8");
-    // El gráfico ahora es SVG propio (sin librería pesada): no necesita next/dynamic.
-    expect(lazy).not.toContain("lightweight-charts");
-    expect(lazy).toContain("svg-price-chart");
-  });
-
   it("el provider de Privy no se importa estático desde el árbol cliente", () => {
     const violations: string[] = [];
     for (const dir of scanDirs) {

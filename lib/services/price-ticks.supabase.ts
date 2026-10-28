@@ -29,6 +29,7 @@ export interface PriceTick {
  * desde-cuándo para no traer toda la tabla.
  */
 const RANGE_MS: Record<Range, number> = {
+  "1D": 2 * 24 * 60 * 60 * 1000,
   "1W": 7 * 24 * 60 * 60 * 1000,
   "1M": 31 * 24 * 60 * 60 * 1000,
   "3M": 92 * 24 * 60 * 60 * 1000,
