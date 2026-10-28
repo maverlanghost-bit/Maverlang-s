@@ -10,9 +10,8 @@ permissions: { contents: read }
 jobs:
   prices:
     runs-on: ubuntu-latest
-    # ~1400 símbolos, 8 workers. El primer backfill (365 días) y los 429 de Yahoo
-    # se pasan de 15 min; 90 cubre reintentos sin dejar el job colgado un día.
-    timeout-minutes: 90
+    # Solo las acciones que hoy se pueden comprar (~446, misma regla que la app).
+    timeout-minutes: 30
     env:
       HAS_APP_URL: ${{ secrets.APP_URL != '' }}
     steps:

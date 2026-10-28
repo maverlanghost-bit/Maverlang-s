@@ -14,6 +14,7 @@
 // Entorno: SUPABASE_URL o NEXT_PUBLIC_SUPABASE_URL, y SUPABASE_SECRET_KEY
 // (o SUPABASE_SERVICE_ROLE_KEY si el nombre nuevo no está).
 import { createClient } from "@supabase/supabase-js";
+import { buyableAssetRows } from "../lib/catalog/safety-core.mjs";
 import { toYahooSymbol } from "../lib/market/yahoo-symbol.ts";
 
 const rawArgs = [];
@@ -98,34 +99,34 @@ const db = createClient(supabaseUrl, supabaseKey, {
 });
 
 async function loadCatalog() {
-  const byKey = new Map();
+  // Sólo las que hoy se pueden comprar (misma regla que la app: buyableAssetRows).
+  // La transición depende del catálogo completo, así que se lee todo y se filtra aquí.
+  const all = [];
   for (let offset = 0; ; offset += PAGE) {
     const { data, error } = await db
       .from("assets")
-      .select("symbol,underlying,company_ticker,exchange_mic")
-      .eq("enabled", true)
-      .neq("safety_status", "hidden")
-      .is("hidden_at", null)
+      .select("symbol,underlying,company_ticker,exchange_mic,issuer,enabled,curated,is_trading_halted,safety_status")
       .order("symbol", { ascending: true })
       .range(offset, offset + PAGE - 1);
     if (error) throw new Error(error.message ?? "no se pudo leer public.assets");
     const rows = data ?? [];
-    for (const row of rows) {
-      const raw = text(row.underlying) || text(row.company_ticker);
-      if (!raw) continue;
-      // Sin MIC: la misma clave de hoy. Con MIC: sólo el pedido a Yahoo.
-      const stored = toYahooSymbol(raw);
-      if (!stored) continue;
-      const exchangeMic = text(row.exchange_mic) || null;
-      const prev = byKey.get(stored);
-      if (prev && (prev.exchangeMic || !exchangeMic)) continue;
-      byKey.set(stored, { stored, yahoo: toYahooSymbol(raw, exchangeMic), exchangeMic });
-    }
+    all.push(...rows);
     if (rows.length < PAGE) break;
+  }
+  const byKey = new Map();
+  for (const row of buyableAssetRows(all)) {
+    const raw = text(row.underlying) || text(row.company_ticker);
+    if (!raw) continue;
+    // Sin MIC: la misma clave de hoy. Con MIC: sólo el pedido a Yahoo.
+    const stored = toYahooSymbol(raw);
+    if (!stored) continue;
+    const exchangeMic = text(row.exchange_mic) || null;
+    const prev = byKey.get(stored);
+    if (prev && (prev.exchangeMic || !exchangeMic)) continue;
+    byKey.set(stored, { stored, yahoo: toYahooSymbol(raw, exchangeMic), exchangeMic });
   }
   return [...byKey.values()];
 }
-
 async function loadFresh() {
   const since = new Date(Date.now() - 7 * 864e5).toISOString().slice(0, 10);
   const fresh = new Set();
