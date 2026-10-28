@@ -27,6 +27,8 @@ const ANCHORS: Record<string, { priceUsd: number; multiplier: number }> = {
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 const RANGE_SPEC: Record<Range, { points: number; stepMs: number }> = {
+  // 48 pasos de 30 min: un día de referencia. No es una cotización.
+  "1D": { points: 48, stepMs: 30 * 60 * 1000 },
   "1W": { points: 24 * 7, stepMs: 60 * 60 * 1000 },
   "1M": { points: 30 * 4, stepMs: 6 * 60 * 60 * 1000 },
   "3M": { points: 90, stepMs: DAY_MS },

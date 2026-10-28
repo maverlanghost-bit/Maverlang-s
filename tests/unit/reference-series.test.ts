@@ -61,13 +61,13 @@ describe("rangos 1Y y 1D", () => {
     expect(priceHistory("AAPLx", "1Y", 1_700_000_000_000)).toHaveLength(365);
   });
 
-  it("1D no está en Range ni lo acepta la API", () => {
-    expect(DETAIL_RANGES as readonly string[]).not.toContain("1D");
-    expect(rangeSchema.safeParse("1D").success).toBe(false);
-    expect(read("lib/types/index.ts")).toContain('export type Range = "1W" | "1M" | "3M" | "1Y" | "ALL"');
-    expect(read("lib/api/contracts.ts")).toContain('z.enum(["1W", "1M", "3M", "1Y", "ALL"])');
-    expect(read("lib/services/index.ts")).toContain('new Set(["1W", "1M"])');
-    expect(read("lib/services/underlying-prices.supabase.ts")).toContain('"1Y": 366');
+  it("1D está en Range y lo acepta la API", () => {
+    expect(rangeSchema.parse("1D")).toBe("1D");
+    expect(historyQuerySchema.parse({ range: "1D" }).range).toBe("1D");
+    expect(read("lib/types/index.ts")).toContain('export type Range = "1D" | "1W" | "1M" | "3M" | "1Y" | "ALL"');
+    expect(read("lib/api/contracts.ts")).toContain('z.enum(["1D", "1W", "1M", "3M", "1Y", "ALL"])');
+    expect(read("lib/services/index.ts")).toContain('new Set(["1D", "1W", "1M"])');
+    expect(read("lib/services/underlying-prices.supabase.ts")).toContain("ALL: 3650");
     expect(read("app/api/tickers/[symbol]/history/route.ts")).toContain('source !== "mock"');
   });
 

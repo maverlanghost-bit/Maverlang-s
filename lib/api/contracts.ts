@@ -20,7 +20,7 @@ export const tradableSymbolSchema = z
   .string()
   .trim()
   .regex(CATALOG_SYMBOL, "Símbolo inválido.");
-export const rangeSchema = z.enum(["1W", "1M", "3M", "1Y", "ALL"]);
+export const rangeSchema = z.enum(["1D", "1W", "1M", "3M", "1Y", "ALL"]);
 export const sideSchema = z.enum(["buy", "sell"]);
 export const currencySchema = z.enum(["CLP", "USD"]);
 export const languageSchema = z.enum(["es-CL", "en"]);

@@ -1,11 +1,14 @@
 import { timingSafeEqual } from "node:crypto";
 
+import { revalidateTag } from "next/cache";
+
 import { handle } from "@/lib/api/handler";
 import { DomainError } from "@/lib/api/result";
 import { serverEnv } from "@/lib/env";
 import { fetchCoinGeckoHistory, resolveCoinGeckoIdMap } from "@/lib/market/coingecko-history";
 import { getServices } from "@/lib/services";
 import { symbolsWithHistory, upsertTicks } from "@/lib/services/price-ticks.supabase";
+import { PRICES_TAG } from "@/lib/services/underlying-prices.supabase";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -69,6 +72,7 @@ export function GET(req: Request) {
       const saved = await upsertTicks(ticks).catch(() => 0);
       if (saved > 0) backfilled += 1;
     }
+    revalidateTag(PRICES_TAG, "max");
     return { backfilled, pending: pending.length, remaining: Math.max(0, candidates.length - done.size - backfilled) };
   });
 }

@@ -6,7 +6,7 @@
 
 export type Symbol = string;
 export type Currency = "CLP" | "USD";
-export type Range = "1W" | "1M" | "3M" | "1Y" | "ALL";
+export type Range = "1D" | "1W" | "1M" | "3M" | "1Y" | "ALL";
 
 export interface Ticker {
   symbol: Symbol;

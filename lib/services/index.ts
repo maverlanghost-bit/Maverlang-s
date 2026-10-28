@@ -2,7 +2,6 @@ import "server-only";
 
 import { tickerBySymbol } from "@/config/tickers";
 import { serverEnv } from "@/lib/env";
-import { anchorSeriesToSpot } from "@/lib/market/series";
 import { yahooSymbol } from "@/lib/market/underlying-move";
 import { mockAuth } from "@/lib/services/auth.mock";
 import { privyAuth } from "@/lib/services/auth.privy";
@@ -106,45 +105,52 @@ function liveOnramp(): Services["onramp"] {
 /**
  * `PRICES_MODE=mock` (default) no consulta Jupiter, el RPC ni el dólar.
  * Con `live`, el precio actual sale de Jupiter y el dólar de mindicador.
- * El historial en live (y con `DATA_MODE=live`) usa `price_ticks` si hay
- * al menos 20 puntos en 1W/1M; si no, los cierres de `underlying_prices`
- * por el multiplicador. Sin datos devuelve []. En mock (dev, CI, e2e) la
- * serie de referencia no cambia. `DATA_MODE` sigue eligiendo trade, cartera y auth.
+ * El historial en live (y con `DATA_MODE=live`) usa `price_ticks` en 1D/1W/1M
+ * si hay al menos `MIN_TICKS` puntos. 1D sale de esos ticks y se recorta a
+ * las últimas `DIAS` jornadas. Si no alcanzan, los cierres de
+ * `underlying_prices` por el multiplicador, con el precio guardado tal cual.
+ * Con menos de dos puntos reales la serie queda vacía (`source: "mock"`,
+ * `real: false` en la ruta): no se rellena con `mockPrices.history`.
+ * En mock (dev, CI, e2e) la serie de referencia no cambia.
+ * `DATA_MODE` sigue eligiendo trade, cartera y auth.
  */
-const INTRADAY: ReadonlySet<Range> = new Set(["1W", "1M"]);
-const MIN_TICKS = 20;
+const INTRADAY: ReadonlySet<Range> = new Set(["1D", "1W", "1M"]);
+const DIAS = 2;
+const MIN_TICKS = 2;
+const DAY_MS = 864e5;
 
 export type HistorySource = "ticks" | "closes" | "mock";
 
-async function anchoredHistory(
+async function realHistory(
   symbol: string,
   range: Range,
 ): Promise<{ points: PricePoint[]; source: "ticks" | "closes" }> {
   const pricesLive = serverEnv.PRICES_MODE === "live";
   const intraday = INTRADAY.has(range);
-  const [ticks, quotes] = await Promise.all([
-    intraday ? livePrices.history(symbol, range).catch(() => [] as PricePoint[]) : Promise.resolve([] as PricePoint[]),
+  // 1D no depende de la ventana de `price_ticks`: se pide una semana y se corta a DIAS.
+  const tickRange: Range = range === "1D" ? "1W" : range;
+  const [rawTicks, quotes] = await Promise.all([
+    intraday
+      ? livePrices.history(symbol, tickRange).catch(() => [] as PricePoint[])
+      : Promise.resolve([] as PricePoint[]),
     pricesLive ? livePrices.list([symbol]).catch(() => [] as Quote[]) : Promise.resolve([] as Quote[]),
   ]);
+  const from = Date.now() - DIAS * DAY_MS;
+  const ticks = range === "1D" ? rawTicks.filter((point) => point.t >= from) : rawTicks;
   const quote = quotes[0];
-  const spot = quote && !quote.reference && quote.priceUsd > 0 ? quote.priceUsd : null;
   const multiplier = quote && Number.isFinite(quote.multiplier) && quote.multiplier > 0 ? quote.multiplier : 1;
 
-  let points: PricePoint[] = [];
-  let source: "ticks" | "closes" = "closes";
   if (intraday && ticks.length >= MIN_TICKS) {
-    points = ticks;
-    source = "ticks";
-  } else {
-    const ticker = tickerBySymbol(symbol);
-    const underlying = ticker?.underlying ? yahooSymbol(ticker.underlying) : "";
-    const closes = underlying ? await readUnderlyingCloses(underlying, range).catch(() => [] as PricePoint[]) : [];
-    points = closes
-      .map((point) => ({ t: point.t, p: point.p * multiplier }))
-      .filter((point) => Number.isFinite(point.t) && Number.isFinite(point.p) && point.p > 0);
+    return { points: ticks, source: "ticks" };
   }
-  if (spot !== null && points.length > 0) points = anchorSeriesToSpot(points, spot);
-  return { points, source };
+
+  const ticker = tickerBySymbol(symbol);
+  const underlying = ticker?.underlying ? yahooSymbol(ticker.underlying) : "";
+  const closes = underlying ? await readUnderlyingCloses(underlying, range).catch(() => [] as PricePoint[]) : [];
+  const points = closes
+    .map((point) => ({ t: point.t, p: point.p * multiplier }))
+    .filter((point) => Number.isFinite(point.t) && Number.isFinite(point.p) && point.p > 0);
+  return { points, source: "closes" };
 }
 
 /** Mock intacto si precios y datos están en mock. Si no: ticks → cierres → []. */
@@ -157,15 +163,10 @@ export async function historyWithSource(
   if (!pricesLive && !dataLive) {
     return { points: await mockPrices.history(symbol, range), source: "mock" };
   }
-  const anchored = await anchoredHistory(symbol, range).catch(() => null);
-  if (anchored && anchored.points.length >= 2) return anchored;
-  // Sin 0032_underlying_prices, sin secretos de Supabase o sin datos aún:
-  // vuelve a la serie de referencia (como antes), anclada al spot si existe.
-  const series = await mockPrices.history(symbol, range);
-  const quote =
-    serverEnv.PRICES_MODE === "live" ? (await livePrices.list([symbol]).catch(() => [] as Quote[]))[0] : undefined;
-  const spot = quote && !quote.reference && quote.priceUsd > 0 ? quote.priceUsd : null;
-  return { points: spot !== null ? anchorSeriesToSpot(series, spot) : series, source: "mock" };
+  const real = await realHistory(symbol, range).catch(() => null);
+  if (real && real.points.length >= 2) return real;
+  // Menos de dos observaciones reales: vacío. La ruta marca real:false.
+  return { points: [], source: "mock" };
 }
 
 function priceServices(): Services["prices"] {
