@@ -696,3 +696,61 @@ export function parseMockErrorCode(value: unknown): ApiErrorCode | null {
   }
   return value;
 }
+
+/** Avisos de precio. El tope de 20 activos lo revisa el API. */
+const alertIdSchema = z
+  .string()
+  .trim()
+  .regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i, "Identificador inválido.");
+
+export const alertDirectionSchema = z.enum(["above", "below"]);
+
+export const priceAlertSchema = z.object({
+  id: alertIdSchema,
+  symbol: tradableSymbolSchema,
+  direction: alertDirectionSchema,
+  priceUsd: z.number().positive(),
+  active: z.boolean(),
+  triggeredAt: z.string().min(1).nullable(),
+  createdAt: z.string().min(1),
+});
+
+export const priceAlertsResponseSchema = z
+  .object({
+    alerts: z.array(priceAlertSchema).max(500),
+    storage: z.enum(["db", "memory"]),
+  })
+  .strict();
+
+export const priceAlertCreateSchema = z
+  .object({
+    symbol: tradableSymbolSchema,
+    direction: alertDirectionSchema,
+    priceUsd: z.number().positive().max(9_999_999_999.9999),
+  })
+  .strict();
+
+export const priceAlertDeleteSchema = z
+  .object({
+    id: alertIdSchema,
+  })
+  .strict();
+
+export const priceAlertWriteResponseSchema = z
+  .object({
+    alert: priceAlertSchema,
+    storage: z.enum(["db", "memory"]),
+  })
+  .strict();
+
+export const priceAlertCronResponseSchema = z
+  .object({
+    ok: z.literal(true),
+    mode: z.enum(["mock", "live", "unavailable"]),
+    checked: z.number().int().nonnegative(),
+    triggered: z.number().int().nonnegative(),
+    emailed: z.number().int().nonnegative(),
+    skipped: z.number().int().nonnegative(),
+    truncated: z.boolean(),
+  })
+  .strict();
