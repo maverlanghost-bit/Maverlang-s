@@ -8,6 +8,8 @@ import {
   CHART_W,
   PAD_B,
   PAD_T,
+  changeFromOpen,
+  openingPriceY,
   plotSeries,
   smoothPath,
   toRows,
@@ -24,6 +26,9 @@ const TONE_STROKE: Record<ChartTone, string> = {
 
 const REFERENCE_STROKE = "#a3a3a3";
 const GUIDE_STROKE = "#d4d4d4";
+/** Precio inicial del período. Va debajo del área y de la curva. */
+const OPEN_STROKE = "#e5e5e5";
+const OPEN_DASH = "3 4";
 const SCRUB_SLOP_PX = 8;
 const TOUCH_GHOST_MS = 700;
 const TOUCH_RELEASE_MS = 400;
@@ -33,11 +38,8 @@ export interface PriceChartProps {
   tone: ChartTone;
   label: string;
   emptyLabel: string;
-  /**
-   * El contrato de PriceChart lo sigue pidiendo. El SVG no carga una
-   * librería, así que no hay un fallo de import que mostrar.
-   */
-  errorLabel: string;
+  /** Subtítulo del estado vacío. */
+  emptyHint?: string;
   onHover: (usd: number | null, timeMs?: number | null) => void;
   /** Polling del detalle. Se agrega al final sólo si `t` es posterior al último punto. */
   livePoint?: PricePoint;
@@ -249,6 +251,9 @@ function DrawnChart({
 
   const hoverPoint = hoverIndex !== null && hoverIndex < points.length ? points[hoverIndex] : undefined;
   const hoverLeft = hoverPoint ? Math.min(85, Math.max(15, (hoverPoint.x / CHART_W) * 100)) : 0;
+  const openPrice = points[0]?.p;
+  const periodMove = hoverPoint && openPrice !== undefined ? changeFromOpen(openPrice, hoverPoint.p) : null;
+  const openY = openingPriceY(points);
 
   const onMouseMove = (event: MouseEvent<SVGSVGElement>) => {
     if (performance.now() < ignorePointerUntil.current) return;
@@ -285,6 +290,18 @@ function DrawnChart({
               <stop offset="100%" stopColor={stroke} stopOpacity="0" />
             </linearGradient>
           </defs>
+        )}
+        {openY === null ? null : (
+          <line
+            x1={0}
+            x2={CHART_W}
+            y1={openY}
+            y2={openY}
+            stroke={OPEN_STROKE}
+            strokeWidth="2"
+            strokeDasharray={OPEN_DASH}
+            vectorEffect="non-scaling-stroke"
+          />
         )}
         {reference || !area ? null : <path d={area} fill={`url(#${gradId})`} />}
         <path
@@ -325,6 +342,9 @@ function DrawnChart({
             {reference ? <p>Referencia</p> : null}
             <p className="opacity-70">{hoverWhen(hoverPoint.t)}</p>
             <p className="num font-medium">{formatUsd(hoverPoint.p)}</p>
+            {periodMove ? (
+              <p className={`num font-medium ${periodMove.up ? "text-up" : "text-down"}`}>{periodMove.label}</p>
+            ) : null}
           </div>
         </>
       ) : null}
@@ -337,6 +357,7 @@ function SvgPriceChartBase({
   tone,
   label,
   emptyLabel,
+  emptyHint,
   onHover,
   livePoint,
   quiet = false,
@@ -359,7 +380,7 @@ function SvgPriceChartBase({
   const stroke = reference ? REFERENCE_STROKE : TONE_STROKE[tone];
 
   return (
-    <div className="relative h-56 w-full touch-pan-y lg:h-72" style={{ touchAction: "pan-y" }} data-tone={tone}>
+    <div className="relative h-56 w-full touch-pan-y sm:h-64" style={{ touchAction: "pan-y" }} data-tone={tone}>
       {drawn && model.plot ? (
         <DrawnChart
           key={model.key}
@@ -373,7 +394,10 @@ function SvgPriceChartBase({
           onHover={onHover}
         />
       ) : quiet ? null : (
-        <p className="absolute inset-0 flex items-center text-sm text-fg-muted">{emptyLabel}</p>
+        <div className="absolute inset-0 flex flex-col items-center justify-center rounded-xl bg-neutral-50 px-4 text-center">
+          <p className="text-[15px] font-medium text-fg">{emptyLabel}</p>
+          {emptyHint ? <p className="mt-1 max-w-sm text-[13px] text-fg-muted">{emptyHint}</p> : null}
+        </div>
       )}
     </div>
   );

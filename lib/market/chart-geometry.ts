@@ -1,7 +1,8 @@
 /**
  * Geometría del gráfico grande. Precios en USD (`p`) y tiempo en ms (`t`).
  * La curva es la de Reclu: cúbica monótona (tangente 0 al cambiar de signo,
- * promedio de secantes si no). No son porcentajes ni un benchmark.
+ * promedio de secantes si no). El eje Y sigue en precio: la línea punteada
+ * marca el primer precio del período y el % del tooltip sale de ese precio.
  */
 
 export const CHART_W = 720;
@@ -92,6 +93,30 @@ export function yForPrice(price: number, scale: PriceScale): number {
   const inner = CHART_H - PAD_T - PAD_B;
   if (!(span > 0)) return PAD_T + inner / 2;
   return PAD_T + (1 - (price - scale.lo) / span) * inner;
+}
+
+/** Y de la línea punteada: el primer precio del período, en la misma escala. */
+export function openingPriceY(points: readonly { y: number }[]): number | null {
+  const first = points[0];
+  if (!first || !Number.isFinite(first.y)) return null;
+  return first.y;
+}
+
+/**
+ * Variación contra el primer precio del período.
+ * 100 → 101,23 da "+1,23%" en verde. El cero también lleva "+" y cuenta como alza.
+ * null si la base no es un precio positivo.
+ */
+export function changeFromOpen(open: number, price: number): { label: string; up: boolean } | null {
+  if (!(open > 0) || !Number.isFinite(price)) return null;
+  const cents = Math.round(((price - open) / open) * 10_000);
+  if (!Number.isFinite(cents)) return null;
+  const negative = cents < 0;
+  const abs = Math.abs(cents);
+  const whole = Math.trunc(abs / 100);
+  const frac = String(abs % 100).padStart(2, "0");
+  const grouped = String(whole).replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  return { label: `${negative ? "-" : "+"}${grouped},${frac}%`, up: !negative };
 }
 
 export function plotSeries(rows: readonly ChartRow[]): { points: PlottedPoint[]; scale: PriceScale } | null {

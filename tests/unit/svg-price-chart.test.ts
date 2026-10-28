@@ -1,10 +1,15 @@
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
+import { SvgPriceChart, type PriceChartProps } from "@/components/domain/svg-price-chart";
 import {
   CHART_H,
   CHART_W,
   PAD_B,
   PAD_T,
+  changeFromOpen,
+  openingPriceY,
   plotSeries,
   priceScale,
   smoothPath,
@@ -97,5 +102,120 @@ describe("geometría del gráfico SVG", () => {
     expect(plot.points[2]?.x).toBe(CHART_W);
     expect(plot.points[1]?.y).toBeLessThan(plot.points[0]?.y ?? 0);
     expect(plot.points[1]?.x).toBe(CHART_W / 2);
+  });
+
+  it("la línea de inicio está en el Y del primer precio", () => {
+    expect(openingPriceY([])).toBeNull();
+    expect(openingPriceY([{ y: Number.NaN }])).toBeNull();
+    const plot = plotSeries([
+      { t: 1_000, p: 100 },
+      { t: 2_000, p: 110 },
+    ]);
+    expect(plot).not.toBeNull();
+    if (!plot) return;
+    expect(openingPriceY(plot.points)).toBe(plot.points[0]?.y);
+  });
+
+  it("el % contra el inicio usa signo +, coma decimal y verde en cero", () => {
+    expect(changeFromOpen(100, 101.23)).toEqual({ label: "+1,23%", up: true });
+    expect(changeFromOpen(100, 98.77)).toEqual({ label: "-1,23%", up: false });
+    expect(changeFromOpen(200, 200)).toEqual({ label: "+0,00%", up: true });
+    expect(changeFromOpen(200, 199)).toEqual({ label: "-0,50%", up: false });
+    expect(changeFromOpen(100, 1_123.45)).toEqual({ label: "+1.023,45%", up: true });
+    expect(changeFromOpen(0, 10)).toBeNull();
+    expect(changeFromOpen(100, Number.NaN)).toBeNull();
+    expect(changeFromOpen(-5, 10)).toBeNull();
+  });
+});
+
+const chartProps = {
+  tone: "up",
+  label: "Precio del período",
+  emptyLabel: "Sin datos de precio",
+  onHover: () => {},
+} satisfies Omit<PriceChartProps, "points">;
+
+function markupOf(props: PriceChartProps): string {
+  return renderToStaticMarkup(createElement(SvgPriceChart, props));
+}
+
+function openingLine(markup: string): string {
+  const tag = markup.match(/<line\b[^>]*stroke="#e5e5e5"[^>]*>|<line\b[^>]*stroke='#e5e5e5'[^>]*>/);
+  return tag?.[0] ?? "";
+}
+
+describe("SvgPriceChart", () => {
+  it("no pide errorLabel y el estado vacío es una caja con título y subtítulo", () => {
+    const withoutError: PriceChartProps = { ...chartProps, points: [] };
+    const keys: "errorLabel" extends keyof PriceChartProps ? never : true = true;
+    expect(keys).toBe(true);
+    expect(withoutError.emptyHint).toBeUndefined();
+
+    const empty = markupOf({ ...chartProps, points: [], emptyHint: "Cuando haya dos precios, el gráfico aparece." });
+    expect(empty).toContain("h-56");
+    expect(empty).toContain("sm:h-64");
+    expect(empty).not.toContain("lg:h-72");
+    expect(empty).toContain("rounded-xl");
+    expect(empty).toContain("bg-neutral-50");
+    expect(empty).toContain("items-center");
+    expect(empty).toContain("justify-center");
+    expect(empty).toContain("Sin datos de precio");
+    expect(empty).toContain("Cuando haya dos precios, el gráfico aparece.");
+
+    const titleOnly = markupOf({ ...chartProps, points: [{ t: 1_000, p: 100 }] });
+    expect(titleOnly).toContain("Sin datos de precio");
+    expect(titleOnly).not.toContain("Cuando haya dos precios");
+
+    const quiet = markupOf({ ...chartProps, points: [], quiet: true, emptyHint: "No debe verse" });
+    expect(quiet).not.toContain("Sin datos de precio");
+    expect(quiet).not.toContain("No debe verse");
+    expect(quiet).not.toContain("bg-neutral-50");
+  });
+
+  it("dibuja la línea punteada del precio inicial debajo del área y de la curva", () => {
+    const points = [
+      { t: 1_000, p: 100 },
+      { t: 2_000, p: 110 },
+      { t: 3_000, p: 100 },
+    ];
+    const markup = markupOf({ ...chartProps, points });
+    const plot = plotSeries(toRows(points));
+    const y = plot?.points[0]?.y;
+    const tag = openingLine(markup);
+    expect(tag).not.toBe("");
+    expect(tag).toContain('stroke-dasharray="3 4"');
+    expect(tag).toContain('stroke-width="2"');
+    expect(tag).toContain('vector-effect="non-scaling-stroke"');
+    expect(tag).toContain('x1="0"');
+    expect(tag).toContain(`x2="${CHART_W}"`);
+    expect(Number(/y1="([^"]+)"/.exec(tag)?.[1])).toBeCloseTo(y ?? Number.NaN, 6);
+    expect(Number(/y2="([^"]+)"/.exec(tag)?.[1])).toBeCloseTo(y ?? Number.NaN, 6);
+
+    const openAt = markup.indexOf('stroke="#e5e5e5"');
+    const areaAt = markup.indexOf('fill="url(#');
+    const curveAt = markup.indexOf('stroke-width="2.25"');
+    expect(openAt).toBeGreaterThan(-1);
+    expect(areaAt).toBeGreaterThan(openAt);
+    expect(curveAt).toBeGreaterThan(areaAt);
+    expect(markup).toContain("sm:h-64");
+    expect(markup).not.toContain("lg:h-72");
+    expect(markup).not.toContain("bg-neutral-50");
+  });
+
+  it("la serie de referencia también marca el precio inicial, debajo de su curva", () => {
+    const markup = markupOf({
+      ...chartProps,
+      reference: true,
+      points: [
+        { t: 1_000, p: 100 },
+        { t: 2_000, p: 101 },
+      ],
+    });
+    const openAt = markup.indexOf('stroke="#e5e5e5"');
+    const curveAt = markup.indexOf('stroke-width="2.25"');
+    expect(openAt).toBeGreaterThan(-1);
+    expect(curveAt).toBeGreaterThan(openAt);
+    expect(markup).not.toContain('fill="url(#');
+    expect(openingLine(markup)).toContain('stroke-dasharray="3 4"');
   });
 });
