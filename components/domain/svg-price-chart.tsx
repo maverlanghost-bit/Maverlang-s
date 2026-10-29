@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useEffect, useId, useMemo, useRef, useState, type MouseEvent } from "react";
+import { memo, useEffect, useId, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent } from "react";
 
 import { formatDateTime, formatUsd } from "@/lib/format";
 import {
@@ -36,10 +36,16 @@ export const TONE_STROKE: Record<ChartTone, string> = {
   flat: "var(--color-fg-muted, #6c6f75)",
 };
 
-const REFERENCE_STROKE = "#a3a3a3";
+/** Gris de gráfico sobre blanco: #a3a3a3 da 2,5:1 y #e5e5e5 da 1,3:1. #767676 pasa 3:1. */
+const GRAPHIC_INK = "#767676";
+const REFERENCE_STROKE = "#5c5c5c";
 const GUIDE_STROKE = "#d4d4d4";
 /** Precio inicial del período. Va debajo del área y de la curva. */
-const OPEN_STROKE = "#e5e5e5";
+const OPEN_STROKE = GRAPHIC_INK;
+
+function graphicInk(color: string): string {
+  return color.toLowerCase() === "#a3a3a3" ? REFERENCE_STROKE : color;
+}
 const OPEN_DASH = "3 4";
 const SCRUB_SLOP_PX = 8;
 const TOUCH_GHOST_MS = 700;
@@ -270,6 +276,8 @@ function DrawnChart({
   const hoverRef = useRef<number | null>(null);
   const ignorePointerUntil = useRef(0);
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
+  const [liveText, setLiveText] = useState("");
+  const keyboardRef = useRef(false);
 
   useEffect(() => {
     plotRef.current = points;
@@ -325,7 +333,27 @@ function DrawnChart({
 
   const onMouseLeave = () => {
     if (performance.now() < ignorePointerUntil.current) return;
+    if (keyboardRef.current && document.activeElement === svgRef.current) return;
     choose(null);
+  };
+
+  const onKeyDown = (event: KeyboardEvent<SVGSVGElement>) => {
+    const key = event.key;
+    if (key !== "ArrowLeft" && key !== "ArrowRight" && key !== "Home" && key !== "End") return;
+    keyboardRef.current = true;
+    event.preventDefault();
+    const series = plotRef.current;
+    const last = series.length - 1;
+    if (last < 0) return;
+    const current = hoverRef.current ?? last;
+    const next =
+      key === "ArrowLeft" ? Math.max(0, current - 1) : key === "ArrowRight" ? Math.min(last, current + 1) : key === "Home" ? 0 : last;
+    choose(next);
+    const point = series[next];
+    if (!point) return;
+    const open = series[0]?.usd;
+    const move = open === undefined ? null : changeFromOpen(open, point.usd);
+    setLiveText([hoverWhen(point.t), formatUsd(point.usd), move?.label].filter((part) => part && part.length > 0).join(", "));
   };
 
   return (
@@ -334,17 +362,32 @@ function DrawnChart({
         ref={svgRef}
         viewBox={`0 0 ${CHART_W} ${CHART_H}`}
         preserveAspectRatio="none"
-        role="img"
+        role="slider"
+        aria-orientation="horizontal"
         aria-label={label}
-        focusable="false"
+        aria-valuemin={0}
+        aria-valuemax={Math.max(0, points.length - 1)}
+        aria-valuenow={hoverIndex ?? Math.max(0, points.length - 1)}
+        aria-valuetext={hoverPoint ? [hoverWhen(hoverPoint.t), formatUsd(hoverPoint.usd), periodMove?.label].filter((part) => part && part.length > 0).join(", ") : label}
+        tabIndex={0}
         data-points={points.length}
         data-reference={reference ? "true" : "false"}
         data-percent={percentMode ? "true" : "false"}
         data-chart-style={candleList ? "candles" : undefined}
         className="absolute inset-0 h-full w-full touch-pan-y"
         style={{ touchAction: "pan-y" }}
+        onMouseDown={() => {
+          keyboardRef.current = false;
+          setLiveText("");
+        }}
         onMouseMove={onMouseMove}
         onMouseLeave={onMouseLeave}
+        onKeyDown={onKeyDown}
+        onBlur={() => {
+          keyboardRef.current = false;
+          setLiveText("");
+          choose(null);
+        }}
       >
         {reference || !area ? null : (
           <defs>
@@ -416,7 +459,7 @@ function DrawnChart({
             data-overlay={layer.id}
             d={layer.line}
             fill="none"
-            stroke={layer.color}
+            stroke={graphicInk(layer.color)}
             strokeWidth={layer.width}
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -452,9 +495,7 @@ function DrawnChart({
             {reference ? <p>Referencia</p> : null}
             <p className="opacity-70">{hoverWhen(hoverPoint.t)}</p>
             <p className="num font-medium">{formatUsd(hoverPoint.usd)}</p>
-            {periodMove ? (
-              <p className={`num font-medium ${periodMove.up ? "text-up" : "text-down"}`}>{periodMove.label}</p>
-            ) : null}
+            {periodMove ? <p className="num font-medium text-bg">{periodMove.label}</p> : null}
             {hints.map((hint) => (
               <p key={hint.id} className="num">
                 <span className="opacity-70">{hint.label} </span>
@@ -464,6 +505,9 @@ function DrawnChart({
           </div>
         </>
       ) : null}
+      <p className="sr-only" aria-live="polite">
+        {liveText}
+      </p>
     </>
   );
 }

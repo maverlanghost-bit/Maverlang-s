@@ -116,6 +116,41 @@
   animation-play-state: paused;
 }
 
+/* C-06: el botón Pausar deja la lista estática (el hover no existe en teclado ni en táctil). */
+.ticker-marquee-paused .ticker-marquee-motion {
+  display: none;
+}
+.ticker-marquee-paused .ticker-marquee-static {
+  display: flex;
+}
+
+/* C-07: `outline-none` vive en la capa de utilidades y tapa el anillo de @layer base.
+   Esta regla queda fuera de capa para que el foco de teclado sea 2px #0a0a0a (incluye la cápsula de rango). */
+button.outline-none:focus-visible,
+input.outline-none:focus-visible,
+textarea.outline-none:focus-visible,
+select.outline-none:focus-visible,
+[role="tab"].outline-none:focus-visible {
+  outline: 2px solid #0a0a0a;
+  outline-offset: 2px;
+}
+
+/* C-11: la cápsula de rango vive en price-panel (fuera de este diff). 44px sin cambiar la tipografía. */
+[aria-label="Rango del gráfico"] button,
+[aria-label="Chart range"] button {
+  min-height: 2.75rem;
+}
+
+/* C-08: decoration-border es #e6e6e6 (1,25:1). El subrayado de prosa tiene que verse. */
+.decoration-border {
+  text-decoration-color: #0a0a0a;
+}
+footer nav a {
+  text-decoration-line: underline;
+  text-decoration-color: #0a0a0a;
+  text-underline-offset: 0.25em;
+}
+
 .reveal-wait {
   opacity: 0;
   transform: translateY(16px);

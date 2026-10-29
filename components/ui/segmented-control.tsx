@@ -63,7 +63,7 @@ export function SegmentedControl({
             tabIndex={toggle || selected ? 0 : -1}
             onClick={() => onChange(option.value)}
             className={cn(
-              "min-h-11 rounded-full px-3 text-sm transition duration-[140ms] ease-spring outline-none active:scale-[0.98] focus-visible:relative focus-visible:z-10 focus-visible:ring-4 focus-visible:ring-fg/20",
+              "min-h-11 rounded-full px-3 text-sm transition duration-[140ms] ease-spring active:scale-[0.98] focus-visible:relative focus-visible:z-10",
               fullWidth && "min-w-0 flex-1 px-1 sm:px-3",
               compact && "whitespace-nowrap px-1 text-[13px] sm:px-1",
               selected

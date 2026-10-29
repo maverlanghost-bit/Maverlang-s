@@ -21,6 +21,32 @@ const NAV = [
 
 const SCROLL_OFFSET = 8;
 
+const FOCUSABLE =
+  'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+function isShown(el: HTMLElement): boolean {
+  const style = window.getComputedStyle(el);
+  return style.display !== "none" && style.visibility !== "hidden";
+}
+
+/** `skipInert` omite regiones inertes. El header oculto está inerte: sus controles se listan aparte. */
+function focusableWithin(root: ParentNode, skipInert: boolean): HTMLElement[] {
+  return [...root.querySelectorAll<HTMLElement>(FOCUSABLE)].filter((el) => {
+    if (skipInert && el.closest("[inert]")) return false;
+    return isShown(el);
+  });
+}
+
+function isBefore(a: Node, b: Node): boolean {
+  return Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
+}
+
+function revealHeader(header: HTMLElement) {
+  header.inert = false;
+  header.classList.remove("-translate-y-full");
+  header.classList.add("translate-y-0");
+}
+
 function subscribeScroll(onStoreChange: () => void) {
   window.addEventListener("scroll", onStoreChange, { passive: true });
   return () => window.removeEventListener("scroll", onStoreChange);
@@ -42,25 +68,78 @@ export function SiteHeader() {
   const scrolled = useSyncExternalStore(subscribeScroll, scrolledSnapshot, scrolledServerSnapshot);
   /** Se oculta al bajar y reaparece al subir (con el menú abierto, siempre visible). */
   const [hidden, setHidden] = useState(false);
+  const [focusedWithin, setFocusedWithin] = useState(false);
+  const [keyboardReveal, setKeyboardReveal] = useState(false);
   const lastY = useRef(0);
+  const headerRef = useRef<HTMLElement>(null);
   useEffect(() => {
     lastY.current = window.scrollY;
     const onScroll = () => {
       const y = window.scrollY;
       const prev = lastY.current;
       lastY.current = y;
-      if (y < 64) setHidden(false);
-      else if (y < prev - 2) setHidden(false);
-      else if (y > prev + 2) setHidden(true);
+      const header = headerRef.current;
+      const inside = !!header && header.contains(document.activeElement);
+      if (y < 64 || y < prev - 2 || inside) setHidden(false);
+      else if (y > prev + 2) {
+        setHidden(true);
+        setKeyboardReveal(false);
+      }
     };
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  const show = !hidden || open;
+  useEffect(() => {
+    const onKeyDown = (event: globalThis.KeyboardEvent) => {
+      if (event.key !== "Tab" || event.altKey || event.ctrlKey || event.metaKey) return;
+      const header = headerRef.current;
+      if (!header?.inert) return;
+      const active = document.activeElement;
+      if (!(active instanceof HTMLElement)) return;
+      const items = focusableWithin(header, false);
+      const first = items[0];
+      const last = items[items.length - 1];
+      if (!first || !last) return;
+      const outside = focusableWithin(document.body, true).filter((el) => !header.contains(el));
+      const index = outside.indexOf(active);
+      if (index < 0) return;
+
+      if (!event.shiftKey) {
+        const next = outside[index + 1];
+        if (!isBefore(active, first) || !(next === undefined || isBefore(last, next))) return;
+        event.preventDefault();
+        revealHeader(header);
+        setKeyboardReveal(true);
+        setFocusedWithin(true);
+        first.focus();
+        return;
+      }
+
+      const prev = index > 0 ? outside[index - 1] : undefined;
+      if (!isBefore(last, active) || !(prev === undefined || isBefore(prev, first))) return;
+      event.preventDefault();
+      revealHeader(header);
+      setKeyboardReveal(true);
+      setFocusedWithin(true);
+      last.focus();
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, []);
+
+  const show = !hidden || open || focusedWithin || keyboardReveal;
 
   return (
     <header
+      ref={headerRef}
+      inert={!show}
+      onFocus={() => setFocusedWithin(true)}
+      onBlur={(event) => {
+        const next = event.relatedTarget;
+        if (next instanceof Node && event.currentTarget.contains(next)) return;
+        setFocusedWithin(false);
+      }}
       className={cn(
         "fixed inset-x-0 top-0 z-40 h-16 border-b transition-[background-color,border-color,backdrop-filter,transform] duration-500 ease-spring",
         scrolled ? "border-border bg-bg/80 backdrop-blur-md" : "border-transparent bg-transparent",

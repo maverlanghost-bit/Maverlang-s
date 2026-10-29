@@ -6,7 +6,7 @@ import { useT } from "@/lib/hooks/use-t";
 
 /**
  * Interruptor chico USD/CLP (M40). Con sesión guarda en la DB; sin sesión, en
- * local. `compact` baja el alto para la barra superior móvil del shell.
+ * local. `compact` sólo aprieta el relleno horizontal: el alto sigue en 44px.
  */
 export function CurrencySwitch({ className, compact = false }: { className?: string; compact?: boolean }) {
   const { t } = useT();
@@ -38,7 +38,8 @@ export function CurrencySwitch({ className, compact = false }: { className?: str
             }}
             className={cn(
               "rounded-full text-xs font-medium tracking-tight transition duration-140 ease-spring active:scale-[0.98]",
-              compact ? "min-h-7 px-2" : "min-h-8 px-2.5",
+              "min-h-11",
+              compact ? "px-2" : "px-2.5",
               active
                 ? "bg-bg text-fg shadow-card ring-1 ring-border/60"
                 : "text-fg-muted hover:text-fg",

@@ -145,7 +145,7 @@ function markupOf(props: PriceChartProps): string {
 }
 
 function openingLine(markup: string): string {
-  const tag = markup.match(/<line\b[^>]*stroke="#e5e5e5"[^>]*>|<line\b[^>]*stroke='#e5e5e5'[^>]*>/);
+  const tag = markup.match(/<line\b[^>]*stroke="#767676"[^>]*>|<line\b[^>]*stroke='#767676'[^>]*>/);
   return tag?.[0] ?? "";
 }
 
@@ -196,7 +196,7 @@ describe("SvgPriceChart", () => {
     expect(Number(/y1="([^"]+)"/.exec(tag)?.[1])).toBeCloseTo(y ?? Number.NaN, 6);
     expect(Number(/y2="([^"]+)"/.exec(tag)?.[1])).toBeCloseTo(y ?? Number.NaN, 6);
 
-    const openAt = markup.indexOf('stroke="#e5e5e5"');
+    const openAt = markup.indexOf('stroke="#767676"');
     const areaAt = markup.indexOf('fill="url(#');
     const curveAt = markup.indexOf('stroke-width="2.25"');
     expect(openAt).toBeGreaterThan(-1);
@@ -216,7 +216,7 @@ describe("SvgPriceChart", () => {
         { t: 2_000, p: 101 },
       ],
     });
-    const openAt = markup.indexOf('stroke="#e5e5e5"');
+    const openAt = markup.indexOf('stroke="#767676"');
     const curveAt = markup.indexOf('stroke-width="2.25"');
     expect(openAt).toBeGreaterThan(-1);
     expect(curveAt).toBeGreaterThan(openAt);
@@ -260,7 +260,7 @@ describe("SvgPriceChart", () => {
     expect(tag).toContain('stroke="#2b7fd9"');
     expect(tag).toContain('stroke-width="1.5"');
     expect(tag).not.toContain("stroke-dasharray");
-    const openAt = markup.indexOf('stroke="#e5e5e5"');
+    const openAt = markup.indexOf('stroke="#767676"');
     const curveAt = markup.indexOf('stroke-width="2.25"');
     const overlayAt = markup.indexOf('data-overlay="sma-20"');
     expect(openAt).toBeGreaterThan(-1);
@@ -284,7 +284,7 @@ describe("SvgPriceChart", () => {
       },
     });
     const tag = markup.match(/<path\b[^>]*data-overlay="benchmark"[^>]*>/)?.[0] ?? "";
-    expect(tag).toContain('stroke="#a3a3a3"');
+    expect(tag).toContain('stroke="#5c5c5c"');
     expect(tag).toContain('stroke-dasharray="5 5"');
     expect(tag).toContain('stroke-width="1.5"');
     expect(tag).toContain('vector-effect="non-scaling-stroke"');
