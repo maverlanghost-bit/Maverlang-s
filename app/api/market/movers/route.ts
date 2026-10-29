@@ -24,6 +24,7 @@ export const maxDuration = 30;
  */
 
 const FRESH_MS = 60_000;
+const STALE_MS = 15 * 60_000;
 const PAGE_SIZE = 50;
 const MAX_PAGES = 20;
 
@@ -85,13 +86,22 @@ async function readCloses(underlying: string): Promise<{ t: number; p: number }[
 async function boardNow(): Promise<TodayBoard> {
   const now = Date.now();
   if (memo && now - memo.at < FRESH_MS) return memo.board;
+  // Barrer las 446 fichas tarda segundos: si hay un tablero reciente se entrega al tiro y se refresca detras.
+  if (memo && now - memo.at < STALE_MS) {
+    if (!pending) void refresh(now).catch(() => undefined);
+    return memo.board;
+  }
+  return refresh(now);
+}
+
+function refresh(now: number): Promise<TodayBoard> {
   if (pending) return pending;
   pending = loadTodayBoard({
     listOffered,
     readTicks,
     readCloses,
     now,
-    concurrency: 8,
+    concurrency: 24,
   })
     .then((board) => {
       const hasRows = board.gainers.length + board.losers.length + board.viewed.length > 0 || board.spy !== null;
