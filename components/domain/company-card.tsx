@@ -75,6 +75,11 @@ export function CompanyCard({ symbol }: { symbol: string }) {
 
   const view = ready.view;
   const rows = factRows(view, copy, locale);
+  const top = view.kind === "fund" ? view.fundTopHoldings : null;
+  // Sin ninguna cifra que mostrar, la ficha no aparece (nunca celdas vacías).
+  if (rows.length === 0 && !top) return null;
+  const tip = view.kind === "fund" ? copy.fund.tip : view.kind === "foreign" ? copy.foreign.tip : copy.tip;
+  const title = view.kind === "fund" ? copy.fund.title : copy.title;
   const dated = sourceDate(view, locale);
 
   return (
@@ -83,11 +88,11 @@ export function CompanyCard({ symbol }: { symbol: string }) {
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
             <h2 id={titleId} className="text-lg font-semibold tracking-tight text-fg">
-              {copy.title}
+              {title}
             </h2>
             <p className="mt-0.5 min-h-4 truncate text-xs text-fg-muted">{view.name ?? ""}</p>
           </div>
-          <InfoTip className="-mt-1.5 shrink-0" label={`${copy.what}. ${copy.title}`} text={copy.tip} />
+          <InfoTip className="-mt-1.5 shrink-0" label={`${copy.what}. ${title}`} text={tip} />
         </div>
         <dl className="mt-4 grid grid-cols-2 gap-1.5 sm:gap-2.5 md:grid-cols-3 xl:grid-cols-4">
           {rows.map((row) => (
@@ -102,6 +107,19 @@ export function CompanyCard({ symbol }: { symbol: string }) {
             </div>
           ))}
         </dl>
+        {top ? (
+          <div className="mt-2.5 rounded-2xl border border-border/70 bg-surface-1/50 px-3 py-3 sm:px-4">
+            <p className="text-xs font-medium leading-4 tracking-tight text-fg-muted">{copy.fund.top}</p>
+            <ol className="mt-2 space-y-1.5">
+              {top.map((holding) => (
+                <li key={holding.name} className="flex items-baseline justify-between gap-3 text-sm">
+                  <span className="min-w-0 truncate text-fg">{holding.name}</span>
+                  <span className="num shrink-0 text-fg-muted">{formatHoldingPct(holding.pct, locale)}</span>
+                </li>
+              ))}
+            </ol>
+          </div>
+        ) : null}
         <p className="mt-3 text-[11px] leading-4 text-fg-muted">
           <span className="sr-only">{copy.sourceLabel}: </span>
           {view.sourceUrl ? (
@@ -171,8 +189,14 @@ function factRows(view: CompanyFactsView, copy: EmpresaCopy, locale: FactLocale)
   const dividend = dividendText(view, locale);
   const filing = filingText(view, copy, locale);
   const filed = filedDetail(view, copy, locale);
+  if (view.kind === "fund") return fundRows(view, copy, locale);
+  const foreign = view.kind === "foreign";
+  const converted =
+    foreign && view.reportCurrency && view.reportCurrency !== "USD" ? copy.foreign.converted : null;
+  const period = foreign ? dated(copy.foreign.period, view.epsPeriodEnd, locale) : null;
+  const yearDetail = foreign ? joinDetails([period ?? filed, converted]) : filed;
 
-  return [
+  const rows: FactRowModel[] = [
     {
       id: "sector",
       label: copy.fields.sector.label,
@@ -209,17 +233,17 @@ function factRows(view: CompanyFactsView, copy: EmpresaCopy, locale: FactLocale)
     },
     {
       id: "revenue",
-      label: copy.fields.revenue.label,
+      label: foreign ? copy.foreign.revenue : copy.fields.revenue.label,
       value: revenue ?? copy.empty,
       missing: revenue === null,
-      detail: filed,
+      detail: yearDetail,
     },
     {
       id: "netIncome",
-      label: copy.fields.netIncome.label,
+      label: foreign ? copy.foreign.netIncome : copy.fields.netIncome.label,
       value: income ?? copy.empty,
       missing: income === null,
-      detail: filed,
+      detail: yearDetail,
     },
     {
       id: "dividend",
@@ -236,6 +260,7 @@ function factRows(view: CompanyFactsView, copy: EmpresaCopy, locale: FactLocale)
       detail: null,
     },
   ];
+  return rows.filter((row) => !row.missing);
 }
 
 function sourceDate(view: CompanyFactsView, locale: FactLocale): string | null {
@@ -255,6 +280,11 @@ function dividendText(view: CompanyFactsView, locale: FactLocale): string | null
 }
 
 function filingText(view: CompanyFactsView, copy: EmpresaCopy, locale: FactLocale): string | null {
+  if (view.kind !== "company") {
+    const latest = latestFiling(view);
+    const date = latest ? formatIsoDate(latest.date, locale) : null;
+    return latest && date ? `${latest.form} ${date}` : null;
+  }
   const parts: string[] = [];
   const quarter = view.last10q ? formatIsoDate(view.last10q, locale) : null;
   const annual = view.last10k ? formatIsoDate(view.last10k, locale) : null;
@@ -287,4 +317,32 @@ function fill(template: string, values: Record<string, string>): string {
   let next = template;
   for (const [key, value] of Object.entries(values)) next = next.split(`{${key}}`).join(value);
   return next;
+}
+
+/** ETF: solo las celdas con dato. */
+function fundRows(view: CompanyFactsView, copy: EmpresaCopy, locale: FactLocale): FactRowModel[] {
+  const net = view.fundNetAssets === null ? null : formatUsdCompact(view.fundNetAssets, locale);
+  const count = view.fundHoldingsCount === null ? null : new Intl.NumberFormat(locale).format(view.fundHoldingsCount);
+  const report = latestFiling(view);
+  const reportDate = report ? formatIsoDate(report.date, locale) : null;
+  const rows: FactRowModel[] = [
+    { id: "type", label: copy.fund.type, value: copy.fund.etf, missing: false, detail: view.fundFamily },
+    {
+      id: "netAssets",
+      label: copy.fund.netAssets,
+      value: net ?? "",
+      missing: net === null,
+      detail: dated(copy.fund.asOf, view.fundReportDate, locale),
+    },
+    { id: "holdings", label: copy.fund.holdings, value: count ?? "", missing: count === null, detail: null },
+    { id: "report", label: copy.fund.report, value: reportDate ?? "", missing: reportDate === null, detail: null },
+  ];
+  return rows.filter((row) => !row.missing);
+}
+
+/** 7,12 → "7,12 %". */
+function formatHoldingPct(pct: number, locale: FactLocale): string {
+  return new Intl.NumberFormat(locale, { style: "percent", minimumFractionDigits: 1, maximumFractionDigits: 2 }).format(
+    pct / 100,
+  );
 }

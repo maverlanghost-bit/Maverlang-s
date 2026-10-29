@@ -3,8 +3,15 @@
 // Ficha pública de la SEC (EDGAR) para las acciones que hoy se pueden comprar.
 // User-Agent identificable y 4 req/s (el tope de la SEC es 10).
 // Clave = toYahooSymbol(ticker) SIN mic, la misma que underlying_prices.
-// Sin CIK, sin XBRL (ETF, emisor extranjero) o sin cifra usable: no hay fila.
-// Esas claves salen en el resumen JSON. La ficha sale de EDGAR; no consulta otras APIs de mercado.
+//
+// Tres tipos de fila:
+// - Empresa de EE.UU. (10-K / 10-Q, us-gaap): como antes.
+// - Emisor extranjero (20-F / 40-F, ifrs-full o us-gaap): ingresos y utilidad
+//   del último año en USD. Si informa en otra moneda se convierte con el tipo
+//   de cambio del BCE (frankfurter.dev, gratis y sin clave). Sin EPS ni P/E.
+// - Fondo cotizado (ETF): nombre y último N-PORT público (patrimonio y mayores
+//   posiciones si la migración 0039 ya está aplicada).
+// Sin datos usables: no hay fila; esas claves salen en el resumen JSON.
 //
 // Entorno: NEXT_PUBLIC_SUPABASE_URL o SUPABASE_URL, y SUPABASE_SECRET_KEY
 // (o SUPABASE_SERVICE_ROLE_KEY). COMPANY_FACTS_DRY_RUN y COMPANY_FACTS_SYMBOLS
@@ -13,19 +20,29 @@ import { createClient } from "@supabase/supabase-js";
 import { buyableAssetRows } from "../lib/catalog/safety-core.mjs";
 import { toYahooSymbol } from "../lib/market/yahoo-symbol.ts";
 import {
+  EDGAR_FUND_TICKERS_URL,
   EDGAR_MIN_INTERVAL_MS,
   EDGAR_TICKERS_URL,
   EDGAR_USER_AGENT,
   buildCompanyFactRecord,
   describeFilings,
+  describeForeignFilings,
   edgarCompanyFactsUrl,
   edgarSubmissionsUrl,
   edgarTicker,
   filingRowsFromEdgar,
+  foreignMetricsFromCompanyFacts,
+  fundFilingsAtomUrl,
+  hasUsableMetrics,
   indexCompanyTickers,
+  indexFundTickers,
+  latestFundFilingFromAtom,
   metricsFromCompanyFacts,
+  nportPrimaryDocUrl,
   olderSubmissionNames,
   olderSubmissionUrl,
+  padCik,
+  parseNport,
   profileFromSubmissions,
 } from "../lib/services/company-facts.ts";
 
@@ -75,6 +92,16 @@ const UPSERT = 200;
 const POOL = 3;
 const EXTRA_FILES = 2;
 const HEADERS = { "User-Agent": EDGAR_USER_AGENT, Accept: "application/json" };
+const FX_URL = "https://api.frankfurter.dev/v1/latest?base=USD";
+/** Columnas de la migración 0039. Solo se escriben si ya existen. */
+const EXTRA_KEYS = [
+  "report_currency",
+  "fund_family",
+  "fund_net_assets",
+  "fund_report_date",
+  "fund_holdings_count",
+  "fund_top_holdings",
+];
 
 if (args.symbols === true) {
   console.error("Falta la lista de --symbols (ejemplo: --symbols AAPL,BRK-B).");
@@ -125,14 +152,17 @@ function pace() {
   return run;
 }
 
-async function edgarGet(url, attempt = 1) {
+async function edgarGet(url, attempt = 1, accept = "application/json") {
   await pace();
-  const response = await fetch(url, { headers: HEADERS, signal: AbortSignal.timeout(30_000) });
+  const response = await fetch(url, {
+    headers: { ...HEADERS, Accept: accept },
+    signal: AbortSignal.timeout(60_000),
+  });
   if ((response.status === 429 || response.status >= 500) && attempt < 4) {
     const retryAfter = Number(response.headers.get("retry-after"));
     const extra = Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter * 1000 : 1000 * attempt;
     await sleep(Math.min(extra, 15_000));
-    return edgarGet(url, attempt + 1);
+    return edgarGet(url, attempt + 1, accept);
   }
   return response;
 }
@@ -142,6 +172,22 @@ async function readJson(response) {
     return await response.json();
   } catch {
     throw new Error("respuesta EDGAR no es JSON");
+  }
+}
+
+/** Tipo de cambio del BCE (unidades por 1 USD). Si falla, solo se aceptan cifras en USD. */
+async function loadUsdRates() {
+  try {
+    const response = await fetch(FX_URL, { headers: { Accept: "application/json" }, signal: AbortSignal.timeout(20_000) });
+    if (!response.ok) return { rates: new Map(), date: null };
+    const body = await response.json();
+    const rates = new Map();
+    for (const [code, value] of Object.entries(body?.rates ?? {})) {
+      if (typeof value === "number" && value > 0) rates.set(code, value);
+    }
+    return { rates, date: typeof body?.date === "string" ? body.date : null };
+  } catch {
+    return { rates: new Map(), date: null };
   }
 }
 
@@ -168,11 +214,117 @@ async function loadCatalog() {
   return [...keys];
 }
 
-async function loadOne(stored, cik, today) {
+function blankRow(underlying, cik) {
+  return {
+    underlying,
+    cik: padCik(cik),
+    name: null,
+    sic: null,
+    sic_description: null,
+    exchange: null,
+    fiscal_year_end: null,
+    shares_outstanding: null,
+    shares_as_of: null,
+    eps_ttm: null,
+    eps_period_end: null,
+    revenue_ttm: null,
+    net_income_ttm: null,
+    dividends_per_share_ttm: null,
+    last_10k: null,
+    last_10q: null,
+    last_filing_form: null,
+    source_url: null,
+  };
+}
+
+function withExtras(row, extras = {}) {
+  const next = { ...row };
+  for (const key of EXTRA_KEYS) next[key] = extras[key] ?? null;
+  return next;
+}
+
+let usdRate = () => null;
+
+async function loadForeign(stored, cik, factsBody, today) {
+  const foreign = foreignMetricsFromCompanyFacts(factsBody, usdRate, today);
+  if (foreign.revenueUsd === null && foreign.netIncomeUsd === null) {
+    return { status: "skip", reason: "sin cifras usables" };
+  }
+  const response = await edgarGet(edgarSubmissionsUrl(cik));
+  const submissions = response.ok ? await readJson(response) : null;
+  const profile = profileFromSubmissions(submissions);
+  const filings = describeForeignFilings(submissions ? filingRowsFromEdgar(submissions) : [], cik);
+  if (!filings.lastAnnual) return { status: "skip", reason: "sin informe anual 20-F/40-F" };
+  const row = {
+    ...blankRow(stored, cik),
+    name: profile.name,
+    sic: profile.sic,
+    sic_description: profile.sicDescription,
+    exchange: profile.exchange,
+    fiscal_year_end: profile.fiscalYearEnd,
+    // En emisores extranjeros no hay EPS: esta fecha es el cierre del período de ingresos/utilidad.
+    eps_period_end: foreign.periodEnd,
+    revenue_ttm: foreign.revenueUsd,
+    net_income_ttm: foreign.netIncomeUsd,
+    last_10k: filings.lastAnnual,
+    last_filing_form: filings.form,
+    source_url: filings.sourceUrl,
+  };
+  return { status: "ok", kind: "foreign", row: withExtras(row, { report_currency: foreign.currency }) };
+}
+
+async function loadFund(stored, fund) {
+  let filing = null;
+  let summary = null;
+  if (fund.seriesId) {
+    const atom = await edgarGet(fundFilingsAtomUrl(fund.seriesId), 1, "application/atom+xml");
+    if (atom.ok) filing = latestFundFilingFromAtom(await atom.text());
+    if (filing) {
+      const doc = await edgarGet(nportPrimaryDocUrl(filing.indexUrl), 1, "application/xml");
+      if (doc.ok) summary = parseNport(await doc.text());
+    }
+  }
+  let name = summary?.seriesName ?? null;
+  let family = summary?.registrant ?? null;
+  if (!name) {
+    const response = await edgarGet(edgarSubmissionsUrl(fund.cik));
+    if (response.ok) {
+      const profile = profileFromSubmissions(await readJson(response));
+      name = profile.name;
+      family = family ?? profile.name;
+    }
+  }
+  if (!name) return { status: "skip", reason: "fondo sin datos en EDGAR" };
+  const row = {
+    ...blankRow(stored, fund.cik),
+    name,
+    last_10q: filing?.filingDate ?? null,
+    last_filing_form: filing ? "NPORT-P" : "FUND",
+    source_url: filing?.indexUrl ?? `https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=${padCik(fund.cik)}`,
+  };
+  return {
+    status: "ok",
+    kind: "fund",
+    row: withExtras(row, {
+      fund_family: family && family !== name ? family : null,
+      fund_net_assets: summary?.netAssets ?? null,
+      fund_report_date: summary?.reportDate ?? null,
+      fund_holdings_count: summary?.holdingsCount ?? null,
+      fund_top_holdings: summary && summary.top.length > 0 ? summary.top : null,
+    }),
+  };
+}
+
+async function loadOne(stored, cik, today, fundIndex) {
   const factsResponse = await edgarGet(edgarCompanyFactsUrl(cik));
-  if (factsResponse.status === 404) return { status: "skip", reason: "sin XBRL" };
+  if (factsResponse.status === 404) {
+    // Sin XBRL: casi siempre un fondo (SPY es un UIT sin N-PORT).
+    return loadFund(stored, { cik, seriesId: fundIndex.get(edgarTicker(stored))?.seriesId ?? null });
+  }
   if (!factsResponse.ok) throw new Error(`companyfacts HTTP ${factsResponse.status}`);
-  const metrics = metricsFromCompanyFacts(await readJson(factsResponse));
+  const factsBody = await readJson(factsResponse);
+  const metrics = metricsFromCompanyFacts(factsBody);
+  if (!hasUsableMetrics(metrics, today)) return loadForeign(stored, cik, factsBody, today);
 
   const submissionsResponse = await edgarGet(edgarSubmissionsUrl(cik));
   if (submissionsResponse.status === 404) {
@@ -184,7 +336,7 @@ async function loadOne(stored, cik, today) {
       filings: describeFilings([], cik),
       today,
     });
-    return row ? { status: "ok", row } : { status: "skip", reason: "sin cifras usables" };
+    return row ? { status: "ok", kind: "company", row: withExtras(row, { report_currency: "USD" }) } : { status: "skip", reason: "sin cifras usables" };
   }
   if (!submissionsResponse.ok) throw new Error(`submissions HTTP ${submissionsResponse.status}`);
   const submissions = await readJson(submissionsResponse);
@@ -210,13 +362,21 @@ async function loadOne(stored, cik, today) {
     filings: described,
     today,
   });
-  return row ? { status: "ok", row } : { status: "skip", reason: "sin cifras usables" };
+  return row ? { status: "ok", kind: "company", row: withExtras(row, { report_currency: "USD" }) } : { status: "skip", reason: "sin cifras usables" };
 }
 
 try {
   const tickersResponse = await edgarGet(EDGAR_TICKERS_URL);
   if (!tickersResponse.ok) throw new Error(`company_tickers HTTP ${tickersResponse.status}`);
   const cikByTicker = indexCompanyTickers(await readJson(tickersResponse));
+  const fundsResponse = await edgarGet(EDGAR_FUND_TICKERS_URL);
+  const fundIndex = fundsResponse.ok ? indexFundTickers(await readJson(fundsResponse)) : new Map();
+
+  const fx = await loadUsdRates();
+  usdRate = (code) => fx.rates.get(code) ?? null;
+
+  const probe = await db.from("company_facts").select("fund_net_assets").limit(1);
+  const extraColumns = !probe.error;
 
   const catalog = await loadCatalog();
   let jobs = catalog;
@@ -226,6 +386,7 @@ try {
   const rows = [];
   const skippedList = [];
   const failures = [];
+  const byKind = { company: 0, foreign: 0, fund: 0 };
   let ok = 0;
   let skipped = 0;
   let fail = 0;
@@ -237,18 +398,20 @@ try {
       for (let stored; (stored = queue.shift()); ) {
         const cik = cikByTicker.get(edgarTicker(stored));
         try {
-          if (!cik) {
-            skipped += 1;
-            skippedList.push({ underlying: stored, reason: "sin CIK en EDGAR" });
+          let result;
+          if (cik) {
+            result = await loadOne(stored, cik, today, fundIndex);
           } else {
-            const result = await loadOne(stored, cik, today);
-            if (result.status === "ok") {
-              ok += 1;
-              rows.push(result.row);
-            } else {
-              skipped += 1;
-              skippedList.push({ underlying: stored, reason: result.reason });
-            }
+            const fund = fundIndex.get(edgarTicker(stored));
+            result = fund ? await loadFund(stored, fund) : { status: "skip", reason: "sin CIK en EDGAR" };
+          }
+          if (result.status === "ok") {
+            ok += 1;
+            byKind[result.kind] += 1;
+            rows.push(result.row);
+          } else {
+            skipped += 1;
+            skippedList.push({ underlying: stored, reason: result.reason });
           }
         } catch (error) {
           fail += 1;
@@ -262,7 +425,11 @@ try {
 
   let writeError = null;
   if (!DRY && rows.length > 0) {
-    const stamped = rows.map((row) => ({ ...row, updated_at: new Date().toISOString() }));
+    const stamped = rows.map((row) => {
+      const next = { ...row, updated_at: new Date().toISOString() };
+      if (!extraColumns) for (const key of EXTRA_KEYS) delete next[key];
+      return next;
+    });
     for (let offset = 0; offset < stamped.length; offset += UPSERT) {
       const batch = stamped.slice(offset, offset + UPSERT);
       const { error } = await db.from("company_facts").upsert(batch, { onConflict: "underlying" });
@@ -277,10 +444,13 @@ try {
     catalog: catalog.length,
     symbols: jobs.length,
     ok,
+    byKind,
     skipped,
     fail,
     rows: rows.length,
     dry: DRY,
+    extraColumns,
+    fxDate: fx.date,
     skippedList,
     failures,
   };

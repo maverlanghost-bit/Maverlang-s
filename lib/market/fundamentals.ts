@@ -12,6 +12,20 @@ const DAY_RE = /^(\d{4})-(\d{2})-(\d{2})$/;
 
 export type FactLocale = "es-CL" | "en";
 
+/** company: 10-K/10-Q. foreign: 20-F/40-F (sin EPS). fund: ETF (N-PORT). */
+export type FactKind = "company" | "foreign" | "fund";
+
+export interface FundHoldingView {
+  name: string;
+  pct: number;
+}
+
+export function factKind(lastFilingForm: string | null): FactKind {
+  if (lastFilingForm === "NPORT-P" || lastFilingForm === "FUND") return "fund";
+  if (lastFilingForm && /^(20-F|40-F)/.test(lastFilingForm)) return "foreign";
+  return "company";
+}
+
 export interface CompanyFactsView {
   symbol: string;
   underlying: string;
@@ -35,6 +49,13 @@ export interface CompanyFactsView {
   last10k: string | null;
   last10q: string | null;
   lastFilingForm: string | null;
+  kind: FactKind;
+  reportCurrency: string | null;
+  fundFamily: string | null;
+  fundNetAssets: number | null;
+  fundReportDate: string | null;
+  fundHoldingsCount: number | null;
+  fundTopHoldings: FundHoldingView[] | null;
   source: "sec-edgar";
   sourceUrl: string | null;
   updatedAt: string | null;
@@ -62,6 +83,12 @@ export interface CompanyFactsInput {
   lastFilingForm: string | null;
   sourceUrl: string | null;
   updatedAt: string | null;
+  reportCurrency?: string | null;
+  fundFamily?: string | null;
+  fundNetAssets?: number | null;
+  fundReportDate?: string | null;
+  fundHoldingsCount?: number | null;
+  fundTopHoldings?: unknown;
 }
 
 /** Días de calendario entre dos `YYYY-MM-DD`. Negativo si `end` es anterior. */
@@ -171,6 +198,13 @@ export function companyView(input: CompanyFactsInput): CompanyFactsView {
     last10k: input.last10k,
     last10q: input.last10q,
     lastFilingForm: input.lastFilingForm,
+    kind: factKind(input.lastFilingForm),
+    reportCurrency: input.reportCurrency ?? null,
+    fundFamily: input.fundFamily ?? null,
+    fundNetAssets: positiveOrNull(input.fundNetAssets ?? null),
+    fundReportDate: input.fundReportDate ?? null,
+    fundHoldingsCount: positiveOrNull(input.fundHoldingsCount ?? null),
+    fundTopHoldings: holdingsOrNull(input.fundTopHoldings),
     source: "sec-edgar",
     sourceUrl: secSourceUrl(input.sourceUrl),
     updatedAt: input.updatedAt,
@@ -181,9 +215,12 @@ export function latestFiling(input: {
   last10k: string | null;
   last10q: string | null;
   lastFilingForm: string | null;
-}): { form: "10-K" | "10-Q"; date: string } | null {
+}): { form: string; date: string } | null {
   const annual = input.last10k;
   const quarter = input.last10q;
+  const kind = factKind(input.lastFilingForm);
+  if (kind === "fund") return input.lastFilingForm === "NPORT-P" && quarter ? { form: "N-PORT", date: quarter } : null;
+  if (kind === "foreign") return annual && input.lastFilingForm ? { form: input.lastFilingForm, date: annual } : null;
   if (input.lastFilingForm === "10-K" && annual) return { form: "10-K", date: annual };
   if (input.lastFilingForm === "10-Q" && quarter) return { form: "10-Q", date: quarter };
   if (annual && quarter) return annual >= quarter ? { form: "10-K", date: annual } : { form: "10-Q", date: quarter };
@@ -249,6 +286,8 @@ const VIEW_NUMBERS = [
   "revenueTtm",
   "netIncomeTtm",
   "dividendsPerShareTtm",
+  "fundNetAssets",
+  "fundHoldingsCount",
 ] as const;
 
 const VIEW_STRINGS = [
@@ -265,6 +304,9 @@ const VIEW_STRINGS = [
   "last10k",
   "last10q",
   "lastFilingForm",
+  "reportCurrency",
+  "fundFamily",
+  "fundReportDate",
   "sourceUrl",
   "updatedAt",
 ] as const;
@@ -288,7 +330,30 @@ export function readCompanyFactsView(value: unknown): CompanyFactsView | null {
     if (parsed === undefined) return null;
     view[key] = parsed;
   }
+  if (row.kind !== "company" && row.kind !== "foreign" && row.kind !== "fund") return null;
+  view.kind = row.kind;
+  view.fundTopHoldings = holdingsOrNull(row.fundTopHoldings);
   return view as unknown as CompanyFactsView;
+}
+
+function positiveOrNull(value: number | null): number | null {
+  return value !== null && Number.isFinite(value) && value > 0 ? value : null;
+}
+
+/** Lista de posiciones válida (nombre y % positivo), máximo 5. Si no, null. */
+export function holdingsOrNull(value: unknown): FundHoldingView[] | null {
+  if (!Array.isArray(value)) return null;
+  const list: FundHoldingView[] = [];
+  for (const item of value) {
+    if (!item || typeof item !== "object") continue;
+    const record = item as Record<string, unknown>;
+    const name = typeof record.name === "string" ? record.name.trim() : "";
+    const pct = typeof record.pct === "number" ? record.pct : Number.NaN;
+    if (!name || !Number.isFinite(pct) || pct <= 0) continue;
+    list.push({ name, pct });
+    if (list.length === 5) break;
+  }
+  return list.length > 0 ? list : null;
 }
 
 function positive(value: number | null): value is number {

@@ -29,6 +29,24 @@ export interface EmpresaCopy {
     dividend: EmpresaFieldCopy;
     filing: EmpresaFieldCopy;
   };
+  fund: {
+    title: string;
+    tip: string;
+    type: string;
+    etf: string;
+    netAssets: string;
+    holdings: string;
+    report: string;
+    top: string;
+    asOf: string;
+  };
+  foreign: {
+    revenue: string;
+    netIncome: string;
+    converted: string;
+    period: string;
+    tip: string;
+  };
   dates: {
     close: string;
     shares: string;
@@ -93,6 +111,24 @@ export const empresaCopy: { esCL: EmpresaCopy; en: EmpresaCopy } = {
           "Fecha en que la empresa presentó ante la SEC el último informe anual (10-K) o trimestral (10-Q). El enlace de la fuente abre ese documento.",
       },
     },
+    fund: {
+      title: "Datos del fondo",
+      tip: "Datos públicos que el fondo informa a la SEC en su reporte de cartera (N-PORT). El patrimonio y las posiciones son a la fecha de ese reporte.",
+      type: "Tipo",
+      etf: "Fondo cotizado (ETF)",
+      netAssets: "Patrimonio del fondo",
+      holdings: "Posiciones",
+      report: "Último reporte de cartera",
+      top: "Principales posiciones",
+      asOf: "al {date}",
+    },
+    foreign: {
+      revenue: "Ingresos 12 meses",
+      netIncome: "Utilidad 12 meses",
+      converted: "en US$ al tipo de cambio actual",
+      period: "período al {date}",
+      tip: "Cifras del informe anual que la empresa extranjera presenta a la SEC (20-F o 40-F). Si informa en otra moneda, se muestran en US$ al tipo de cambio actual. No se muestra P/E porque un ADR puede representar varias acciones.",
+    },
     dates: {
       close: "cierre {date}",
       shares: "acciones al {date}",
@@ -154,6 +190,24 @@ export const empresaCopy: { esCL: EmpresaCopy; en: EmpresaCopy } = {
         about:
           "Date the company filed its latest annual report (10-K) or quarterly report (10-Q) with the SEC. The source link opens that document.",
       },
+    },
+    fund: {
+      title: "Fund data",
+      tip: "Public data the fund reports to the SEC in its portfolio report (N-PORT). Net assets and holdings are as of that report.",
+      type: "Type",
+      etf: "Exchange-traded fund (ETF)",
+      netAssets: "Net assets",
+      holdings: "Holdings",
+      report: "Latest portfolio report",
+      top: "Top holdings",
+      asOf: "as of {date}",
+    },
+    foreign: {
+      revenue: "Revenue 12 months",
+      netIncome: "Net income 12 months",
+      converted: "in US$ at the current exchange rate",
+      period: "period ending {date}",
+      tip: "Figures from the annual report the foreign company files with the SEC (20-F or 40-F). If it reports in another currency, they are shown in US$ at the current exchange rate. P/E is not shown because one ADR can represent several shares.",
     },
     dates: {
       close: "close {date}",

@@ -388,7 +388,13 @@ function freshestTrailing(
   return null;
 }
 
-function factsFor(body: unknown, taxonomy: string, concept: string, unit: string): EdgarFact[] {
+function factsFor(
+  body: unknown,
+  taxonomy: string,
+  concept: string,
+  unit: string,
+  forms: ReadonlySet<string> = PERIODIC_FORMS,
+): EdgarFact[] {
   if (!isRecord(body) || !isRecord(body.facts)) return [];
   const group = body.facts[taxonomy];
   if (!isRecord(group)) return [];
@@ -398,18 +404,18 @@ function factsFor(body: unknown, taxonomy: string, concept: string, unit: string
   if (!Array.isArray(list)) return [];
   const facts: EdgarFact[] = [];
   for (const entry of list) {
-    const fact = asFact(entry);
+    const fact = asFact(entry, forms);
     if (fact) facts.push(fact);
   }
   return facts;
 }
 
-function asFact(value: unknown): EdgarFact | null {
+function asFact(value: unknown, forms: ReadonlySet<string> = PERIODIC_FORMS): EdgarFact | null {
   if (!isRecord(value) || value.segments) return null;
   const end = typeof value.end === "string" ? value.end : "";
   if (!DAY_RE.test(end)) return null;
   const form = typeof value.form === "string" ? value.form : "";
-  if (!PERIODIC_FORMS.has(form)) return null;
+  if (!forms.has(form)) return null;
   const raw = typeof value.val === "number" ? value.val : typeof value.val === "string" ? Number(value.val) : NaN;
   if (!Number.isFinite(raw)) return null;
   const start = typeof value.start === "string" && DAY_RE.test(value.start) ? value.start : undefined;
@@ -667,4 +673,224 @@ function utcDay(iso: string): number | null {
   const check = new Date(time);
   if (check.getUTCFullYear() !== year || check.getUTCMonth() !== month - 1 || check.getUTCDate() !== day) return null;
   return time;
+}
+
+// ---- Emisores extranjeros (20-F / 40-F) y fondos cotizados (N-PORT) ----
+
+/** Informes anuales de emisores extranjeros. */
+export const FOREIGN_ANNUAL_FORMS: ReadonlySet<string> = new Set(["20-F", "20-F/A", "40-F", "40-F/A"]);
+/** Tickers de fondos (ETF y mutuos) con su serie. */
+export const EDGAR_FUND_TICKERS_URL = "https://www.sec.gov/files/company_tickers_mf.json";
+/** Un año fiscal que cerró hace más que esto no se muestra. */
+export const FOREIGN_MAX_AGE_DAYS = 760;
+/** 20-F/40-F más los 6-K trimestrales (algunos emisores los publican con XBRL). */
+const FOREIGN_FACT_FORMS: ReadonlySet<string> = new Set([...FOREIGN_ANNUAL_FORMS, "6-K", "6-K/A"]);
+
+export interface ForeignMetrics {
+  revenueUsd: number | null;
+  netIncomeUsd: number | null;
+  periodEnd: string | null;
+  currency: string | null;
+}
+
+/** Unidades de `currency` por 1 USD (EUR → 0,9). Null si no hay tipo de cambio. */
+export type UsdRate = (currency: string) => number | null;
+
+const CURRENCY_RE = /^[A-Z]{3}$/;
+
+/**
+ * Año fiscal más reciente del informe anual (20-F / 40-F), en cualquier moneda.
+ * Si la empresa informa también en USD para ese año, gana el USD (sin conversión).
+ * Si no, se convierte con `rate`. Sin tipo de cambio, no hay cifra.
+ */
+function latestForeignAnnual(
+  body: unknown,
+  concepts: readonly (readonly [string, string])[],
+  rate: UsdRate,
+  today: string,
+): { usd: number; end: string; currency: string } | null {
+  if (!isRecord(body) || !isRecord(body.facts)) return null;
+  let best: { usd: number; end: string; currency: string } | null = null;
+  for (const [taxonomy, concept] of concepts) {
+    const group = body.facts[taxonomy];
+    if (!isRecord(group)) continue;
+    const node = group[concept];
+    if (!isRecord(node) || !isRecord(node.units)) continue;
+    for (const unit of Object.keys(node.units)) {
+      if (!CURRENCY_RE.test(unit)) continue;
+      const facts = factsFor(body, taxonomy, concept, unit, FOREIGN_FACT_FORMS);
+      const yearly = latestAnnualFact(dedupeByEnd(facts.filter(isAnnualFact)));
+      // Cuatro trimestres (6-K) más nuevos que el año fiscal: ganan.
+      const ttm = trailingTwelveMonths(facts, { allowSignFlip: true });
+      const annual = ttm && (!yearly || ttm.periodEnd > yearly.end) ? { end: ttm.periodEnd, val: ttm.value } : yearly;
+      if (!annual) continue;
+      const age = daysBetween(annual.end, today);
+      if (age === null || age > FOREIGN_MAX_AGE_DAYS) continue;
+      const perUsd = unit === "USD" ? 1 : rate(unit);
+      if (perUsd === null || !Number.isFinite(perUsd) || perUsd <= 0) continue;
+      const usd = Math.round(annual.val / perUsd);
+      if (!Number.isFinite(usd)) continue;
+      const better =
+        !best || annual.end > best.end || (annual.end === best.end && unit === "USD" && best.currency !== "USD");
+      if (better) best = { usd, end: annual.end, currency: unit };
+    }
+  }
+  return best;
+}
+
+/**
+ * Ingresos y utilidad del último informe anual de un emisor extranjero,
+ * en USD. Sin EPS ni dividendos: un ADR puede representar varias acciones
+ * y ese cálculo daría un P/E engañoso.
+ */
+export function foreignMetricsFromCompanyFacts(body: unknown, rate: UsdRate, today: string): ForeignMetrics {
+  const revenue = latestForeignAnnual(
+    body,
+    [
+      ["ifrs-full", "Revenue"],
+      ["ifrs-full", "RevenueFromContractsWithCustomers"],
+      ["us-gaap", "Revenues"],
+      ["us-gaap", "RevenueFromContractWithCustomerExcludingAssessedTax"],
+    ],
+    rate,
+    today,
+  );
+  const income = latestForeignAnnual(
+    body,
+    [
+      ["ifrs-full", "ProfitLossAttributableToOwnersOfParent"],
+      ["ifrs-full", "ProfitLoss"],
+      ["us-gaap", "NetIncomeLoss"],
+    ],
+    rate,
+    today,
+  );
+  const revenueUsd = revenue && revenue.usd > 0 ? revenue.usd : null;
+  const netIncomeUsd = income ? income.usd : null;
+  return {
+    revenueUsd,
+    netIncomeUsd,
+    periodEnd: (revenueUsd !== null ? revenue?.end : null) ?? income?.end ?? null,
+    currency: (revenueUsd !== null ? revenue?.currency : null) ?? income?.currency ?? null,
+  };
+}
+
+export interface ForeignFilingSummary {
+  lastAnnual: string | null;
+  form: string | null;
+  sourceUrl: string | null;
+}
+
+/** Último 20-F / 40-F presentado. */
+export function describeForeignFilings(rows: readonly FilingRow[], cik: string | number): ForeignFilingSummary {
+  let best: FilingRow | null = null;
+  for (const row of rows) {
+    if (!FOREIGN_ANNUAL_FORMS.has(row.form)) continue;
+    if (!best || row.filingDate > best.filingDate) best = row;
+  }
+  return {
+    lastAnnual: best?.filingDate ?? null,
+    form: best ? best.form.replace("/A", "") : null,
+    sourceUrl: best ? filingDocumentUrl(cik, best.accessionNumber, best.primaryDocument) : null,
+  };
+}
+
+export interface FundTicker {
+  cik: string;
+  seriesId: string | null;
+}
+
+/** `company_tickers_mf.json`: ticker → CIK del fideicomiso y serie del fondo. */
+export function indexFundTickers(body: unknown): Map<string, FundTicker> {
+  const map = new Map<string, FundTicker>();
+  if (!isRecord(body) || !Array.isArray(body.data)) return map;
+  for (const row of body.data) {
+    if (!Array.isArray(row)) continue;
+    const rawCik = row[0];
+    const cik = padCik(typeof rawCik === "number" || typeof rawCik === "string" ? rawCik : "");
+    const seriesId = typeof row[1] === "string" && /^S\d{9}$/.test(row[1]) ? row[1] : null;
+    const ticker = typeof row[3] === "string" ? edgarTicker(row[3]) : "";
+    if (!cik || !ticker || map.has(ticker)) continue;
+    map.set(ticker, { cik, seriesId });
+  }
+  return map;
+}
+
+export function fundFilingsAtomUrl(seriesId: string): string {
+  return `https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=${encodeURIComponent(seriesId)}&type=NPORT-P&dateb=&owner=include&count=5&output=atom`;
+}
+
+/** Primer (más nuevo) N-PORT del feed Atom de EDGAR. */
+export function latestFundFilingFromAtom(xml: string): { indexUrl: string; filingDate: string | null } | null {
+  const entry = /<entry>([\s\S]*?)<\/entry>/.exec(xml)?.[1];
+  if (!entry) return null;
+  const href = /<filing-href>\s*([^<\s]+)\s*<\/filing-href>/.exec(entry)?.[1];
+  const date = /<filing-date>\s*(\d{4}-\d{2}-\d{2})\s*<\/filing-date>/.exec(entry)?.[1] ?? null;
+  if (!href || !/^https:\/\/www\.sec\.gov\/Archives\/edgar\/data\/\d+\/\d{18}\/[\w-]+-index\.htm$/.test(href)) {
+    return null;
+  }
+  return { indexUrl: href, filingDate: date };
+}
+
+export function nportPrimaryDocUrl(indexUrl: string): string {
+  return indexUrl.replace(/\/[^/]+-index\.htm$/, "/primary_doc.xml");
+}
+
+export interface FundHolding {
+  name: string;
+  pct: number;
+}
+
+export interface NportSummary {
+  seriesName: string | null;
+  registrant: string | null;
+  netAssets: number | null;
+  reportDate: string | null;
+  holdingsCount: number | null;
+  top: FundHolding[];
+}
+
+/** Resumen del N-PORT público: nombre, patrimonio, fecha y mayores posiciones. */
+export function parseNport(xml: string): NportSummary {
+  const blocks = xml.match(/<(?:\w+:)?invstOrSec>[\s\S]*?<\/(?:\w+:)?invstOrSec>/g) ?? [];
+  const list: FundHolding[] = [];
+  for (const block of blocks) {
+    const name = xmlTag(block, "name") ?? xmlTag(block, "title");
+    const pct = Number(xmlTag(block, "pctVal"));
+    if (!name || name === "N/A" || !Number.isFinite(pct) || pct <= 0) continue;
+    list.push({ name: tidyHoldingName(name), pct });
+  }
+  list.sort((a, b) => b.pct - a.pct);
+  const net = Number(xmlTag(xml, "netAssets"));
+  const report = xmlTag(xml, "repPdDate");
+  return {
+    seriesName: xmlTag(xml, "seriesName"),
+    registrant: xmlTag(xml, "regName"),
+    netAssets: Number.isFinite(net) && net > 0 ? Math.round(net) : null,
+    reportDate: report && DAY_RE.test(report) ? report : null,
+    holdingsCount: blocks.length > 0 ? blocks.length : null,
+    top: list.slice(0, 5).map((row) => ({ name: row.name, pct: Math.round(row.pct * 100) / 100 })),
+  };
+}
+
+function xmlTag(source: string, name: string): string | null {
+  const match = new RegExp(`<(?:\\w+:)?${name}>([^<]*)</(?:\\w+:)?${name}>`).exec(source);
+  if (!match?.[1]) return null;
+  const value = match[1]
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&(?:apos|#39);/g, "'")
+    .trim();
+  return value ? value : null;
+}
+
+/** "APPLE INC" → "Apple Inc". Nombres ya mixtos quedan igual. */
+export function tidyHoldingName(name: string): string {
+  const clean = name.replace(/\s+/g, " ").trim();
+  if (clean !== clean.toUpperCase()) return clean;
+  return clean
+    .toLowerCase()
+    .replace(/(^|[\s/&(-])([a-z])/g, (_all, lead: string, letter: string) => lead + letter.toUpperCase());
 }

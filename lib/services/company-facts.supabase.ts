@@ -79,5 +79,12 @@ export async function readCompanyForSymbol(symbol: string): Promise<CompanyFacts
     lastFilingForm: textOrNull(row.last_filing_form),
     sourceUrl: textOrNull(row.source_url),
     updatedAt: textOrNull(row.updated_at),
+    // Columnas de 0039: si la migración no está aplicada, quedan en null.
+    reportCurrency: textOrNull(row.report_currency),
+    fundFamily: textOrNull(row.fund_family),
+    fundNetAssets: numericOrNull(row.fund_net_assets),
+    fundReportDate: dayOrNull(row.fund_report_date),
+    fundHoldingsCount: numericOrNull(row.fund_holdings_count),
+    fundTopHoldings: row.fund_top_holdings ?? null,
   });
 }
