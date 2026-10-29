@@ -10,6 +10,8 @@ import { FavoriteButton } from "@/components/domain/favorite-button";
 import { RealAccountEmpty } from "@/components/domain/real-account-empty";
 import { TickerLogo } from "@/components/domain/ticker-logo";
 import { TokenGapCard } from "@/components/domain/token-gap-card";
+import { AlertButton } from "@/components/domain/alert-button";
+import { CompanyCard } from "@/components/domain/company-card";
 import { TradeSheet } from "@/components/domain/trade-sheet";
 import { Accordion } from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
@@ -785,6 +787,8 @@ export function DetailScreen({
         />
 
         <TokenGapCard symbol={ticker.symbol} quote={quote} />
+        <AlertButton symbol={ticker.symbol} name={ticker.name} priceUsd={quote?.priceUsd ?? null} />
+        <CompanyCard symbol={ticker.symbol} />
         <StockTokenGuide />
 
         <KeyStats
