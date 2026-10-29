@@ -1,8 +1,10 @@
 import { isBrowseBlocked, normalizeRegion } from "@/config/compliance";
 import { ONBOARDING_DONE } from "@/lib/auth/cookies";
 import {
+  AUTH_STAY_PARAM,
   isCredentialPath,
   isIngresarPath,
+  isOnboardingPath,
   isPasswordFlowPath,
   isPublicAppPath,
   isRegistroPath,
@@ -123,10 +125,6 @@ function isAppPath(pathname: string): boolean {
   return pathname === "/app" || pathname.startsWith("/app/");
 }
 
-function isOnboardingPath(pathname: string): boolean {
-  return pathname === "/app/onboarding" || pathname.startsWith("/app/onboarding/");
-}
-
 function isAceptarPath(pathname: string): boolean {
   return pathname === "/app/aceptar" || pathname.startsWith("/app/aceptar/");
 }
@@ -143,7 +141,11 @@ function redirectTo(path: string): GateDecision {
 
 function loginRedirect(pathname: string, search: string): GateDecision {
   const params = new URLSearchParams();
-  params.set("next", `${pathname}${search}`);
+  const here = search ? `${pathname}${search}` : pathname;
+  // No envolver la URL completa: onboarding/ingresar se desanidan en safeNextPath.
+  params.set("next", safeNextPath(here) ?? "/app");
+  // El cliente, si ya se cree con sesión, no debe volver a empujar onboarding.
+  if (isOnboardingPath(pathname)) params.set(AUTH_STAY_PARAM, "1");
   return { kind: "redirect", pathname: "/app/ingresar", search: `?${params.toString()}` };
 }
 
