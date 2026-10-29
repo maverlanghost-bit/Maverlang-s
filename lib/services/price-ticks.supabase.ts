@@ -48,6 +48,9 @@ const WRITE_CHUNK = 400;
 const HISTORY_WORKERS = 8;
 const CATALOG_PAGE = 50;
 const CATALOG_MAX_PAGES = 40;
+/** El índice es `(symbol, t desc)`. El gráfico usa los puntos más nuevos. */
+const HISTORY_CAP = 1_500;
+const HISTORY_TIMEOUT_MS = 2_500;
 
 function toRow(tick: PriceTick): { symbol: string; t: string; price_usd: number; source: TickSource } {
   return {
@@ -115,17 +118,28 @@ export async function readHistory(
 ): Promise<PricePoint[]> {
   const admin = createSupabaseAdminClient();
   const from = new Date(now - RANGE_MS[range]).toISOString();
-  const { data, error } = await admin
-    .from("price_ticks")
-    .select("t,price_usd")
-    .eq("symbol", symbol)
-    .gte("t", from)
-    .order("t", { ascending: true })
-    .limit(5000);
-  if (error || !data) return [];
-  return (data as { t: string; price_usd: number }[])
-    .map((row) => ({ t: Date.parse(row.t), p: Number(row.price_usd) }))
-    .filter((point) => Number.isFinite(point.t) && Number.isFinite(point.p) && point.p > 0);
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), HISTORY_TIMEOUT_MS);
+  try {
+    const { data, error } = await admin
+      .from("price_ticks")
+      .select("t,price_usd")
+      .eq("symbol", symbol)
+      .gte("t", from)
+      .order("t", { ascending: false })
+      .limit(HISTORY_CAP)
+      .abortSignal(controller.signal);
+    if (error || !data) return [];
+    const points = (data as { t: string; price_usd: number }[])
+      .map((row) => ({ t: Date.parse(row.t), p: Number(row.price_usd) }))
+      .filter((point) => Number.isFinite(point.t) && Number.isFinite(point.p) && point.p > 0);
+    points.reverse();
+    return points;
+  } catch {
+    return [];
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 /**

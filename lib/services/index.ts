@@ -12,6 +12,7 @@ import { mockPortfolio } from "@/lib/services/portfolio.mock";
 import { livePortfolio } from "@/lib/services/portfolio.live";
 import { livePrices } from "@/lib/services/prices.live";
 import { mockPrices } from "@/lib/services/prices.mock";
+import { historyMemoTtl, scaleCloses, ticksForRange, ticksIfEnough } from "@/lib/services/history-series";
 import { readUnderlyingCloses } from "@/lib/services/underlying-prices.supabase";
 import { liveTrade } from "@/lib/services/trade.live";
 import { mockTrade } from "@/lib/services/trade.mock";
@@ -117,9 +118,25 @@ function liveOnramp(): Services["onramp"] {
 const INTRADAY: ReadonlySet<Range> = new Set(["1D", "1W", "1M"]);
 const DIAS = 2;
 const MIN_TICKS = 2;
-const DAY_MS = 864e5;
+/**
+ * Tope de la respuesta HTTP. Los ticks y los cierres cortan antes;
+ * esto cubre un cuelgue que el abort de la base no alcanzó a cortar.
+ * La ficha pide tres series a la vez: ninguna puede quedarse abierta.
+ */
+const HISTORY_BUDGET_MS = 6_000;
 
 export type HistorySource = "ticks" | "closes" | "mock";
+
+type HistoryResult = { points: PricePoint[]; source: HistorySource };
+
+const historyMemo = new Map<string, { at: number; value: HistoryResult }>();
+const historyInflight = new Map<string, Promise<HistoryResult>>();
+
+const HISTORY_EMPTY: HistoryResult = { points: [], source: "mock" };
+
+function historyKey(symbol: string, range: Range): string {
+  return `${symbol.trim()}:${range}`;
+}
 
 async function realHistory(
   symbol: string,
@@ -128,45 +145,85 @@ async function realHistory(
   const pricesLive = serverEnv.PRICES_MODE === "live";
   const intraday = INTRADAY.has(range);
   // 1D no depende de la ventana de `price_ticks`: se pide una semana y se corta a DIAS.
+  // No se pide el spot: el gráfico no reescala, y Jupiter queda sólo en /api/prices.
   const tickRange: Range = range === "1D" ? "1W" : range;
-  const [rawTicks, quotes] = await Promise.all([
-    intraday
-      ? livePrices.history(symbol, tickRange).catch(() => [] as PricePoint[])
-      : Promise.resolve([] as PricePoint[]),
-    pricesLive ? livePrices.list([symbol]).catch(() => [] as Quote[]) : Promise.resolve([] as Quote[]),
-  ]);
-  const from = Date.now() - DIAS * DAY_MS;
-  const ticks = range === "1D" ? rawTicks.filter((point) => point.t >= from) : rawTicks;
-  const quote = quotes[0];
-  const multiplier = quote && Number.isFinite(quote.multiplier) && quote.multiplier > 0 ? quote.multiplier : 1;
-
-  if (intraday && ticks.length >= MIN_TICKS) {
-    return { points: ticks, source: "ticks" };
+  if (intraday) {
+    const rawTicks = await livePrices.history(symbol, tickRange).catch(() => [] as PricePoint[]);
+    const ticks = ticksIfEnough(ticksForRange(range, rawTicks, DIAS, Date.now()), MIN_TICKS);
+    if (ticks) return { points: ticks, source: "ticks" };
   }
 
   const ticker = tickerBySymbol(symbol);
   const underlying = ticker?.underlying ? yahooSymbol(ticker.underlying) : "";
-  const closes = underlying ? await readUnderlyingCloses(underlying, range).catch(() => [] as PricePoint[]) : [];
-  const points = closes
-    .map((point) => ({ t: point.t, p: point.p * multiplier }))
-    .filter((point) => Number.isFinite(point.t) && Number.isFinite(point.p) && point.p > 0);
-  return { points, source: "closes" };
+  const [multiplier, closes] = await Promise.all([
+    pricesLive ? livePrices.multiplierFor(symbol).catch(() => 1) : Promise.resolve(1),
+    underlying ? readUnderlyingCloses(underlying, range).catch(() => [] as PricePoint[]) : Promise.resolve([] as PricePoint[]),
+  ]);
+  return { points: scaleCloses(closes, multiplier), source: "closes" };
 }
 
-/** Mock intacto si precios y datos están en mock. Si no: ticks → cierres → []. */
-export async function historyWithSource(
-  symbol: string,
-  range: Range,
-): Promise<{ points: PricePoint[]; source: HistorySource }> {
+async function loadHistory(symbol: string, range: Range): Promise<HistoryResult> {
   const pricesLive = serverEnv.PRICES_MODE === "live";
   const dataLive = serverEnv.DATA_MODE === "live";
   if (!pricesLive && !dataLive) {
     return { points: await mockPrices.history(symbol, range), source: "mock" };
   }
   const real = await realHistory(symbol, range).catch(() => null);
-  if (real && real.points.length >= 2) return real;
+  if (real && real.points.length >= MIN_TICKS) return real;
   // Menos de dos observaciones reales: vacío. La ruta marca real:false.
   return { points: [], source: "mock" };
+}
+
+function rememberHistory(key: string, value: HistoryResult): HistoryResult {
+  historyMemo.set(key, { at: Date.now(), value });
+  return value;
+}
+
+/**
+ * Espera como máximo `ms`. Si el trabajo sigue, el llamador recibe `fallback`
+ * y la promesa original puede llenar la memoria cuando termine.
+ */
+function within<T>(work: Promise<T>, ms: number, fallback: T): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<T>((resolve) => {
+    timer = setTimeout(() => resolve(fallback), ms);
+  });
+  // Si el tope gana, un rechazo tardío del trabajo no queda sin manejar.
+  void work.catch(() => undefined);
+  return Promise.race([work, timeout]).finally(() => {
+    if (timer !== undefined) clearTimeout(timer);
+  });
+}
+
+/** Mock intacto si precios y datos están en mock. Si no: ticks → cierres → []. */
+export async function historyWithSource(symbol: string, range: Range): Promise<HistoryResult> {
+  const key = historyKey(symbol, range);
+  const cached = historyMemo.get(key);
+  if (cached && Date.now() - cached.at < historyMemoTtl(cached.value)) return cached.value;
+
+  const pending = historyInflight.get(key);
+  if (pending) return within(pending, HISTORY_BUDGET_MS, HISTORY_EMPTY).then(releasedHistory);
+
+  let settled = false;
+  const slot: { current?: Promise<HistoryResult> } = {};
+  const job = loadHistory(symbol, range)
+    .then((value) => {
+      settled = true;
+      return rememberHistory(key, value);
+    })
+    .finally(() => {
+      if (slot.current !== undefined && historyInflight.get(key) === slot.current) historyInflight.delete(key);
+    });
+  slot.current = job;
+  historyInflight.set(key, job);
+  const value = await within(job, HISTORY_BUDGET_MS, HISTORY_EMPTY);
+  if (!settled && historyInflight.get(key) === job) historyInflight.delete(key);
+  return releasedHistory(value);
+}
+
+/** El vacío compartido no se devuelve: un llamador podría mutar `points`. */
+function releasedHistory(value: HistoryResult): HistoryResult {
+  return value === HISTORY_EMPTY ? { points: [], source: "mock" } : value;
 }
 
 function priceServices(): Services["prices"] {

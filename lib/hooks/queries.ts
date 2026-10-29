@@ -29,9 +29,34 @@ const HOUR_MS = 3_600_000;
 export const PRICE_MS = 15_000;
 /** Detalle y hoja de compra (N13): 5 s. Requiere key de Jupiter (1 req/s en Free). */
 export const SPOT_MS = 5_000;
-/** Historial con datos (M41): fresco 5 min, repoll cada 60 s visible. Un vacío no pasa de 30 s. */
+/** Historial con datos: fresco 5 min. El precio en vivo cubre el último punto. */
 export const HISTORY_MS = 5 * 60_000;
+/**
+ * Tope del reintento cuando la serie vino vacía o de referencia.
+ * Una serie real no se vuelve a bajar sola: tres rangos cada minuto
+ * (la acción, SPYx y ALL) dejaban la ficha sin un silencio de red.
+ */
 export const HISTORY_REFETCH_MS = 60_000;
+
+/** Clave estable de precios: el orden del array que llega no crea otra consulta. */
+export function priceQueryKey(symbols: readonly string[] | undefined): string[] {
+  const list: string[] = [];
+  for (const symbol of symbols ?? []) {
+    const trimmed = symbol.trim();
+    if (trimmed.length > 0 && !list.includes(trimmed)) list.push(trimmed);
+  }
+  list.sort();
+  return list;
+}
+
+/**
+ * Con datos reales no hay sondeo: el precio en vivo ya corre.
+ * Vacío o referencia: reintenta, sin pasar de 30 s ni del tope `refetchMs`.
+ */
+export function historyPollMs(data: unknown, refetchMs = HISTORY_REFETCH_MS): number | false {
+  if (historyStaleMs(data, HISTORY_MS) !== HISTORY_EMPTY_STALE_MS) return false;
+  return Math.min(HISTORY_EMPTY_STALE_MS, refetchMs);
+}
 
 export function useTickers() {
   return useQuery({
@@ -58,14 +83,15 @@ export function useMarketSearch(params: MarketSearchParams, enabled = true) {
 }
 
 export function usePrices(symbols?: readonly string[], enabled = true, intervalMs = PRICE_MS) {
-  const list = (symbols ?? []).map((symbol) => symbol.trim()).filter((symbol) => symbol.length > 0);
-  const key = [...list].sort();
+  const signature = priceQueryKey(symbols).join("\u0000");
+  const key = useMemo(() => (signature.length === 0 ? [] : signature.split("\u0000")), [signature]);
   return useQuery({
     queryKey: ["prices", key],
-    queryFn: () => getPrices(list),
-    enabled: enabled && list.length > 0,
+    queryFn: () => getPrices(key),
+    enabled: enabled && key.length > 0,
     staleTime: intervalMs,
     refetchInterval: intervalMs,
+    refetchIntervalInBackground: false,
     refetchOnWindowFocus: true,
   });
 }
@@ -77,7 +103,7 @@ export function useHistory(symbol: string, range: Range = "1M") {
     queryFn: () => getHistory(trimmed, range),
     enabled: trimmed.length > 0,
     staleTime: (query) => historyStaleMs(query.state.data, HISTORY_MS),
-    refetchInterval: (query) => historyStaleMs(query.state.data, HISTORY_REFETCH_MS),
+    refetchInterval: (query) => historyPollMs(query.state.data, HISTORY_REFETCH_MS),
     refetchIntervalInBackground: false,
     refetchOnWindowFocus: true,
   });
@@ -100,8 +126,7 @@ export function useHistories(symbols: readonly string[], range: Range = "1W") {
       queryFn: () => getHistory(trimmed, range),
       enabled: trimmed.length > 0,
       staleTime: (query: Query) => historyStaleMs(query.state.data, HISTORY_MS),
-      refetchInterval: (query: Query) =>
-        historyStaleMs(query.state.data, HISTORY_MS) === HISTORY_EMPTY_STALE_MS ? HISTORY_EMPTY_STALE_MS : false,
+      refetchInterval: (query: Query) => historyPollMs(query.state.data),
       refetchIntervalInBackground: false,
       refetchOnWindowFocus: false,
     }));
@@ -115,6 +140,7 @@ export function useMarketStatus() {
     queryFn: getMarketStatus,
     staleTime: 60_000,
     refetchInterval: 60_000,
+    refetchIntervalInBackground: false,
   });
 }
 
@@ -127,6 +153,7 @@ export function useAssetStatus(symbol: string, enabled = true) {
     enabled: enabled && trimmed.length > 0,
     staleTime: 60_000,
     refetchInterval: 60_000,
+    refetchIntervalInBackground: false,
   });
 }
 
@@ -189,5 +216,6 @@ export function useFx() {
     queryFn: getFx,
     staleTime: 5 * 60_000,
     refetchInterval: 5 * 60_000,
+    refetchIntervalInBackground: false,
   });
 }

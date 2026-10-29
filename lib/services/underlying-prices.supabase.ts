@@ -8,6 +8,8 @@ export const PRICES_TAG = "underlying-prices";
 /** 1D sólo si los ticks no alcanzan. ALL pide ~10 años; PostgREST corta en 1000 filas. */
 const DAYS: Record<Range, number> = { "1D": 3, "1W": 8, "1M": 32, "3M": 93, "1Y": 366, ALL: 3650 };
 const PAGE = 1000;
+/** ALL son varias páginas. Si la base no responde, no se sostiene la ficha. */
+const CLOSE_BUDGET_MS = 2_500;
 /** `unstable_cache` no persiste un throw. Un vacío o un fallo no quedan una hora. */
 const MISS = "underlying-closes-miss";
 
@@ -18,22 +20,42 @@ function toPoints(rows: readonly { date: unknown; close: unknown }[]): PricePoin
     .filter((point) => Number.isFinite(point.t) && Number.isFinite(point.p) && point.p > 0);
 }
 
+function missError(cause?: unknown): Error {
+  const miss = new Error(MISS);
+  miss.name = "UnderlyingClosesMiss";
+  if (cause !== undefined) miss.cause = cause;
+  return miss;
+}
+
 async function queryUnderlyingCloses(underlying: string, range: Range): Promise<PricePoint[]> {
   const admin = createSupabaseAdminClient();
   const from = new Date(Date.now() - DAYS[range] * 864e5).toISOString().slice(0, 10);
   const points: PricePoint[] = [];
+  const started = Date.now();
   for (let offset = 0; offset < DAYS.ALL + PAGE; offset += PAGE) {
-    const { data, error } = await admin
-      .from("underlying_prices")
-      .select("date,close")
-      .eq("underlying", underlying)
-      .gte("date", from)
-      .order("date", { ascending: true })
-      .range(offset, offset + PAGE - 1);
-    if (error) throw error;
-    if (!data || data.length === 0) break;
-    points.push(...toPoints(data as { date: unknown; close: unknown }[]));
-    if (data.length < PAGE) break;
+    const remaining = CLOSE_BUDGET_MS - (Date.now() - started);
+    if (remaining <= 0) throw missError();
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), remaining);
+    try {
+      const { data, error } = await admin
+        .from("underlying_prices")
+        .select("date,close")
+        .eq("underlying", underlying)
+        .gte("date", from)
+        .order("date", { ascending: true })
+        .range(offset, offset + PAGE - 1)
+        .abortSignal(controller.signal);
+      if (error) throw error;
+      if (!data || data.length === 0) break;
+      points.push(...toPoints(data as { date: unknown; close: unknown }[]));
+      if (data.length < PAGE) break;
+    } catch (error) {
+      if (isMiss(error)) throw error;
+      throw missError(error);
+    } finally {
+      clearTimeout(timer);
+    }
   }
   return points;
 }

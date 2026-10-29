@@ -2,8 +2,10 @@ import "server-only";
 
 import type { Connection } from "@solana/web3.js";
 
+import { tickerBySymbol } from "@/config/tickers";
 import { DomainError } from "@/lib/api/result";
 import { serverEnv } from "@/lib/env";
+import { mockMarketStatus } from "@/lib/mocks/market";
 import { createLiveFxCache, liveFxRate, readUsdClp, warmUsdClp, type LiveFxCache } from "@/lib/market/live-fx";
 import {
   createPriceBatcherCache,
@@ -17,8 +19,8 @@ import { fetchMintMultiplier } from "@/lib/solana/scaled-ui";
 import type { FxRate, MarketStatus, PricePoint, Quote, Range, Ticker } from "@/lib/types";
 
 /**
- * Precio actual real y dólar observado. El historial real sigue sin proveedor:
- * `getServices` reescala la serie mock para que termine en este spot.
+ * Precio actual real y dólar observado. El historial no pasa por Jupiter:
+ * ticks o cierres, y un vacío no se rellena con la serie de referencia.
  * `PRICE_DEVIATION_MAX_BPS` no filtra esta lista: un precio real puede alejarse
  * de la ancla del demo. Esa guardia sigue en la cotización de la orden.
  */
@@ -121,6 +123,10 @@ export const livePrices = {
       apiKey: serverEnv.JUPITER_API_KEY,
       cache,
       prepareMultipliers: readMultipliers,
+      // Un intento. El reintento por defecto (2,5 s × 3 + esperas) supera el
+      // sondeo de 5 s de la ficha y la petición no llega a cerrarse.
+      timeoutMs: 2_500,
+      backoffMs: [],
       // Ondo: Jupiter no manda priceChange24h. La variación es la del subyacente.
       // La lista no espera el último gráfico: con 400 ms extra sale con lo ya
       // guardado y el resto entra en el próximo refresco (caché de 60 s).
@@ -130,12 +136,22 @@ export const livePrices = {
   },
 
   /**
-   * Historial REAL de precios para los gráficos. Lee las observaciones
-   * acumuladas en `price_ticks` (backfill de CoinGecko + el grabador
-   * periódico del spot de Jupiter). Ya no hay random walk: si hay datos
-   * reales para el rango, se pintan tal cual. Devuelve [] sólo si todavía
-   * no hay historia grabada para ese símbolo (el front cae al mock).
-   * Errores de lectura devuelven [] (no rompen el gráfico).
+   * Multiplicador Token-2022, sin Jupiter. El historial lo usa sólo para
+   * escalar cierres; el precio de la ficha sale de `list`.
+   * Si el RPC no alcanza el tope de 800 ms, queda 1 y la lectura sigue.
+   */
+  async multiplierFor(symbol: string): Promise<number> {
+    const ticker = tickerBySymbol(symbol);
+    if (!ticker) return 1;
+    const map = await readMultipliers([ticker]);
+    const value = map.get(ticker.symbol);
+    return value !== undefined && Number.isFinite(value) && value > 0 ? value : 1;
+  },
+
+  /**
+   * Historial de `price_ticks` para un rango. Orden ascendente, con tope
+   * y abort en la lectura. [] si no hay filas o la base no responde.
+   * No rellena con la serie de referencia.
    */
   async history(symbol: string, range: Range): Promise<PricePoint[]> {
     try {
@@ -167,14 +183,12 @@ export const livePrices = {
   },
 
   /**
-   * TODO estado del mercado del subyacente. No hay endpoint externo.
-   * Regla: America/New_York, lunes a viernes, 09:30–16:00. Feriados de EE.UU. [POR DEFINIR].
-   * Mapeo a MarketStatus: underlyingOpen, session (`regular` | `offHours` | `closed`), nextChange (ISO del próximo corte), note opcional.
-   * Sábado y domingo en Nueva York: `closed`. Lun–vie fuera de 09:30–16:00: `offHours`.
-   * Errores: no es UPSTREAM mientras el cálculo sea local.
-   * Cache: como máximo 60 s; depende del reloj. `/api/market/status` sigue en no-store.
+   * Horario del subyacente en America/New_York, lunes a viernes, 09:30–16:00.
+   * Cálculo local (sin red): un throw aquí hacía fallar `/api/market/status`
+   * en cada carga de la ficha y el cliente lo reintentaba.
+   * Feriados de EE.UU. [POR DEFINIR]. `/api/market/status` sigue en no-store.
    */
   async market(): Promise<MarketStatus> {
-    throw new Error("NOT_IMPLEMENTED: estado del mercado");
+    return mockMarketStatus();
   },
 };
