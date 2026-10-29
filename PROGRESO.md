@@ -1,5 +1,11 @@
 # PROGRESO — Maverlang
 
+## Integración — modo estricto y rutas IA (2026-10-29)
+- Hecho: `VERCEL_ENV=production` ya no activa `resolveStrictMode`. Con variables faltantes sólo `console.warn` (nombres, nunca valores). Estricto sigue con `APP_ENV=production` o `SUPABASE_PROJECT_ENV=prod`.
+- Hecho: `POST /api/ai/chat` y `POST /api/ai/import-portfolio` llaman `apiOperateBlock` antes del cuerpo y de xAI. Ya tenían origen, zod, tope de foto (~4 MB) y la política `ai` (usuario o IP). `api.x.ai` sigue sólo en servidor (`lib/ai/xai.ts`, `server-only`); no está en la CSP.
+- Hecho: la barra inferior y el asistente no se montan en el layout de marketing ni en `/acciones`. Siguen en `/app` (AppShell y `/app/asistente`).
+- Verificación: `npx tsc --noEmit` 0 errores. `npx vitest run`: 964 pasaron, 1 fallo preexistente en `ui-shell-mobile` (`#66696e`). Sin `next build`, sin `npm install`, sin push.
+
 ## Integración SEO-seguridad — tsc y tests (2026-10-29)
 - Hecho: en `lib/catalog/assets.ts` el `cache` de React se importa como `reactCache` (la variable local del catálogo lo tapaba y en tests quedaba `null`). `perRequest` lo usa y, si un mock de `react` no exporta `cache`, corre la función igual. `useHistories` vuelve a exponer `refetch` del lote para el reintento del gráfico de cartera. El test de entorno espera que `VERCEL_ENV=production` sin variables falle (SEC-08).
 - Verificación: `npx tsc --noEmit` 0 errores. `npx vitest run`: 897 pasaron, 2 fallos preexistentes en `ui-shell-mobile` (`backdrop-blur-xl` y `#66696e`). Sin `next build`, sin `npm install`, sin push.

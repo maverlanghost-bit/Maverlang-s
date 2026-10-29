@@ -7,6 +7,7 @@ import { runChat } from "@/lib/ai/run-chat";
 import { AI_MAX_BODY_BYTES, aiChatRequestSchema } from "@/lib/ai/schema";
 import type { AiChatResponse } from "@/lib/ai/types";
 import { readXaiSettings, XaiNotConfiguredError, XaiUpstreamError } from "@/lib/ai/xai";
+import { apiOperateBlock } from "@/lib/compliance/real-quote";
 import { ipOfRequest } from "@/lib/security/rate-limit";
 import { getServices } from "@/lib/services";
 
@@ -36,6 +37,8 @@ async function subjectOf(req: Request): Promise<string> {
 }
 
 export async function POST(req: Request): Promise<Response> {
+  const geo = apiOperateBlock(req);
+  if (geo) return geo;
   try {
     assertSameOrigin(req);
     const declared = Number(req.headers.get("content-length"));

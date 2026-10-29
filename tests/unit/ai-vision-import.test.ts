@@ -3,6 +3,7 @@ import path from "node:path";
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { POST as importPortfolioPost } from "@/app/api/ai/import-portfolio/route";
 import { importarCopy, NOT_CONFIGURED_MESSAGE } from "@/content/i18n/extra-importar";
 import { scanFile } from "@/lib/content/copy-guard";
 import {
@@ -280,10 +281,43 @@ describe("textos y ruta", () => {
     expect(blob).not.toMatch(/\b(compra|vende|buy|sell)\b/i);
   });
 
+  it("un país bloqueado responde 403 y no llama a xAI", async () => {
+    const urls: string[] = [];
+    vi.stubGlobal("fetch", async (input: RequestInfo | URL) => {
+      urls.push(String(input));
+      return new Response("no", { status: 500 });
+    });
+    try {
+      const response = await importPortfolioPost(
+        new Request("https://maverlang.test/api/ai/import-portfolio", {
+          method: "POST",
+          headers: {
+            origin: "https://maverlang.test",
+            "content-type": "application/json",
+            "x-vercel-ip-country": "US",
+          },
+          body: JSON.stringify({ image: `data:image/png;base64,${PNG}` }),
+        }),
+      );
+      const json = (await response.json()) as { ok: boolean; error?: { code?: string } };
+      expect(response.status).toBe(403);
+      expect(json.ok).toBe(false);
+      expect(json.error?.code).toBe("GEO_BLOCKED");
+      expect(urls.some((url) => url.includes("api.x.ai"))).toBe(false);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("la ruta valida, limita y no guarda", () => {
     const route = readFileSync(path.join(ROOT, "app/api/ai/import-portfolio/route.ts"), "utf8");
     expect(route).toContain("parseJson");
     expect(route).toContain("assertSameOrigin");
+    const handler = route.slice(route.indexOf("export async function POST"));
+    expect(handler).toContain("apiOperateBlock");
+    expect(handler.indexOf("apiOperateBlock")).toBeLessThan(handler.indexOf("parseJson"));
+    expect(handler.indexOf("apiOperateBlock")).toBeLessThan(handler.indexOf("importPortfolioFromImage"));
+    expect(route).toContain("MAX_IMPORT_BODY_BYTES");
     expect(route).toContain("lib/api/contracts");
     expect(route).toContain("tradableSymbolSchema");
     expect(route).toContain("reserveAiCall");

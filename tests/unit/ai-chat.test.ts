@@ -264,9 +264,31 @@ describe("asistente: contrato HTTP", () => {
     const route = readFileSync(path.join(ROOT, "app", "api", "ai", "chat", "route.ts"), "utf8");
     expect(route.includes("parseJson")).toBe(true);
     expect(route.includes("assertSameOrigin")).toBe(true);
+    const handler = route.slice(route.indexOf("export async function POST"));
+    expect(handler.includes("apiOperateBlock")).toBe(true);
+    expect(handler.indexOf("apiOperateBlock")).toBeLessThan(handler.indexOf("parseJson"));
+    expect(handler.indexOf("apiOperateBlock")).toBeLessThan(handler.indexOf("runChat"));
     expect(route.includes("lib/api/contracts")).toBe(true);
     expect(route.includes("Schema")).toBe(true);
     expect(RATE_LIMIT_POLICIES.ai).toEqual({ limit: 20, windowMs: 600_000 });
+  });
+
+  it("un país bloqueado responde 403 y no llama a xAI", async () => {
+    vi.stubEnv("XAI_API_KEY", KEY);
+    const urls: string[] = [];
+    vi.stubGlobal("fetch", async (input: RequestInfo | URL) => {
+      urls.push(String(input));
+      return new Response("no", { status: 500 });
+    });
+    const response = await POST(
+      post({ messages: [{ role: "user", content: "Hola" }] }, { "x-vercel-ip-country": "US" }),
+    );
+    const json = (await response.json()) as { ok: boolean; error?: { code?: string } };
+    expect(response.status).toBe(403);
+    expect(json.ok).toBe(false);
+    expect(json.error?.code).toBe("GEO_BLOCKED");
+    expect(JSON.stringify(json).includes(KEY)).toBe(false);
+    expect(urls.some((url) => url.includes("api.x.ai"))).toBe(false);
   });
 
   it("sin clave responde not_configured y no llama a xAI", async () => {

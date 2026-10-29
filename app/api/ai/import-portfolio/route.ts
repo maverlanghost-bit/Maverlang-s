@@ -13,6 +13,7 @@ import {
   type VisionChatResponse,
 } from "@/lib/ai/vision-import";
 import { NOT_CONFIGURED_MESSAGE, importarText } from "@/content/i18n/extra-importar";
+import { apiOperateBlock } from "@/lib/compliance/real-quote";
 import { getServices } from "@/lib/services";
 
 export const runtime = "nodejs";
@@ -31,6 +32,8 @@ const NO_STORE = {
 };
 
 export async function POST(req: Request): Promise<Response> {
+  const geo = apiOperateBlock(req);
+  if (geo) return geo;
   const copy = importarText(languageOf(req));
   try {
     assertSameOrigin(req);

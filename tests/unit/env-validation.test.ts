@@ -48,12 +48,15 @@ function previewSource(): EnvSource {
 }
 
 describe("M59: resolucion del entorno", () => {
-  it("NODE_ENV no activa el modo estricto; VERCEL_ENV=production sí", () => {
+  it("NODE_ENV y VERCEL_ENV no activan el modo estricto", () => {
     expect(resolveAppEnv({ NODE_ENV: "production", VERCEL_ENV: "production" })).toBe("development");
     expect(resolveStrictMode({ APP_ENV: undefined, SUPABASE_PROJECT_ENV: undefined })).toBeNull();
     expect(
       resolveStrictMode({ APP_ENV: undefined, SUPABASE_PROJECT_ENV: undefined, VERCEL_ENV: "production" }),
-    ).toBe("production");
+    ).toBeNull();
+    expect(
+      resolveStrictMode({ APP_ENV: "preview", SUPABASE_PROJECT_ENV: undefined, VERCEL_ENV: "production" }),
+    ).toBe("preview");
     expect(
       resolveStrictMode({ APP_ENV: undefined, SUPABASE_PROJECT_ENV: undefined, VERCEL_ENV: "preview" }),
     ).toBeNull();
@@ -169,12 +172,21 @@ describe("M59: development acepta vacio y solo avisa", () => {
     expect(String(warn.mock.calls[0]?.[0])).toContain("AUTH_MODE");
   });
 
-  it("VERCEL_ENV=production sin explicitas: falla (SEC-08)", () => {
+  it("VERCEL_ENV=production sin explicitas: no falla, solo avisa nombres", () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-    expect(() => assertServerEnv({ NODE_ENV: "production", VERCEL_ENV: "production" })).toThrow(
-      /Faltan variables para production/,
-    );
-    expect(warn).not.toHaveBeenCalled();
+    const sentinel = "http://insecure.example.com/sentinel-9zqx";
+    const result = assertServerEnv({
+      NODE_ENV: "production",
+      VERCEL_ENV: "production",
+      NEXT_PUBLIC_SITE_URL: sentinel,
+    });
+    expect(result).toEqual({ mode: "development", strict: false });
+    expect(warn).toHaveBeenCalledTimes(1);
+    const message = String(warn.mock.calls[0]?.[0]);
+    expect(message).toContain("AUTH_MODE");
+    expect(message).toContain("NEXT_PUBLIC_SITE_URL");
+    expect(message).not.toContain("sentinel-9zqx");
+    expect(message).not.toContain(sentinel);
   });
 
   it("APP_ENV=production con faltantes: falla", () => {

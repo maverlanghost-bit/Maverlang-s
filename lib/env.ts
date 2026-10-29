@@ -12,11 +12,12 @@ import { resolveCspMode } from "@/lib/security/csp";
  * (`NEXT_PUBLIC_*` inline). No importar `serverEnv` ni `publicEnv` desde componentes cliente.
  *
  * Entornos (M59): el modo estricto de producción se activa con
- * `APP_ENV=production`, con `SUPABASE_PROJECT_ENV=prod` o con
- * `VERCEL_ENV=production` (SEC-08). El de preview, sólo con
- * `APP_ENV=preview` explícito. `NODE_ENV` no activa el modo estricto
- * (`npm run build` siempre usa `NODE_ENV=production`). Sin modo estricto,
- * lo que falte de producción sólo genera un `console.warn` (nombres, nunca valores).
+ * `APP_ENV=production` o con `SUPABASE_PROJECT_ENV=prod`. El de preview,
+ * sólo con `APP_ENV=preview` explícito. `NODE_ENV` y `VERCEL_ENV` no
+ * activan el modo estricto (`npm run build` siempre usa
+ * `NODE_ENV=production`; Vercel pone `VERCEL_ENV=production`). Sin modo
+ * estricto, lo que falte de producción sólo genera un `console.warn`
+ * (nombres, nunca valores).
  */
 
 export type AppEnv = "production" | "preview" | "development" | "test";
@@ -310,8 +311,8 @@ function buildServerSchema(source: EnvSource) {
     SUPABASE_PROD_URL_EXPECTED: optionalText(),
     /**
      * Etiqueta que pone Vercel (`production` | `preview` | `development`).
-     * `production` activa el modo estricto (SEC-08). `preview` y
-     * `development` siguen siendo sólo etiquetas.
+     * No activa el modo estricto. Con `production` y variables faltantes
+     * el arranque sólo avisa los nombres, nunca los valores.
      */
     VERCEL_ENV: optionalText(),
     /**
@@ -368,15 +369,15 @@ export function resolveAppEnv(source: EnvSource = process.env): AppEnv {
 }
 
 /**
- * Modo estricto (M59, SEC-08): `VERCEL_ENV=production` es producción
- * estricta. Si no, `preview` sólo con `APP_ENV=preview` explícito y
+ * Modo estricto (M59): `preview` sólo con `APP_ENV=preview` explícito y
  * `production` con `APP_ENV=production` o `SUPABASE_PROJECT_ENV=prod`.
- * `NODE_ENV=production` solo no alcanza (el build local también lo pone).
+ * `VERCEL_ENV` se acepta en la firma para que un `process.env` de Vercel
+ * no active el modo: con `VERCEL_ENV=production` y faltantes sólo se avisa.
+ * `NODE_ENV=production` solo tampoco alcanza (el build local también lo pone).
  */
 export function resolveStrictMode(
   env: Pick<ServerEnv, "APP_ENV" | "SUPABASE_PROJECT_ENV"> & { VERCEL_ENV?: string | null },
 ): StrictMode | null {
-  if (typeof env.VERCEL_ENV === "string" && env.VERCEL_ENV.trim() === "production") return "production";
   if (env.APP_ENV === "preview") return "preview";
   if (env.APP_ENV === "production" || env.SUPABASE_PROJECT_ENV === "prod") return "production";
   return null;
