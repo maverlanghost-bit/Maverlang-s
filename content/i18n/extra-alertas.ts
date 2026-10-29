@@ -18,6 +18,9 @@ export type AlertasMessages = {
   signInTitle: string;
   signInBody: string;
   signInAction: string;
+  confirmTitle: string;
+  confirmBody: string;
+  capCount: string;
   alertAction: string;
   alertActionLabel: string;
   dialogTitle: string;
@@ -60,16 +63,19 @@ export type AlertasMessages = {
 export const alertasCopy: { esCL: AlertasMessages; en: AlertasMessages } = {
   esCL: {
     pageTitle: "Favoritas",
-    pageLead: `Precio y cambio del día de las que marcaste. ${INFO_ONLY_ES}`,
+    pageLead: `Precio y cambio del día. ${INFO_ONLY_ES}`,
     sortLabel: "Orden",
-    sortChange: "Cambio del día",
+    sortChange: "Cambio",
     sortName: "Nombre",
     emptyTitle: "Aún no tienes favoritas",
-    emptyBody: "Márcalas con la estrella en el mercado. Aquí verás precio, cambio del día y el gráfico corto cuando haya datos.",
-    emptyAction: "Ir al mercado",
+    emptyBody: "Márcalas con la estrella en el mercado.",
+    emptyAction: "Explorar mercado",
     signInTitle: "Ingresa para crear avisos",
-    signInBody: "Sin sesión puedes ver las favoritas de este navegador. Los avisos de precio piden una cuenta.",
+    signInBody: "Sin sesión ves las favoritas de este navegador. Los avisos piden una cuenta.",
     signInAction: "Ingresar",
+    confirmTitle: "Borrar aviso",
+    confirmBody: "Se quita el aviso de {symbol}.",
+    capCount: "{count} de {max} avisos activos",
     alertAction: "Aviso",
     alertActionLabel: "Crear aviso de precio para {name}",
     dialogTitle: "Aviso de precio",
@@ -101,7 +107,7 @@ export const alertasCopy: { esCL: AlertasMessages; en: AlertasMessages } = {
     listError: "No pudimos cargar las favoritas.",
     retry: "Reintentar",
     noPrice: "Sin precio",
-    noChange: "Sin dato del día",
+    noChange: "Sin dato",
     disclaimer: INFO_ONLY_ES,
     loading: "Cargando",
     rateLimited: "Demasiadas solicitudes. Espera un momento.",
@@ -110,16 +116,19 @@ export const alertasCopy: { esCL: AlertasMessages; en: AlertasMessages } = {
   },
   en: {
     pageTitle: "Favorites",
-    pageLead: `Day price and change for the ones you marked. ${INFO_ONLY_EN}`,
+    pageLead: `Day price and change. ${INFO_ONLY_EN}`,
     sortLabel: "Sort",
-    sortChange: "Day change",
+    sortChange: "Change",
     sortName: "Name",
     emptyTitle: "No favorites yet",
-    emptyBody: "Mark them with the star in the market. Price, day change, and the short chart show up here when there is data.",
-    emptyAction: "Go to the market",
+    emptyBody: "Mark them with the star in the market.",
+    emptyAction: "Explore the market",
     signInTitle: "Sign in to create alerts",
-    signInBody: "Without a session you can still see favorites saved in this browser. Price alerts need an account.",
+    signInBody: "Without a session you still see favorites saved in this browser. Alerts need an account.",
     signInAction: "Sign in",
+    confirmTitle: "Delete alert",
+    confirmBody: "This removes the {symbol} alert.",
+    capCount: "{count} of {max} active alerts",
     alertAction: "Alert",
     alertActionLabel: "Create a price alert for {name}",
     dialogTitle: "Price alert",
@@ -151,7 +160,7 @@ export const alertasCopy: { esCL: AlertasMessages; en: AlertasMessages } = {
     listError: "We could not load favorites.",
     retry: "Retry",
     noPrice: "No price",
-    noChange: "No day-change data",
+    noChange: "No data",
     disclaimer: INFO_ONLY_EN,
     loading: "Loading",
     rateLimited: "Too many requests. Wait a moment.",

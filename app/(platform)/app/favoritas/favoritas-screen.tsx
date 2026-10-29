@@ -9,8 +9,8 @@ import { AlertsPanel } from "@/components/domain/alert-panel";
 import { FavoriteButton } from "@/components/domain/favorite-button";
 import { Sparkline } from "@/components/domain/sparkline";
 import { TickerLogo } from "@/components/domain/ticker-logo";
-import { Button } from "@/components/ui/button";
 import { ChangeBadge } from "@/components/domain/change-badge";
+import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ErrorState } from "@/components/ui/error-state";
 import { FlashPrice } from "@/components/domain/flash-price";
@@ -19,6 +19,7 @@ import { SegmentedControl } from "@/components/ui/segmented-control";
 import { Skeleton } from "@/components/ui/skeleton";
 import { alertasText, fillAlert } from "@/content/i18n/extra-alertas";
 import { getPrices, searchMarket } from "@/lib/api/client";
+import { cn } from "@/lib/cn";
 import { useFavorites, useSyncFavorites } from "@/lib/hooks/use-favorites";
 import { PRICE_MS, useFx, useHistories } from "@/lib/hooks/queries";
 import { useT } from "@/lib/hooks/use-t";
@@ -160,18 +161,20 @@ export function FavoritasScreen() {
     <div className="flex min-w-0 flex-col gap-6">
       <PageHeader title={copy.pageTitle} description={copy.pageLead} />
       {favoriteSymbols.length > 0 ? (
-        <SegmentedControl
-          label={copy.sortLabel}
-          value={sort}
-          fullWidth
-          onChange={(value) => {
-            if (value === "change" || value === "name") setSort(value);
-          }}
-          options={[
-            { value: "change", label: copy.sortChange },
-            { value: "name", label: copy.sortName },
-          ]}
-        />
+        <div className="flex max-w-full">
+          <SegmentedControl
+            label={copy.sortLabel}
+            value={sort}
+            compact
+            onChange={(value) => {
+              if (value === "change" || value === "name") setSort(value);
+            }}
+            options={[
+              { value: "change", label: copy.sortChange },
+              { value: "name", label: copy.sortName },
+            ]}
+          />
+        </div>
       ) : null}
       {currency === "CLP" && !fxKnown && !fx.isPending && favoriteSymbols.length > 0 ? (
         <p className="text-sm text-fg-muted">{t.detail.fxFallback}</p>
@@ -185,7 +188,7 @@ export function FavoritasScreen() {
           title={copy.emptyTitle}
           description={copy.emptyBody}
           action={
-            <Button asChild size="lg">
+            <Button asChild size="lg" className="min-h-11 w-full whitespace-nowrap sm:w-auto">
               <Link href="/app">{copy.emptyAction}</Link>
             </Button>
           }
@@ -220,6 +223,25 @@ export function FavoritasScreen() {
   );
 }
 
+function AlertBell({ symbol, name, priceUsd }: { symbol: string; name: string; priceUsd: number | null }) {
+  return (
+    <span className="relative inline-flex size-11 shrink-0 items-center justify-center text-fg-muted">
+      <svg viewBox="0 0 16 16" className="pointer-events-none size-4" fill="none" aria-hidden>
+        <path
+          d="M8 2.5a3.5 3.5 0 0 0-3.5 3.5v2.1L3.2 10.2a.6.6 0 0 0 .5 1h8.6a.6.6 0 0 0 .5-1L11.5 8.1V6A3.5 3.5 0 0 0 8 2.5Z"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinejoin="round"
+        />
+        <path d="M6.6 11.8a1.4 1.4 0 0 0 2.8 0" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      </svg>
+      <span className="absolute inset-0 [&_button]:absolute [&_button]:inset-0 [&_button]:size-11 [&_button]:h-11 [&_button]:min-h-0 [&_button]:w-11 [&_button]:overflow-hidden [&_button]:rounded-full [&_button]:border-0 [&_button]:bg-transparent [&_button]:p-0 [&_button]:text-transparent [&_button]:shadow-none [&_button]:hover:bg-surface-2 [&_button]:hover:text-transparent">
+        <AlertButton symbol={symbol} name={name} priceUsd={priceUsd} />
+      </span>
+    </span>
+  );
+}
+
 function FavoriteRow({
   row,
   shown,
@@ -244,7 +266,7 @@ function FavoriteRow({
   onToggle: () => void;
 }) {
   return (
-    <div className="flex min-h-14 items-center rounded-2xl border border-border/70 transition-colors duration-150 hover:bg-surface-1/80">
+    <div className="rounded-2xl border border-border/70 transition-colors duration-150 hover:bg-surface-1/80 sm:flex sm:min-h-14 sm:items-center">
       <Link
         href={tickerHref(row.symbol)}
         className="flex min-h-14 min-w-0 flex-1 items-center gap-2 rounded-2xl px-2 py-1 sm:gap-3 sm:px-3"
@@ -258,22 +280,22 @@ function FavoriteRow({
           </span>
           {reviewLabel ? (
             <span
-              className="mt-1 inline-flex w-fit items-center rounded-full border border-border/70 bg-surface-2/60 px-2 py-0.5 text-xs leading-4 font-medium text-fg-muted"
+              className="mt-1 inline-flex w-fit max-w-full items-center truncate rounded-full border border-border/70 bg-surface-2/60 px-2 py-0.5 text-xs leading-4 font-medium whitespace-nowrap text-fg-muted"
               title={reviewHint ?? undefined}
             >
               {reviewLabel}
             </span>
           ) : null}
         </span>
-        {row.sparkline ? <Sparkline data={row.sparkline} width={72} height={28} className="block" /> : null}
+        {row.sparkline ? <Sparkline data={row.sparkline} width={72} height={28} className="hidden sm:block" /> : null}
         <span className="flex shrink-0 flex-col items-end gap-0.5 text-right font-medium tabular-nums">
           {shown == null ? (
-            <span className="text-sm text-fg-muted">{noPrice}</span>
+            <span className="text-sm whitespace-nowrap text-fg-muted">{noPrice}</span>
           ) : (
             <>
               <FlashPrice value={shown} currency={currency} size="sm" />
               {row.change24hPct == null ? (
-                <span className="text-xs text-fg-muted">{noChange}</span>
+                <span className="text-xs whitespace-nowrap text-fg-muted">{noChange}</span>
               ) : (
                 <ChangeBadge value={row.change24hPct} />
               )}
@@ -281,9 +303,17 @@ function FavoriteRow({
           )}
         </span>
       </Link>
-      <div className="flex shrink-0 items-center pr-1">
-        <AlertButton symbol={row.symbol} name={row.name} priceUsd={row.priceUsd} />
-        <FavoriteButton pressed label={favoriteLabel} onToggle={onToggle} />
+      <div
+        className={cn(
+          "flex items-center gap-2 px-2 pb-2 sm:shrink-0 sm:justify-end sm:px-0 sm:pr-1 sm:pb-0",
+          row.sparkline ? "justify-between" : "justify-end",
+        )}
+      >
+        {row.sparkline ? <Sparkline data={row.sparkline} width={72} height={28} className="block sm:hidden" /> : null}
+        <span className="inline-flex shrink-0 items-center">
+          <AlertBell symbol={row.symbol} name={row.name} priceUsd={row.priceUsd} />
+          <FavoriteButton pressed label={favoriteLabel} onToggle={onToggle} />
+        </span>
       </div>
     </div>
   );
@@ -291,10 +321,10 @@ function FavoriteRow({
 
 function ListSkeleton({ label }: { label: string }) {
   return (
-    <div role="status" aria-live="polite" aria-busy="true" className="flex flex-col gap-2">
+    <div role="status" aria-live="polite" aria-busy="true" className="flex flex-col gap-1.5">
       <span className="sr-only">{label}</span>
       {["a", "b", "c", "d"].map((key) => (
-        <Skeleton key={key} className="min-h-14 w-full rounded-2xl" />
+        <Skeleton key={key} className="h-[6.75rem] w-full rounded-2xl sm:h-14" />
       ))}
     </div>
   );
