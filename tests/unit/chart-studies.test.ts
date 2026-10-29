@@ -234,16 +234,20 @@ describe("chartStudies", () => {
 });
 
 describe("textos del gráfico", () => {
-  it("es-CL y en tienen la misma forma y el aviso neutro", () => {
+  it("es-CL y en tienen la misma forma, un solo aviso y una sola explicación", () => {
     expect(Object.keys(graficoExtra.esCL).sort()).toEqual(Object.keys(graficoExtra.en).sort());
     expect(graficoExtra.esCL.disclaimer).toBe("Solo informativo, no es una recomendación");
-    expect(graficoCopy("es-CL").help).toBe("¿Qué es esto?");
+    expect(graficoCopy("es-CL").modeSimple).toBe("Simple");
+    expect(graficoCopy("es-CL").modeTechnical).toBe("Técnico");
+    expect(graficoCopy("en").modeTechnical).toBe("Technical");
     expect(graficoCopy("en").disclaimer).toBe(graficoExtra.en.disclaimer);
     expect(graficoCopy("en").vsSpy).toBe("vs S&P 500");
     for (const pack of [graficoExtra.esCL, graficoExtra.en]) {
-      expect(pack.spyHelp).toContain(pack.disclaimer);
-      expect(pack.smaHelp).toContain(pack.disclaimer);
-      expect(pack.rsiHelp).toContain(pack.disclaimer);
+      expect(pack.tip).toMatch(/S&P 500/);
+      expect(pack.tip).toMatch(/SMA/);
+      expect(pack.tip).toMatch(/RSI/);
+      expect(pack.tip).not.toContain(pack.disclaimer);
+      expect(pack.tipLabel.length).toBeGreaterThan(0);
       for (const value of Object.values(pack)) {
         expect(value).not.toMatch(/compra|vende|\bbuy\b|\bsell\b|analista|analyst|inteligencia artificial/i);
       }

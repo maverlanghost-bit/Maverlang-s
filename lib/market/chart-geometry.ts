@@ -238,6 +238,8 @@ export function buildChartModel(
   rows: readonly ChartRow[],
   overlays: readonly ChartOverlay[] = [],
   benchmark?: ChartBenchmark | null,
+  /** Máximos y mínimos reales (velas). No rellena OHLC a partir del cierre. */
+  extraPrices?: readonly number[],
 ): ChartModel | null {
   if (rows.length < 2) return null;
   const first = rows[0];
@@ -273,6 +275,13 @@ export function buildChartModel(
   }
   for (const item of preparedOverlays) {
     for (const row of item.mapped) yValues.push(row.p);
+  }
+  if (extraPrices) {
+    for (const price of extraPrices) {
+      if (!Number.isFinite(price)) continue;
+      const plotted = percentMode ? percentFrom(price, assetBase) : price;
+      if (plotted !== null && Number.isFinite(plotted)) yValues.push(plotted);
+    }
   }
 
   const scale = priceScale(yValues);
@@ -411,4 +420,190 @@ export function plotRsiLine(
     y: yForRsi(row.p),
   }));
   return { line: smoothPath(placed), points: placed };
+}
+
+/**
+ * El historial público trae sólo cierre (`t`, `p`). Estas lecturas no inventan
+ * apertura, máximo, mínimo ni volumen a partir de ese cierre.
+ */
+function finiteNumber(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function rowOf(point: object): Record<string, unknown> {
+  return point as Record<string, unknown>;
+}
+
+export interface OhlcBar {
+  t: number;
+  o: number;
+  h: number;
+  l: number;
+  c: number;
+}
+
+export interface VolumeBar {
+  t: number;
+  v: number;
+}
+
+function ohlcOf(row: Record<string, unknown>): OhlcBar | null {
+  const t = finiteNumber(row.t);
+  const o = finiteNumber(row.o);
+  const h = finiteNumber(row.h);
+  const l = finiteNumber(row.l);
+  const c = finiteNumber(row.c);
+  if (t === null || o === null || h === null || l === null || c === null) return null;
+  if (!(o > 0 && h > 0 && l > 0 && c > 0)) return null;
+  if (h < l || h < o || h < c || l > o || l > c) return null;
+  return { t, o, h, l, c };
+}
+
+function pushUniqueTime<T extends { t: number }>(rows: T[], row: T) {
+  const prev = rows[rows.length - 1];
+  if (prev && prev.t === row.t) {
+    rows[rows.length - 1] = row;
+    return;
+  }
+  rows.push(row);
+}
+
+/** Velas sólo si el punto trae o, h, l y c. Hacen falta dos para dibujar. */
+export function readOhlc(points: readonly object[]): OhlcBar[] {
+  const found: OhlcBar[] = [];
+  for (const point of points) {
+    if (point == null || typeof point !== "object") continue;
+    const bar = ohlcOf(rowOf(point));
+    if (bar) found.push(bar);
+  }
+  found.sort((a, b) => a.t - b.t);
+  const rows: OhlcBar[] = [];
+  for (const bar of found) pushUniqueTime(rows, bar);
+  return rows;
+}
+
+/** Volumen sólo si el punto trae `v` finito y no negativo. */
+export function readVolume(points: readonly object[]): VolumeBar[] {
+  const found: VolumeBar[] = [];
+  for (const point of points) {
+    if (point == null || typeof point !== "object") continue;
+    const row = rowOf(point);
+    const t = finiteNumber(row.t);
+    const v = finiteNumber(row.v);
+    if (t === null || v === null || v < 0) continue;
+    found.push({ t, v });
+  }
+  found.sort((a, b) => a.t - b.t);
+  const rows: VolumeBar[] = [];
+  for (const bar of found) pushUniqueTime(rows, bar);
+  return rows;
+}
+
+/** true sólo con datos reales de volumen u OHLC. Un cierre suelto no alcanza. */
+export function barAvailability(points: readonly object[]): { volume: boolean; ohlc: boolean } {
+  const volume = readVolume(points);
+  let positive = false;
+  for (const row of volume) {
+    if (row.v > 0) {
+      positive = true;
+      break;
+    }
+  }
+  return { volume: volume.length >= 2 && positive, ohlc: readOhlc(points).length >= 2 };
+}
+
+export interface CandleMark {
+  t: number;
+  x: number;
+  yHigh: number;
+  yLow: number;
+  yOpen: number;
+  yClose: number;
+  up: boolean;
+  width: number;
+}
+
+export function candleMarks(
+  bars: readonly OhlcBar[],
+  t0: number,
+  t1: number,
+  scale: PriceScale,
+  percentMode: boolean,
+  base: number,
+): CandleMark[] | null {
+  if (!(t1 > t0)) return null;
+  const rows = bars.filter((bar) => bar.t >= t0 && bar.t <= t1);
+  if (rows.length < 2) return null;
+  let minGap = Number.POSITIVE_INFINITY;
+  for (let i = 1; i < rows.length; i++) {
+    const prev = rows[i - 1];
+    const next = rows[i];
+    if (!prev || !next) continue;
+    const gap = next.t - prev.t;
+    if (gap > 0 && gap < minGap) minGap = gap;
+  }
+  const gapPx = Number.isFinite(minGap) ? xForTime(t0 + minGap, t0, t1) : 8;
+  const width = Math.max(1.25, Math.min(12, gapPx * 0.62));
+  const toPlot = (price: number) => (percentMode ? percentFrom(price, base) : price);
+  const marks: CandleMark[] = [];
+  for (const bar of rows) {
+    const high = toPlot(bar.h);
+    const low = toPlot(bar.l);
+    const open = toPlot(bar.o);
+    const close = toPlot(bar.c);
+    if (high === null || low === null || open === null || close === null) continue;
+    marks.push({
+      t: bar.t,
+      x: xForTime(bar.t, t0, t1),
+      yHigh: yForPrice(high, scale),
+      yLow: yForPrice(low, scale),
+      yOpen: yForPrice(open, scale),
+      yClose: yForPrice(close, scale),
+      up: bar.c >= bar.o,
+      width,
+    });
+  }
+  return marks.length >= 2 ? marks : null;
+}
+
+export const VOLUME_H = 40;
+
+export interface VolumeMark {
+  t: number;
+  x: number;
+  y: number;
+  height: number;
+  width: number;
+}
+
+export function volumeMarks(rows: readonly VolumeBar[], t0: number, t1: number): VolumeMark[] | null {
+  if (!(t1 > t0)) return null;
+  const picked = rows.filter((row) => row.t >= t0 && row.t <= t1 && row.v >= 0);
+  if (picked.length < 2) return null;
+  let max = 0;
+  for (const row of picked) {
+    if (row.v > max) max = row.v;
+  }
+  if (!(max > 0)) return null;
+  let minGap = Number.POSITIVE_INFINITY;
+  for (let i = 1; i < picked.length; i++) {
+    const prev = picked[i - 1];
+    const next = picked[i];
+    if (!prev || !next) continue;
+    const gap = next.t - prev.t;
+    if (gap > 0 && gap < minGap) minGap = gap;
+  }
+  const gapPx = Number.isFinite(minGap) ? xForTime(t0 + minGap, t0, t1) : 8;
+  const width = Math.max(1.25, Math.min(12, gapPx * 0.62));
+  const inner = VOLUME_H - 8;
+  return picked.map((row) => {
+    const height = (row.v / max) * inner;
+    return {
+      t: row.t,
+      x: xForTime(row.t, t0, t1),
+      y: VOLUME_H - 4 - height,
+      height,
+      width,
+    };
+  });
 }

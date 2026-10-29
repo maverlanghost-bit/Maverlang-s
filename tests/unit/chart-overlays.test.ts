@@ -4,7 +4,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
-import { ChartLegend, ChartStudyBar, RsiPanel } from "@/components/domain/chart-overlays";
+import { ChartLegend, ChartStudyBar, RsiPanel, StudiesSkeleton } from "@/components/domain/chart-overlays";
 import { graficoExtra } from "@/content/i18n/extra-grafico";
 import { yForRsi } from "@/lib/market/chart-geometry";
 
@@ -16,7 +16,7 @@ describe("ChartStudyBar", () => {
     expect(markup).toBe("");
   });
 
-  it("muestra los toggles, tres ayudas y el aviso", () => {
+  it("muestra los chips en una fila con un solo InfoTip, sin aviso repetido", () => {
     const markup = renderToStaticMarkup(
       createElement(ChartStudyBar, {
         copy,
@@ -26,19 +26,45 @@ describe("ChartStudyBar", () => {
           { period: 50, on: true, onToggle: () => {} },
         ],
         rsi: { on: false, onToggle: () => {} },
+        style: {
+          value: "line",
+          line: copy.styleLine,
+          candles: copy.styleCandles,
+          label: copy.styleLabel,
+          onChange: () => {},
+        },
+        volume: { on: false, onToggle: () => {}, label: copy.volume },
       }),
     );
     expect(markup).toContain('aria-label="Indicadores del gráfico"');
+    expect(markup).toContain("overflow-x-auto");
+    expect(markup).toContain("flex-nowrap");
+    expect(markup).not.toContain("flex-wrap");
+    expect(markup).toContain("whitespace-nowrap");
     expect(markup).toContain("vs S&amp;P 500");
     expect(markup).toContain("SMA 20");
     expect(markup).toContain("SMA 50");
     expect(markup).toContain(">RSI<");
+    expect(markup).toContain(">Línea<");
+    expect(markup).toContain(">Velas<");
+    expect(markup).toContain(">Volumen<");
     expect(markup).toContain('aria-pressed="true"');
     expect(markup).toContain('aria-pressed="false"');
-    expect(markup).toContain("¿Qué es esto?: S&amp;P 500");
-    expect(markup).toContain("¿Qué es esto?: SMA");
-    expect(markup).toContain("¿Qué es esto?: RSI");
-    expect(markup.split("Solo informativo, no es una recomendación").length - 1).toBe(1);
+    expect(markup).toContain('aria-label="Sobre los indicadores"');
+    expect(markup.split('aria-haspopup="dialog"').length - 1).toBe(1);
+    expect(markup).not.toContain("¿Qué es esto?");
+    expect(markup).not.toContain("Solo informativo, no es una recomendación");
+  });
+});
+
+describe("StudiesSkeleton", () => {
+  it("reserva la misma fila de 44 px que los chips", () => {
+    const markup = renderToStaticMarkup(createElement(StudiesSkeleton, { label: copy.studiesLoading }));
+    expect(markup).toContain("h-11");
+    expect(markup).toContain("h-8");
+    expect(markup).toContain("size-11");
+    expect(markup).toContain(copy.studiesLoading);
+    expect(markup).toContain('aria-busy="true"');
   });
 });
 
@@ -108,16 +134,30 @@ describe("montaje en la ficha", () => {
     "utf8",
   );
 
-  it("la ficha pide SPYx y el historial ALL y pasa las capas al gráfico", () => {
+  it("Simple no pide series extra; Técnico pide el historial largo una vez", () => {
     expect(panel).toContain('from "@/content/i18n/extra-grafico"');
     expect(panel).toContain("graficoCopy(language)");
-    expect(panel).toContain("useHistory(SPY_SYMBOL, range)");
-    expect(panel).toContain('useHistory(symbol, "ALL")');
+    expect(panel).toContain("useChartMode()");
+    expect(panel).not.toContain("useHistory(SPY_SYMBOL, range)");
+    expect(panel).not.toContain('useHistory(symbol, "ALL")');
+    expect(panel).toContain('getHistory(SPY_SYMBOL, range)');
+    expect(panel).toContain('getHistory(symbolKey, "ALL")');
+    expect(panel).toContain("studyQueryOptions(spyEnabled)");
+    expect(panel).toContain("studyQueryOptions(technical && symbolKey.length > 0)");
+    expect(panel).toContain("refetchInterval: false");
+    expect(panel).toContain("retry: false");
+    expect(panel).toContain("STUDY_STALE_MS");
+    expect(panel).toContain("if (!technical) return EMPTY_STUDIES");
     expect(panel).toContain("chartStudies(");
+    expect(panel).toContain("barAvailability(points)");
     expect(panel).toContain("<ChartStudyBar");
+    expect(panel).toContain("<StudiesSkeleton");
     expect(panel).toContain("<RsiPanel");
     expect(panel).toContain("overlays={overlays}");
     expect(panel).toContain("benchmark={benchmark}");
+    expect(panel).toContain('chartStyle={technical && bars.ohlc ? draw : "line"}');
+    expect(panel).toContain("showVolume={technical && bars.volume && volumeOn}");
+    expect(panel.split("copy.disclaimer").length - 1).toBe(1);
     expect(panel).toContain('import { SvgPriceChart } from "@/components/domain/svg-price-chart"');
     expect(panel).toContain('import { TONE_STROKE } from "@/components/domain/svg-price-chart"');
   });

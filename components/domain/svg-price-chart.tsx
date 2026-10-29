@@ -8,15 +8,22 @@ import {
   CHART_W,
   PAD_B,
   PAD_T,
+  VOLUME_H,
   buildChartModel,
+  candleMarks,
   changeFromOpen,
   nearestPointWithin,
   openingPriceY,
+  readOhlc,
+  readVolume,
   toRows,
+  volumeMarks,
+  type CandleMark,
   type ChartBenchmark,
   type ChartLayerModel,
   type ChartOverlay,
   type PlottedPoint,
+  type VolumeMark,
 } from "@/lib/market/chart-geometry";
 import type { ChartTone } from "@/lib/market/series";
 import type { PricePoint } from "@/lib/types";
@@ -39,8 +46,17 @@ const TOUCH_GHOST_MS = 700;
 const TOUCH_RELEASE_MS = 400;
 const EMPTY_OVERLAYS: readonly ChartOverlay[] = [];
 
+/** Cierre (`t`, `p`) y, si la fuente los trae, OHLC y volumen. Nunca se inventan. */
+export type ChartPoint = PricePoint & {
+  o?: number;
+  h?: number;
+  l?: number;
+  c?: number;
+  v?: number;
+};
+
 export interface PriceChartProps {
-  points: readonly PricePoint[];
+  points: readonly ChartPoint[];
   tone: ChartTone;
   label: string;
   emptyLabel: string;
@@ -57,6 +73,11 @@ export interface PriceChartProps {
   overlays?: readonly ChartOverlay[];
   /** SPYx u otra serie de referencia, rebasada a % desde el inicio. */
   benchmark?: ChartBenchmark | null;
+  /** `candles` sólo dibuja si los puntos traen OHLC. Si no, queda la línea. */
+  chartStyle?: "line" | "candles";
+  /** Barras sólo si los puntos traen `v`. No se inventa volumen. */
+  showVolume?: boolean;
+  volumeLabel?: string;
 }
 
 type DrawnPoint = PlottedPoint & { usd: number };
@@ -219,23 +240,29 @@ function DrawnChart({
   line,
   area,
   stroke,
+  upColor,
+  downColor,
   reference,
   label,
   gradId,
   onHover,
   layers,
   percentMode,
+  candles,
 }: {
   points: readonly DrawnPoint[];
   line: string;
   area: string;
   stroke: string;
+  upColor: string;
+  downColor: string;
   reference: boolean;
   label: string;
   gradId: string;
   onHover: (usd: number | null, timeMs?: number | null) => void;
   layers: readonly ChartLayerModel[];
   percentMode: boolean;
+  candles: readonly CandleMark[] | null;
 }) {
   const svgRef = useRef<SVGSVGElement>(null);
   const plotRef = useRef(points);
@@ -275,6 +302,7 @@ function DrawnChart({
   }, []);
 
   const hoverPoint = hoverIndex !== null && hoverIndex < points.length ? points[hoverIndex] : undefined;
+  const candleList = candles !== null && candles.length >= 2 ? candles : null;
   const hoverLeft = hoverPoint ? Math.min(85, Math.max(15, (hoverPoint.x / CHART_W) * 100)) : 0;
   const openPrice = points[0]?.usd;
   const periodMove = hoverPoint && openPrice !== undefined ? changeFromOpen(openPrice, hoverPoint.usd) : null;
@@ -312,6 +340,7 @@ function DrawnChart({
         data-points={points.length}
         data-reference={reference ? "true" : "false"}
         data-percent={percentMode ? "true" : "false"}
+        data-chart-style={candleList ? "candles" : undefined}
         className="absolute inset-0 h-full w-full touch-pan-y"
         style={{ touchAction: "pan-y" }}
         onMouseMove={onMouseMove}
@@ -337,17 +366,50 @@ function DrawnChart({
             vectorEffect="non-scaling-stroke"
           />
         )}
-        {reference || !area ? null : <path d={area} fill={`url(#${gradId})`} />}
-        <path
-          d={line}
-          fill="none"
-          stroke={stroke}
-          strokeWidth="2.25"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeDasharray={reference ? "4 4" : undefined}
-          vectorEffect="non-scaling-stroke"
-        />
+        {candleList ? (
+          <g data-candles={candleList.length}>
+            {candleList.map((mark) => {
+              const color = mark.up ? upColor : downColor;
+              const top = Math.min(mark.yOpen, mark.yClose);
+              const height = Math.max(1, Math.abs(mark.yClose - mark.yOpen));
+              return (
+                <g key={mark.t}>
+                  <line
+                    x1={mark.x}
+                    x2={mark.x}
+                    y1={mark.yHigh}
+                    y2={mark.yLow}
+                    stroke={color}
+                    strokeWidth="1"
+                    vectorEffect="non-scaling-stroke"
+                  />
+                  <rect
+                    x={mark.x - mark.width / 2}
+                    y={top}
+                    width={mark.width}
+                    height={height}
+                    fill={color}
+                    data-candle={mark.up ? "up" : "down"}
+                  />
+                </g>
+              );
+            })}
+          </g>
+        ) : (
+          <>
+            {reference || !area ? null : <path d={area} fill={`url(#${gradId})`} />}
+            <path
+              d={line}
+              fill="none"
+              stroke={stroke}
+              strokeWidth="2.25"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeDasharray={reference ? "4 4" : undefined}
+              vectorEffect="non-scaling-stroke"
+            />
+          </>
+        )}
         {layers.map((layer) => (
           <path
             key={layer.id}
@@ -406,6 +468,33 @@ function DrawnChart({
   );
 }
 
+function VolumeStrip({ marks, label }: { marks: readonly VolumeMark[]; label: string }) {
+  return (
+    <div className="relative mt-2 h-10 w-full">
+      <svg
+        viewBox={`0 0 ${CHART_W} ${VOLUME_H}`}
+        preserveAspectRatio="none"
+        role="img"
+        aria-label={label}
+        data-volume="true"
+        className="absolute inset-0 h-full w-full"
+      >
+        {marks.map((mark) => (
+          <rect
+            key={mark.t}
+            x={mark.x - mark.width / 2}
+            y={mark.y}
+            width={mark.width}
+            height={Math.max(mark.height, 0)}
+            fill="var(--color-fg-muted, #6c6f75)"
+            opacity="0.45"
+          />
+        ))}
+      </svg>
+    </div>
+  );
+}
+
 function SvgPriceChartBase({
   points,
   tone,
@@ -418,37 +507,65 @@ function SvgPriceChartBase({
   reference = false,
   overlays,
   benchmark = null,
+  chartStyle = "line",
+  showVolume = false,
+  volumeLabel = "",
 }: PriceChartProps) {
   const gradRaw = useId().replace(/:/g, "");
   const gradId = `svg-price-${gradRaw}`;
   const model = useMemo(() => {
     const rows = toRows(points, livePoint);
-    const built = buildChartModel(rows, overlays ?? EMPTY_OVERLAYS, benchmark);
-    if (!built) return null;
+    const first = rows[0];
+    const last = rows[rows.length - 1];
+    const ohlc =
+      chartStyle === "candles" && first && last
+        ? readOhlc(points).filter((bar) => bar.t >= first.t && bar.t <= last.t)
+        : [];
+    const extra = ohlc.length >= 2 ? ohlc.flatMap((bar) => [bar.o, bar.h, bar.l, bar.c]) : undefined;
+    const built = buildChartModel(rows, overlays ?? EMPTY_OVERLAYS, benchmark, extra);
+    if (!built || !first || !last) return null;
+    const candles =
+      extra !== undefined ? candleMarks(ohlc, first.t, last.t, built.scale, built.percentMode, first.p) : null;
+    const candleMode = candles !== null && candles.length >= 2;
+    const volume = showVolume
+      ? volumeMarks(
+          readVolume(points).filter((row) => row.t >= first.t && row.t <= last.t),
+          first.t,
+          last.t,
+        )
+      : null;
     return {
       ...built,
       key: historyKey(points),
-      area: built.percentMode ? "" : areaUnder(built.line, built.points),
+      area: built.percentMode || candleMode ? "" : areaUnder(built.line, built.points),
+      candles: candleMode ? candles : null,
+      volume,
     };
-  }, [points, livePoint, overlays, benchmark]);
+  }, [points, livePoint, overlays, benchmark, chartStyle, showVolume]);
   const drawn = model !== null && model.points.length >= 2;
   const stroke = reference ? REFERENCE_STROKE : TONE_STROKE[tone];
+  const upColor = reference ? REFERENCE_STROKE : TONE_STROKE.up;
+  const downColor = reference ? REFERENCE_STROKE : TONE_STROKE.down;
 
   return (
+    <>
     <div className="relative h-56 w-full touch-pan-y sm:h-64" style={{ touchAction: "pan-y" }} data-tone={tone}>
       {drawn && model ? (
         <DrawnChart
-          key={`${model.key}:${model.percentMode ? "pct" : "px"}:${model.layers.map((layer) => layer.id).join(".")}`}
+          key={`${model.key}:${model.percentMode ? "pct" : "px"}:${model.candles ? "candles" : "line"}:${model.layers.map((layer) => layer.id).join(".")}`}
           points={model.points}
           line={model.line}
           area={model.area}
           stroke={stroke}
+          upColor={upColor}
+          downColor={downColor}
           reference={reference}
           label={label}
           gradId={gradId}
           onHover={onHover}
           layers={model.layers}
           percentMode={model.percentMode}
+          candles={model.candles}
         />
       ) : quiet ? null : (
         <div className="absolute inset-0 flex flex-col items-center justify-center rounded-xl bg-neutral-50 px-4 text-center">
@@ -457,6 +574,10 @@ function SvgPriceChartBase({
         </div>
       )}
     </div>
+    {drawn && model?.volume && model.volume.length >= 2 ? (
+      <VolumeStrip marks={model.volume} label={volumeLabel} />
+    ) : null}
+    </>
   );
 }
 
