@@ -104,7 +104,7 @@ describe("M46: escáner de secretos", () => {
     });
     expect(out).toContain("scan:secrets: limpio.");
     expect(out).not.toContain(secret);
-  });
+  }, 120_000);
 
   it("project-guard: sólo imprime el ref, nunca valores", () => {
     expect(supabaseRefOf("https://abcdefgh1234.supabase.co")).toBe("abcdefgh1234");

@@ -41,11 +41,11 @@ export function Switch({
         }}
         className="inline-flex h-11 w-14 shrink-0 items-center justify-center disabled:pointer-events-none"
       >
-        <span className={cn("relative h-6 w-11 rounded-full transition duration-[140ms]", on ? "bg-fg" : "bg-surface-3")}>
+        <span className={cn("relative h-6 w-11 rounded-full transition duration-[140ms]", on ? "bg-fg" : "bg-[#8a8a8a]")}>
           <span
             aria-hidden
             className={cn(
-              "absolute top-0.5 left-0.5 size-5 rounded-full border border-border bg-bg transition duration-[140ms]",
+              "absolute top-0.5 left-0.5 size-5 rounded-full bg-white transition duration-[140ms]",
               on && "translate-x-5",
             )}
           />

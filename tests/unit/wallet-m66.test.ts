@@ -1,7 +1,8 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { restoreModes } from "./restore-modes";
 import {
   storedWalletSchema,
   walletSyncRequestSchema,
@@ -19,6 +20,14 @@ import {
 import { isValidSolanaAddress } from "@/lib/solana/address";
 import { __resetRateLimitsForTests } from "@/lib/security/rate-limit";
 import { GET as walletGET, POST as walletPOST } from "@/app/api/me/wallet/route";
+
+// La shell de desarrollo puede traer DATA_MODE=live. Esta suite cubre el store en memoria.
+const savedModes = vi.hoisted(() => {
+  const saved = { DATA_MODE: process.env.DATA_MODE, PRICES_MODE: process.env.PRICES_MODE };
+  process.env.DATA_MODE = "mock";
+  process.env.PRICES_MODE = "mock";
+  return saved;
+});
 
 const ROOT = path.resolve(__dirname, "..", "..");
 
@@ -72,6 +81,10 @@ beforeEach(() => {
   resetMockWalletsForTests();
   __resetRateLimitsForTests();
   getSessionMock.mockReset();
+});
+
+afterAll(() => {
+  restoreModes(savedModes);
 });
 
 describe("M66: migración 0029_wallets.sql", () => {

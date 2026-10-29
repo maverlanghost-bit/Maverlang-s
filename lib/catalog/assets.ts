@@ -2,6 +2,7 @@ import "server-only";
 
 import { readdirSync } from "node:fs";
 import path from "node:path";
+import { cache as reactCache } from "react";
 
 import { ONDO_TICKERS } from "@/config/ondo.generated";
 import { TICKERS } from "@/config/tickers";
@@ -25,6 +26,8 @@ import type { Ticker } from "@/lib/types";
  */
 
 export const CATALOG_CACHE_MS = 5 * 60 * 1000;
+/** Tope de cada lectura a Supabase. Un socket colgado no puede llegar a los 60 s. */
+const CATALOG_FETCH_MS = 4_000;
 export const LOW_LIQUIDITY_USD = 10_000;
 /**
  * PostgREST corta cada respuesta en 1000 filas como máximo: se pagina de a
@@ -639,6 +642,9 @@ interface AssetsCache {
 }
 
 let cache: AssetsCache | null = null;
+let catalogInflight: { fetchImpl: typeof fetch; job: Promise<LoadedAssets> } | null = null;
+let listedProbe: { at: number; exists: boolean } | null = null;
+let listedInflight: Promise<boolean> | null = null;
 
 function isFresh(now: number): boolean {
   return cache !== null && now - cache.at < CATALOG_CACHE_MS;
@@ -652,6 +658,9 @@ export function __setAssetsCacheForTests(rows: CatalogAsset[], at: number): void
 /** Sólo para tests. */
 export function __clearAssetsCacheForTests(): void {
   cache = null;
+  catalogInflight = null;
+  listedProbe = null;
+  listedInflight = null;
 }
 
 const ASSETS_COLUMNS = [
@@ -676,7 +685,6 @@ const ASSETS_COLUMNS = [
   "safety_reasons",
   "safety_tier",
   "safety_checked_at",
-  "safety_metrics",
 ].join(",");
 
 /**
@@ -703,8 +711,88 @@ const ASSETS_COLUMNS_LEGACY = [
   "safety_reasons",
   "safety_tier",
   "safety_checked_at",
-  "safety_metrics",
 ].join(",");
+
+function catalogSignal(): AbortSignal {
+  return AbortSignal.timeout(CATALOG_FETCH_MS);
+}
+
+/** Valor de filtro PostgREST. Comillas si hay punto u otro carácter reservado (`BRK.B`). */
+function eqFilter(value: string): string {
+  const clean = value.replaceAll('"', "");
+  if (/[^A-Za-z0-9]/.test(clean)) return `eq."${clean}"`;
+  return `eq.${clean}`;
+}
+
+function rowsFromBody(body: unknown): CatalogAsset[] | null {
+  if (!Array.isArray(body)) return null;
+  const collected: CatalogAsset[] = [];
+  for (const entry of body) {
+    if (entry !== null && typeof entry === "object") {
+      const asset = assetFromRow(entry as AssetRow);
+      if (asset) collected.push(asset);
+    }
+  }
+  return collected;
+}
+
+/**
+ * Una página de `public.assets`. `status` 0 es red o abort (no se reintenta
+ * como esquema viejo). El select caliente no pide `safety_metrics`.
+ */
+async function readAssetPage(
+  fetchImpl: typeof fetch,
+  columns: string,
+  extra: Record<string, string>,
+): Promise<{ ok: true; body: unknown } | { ok: false; status: number }> {
+  const config = readSupabasePublicConfig();
+  if (!config) return { ok: false, status: 0 };
+  const url = new URL(`${config.url}/rest/v1/assets`);
+  url.searchParams.set("select", columns);
+  for (const [key, value] of Object.entries(extra)) url.searchParams.set(key, value);
+  try {
+    const response = await fetchImpl(url.toString(), {
+      method: "GET",
+      headers: {
+        accept: "application/json",
+        apikey: config.publishableKey,
+        authorization: `Bearer ${config.publishableKey}`,
+      },
+      cache: "no-store",
+      signal: catalogSignal(),
+    });
+    if (!response.ok) return { ok: false, status: response.status };
+    try {
+      return { ok: true, body: await response.json() };
+    } catch {
+      return { ok: false, status: response.status };
+    }
+  } catch {
+    return { ok: false, status: 0 };
+  }
+}
+
+async function fetchFilteredAssets(
+  fetchImpl: typeof fetch,
+  filters: Record<string, string>,
+  limit: number,
+): Promise<CatalogAsset[] | null> {
+  if (!readSupabasePublicConfig()) return null;
+  let columns = ASSETS_COLUMNS;
+  let legacyTried = false;
+  for (;;) {
+    const result = await readAssetPage(fetchImpl, columns, { ...filters, limit: String(limit) });
+    if (!result.ok) {
+      if (!legacyTried && result.status !== 0 && columns !== ASSETS_COLUMNS_LEGACY) {
+        legacyTried = true;
+        columns = ASSETS_COLUMNS_LEGACY;
+        continue;
+      }
+      return null;
+    }
+    return rowsFromBody(result.body);
+  }
+}
 
 async function fetchAssetsFromSupabase(fetchImpl: typeof fetch): Promise<CatalogAsset[] | null> {
   const config = readSupabasePublicConfig();
@@ -714,52 +802,28 @@ async function fetchAssetsFromSupabase(fetchImpl: typeof fetch): Promise<Catalog
   let columns = ASSETS_COLUMNS;
   let legacyTried = false;
   for (let page = 0; page < ASSETS_MAX_PAGES; page += 1) {
-    const url = new URL(`${config.url}/rest/v1/assets`);
-    url.searchParams.set("select", columns);
-    // Orden estable: las filas curadas primero y el resto por símbolo.
-    url.searchParams.set("order", "curated.desc,symbol.asc");
-    url.searchParams.set("limit", String(ASSETS_PAGE_SIZE));
-    url.searchParams.set("offset", String(page * ASSETS_PAGE_SIZE));
-    let response: Response;
-    try {
-      response = await fetchImpl(url.toString(), {
-        method: "GET",
-        headers: {
-          accept: "application/json",
-          apikey: config.publishableKey,
-          authorization: `Bearer ${config.publishableKey}`,
-        },
-        cache: "no-store",
-      });
-    } catch {
-      // Sin ninguna fila, se mantiene el fallback actual; con filas parciales
-      // se usan las obtenidas para no dejar el mercado vacío.
-      return collected.length > 0 ? collected : null;
-    }
-    if (!response.ok) {
-      if (!legacyTried && columns !== ASSETS_COLUMNS_LEGACY) {
+    const result = await readAssetPage(fetchImpl, columns, {
+      // Orden estable: las filas curadas primero y el resto por símbolo.
+      order: "curated.desc,symbol.asc",
+      limit: String(ASSETS_PAGE_SIZE),
+      offset: String(page * ASSETS_PAGE_SIZE),
+    });
+    if (!result.ok) {
+      if (!legacyTried && columns !== ASSETS_COLUMNS_LEGACY && result.status !== 0) {
         legacyTried = true;
         columns = ASSETS_COLUMNS_LEGACY;
         page -= 1;
         continue;
       }
+      // Sin ninguna fila, se mantiene el fallback actual; con filas parciales
+      // se usan las obtenidas para no dejar el mercado vacío.
       return collected.length > 0 ? collected : null;
     }
-    let body: unknown;
-    try {
-      body = await response.json();
-    } catch {
-      return collected.length > 0 ? collected : null;
-    }
-    if (!Array.isArray(body)) return collected.length > 0 ? collected : null;
-    for (const entry of body) {
-      if (entry !== null && typeof entry === "object") {
-        const asset = assetFromRow(entry as AssetRow);
-        if (asset) collected.push(asset);
-      }
-    }
+    const rows = rowsFromBody(result.body);
+    if (!rows) return collected.length > 0 ? collected : null;
+    collected.push(...rows);
     // Página no llena: era la última.
-    if (body.length < ASSETS_PAGE_SIZE) break;
+    if (!Array.isArray(result.body) || result.body.length < ASSETS_PAGE_SIZE) break;
   }
   return collected;
 }
@@ -781,8 +845,7 @@ interface LoadedAssets {
   fromSupabase: boolean;
 }
 
-async function loadAssets(fetchImpl: typeof fetch, now: number): Promise<LoadedAssets> {
-  if (isFresh(now) && cache) return { rows: cache.rows, fromSupabase: cache.fromSupabase };
+async function storeAssets(fetchImpl: typeof fetch, now: number): Promise<LoadedAssets> {
   const rows = await fetchAssetsFromSupabase(fetchImpl);
   if (rows === null) {
     const fallback = fallbackAssets();
@@ -791,8 +854,35 @@ async function loadAssets(fetchImpl: typeof fetch, now: number): Promise<LoadedA
   }
   const annotated = annotateSafety(rows, true);
   cache = { at: now, rows: annotated, fromSupabase: true };
+  listedProbe = { at: now, exists: annotated.some((asset) => asset.safetyStatus === "listed") };
   return { rows: annotated, fromSupabase: true };
 }
+
+/**
+ * `cache` de React deduplica dentro del request. Si un test mockea `react`
+ * sin esa exportación, la función corre igual (sin deduplicar).
+ */
+function perRequest<A extends unknown[], R>(fn: (...args: A) => R): (...args: A) => R {
+  return typeof reactCache === "function" ? reactCache(fn) : fn;
+}
+
+/**
+ * Una sola descarga en vuelo por `fetch`. La memoria de 5 min cubre el resto.
+ * `reactCache()` deduplica la variante sin deps dentro del request.
+ */
+async function loadAssets(fetchImpl: typeof fetch, now: number): Promise<LoadedAssets> {
+  if (isFresh(now) && cache) return { rows: cache.rows, fromSupabase: cache.fromSupabase };
+  if (catalogInflight && catalogInflight.fetchImpl === fetchImpl) return catalogInflight.job;
+  const job = storeAssets(fetchImpl, now);
+  catalogInflight = { fetchImpl, job };
+  try {
+    return await job;
+  } finally {
+    if (catalogInflight?.job === job) catalogInflight = null;
+  }
+}
+
+const loadAssetsForRequest = perRequest(async () => loadAssets(fetch, Date.now()));
 
 /**
  * Salvaguarda: si Supabase responde filas pero el alcance efectivo queda
@@ -812,26 +902,39 @@ function withCuratedSafeguard(loaded: LoadedAssets, effectiveScope: CatalogScope
   return loaded.rows;
 }
 
+async function readLoaded(
+  fetchImpl: typeof fetch | undefined,
+  nowFn: (() => number) | undefined,
+): Promise<LoadedAssets> {
+  const now = nowFn?.() ?? Date.now();
+  if (isFresh(now) && cache) return { rows: cache.rows, fromSupabase: cache.fromSupabase };
+  if (fetchImpl || nowFn) return loadAssets(fetchImpl ?? fetch, now);
+  return loadAssetsForRequest();
+}
+
 export async function searchCatalog(
   params: CatalogSearchParams,
   deps?: { fetchImpl?: typeof fetch; now?: () => number },
 ): Promise<CatalogSearchResult> {
-  const loaded = await loadAssets(deps?.fetchImpl ?? fetch, deps?.now?.() ?? Date.now());
+  const loaded = await readLoaded(deps?.fetchImpl, deps?.now);
   const effectiveScope = resolveEffectiveScope(params.scope, maxScopeFromEnv());
   // Una ficha por empresa (M52b): el total del mercado cuenta empresas.
   const listed = applyListing(withCuratedSafeguard(loaded, effectiveScope), effectiveScope);
   return searchAssets(listed, params);
 }
 
-export async function findAssetBySymbol(
-  symbol: string,
-  deps?: { scope?: CatalogScope; fetchImpl?: typeof fetch; now?: () => number; allowHidden?: boolean; noListing?: boolean },
-): Promise<CatalogAsset | null> {
+type SymbolLookup = {
+  scope?: CatalogScope;
+  fetchImpl?: typeof fetch;
+  now?: () => number;
+  allowHidden?: boolean;
+  noListing?: boolean;
+};
+
+function findInRows(rows: readonly CatalogAsset[], symbol: string, deps?: SymbolLookup): CatalogAsset | null {
   const wanted = symbol.trim().toLowerCase();
   if (!wanted) return null;
-  const loaded = await loadAssets(deps?.fetchImpl ?? fetch, deps?.now?.() ?? Date.now());
   const effectiveScope = resolveEffectiveScope(deps?.scope, maxScopeFromEnv());
-  const rows = withCuratedSafeguard(loaded, effectiveScope);
   const exact = rows.find((asset) => asset.symbol.toLowerCase() === wanted);
   if (!exact) return null;
   // `hidden` no aparece (sólo la allowlist de operaciones lo consulta con `allowHidden`).
@@ -840,7 +943,6 @@ export async function findAssetBySymbol(
   // Una ficha por empresa (M52b): el símbolo no elegido devuelve la ficha
   // elegida (la página redirige a ella). `noListing` conserva la fila exacta
   // (puerta de operaciones: el mint cotizado es el pedido, sin cambios).
-  // Uso interno con `allowHidden` intacto.
   if (!deps?.allowHidden && !deps?.noListing) {
     const chosen = applyListing(rows, effectiveScope).find(
       (asset) => asset.companyTicker === exact.companyTicker,
@@ -850,6 +952,122 @@ export async function findAssetBySymbol(
   return exact;
 }
 
+/**
+ * La transición (ningún `listed` en la tabla) no se puede ver en una sola fila.
+ * Si ya hay un `listed` en algún lado, se inyecta una fila sonda para que
+ * `annotateSafety` no encienda la transición con el grupo de la empresa.
+ */
+function annotateGroup(rows: readonly CatalogAsset[], anyListed: boolean): CatalogAsset[] {
+  if (rows.length === 0) return [];
+  if (!anyListed) return annotateSafety(rows, true);
+  const probe: CatalogAsset = {
+    ...rows[0],
+    symbol: "\u0000",
+    safetyStatus: "listed",
+    curated: false,
+    issuer: "xstocks",
+  };
+  return annotateSafety([probe, ...rows], true).filter((asset) => asset.symbol !== "\u0000");
+}
+
+async function hasListedRow(fetchImpl: typeof fetch, now: number): Promise<boolean> {
+  if (cache && isFresh(now) && cache.fromSupabase) {
+    return cache.rows.some((asset) => asset.safetyStatus === "listed");
+  }
+  if (listedProbe && now - listedProbe.at < CATALOG_CACHE_MS) return listedProbe.exists;
+  if (listedInflight) return listedInflight;
+  const job = (async () => {
+    const rows = await fetchFilteredAssets(fetchImpl, { safety_status: "eq.listed" }, 1);
+    if (rows === null) return false;
+    const exists = rows.length > 0;
+    listedProbe = { at: now, exists };
+    return exists;
+  })();
+  listedInflight = job;
+  void job.finally(() => {
+    if (listedInflight === job) listedInflight = null;
+  });
+  return job;
+}
+
+/**
+ * Una fila por la PK `symbol` (`limit=1`). Si hace falta la ficha de la
+ * empresa, los pares por `company_ticker`. No pagina la tabla.
+ * Si la red falla, el snapshot local: no se descarga `assets` entero.
+ */
+async function findAssetByPrimaryKey(
+  symbol: string,
+  fetchImpl: typeof fetch,
+  now: number,
+  deps?: SymbolLookup,
+): Promise<CatalogAsset | null> {
+  const trimmed = symbol.trim();
+  if (!trimmed) return null;
+  const [primary, anyListed] = await Promise.all([
+    fetchFilteredAssets(fetchImpl, { symbol: eqFilter(trimmed) }, 1),
+    hasListedRow(fetchImpl, now),
+  ]);
+  if (primary === null) {
+    const fallback = annotateSafety(fallbackAssets(), false);
+    return findInRows(fallback, trimmed, deps);
+  }
+  const exact = primary.find((asset) => asset.symbol.toLowerCase() === trimmed.toLowerCase()) ?? null;
+  if (!exact) return null;
+  let group = [exact];
+  if (!deps?.allowHidden && !deps?.noListing && exact.companyTicker.trim()) {
+    const peers = await fetchFilteredAssets(
+      fetchImpl,
+      { company_ticker: eqFilter(exact.companyTicker) },
+      8,
+    );
+    if (peers && peers.length > 0) {
+      group = peers.some((asset) => asset.symbol.toLowerCase() === exact.symbol.toLowerCase())
+        ? peers
+        : [exact, ...peers];
+    }
+  }
+  return findInRows(annotateGroup(group, anyListed), trimmed, deps);
+}
+
+async function findAssetBySymbolImpl(symbol: string, deps?: SymbolLookup): Promise<CatalogAsset | null> {
+  const wanted = symbol.trim();
+  if (!wanted) return null;
+  const now = deps?.now?.() ?? Date.now();
+  const fetchImpl = deps?.fetchImpl ?? fetch;
+  if (isFresh(now) && cache) {
+    const scope = resolveEffectiveScope(deps?.scope, maxScopeFromEnv());
+    return findInRows(withCuratedSafeguard({ rows: cache.rows, fromSupabase: cache.fromSupabase }, scope), wanted, deps);
+  }
+  if (!readSupabasePublicConfig()) {
+    const loaded = await loadAssets(fetchImpl, now);
+    const scope = resolveEffectiveScope(deps?.scope, maxScopeFromEnv());
+    return findInRows(withCuratedSafeguard(loaded, scope), wanted, deps);
+  }
+  return findAssetByPrimaryKey(wanted, fetchImpl, now, deps);
+}
+
+const findAssetForRequest = perRequest((symbol: string, scope: string, flags: string) =>
+  findAssetBySymbolImpl(symbol, {
+    scope: scope === "" ? undefined : (scope as CatalogScope),
+    allowHidden: flags.includes("h"),
+    noListing: flags.includes("n"),
+  }),
+);
+
+export async function findAssetBySymbol(symbol: string, deps?: SymbolLookup): Promise<CatalogAsset | null> {
+  const now = deps?.now?.() ?? Date.now();
+  // Memoria fresca primero: los tests siembran el cache y React `cache()`
+  // no debe devolver un resultado de otro request.
+  if (!deps?.fetchImpl && isFresh(now) && cache) {
+    const scope = resolveEffectiveScope(deps?.scope, maxScopeFromEnv());
+    return findInRows(withCuratedSafeguard({ rows: cache.rows, fromSupabase: cache.fromSupabase }, scope), symbol, deps);
+  }
+  if (deps?.fetchImpl || deps?.now) return findAssetBySymbolImpl(symbol, deps);
+  const flags = `${deps?.allowHidden ? "h" : ""}${deps?.noListing ? "n" : ""}`;
+  // La PK `symbol` distingue mayúsculas (`NFLXx`). No normalizar antes del `eq`.
+  return findAssetForRequest(symbol.trim(), deps?.scope ?? "", flags);
+}
+
 /** Activo por mint de Solana (allowlist dinámica, M54). `hidden` nunca se devuelve. */
 export async function findAssetByMint(
   mint: string,
@@ -857,7 +1075,7 @@ export async function findAssetByMint(
 ): Promise<CatalogAsset | null> {
   const wanted = mint.trim();
   if (!wanted) return null;
-  const loaded = await loadAssets(deps?.fetchImpl ?? fetch, deps?.now?.() ?? Date.now());
+  const loaded = await readLoaded(deps?.fetchImpl, deps?.now);
   const exact = loaded.rows.find((asset) => asset.mint === wanted);
   if (!exact || exact.safetyStatus === "hidden") return null;
   return exact;

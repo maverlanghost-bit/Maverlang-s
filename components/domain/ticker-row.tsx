@@ -63,14 +63,23 @@ function TickerRowBase({
       >
         <TickerLogo symbol={symbol} name={name} logoUrl={logoUrl} size={36} decorative loading="lazy" sizes="40px" />
         <span className="min-w-0 flex-1">
-          <span className="flex items-center gap-1.5 truncate font-semibold tracking-tight text-fg">
+          <span className="flex min-w-0 items-center gap-1.5 font-semibold tracking-tight text-fg">
+            <span className="truncate">{symbol}</span>
             {statusDot ? (
-              <span className="inline-flex shrink-0 items-center" aria-hidden>
-                <span className={`size-1.5 rounded-full ${dotClass}`} />
+              <span className="inline-flex shrink-0 items-center gap-1 text-xs font-medium">
+                <span
+                  aria-hidden
+                  className={`size-2 shrink-0 ${
+                    statusDot.kind === "open"
+                      ? "rounded-full"
+                      : statusDot.kind === "halted"
+                        ? "rotate-45"
+                        : "rounded-sm"
+                  } ${dotClass}`}
+                />
+                {statusDot.label}
               </span>
             ) : null}
-            <span className="truncate">{symbol}</span>
-            {statusDot ? <span className="sr-only">({statusDot.label})</span> : null}
           </span>
           <span className="block truncate text-sm text-fg-muted">
             {name}

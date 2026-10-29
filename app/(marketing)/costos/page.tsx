@@ -1,18 +1,19 @@
-import type { Metadata } from "next";
 import Link from "next/link";
 import { CostsSection } from "@/components/landing/costs-section";
 import { LandingSection } from "@/components/landing/section";
 import { site } from "@/config/site";
+import { pageMetadata } from "@/lib/seo/metadata";
 
-export const metadata: Metadata = {
+export const metadata = pageMetadata({
   title: "Costos",
   description: `Qué pagas en ${site.name}: comisión 0% en el lanzamiento, red, diferencia de precio y proveedor, siempre antes de confirmar.`,
-};
+  path: "/costos",
+});
 
 /** Página dedicada de costos: la tabla de la portada más el detalle por concepto. */
 export default function CostosPage() {
   return (
-    <main>
+    <>
       <LandingSection titleId="costos-page-title">
         <div className="max-w-2xl">
           <p className="label">Costos</p>
@@ -69,6 +70,6 @@ export default function CostosPage() {
           </p>
         </div>
       </LandingSection>
-    </main>
+    </>
   );
 }

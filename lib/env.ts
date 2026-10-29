@@ -11,13 +11,13 @@ import { resolveCspMode } from "@/lib/security/csp";
  * El cliente sigue leyendo la marca y la URL en `config/site.ts`
  * (`NEXT_PUBLIC_*` inline). No importar `serverEnv` ni `publicEnv` desde componentes cliente.
  *
- * Entornos (M59): el modo estricto de producción se activa SÓLO con
- * `APP_ENV=production` explícito o con `SUPABASE_PROJECT_ENV=prod`; el de
- * preview, SÓLO con `APP_ENV=preview` explícito. `VERCEL_ENV` y `NODE_ENV`
- * son sólo etiquetas informativas y NUNCA activan el modo estricto
- * (`npm run build` siempre usa `NODE_ENV=production`). Sin esas variables
- * explícitas la app corre como demo pública/desarrollo: lo que falte de
- * producción sólo genera un `console.warn` (nombres, nunca valores).
+ * Entornos (M59): el modo estricto de producción se activa con
+ * `APP_ENV=production` o con `SUPABASE_PROJECT_ENV=prod`. El de preview,
+ * sólo con `APP_ENV=preview` explícito. `NODE_ENV` y `VERCEL_ENV` no
+ * activan el modo estricto (`npm run build` siempre usa
+ * `NODE_ENV=production`; Vercel pone `VERCEL_ENV=production`). Sin modo
+ * estricto, lo que falte de producción sólo genera un `console.warn`
+ * (nombres, nunca valores).
  */
 
 export type AppEnv = "production" | "preview" | "development" | "test";
@@ -283,6 +283,13 @@ function buildServerSchema(source: EnvSource) {
     /** Clave del RPC privado (Helius/Triton). Sólo servidor. */
     HELIUS_API_KEY: optionalText(),
     /**
+     * Asistente IA (sólo servidor). Sin clave, POST /api/ai/chat responde
+     * 503 `not_configured` y no llama a xAI. Nunca en el cliente ni en el repo.
+     */
+    XAI_API_KEY: optionalText(),
+    /** Modelo de xAI. Vacío: el proveedor usa `grok-4.3`. */
+    XAI_MODEL: optionalText(),
+    /**
      * Entorno explícito (M59). `production` activa el modo estricto (falla el
      * build/arranque si falta algo); `preview`, el estricto de preview;
      * `development`/`test` son lenientes. Ausente o inválido → `undefined`
@@ -304,7 +311,8 @@ function buildServerSchema(source: EnvSource) {
     SUPABASE_PROD_URL_EXPECTED: optionalText(),
     /**
      * Etiqueta que pone Vercel (`production` | `preview` | `development`).
-     * Sólo informativa (avisos): NUNCA activa el modo estricto.
+     * No activa el modo estricto. Con `production` y variables faltantes
+     * el arranque sólo avisa los nombres, nunca los valores.
      */
     VERCEL_ENV: optionalText(),
     /**
@@ -350,8 +358,8 @@ function parseServerEnv(source: EnvSource): ServerEnv {
 /**
  * Modo efectivo (M59). Gana el `APP_ENV` explícito si es válido; si no,
  * `test` con `NODE_ENV=test` y `development` en el resto (incluido
- * `NODE_ENV=production` sin `APP_ENV`: la demo pública). `VERCEL_ENV`
- * nunca decide: es sólo una etiqueta informativa.
+ * `NODE_ENV=production` sin `APP_ENV`: la etiqueta de la app). El modo
+ * estricto lo decide `resolveStrictMode`, no esta función.
  */
 export function resolveAppEnv(source: EnvSource = process.env): AppEnv {
   const raw = source.APP_ENV;
@@ -361,14 +369,14 @@ export function resolveAppEnv(source: EnvSource = process.env): AppEnv {
 }
 
 /**
- * Modo estricto (M59): `preview` sólo con `APP_ENV=preview` explícito;
- * `production` con `APP_ENV=production` explícito o con
- * `SUPABASE_PROJECT_ENV=prod`. Todo lo demás (incluido
- * `VERCEL_ENV=production` o `NODE_ENV=production` solos) es `null`
- * (demo pública/desarrollo: avisos, nunca error).
+ * Modo estricto (M59): `preview` sólo con `APP_ENV=preview` explícito y
+ * `production` con `APP_ENV=production` o `SUPABASE_PROJECT_ENV=prod`.
+ * `VERCEL_ENV` se acepta en la firma para que un `process.env` de Vercel
+ * no active el modo: con `VERCEL_ENV=production` y faltantes sólo se avisa.
+ * `NODE_ENV=production` solo tampoco alcanza (el build local también lo pone).
  */
 export function resolveStrictMode(
-  env: Pick<ServerEnv, "APP_ENV" | "SUPABASE_PROJECT_ENV">,
+  env: Pick<ServerEnv, "APP_ENV" | "SUPABASE_PROJECT_ENV"> & { VERCEL_ENV?: string | null },
 ): StrictMode | null {
   if (env.APP_ENV === "preview") return "preview";
   if (env.APP_ENV === "production" || env.SUPABASE_PROJECT_ENV === "prod") return "production";

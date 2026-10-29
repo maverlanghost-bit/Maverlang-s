@@ -1,0 +1,299 @@
+/*
+ * Barra inferior flotante (óvalo). El vidrio vive aquí, no en globals.css.
+ * Visible hasta lg: la sidebar sólo entra en 64rem. `md:hidden` del JSX se
+ * anula en ese tramo para no dejar la tablet sin navegación.
+ */
+
+@media (max-width: 63.99rem) {
+  .liquid-nav.liquid-nav {
+    display: flex;
+  }
+}
+
+.liquid-nav {
+  transition: transform 240ms var(--ease-spring);
+}
+
+.liquid-nav[data-hidden="true"] {
+  transform: translate3d(0, calc(100% + 2rem), 0);
+}
+
+.liquid-nav[data-hidden="true"] > .liquid-glass {
+  pointer-events: none;
+}
+
+.liquid-nav > .liquid-glass {
+  pointer-events: auto;
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  width: min(100%, 28rem);
+  height: 4rem;
+  box-sizing: border-box;
+  padding: 0.25rem;
+  border-radius: 999px;
+  border: 1px solid rgb(10 10 10 / 0.1);
+  border-color: light-dark(rgb(10 10 10 / 0.1), rgb(255 255 255 / 0.16));
+  background: rgb(255 255 255 / 0.96);
+  background: light-dark(rgb(255 255 255 / 0.96), rgb(22 22 22 / 0.96));
+  box-shadow:
+    0 10px 28px rgb(0 0 0 / 0.12),
+    0 2px 8px rgb(0 0 0 / 0.06),
+    inset 0 1px 0 rgb(255 255 255 / 0.72);
+  overflow: hidden;
+}
+
+.liquid-nav > .liquid-glass::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgb(255 255 255 / 0.7), rgb(255 255 255 / 0) 46%);
+}
+
+@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .liquid-nav > .liquid-glass {
+    background: rgb(255 255 255 / 0.62);
+    background: light-dark(rgb(255 255 255 / 0.62), rgb(28 28 28 / 0.66));
+    -webkit-backdrop-filter: saturate(180%) blur(22px);
+    backdrop-filter: saturate(180%) blur(22px);
+  }
+}
+
+:root[data-theme="dark"] .liquid-nav > .liquid-glass,
+.dark .liquid-nav > .liquid-glass {
+  border-color: rgb(255 255 255 / 0.16);
+  background: rgb(22 22 22 / 0.96);
+  box-shadow:
+    0 12px 32px rgb(0 0 0 / 0.45),
+    inset 0 1px 0 rgb(255 255 255 / 0.16);
+}
+
+@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  :root[data-theme="dark"] .liquid-nav > .liquid-glass,
+  .dark .liquid-nav > .liquid-glass {
+    background: rgb(28 28 28 / 0.66);
+  }
+}
+
+:root[data-theme="dark"] .liquid-nav > .liquid-glass::before,
+.dark .liquid-nav > .liquid-glass::before {
+  background: linear-gradient(180deg, rgb(255 255 255 / 0.18), rgb(255 255 255 / 0) 46%);
+}
+
+.liquid-glass__pill {
+  position: absolute;
+  z-index: 1;
+  top: 0.25rem;
+  bottom: 0.25rem;
+  left: 0.25rem;
+  width: calc((100% - 0.5rem) / 5);
+  border-radius: 999px;
+  pointer-events: none;
+  background: rgb(255 255 255 / 0.9);
+  background: light-dark(rgb(255 255 255 / 0.9), rgb(255 255 255 / 0.14));
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.9),
+    0 1px 2px rgb(0 0 0 / 0.06);
+  transform: translate3d(calc(var(--tab-index, 0) * 100%), 0, 0);
+  transition: transform 240ms var(--ease-spring), opacity 160ms var(--ease-inout);
+}
+
+.liquid-glass__pill[data-hidden="true"] {
+  opacity: 0;
+}
+
+:root[data-theme="dark"] .liquid-glass__pill,
+.dark .liquid-glass__pill {
+  background: rgb(255 255 255 / 0.14);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.22);
+}
+
+.liquid-glass__tabs {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.liquid-glass__tabs > li {
+  min-width: 0;
+  height: 100%;
+}
+
+.liquid-tab {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  min-height: 2.75rem;
+  min-width: 2.75rem;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.125rem;
+  padding-inline: 0.125rem;
+  border-radius: 999px;
+  color: var(--color-fg-muted, #6b6b6b);
+  color: light-dark(var(--color-fg-muted, #6b6b6b), rgb(196 196 196));
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  line-height: 1.15;
+  text-decoration: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.liquid-tab[data-state="active"] {
+  color: var(--color-fg, #0a0a0a);
+  color: light-dark(var(--color-fg, #0a0a0a), rgb(250 250 250));
+}
+
+.liquid-tab__label {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.liquid-tab__icon {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.liquid-tab__mark {
+  display: grid;
+  width: 2rem;
+  height: 2rem;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--color-fg, #0a0a0a);
+  background: light-dark(var(--color-fg, #0a0a0a), rgb(250 250 250));
+  color: var(--color-bg, #ffffff);
+  color: light-dark(var(--color-bg, #ffffff), rgb(16 16 16));
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.35);
+}
+
+.liquid-tab--center {
+  color: var(--color-fg-muted, #6b6b6b);
+  color: light-dark(var(--color-fg-muted, #6b6b6b), rgb(196 196 196));
+}
+
+.liquid-tab--center[data-state="active"] {
+  color: var(--color-fg, #0a0a0a);
+  color: light-dark(var(--color-fg, #0a0a0a), rgb(250 250 250));
+}
+
+.liquid-tab--center .liquid-tab__icon {
+  width: 1.125rem;
+  height: 1.125rem;
+}
+
+.liquid-tab--center[data-state="active"] .liquid-tab__mark {
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.4),
+    0 0 0 3px color-mix(in srgb, var(--color-fg, #0a0a0a) 16%, transparent);
+}
+
+:root[data-theme="dark"] .liquid-tab[data-state="inactive"],
+.dark .liquid-tab[data-state="inactive"],
+:root[data-theme="dark"] .liquid-tab--center,
+.dark .liquid-tab--center {
+  color: rgb(196 196 196);
+}
+
+:root[data-theme="dark"] .liquid-tab[data-state="active"],
+.dark .liquid-tab[data-state="active"] {
+  color: rgb(250 250 250);
+}
+
+:root[data-theme="dark"] .liquid-tab__mark,
+.dark .liquid-tab__mark {
+  background: rgb(250 250 250);
+  color: rgb(16 16 16);
+}
+
+.liquid-nav .liquid-tab:focus-visible {
+  outline: 2px solid var(--color-fg, #0a0a0a);
+  outline: 2px solid light-dark(var(--color-fg, #0a0a0a), rgb(250 250 250));
+  outline-offset: -3px;
+}
+
+.liquid-tab:active {
+  transform: scale(0.96);
+}
+
+@media (max-width: 359px) {
+  .liquid-tab {
+    font-size: 10px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .liquid-nav,
+  .liquid-glass__pill,
+  .liquid-tab {
+    transition: none !important;
+    animation: none !important;
+  }
+
+  .liquid-tab:active {
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .liquid-nav > .liquid-glass,
+  :root[data-theme="dark"] .liquid-nav > .liquid-glass,
+  .dark .liquid-nav > .liquid-glass {
+    background: rgb(255 255 255 / 0.98);
+    background: light-dark(rgb(255 255 255 / 0.98), rgb(20 20 20 / 0.98));
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+
+  :root[data-theme="dark"] .liquid-nav > .liquid-glass,
+  .dark .liquid-nav > .liquid-glass {
+    background: rgb(20 20 20 / 0.98);
+  }
+}
+
+@media (forced-colors: active) {
+  .liquid-nav > .liquid-glass {
+    background: Canvas;
+    border-color: CanvasText;
+    box-shadow: none;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    forced-color-adjust: none;
+  }
+
+  .liquid-nav > .liquid-glass::before {
+    display: none;
+  }
+
+  .liquid-glass__pill {
+    background: Highlight;
+  }
+
+  .liquid-nav .liquid-tab[aria-current="page"] {
+    color: HighlightText;
+  }
+
+  .liquid-nav .liquid-tab:focus-visible {
+    outline: 2px solid Highlight;
+  }
+
+  .liquid-tab__mark {
+    background: ButtonFace;
+    color: ButtonText;
+    forced-color-adjust: auto;
+  }
+}

@@ -1,5 +1,21 @@
 # PROGRESO — Maverlang
 
+## Integración — modo estricto y rutas IA (2026-10-29)
+- Hecho: `VERCEL_ENV=production` ya no activa `resolveStrictMode`. Con variables faltantes sólo `console.warn` (nombres, nunca valores). Estricto sigue con `APP_ENV=production` o `SUPABASE_PROJECT_ENV=prod`.
+- Hecho: `POST /api/ai/chat` y `POST /api/ai/import-portfolio` llaman `apiOperateBlock` antes del cuerpo y de xAI. Ya tenían origen, zod, tope de foto (~4 MB) y la política `ai` (usuario o IP). `api.x.ai` sigue sólo en servidor (`lib/ai/xai.ts`, `server-only`); no está en la CSP.
+- Hecho: la barra inferior y el asistente no se montan en el layout de marketing ni en `/acciones`. Siguen en `/app` (AppShell y `/app/asistente`).
+- Verificación: `npx tsc --noEmit` 0 errores. `npx vitest run`: 964 pasaron, 1 fallo preexistente en `ui-shell-mobile` (`#66696e`). Sin `next build`, sin `npm install`, sin push.
+
+## Integración SEO-seguridad — tsc y tests (2026-10-29)
+- Hecho: en `lib/catalog/assets.ts` el `cache` de React se importa como `reactCache` (la variable local del catálogo lo tapaba y en tests quedaba `null`). `perRequest` lo usa y, si un mock de `react` no exporta `cache`, corre la función igual. `useHistories` vuelve a exponer `refetch` del lote para el reintento del gráfico de cartera. El test de entorno espera que `VERCEL_ENV=production` sin variables falle (SEC-08).
+- Verificación: `npx tsc --noEmit` 0 errores. `npx vitest run`: 897 pasaron, 2 fallos preexistentes en `ui-shell-mobile` (`backdrop-blur-xl` y `#66696e`). Sin `next build`, sin `npm install`, sin push.
+- Pendiente: esos 2 tests de shell móvil.
+
+## Integración del pulido — tsc y tests (2026-10-28)
+- Hecho: series de estudio en `price-panel` (`staleTime` estructural, `refetchInterval: false`). Simple no pide SPYx ni el historial largo; Técnico pide una vez, sin sondeo. Las suites de billetera, health y catálogo fijan `DATA_MODE`/`PRICES_MODE=mock` (la shell de desarrollo trae live y las mandaba a Supabase). `scan-secrets` espera hasta 120 s: el árbol tarda ~50 s.
+- Verificación: `npx tsc --noEmit` 0 errores; eslint de los archivos tocados limpio; vitest wallet-m66 15, wallet-m78 13, health 24, catalog-health 6, scan-secrets 8, chart-overlays 7. Sin build ni servidores.
+- Pendiente: `ui-shell-mobile` sigue con 2 fallos preexistentes, fuera de este arreglo.
+
 ## Rediseño UI Broker Pro + Experiencia Móvil (referencia x.ai/bot modo claro) (2026-10-17)
 - Hecho (Shell + Primitivos): `components/app-shell/top-bar.tsx` rediseñado para móvil (`< lg`): eliminado el logo ancho de 148px en la barra superior de la plataforma y reemplazado por un header contextual nativo de broker (avatar circular + título dinámico de la sección actual: Mercado / Cartera / Billetera / Ajustes / Ficha + pill `Demo` + `CurrencySwitch` compacto `CLP/USD` + botón buscar 44×44px). En `components/brand/public-header.tsx` agregado `compactOnMobile` para mostrar sólo isotipo compacto en `< md`. `Sidebar` y `BottomTabs` con `bg-surface/85 backdrop-blur-xl`, bordes hairline `border-border/70` e indicador activo tipo pill. Tokens `--shadow-card` y `--shadow-card-hover` en `app/globals.css`; `Card`, `PageHeader`, `SegmentedControl` y `Badge` pulidos al estilo x.ai claro.
 - Hecho (Pantallas): `market-screen.tsx` con barra de búsqueda tipo comando (`rounded-full`, pill `⌘K`), filtros de categoría en carrusel horizontal deslizable (`overflow-x-auto no-scrollbar`) en móvil, tarjetas `TickerCard` con `shadow-(--shadow-card)` y tabla con `tabular-nums`. `detail-screen.tsx` y `price-panel.tsx` con jerarquía de terminal bursátil, selectores de rango `rounded-full` y grilla de métricas con hairline borders. `portfolio-screen.tsx` y `wallet-screen.tsx` con hero de patrimonio/saldo unificado (`BalanceHeader`), acciones rápidas tipo pill y filas compactas (`PositionRow`, `ActivityItem`).

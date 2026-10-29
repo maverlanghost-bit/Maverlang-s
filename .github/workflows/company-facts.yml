@@ -1,0 +1,41 @@
+name: Datos de empresa (SEC EDGAR)
+on:
+  schedule:
+    # Lunes 07:00 UTC, una vez por semana. El script pide a EDGAR a 4 req/s.
+    - cron: "0 7 * * 1"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Solo probar, sin escribir
+        type: boolean
+        default: false
+      symbols:
+        description: Claves separadas por coma (opcional)
+        type: string
+        required: false
+        default: ""
+concurrency:
+  group: company-facts
+  cancel-in-progress: false
+permissions:
+  contents: read
+jobs:
+  facts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: Descargar EDGAR y guardar
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          COMPANY_FACTS_SYMBOLS: ${{ github.event_name == 'workflow_dispatch' && inputs.symbols || '' }}
+          COMPANY_FACTS_DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || '' }}
+        run: node --experimental-strip-types scripts/company-facts.mjs

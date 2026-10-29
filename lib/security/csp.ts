@@ -143,7 +143,6 @@ export function buildCsp(input: BuildCspInput): string {
     "font-src 'self'",
     `connect-src ${connect.join(" ")}`,
     `frame-src ${PRIVY_FRAMES.join(" ")}`,
-    `child-src ${PRIVY_FRAMES.join(" ")}`,
     "worker-src 'self'",
     "manifest-src 'self'",
     "frame-ancestors 'none'",

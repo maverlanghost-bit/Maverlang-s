@@ -36,6 +36,14 @@ export const RATE_LIMIT_POLICIES = {
   waitlist: { limit: 5, windowMs: 3_600_000 },
   /** Comprar o vender en la demo: 30/min por usuario. */
   demoTrade: { limit: 30, windowMs: 60_000 },
+  /** GET públicas (fx, geo, cartera): 60/min por IP. */
+  publicGet: { limit: 60, windowMs: 60_000 },
+  /** Correo de bienvenida: 3/h por usuario. */
+  bienvenida: { limit: 3, windowMs: 3_600_000 },
+  /** Correo de bienvenida: 3/h por IP. */
+  bienvenidaIp: { limit: 3, windowMs: 3_600_000 },
+  /** Asistente IA: 20 cada 10 min por usuario o, si no hay sesión, por IP. */
+  ai: { limit: 20, windowMs: 10 * 60_000 },
 } as const;
 
 export type RateLimitPolicyName = keyof typeof RATE_LIMIT_POLICIES;

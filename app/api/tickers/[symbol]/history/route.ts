@@ -15,6 +15,8 @@ import { historyWithSource } from "@/lib/services";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+/** La serie corta antes por su cuenta. Esto evita un cuelgue de plataforma. */
+export const maxDuration = 10;
 
 function historyJson(fields: ReturnType<typeof historyFields>, cacheControl: string) {
   const payload = readOutput(historyResponseSchema, fields);

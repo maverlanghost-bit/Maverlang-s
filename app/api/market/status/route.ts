@@ -1,7 +1,7 @@
 import { assetStatusSchema, marketStatusQuerySchema, marketStatusSchema } from "@/lib/api/contracts";
 import { callService, handle, parseQuery, readOutput } from "@/lib/api/handler";
 import { status as assetStatus } from "@/lib/market/asset-status";
-import { getServices } from "@/lib/services";
+import { mockMarketStatus } from "@/lib/mocks/market";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -18,8 +18,7 @@ export function GET(req: Request) {
       const data = await callService(req, () => assetStatus(params.symbol as string));
       return readOutput(assetStatusSchema, data);
     }
-    const services = getServices();
-    const data = await callService(req, () => services.prices.market());
-    return readOutput(marketStatusSchema, data);
+    // Horario local de Nueva York, lun–vie 09:30–16:00. Sin red y sin NOT_IMPLEMENTED.
+    return readOutput(marketStatusSchema, mockMarketStatus());
   });
 }

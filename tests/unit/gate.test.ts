@@ -73,7 +73,11 @@ describe("decideGate", () => {
     expect(gate({ pathname: "/app/billetera/recibir" })).toEqual(login("/app/billetera/recibir"));
     expect(gate({ pathname: "/app/perfil" })).toEqual(login("/app/perfil"));
     expect(gate({ pathname: "/app/perfil/cuenta" })).toEqual(login("/app/perfil/cuenta"));
-    expect(gate({ pathname: "/app/onboarding" })).toEqual(login("/app/onboarding"));
+    expect(gate({ pathname: "/app/onboarding" })).toEqual({
+      kind: "redirect",
+      pathname: "/app/ingresar",
+      search: "?next=%2Fapp&stay=1",
+    });
   });
 
   it("con sesión y registro completo se comporta como antes", () => {

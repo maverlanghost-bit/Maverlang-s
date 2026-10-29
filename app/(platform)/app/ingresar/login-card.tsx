@@ -11,7 +11,7 @@ import { shouldUsePrivy, useSession, type LoginMethod } from "@/lib/auth";
 import { readBrowserCookie } from "@/lib/auth/browser-cookies";
 import { MOCK_ONBOARDING_COOKIE, ONBOARDING_DONE } from "@/lib/auth/cookies";
 import { clientAuthModeInput, isSupabaseAuth } from "@/lib/auth/mode";
-import { registroPath, safeNextPath } from "@/lib/auth/paths";
+import { AUTH_STAY_PARAM, onboardingPath, registroPath, safeNextPath } from "@/lib/auth/paths";
 
 import { SupabaseLogin } from "./supabase-login";
 
@@ -53,6 +53,8 @@ export function LoginCard() {
   const { status, login } = useSession();
   const [error, setError] = useState<string | null>(null);
   const next = safeNextPath(params.get("next")) ?? "/app";
+  const stay = params.get(AUTH_STAY_PARAM) === "1";
+  const [proceeded, setProceeded] = useState(false);
   const create = registroPath(next);
   const supabaseMode = isSupabaseAuth(clientAuthModeInput());
   const demo = !supabaseMode && !shouldUsePrivy();
@@ -61,20 +63,22 @@ export function LoginCard() {
     if (supabaseMode) return;
     if (status !== "authenticated") return;
     if (readBrowserCookie(MOCK_ONBOARDING_COOKIE) !== ONBOARDING_DONE) {
-      const params = new URLSearchParams();
-      if (next !== "/app") params.set("next", next);
-      const search = params.toString();
-      router.push(search ? `/app/onboarding?${search}` : "/app/onboarding");
+      // `stay` llega del gate al rebotar desde onboarding. Sin un ingreso nuevo
+      // en esta pantalla, volver a empujar onboarding anida `next` y cicla.
+      if (stay && !proceeded) return;
+      router.replace(onboardingPath(next));
       return;
     }
-    router.push(next);
-  }, [next, router, status, supabaseMode]);
+    router.replace(next);
+  }, [next, proceeded, router, status, stay, supabaseMode]);
 
   async function enter(method: LoginMethod) {
     setError(null);
+    setProceeded(true);
     try {
       await login(method);
     } catch {
+      setProceeded(false);
       setError("No pudimos abrir el ingreso. Inténtalo otra vez.");
     }
   }

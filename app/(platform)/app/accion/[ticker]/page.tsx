@@ -4,6 +4,10 @@ import { notFound, redirect } from "next/navigation";
 import { aboutForTicker } from "@/content/tickers";
 import { readServerSession } from "@/lib/auth/server-session";
 import { findAssetBySymbol, toTicker } from "@/lib/catalog/assets";
+import { stockDescription } from "@/lib/seo/copy";
+import { canonicalUrl } from "@/lib/seo/metadata";
+import { resolvePublicAsset } from "@/lib/seo/public-catalog";
+import { readSpotQuote } from "@/lib/services";
 
 import { DetailScreen, type DetailAccess, type TradeBlock } from "./detail-screen";
 
@@ -20,7 +24,20 @@ export async function generateMetadata({
   const { ticker } = await params;
   const asset = await findAssetBySymbol(ticker);
   if (!asset || !asset.mint) return { title: "Acción no encontrada" };
-  return { title: `${asset.name} (${asset.symbol})` };
+  // La ficha de la app sigue en noindex (layout de /app). El canonical apunta a la URL pública.
+  const pub = await resolvePublicAsset(asset.symbol);
+  const described = pub ?? {
+    name: asset.name,
+    ticker: asset.underlying || asset.symbol,
+    etf: asset.category === "etf",
+  };
+  return {
+    title: `${asset.name} (${asset.symbol})`,
+    description: stockDescription(described),
+    ...(pub
+      ? { alternates: { canonical: canonicalUrl(`/acciones/${pub.slug}`) } }
+      : {}),
+  };
 }
 
 export default async function AccionPage({
@@ -32,6 +49,9 @@ export default async function AccionPage({
 }) {
   const { ticker: raw } = await params;
   const query = await searchParams;
+  // El precio corre en paralelo con el catálogo. Si no llega en 2,5 s, la ficha
+  // igual pinta el nombre y el cliente completa el número.
+  const quotePromise = readSpotQuote(raw);
   // M54c-fix: `hidden` se abre si el usuario tiene posición (la venta de lo
   // que ya se tiene siempre se permite). Sin posición, el cliente muestra el
   // mismo "no encontrado"; el mercado y la búsqueda no lo muestran (intacto).
@@ -44,7 +64,9 @@ export default async function AccionPage({
   if (asset.symbol.toLowerCase() !== raw.trim().toLowerCase()) {
     redirect(`/app/accion/${asset.symbol}`);
   }
-  const session = await readServerSession();
+  const [session, spot] = await Promise.all([readServerSession(), quotePromise]);
+  const initialQuote =
+    spot && spot.symbol.toLowerCase() === asset.symbol.toLowerCase() ? spot : null;
   const access: DetailAccess = !session.hasSession ? "guest" : session.demoReady ? "member" : "pending";
 
   // Operar sólo si está habilitada, no suspendida y `tradable` (M54: sólo
@@ -65,6 +87,7 @@ export default async function AccionPage({
       access={access}
       tradeBlock={tradeBlock}
       safetyStatus={asset.safetyStatus}
+      initialQuote={initialQuote}
     />
   );
 }

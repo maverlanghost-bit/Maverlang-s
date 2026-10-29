@@ -102,11 +102,15 @@ describe("M75: cotización real", () => {
     expect(realQuoteGeoDecision("")).toEqual({ ok: true });
   });
 
-  it("no está conectada a /api/trade/quote", () => {
+  it("está conectada a /api/trade/quote antes del motor", () => {
     const route = read("app/api/trade/quote/route.ts");
-    expect(route).not.toMatch(/lib\/compliance/);
-    expect(route).not.toMatch(/realQuoteGeoDecision/);
-    expect(route).not.toMatch(/GEO_BLOCKED/);
+    const handler = route.slice(route.indexOf("export function POST"));
+    expect(handler).toMatch(/apiOperateBlock/);
+    expect(route).toMatch(/lib\/compliance\/real-quote/);
+    const geo = handler.indexOf("apiOperateBlock");
+    const engine = handler.indexOf("services.trade.quote");
+    expect(geo).toBeGreaterThan(-1);
+    expect(engine).toBeGreaterThan(geo);
   });
 });
 

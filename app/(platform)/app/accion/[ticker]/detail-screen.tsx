@@ -1,17 +1,23 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactNode, type RefObject } from "react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import { motion, useReducedMotion } from "framer-motion";
+import { AskAiButton } from "@/components/ai/ask-ai-button";
 import { ChangeBadge } from "@/components/domain/change-badge";
 import { FavoriteButton } from "@/components/domain/favorite-button";
 import { RealAccountEmpty } from "@/components/domain/real-account-empty";
 import { TickerLogo } from "@/components/domain/ticker-logo";
-import { TradeSheet } from "@/components/domain/trade-sheet";
+import { TokenGapCard } from "@/components/domain/token-gap-card";
+import { AlertButton } from "@/components/domain/alert-button";
+import { CompanyCard } from "@/components/domain/company-card";
+import { Accordion } from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { carteraCopy } from "@/content/i18n/extra-cartera";
 import { CopyButton } from "@/components/ui/copy-button";
 import { ErrorState } from "@/components/ui/error-state";
 import { IconButton } from "@/components/ui/icon-button";
@@ -33,6 +39,10 @@ import { rangeBounds, rangeMove, seriesForQuote } from "@/lib/market/series";
 import type { Currency, Position, PricePoint, Quote, Range, Ticker } from "@/lib/types";
 
 import { PricePanel } from "./price-panel";
+
+const TradeSheet = dynamic(() => import("@/components/domain/trade-sheet").then((mod) => mod.TradeSheet), {
+  ssr: false,
+});
 
 function fill(template: string, values: Record<string, string>) {
   let next = template;
@@ -178,6 +188,16 @@ function PositionBlock({
       </dl>
       <p className="mt-4 text-sm leading-relaxed text-fg-muted">{t.detail.positionNote}</p>
     </Card>
+  );
+}
+
+function StockTokenGuide() {
+  const { language } = useT();
+  const copy = carteraCopy(language);
+  return (
+    <section aria-label={copy.tokenGuideTitle}>
+      <Accordion items={[{ id: "stock-token", title: copy.tokenGuideTitle, content: copy.tokenGuideBody }]} />
+    </section>
   );
 }
 
@@ -354,9 +374,16 @@ function categoryName(
 
 function FactChip({ children }: { children: ReactNode }) {
   return (
-    <li className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-border/70 bg-surface-1/60 px-2.5 py-0.5 text-xs leading-4 font-medium text-fg-body">
+    <li className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-border/70 bg-surface-1/60 px-2.5 py-1 text-xs leading-4 font-medium whitespace-nowrap text-fg-body">
       {children}
     </li>
+  );
+}
+
+function statLabelClass(label: string) {
+  return cn(
+    "block max-w-full font-medium leading-4 whitespace-nowrap text-fg-muted",
+    label.length > 24 ? "text-[11px] tracking-tighter" : "text-xs tracking-tight",
   );
 }
 
@@ -372,10 +399,10 @@ function MissingFigure({ label }: { label: string }) {
 function StatCell({ label, pending, children }: { label: string; pending: boolean; children: ReactNode }) {
   return (
     <div
-      className="min-w-0 max-w-full rounded-2xl border border-border/70 bg-surface-1/50 px-3.5 py-3 sm:px-4 sm:py-3.5"
+      className="min-w-0 max-w-full overflow-hidden rounded-2xl border border-border/70 bg-surface-1/50 px-2 py-3 sm:px-4 sm:py-3.5"
       aria-busy={pending || undefined}
     >
-      <dt className="label max-w-full break-words">{label}</dt>
+      <dt className={statLabelClass(label)}>{label}</dt>
       <dd className="mt-1 min-w-0 max-w-full break-words tabular-nums">{pending ? <Skeleton className="h-5 w-20" /> : children}</dd>
     </div>
   );
@@ -416,7 +443,7 @@ function KeyStats({
   tradeBlock: TradeBlock;
 }) {
   const { t } = useT();
-  const caption = t.detail.rangeCaption[range];
+  const caption = range === "ALL" ? t.detail.rangeShort.ALL : t.detail.rangeCaption[range];
   const fxKnown = typeof rate === "number" && Number.isFinite(rate) && rate > 0;
   const shownCurrency: Currency = currency === "CLP" && fxKnown ? "CLP" : "USD";
   const move = historyPending || historyError ? null : rangeMove(points);
@@ -439,9 +466,9 @@ function KeyStats({
           : t.detail.operable;
 
   return (
-    <Card className="p-5 md:p-6">
+    <Card className="p-4 md:p-6">
       <h2 className="text-lg font-semibold tracking-tight">{t.detail.stats}</h2>
-      <dl className="mt-4 grid grid-cols-2 gap-2 sm:gap-2.5 lg:grid-cols-4">
+      <dl className="mt-4 grid grid-cols-2 gap-1.5 sm:gap-2.5 lg:grid-cols-4">
         {/* Precio actual: mismo `quote.priceUsd` del titular, en tu moneda. */}
         <StatCell label={shownCurrency === "CLP" ? t.detail.priceClp : t.detail.priceUsd} pending={quoteCellPending}>
           {priceNow === null ? (
@@ -503,6 +530,7 @@ export function DetailScreen({
   access,
   tradeBlock = null,
   safetyStatus = "unknown",
+  initialQuote = null,
 }: {
   ticker: Ticker;
   about: { es: string; en: string } | null;
@@ -511,6 +539,8 @@ export function DetailScreen({
   tradeBlock?: TradeBlock;
   /** Estado de seguridad del servidor (M54c-fix): `hidden` abre la venta con posición. */
   safetyStatus?: DetailSafetyStatus;
+  /** Precio ya resuelto en el server component. El HTML no espera a `/api/prices`. */
+  initialQuote?: Quote | null;
 }) {
   const { t, language, currency } = useT();
   const pathname = usePathname();
@@ -543,7 +573,9 @@ export function DetailScreen({
     return () => window.removeEventListener("popstate", onPop);
   }, [canTrade]);
 
-  const quote = prices.data?.find((item) => item.symbol === ticker.symbol) ?? null;
+  const liveQuote =
+    prices.data?.find((item) => item.symbol.toLowerCase() === ticker.symbol.toLowerCase()) ?? null;
+  const quote = liveQuote ?? initialQuote;
   const points = seriesForQuote(history.data?.points ?? [], quote?.priceUsd);
   const position = portfolio.data?.positions.find((item) => item.symbol === ticker.symbol) ?? null;
   const canSell = (position?.shares ?? 0) > 0;
@@ -702,7 +734,7 @@ export function DetailScreen({
       animate={{ opacity: 1, scale: 1 }}
       transition={reduceMotion ? { duration: 0 } : { duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
     >
-      <div className="flex min-w-0 max-w-full flex-col gap-8">
+      <div className="flex min-w-0 max-w-full flex-col gap-6">
         <Link
           href="/app"
           className="-ml-2 flex min-h-9 w-fit items-center gap-1.5 rounded-full bg-surface-1 px-3 py-1.5 text-xs font-medium text-fg-muted outline-none transition-colors duration-150 hover:bg-surface-2 hover:text-fg focus-visible:ring-4 focus-visible:ring-fg/20"
@@ -711,11 +743,11 @@ export function DetailScreen({
           {t.detail.backToMarket}
         </Link>
         <header className="flex flex-col gap-3">
-          <div className="flex items-start gap-3">
-            <span className="rounded-full border border-border/70 p-0.5">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+            <span className="shrink-0 rounded-full border border-border/70 p-0.5">
               <TickerLogo symbol={ticker.symbol} name={ticker.name} logoUrl={ticker.logo} size={48} decorative loading="eager" sizes="64px" />
             </span>
-            <div className="min-w-0 flex-1">
+            <div className="min-w-0 flex-1 basis-48">
               <h1 className="max-w-full text-2xl break-words text-balance">{ticker.name}</h1>
               <p className="mt-1 max-w-full break-words text-sm text-fg-muted">
                 <span className="num font-medium text-fg">{ticker.symbol}</span>
@@ -726,19 +758,21 @@ export function DetailScreen({
                 </span>
               </p>
             </div>
-            <div className="flex shrink-0">
+            <div className="flex basis-full flex-wrap items-center gap-1 sm:basis-auto sm:justify-end">
+              <AskAiButton ticker={ticker.symbol} />
+              <AlertButton labeled symbol={ticker.symbol} name={ticker.name} priceUsd={quote?.priceUsd ?? null} />
               <FavoriteButton pressed={saved} label={favoriteLabel} onToggle={() => toggle(ticker.symbol)} />
               <ShareButton name={ticker.name} />
             </div>
           </div>
-          <ul className="flex list-none flex-wrap gap-1.5 p-0" aria-label={t.detail.chips}>
+          <ul className="flex min-w-0 max-w-full list-none gap-1.5 overflow-x-auto p-0 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" aria-label={t.detail.chips}>
             {category ? <FactChip>{category}</FactChip> : null}
             <FactChip>{t.detail.tokenOnSolana}</FactChip>
             {effectiveBlock !== null ? <FactChip>{t.detail.tradeUnavailable}</FactChip> : null}
             {/* Horario real por acción (M39): suspendida, abierto, extendido, nocturno o cerrado. */}
             {statusPending ? (
-              <li>
-                <Skeleton className="h-5 w-28 rounded-full" />
+              <li className="shrink-0">
+                <Skeleton className="h-6 w-28 rounded-full" />
               </li>
             ) : statusReady ? (
               <FactChip>
@@ -757,7 +791,7 @@ export function DetailScreen({
           symbol={ticker.symbol}
           name={ticker.name}
           quote={quote}
-          pending={prices.isPending}
+          pending={prices.isPending && quote === null}
           onRetry={() => {
             void prices.refetch();
           }}
@@ -771,9 +805,11 @@ export function DetailScreen({
           underlying={ticker.underlying}
         />
 
+        <TokenGapCard symbol={ticker.symbol} quote={quote} />
+
         <KeyStats
           quote={quote}
-          quotePending={prices.isPending}
+          quotePending={prices.isPending && quote === null}
           points={points}
           historyPending={history.isPending}
           historyError={history.isError}
@@ -784,6 +820,9 @@ export function DetailScreen({
           categoryLabel={category}
           tradeBlock={effectiveBlock}
         />
+
+        <CompanyCard symbol={ticker.symbol} />
+        <StockTokenGuide />
 
         {access === "guest" ? null : (
           <PositionBlock
@@ -862,11 +901,12 @@ export function DetailScreen({
       {tradeSlot("bar")}
 
       {access === "member" &&
+      operar !== null &&
       (effectiveBlock === null || (effectiveBlock === "review" && canSell && operar === "vender")) ? (
         <TradeSheet
           ticker={ticker}
           side={operar === "vender" ? "sell" : "buy"}
-          open={operar !== null}
+          open
           onOpenChange={(open) => {
             if (!open) openOperar(null);
           }}

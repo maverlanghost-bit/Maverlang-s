@@ -1,5 +1,6 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { restoreModes } from "./restore-modes";
 import { GENERATED_TICKERS } from "@/config/tickers.generated";
 import { USDC_MINT } from "@/config/tickers";
 import { en } from "@/content/i18n/en";
@@ -13,6 +14,14 @@ import {
   type CatalogAsset,
 } from "@/lib/catalog/assets";
 import { applyBuy, resetDemoState } from "@/lib/mocks/demo-state";
+
+// La shell de desarrollo puede traer DATA_MODE=live. La cotización de esta suite es demo.
+const savedModes = vi.hoisted(() => {
+  const saved = { DATA_MODE: process.env.DATA_MODE, PRICES_MODE: process.env.PRICES_MODE };
+  process.env.DATA_MODE = "mock";
+  process.env.PRICES_MODE = "mock";
+  return saved;
+});
 
 type AdminClient = NonNullable<SafetyMonitorDeps["admin"]>;
 
@@ -196,6 +205,10 @@ beforeEach(() => {
   __clearAssetsCacheForTests();
   resetDemoState();
   vi.restoreAllMocks();
+});
+
+afterAll(() => {
+  restoreModes(savedModes);
 });
 
 describe("M55: lote de vigilancia del catálogo", () => {

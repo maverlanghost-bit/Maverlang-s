@@ -1,6 +1,7 @@
 import "server-only";
 
 import { cookies } from "next/headers";
+import { cache } from "react";
 
 import { MOCK_ONBOARDING_COOKIE, MOCK_SESSION_COOKIE, ONBOARDING_DONE, PRIVY_SESSION_COOKIE } from "@/lib/auth/cookies";
 import { hasAuthSession } from "@/lib/auth/gate";
@@ -20,8 +21,9 @@ const SESSION_WARN = "No se pudo verificar la sesión de Supabase. Se trata como
 /**
  * Misma regla que el gate.
  * En supabase, `getClaims` verifica el JWT. No se usa `getSession` para decidir.
+ * `cache()` de React: una verificación por request (layout y página no la repiten).
  */
-export async function readServerSession(): Promise<ServerSession> {
+export const readServerSession = cache(async function readServerSession(): Promise<ServerSession> {
   const jar = await cookies();
   const onboarding = jar.get(MOCK_ONBOARDING_COOKIE)?.value ?? null;
   const onboarded = onboarding === ONBOARDING_DONE;
@@ -56,4 +58,4 @@ export async function readServerSession(): Promise<ServerSession> {
     onboarded,
     demoReady: onboarded,
   };
-}
+});

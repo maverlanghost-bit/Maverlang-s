@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useEffect, useId, useMemo, useRef, useState, type MouseEvent } from "react";
+import { memo, useEffect, useId, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent } from "react";
 
 import { formatDateTime, formatUsd } from "@/lib/format";
 import {
@@ -8,33 +8,61 @@ import {
   CHART_W,
   PAD_B,
   PAD_T,
+  VOLUME_H,
+  buildChartModel,
+  candleMarks,
   changeFromOpen,
+  nearestPointWithin,
   openingPriceY,
-  plotSeries,
-  smoothPath,
+  readOhlc,
+  readVolume,
   toRows,
+  volumeMarks,
+  type CandleMark,
+  type ChartBenchmark,
+  type ChartLayerModel,
+  type ChartOverlay,
   type PlottedPoint,
+  type VolumeMark,
 } from "@/lib/market/chart-geometry";
 import type { ChartTone } from "@/lib/market/series";
 import type { PricePoint } from "@/lib/types";
 
-const TONE_STROKE: Record<ChartTone, string> = {
+export type { ChartBenchmark, ChartOverlay };
+
+export const TONE_STROKE: Record<ChartTone, string> = {
   up: "var(--color-up, #0f7a32)",
   down: "var(--color-down, #c81e1e)",
   flat: "var(--color-fg-muted, #6c6f75)",
 };
 
-const REFERENCE_STROKE = "#a3a3a3";
+/** Gris de gráfico sobre blanco: #a3a3a3 da 2,5:1 y #e5e5e5 da 1,3:1. #767676 pasa 3:1. */
+const GRAPHIC_INK = "#767676";
+const REFERENCE_STROKE = "#5c5c5c";
 const GUIDE_STROKE = "#d4d4d4";
 /** Precio inicial del período. Va debajo del área y de la curva. */
-const OPEN_STROKE = "#e5e5e5";
+const OPEN_STROKE = GRAPHIC_INK;
+
+function graphicInk(color: string): string {
+  return color.toLowerCase() === "#a3a3a3" ? REFERENCE_STROKE : color;
+}
 const OPEN_DASH = "3 4";
 const SCRUB_SLOP_PX = 8;
 const TOUCH_GHOST_MS = 700;
 const TOUCH_RELEASE_MS = 400;
+const EMPTY_OVERLAYS: readonly ChartOverlay[] = [];
+
+/** Cierre (`t`, `p`) y, si la fuente los trae, OHLC y volumen. Nunca se inventan. */
+export type ChartPoint = PricePoint & {
+  o?: number;
+  h?: number;
+  l?: number;
+  c?: number;
+  v?: number;
+};
 
 export interface PriceChartProps {
-  points: readonly PricePoint[];
+  points: readonly ChartPoint[];
   tone: ChartTone;
   label: string;
   emptyLabel: string;
@@ -47,7 +75,18 @@ export interface PriceChartProps {
   quiet?: boolean;
   /** Serie de referencia, no es un precio real: línea gris punteada, sin gradiente. */
   reference?: boolean;
+  /** Medias u otras series, en la misma escala Y que el precio (o en % si hay benchmark). */
+  overlays?: readonly ChartOverlay[];
+  /** SPYx u otra serie de referencia, rebasada a % desde el inicio. */
+  benchmark?: ChartBenchmark | null;
+  /** `candles` sólo dibuja si los puntos traen OHLC. Si no, queda la línea. */
+  chartStyle?: "line" | "candles";
+  /** Barras sólo si los puntos traen `v`. No se inventa volumen. */
+  showVolume?: boolean;
+  volumeLabel?: string;
 }
+
+type DrawnPoint = PlottedPoint & { usd: number };
 
 function areaUnder(line: string, points: readonly { x: number }[]): string {
   const first = points[0];
@@ -165,7 +204,7 @@ function hoverWhen(t: number): string {
 
 function commitHover(
   index: number | null,
-  points: readonly PlottedPoint[],
+  points: readonly DrawnPoint[],
   hoverRef: { current: number | null },
   setHoverIndex: (index: number | null) => void,
   onHover: (usd: number | null, timeMs: number | null) => void,
@@ -182,7 +221,7 @@ function commitHover(
   if (hoverRef.current === index) return;
   hoverRef.current = index;
   setHoverIndex(index);
-  onHover(point.p, point.t);
+  onHover(point.usd, point.t);
 }
 
 function historyKey(points: readonly PricePoint[]): string {
@@ -193,24 +232,43 @@ function historyKey(points: readonly PricePoint[]): string {
   return `${rows.length}:${first.t}:${last.t}:${last.p}`;
 }
 
+function layerText(layer: ChartLayerModel, t: number, percentMode: boolean, assetOpen: number): string | null {
+  const point = nearestPointWithin(layer.points, t);
+  if (!point || !Number.isFinite(point.usd)) return null;
+  if (!percentMode) return formatUsd(point.usd);
+  const base = layer.id === "benchmark" ? layer.points[0]?.usd : assetOpen;
+  if (base === undefined) return null;
+  return changeFromOpen(base, point.usd)?.label ?? null;
+}
+
 function DrawnChart({
   points,
   line,
   area,
   stroke,
+  upColor,
+  downColor,
   reference,
   label,
   gradId,
   onHover,
+  layers,
+  percentMode,
+  candles,
 }: {
-  points: readonly PlottedPoint[];
+  points: readonly DrawnPoint[];
   line: string;
   area: string;
   stroke: string;
+  upColor: string;
+  downColor: string;
   reference: boolean;
   label: string;
   gradId: string;
   onHover: (usd: number | null, timeMs?: number | null) => void;
+  layers: readonly ChartLayerModel[];
+  percentMode: boolean;
+  candles: readonly CandleMark[] | null;
 }) {
   const svgRef = useRef<SVGSVGElement>(null);
   const plotRef = useRef(points);
@@ -218,6 +276,8 @@ function DrawnChart({
   const hoverRef = useRef<number | null>(null);
   const ignorePointerUntil = useRef(0);
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
+  const [liveText, setLiveText] = useState("");
+  const keyboardRef = useRef(false);
 
   useEffect(() => {
     plotRef.current = points;
@@ -250,10 +310,19 @@ function DrawnChart({
   }, []);
 
   const hoverPoint = hoverIndex !== null && hoverIndex < points.length ? points[hoverIndex] : undefined;
+  const candleList = candles !== null && candles.length >= 2 ? candles : null;
   const hoverLeft = hoverPoint ? Math.min(85, Math.max(15, (hoverPoint.x / CHART_W) * 100)) : 0;
-  const openPrice = points[0]?.p;
-  const periodMove = hoverPoint && openPrice !== undefined ? changeFromOpen(openPrice, hoverPoint.p) : null;
+  const openPrice = points[0]?.usd;
+  const periodMove = hoverPoint && openPrice !== undefined ? changeFromOpen(openPrice, hoverPoint.usd) : null;
   const openY = openingPriceY(points);
+  const hints =
+    hoverPoint && openPrice !== undefined
+      ? layers.flatMap((layer) => {
+          const text = layerText(layer, hoverPoint.t, percentMode, openPrice);
+          if (!text || layer.label.length === 0) return [];
+          return [{ id: layer.id, label: layer.label, text }];
+        })
+      : [];
 
   const onMouseMove = (event: MouseEvent<SVGSVGElement>) => {
     if (performance.now() < ignorePointerUntil.current) return;
@@ -264,7 +333,27 @@ function DrawnChart({
 
   const onMouseLeave = () => {
     if (performance.now() < ignorePointerUntil.current) return;
+    if (keyboardRef.current && document.activeElement === svgRef.current) return;
     choose(null);
+  };
+
+  const onKeyDown = (event: KeyboardEvent<SVGSVGElement>) => {
+    const key = event.key;
+    if (key !== "ArrowLeft" && key !== "ArrowRight" && key !== "Home" && key !== "End") return;
+    keyboardRef.current = true;
+    event.preventDefault();
+    const series = plotRef.current;
+    const last = series.length - 1;
+    if (last < 0) return;
+    const current = hoverRef.current ?? last;
+    const next =
+      key === "ArrowLeft" ? Math.max(0, current - 1) : key === "ArrowRight" ? Math.min(last, current + 1) : key === "Home" ? 0 : last;
+    choose(next);
+    const point = series[next];
+    if (!point) return;
+    const open = series[0]?.usd;
+    const move = open === undefined ? null : changeFromOpen(open, point.usd);
+    setLiveText([hoverWhen(point.t), formatUsd(point.usd), move?.label].filter((part) => part && part.length > 0).join(", "));
   };
 
   return (
@@ -273,17 +362,34 @@ function DrawnChart({
         ref={svgRef}
         viewBox={`0 0 ${CHART_W} ${CHART_H}`}
         preserveAspectRatio="none"
-        role="img"
+        role="slider"
+        aria-orientation="horizontal"
         aria-label={label}
-        focusable="false"
+        aria-valuemin={0}
+        aria-valuemax={Math.max(0, points.length - 1)}
+        aria-valuenow={hoverIndex ?? Math.max(0, points.length - 1)}
+        aria-valuetext={hoverPoint ? [hoverWhen(hoverPoint.t), formatUsd(hoverPoint.usd), periodMove?.label].filter((part) => part && part.length > 0).join(", ") : label}
+        tabIndex={0}
         data-points={points.length}
         data-reference={reference ? "true" : "false"}
+        data-percent={percentMode ? "true" : "false"}
+        data-chart-style={candleList ? "candles" : undefined}
         className="absolute inset-0 h-full w-full touch-pan-y"
         style={{ touchAction: "pan-y" }}
+        onMouseDown={() => {
+          keyboardRef.current = false;
+          setLiveText("");
+        }}
         onMouseMove={onMouseMove}
         onMouseLeave={onMouseLeave}
+        onKeyDown={onKeyDown}
+        onBlur={() => {
+          keyboardRef.current = false;
+          setLiveText("");
+          choose(null);
+        }}
       >
-        {reference ? null : (
+        {reference || !area ? null : (
           <defs>
             <linearGradient id={gradId} x1="0" x2="0" y1="0" y2="1">
               <stop offset="0%" stopColor={stroke} stopOpacity="0.22" />
@@ -303,17 +409,64 @@ function DrawnChart({
             vectorEffect="non-scaling-stroke"
           />
         )}
-        {reference || !area ? null : <path d={area} fill={`url(#${gradId})`} />}
-        <path
-          d={line}
-          fill="none"
-          stroke={stroke}
-          strokeWidth="2.25"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeDasharray={reference ? "4 4" : undefined}
-          vectorEffect="non-scaling-stroke"
-        />
+        {candleList ? (
+          <g data-candles={candleList.length}>
+            {candleList.map((mark) => {
+              const color = mark.up ? upColor : downColor;
+              const top = Math.min(mark.yOpen, mark.yClose);
+              const height = Math.max(1, Math.abs(mark.yClose - mark.yOpen));
+              return (
+                <g key={mark.t}>
+                  <line
+                    x1={mark.x}
+                    x2={mark.x}
+                    y1={mark.yHigh}
+                    y2={mark.yLow}
+                    stroke={color}
+                    strokeWidth="1"
+                    vectorEffect="non-scaling-stroke"
+                  />
+                  <rect
+                    x={mark.x - mark.width / 2}
+                    y={top}
+                    width={mark.width}
+                    height={height}
+                    fill={color}
+                    data-candle={mark.up ? "up" : "down"}
+                  />
+                </g>
+              );
+            })}
+          </g>
+        ) : (
+          <>
+            {reference || !area ? null : <path d={area} fill={`url(#${gradId})`} />}
+            <path
+              d={line}
+              fill="none"
+              stroke={stroke}
+              strokeWidth="2.25"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeDasharray={reference ? "4 4" : undefined}
+              vectorEffect="non-scaling-stroke"
+            />
+          </>
+        )}
+        {layers.map((layer) => (
+          <path
+            key={layer.id}
+            data-overlay={layer.id}
+            d={layer.line}
+            fill="none"
+            stroke={graphicInk(layer.color)}
+            strokeWidth={layer.width}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeDasharray={layer.dash}
+            vectorEffect="non-scaling-stroke"
+          />
+        ))}
         {hoverPoint ? (
           <line
             x1={hoverPoint.x}
@@ -341,14 +494,48 @@ function DrawnChart({
           >
             {reference ? <p>Referencia</p> : null}
             <p className="opacity-70">{hoverWhen(hoverPoint.t)}</p>
-            <p className="num font-medium">{formatUsd(hoverPoint.p)}</p>
-            {periodMove ? (
-              <p className={`num font-medium ${periodMove.up ? "text-up" : "text-down"}`}>{periodMove.label}</p>
-            ) : null}
+            <p className="num font-medium">{formatUsd(hoverPoint.usd)}</p>
+            {periodMove ? <p className="num font-medium text-bg">{periodMove.label}</p> : null}
+            {hints.map((hint) => (
+              <p key={hint.id} className="num">
+                <span className="opacity-70">{hint.label} </span>
+                {hint.text}
+              </p>
+            ))}
           </div>
         </>
       ) : null}
+      <p className="sr-only" aria-live="polite">
+        {liveText}
+      </p>
     </>
+  );
+}
+
+function VolumeStrip({ marks, label }: { marks: readonly VolumeMark[]; label: string }) {
+  return (
+    <div className="relative mt-2 h-10 w-full">
+      <svg
+        viewBox={`0 0 ${CHART_W} ${VOLUME_H}`}
+        preserveAspectRatio="none"
+        role="img"
+        aria-label={label}
+        data-volume="true"
+        className="absolute inset-0 h-full w-full"
+      >
+        {marks.map((mark) => (
+          <rect
+            key={mark.t}
+            x={mark.x - mark.width / 2}
+            y={mark.y}
+            width={mark.width}
+            height={Math.max(mark.height, 0)}
+            fill="var(--color-fg-muted, #6c6f75)"
+            opacity="0.45"
+          />
+        ))}
+      </svg>
+    </div>
   );
 }
 
@@ -362,36 +549,67 @@ function SvgPriceChartBase({
   livePoint,
   quiet = false,
   reference = false,
+  overlays,
+  benchmark = null,
+  chartStyle = "line",
+  showVolume = false,
+  volumeLabel = "",
 }: PriceChartProps) {
   const gradRaw = useId().replace(/:/g, "");
   const gradId = `svg-price-${gradRaw}`;
   const model = useMemo(() => {
     const rows = toRows(points, livePoint);
-    const plot = plotSeries(rows);
-    const line = plot ? smoothPath(plot.points) : "";
+    const first = rows[0];
+    const last = rows[rows.length - 1];
+    const ohlc =
+      chartStyle === "candles" && first && last
+        ? readOhlc(points).filter((bar) => bar.t >= first.t && bar.t <= last.t)
+        : [];
+    const extra = ohlc.length >= 2 ? ohlc.flatMap((bar) => [bar.o, bar.h, bar.l, bar.c]) : undefined;
+    const built = buildChartModel(rows, overlays ?? EMPTY_OVERLAYS, benchmark, extra);
+    if (!built || !first || !last) return null;
+    const candles =
+      extra !== undefined ? candleMarks(ohlc, first.t, last.t, built.scale, built.percentMode, first.p) : null;
+    const candleMode = candles !== null && candles.length >= 2;
+    const volume = showVolume
+      ? volumeMarks(
+          readVolume(points).filter((row) => row.t >= first.t && row.t <= last.t),
+          first.t,
+          last.t,
+        )
+      : null;
     return {
+      ...built,
       key: historyKey(points),
-      plot,
-      line,
-      area: plot ? areaUnder(line, plot.points) : "",
+      area: built.percentMode || candleMode ? "" : areaUnder(built.line, built.points),
+      candles: candleMode ? candles : null,
+      volume,
     };
-  }, [points, livePoint]);
-  const drawn = model.plot !== null && model.plot.points.length >= 2;
+  }, [points, livePoint, overlays, benchmark, chartStyle, showVolume]);
+  const drawn = model !== null && model.points.length >= 2;
   const stroke = reference ? REFERENCE_STROKE : TONE_STROKE[tone];
+  const upColor = reference ? REFERENCE_STROKE : TONE_STROKE.up;
+  const downColor = reference ? REFERENCE_STROKE : TONE_STROKE.down;
 
   return (
+    <>
     <div className="relative h-56 w-full touch-pan-y sm:h-64" style={{ touchAction: "pan-y" }} data-tone={tone}>
-      {drawn && model.plot ? (
+      {drawn && model ? (
         <DrawnChart
-          key={model.key}
-          points={model.plot.points}
+          key={`${model.key}:${model.percentMode ? "pct" : "px"}:${model.candles ? "candles" : "line"}:${model.layers.map((layer) => layer.id).join(".")}`}
+          points={model.points}
           line={model.line}
           area={model.area}
           stroke={stroke}
+          upColor={upColor}
+          downColor={downColor}
           reference={reference}
           label={label}
           gradId={gradId}
           onHover={onHover}
+          layers={model.layers}
+          percentMode={model.percentMode}
+          candles={model.candles}
         />
       ) : quiet ? null : (
         <div className="absolute inset-0 flex flex-col items-center justify-center rounded-xl bg-neutral-50 px-4 text-center">
@@ -400,6 +618,10 @@ function SvgPriceChartBase({
         </div>
       )}
     </div>
+    {drawn && model?.volume && model.volume.length >= 2 ? (
+      <VolumeStrip marks={model.volume} label={volumeLabel} />
+    ) : null}
+    </>
   );
 }
 

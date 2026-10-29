@@ -1,4 +1,3 @@
-import type { Metadata } from "next";
 import Link from "next/link";
 import { HowItWorks } from "@/components/landing/how-it-works";
 import { LiveLandingPrices } from "@/components/landing/live-landing-prices";
@@ -6,11 +5,13 @@ import { LandingSection } from "@/components/landing/section";
 import { Card } from "@/components/ui/card";
 import { site } from "@/config/site";
 import { getLandingQuotes } from "@/lib/landing/live-quotes";
+import { pageMetadata } from "@/lib/seo/metadata";
 
-export const metadata: Metadata = {
+export const metadata = pageMetadata({
   title: "Cómo funciona",
   description: `Practica con US$10.000 ficticios, elige la acción y el token queda en tu propia billetera, sin custodia de ${site.name}.`,
-};
+  path: "/como-funciona",
+});
 
 /** Guía dedicada: los 3 pasos con más detalle que en la portada. */
 export const revalidate = 30;
@@ -20,7 +21,7 @@ export default async function ComoFuncionaPage() {
   const symbols = quotes.map((quote) => quote.symbol);
 
   return (
-    <main>
+    <>
       <LandingSection titleId="como-funciona-title">
         <div className="max-w-2xl">
           <p className="label">Cómo funciona</p>
@@ -74,7 +75,7 @@ export default async function ComoFuncionaPage() {
           </div>
           <p className="mt-8 flex flex-wrap gap-x-6 gap-y-3">
             <Link
-              href="/app"
+              href="/acciones"
               className="inline-flex min-h-11 items-center text-sm font-medium text-fg underline decoration-border underline-offset-4 hover:decoration-fg"
             >
               Ver acciones
@@ -94,6 +95,6 @@ export default async function ComoFuncionaPage() {
           </p>
         </div>
       </LandingSection>
-    </main>
+    </>
   );
 }

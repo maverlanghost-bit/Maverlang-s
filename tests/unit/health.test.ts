@@ -1,4 +1,6 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import { restoreModes } from "./restore-modes";
 
 /**
  * M62: health checks. Toda la red va mockeada: los probes HTTP usan un
@@ -9,6 +11,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
  * gate por modo reimportan `@/lib/health/checks` tras fijar el env (mismo
  * patrón que `env-validation.test.ts`).
  */
+
+// La shell de desarrollo puede traer precios live. El deep de esta suite parte en mock.
+const savedModes = vi.hoisted(() => {
+  const saved = { DATA_MODE: process.env.DATA_MODE, PRICES_MODE: process.env.PRICES_MODE };
+  process.env.DATA_MODE = "mock";
+  process.env.PRICES_MODE = "mock";
+  return saved;
+});
 
 const SECRET = "test-cron-secret-m62";
 
@@ -65,6 +75,10 @@ beforeEach(() => {
   vi.spyOn(console, "warn").mockImplementation(() => {});
 });
 
+afterAll(() => {
+  restoreModes(savedModes);
+});
+
 afterEach(() => {
   vi.unstubAllEnvs();
   vi.restoreAllMocks();
@@ -118,35 +132,20 @@ const MOCK_ENV = {
 /* --- 1. GET /api/health (superficial) --- */
 
 describe("M62: GET /api/health (superficial)", () => {
-  it("responde 200 { ok, version, env } sin red externa", async () => {
+  it("responde 200 { ok } sin versión, entorno ni red externa", async () => {
+    vi.stubEnv("VERCEL_GIT_COMMIT_SHA", "abcdef1234567890");
     const { GET } = await import("@/app/api/health/route");
     const spy = vi.spyOn(globalThis, "fetch").mockImplementation(async () => {
       throw new Error("el superficial no llama a la red");
     });
     const response = await GET();
     expect(response.status).toBe(200);
-    const payload = (await response.json()) as { ok: boolean; version: string | null; env: string };
-    expect(payload.ok).toBe(true);
-    expect(typeof payload.env).toBe("string");
-    expect(["development", "preview", "production", "test"]).toContain(payload.env);
-    expect(spy).not.toHaveBeenCalled();
-  });
-
-  it("lleva Cache-Control: no-store y sha corto del commit si existe", async () => {
-    vi.stubEnv("VERCEL_GIT_COMMIT_SHA", "abcdef1234567890");
-    const { GET } = await import("@/app/api/health/route");
-    const response = await GET();
     expect(response.headers.get("cache-control")).toBe("no-store");
-    const payload = (await response.json()) as { version: string | null };
-    expect(payload.version).toBe("abcdef1");
-  });
-
-  it("sin VERCEL_GIT_COMMIT_SHA → version null", async () => {
-    vi.stubEnv("VERCEL_GIT_COMMIT_SHA", "");
-    const { GET } = await import("@/app/api/health/route");
-    const response = await GET();
-    const payload = (await response.json()) as { version: string | null };
-    expect(payload.version).toBeNull();
+    const payload = (await response.json()) as Record<string, unknown>;
+    expect(payload).toEqual({ ok: true });
+    expect(payload).not.toHaveProperty("version");
+    expect(payload).not.toHaveProperty("env");
+    expect(spy).not.toHaveBeenCalled();
   });
 });
 

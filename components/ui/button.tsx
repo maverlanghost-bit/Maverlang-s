@@ -13,12 +13,12 @@ export const buttonVariantClass: Record<ButtonVariant, string> = {
 
 const sizeClass: Record<ButtonSize, string> = {
   sm: "h-9 gap-1.5 px-3 text-sm",
-  md: "h-9 gap-2 px-4 text-sm md:h-11 md:px-6",
+  md: "h-11 gap-2 px-4 text-sm md:px-6",
   lg: "h-11 gap-2 px-5 text-base md:h-12 md:px-7",
 };
 
 export const buttonBase =
-  "inline-flex items-center justify-center rounded-full font-normal transition duration-[140ms] ease-spring active:scale-[0.98] focus-visible:ring-4 focus-visible:ring-fg/20 disabled:pointer-events-none disabled:opacity-40";
+  "inline-flex items-center justify-center rounded-full font-normal transition duration-[140ms] ease-spring active:scale-[0.98] disabled:pointer-events-none disabled:opacity-40";
 
 export function buttonClasses({
   variant = "primary",

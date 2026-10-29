@@ -1,7 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-import { claimsDemoReady, claimsOnboarded } from "@/lib/auth/registro-schema";
+import { gateFromAppMetadata, gateFromComplianceRows } from "@/lib/auth/registro-schema";
 import { warnAuthOnce } from "@/lib/auth/mode";
 import { readSupabasePublicConfig } from "@/lib/supabase/config";
 
@@ -12,9 +12,9 @@ const CACHE_HEADERS = ["cache-control", "expires", "pragma"] as const;
 export type SessionRefresh = {
   response: NextResponse;
   hasSession: boolean;
-  /** `user_metadata` del JWT. No lee `public.profiles`. */
+  /** `app_metadata` o `profiles.onboarding_completed`. No usa `user_metadata`. */
   onboarded: boolean;
-  /** M43: aceptación mínima para la demo (términos + privacidad, u onboarding antiguo). */
+  /** Aceptación en `app_metadata` o en `consents` (términos + privacidad). */
   demoReady: boolean;
 };
 
@@ -51,12 +51,29 @@ export async function updateSession(request: NextRequest): Promise<SessionRefres
   try {
     const { data, error } = await supabase.auth.getClaims();
     const hasSession = !error && Boolean(data?.claims?.sub);
-    return {
-      response,
-      hasSession,
-      onboarded: hasSession && claimsOnboarded(data?.claims ?? null),
-      demoReady: hasSession && claimsDemoReady(data?.claims ?? null),
-    };
+    let onboarded = false;
+    let demoReady = false;
+    if (hasSession) {
+      // SEC-07: el usuario puede reescribir `user_metadata`. El gate mira
+      // `app_metadata` y, si no alcanza, consents/profiles con su JWT.
+      const fromApp = gateFromAppMetadata(data?.claims ?? null);
+      onboarded = fromApp.onboarded;
+      demoReady = fromApp.demoReady;
+      if (!onboarded || !demoReady) {
+        const [consentsResult, profileResult] = await Promise.all([
+          supabase.from("consents").select("doc,version"),
+          supabase.from("profiles").select("onboarding_completed").maybeSingle(),
+        ]);
+        const fromRows = gateFromComplianceRows({
+          consents: consentsResult.error ? [] : (consentsResult.data ?? []),
+          onboardingCompleted:
+            !profileResult.error && profileResult.data?.onboarding_completed === true,
+        });
+        if (fromRows.onboarded) onboarded = true;
+        if (fromRows.demoReady) demoReady = true;
+      }
+    }
+    return { response, hasSession, onboarded, demoReady };
   } catch {
     warnAuthOnce(SESSION_WARN);
     return { response, hasSession: false, onboarded: false, demoReady: false };

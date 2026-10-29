@@ -50,15 +50,30 @@ function bigTable(): Array<Record<string, unknown>> {
   return rows;
 }
 
-function pagedFetch(all: unknown[], seen: string[]) {
+function pagedFetch(all: Array<Record<string, unknown>>, seen: string[]) {
   return (async (input: string | URL) => {
     const url = String(input);
     seen.push(url);
     const parsed = new URL(url);
-    const limit = Number(parsed.searchParams.get("limit") ?? "1000");
-    const offset = Number(parsed.searchParams.get("offset") ?? "0");
-    const slice = all.slice(offset, offset + limit);
-    return new Response(JSON.stringify(slice), {
+    const symbol = parsed.searchParams.get("symbol");
+    const company = parsed.searchParams.get("company_ticker");
+    const safety = parsed.searchParams.get("safety_status");
+    let rows = all;
+    if (symbol?.startsWith("eq.")) {
+      const wanted = symbol.slice(3).replaceAll('"', "");
+      rows = all.filter((row) => row.symbol === wanted);
+    } else if (company?.startsWith("eq.")) {
+      const wanted = company.slice(3).replaceAll('"', "");
+      rows = all.filter((row) => row.company_ticker === wanted);
+    } else if (safety?.startsWith("eq.")) {
+      const wanted = safety.slice(3).replaceAll('"', "");
+      rows = all.filter((row) => row.safety_status === wanted);
+    } else {
+      const limit = Number(parsed.searchParams.get("limit") ?? "1000");
+      const offset = Number(parsed.searchParams.get("offset") ?? "0");
+      rows = all.slice(offset, offset + limit);
+    }
+    return new Response(JSON.stringify(rows), {
       status: 200,
       headers: { "content-type": "application/json" },
     });
@@ -111,14 +126,16 @@ describe("catálogo paginado (Supabase corta en 1000 filas)", () => {
     expect(result.items.some((item) => item.symbol === "AAA1x")).toBe(false);
   });
 
-  it("findAssetBySymbol encuentra un curado de la segunda página", async () => {
+  it("findAssetBySymbol pide una fila por símbolo y no la segunda página", async () => {
     const seen: string[] = [];
     const found = await findAssetBySymbol("NFLXx", {
       fetchImpl: pagedFetch(bigTable(), seen),
       now: () => 4_000,
     });
-    expect(seen).toHaveLength(2);
-    expect(found).not.toBeNull();
     expect(found).toMatchObject({ symbol: "NFLXx", curated: true });
+    const urls = seen.map((url) => new URL(url));
+    expect(urls.some((url) => url.searchParams.get("symbol") === "eq.NFLXx" && url.searchParams.get("limit") === "1")).toBe(true);
+    expect(urls.some((url) => url.searchParams.get("offset") === "1000")).toBe(false);
+    expect(urls.every((url) => !url.searchParams.get("select")?.includes("safety_metrics"))).toBe(true);
   });
 });

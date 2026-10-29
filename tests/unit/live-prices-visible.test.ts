@@ -97,10 +97,10 @@ describe("M41: opciones de polling", () => {
     expect(sheet).toContain("usePrices([ticker.symbol], true, SPOT_MS)");
   });
 
-  it("useHistory revalida cada 60 s visible y al volver a la pestaña", () => {
+  it("useHistory no sondea una serie real; el vacío reintenta y al volver a la pestaña", () => {
     expect(source).toContain("export const HISTORY_REFETCH_MS = 60_000");
     const block = blockOf("useHistory");
-    expect(block).toContain("HISTORY_REFETCH_MS");
+    expect(block).toContain("historyPollMs(query.state.data, HISTORY_REFETCH_MS)");
     expect(block).toContain("historyStaleMs");
     expect(block).toContain("refetchIntervalInBackground: false");
     expect(block).toContain("refetchOnWindowFocus: true");

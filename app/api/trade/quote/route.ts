@@ -15,6 +15,7 @@ import {
 import { DomainError } from "@/lib/api/result";
 import { findAssetBySymbol } from "@/lib/catalog/assets";
 import { SAFETY_THRESHOLDS } from "@/lib/catalog/safety-core.mjs";
+import { apiOperateBlock } from "@/lib/compliance/real-quote";
 import { withRateLimit } from "@/lib/security/rate-limit";
 import { getServices } from "@/lib/services";
 import { demoSupabase } from "@/lib/services/demo.supabase";
@@ -78,11 +79,19 @@ async function realQuoteAmountUsd(
 
 export function POST(req: Request) {
   return handle("no-store", async () => {
+    const geo = apiOperateBlock(req);
+    if (geo) return geo;
     assertSameOrigin(req);
     const ipLimited = await withRateLimit(req, "tradeIp");
     if (ipLimited) return ipLimited;
     const services = getServices();
-    await requireSupabaseUser(services, req);
+    const session = await requireSupabaseUser(services, req);
+    if (session) {
+      const userLimited =
+        (await withRateLimit(req, "trade", [session.userId])) ??
+        (isUserDemoRequest(req) ? await withRateLimit(req, "demoTrade", [session.userId]) : null);
+      if (userLimited) return userLimited;
+    }
     const body = await parseJson(req, tradeQuoteRequestSchema);
     const symbol = await requireSymbolForBuyGuard(body.symbol, body.side);
     if (isRealAccountRequest(req)) {
@@ -93,20 +102,16 @@ export function POST(req: Request) {
       // M74: kill switch → beta → límites (por orden, día, mes y global).
       // El notional del quote en dólares sale del motor live; con la cuenta
       // demo el flujo demo no pasa por acá.
-      const session = await requireSession(services, req);
+      const userId = session?.userId ?? (await requireSession(services, req)).userId;
       const amountUsd =
         body.side === "buy" && body.amountCurrency === "USDC"
           ? body.amount
           : await realQuoteAmountUsd(body);
-      await assertRealTradeAllowed(session.userId, amountUsd);
+      await assertRealTradeAllowed(userId, amountUsd);
     }
     if (isUserDemoRequest(req)) {
-      const session = await requireSession(services, req);
-      const userLimited =
-        (await withRateLimit(req, "trade", [session.userId])) ??
-        (await withRateLimit(req, "demoTrade", [session.userId]));
-      if (userLimited) return userLimited;
-      const data = await callService(req, () => demoSupabase.trade.quote(session.userId, { ...body, symbol }));
+      const userId = session?.userId ?? (await requireSession(services, req)).userId;
+      const data = await callService(req, () => demoSupabase.trade.quote(userId, { ...body, symbol }));
       assertLiveBuyCost(body.side, data.priceDeviationBps);
       return readOutput(tradeQuoteSchema, data);
     }
