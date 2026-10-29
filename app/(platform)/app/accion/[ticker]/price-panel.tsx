@@ -126,6 +126,7 @@ function RangeCapsule({
   onChange,
   idPrefix = "range",
   className,
+  compact = false,
 }: {
   label: string;
   options: readonly { value: string; label: string }[];
@@ -133,6 +134,8 @@ function RangeCapsule({
   onChange: (value: string) => void;
   idPrefix?: string;
   className?: string;
+  /** En móvil reparte los botones para que quepan sin scroll. Desktop no cambia. */
+  compact?: boolean;
 }) {
   const enabled = options;
 
@@ -151,7 +154,8 @@ function RangeCapsule({
       role="group"
       aria-label={label}
       className={cn(
-        "inline-flex max-w-full items-center gap-0.5 overflow-x-auto rounded-full border border-border/70 bg-surface-1/80 p-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
+        "inline-flex w-fit max-w-full items-center gap-0.5 rounded-full border border-border/70 bg-surface-1/80 p-1",
+        compact && "w-full justify-between sm:w-fit sm:justify-start",
         className,
       )}
       onKeyDown={(event) => {
@@ -170,7 +174,8 @@ function RangeCapsule({
             aria-pressed={selected}
             onClick={() => onChange(option.value)}
             className={cn(
-              "min-h-9 shrink-0 rounded-full px-3.5 text-[13px] font-medium whitespace-nowrap outline-none transition-all duration-150 ease-spring focus-visible:ring-4 focus-visible:ring-fg/20 active:scale-[0.98]",
+              "min-h-9 shrink-0 rounded-full text-[13px] font-medium whitespace-nowrap outline-none transition-all duration-150 ease-spring focus-visible:ring-4 focus-visible:ring-fg/20 active:scale-[0.98] motion-reduce:transition-none motion-reduce:active:scale-100",
+              compact ? "px-2 sm:px-3.5" : "px-3.5",
               selected ? "bg-fg text-bg shadow-xs" : "text-fg-muted hover:bg-surface-2 hover:text-fg",
             )}
           >
@@ -439,9 +444,10 @@ export function PricePanel({
         )}
       </div>
 
-      <div className="flex min-w-0 items-center gap-2">
-        <div className="min-w-0">
+      <div className="flex w-full min-w-0 max-w-full flex-col items-start gap-2 sm:flex-row sm:items-center">
+        <div className="w-full min-w-0 sm:w-auto">
           <RangeCapsule
+            compact
             label={t.detail.rangesLabel}
             options={rangeOptions}
             value={range}

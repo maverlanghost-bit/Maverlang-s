@@ -6,6 +6,7 @@ import { useQueries } from "@tanstack/react-query";
 import { motion, useReducedMotion } from "framer-motion";
 
 import { FavoriteButton } from "@/components/domain/favorite-button";
+import { MarketToday } from "@/components/domain/market-today/market-today";
 import { MarketStatusPill } from "@/components/domain/market-status-pill";
 import { PriceFreshness } from "@/components/domain/price-freshness";
 import { TickerCard } from "@/components/domain/ticker-card";
@@ -481,6 +482,7 @@ export function MarketScreen({
       animate={{ opacity: 1, scale: 1 }}
       transition={reduceMotion ? { duration: 0 } : { duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
     >
+      <MarketToday />
       <PageHeader title={t.pages.market.title} description={t.pages.market.lead} action={statusNode} />
       {currency === "CLP" && !fxKnown && !fx.isPending && !waiting && !failed ? (
         <p className="text-sm text-fg-muted">{t.detail.fxFallback}</p>

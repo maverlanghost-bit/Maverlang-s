@@ -6,6 +6,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import { motion, useReducedMotion } from "framer-motion";
+import { AskAiButton } from "@/components/ai/ask-ai-button";
 import { ChangeBadge } from "@/components/domain/change-badge";
 import { FavoriteButton } from "@/components/domain/favorite-button";
 import { RealAccountEmpty } from "@/components/domain/real-account-empty";
@@ -758,6 +759,7 @@ export function DetailScreen({
               </p>
             </div>
             <div className="flex basis-full flex-wrap items-center gap-1 sm:basis-auto sm:justify-end">
+              <AskAiButton ticker={ticker.symbol} />
               <AlertButton labeled symbol={ticker.symbol} name={ticker.name} priceUsd={quote?.priceUsd ?? null} />
               <FavoriteButton pressed={saved} label={favoriteLabel} onToggle={() => toggle(ticker.symbol)} />
               <ShareButton name={ticker.name} />
