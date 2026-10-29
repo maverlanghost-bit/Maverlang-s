@@ -123,13 +123,25 @@ export function dayChange(
   return Number.isFinite(change) ? change : null;
 }
 
+/**
+ * Curva del sparkline. `dayChange` sigue midiendo el día (dos cierres o 24 h).
+ * Con cierres diarios se dibujan hasta 24 puntos, no una recta de dos.
+ * Con ticks, si la ventana de 24 h tiene menos de 6 puntos y la serie limpia
+ * tiene más, se usa esa serie (también hasta 24) para que la curva no quede plana.
+ */
 export function sparkLine(
   points: readonly { t: number; p: number }[],
   now: number,
   daily: boolean,
 ): number[] {
+  const clean = cleanPoints(points);
+  let series = clean.slice(-SPARK_MAX);
+  if (!daily) {
+    const windowed = dayWindow(points, now, false);
+    if (!(windowed.length < 6 && clean.length > windowed.length)) series = windowed;
+  }
   return downsample(
-    dayWindow(points, now, daily).map((point) => round6(point.p)),
+    series.map((point) => round6(point.p)),
     SPARK_MAX,
   );
 }

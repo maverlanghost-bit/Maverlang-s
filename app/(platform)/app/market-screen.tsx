@@ -7,7 +7,7 @@ import { motion, useReducedMotion } from "framer-motion";
 
 import { FavoriteButton } from "@/components/domain/favorite-button";
 import { MarketToday } from "@/components/domain/market-today/market-today";
-import { MarketStatusPill } from "@/components/domain/market-status-pill";
+import { FloatingMarketOrb } from "@/components/domain/market-status-pill";
 import { PriceFreshness } from "@/components/domain/price-freshness";
 import { TickerCard } from "@/components/domain/ticker-card";
 import { TickerRow } from "@/components/domain/ticker-row";
@@ -201,7 +201,7 @@ export function MarketScreen({
   initialFilter: string;
   initialSort: string;
 }) {
-  const { t, currency } = useT();
+  const { t, currency, language } = useT();
   const router = useRouter();
   const pathname = usePathname();
   const filtersLabelId = useId();
@@ -447,31 +447,6 @@ export function MarketScreen({
     if (currency === "CLP") void fx.refetch();
   }
 
-  let statusNode = <Skeleton className="h-6 w-40 rounded-full" />;
-  if (status.data) {
-    statusNode = (
-      <MarketStatusPill
-        open={status.data.session === "regular"}
-        label={
-          status.data.session === "closed"
-            ? t.market.closed
-            : status.data.session === "offHours"
-              ? t.market.offHours
-              : t.market.open
-        }
-      />
-    );
-  } else if (status.isError) {
-    statusNode = (
-      <div className="flex flex-wrap items-center gap-2">
-        <p className="text-sm text-fg-muted">{t.market.statusError}</p>
-        <Button variant="secondary" onClick={() => void status.refetch()}>
-          {t.states.retry}
-        </Button>
-      </div>
-    );
-  }
-
   const emptyTitle = `${t.market.emptyFor} «${t.market[filter]}»`;
   const reduceMotion = useReducedMotion();
 
@@ -483,7 +458,7 @@ export function MarketScreen({
       transition={reduceMotion ? { duration: 0 } : { duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
     >
       <MarketToday />
-      <PageHeader title={t.pages.market.title} description={t.pages.market.lead} action={statusNode} />
+      <PageHeader title={t.pages.market.title} description={t.pages.market.lead} />
       {currency === "CLP" && !fxKnown && !fx.isPending && !waiting && !failed ? (
         <p className="text-sm text-fg-muted">{t.detail.fxFallback}</p>
       ) : null}
@@ -537,6 +512,7 @@ export function MarketScreen({
                 price={price}
                 currency={rowCurrency}
                 change={entry.quote.change24hPct}
+                sparkline={sparkBySymbol.get(entry.item.symbol)}
                 lowLiquidityLabel={entry.item.lowLiquidity ? t.market.lowLiquidity : null}
                 action={
                   <FavoriteButton
@@ -657,6 +633,9 @@ export function MarketScreen({
         ) : (
           <EmptyState title={emptyTitle} description={t.market.emptyHint} />
         )
+      ) : null}
+      {status.data ? (
+        <FloatingMarketOrb session={status.data.session} nextChange={status.data.nextChange} language={language} />
       ) : null}
     </motion.div>
   );

@@ -23,6 +23,8 @@ import type { AiWidget } from "@/components/ai/contract";
 
 const LINE_CLASS = ["text-fg", "text-info", "text-up", "text-warn", "text-down"] as const;
 const DOT_CLASS = ["bg-fg", "bg-info", "bg-up", "bg-warn", "bg-down"] as const;
+const WIDGET_CARD_CLASS =
+  "min-w-0 rounded-2xl border border-border/85 bg-bg-elevated/95 p-4 shadow-[0_10px_30px_-14px_rgba(12,15,20,0.1)] backdrop-blur-md transition-all duration-200 hover:border-brand/35 hover:shadow-[0_14px_34px_-14px_rgba(12,15,20,0.14)]";
 
 function logoFor(ticker: string): string | null {
   return logoPathFromSymbol(ticker);
@@ -46,7 +48,7 @@ export function StockWidget({
   const chartLabel = `${widget.name}, ${copy.ranges[widget.range]}`;
 
   return (
-    <article data-ai-widget="stock" className="min-w-0 rounded-2xl border border-border/70 bg-surface-1 p-4">
+    <article data-ai-widget="stock" className={WIDGET_CARD_CLASS}>
       <div className="flex items-center gap-3">
         <TickerLogo
           symbol={widget.ticker}
@@ -60,7 +62,7 @@ export function StockWidget({
           {href ? (
             <Link
               href={href}
-              className="block truncate rounded-sm font-semibold text-fg outline-none focus-visible:ring-4 focus-visible:ring-fg/20"
+              className="block truncate rounded-sm font-semibold text-fg outline-none transition-colors hover:text-brand focus-visible:ring-4 focus-visible:ring-fg/20"
             >
               {widget.name}
             </Link>
@@ -69,12 +71,14 @@ export function StockWidget({
           )}
           <p className="truncate text-sm text-fg-muted">{widget.ticker}</p>
         </div>
-        <div className="shrink-0 text-right">
-          <p className="num text-base text-fg">{price == null ? copy.noPrice : formatUsd(price)}</p>
+        <div className="shrink-0 text-right tabular-nums">
+          <p className="num text-base font-semibold tabular-nums text-fg">
+            {price == null ? copy.noPrice : formatUsd(price)}
+          </p>
           {change == null ? (
-            <p className="text-sm text-fg-muted">{copy.noChange}</p>
+            <p className="text-sm tabular-nums text-fg-muted">{copy.noChange}</p>
           ) : (
-            <ChangeBadge value={change} className="mt-1" />
+            <ChangeBadge value={change} className="mt-1 tabular-nums" />
           )}
         </div>
       </div>
@@ -112,9 +116,9 @@ export function CompareWidget({
   const zeroY = valueY(0, CHART_H, scale.min, scale.max);
 
   return (
-    <article data-ai-widget="compare" className="min-w-0 rounded-2xl border border-border/70 bg-surface-1 p-4">
+    <article data-ai-widget="compare" className={WIDGET_CARD_CLASS}>
       <div className="flex items-baseline justify-between gap-3">
-        <h2 className="text-base font-semibold text-fg">{copy.compareTitle}</h2>
+        <h2 className="text-base font-semibold tracking-tight text-fg">{copy.compareTitle}</h2>
         <p className="label">{copy.ranges[widget.range]}</p>
       </div>
       {hasLine ? (
@@ -153,16 +157,16 @@ export function CompareWidget({
       )}
       <ul className="mt-3 flex flex-col gap-2">
         {rows.map((row) => (
-          <li key={`${row.item.ticker}-${row.index}`} className="flex min-h-11 items-center gap-2">
+          <li key={`${row.item.ticker}-${row.index}`} className="flex min-h-11 items-center gap-2 tabular-nums">
             <span className={cn("size-2.5 shrink-0 rounded-full", DOT_CLASS[row.index % DOT_CLASS.length])} aria-hidden />
             <span className="min-w-0 flex-1">
               <span className="block truncate font-medium text-fg">{row.item.name}</span>
               <span className="block truncate text-sm text-fg-muted">{row.item.ticker}</span>
             </span>
             {row.change == null ? (
-              <span className="text-sm text-fg-muted">{copy.noChange}</span>
+              <span className="text-sm tabular-nums text-fg-muted">{copy.noChange}</span>
             ) : (
-              <ChangeBadge value={row.change} />
+              <ChangeBadge value={row.change} className="tabular-nums" />
             )}
           </li>
         ))}
@@ -182,11 +186,13 @@ export function PortfolioWidget({
   const pnl = finiteOrNull(widget.pnlPct);
 
   return (
-    <article data-ai-widget="portfolio" className="min-w-0 rounded-2xl border border-border/70 bg-surface-1 p-4">
+    <article data-ai-widget="portfolio" className={WIDGET_CARD_CLASS}>
       <h2 className="label">{copy.portfolioTitle}</h2>
-      <div className="mt-1 flex flex-wrap items-center gap-2">
-        <p className="num text-2xl tracking-tight text-fg">{total == null ? copy.noTotal : formatUsd(total)}</p>
-        {pnl == null ? null : <ChangeBadge value={pnl} />}
+      <div className="mt-1 flex flex-wrap items-center gap-2 tabular-nums">
+        <p className="num text-2xl font-semibold tracking-tight tabular-nums text-fg">
+          {total == null ? copy.noTotal : formatUsd(total)}
+        </p>
+        {pnl == null ? null : <ChangeBadge value={pnl} className="tabular-nums" />}
       </div>
       {widget.positions.length === 0 ? (
         <p className="mt-3 text-sm text-fg-muted">{copy.noPositions}</p>
@@ -198,7 +204,7 @@ export function PortfolioWidget({
             return (
               <li
                 key={position.ticker}
-                className="flex min-h-11 items-center gap-2 border-b border-border/70 py-2 last:border-b-0"
+                className="flex min-h-11 items-center gap-2 border-b border-border/70 py-2 tabular-nums last:border-b-0"
               >
                 <TickerLogo
                   symbol={position.ticker}
@@ -212,11 +218,13 @@ export function PortfolioWidget({
                   <span className="block truncate font-medium text-fg">{position.name}</span>
                   <span className="block truncate text-sm text-fg-muted">{position.ticker}</span>
                 </span>
-                <span className="shrink-0 text-right">
+                <span className="shrink-0 text-right tabular-nums">
                   <span className="sr-only">{copy.valueLabel} </span>
-                  <span className="num block text-sm text-fg">{value == null ? copy.noPrice : formatUsd(value)}</span>
+                  <span className="num block text-sm font-medium tabular-nums text-fg">
+                    {value == null ? copy.noPrice : formatUsd(value)}
+                  </span>
                   <span className="sr-only">{copy.weightLabel} </span>
-                  <span className="num block text-sm text-fg-muted">
+                  <span className="num block text-sm tabular-nums text-fg-muted">
                     {weight == null ? copy.noChange : formatPortion(weight)}
                   </span>
                 </span>
@@ -239,7 +247,7 @@ export function BuyWidget({
   const href = safeBuyHref(widget.href);
 
   return (
-    <article data-ai-widget="buy" className="min-w-0 rounded-2xl border border-border/70 bg-surface-1 p-4">
+    <article data-ai-widget="buy" className={WIDGET_CARD_CLASS}>
       <div className="flex items-center gap-3">
         <TickerLogo
           symbol={widget.ticker}

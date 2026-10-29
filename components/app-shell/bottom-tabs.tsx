@@ -95,7 +95,11 @@ export function BottomTabs() {
   const { t, language } = useT();
   const navRef = useRef<HTMLElement>(null);
   const [pinned, setPinned] = useState(false);
-  const hidden = useTabBarHidden(pathname, pinned);
+  const assistantRoute =
+    pathname === "/app/asistente" || pathname.startsWith("/app/asistente/");
+  const mode = assistantRoute ? "composer" : "nav";
+  // Anclado: pasar `true` deja el óvalo fijo. Un scroll corto no lo esconde.
+  const hidden = useTabBarHidden(pathname, true);
   const activeIndex = activeMobileTab(pathname);
   useTabsHeight(navRef);
 
@@ -104,7 +108,9 @@ export function BottomTabs() {
       ref={navRef}
       role="navigation"
       aria-label={t.nav.label}
-      data-hidden={hidden ? "true" : "false"}
+      data-hidden={hidden && !pinned ? "true" : "false"}
+      data-mode={mode}
+      data-assistant={assistantRoute ? "true" : "false"}
       onFocus={() => setPinned(true)}
       onBlur={(event) => {
         const next = event.relatedTarget;
@@ -113,7 +119,11 @@ export function BottomTabs() {
       }}
       className="liquid-nav pointer-events-none fixed inset-x-0 bottom-0 z-30 flex justify-center px-4 pb-[calc(0.875rem+env(safe-area-inset-bottom))] md:hidden"
     >
-      <div className="liquid-glass backdrop-blur-xl border border-border/70">
+      <div
+        className="liquid-glass backdrop-blur-xl border border-border/70"
+        data-mode={mode}
+        data-assistant={assistantRoute ? "true" : "false"}
+      >
         <span
           className="liquid-glass__pill"
           data-hidden={activeIndex < 0 ? "true" : undefined}

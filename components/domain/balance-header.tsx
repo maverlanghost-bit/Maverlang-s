@@ -40,7 +40,7 @@ export function BalanceHeader({
   if (hidden === true) {
     value = (
       <>
-        <span className="num text-sm tracking-[0.2em] text-fg" aria-hidden>
+        <span className="num text-sm tabular-nums tracking-[0.2em] text-fg" aria-hidden>
           ••••••
         </span>
         <span className="sr-only">{t.shell.balanceHidden}</span>
@@ -49,7 +49,7 @@ export function BalanceHeader({
   } else if (amount !== null) {
     value = (
       <>
-        <PriceText value={amount} currency={shownCurrency} size="sm" className="block truncate font-medium tracking-tight" />
+        <PriceText value={amount} currency={shownCurrency} size="sm" className="block truncate font-medium tabular-nums tracking-tight" />
         {currency === "CLP" && shownCurrency === "USD" ? (
           <p className="text-xs text-fg-muted">{t.detail.fxMissing}</p>
         ) : null}
@@ -62,7 +62,12 @@ export function BalanceHeader({
   }
 
   return (
-    <div className={cn("flex min-w-0 items-center gap-1", className)}>
+    <div
+      className={cn(
+        "flex min-w-0 items-center gap-1 rounded-2xl border border-border/80 bg-[radial-gradient(120%_90%_at_0%_0%,rgba(5,150,105,0.07),transparent_65%)] shadow-[0_12px_36px_-16px_rgba(12,15,20,0.08)] tabular-nums tracking-tight",
+        className,
+      )}
+    >
       <div className="min-w-0 flex-1">
         <p className={variant === "bar" ? "sr-only" : "label"}>{t.shell.balance}</p>
         <div className={variant === "sidebar" ? "mt-0.5" : undefined} aria-live="polite">

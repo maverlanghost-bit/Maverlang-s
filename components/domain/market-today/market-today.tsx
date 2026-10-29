@@ -5,22 +5,17 @@ import { useId, useState, useSyncExternalStore } from "react";
 
 import { MoverCard, SpyChip } from "@/components/domain/market-today/mover-card";
 import { TodaySkeleton } from "@/components/domain/market-today/skeleton";
-import { MarketStatusPill } from "@/components/domain/market-status-pill";
 import { Button } from "@/components/ui/button";
 import { indexFromKey } from "@/components/ui/keys";
-import { Skeleton } from "@/components/ui/skeleton";
 import { hoyCopy } from "@/content/i18n/extra-hoy";
 import { ApiError } from "@/lib/api/client";
 import { apiResultSchema } from "@/lib/api/contracts";
 import { cn } from "@/lib/cn";
-import { useMarketStatus } from "@/lib/hooks/queries";
 import { useT } from "@/lib/hooks/use-t";
 import { formatPercent } from "@/lib/format";
 import {
   formatChileClock,
-  marketPhase,
   todayBoardSchema,
-  type MarketPhase,
   type MoverCard as MoverCardData,
   type TodayBoard,
 } from "@/lib/market/movers";
@@ -101,7 +96,6 @@ export function MarketToday() {
   const titleId = useId();
   const tabsId = useId();
   const panelId = useId();
-  const status = useMarketStatus();
   const board = useQuery({
     queryKey: ["market-today"],
     queryFn: fetchTodayBoard,
@@ -113,20 +107,6 @@ export function MarketToday() {
   const [picked, setPicked] = useState<ListId | null>(null);
   const list: ListId =
     picked ?? LISTS.find((id) => (board.data?.[id].length ?? 0) > 0) ?? "gainers";
-
-  const phase: MarketPhase | null = status.data ? marketPhase(status.data.session, new Date()) : null;
-  const phaseLabel =
-    phase === "open" ? copy.open : phase === "pre" ? copy.pre : phase === "after" ? copy.after : phase === "closed" ? copy.closed : "";
-  const phaseNote =
-    phase === "open"
-      ? copy.openNote
-      : phase === "pre"
-        ? copy.preNote
-        : phase === "after"
-          ? copy.afterNote
-          : phase === "closed"
-            ? copy.closedNote
-            : "";
 
   const options: { id: ListId; label: string }[] = [
     { id: "gainers", label: copy.gainers },
@@ -153,25 +133,6 @@ export function MarketToday() {
         </h2>
         <ChileClock label={copy.clock} locale={locale} />
       </div>
-
-      {phase ? (
-        <div className="flex min-h-11 min-w-0 flex-col gap-1 sm:flex-row sm:items-center sm:gap-2">
-          <MarketStatusPill open={phase === "open"} label={phaseLabel} />
-          <p className="min-w-0 text-sm text-pretty text-fg-muted">{phaseNote}</p>
-        </div>
-      ) : status.isError ? (
-        <div className="flex min-h-11 flex-wrap items-center gap-2">
-          <p className="text-sm text-fg-muted">{copy.statusError}</p>
-          <Button variant="secondary" size="lg" onClick={() => void status.refetch()}>
-            {copy.retry}
-          </Button>
-        </div>
-      ) : (
-        <div className="flex min-h-11 flex-col gap-1 sm:flex-row sm:items-center" aria-hidden>
-          <Skeleton className="h-7 w-28 rounded-full motion-reduce:animate-none" />
-          <Skeleton className="h-4 w-56 max-w-full motion-reduce:animate-none" />
-        </div>
-      )}
 
       {board.isPending ? <TodaySkeleton label={copy.loading} /> : null}
 

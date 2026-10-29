@@ -45,7 +45,7 @@ export function PositionRow({
     <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-2">
       <Link
         href={href}
-        className="flex min-h-16 min-w-0 flex-1 items-center gap-3 rounded-2xl px-2 py-3 transition-colors duration-150 hover:bg-surface-1/80 active:bg-surface-2/60"
+        className="flex min-h-16 min-w-0 flex-1 items-center gap-3 rounded-2xl border border-transparent px-2 py-3 transition-all duration-200 hover:-translate-y-[1px] hover:border-brand/30 hover:bg-bg-subtle/70 hover:shadow-[0_8px_24px_-12px_rgba(12,15,20,0.08)] active:bg-surface-2/60"
       >
         <TickerLogo symbol={symbol} name={name} logoUrl={logoUrl} size={36} decorative loading="lazy" sizes="40px" />
         <span className="min-w-0 flex-1">
@@ -64,12 +64,12 @@ export function PositionRow({
             <Skeleton className="h-9 w-16" />
           ) : (
             <>
-              <span className="font-medium">
+              <span className="font-medium tabular-nums">
                 <FlashPrice value={value} currency={currency} size="sm" />
               </span>
-              <span className="flex flex-col items-end gap-1 sm:flex-row sm:items-center">
-                {pnl === null ? <span className="num text-sm text-fg-muted">—</span> : <FlashPrice value={pnl} currency={currency} size="sm" colorBySign />}
-                {pnlPct === null ? <span className="num text-sm text-fg-muted">—</span> : <ChangeBadge value={pnlPct} />}
+              <span className="flex flex-col items-end gap-1 tabular-nums sm:flex-row sm:items-center">
+                {pnl === null ? <span className="num text-sm tabular-nums text-fg-muted">—</span> : <FlashPrice value={pnl} currency={currency} size="sm" colorBySign />}
+                {pnlPct === null ? <span className="num text-sm tabular-nums text-fg-muted">—</span> : <ChangeBadge value={pnlPct} />}
               </span>
             </>
           )}
@@ -83,7 +83,7 @@ export function PositionRow({
 function HiddenFigures({ label }: { label: string }) {
   return (
     <>
-      <span className="num text-sm tracking-[0.18em] text-fg" aria-hidden>
+      <span className="num text-sm tabular-nums tracking-[0.18em] text-fg" aria-hidden>
         ••••••
       </span>
       <span className="sr-only">{label}</span>

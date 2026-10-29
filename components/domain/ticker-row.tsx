@@ -94,7 +94,7 @@ function TickerRowBase({
             </span>
           ) : null}
         </span>
-        {sparkline ? <Sparkline data={sparkline} width={72} height={28} className={sparklineClassName} /> : null}
+        {sparkline ? <Sparkline data={sparkline} width={88} height={32} className={sparklineClassName} /> : null}
         {priceSlot ?? (
           <span className="flex shrink-0 flex-col items-end gap-0.5 text-right font-medium tabular-nums">
             <FlashPrice value={price} currency={currency} size="sm" />

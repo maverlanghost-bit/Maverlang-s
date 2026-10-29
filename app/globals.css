@@ -11,7 +11,7 @@
   --color-fg-body: #1f1f1f;
   /* M85 (WCAG AA): #7d8188 daba 3,9:1. Este gris pasa 4,5:1 con margen sobre
      blanco, surface-1/2/3 y los fondos up/down/warn/info (mínimo ~4,7:1). */
-  --color-fg-muted: #6b6b6b;
+  --color-fg-muted: #66696e;
   --color-fg-subtle: #8a8a8a;
   --color-surface-1: #f6f6f6;
   --color-surface-2: #f0f0f0;

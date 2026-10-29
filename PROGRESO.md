@@ -1,5 +1,12 @@
 # PROGRESO — Maverlang
 
+## Pulido UI/UX — Liquid Glass Nav, Sparklines Curvos, Orbe Sol/Luna y Asistente IA (2026-10-29)
+- Hecho (Menú móvil Liquid Glass y WCAG): `BottomTabs` (`components/app-shell/bottom-tabs.tsx` + `liquid-glass.css`) queda fijo sin esconderse al bajar en móvil (`data-hidden="false"`), con acabado Liquid Glass multicapa, reflejo especular y modo acoplado (`data-mode="composer"`) en `/app/asistente`. Corregido `--color-fg-muted: #66696e` en `app/globals.css` (WCAG AA >= 4.5:1).
+- Hecho (Gráficos de Mercado curvos): `Sparkline` (`components/domain/sparkline.tsx`) renderiza interpolación cúbica monótona de Fritsch-Carlson (`sparklineSmoothPath`), relleno con gradiente vertical y punto terminal. En `lib/market/movers.ts` corregido `sparkLine` (que antes truncaba el modo diario a 2 puntos rectos con `slice(-2)`) para usar hasta 24 puntos y ampliada la ventana de `/api/market/movers` de `1W` a `1M`. `TickerCard` y `TickerRow` integran el nuevo sparkline.
+- Hecho (Orbe flotante Sol/Luna de mercado): retirado el banner amarillo superior de cierre/horario en `MarketScreen` y `MarketToday`, reemplazado por `FloatingMarketOrb` (`components/domain/market-status-pill.tsx`) en la esquina inferior derecha con ícono Sol/Luna y popover Liquid Glass con horarios NY/Chile y operatoria 24/7 en Solana.
+- Hecho (Asistente IA y Cartera/Billetera): rediseño de `chat-view.tsx`, `composer.tsx` (barra flotante Liquid Glass en móvil), `transcript.tsx` (hero animado y burbujas elevadas) y `widgets.tsx`, más mejoras de elevación y `tabular-nums` en `balance-header.tsx`, `position-row.tsx` y `activity-item.tsx`.
+- Verificación: `npx tsc --noEmit` (0 errores) y Vitest (`ui-shell-mobile`, `nav-liquid-glass`, `sparkline`, `market-movers`, `ui-screens-broker`, `copy-guard`: 59/59 tests en verde).
+
 ## Integración — modo estricto y rutas IA (2026-10-29)
 - Hecho: `VERCEL_ENV=production` ya no activa `resolveStrictMode`. Con variables faltantes sólo `console.warn` (nombres, nunca valores). Estricto sigue con `APP_ENV=production` o `SUPABASE_PROJECT_ENV=prod`.
 - Hecho: `POST /api/ai/chat` y `POST /api/ai/import-portfolio` llaman `apiOperateBlock` antes del cuerpo y de xAI. Ya tenían origen, zod, tope de foto (~4 MB) y la política `ai` (usuario o IP). `api.x.ai` sigue sólo en servidor (`lib/ai/xai.ts`, `server-only`); no está en la CSP.

@@ -77,7 +77,7 @@ async function readCloses(underlying: string): Promise<{ t: number; p: number }[
   const key = yahooSymbol(underlying);
   if (!key) return [];
   try {
-    return await readUnderlyingCloses(key, "1W");
+    return await readUnderlyingCloses(key, "1M");
   } catch {
     return [];
   }
