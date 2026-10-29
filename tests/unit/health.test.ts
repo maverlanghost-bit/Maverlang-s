@@ -1,4 +1,6 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import { restoreModes } from "./restore-modes";
 
 /**
  * M62: health checks. Toda la red va mockeada: los probes HTTP usan un
@@ -9,6 +11,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
  * gate por modo reimportan `@/lib/health/checks` tras fijar el env (mismo
  * patrón que `env-validation.test.ts`).
  */
+
+// La shell de desarrollo puede traer precios live. El deep de esta suite parte en mock.
+const savedModes = vi.hoisted(() => {
+  const saved = { DATA_MODE: process.env.DATA_MODE, PRICES_MODE: process.env.PRICES_MODE };
+  process.env.DATA_MODE = "mock";
+  process.env.PRICES_MODE = "mock";
+  return saved;
+});
 
 const SECRET = "test-cron-secret-m62";
 
@@ -63,6 +73,10 @@ function request(pathname: string, token?: string): Request {
 beforeEach(() => {
   vi.spyOn(console, "error").mockImplementation(() => {});
   vi.spyOn(console, "warn").mockImplementation(() => {});
+});
+
+afterAll(() => {
+  restoreModes(savedModes);
 });
 
 afterEach(() => {

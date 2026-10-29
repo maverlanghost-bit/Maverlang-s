@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useMemo, useState, type ReactNode } from "react";
-import { useQuery, type Query } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 
 import { ChangeBadge } from "@/components/domain/change-badge";
 import { ChartLegend, ChartStudyBar, RsiPanel, SMA_COLOR, StudiesSkeleton } from "@/components/domain/chart-overlays";
@@ -44,10 +44,13 @@ const NO_BARS = { volume: false, ohlc: false };
 function studyQueryOptions(enabled: boolean) {
   return {
     enabled,
-    staleTime: (query: Query) => historyStaleMs(query.state.data, STUDY_STALE_MS),
+    // El parámetro es estructural: anotar `Query` (genérico por defecto) no
+    // encaja con la serie y, junto a `refetchInterval: false`, el objeto que
+    // vuelve de esta función deja de coincidir con `useQuery`.
+    staleTime: (query: { state: { data: unknown } }) => historyStaleMs(query.state.data, STUDY_STALE_MS),
     gcTime: STUDY_STALE_MS,
     retry: false,
-    refetchInterval: false,
+    refetchInterval: false as const,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
   };
