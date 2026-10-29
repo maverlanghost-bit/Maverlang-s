@@ -137,7 +137,7 @@ describe("foto de cartera", () => {
       catalog: CATALOG,
     });
     expect(fetchImpl).toHaveBeenCalledTimes(1);
-    const [url, init] = fetchImpl.mock.calls[0] as [string, RequestInit];
+    const [url, init] = fetchImpl.mock.calls[0] as unknown as [string, RequestInit];
     expect(url).toBe(XAI_CHAT_URL);
     expect(new Headers(init.headers).get("authorization")).toBe("Bearer test-key");
     const body = JSON.parse(String(init.body)) as {

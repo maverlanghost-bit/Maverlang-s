@@ -99,7 +99,7 @@ function clean(value: string | undefined): string | undefined {
 export function readXaiSettings(source: {
   XAI_API_KEY?: string | undefined;
   XAI_MODEL?: string | undefined;
-} = process.env): { apiKey?: string; model: string } {
+} = process.env as { XAI_API_KEY?: string; XAI_MODEL?: string }): { apiKey?: string; model: string } {
   const apiKey = clean(source.XAI_API_KEY);
   const modelRaw = clean(source.XAI_MODEL);
   const model = modelRaw && /^[A-Za-z0-9._:-]{1,80}$/.test(modelRaw) ? modelRaw : XAI_DEFAULT_MODEL;

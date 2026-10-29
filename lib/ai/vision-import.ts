@@ -193,7 +193,7 @@ export async function importPortfolioFromImage(input: {
   catalog?: readonly CatalogRef[];
 }): Promise<VisionChatResponse> {
   const copy = importarText(input.language ?? "es-CL");
-  const apiKey = input.apiKey === undefined ? process.env.XAI_API_KEY?.trim() ?? "" : input.apiKey.trim();
+  const apiKey = input.apiKey === undefined ? process.env.XAI_API_KEY?.trim() ?? "" : (input.apiKey ?? "").trim();
   if (!apiKey) {
     return { ok: false, error: "not_configured", message: NOT_CONFIGURED_MESSAGE };
   }

@@ -142,8 +142,10 @@ export function PwaRegister() {
   const bare = isBarePlatformPath(pathname);
   const contextRef = useRef(context);
   const bareRef = useRef(bare);
-  contextRef.current = context;
-  bareRef.current = bare;
+  useEffect(() => {
+    contextRef.current = context;
+    bareRef.current = bare;
+  });
   const { language } = useT();
   const copy = pwaCopy(language);
   const [promptEvent, setPromptEvent] = useState<InstallPromptEvent | null>(null);
