@@ -1,5 +1,6 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { restoreModes } from "./restore-modes";
 import { GET, POST } from "@/app/api/cron/reconcile-wallet/route";
 import { TICKERS, USDC_MINT } from "@/config/tickers";
 import {
@@ -19,8 +20,20 @@ import {
   validateAndPrepareWithdrawal,
 } from "@/lib/wallet/withdrawals";
 
+// La shell de desarrollo puede traer DATA_MODE=live. El indexador y el cron cubren el modo mock.
+const savedModes = vi.hoisted(() => {
+  const saved = { DATA_MODE: process.env.DATA_MODE, PRICES_MODE: process.env.PRICES_MODE };
+  process.env.DATA_MODE = "mock";
+  process.env.PRICES_MODE = "mock";
+  return saved;
+});
+
 const VALID_WALLET_A = "11111111111111111111111111111111";
 const VALID_WALLET_B = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
+
+afterAll(() => {
+  restoreModes(savedModes);
+});
 
 describe("M78: indexSolanaUsdcDeposits", () => {
   beforeEach(() => {
