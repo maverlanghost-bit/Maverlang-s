@@ -61,6 +61,10 @@ export const mockOnramp = {
 
   async handleWebhook(req: Request): Promise<{ estimatedUsdc: number; already: boolean }> {
     return simulateMock("onramp-webhook", async () => {
+      // SEC-06: en producción el mock no acredita. No hay firma HMAC.
+      if (process.env.NODE_ENV === "production") {
+        throw new DomainError("VALIDATION", "El aviso del proveedor no es válido.");
+      }
       let json: unknown;
       try {
         json = await req.json();

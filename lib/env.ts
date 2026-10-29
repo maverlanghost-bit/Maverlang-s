@@ -11,13 +11,12 @@ import { resolveCspMode } from "@/lib/security/csp";
  * El cliente sigue leyendo la marca y la URL en `config/site.ts`
  * (`NEXT_PUBLIC_*` inline). No importar `serverEnv` ni `publicEnv` desde componentes cliente.
  *
- * Entornos (M59): el modo estricto de producción se activa SÓLO con
- * `APP_ENV=production` explícito o con `SUPABASE_PROJECT_ENV=prod`; el de
- * preview, SÓLO con `APP_ENV=preview` explícito. `VERCEL_ENV` y `NODE_ENV`
- * son sólo etiquetas informativas y NUNCA activan el modo estricto
- * (`npm run build` siempre usa `NODE_ENV=production`). Sin esas variables
- * explícitas la app corre como demo pública/desarrollo: lo que falte de
- * producción sólo genera un `console.warn` (nombres, nunca valores).
+ * Entornos (M59): el modo estricto de producción se activa con
+ * `APP_ENV=production`, con `SUPABASE_PROJECT_ENV=prod` o con
+ * `VERCEL_ENV=production` (SEC-08). El de preview, sólo con
+ * `APP_ENV=preview` explícito. `NODE_ENV` no activa el modo estricto
+ * (`npm run build` siempre usa `NODE_ENV=production`). Sin modo estricto,
+ * lo que falte de producción sólo genera un `console.warn` (nombres, nunca valores).
  */
 
 export type AppEnv = "production" | "preview" | "development" | "test";
@@ -304,7 +303,8 @@ function buildServerSchema(source: EnvSource) {
     SUPABASE_PROD_URL_EXPECTED: optionalText(),
     /**
      * Etiqueta que pone Vercel (`production` | `preview` | `development`).
-     * Sólo informativa (avisos): NUNCA activa el modo estricto.
+     * `production` activa el modo estricto (SEC-08). `preview` y
+     * `development` siguen siendo sólo etiquetas.
      */
     VERCEL_ENV: optionalText(),
     /**
@@ -350,8 +350,8 @@ function parseServerEnv(source: EnvSource): ServerEnv {
 /**
  * Modo efectivo (M59). Gana el `APP_ENV` explícito si es válido; si no,
  * `test` con `NODE_ENV=test` y `development` en el resto (incluido
- * `NODE_ENV=production` sin `APP_ENV`: la demo pública). `VERCEL_ENV`
- * nunca decide: es sólo una etiqueta informativa.
+ * `NODE_ENV=production` sin `APP_ENV`: la etiqueta de la app). El modo
+ * estricto lo decide `resolveStrictMode`, no esta función.
  */
 export function resolveAppEnv(source: EnvSource = process.env): AppEnv {
   const raw = source.APP_ENV;
@@ -361,15 +361,15 @@ export function resolveAppEnv(source: EnvSource = process.env): AppEnv {
 }
 
 /**
- * Modo estricto (M59): `preview` sólo con `APP_ENV=preview` explícito;
- * `production` con `APP_ENV=production` explícito o con
- * `SUPABASE_PROJECT_ENV=prod`. Todo lo demás (incluido
- * `VERCEL_ENV=production` o `NODE_ENV=production` solos) es `null`
- * (demo pública/desarrollo: avisos, nunca error).
+ * Modo estricto (M59, SEC-08): `VERCEL_ENV=production` es producción
+ * estricta. Si no, `preview` sólo con `APP_ENV=preview` explícito y
+ * `production` con `APP_ENV=production` o `SUPABASE_PROJECT_ENV=prod`.
+ * `NODE_ENV=production` solo no alcanza (el build local también lo pone).
  */
 export function resolveStrictMode(
-  env: Pick<ServerEnv, "APP_ENV" | "SUPABASE_PROJECT_ENV">,
+  env: Pick<ServerEnv, "APP_ENV" | "SUPABASE_PROJECT_ENV"> & { VERCEL_ENV?: string | null },
 ): StrictMode | null {
+  if (typeof env.VERCEL_ENV === "string" && env.VERCEL_ENV.trim() === "production") return "production";
   if (env.APP_ENV === "preview") return "preview";
   if (env.APP_ENV === "production" || env.SUPABASE_PROJECT_ENV === "prod") return "production";
   return null;

@@ -48,9 +48,15 @@ function previewSource(): EnvSource {
 }
 
 describe("M59: resolucion del entorno", () => {
-  it("VERCEL_ENV y NODE_ENV nunca activan el modo estricto", () => {
+  it("NODE_ENV no activa el modo estricto; VERCEL_ENV=production sí", () => {
     expect(resolveAppEnv({ NODE_ENV: "production", VERCEL_ENV: "production" })).toBe("development");
     expect(resolveStrictMode({ APP_ENV: undefined, SUPABASE_PROJECT_ENV: undefined })).toBeNull();
+    expect(
+      resolveStrictMode({ APP_ENV: undefined, SUPABASE_PROJECT_ENV: undefined, VERCEL_ENV: "production" }),
+    ).toBe("production");
+    expect(
+      resolveStrictMode({ APP_ENV: undefined, SUPABASE_PROJECT_ENV: undefined, VERCEL_ENV: "preview" }),
+    ).toBeNull();
     expect(resolveAppEnv({ NODE_ENV: "test" })).toBe("test");
     expect(resolveAppEnv({ APP_ENV: "preview" })).toBe("preview");
     expect(resolveAppEnv({ APP_ENV: "banana" })).toBe("development");

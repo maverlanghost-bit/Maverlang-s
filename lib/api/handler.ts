@@ -133,12 +133,25 @@ function validationFieldsMessage(error: ZodError): string {
  * (400 `VALIDATION` con la lista de campos, sin eco de valores).
  * Los esquemas de `contracts.ts` usan `.strict()`: rechazan campos extra.
  */
+/** Bytes declarados en `Content-Length`, o null si el header no es un entero. */
+function declaredBodyBytes(req: Request): number | null {
+  const raw = req.headers.get("content-length")?.trim() ?? "";
+  if (!/^\d+$/.test(raw)) return null;
+  // Más de 7 dígitos ya supera el tope de 16 KB. No se convierte a Number.
+  if (raw.length > 7) return MAX_BODY_BYTES + 1;
+  const value = Number(raw);
+  return Number.isSafeInteger(value) ? value : MAX_BODY_BYTES + 1;
+}
+
 export async function parseJson<T>(
   req: Request,
   schema: ZodType<T>,
   options: { maxBytes?: number } = {},
 ): Promise<T> {
   const maxBytes = options.maxBytes ?? MAX_BODY_BYTES;
+  // SEC-10: si el cliente declara un cuerpo enorme, no se lee.
+  const declared = declaredBodyBytes(req);
+  if (declared !== null && declared > maxBytes) throw new DomainError("PAYLOAD_TOO_LARGE");
   const text = await req.text();
   if (new TextEncoder().encode(text).length > maxBytes) {
     throw new DomainError("PAYLOAD_TOO_LARGE");
@@ -251,9 +264,10 @@ export async function requireSession(services: Services, req: Request): Promise<
  * En modo supabase, la ruta exige un usuario verificado con `getUser`.
  * En mock no cambia: cotizar y armar siguen sin sesión.
  */
-export async function requireSupabaseUser(services: Services, req: Request): Promise<void> {
-  if (!isSupabaseAuth()) return;
-  await requireSession(services, req);
+/** En supabase devuelve la sesión. En mock no exige sesión y devuelve null. */
+export async function requireSupabaseUser(services: Services, req: Request): Promise<Session | null> {
+  if (!isSupabaseAuth()) return null;
+  return requireSession(services, req);
 }
 
 /**

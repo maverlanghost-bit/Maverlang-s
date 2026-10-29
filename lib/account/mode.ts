@@ -13,7 +13,9 @@ export function parseAccountMode(value: unknown): AccountMode {
 }
 
 export function serializeAccountCookie(mode: AccountMode): string {
-  return `${ACCOUNT_COOKIE}=${mode}; path=/; max-age=${ACCOUNT_MAX_AGE}; SameSite=Lax`;
+  // Secure en producción (HTTPS). En local HTTP la cookie tiene que guardarse.
+  const secure = process.env.NODE_ENV === "production" ? "; Secure" : "";
+  return `${ACCOUNT_COOKIE}=${mode}; path=/; max-age=${ACCOUNT_MAX_AGE}; SameSite=Lax${secure}`;
 }
 
 /** Lee `mv_account` de una cabecera `cookie` (route handlers). Sin cabecera -> demo. */

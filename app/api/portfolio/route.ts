@@ -8,6 +8,7 @@ import {
   isRealAccountRequest,
   isUserDemoRequest,
 } from "@/lib/api/handler";
+import { withRateLimit } from "@/lib/security/rate-limit";
 import { getServices } from "@/lib/services";
 import { demoSupabase } from "@/lib/services/demo.supabase";
 
@@ -16,6 +17,8 @@ export const dynamic = "force-dynamic";
 
 export function GET(req: Request) {
   return handle("private", async () => {
+    const limited = await withRateLimit(req, "publicGet");
+    if (limited) return limited;
     const services = getServices();
     const session = await requireSession(services, req);
     if (isRealAccountRequest(req)) {

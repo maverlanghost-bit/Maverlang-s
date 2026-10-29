@@ -152,13 +152,13 @@ export function perfilListo(
   return true;
 }
 
-export function claimsOnboarded(
-  claims: { user_metadata?: unknown } | null | undefined,
-  today = new Date(),
-): boolean {
-  const meta = claims?.user_metadata;
-  if (!meta || typeof meta !== "object") return false;
-  const record = meta as Record<string, unknown>;
+function recordOf(meta: unknown): Record<string, unknown> | null {
+  if (!meta || typeof meta !== "object") return null;
+  return meta as Record<string, unknown>;
+}
+
+function onboardedRecord(record: Record<string, unknown> | null, today: Date): boolean {
+  if (!record) return false;
   if (!flagTrue(record.onboarding_completed)) return false;
   const nacimiento = text(record.fecha_nacimiento).slice(0, 10);
   return perfilListo(
@@ -176,6 +176,50 @@ export function claimsOnboarded(
     },
     today,
   );
+}
+
+export function claimsOnboarded(
+  claims: { user_metadata?: unknown } | null | undefined,
+  today = new Date(),
+): boolean {
+  return onboardedRecord(recordOf(claims?.user_metadata), today);
+}
+
+/**
+ * Autorización del gate (SEC-07). Sólo `app_metadata` (lo escribe el
+ * servidor). `user_metadata` no cuenta: el usuario puede cambiarlo solo.
+ */
+export function gateFromAppMetadata(
+  claims: unknown,
+  today = new Date(),
+): { onboarded: boolean; demoReady: boolean } {
+  const app =
+    claims && typeof claims === "object" ? (claims as { app_metadata?: unknown }).app_metadata : undefined;
+  const record = recordOf(app);
+  const onboarded = onboardedRecord(record, today);
+  const demoReady =
+    onboarded || Boolean(record && text(record.terms_version) && text(record.privacy_version));
+  return { onboarded, demoReady };
+}
+
+/**
+ * Misma decisión con filas del servidor (`consents` / `profiles`).
+ * La aceptación demo son `terminos` + `privacidad`. El perfil completo
+ * (`onboarding_completed`) también deja entrar.
+ */
+export function gateFromComplianceRows(input: {
+  consents: readonly { doc?: unknown; version?: unknown }[];
+  onboardingCompleted: boolean;
+}): { onboarded: boolean; demoReady: boolean } {
+  const docs = new Set<string>();
+  for (const row of input.consents) {
+    if (typeof row.doc !== "string" || typeof row.version !== "string") continue;
+    if (row.version.trim() === "") continue;
+    docs.add(row.doc);
+  }
+  const onboarded = input.onboardingCompleted === true;
+  const demoReady = onboarded || (docs.has("terminos") && docs.has("privacidad"));
+  return { onboarded, demoReady };
 }
 
 export function registroUserData(
@@ -223,9 +267,11 @@ export function registroDemoUserData(
 }
 
 /**
+ * Pista de UI (login y ficha). No autoriza el gate: ese usa
+ * `gateFromAppMetadata` y `gateFromComplianceRows`.
  * Demo lista (M43): tiene `terms_version` y `privacy_version`.
  * Los usuarios antiguos con el perfil completo (`onboarding_completed`)
- * también entran, aunque no traigan esas versiones.
+ * también se tratan como listos, aunque no traigan esas versiones.
  */
 export function claimsDemoReady(
   claims: { user_metadata?: unknown } | null | undefined,

@@ -1,5 +1,6 @@
 import "server-only";
 
+import { DomainError } from "@/lib/api/result";
 import type { OnrampSession } from "@/lib/types";
 
 /**
@@ -18,6 +19,7 @@ export const onramperOnramp = {
     throw new Error("NOT_IMPLEMENTED: sesión Onramper");
   },
   async handleWebhook(): Promise<void> {
-    throw new Error("NOT_IMPLEMENTED: webhook Onramper");
+    // SEC-06: sin HMAC verificado no se acredita.
+    throw new DomainError("VALIDATION", "El aviso del proveedor no es válido.");
   },
 };

@@ -1,5 +1,6 @@
 import "server-only";
 
+import { DomainError } from "@/lib/api/result";
 import type { OnrampSession } from "@/lib/types";
 
 /**
@@ -22,6 +23,7 @@ export const koyweOnramp = {
     throw new Error("NOT_IMPLEMENTED: sesión Koywe");
   },
   async handleWebhook(): Promise<void> {
-    throw new Error("NOT_IMPLEMENTED: webhook Koywe");
+    // SEC-06: sin HMAC verificado no se acredita.
+    throw new DomainError("VALIDATION", "El aviso del proveedor no es válido.");
   },
 };

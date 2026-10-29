@@ -10,6 +10,7 @@ import {
   isRealAccountRequest,
   isUserDemoRequest,
 } from "@/lib/api/handler";
+import { apiOperateBlock } from "@/lib/compliance/real-quote";
 import { withRateLimit } from "@/lib/security/rate-limit";
 import { getServices } from "@/lib/services";
 import { demoSupabase } from "@/lib/services/demo.supabase";
@@ -19,11 +20,15 @@ export const runtime = "nodejs";
 
 export function POST(req: Request) {
   return handle("no-store", async () => {
+    const geo = apiOperateBlock(req);
+    if (geo) return geo;
     assertSameOrigin(req);
     const ipLimited = await withRateLimit(req, "tradeIp");
     if (ipLimited) return ipLimited;
     const services = getServices();
     const session = await requireSession(services, req);
+    const userLimited = await withRateLimit(req, "trade", [session.userId]);
+    if (userLimited) return userLimited;
     const body = await parseJson(req, tradeSubmitRequestSchema);
     if (isRealAccountRequest(req)) {
       // M46: el camino real se apaga (503 REAL_DISABLED) hasta que
@@ -34,8 +39,6 @@ export function POST(req: Request) {
       // submit (el req. del traspaso: "la orden built se rechaza al submit").
       await assertRealTradeAllowed(session.userId, null);
     }
-    const userLimited = await withRateLimit(req, "trade", [session.userId]);
-    if (userLimited) return userLimited;
     if (isUserDemoRequest(req)) {
       const demoLimited = await withRateLimit(req, "demoTrade", [session.userId]);
       if (demoLimited) return demoLimited;
