@@ -283,6 +283,13 @@ function buildServerSchema(source: EnvSource) {
     /** Clave del RPC privado (Helius/Triton). Sólo servidor. */
     HELIUS_API_KEY: optionalText(),
     /**
+     * Asistente IA (sólo servidor). Sin clave, POST /api/ai/chat responde
+     * 503 `not_configured` y no llama a xAI. Nunca en el cliente ni en el repo.
+     */
+    XAI_API_KEY: optionalText(),
+    /** Modelo de xAI. Vacío: el proveedor usa `grok-4.3`. */
+    XAI_MODEL: optionalText(),
+    /**
      * Entorno explícito (M59). `production` activa el modo estricto (falla el
      * build/arranque si falta algo); `preview`, el estricto de preview;
      * `development`/`test` son lenientes. Ausente o inválido → `undefined`
