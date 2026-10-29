@@ -2,7 +2,9 @@
 
 import { useEffect, useId, useState } from "react";
 
+import { InfoTip } from "@/components/domain/info-tip";
 import { Card } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { empresaCopy, type EmpresaCopy } from "@/content/i18n/extra-empresa";
 import { cn } from "@/lib/cn";
 import { useT } from "@/lib/hooks/use-t";
@@ -18,20 +20,21 @@ import {
   type FactLocale,
 } from "@/lib/market/fundamentals";
 
+const CELL =
+  "min-w-0 rounded-2xl border border-border/70 bg-surface-1/50 px-2 py-3 sm:px-4";
+
 /**
- * Ficha "Datos de la empresa". Sin fila en la API no se muestra.
- * Montar en el detalle, después de KeyStats:
- * `<CompanyCard symbol={ticker.symbol} />` en
- * `app/(platform)/app/accion/[ticker]/detail-screen.tsx`.
+ * Ficha "Datos de la empresa". 404 o sin fila: no se muestra.
+ * Mientras carga, un esqueleto del mismo tamaño que la grilla.
  */
 export function CompanyCard({ symbol }: { symbol: string }) {
-  const { language } = useT();
+  const { t, language } = useT();
   const copy = language === "en" ? empresaCopy.en : empresaCopy.esCL;
   const locale: FactLocale = language === "en" ? "en" : "es-CL";
   const titleId = useId();
   const wantedSymbol = symbol.trim();
-  const [loaded, setLoaded] = useState<{ symbol: string; view: CompanyFactsView | null } | null>(null);
-  const view = loaded !== null && loaded.symbol === wantedSymbol ? loaded.view : null;
+  const [loaded, setLoaded] = useState<Load | null>(null);
+  const ready = loaded !== null && loaded.symbol === wantedSymbol ? loaded : null;
 
   useEffect(() => {
     if (!wantedSymbol) return;
@@ -44,16 +47,21 @@ export function CompanyCard({ symbol }: { symbol: string }) {
           signal: controller.signal,
         });
         if (!response.ok) {
-          if (active) setLoaded({ symbol: wantedSymbol, view: null });
+          if (active) setLoaded({ symbol: wantedSymbol, status: "absent" });
           return;
         }
         const body: unknown = await response.json();
         const data =
           body && typeof body === "object" && "data" in body ? (body as { data?: unknown }).data : null;
         const parsed = readCompanyFactsView(data);
-        if (active) setLoaded({ symbol: wantedSymbol, view: parsed });
+        if (!active) return;
+        setLoaded(
+          parsed
+            ? { symbol: wantedSymbol, status: "ready", view: parsed }
+            : { symbol: wantedSymbol, status: "absent" },
+        );
       } catch {
-        if (active) setLoaded({ symbol: wantedSymbol, view: null });
+        if (active) setLoaded({ symbol: wantedSymbol, status: "absent" });
       }
     })();
     return () => {
@@ -62,30 +70,46 @@ export function CompanyCard({ symbol }: { symbol: string }) {
     };
   }, [wantedSymbol]);
 
-  if (!view) return null;
+  if (!wantedSymbol || ready?.status === "absent") return null;
+  if (!ready) return <CompanySkeleton label={t.states.loading} />;
 
+  const view = ready.view;
   const rows = factRows(view, copy, locale);
+  const dated = sourceDate(view, locale);
 
   return (
-    <Card>
+    <Card className="p-4 md:p-6">
       <section aria-labelledby={titleId}>
-        <h2 id={titleId} className="text-lg font-semibold tracking-tight text-fg">
-          {copy.title}
-        </h2>
-        {view.name ? <p className="mt-1 break-words text-sm text-fg-muted">{view.name}</p> : null}
-        <dl className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <h2 id={titleId} className="text-lg font-semibold tracking-tight text-fg">
+              {copy.title}
+            </h2>
+            <p className="mt-0.5 min-h-4 truncate text-xs text-fg-muted">{view.name ?? ""}</p>
+          </div>
+          <InfoTip className="-mt-1.5 shrink-0" label={`${copy.what}. ${copy.title}`} text={copy.tip} />
+        </div>
+        <dl className="mt-4 grid grid-cols-2 gap-1.5 sm:gap-2.5 md:grid-cols-3 xl:grid-cols-4">
           {rows.map((row) => (
-            <Fact key={row.id} label={row.label} value={row.value} missing={row.missing} detail={row.detail} about={row.about} what={copy.what} />
+            <div key={row.id} className={CELL}>
+              <dt className="block max-w-full text-xs font-medium leading-4 tracking-tight whitespace-nowrap text-fg-muted">
+                {row.label}
+              </dt>
+              <dd className="mt-1 min-w-0">
+                <p className={cn("break-words text-sm", row.missing ? "text-fg-muted" : "num text-fg")}>{row.value}</p>
+                {row.detail ? <p className="mt-1 text-[11px] leading-4 text-fg-muted">{row.detail}</p> : null}
+              </dd>
+            </div>
           ))}
         </dl>
-        <p className="mt-4 text-sm text-fg-muted">
-          {copy.sourceLabel}:{" "}
+        <p className="mt-3 text-[11px] leading-4 text-fg-muted">
+          <span className="sr-only">{copy.sourceLabel}: </span>
           {view.sourceUrl ? (
             <a
               href={view.sourceUrl}
               target="_blank"
               rel="noreferrer noopener"
-              className="text-fg underline underline-offset-2"
+              className="text-fg underline-offset-2 hover:underline"
             >
               {copy.sourceName}
               <span className="sr-only"> ({copy.sourceExternal})</span>
@@ -93,52 +117,39 @@ export function CompanyCard({ symbol }: { symbol: string }) {
           ) : (
             <span className="text-fg">{copy.sourceName}</span>
           )}
+          {dated ? <span> · {fill(copy.asOf, { date: dated })}</span> : null}
         </p>
-        <p className="mt-2 text-sm leading-relaxed text-fg-muted">{copy.disclaimer}</p>
+        <p className="mt-1 text-[11px] leading-4 text-fg-muted">{copy.disclaimer}</p>
       </section>
     </Card>
   );
 }
 
-function Fact({
-  label,
-  value,
-  missing,
-  detail,
-  about,
-  what,
-}: {
-  label: string;
-  value: string;
-  missing: boolean;
-  detail: string | null;
-  about: string;
-  what: string;
-}) {
-  const [open, setOpen] = useState(false);
-  const panelId = useId();
+type Load = { symbol: string; status: "absent" } | { symbol: string; status: "ready"; view: CompanyFactsView };
+
+function CompanySkeleton({ label }: { label: string }) {
   return (
-    <div className="min-w-0 rounded-2xl border border-border/70 bg-surface-1/50 px-3.5 py-3 sm:px-4">
-      <dt className="label max-w-full break-words">{label}</dt>
-      <dd className="mt-1">
-        <p className={cn("break-words text-base", missing ? "text-fg-muted" : "num text-fg")}>{value}</p>
-        {detail ? <p className="mt-1 text-xs leading-relaxed text-fg-muted">{detail}</p> : null}
-        <button
-          type="button"
-          className="mt-1 inline-flex min-h-11 items-center rounded-full px-1 text-sm text-fg-muted underline-offset-2 hover:text-fg hover:underline focus-visible:ring-4 focus-visible:ring-fg/20"
-          aria-expanded={open}
-          aria-controls={panelId}
-          onClick={() => setOpen((current) => !current)}
-        >
-          {what}
-        </button>
-        {open ? (
-          <p id={panelId} className="pb-2 text-sm leading-relaxed text-pretty text-fg-body">
-            {about}
-          </p>
-        ) : null}
-      </dd>
-    </div>
+    <Card className="p-4 md:p-6" aria-busy="true">
+      <span className="sr-only">{label}</span>
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <Skeleton className="h-6 w-44" />
+          <Skeleton className="mt-1 h-4 w-32" />
+        </div>
+        <Skeleton className="size-10 shrink-0 rounded-full" />
+      </div>
+      <div className="mt-4 grid grid-cols-2 gap-1.5 sm:gap-2.5 md:grid-cols-3 xl:grid-cols-4">
+        {["a", "b", "c", "d", "e", "f", "g", "h"].map((key) => (
+          <div key={key} className={CELL}>
+            <Skeleton className="h-4 w-16" />
+            <Skeleton className="mt-1 h-5 w-20" />
+            <Skeleton className="mt-1 h-3 w-24" />
+          </div>
+        ))}
+      </div>
+      <Skeleton className="mt-3 h-3 w-40" />
+      <Skeleton className="mt-1 h-3 w-56" />
+    </Card>
   );
 }
 
@@ -148,7 +159,6 @@ interface FactRowModel {
   value: string;
   missing: boolean;
   detail: string | null;
-  about: string;
 }
 
 function factRows(view: CompanyFactsView, copy: EmpresaCopy, locale: FactLocale): FactRowModel[] {
@@ -169,7 +179,6 @@ function factRows(view: CompanyFactsView, copy: EmpresaCopy, locale: FactLocale)
       value: sector ?? copy.empty,
       missing: sector === null,
       detail: view.sector && view.sic ? fill(copy.dates.sic, { code: view.sic }) : null,
-      about: copy.fields.sector.about,
     },
     {
       id: "marketCap",
@@ -180,7 +189,6 @@ function factRows(view: CompanyFactsView, copy: EmpresaCopy, locale: FactLocale)
         dated(copy.dates.close, view.lastCloseDate, locale),
         dated(copy.dates.shares, view.sharesAsOf, locale),
       ]),
-      about: copy.fields.marketCap.about,
     },
     {
       id: "pe",
@@ -191,7 +199,6 @@ function factRows(view: CompanyFactsView, copy: EmpresaCopy, locale: FactLocale)
         dated(copy.dates.close, view.lastCloseDate, locale),
         dated(copy.dates.eps, view.epsPeriodEnd, locale),
       ]),
-      about: copy.fields.pe.about,
     },
     {
       id: "eps",
@@ -199,7 +206,6 @@ function factRows(view: CompanyFactsView, copy: EmpresaCopy, locale: FactLocale)
       value: eps ?? copy.empty,
       missing: eps === null,
       detail: dated(copy.dates.eps, view.epsPeriodEnd, locale),
-      about: copy.fields.eps.about,
     },
     {
       id: "revenue",
@@ -207,7 +213,6 @@ function factRows(view: CompanyFactsView, copy: EmpresaCopy, locale: FactLocale)
       value: revenue ?? copy.empty,
       missing: revenue === null,
       detail: filed,
-      about: copy.fields.revenue.about,
     },
     {
       id: "netIncome",
@@ -215,7 +220,6 @@ function factRows(view: CompanyFactsView, copy: EmpresaCopy, locale: FactLocale)
       value: income ?? copy.empty,
       missing: income === null,
       detail: filed,
-      about: copy.fields.netIncome.about,
     },
     {
       id: "dividend",
@@ -223,7 +227,6 @@ function factRows(view: CompanyFactsView, copy: EmpresaCopy, locale: FactLocale)
       value: dividend ?? copy.empty,
       missing: dividend === null,
       detail: joinDetails([dated(copy.dates.close, view.lastCloseDate, locale), filed]),
-      about: copy.fields.dividend.about,
     },
     {
       id: "filing",
@@ -231,9 +234,15 @@ function factRows(view: CompanyFactsView, copy: EmpresaCopy, locale: FactLocale)
       value: filing ?? copy.empty,
       missing: filing === null,
       detail: null,
-      about: copy.fields.filing.about,
     },
   ];
+}
+
+function sourceDate(view: CompanyFactsView, locale: FactLocale): string | null {
+  const filing = latestFiling(view);
+  const raw = filing?.date ?? view.lastCloseDate ?? view.updatedAt;
+  if (!raw) return null;
+  return formatIsoDate(raw.slice(0, 10), locale);
 }
 
 function dividendText(view: CompanyFactsView, locale: FactLocale): string | null {

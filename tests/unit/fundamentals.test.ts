@@ -155,7 +155,11 @@ describe("textos de la ficha", () => {
     expect(source).toContain("copy.disclaimer");
     expect(source).toContain("copy.sourceName");
     expect(source).toContain("copy.what");
+    expect(source).toContain("InfoTip");
+    expect(source).toContain("copy.tip");
+    expect(source).not.toContain("setOpen");
     expect(empresaCopy.esCL.what).toBe("¿Qué es esto?");
+    expect(empresaCopy.esCL.tip.length).toBeGreaterThan(40);
     expect(empresaCopy.en.what).toBe("What is this?");
     expect(source).not.toContain("company-facts.supabase");
     expect(source).not.toMatch(/\bcompra\b|\bvende\b|\bbuy\b|\bsell\b/);

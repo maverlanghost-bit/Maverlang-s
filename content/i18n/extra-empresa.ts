@@ -17,6 +17,8 @@ export interface EmpresaCopy {
   disclaimer: string;
   empty: string;
   what: string;
+  tip: string;
+  asOf: string;
   fields: {
     sector: EmpresaFieldCopy;
     marketCap: EmpresaFieldCopy;
@@ -47,6 +49,8 @@ export const empresaCopy: { esCL: EmpresaCopy; en: EmpresaCopy } = {
     disclaimer: "Solo informativo, no es una recomendación",
     empty: "Sin dato",
     what: "¿Qué es esto?",
+    tip: "Cifras públicas que la empresa informó a la SEC. La capitalización y el P/E usan el último cierre guardado en la app. Si falta un dato, queda vacío.",
+    asOf: "al {date}",
     fields: {
       sector: {
         label: "Sector",
@@ -107,6 +111,8 @@ export const empresaCopy: { esCL: EmpresaCopy; en: EmpresaCopy } = {
     disclaimer: "For information only, not a recommendation",
     empty: "No data",
     what: "What is this?",
+    tip: "Public figures the company filed with the SEC. Market cap and P/E use the latest close stored in the app. If a figure is missing, it stays empty.",
+    asOf: "as of {date}",
     fields: {
       sector: {
         label: "Sector",

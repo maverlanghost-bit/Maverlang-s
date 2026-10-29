@@ -369,9 +369,16 @@ function categoryName(
 
 function FactChip({ children }: { children: ReactNode }) {
   return (
-    <li className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-border/70 bg-surface-1/60 px-2.5 py-0.5 text-xs leading-4 font-medium text-fg-body">
+    <li className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-border/70 bg-surface-1/60 px-2.5 py-1 text-xs leading-4 font-medium whitespace-nowrap text-fg-body">
       {children}
     </li>
+  );
+}
+
+function statLabelClass(label: string) {
+  return cn(
+    "block max-w-full font-medium leading-4 whitespace-nowrap text-fg-muted",
+    label.length > 24 ? "text-[11px] tracking-tighter" : "text-xs tracking-tight",
   );
 }
 
@@ -387,10 +394,10 @@ function MissingFigure({ label }: { label: string }) {
 function StatCell({ label, pending, children }: { label: string; pending: boolean; children: ReactNode }) {
   return (
     <div
-      className="min-w-0 max-w-full rounded-2xl border border-border/70 bg-surface-1/50 px-3.5 py-3 sm:px-4 sm:py-3.5"
+      className="min-w-0 max-w-full overflow-hidden rounded-2xl border border-border/70 bg-surface-1/50 px-2 py-3 sm:px-4 sm:py-3.5"
       aria-busy={pending || undefined}
     >
-      <dt className="label max-w-full break-words">{label}</dt>
+      <dt className={statLabelClass(label)}>{label}</dt>
       <dd className="mt-1 min-w-0 max-w-full break-words tabular-nums">{pending ? <Skeleton className="h-5 w-20" /> : children}</dd>
     </div>
   );
@@ -431,7 +438,7 @@ function KeyStats({
   tradeBlock: TradeBlock;
 }) {
   const { t } = useT();
-  const caption = t.detail.rangeCaption[range];
+  const caption = range === "ALL" ? t.detail.rangeShort.ALL : t.detail.rangeCaption[range];
   const fxKnown = typeof rate === "number" && Number.isFinite(rate) && rate > 0;
   const shownCurrency: Currency = currency === "CLP" && fxKnown ? "CLP" : "USD";
   const move = historyPending || historyError ? null : rangeMove(points);
@@ -454,9 +461,9 @@ function KeyStats({
           : t.detail.operable;
 
   return (
-    <Card className="p-5 md:p-6">
+    <Card className="p-4 md:p-6">
       <h2 className="text-lg font-semibold tracking-tight">{t.detail.stats}</h2>
-      <dl className="mt-4 grid grid-cols-2 gap-2 sm:gap-2.5 lg:grid-cols-4">
+      <dl className="mt-4 grid grid-cols-2 gap-1.5 sm:gap-2.5 lg:grid-cols-4">
         {/* Precio actual: mismo `quote.priceUsd` del titular, en tu moneda. */}
         <StatCell label={shownCurrency === "CLP" ? t.detail.priceClp : t.detail.priceUsd} pending={quoteCellPending}>
           {priceNow === null ? (
@@ -717,7 +724,7 @@ export function DetailScreen({
       animate={{ opacity: 1, scale: 1 }}
       transition={reduceMotion ? { duration: 0 } : { duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
     >
-      <div className="flex min-w-0 max-w-full flex-col gap-8">
+      <div className="flex min-w-0 max-w-full flex-col gap-6">
         <Link
           href="/app"
           className="-ml-2 flex min-h-9 w-fit items-center gap-1.5 rounded-full bg-surface-1 px-3 py-1.5 text-xs font-medium text-fg-muted outline-none transition-colors duration-150 hover:bg-surface-2 hover:text-fg focus-visible:ring-4 focus-visible:ring-fg/20"
@@ -726,11 +733,11 @@ export function DetailScreen({
           {t.detail.backToMarket}
         </Link>
         <header className="flex flex-col gap-3">
-          <div className="flex items-start gap-3">
-            <span className="rounded-full border border-border/70 p-0.5">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+            <span className="shrink-0 rounded-full border border-border/70 p-0.5">
               <TickerLogo symbol={ticker.symbol} name={ticker.name} logoUrl={ticker.logo} size={48} decorative loading="eager" sizes="64px" />
             </span>
-            <div className="min-w-0 flex-1">
+            <div className="min-w-0 flex-1 basis-48">
               <h1 className="max-w-full text-2xl break-words text-balance">{ticker.name}</h1>
               <p className="mt-1 max-w-full break-words text-sm text-fg-muted">
                 <span className="num font-medium text-fg">{ticker.symbol}</span>
@@ -741,19 +748,20 @@ export function DetailScreen({
                 </span>
               </p>
             </div>
-            <div className="flex shrink-0">
+            <div className="flex basis-full flex-wrap items-center gap-1 sm:basis-auto sm:justify-end">
+              <AlertButton labeled symbol={ticker.symbol} name={ticker.name} priceUsd={quote?.priceUsd ?? null} />
               <FavoriteButton pressed={saved} label={favoriteLabel} onToggle={() => toggle(ticker.symbol)} />
               <ShareButton name={ticker.name} />
             </div>
           </div>
-          <ul className="flex list-none flex-wrap gap-1.5 p-0" aria-label={t.detail.chips}>
+          <ul className="flex min-w-0 max-w-full list-none gap-1.5 overflow-x-auto p-0 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" aria-label={t.detail.chips}>
             {category ? <FactChip>{category}</FactChip> : null}
             <FactChip>{t.detail.tokenOnSolana}</FactChip>
             {effectiveBlock !== null ? <FactChip>{t.detail.tradeUnavailable}</FactChip> : null}
             {/* Horario real por acción (M39): suspendida, abierto, extendido, nocturno o cerrado. */}
             {statusPending ? (
-              <li>
-                <Skeleton className="h-5 w-28 rounded-full" />
+              <li className="shrink-0">
+                <Skeleton className="h-6 w-28 rounded-full" />
               </li>
             ) : statusReady ? (
               <FactChip>
@@ -787,9 +795,6 @@ export function DetailScreen({
         />
 
         <TokenGapCard symbol={ticker.symbol} quote={quote} />
-        <AlertButton symbol={ticker.symbol} name={ticker.name} priceUsd={quote?.priceUsd ?? null} />
-        <CompanyCard symbol={ticker.symbol} />
-        <StockTokenGuide />
 
         <KeyStats
           quote={quote}
@@ -804,6 +809,9 @@ export function DetailScreen({
           categoryLabel={category}
           tradeBlock={effectiveBlock}
         />
+
+        <CompanyCard symbol={ticker.symbol} />
+        <StockTokenGuide />
 
         {access === "guest" ? null : (
           <PositionBlock

@@ -35,6 +35,9 @@ export interface CarteraExtra {
   gapTip: string;
   tokenGuideTitle: string;
   tokenGuideBody: string;
+  alertCreate: string;
+  alertSignIn: string;
+  alertCreateLabel: string;
 }
 
 const disclaimer = "Solo informativo, no es una recomendación.";
@@ -62,8 +65,8 @@ const esCL: CarteraExtra = {
   avgCostTip: `Precio medio de esta posición. El resultado de la fila compara el precio actual del token con este costo. ${disclaimer}`,
   whatIsThis: "¿Qué es esto?",
   gapTitle: "Token y acción en EE.UU.",
-  gapToken: "Precio del token",
-  gapClose: "Último cierre en EE.UU.",
+  gapToken: "Precio token",
+  gapClose: "Cierre EE.UU.",
   gapAbove: "El token está {pct} sobre la acción en EE.UU.",
   gapBelow: "El token está {pct} bajo la acción en EE.UU.",
   gapEven: "El token está al mismo precio que el último cierre de la acción en EE.UU.",
@@ -71,6 +74,9 @@ const esCL: CarteraExtra = {
   gapTip: `Compara el precio actual del token en la app con el último cierre de un mes de la acción en EE.UU. ${disclaimer}`,
   tokenGuideTitle: "¿Qué es un token de acción?",
   tokenGuideBody: `Un token de acción, como un xStock de Backed o un token de Ondo, es un registro en Solana asociado a una acción de Estados Unidos: no es la acción misma y no entrega esa acción ni derechos en la empresa. El precio puede diferir por el horario de la bolsa, la liquidez del pool y las comisiones del pool, y el valor puede bajar. ${disclaimer}`,
+  alertCreate: "Crear alerta de precio",
+  alertSignIn: "Ingresa para crear alertas",
+  alertCreateLabel: "Crear alerta de precio para {name}",
 };
 
 const en: CarteraExtra = {
@@ -96,7 +102,7 @@ const en: CarteraExtra = {
   whatIsThis: "What is this?",
   gapTitle: "Token and U.S. stock",
   gapToken: "Token price",
-  gapClose: "Latest U.S. close",
+  gapClose: "U.S. close",
   gapAbove: "The token is {pct} above the U.S. stock.",
   gapBelow: "The token is {pct} below the U.S. stock.",
   gapEven: "The token matches the latest close of the U.S. stock.",
@@ -104,6 +110,9 @@ const en: CarteraExtra = {
   gapTip: `Compares the token price in the app with the latest one-month close of the U.S. stock. ${disclaimerEn}`,
   tokenGuideTitle: "What is a stock token?",
   tokenGuideBody: `A stock token, such as a Backed xStock or an Ondo token, is a Solana record tied to a U.S. stock: it is not the stock itself and it does not deliver that stock or rights in the company. The price can differ because of market hours, pool liquidity, and pool fees, and the value can fall. ${disclaimerEn}`,
+  alertCreate: "Create a price alert",
+  alertSignIn: "Sign in to create alerts",
+  alertCreateLabel: "Create a price alert for {name}",
 };
 
 export const extraCartera = { esCL, en };

@@ -22,6 +22,8 @@ describe("textos de cartera y brecha", () => {
     expect(extraCartera.esCL.disclaimer).toBe("Solo informativo, no es una recomendación.");
     expect(extraCartera.en.disclaimer).toBe("For information only, not a recommendation.");
     expect(extraCartera.esCL.gapWhy).toContain(extraCartera.esCL.disclaimer);
+    expect(extraCartera.esCL.alertCreate).toBe("Crear alerta de precio");
+    expect(extraCartera.esCL.alertSignIn).toBe("Ingresa para crear alertas");
     expect(extraCartera.esCL.tokenGuideBody).toContain("xStock");
     expect(extraCartera.esCL.tokenGuideBody).toContain("Ondo");
     expect(extraCartera.en.tokenGuideBody).toContain("not the stock itself");

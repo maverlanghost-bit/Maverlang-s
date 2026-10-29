@@ -4,17 +4,44 @@ import { useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { cn } from "@/lib/cn";
 
-type Box = { top: number; left: number; right: number };
+type Box = { top: number; left: number; width: number; maxHeight: number };
 
-function measure(button: HTMLButtonElement): Box {
+const MARGIN = 8;
+const GAP = 4;
+const MAX_WIDTH = 288;
+
+function layout(button: HTMLButtonElement, wantHeight: number, align: "start" | "end"): Box {
   const rect = button.getBoundingClientRect();
-  return { top: rect.bottom + 4, left: rect.left, right: rect.right };
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  const width = Math.min(MAX_WIDTH, Math.max(0, vw - MARGIN * 2));
+  const maxLeft = Math.max(MARGIN, vw - MARGIN - width);
+  const preferred = align === "start" ? rect.left : rect.right - width;
+  const left = Math.min(Math.max(MARGIN, preferred), maxLeft);
+  const roomBelow = vh - MARGIN - (rect.bottom + GAP);
+  const roomAbove = rect.top - GAP - MARGIN;
+  const want = Math.max(wantHeight, 48);
+  if (want <= roomBelow || roomBelow >= roomAbove) {
+    return { top: rect.bottom + GAP, left, width, maxHeight: Math.max(48, roomBelow) };
+  }
+  const maxHeight = Math.max(48, roomAbove);
+  const used = Math.min(want, maxHeight);
+  return { top: Math.max(MARGIN, rect.top - GAP - used), left, width, maxHeight };
+}
+
+function sameBox(current: Box | null, next: Box) {
+  if (!current) return false;
+  return (
+    Math.round(current.top) === Math.round(next.top) &&
+    Math.round(current.left) === Math.round(next.left) &&
+    Math.round(current.width) === Math.round(next.width) &&
+    Math.round(current.maxHeight) === Math.round(next.maxHeight)
+  );
 }
 
 /**
- * Botón «¿Qué es esto?»: icono i y un cuadro con 1 a 3 frases.
+ * Icono (i) de 16px con área táctil de 40px. El cuadro queda dentro de la pantalla.
  * Clic o toque lo abre. Escape, otro toque en el botón o un toque afuera lo cierra.
- * El cuadro va en un portal para que no lo tape la tarjeta de abajo.
  */
 export function InfoTip({
   label,
@@ -40,7 +67,8 @@ export function InfoTip({
     function place() {
       const button = buttonRef.current;
       if (!button) return;
-      setBox(measure(button));
+      const next = layout(button, panelRef.current?.scrollHeight ?? 120, align);
+      setBox((current) => (sameBox(current, next) ? current : next));
     }
 
     function close(restore: boolean) {
@@ -62,6 +90,7 @@ export function InfoTip({
       close(true);
     }
 
+    place();
     panelRef.current?.focus();
     window.addEventListener("scroll", place, true);
     window.addEventListener("resize", place);
@@ -73,7 +102,7 @@ export function InfoTip({
       document.removeEventListener("pointerdown", onPointer);
       document.removeEventListener("keydown", onKey);
     };
-  }, [open]);
+  }, [open, align, text]);
 
   function toggle() {
     if (open) {
@@ -81,7 +110,7 @@ export function InfoTip({
       return;
     }
     const button = buttonRef.current;
-    if (button) setBox(measure(button));
+    if (button) setBox(layout(button, 120, align));
     setOpen(true);
   }
 
@@ -94,12 +123,8 @@ export function InfoTip({
             role="dialog"
             aria-modal="false"
             tabIndex={-1}
-            style={
-              align === "start"
-                ? { top: box.top, left: Math.max(8, Math.min(box.left, window.innerWidth - 272)) }
-                : { top: box.top, right: Math.max(8, window.innerWidth - box.right) }
-            }
-            className="fixed z-30 w-64 max-w-[min(16rem,calc(100vw-2.5rem))] rounded-xl border border-border/70 bg-surface-1 p-3 text-left text-sm leading-relaxed text-fg-body shadow-float outline-none"
+            style={{ top: box.top, left: box.left, width: box.width, maxHeight: box.maxHeight }}
+            className="fixed z-30 overflow-y-auto overscroll-contain rounded-xl border border-border/70 bg-surface-1 p-3 text-left text-sm leading-relaxed text-fg-body shadow-float outline-none"
           >
             {text}
           </div>,
@@ -112,7 +137,7 @@ export function InfoTip({
       <button
         ref={buttonRef}
         type="button"
-        className="inline-flex size-11 items-center justify-center rounded-full text-fg-muted outline-none transition duration-[140ms] hover:bg-surface-2 hover:text-fg focus-visible:ring-4 focus-visible:ring-fg/20"
+        className="inline-flex size-10 items-center justify-center rounded-full text-fg-muted outline-none transition duration-[140ms] hover:bg-surface-2 hover:text-fg focus-visible:ring-4 focus-visible:ring-fg/20"
         aria-expanded={open}
         aria-controls={open ? panelId : undefined}
         aria-haspopup="dialog"
