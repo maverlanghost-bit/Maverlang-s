@@ -9,6 +9,9 @@ import { ProductMock } from "@/components/landing/product-mock";
 import { SecuritySection } from "@/components/landing/security-section";
 import { TickerMarquee } from "@/components/landing/ticker-marquee";
 import { getLandingQuotes } from "@/lib/landing/live-quotes";
+import { HOME_DESCRIPTION, HOME_TITLE } from "@/lib/seo/copy";
+import { JsonLd, organizationJsonLd } from "@/lib/seo/jsonld";
+import { pageMetadata } from "@/lib/seo/metadata";
 
 /**
  * Portada con precios reales en dólares (M42): el servidor pide las quotes
@@ -17,12 +20,20 @@ import { getLandingQuotes } from "@/lib/landing/live-quotes";
  */
 export const revalidate = 30;
 
+export const metadata = pageMetadata({
+  title: HOME_TITLE,
+  description: HOME_DESCRIPTION,
+  path: "/",
+  absolute: true,
+});
+
 export default async function HomePage() {
   const { quotes, live } = await getLandingQuotes();
   const symbols = quotes.map((quote) => quote.symbol);
 
   return (
-    <main>
+    <>
+      <JsonLd data={organizationJsonLd()} />
       <LiveLandingPrices symbols={symbols} live={live} initial={quotes}>
         <Hero quotes={quotes} live={live} />
         <TickerMarquee quotes={quotes} live={live} />
@@ -34,6 +45,6 @@ export default async function HomePage() {
       <SecuritySection />
       <FaqSection />
       <FinalCTA />
-    </main>
+    </>
   );
 }

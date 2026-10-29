@@ -1,19 +1,20 @@
-import type { Metadata } from "next";
 import Link from "next/link";
 import { SecuritySection } from "@/components/landing/security-section";
 import { LandingSection } from "@/components/landing/section";
 import { Card } from "@/components/ui/card";
 import { site } from "@/config/site";
+import { pageMetadata } from "@/lib/seo/metadata";
 
-export const metadata: Metadata = {
+export const metadata = pageMetadata({
   title: "Seguridad",
   description: `Tus activos en tu propia billetera, sin custodia de ${site.name}. Qué tienes, qué no, y qué riesgos existen.`,
-};
+  path: "/seguridad",
+});
 
 /** Página dedicada de seguridad: las tarjetas de la portada más el marco completo. */
 export default function SeguridadPage() {
   return (
-    <main>
+    <>
       <LandingSection titleId="seguridad-page-title">
         <div className="max-w-2xl">
           <p className="label">Seguridad</p>
@@ -121,6 +122,6 @@ export default function SeguridadPage() {
           </p>
         </div>
       </LandingSection>
-    </main>
+    </>
   );
 }

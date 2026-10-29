@@ -47,11 +47,15 @@ export function Accordion({
                 <IconChevron className={cn("shrink-0 text-fg-muted transition duration-[140ms]", open && "rotate-180")} />
               </button>
             </h3>
-            {open ? (
-              <div id={panelId} role="region" aria-labelledby={buttonId} className="px-4 pb-4 text-sm leading-relaxed text-fg-body">
-                {item.content}
-              </div>
-            ) : null}
+            <div
+              id={panelId}
+              role="region"
+              aria-labelledby={buttonId}
+              hidden={!open}
+              className="px-4 pb-4 text-sm leading-relaxed text-fg-body"
+            >
+              {item.content}
+            </div>
           </div>
         );
       })}

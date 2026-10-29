@@ -4,6 +4,9 @@ import { notFound, redirect } from "next/navigation";
 import { aboutForTicker } from "@/content/tickers";
 import { readServerSession } from "@/lib/auth/server-session";
 import { findAssetBySymbol, toTicker } from "@/lib/catalog/assets";
+import { stockDescription } from "@/lib/seo/copy";
+import { canonicalUrl } from "@/lib/seo/metadata";
+import { resolvePublicAsset } from "@/lib/seo/public-catalog";
 
 import { DetailScreen, type DetailAccess, type TradeBlock } from "./detail-screen";
 
@@ -20,7 +23,20 @@ export async function generateMetadata({
   const { ticker } = await params;
   const asset = await findAssetBySymbol(ticker);
   if (!asset || !asset.mint) return { title: "Acción no encontrada" };
-  return { title: `${asset.name} (${asset.symbol})` };
+  // La ficha de la app sigue en noindex (layout de /app). El canonical apunta a la URL pública.
+  const pub = await resolvePublicAsset(asset.symbol);
+  const described = pub ?? {
+    name: asset.name,
+    ticker: asset.underlying || asset.symbol,
+    etf: asset.category === "etf",
+  };
+  return {
+    title: `${asset.name} (${asset.symbol})`,
+    description: stockDescription(described),
+    ...(pub
+      ? { alternates: { canonical: canonicalUrl(`/acciones/${pub.slug}`) } }
+      : {}),
+  };
 }
 
 export default async function AccionPage({

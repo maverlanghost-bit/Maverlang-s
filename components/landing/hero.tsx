@@ -15,8 +15,9 @@ import { cn } from "@/lib/cn";
 /**
  * Copy en uso:
  * H1: "Acciones de EE.UU. tokenizadas, en tu billetera"
+ * Línea bajo el H1: "Comprar acciones de EE.UU. desde Chile."
  * Subtítulo: "Compra fracciones desde US$10. El token queda en tu propia billetera —nosotros no custodiamos tus activos—, compras en dólares (US$) y operas 24/7."
- * CTAs: "Prueba la demo gratis" → /app/registro · "Ver acciones" → /app · "Cómo funciona" → #como-funciona
+ * CTAs: "Prueba la demo gratis" → /app/registro · "Ver acciones" → /acciones · "Cómo funciona" → #como-funciona
  *
  * ALTERNATIVA:
  * H1: "El token es tuyo, en tu propia billetera"
@@ -69,6 +70,9 @@ export function Hero({ quotes, live }: { quotes: LandingQuote[]; live: boolean }
             {/* ALTERNATIVA: El token es tuyo, en tu propia billetera */}
             {/* ALTERNATIVA: Fracciones de EE.UU. en Solana, comprando en dólares */}
           </h1>
+          <p className="mx-auto mt-3 max-w-2xl text-sm font-medium leading-relaxed text-balance text-fg sm:text-base">
+            Comprar acciones de EE.UU. desde Chile.
+          </p>
         </Reveal>
         <Reveal delay={240} className="mt-4 w-full">
           <p className="mx-auto max-w-2xl text-sm leading-relaxed text-balance text-fg-body sm:text-base">
@@ -84,7 +88,7 @@ export function Hero({ quotes, live }: { quotes: LandingQuote[]; live: boolean }
               <Link href="/app/registro">Prueba la demo gratis</Link>
             </Button>
             <Button asChild variant="secondary" size="md" className="min-h-11 w-full sm:w-auto">
-              <Link href="/app">{esCL.guest.seeStocks}</Link>
+              <Link href="/acciones">{esCL.guest.seeStocks}</Link>
             </Button>
             <Button asChild variant="secondary" size="md" className="min-h-11 w-full sm:w-auto">
               <Link href="/#como-funciona">Cómo funciona</Link>

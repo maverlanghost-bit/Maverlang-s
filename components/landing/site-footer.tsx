@@ -8,12 +8,12 @@ const columns: { title: string; links: { href: string; label: string }[] }[] = [
   {
     title: "Producto",
     links: [
-      { href: "/#como-funciona", label: "Cómo funciona" },
-      { href: "/#costos", label: "Costos" },
-      { href: "/#seguridad", label: "Seguridad" },
+      { href: "/como-funciona", label: "Cómo funciona" },
+      { href: "/costos", label: "Costos" },
+      { href: "/seguridad", label: "Seguridad" },
+      { href: "/acciones", label: esCL.guest.seeStocks },
       { href: "/#preguntas", label: "Preguntas" },
       { href: "/ayuda", label: "Ayuda" },
-      { href: "/app", label: esCL.guest.seeStocks },
       { href: "/app/ingresar", label: "Entrar" },
     ],
   },

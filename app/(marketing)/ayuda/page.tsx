@@ -1,15 +1,17 @@
-import type { Metadata } from "next";
 import Link from "next/link";
 import { FaqList } from "@/components/landing/faq";
 import { LandingSection } from "@/components/landing/section";
 import { Card } from "@/components/ui/card";
 import { site } from "@/config/site";
 import { getFaq } from "@/lib/content/faq";
+import { faqPageJsonLd, JsonLd } from "@/lib/seo/jsonld";
+import { pageMetadata } from "@/lib/seo/metadata";
 
-export const metadata: Metadata = {
+export const metadata = pageMetadata({
   title: "Ayuda",
   description: `Centro de ayuda de ${site.name}: qué es la demo, cómo registrarte, cómo comprar y vender, dónde ver tu cartera, qué es la autocustodia y cómo recuperar tu contraseña.`,
-};
+  path: "/ayuda",
+});
 
 const GUIDES = [
   {
@@ -56,8 +58,10 @@ export default function AyudaPage() {
   const seguridad = faq.filter(
     (entry) => ![...partir, ...operar].some((item) => item.id === entry.id),
   );
+  const faqLd = faqPageJsonLd(faq);
   return (
-    <main>
+    <>
+      <JsonLd data={faqLd} />
       <LandingSection titleId="ayuda-title">
         <div className="max-w-2xl">
           <p className="label">Ayuda</p>
@@ -111,6 +115,6 @@ export default function AyudaPage() {
           </section>
         </div>
       </LandingSection>
-    </main>
+    </>
   );
 }
