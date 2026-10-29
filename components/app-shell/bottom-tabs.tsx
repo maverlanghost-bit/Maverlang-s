@@ -1,23 +1,33 @@
 "use client";
 
-import { useEffect, useRef, type RefObject } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type RefObject } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-import { isShellSectionActive, shellNav } from "@/components/app-shell/nav";
+import "./liquid-glass.css";
+
+import {
+  activeMobileTab,
+  mobileTabs,
+  nextTabBarHidden,
+  shellTabLabel,
+} from "@/components/app-shell/nav";
+import { IconStar } from "@/components/ui/icons";
 import { cn } from "@/lib/cn";
 import { useT } from "@/lib/hooks/use-t";
 
-/** Publica el alto real (píldora + margen + safe-area) para la barra de compra y los toasts. */
+/** Publica el alto en reposo (sin el translate del scroll) para la barra de compra y los toasts. */
 function useTabsHeight(ref: RefObject<HTMLElement | null>) {
   useEffect(() => {
     const root = document.documentElement;
     const query = window.matchMedia("(min-width: 1024px)");
     const apply = () => {
       const nav = ref.current;
-      if (query.matches || !nav) return root.style.setProperty("--app-tabs-height", "0px");
-      const rect = nav.getBoundingClientRect();
-      root.style.setProperty("--app-tabs-height", `${window.innerHeight - rect.top}px`);
+      if (query.matches || !nav) {
+        root.style.setProperty("--app-tabs-height", "0px");
+        return;
+      }
+      root.style.setProperty("--app-tabs-height", `${nav.offsetHeight}px`);
     };
     apply();
     const nav = ref.current;
@@ -34,39 +44,112 @@ function useTabsHeight(ref: RefObject<HTMLElement | null>) {
   }, [ref]);
 }
 
+/** Se esconde al bajar y vuelve al subir. El foco dentro de la barra la deja fija. */
+function useTabBarHidden(pathname: string, pinned: boolean): boolean {
+  const [state, setState] = useState({ path: pathname, hidden: false });
+  const previous = useRef(0);
+  const generation = useRef(0);
+
+  if (state.path !== pathname) {
+    setState({ path: pathname, hidden: false });
+  }
+
+  useEffect(() => {
+    generation.current += 1;
+    previous.current = window.scrollY || 0;
+  }, [pathname]);
+
+  useEffect(() => {
+    previous.current = window.scrollY || 0;
+    let frame = 0;
+    let frameGeneration = 0;
+    const onScroll = () => {
+      if (frame) return;
+      frameGeneration = generation.current;
+      frame = window.requestAnimationFrame(() => {
+        frame = 0;
+        if (frameGeneration !== generation.current) return;
+        const nextY = window.scrollY || document.documentElement.scrollTop || 0;
+        const from = previous.current;
+        previous.current = nextY;
+        setState((current) => {
+          const next = nextTabBarHidden(current.hidden, from, nextY);
+          if (next === current.hidden) return current;
+          return { path: current.path, hidden: next };
+        });
+      });
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      if (frame) window.cancelAnimationFrame(frame);
+    };
+  }, []);
+
+  const hidden = state.path === pathname ? state.hidden : false;
+  return pinned ? false : hidden;
+}
+
 export function BottomTabs() {
   const pathname = usePathname();
-  const { t } = useT();
+  const { t, language } = useT();
   const navRef = useRef<HTMLElement>(null);
+  const [pinned, setPinned] = useState(false);
+  const hidden = useTabBarHidden(pathname, pinned);
+  const activeIndex = activeMobileTab(pathname);
   useTabsHeight(navRef);
 
   return (
     <nav
       ref={navRef}
+      role="navigation"
       aria-label={t.nav.label}
-      className="pointer-events-none fixed inset-x-0 bottom-0 z-30 flex justify-center px-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] lg:hidden"
+      data-hidden={hidden ? "true" : "false"}
+      onFocus={() => setPinned(true)}
+      onBlur={(event) => {
+        const next = event.relatedTarget;
+        if (next instanceof Node && event.currentTarget.contains(next)) return;
+        setPinned(false);
+      }}
+      className="liquid-nav pointer-events-none fixed inset-x-0 bottom-0 z-30 flex justify-center px-4 pb-[calc(0.875rem+env(safe-area-inset-bottom))] md:hidden"
     >
-      <ul className="glass-tabbar pointer-events-auto grid h-16 w-full max-w-md grid-cols-4 rounded-full p-1.5">
-        {shellNav.map((item) => {
-          const active = isShellSectionActive(pathname, item.id);
-          const Icon = item.icon;
-          return (
-            <li key={item.id} className="min-w-0">
-              <Link
-                href={item.href}
-                aria-current={active ? "page" : undefined}
-                className={cn(
-                  "flex h-full min-h-11 flex-col items-center justify-center gap-0.5 rounded-full px-1 text-[11px] font-medium tracking-tight outline-none transition duration-150 ease-spring focus-visible:ring-2 focus-visible:ring-fg active:scale-[0.96]",
-                  active ? "bg-fg text-bg" : "text-fg-muted hover:text-fg",
-                )}
-              >
-                <Icon className="size-5" aria-hidden />
-                <span className="max-w-full truncate">{t.nav[item.id]}</span>
-              </Link>
-            </li>
-          );
-        })}
-      </ul>
+      <div className="liquid-glass backdrop-blur-xl border border-border/70">
+        <span
+          className="liquid-glass__pill"
+          data-hidden={activeIndex < 0 ? "true" : undefined}
+          style={{ "--tab-index": activeIndex < 0 ? 0 : activeIndex } as CSSProperties}
+          aria-hidden="true"
+        />
+        <ul className="liquid-glass__tabs">
+          {mobileTabs.map((item) => {
+            const active = activeIndex >= 0 && mobileTabs[activeIndex]?.id === item.id;
+            const Icon = item.icon;
+            const label = shellTabLabel(language, item.id, t.nav);
+            const center = item.id === "assistant";
+            return (
+              <li key={item.id}>
+                <Link
+                  href={item.href}
+                  aria-current={active ? "page" : undefined}
+                  data-state={active ? "active" : "inactive"}
+                  className={cn("liquid-tab", center && "liquid-tab--center")}
+                >
+                  {center ? (
+                    <span className="liquid-tab__mark" aria-hidden="true">
+                      <Icon className="liquid-tab__icon" />
+                    </span>
+                  ) : item.id === "favorites" ? (
+                    <IconStar filled={active} className="liquid-tab__icon" />
+                  ) : (
+                    <Icon className="liquid-tab__icon" />
+                  )}
+                  <span className="liquid-tab__label">{label}</span>
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      </div>
     </nav>
   );
 }
