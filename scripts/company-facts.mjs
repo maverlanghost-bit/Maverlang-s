@@ -4,7 +4,7 @@
 // User-Agent identificable y 4 req/s (el tope de la SEC es 10).
 // Clave = toYahooSymbol(ticker) SIN mic, la misma que underlying_prices.
 // Sin CIK, sin XBRL (ETF, emisor extranjero) o sin cifra usable: no hay fila.
-// Esas claves salen en el resumen JSON. No usa Yahoo, FMP, Finnhub ni Alpha Vantage.
+// Esas claves salen en el resumen JSON. La ficha sale de EDGAR; no consulta otras APIs de mercado.
 //
 // Entorno: NEXT_PUBLIC_SUPABASE_URL o SUPABASE_URL, y SUPABASE_SECRET_KEY
 // (o SUPABASE_SERVICE_ROLE_KEY). COMPANY_FACTS_DRY_RUN y COMPANY_FACTS_SYMBOLS

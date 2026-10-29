@@ -29,35 +29,38 @@ export function CompanyCard({ symbol }: { symbol: string }) {
   const copy = language === "en" ? empresaCopy.en : empresaCopy.esCL;
   const locale: FactLocale = language === "en" ? "en" : "es-CL";
   const titleId = useId();
-  const [view, setView] = useState<CompanyFactsView | null>(null);
+  const wantedSymbol = symbol.trim();
+  const [loaded, setLoaded] = useState<{ symbol: string; view: CompanyFactsView | null } | null>(null);
+  const view = loaded !== null && loaded.symbol === wantedSymbol ? loaded.view : null;
 
   useEffect(() => {
-    const wanted = symbol.trim();
-    if (!wanted) return;
+    if (!wantedSymbol) return;
     const controller = new AbortController();
     let active = true;
-    setView(null);
     void (async () => {
       try {
-        const response = await fetch(`/api/tickers/${encodeURIComponent(wanted)}/company`, {
+        const response = await fetch(`/api/tickers/${encodeURIComponent(wantedSymbol)}/company`, {
           headers: { accept: "application/json" },
           signal: controller.signal,
         });
-        if (!response.ok) return;
+        if (!response.ok) {
+          if (active) setLoaded({ symbol: wantedSymbol, view: null });
+          return;
+        }
         const body: unknown = await response.json();
         const data =
           body && typeof body === "object" && "data" in body ? (body as { data?: unknown }).data : null;
         const parsed = readCompanyFactsView(data);
-        if (active) setView(parsed);
+        if (active) setLoaded({ symbol: wantedSymbol, view: parsed });
       } catch {
-        if (active) setView(null);
+        if (active) setLoaded({ symbol: wantedSymbol, view: null });
       }
     })();
     return () => {
       active = false;
       controller.abort();
     };
-  }, [symbol]);
+  }, [wantedSymbol]);
 
   if (!view) return null;
 

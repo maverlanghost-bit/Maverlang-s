@@ -575,7 +575,10 @@ const HISTORY_SOURCES = ["ticks", "closes", "mock"] as const;
 export type HistorySourceName = (typeof HISTORY_SOURCES)[number];
 
 export function historySourceOf(source: string): HistorySourceName {
-  return source === "ticks" || source === "closes" || source === "mock" ? source : "mock";
+  for (const name of HISTORY_SOURCES) {
+    if (name === source) return name;
+  }
+  return "mock";
 }
 
 /**

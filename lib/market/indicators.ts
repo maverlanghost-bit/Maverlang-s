@@ -19,7 +19,8 @@ export interface TimedPrice {
 /** Porcentaje desde `base`. 100 con base 100 es 0; 110 es 10. */
 export function percentFrom(price: number, base: number): number | null {
   if (!Number.isFinite(price) || !Number.isFinite(base) || !(base > 0)) return null;
-  const pct = (price / base - 1) * 100;
+  // (price / base - 1) * 100 deja 10.000000000000009 en 110 y 100.
+  const pct = ((price - base) * 100) / base;
   return Number.isFinite(pct) ? pct : null;
 }
 

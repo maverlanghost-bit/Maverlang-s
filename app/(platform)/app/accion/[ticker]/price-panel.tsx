@@ -7,7 +7,8 @@ import { ChangeBadge } from "@/components/domain/change-badge";
 import { ChartLegend, ChartStudyBar, RsiPanel, SMA_COLOR } from "@/components/domain/chart-overlays";
 import { FlashPrice } from "@/components/domain/flash-price";
 import { PriceFreshness } from "@/components/domain/price-freshness";
-import { SvgPriceChart, TONE_STROKE } from "@/components/domain/svg-price-chart";
+import { TONE_STROKE } from "@/components/domain/svg-price-chart";
+import { SvgPriceChart } from "@/components/domain/svg-price-chart";
 import { ErrorState } from "@/components/ui/error-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { indexFromKey } from "@/components/ui/keys";
@@ -72,6 +73,11 @@ function periodBounds(
 
 function pollsLiveChart(range: Range): boolean {
   return range === "1W" || range === "1M";
+}
+
+function livePricePoint(row: { priceUsd: number } | undefined, at: number): PricePoint | undefined {
+  if (!row || at <= 0 || !Number.isFinite(row.priceUsd) || row.priceUsd <= 0) return undefined;
+  return { t: at, p: row.priceUsd };
 }
 
 function fill(template: string, values: Record<string, string>) {
@@ -191,12 +197,7 @@ export function PricePanel({
   });
   const polledRow = pollChart ? liveQuote.data?.find((item) => item.symbol === symbol) : undefined;
   const polledAt = pollChart && liveQuote.dataUpdatedAt > 0 ? liveQuote.dataUpdatedAt : 0;
-  const livePoint = useMemo(() => {
-    if (!polledRow || polledAt <= 0 || !Number.isFinite(polledRow.priceUsd) || polledRow.priceUsd <= 0) {
-      return undefined;
-    }
-    return { t: polledAt, p: polledRow.priceUsd };
-  }, [polledRow, polledAt]);
+  const livePoint = useMemo(() => livePricePoint(polledRow, polledAt), [polledRow, polledAt]);
   const points = history.data?.points ?? NO_POINTS;
   const period = periodBounds(points, livePoint);
   const move = rangeMove(points);
@@ -211,16 +212,15 @@ export function PricePanel({
   const [smaOn, setSmaOn] = useState<Record<SmaPeriod, boolean>>({ 20: false, 50: false, 200: false });
   const [rsiOn, setRsiOn] = useState(false);
   const chartReady = !history.isPending && !history.isError && points.length >= 2;
-  const windowStart = period?.start;
-  const windowEnd = period?.end;
+  // El intervalo se recalcula adentro. Depender de `period.start` (un número
+  // sacado de un objeto local) hace que el compilador descarte el useMemo.
   const studies = useMemo(
     () =>
       chartStudies({
         symbol,
         range,
         illustrative,
-        window:
-          windowStart === undefined || windowEnd === undefined ? null : { start: windowStart, end: windowEnd },
+        window: periodBounds(history.data?.points ?? NO_POINTS, livePricePoint(polledRow, polledAt)),
         spy: spyHistory.data
           ? { points: spyHistory.data.points, reference: isReferenceHistory(spyHistory.data) }
           : null,
@@ -228,7 +228,7 @@ export function PricePanel({
           ? { points: longHistory.data.points, reference: isReferenceHistory(longHistory.data) }
           : null,
       }),
-    [symbol, range, illustrative, windowStart, windowEnd, spyHistory.data, longHistory.data],
+    [symbol, range, illustrative, history.data, polledRow, polledAt, spyHistory.data, longHistory.data],
   );
   const overlays = useMemo(() => {
     if (!chartReady) return NO_OVERLAYS;

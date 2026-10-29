@@ -118,6 +118,7 @@ describe("montaje en la ficha", () => {
     expect(panel).toContain("<RsiPanel");
     expect(panel).toContain("overlays={overlays}");
     expect(panel).toContain("benchmark={benchmark}");
-    expect(panel).toContain('import { SvgPriceChart, TONE_STROKE } from "@/components/domain/svg-price-chart"');
+    expect(panel).toContain('import { SvgPriceChart } from "@/components/domain/svg-price-chart"');
+    expect(panel).toContain('import { TONE_STROKE } from "@/components/domain/svg-price-chart"');
   });
 });
