@@ -201,6 +201,29 @@ export function getHistory(symbol: string, range: Range = "1M"): Promise<History
   ) as Promise<HistoryResponse>;
 }
 
+const historySeriesSchema = historyResponseSchema.extend({ symbol: z.string() });
+const historiesResponseSchema = z.object({ series: z.array(historySeriesSchema) });
+
+export type HistorySeries = z.infer<typeof historySeriesSchema>;
+
+/** Sparklines: una sola petición para todo el lote (`/api/tickers/history`). */
+export function getHistories(symbols: readonly string[], range: Range = "1W"): Promise<HistorySeries[]> {
+  const list: string[] = [];
+  const seen = new Set<string>();
+  for (const symbol of symbols) {
+    const trimmed = symbol.trim();
+    const key = trimmed.toLowerCase();
+    if (!trimmed || seen.has(key)) continue;
+    seen.add(key);
+    list.push(trimmed);
+  }
+  if (list.length === 0) return Promise.resolve([]);
+  const query = new URLSearchParams({ symbols: list.join(","), range });
+  return request(`/api/tickers/history?${query.toString()}`, historiesResponseSchema, { cache: "no-store" }).then(
+    (data) => data.series,
+  );
+}
+
 export function quoteTrade(body: TradeQuoteRequest, mockError?: string | null): Promise<TradeQuote> {
   return send("POST", withMockQuery("/api/trade/quote", mockError), tradeQuoteSchema, body);
 }

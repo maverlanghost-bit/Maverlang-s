@@ -1,6 +1,7 @@
 import "server-only";
 
 import { tickerBySymbol } from "@/config/tickers";
+import { findAssetBySymbol } from "@/lib/catalog/assets";
 import { serverEnv } from "@/lib/env";
 import { yahooSymbol } from "@/lib/market/underlying-move";
 import { mockAuth } from "@/lib/services/auth.mock";
@@ -116,6 +117,11 @@ function liveOnramp(): Services["onramp"] {
  * `DATA_MODE` sigue eligiendo trade, cartera y auth.
  */
 const INTRADAY: ReadonlySet<Range> = new Set(["1D", "1W", "1M"]);
+/**
+ * 1W en adelante se pinta con cierres diarios cacheados. 1D sigue en ticks
+ * (intradía). Si los cierres no alcanzan, 1W y 1M todavía pueden usar ticks.
+ */
+const CLOSES_FIRST: ReadonlySet<Range> = new Set(["1W", "1M", "3M", "1Y", "ALL"]);
 const DIAS = 2;
 const MIN_TICKS = 2;
 /**
@@ -138,28 +144,48 @@ function historyKey(symbol: string, range: Range): string {
   return `${symbol.trim()}:${range}`;
 }
 
-async function realHistory(
+async function underlyingSymbol(symbol: string): Promise<string> {
+  const ticker = tickerBySymbol(symbol);
+  if (ticker?.underlying) return yahooSymbol(ticker.underlying);
+  const asset = await findAssetBySymbol(symbol, { scope: "all", noListing: true }).catch(() => null);
+  return asset?.underlying ? yahooSymbol(asset.underlying) : "";
+}
+
+async function closesFor(
   symbol: string,
   range: Range,
-): Promise<{ points: PricePoint[]; source: "ticks" | "closes" }> {
+): Promise<{ points: PricePoint[]; source: "closes" }> {
   const pricesLive = serverEnv.PRICES_MODE === "live";
-  const intraday = INTRADAY.has(range);
-  // 1D no depende de la ventana de `price_ticks`: se pide una semana y se corta a DIAS.
-  // No se pide el spot: el gráfico no reescala, y Jupiter queda sólo en /api/prices.
-  const tickRange: Range = range === "1D" ? "1W" : range;
-  if (intraday) {
-    const rawTicks = await livePrices.history(symbol, tickRange).catch(() => [] as PricePoint[]);
-    const ticks = ticksIfEnough(ticksForRange(range, rawTicks, DIAS, Date.now()), MIN_TICKS);
-    if (ticks) return { points: ticks, source: "ticks" };
-  }
-
-  const ticker = tickerBySymbol(symbol);
-  const underlying = ticker?.underlying ? yahooSymbol(ticker.underlying) : "";
+  const underlying = await underlyingSymbol(symbol);
   const [multiplier, closes] = await Promise.all([
     pricesLive ? livePrices.multiplierFor(symbol).catch(() => 1) : Promise.resolve(1),
     underlying ? readUnderlyingCloses(underlying, range).catch(() => [] as PricePoint[]) : Promise.resolve([] as PricePoint[]),
   ]);
   return { points: scaleCloses(closes, multiplier), source: "closes" };
+}
+
+async function realHistory(
+  symbol: string,
+  range: Range,
+): Promise<{ points: PricePoint[]; source: "ticks" | "closes" }> {
+  // Cierres de `unstable_cache` antes que ticks cuando el rango es diario.
+  // 1D no entra: necesita la serie intradía.
+  if (CLOSES_FIRST.has(range)) {
+    const daily = await closesFor(symbol, range);
+    if (daily.points.length >= MIN_TICKS) return daily;
+  }
+
+  if (INTRADAY.has(range)) {
+    // 1D no depende de la ventana de `price_ticks`: se pide una semana y se corta a DIAS.
+    // No se pide el spot: el gráfico no reescala, y Jupiter queda sólo en /api/prices.
+    const tickRange: Range = range === "1D" ? "1W" : range;
+    const rawTicks = await livePrices.history(symbol, tickRange).catch(() => [] as PricePoint[]);
+    const ticks = ticksIfEnough(ticksForRange(range, rawTicks, DIAS, Date.now()), MIN_TICKS);
+    if (ticks) return { points: ticks, source: "ticks" };
+  }
+
+  if (!CLOSES_FIRST.has(range)) return closesFor(symbol, range);
+  return { points: [], source: "closes" };
 }
 
 async function loadHistory(symbol: string, range: Range): Promise<HistoryResult> {
@@ -195,7 +221,7 @@ function within<T>(work: Promise<T>, ms: number, fallback: T): Promise<T> {
   });
 }
 
-/** Mock intacto si precios y datos están en mock. Si no: ticks → cierres → []. */
+/** Mock intacto si precios y datos están en mock. Si no: cierres cacheados (1W+) o ticks (1D) → []. */
 export async function historyWithSource(symbol: string, range: Range): Promise<HistoryResult> {
   const key = historyKey(symbol, range);
   const cached = historyMemo.get(key);
@@ -224,6 +250,67 @@ export async function historyWithSource(symbol: string, range: Range): Promise<H
 /** El vacío compartido no se devuelve: un llamador podría mutar `points`. */
 function releasedHistory(value: HistoryResult): HistoryResult {
   return value === HISTORY_EMPTY ? { points: [], source: "mock" } : value;
+}
+
+const HISTORY_BATCH_WORKERS = 6;
+
+/** Varias series con el mismo rango. Una función, tope de workers, la memo de `historyWithSource`. */
+export async function historiesWithSource(
+  symbols: readonly string[],
+  range: Range,
+): Promise<Array<{ symbol: string } & HistoryResult>> {
+  const unique: string[] = [];
+  const seen = new Set<string>();
+  for (const symbol of symbols) {
+    const trimmed = symbol.trim();
+    const key = trimmed.toLowerCase();
+    if (!trimmed || seen.has(key)) continue;
+    seen.add(key);
+    unique.push(trimmed);
+  }
+  const out: Array<{ symbol: string } & HistoryResult> = new Array(unique.length);
+  let next = 0;
+  const workers = Math.min(HISTORY_BATCH_WORKERS, unique.length);
+  async function worker(): Promise<void> {
+    for (;;) {
+      const index = next;
+      next += 1;
+      if (index >= unique.length) return;
+      const symbol = unique[index] ?? "";
+      const value = await historyWithSource(symbol, range);
+      out[index] = { symbol, ...value };
+    }
+  }
+  if (workers > 0) await Promise.all(Array.from({ length: workers }, () => worker()));
+  return out;
+}
+
+/** Precio de la ficha en el HTML. Si Jupiter no responde a tiempo, la página sigue sin él. */
+const SPOT_PAGE_MS = 2_500;
+
+export async function readSpotQuote(symbol: string): Promise<Quote | null> {
+  const wanted = symbol.trim();
+  if (!wanted) return null;
+  const services = getServices();
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<null>((resolve) => {
+    timer = setTimeout(() => resolve(null), SPOT_PAGE_MS);
+  });
+  const work = services.prices.list([wanted]).catch(() => null);
+  try {
+    const quotes = await Promise.race([work, timeout]);
+    if (!quotes) return null;
+    return (
+      quotes.find(
+        (quote) =>
+          quote.symbol.toLowerCase() === wanted.toLowerCase() &&
+          Number.isFinite(quote.priceUsd) &&
+          quote.priceUsd > 0,
+      ) ?? null
+    );
+  } finally {
+    if (timer !== undefined) clearTimeout(timer);
+  }
 }
 
 function priceServices(): Services["prices"] {

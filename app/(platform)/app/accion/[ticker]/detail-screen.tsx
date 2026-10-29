@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactNode, type RefObject } from "react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -12,7 +13,6 @@ import { TickerLogo } from "@/components/domain/ticker-logo";
 import { TokenGapCard } from "@/components/domain/token-gap-card";
 import { AlertButton } from "@/components/domain/alert-button";
 import { CompanyCard } from "@/components/domain/company-card";
-import { TradeSheet } from "@/components/domain/trade-sheet";
 import { Accordion } from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -38,6 +38,10 @@ import { rangeBounds, rangeMove, seriesForQuote } from "@/lib/market/series";
 import type { Currency, Position, PricePoint, Quote, Range, Ticker } from "@/lib/types";
 
 import { PricePanel } from "./price-panel";
+
+const TradeSheet = dynamic(() => import("@/components/domain/trade-sheet").then((mod) => mod.TradeSheet), {
+  ssr: false,
+});
 
 function fill(template: string, values: Record<string, string>) {
   let next = template;
@@ -525,6 +529,7 @@ export function DetailScreen({
   access,
   tradeBlock = null,
   safetyStatus = "unknown",
+  initialQuote = null,
 }: {
   ticker: Ticker;
   about: { es: string; en: string } | null;
@@ -533,6 +538,8 @@ export function DetailScreen({
   tradeBlock?: TradeBlock;
   /** Estado de seguridad del servidor (M54c-fix): `hidden` abre la venta con posición. */
   safetyStatus?: DetailSafetyStatus;
+  /** Precio ya resuelto en el server component. El HTML no espera a `/api/prices`. */
+  initialQuote?: Quote | null;
 }) {
   const { t, language, currency } = useT();
   const pathname = usePathname();
@@ -565,7 +572,9 @@ export function DetailScreen({
     return () => window.removeEventListener("popstate", onPop);
   }, [canTrade]);
 
-  const quote = prices.data?.find((item) => item.symbol === ticker.symbol) ?? null;
+  const liveQuote =
+    prices.data?.find((item) => item.symbol.toLowerCase() === ticker.symbol.toLowerCase()) ?? null;
+  const quote = liveQuote ?? initialQuote;
   const points = seriesForQuote(history.data?.points ?? [], quote?.priceUsd);
   const position = portfolio.data?.positions.find((item) => item.symbol === ticker.symbol) ?? null;
   const canSell = (position?.shares ?? 0) > 0;
@@ -780,7 +789,7 @@ export function DetailScreen({
           symbol={ticker.symbol}
           name={ticker.name}
           quote={quote}
-          pending={prices.isPending}
+          pending={prices.isPending && quote === null}
           onRetry={() => {
             void prices.refetch();
           }}
@@ -798,7 +807,7 @@ export function DetailScreen({
 
         <KeyStats
           quote={quote}
-          quotePending={prices.isPending}
+          quotePending={prices.isPending && quote === null}
           points={points}
           historyPending={history.isPending}
           historyError={history.isError}
@@ -890,11 +899,12 @@ export function DetailScreen({
       {tradeSlot("bar")}
 
       {access === "member" &&
+      operar !== null &&
       (effectiveBlock === null || (effectiveBlock === "review" && canSell && operar === "vender")) ? (
         <TradeSheet
           ticker={ticker}
           side={operar === "vender" ? "sell" : "buy"}
-          open={operar !== null}
+          open
           onOpenChange={(open) => {
             if (!open) openOperar(null);
           }}

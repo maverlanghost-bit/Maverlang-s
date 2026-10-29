@@ -334,10 +334,10 @@ export function PricePanel({
   );
 
   const fxKnown = typeof rate === "number" && Number.isFinite(rate) && rate > 0;
-  const waitingFx = currency === "CLP" && !fxKnown && fxPending;
   const priceCurrency = currency === "CLP" && fxKnown ? "CLP" : "USD";
   const usd = point?.usd ?? quote?.priceUsd ?? null;
-  const shown = usd === null || waitingFx ? null : displayPrice(usd, priceCurrency, rate);
+  // Con precio y sin dólar todavía, se muestra USD. El esqueleto no tapa el número.
+  const shown = usd === null ? null : displayPrice(usd, priceCurrency, rate);
   // N18: al recorrer el gráfico el precio se tiñe sólo contra el actual
   // (rojo si el punto es menor, verde si es mayor), sin destellar por tramo.
   const currentUsd = quote?.priceUsd ?? null;
@@ -353,7 +353,7 @@ export function PricePanel({
       : null;
   const showDislocation = quote !== null && point === null && poolDislocated(quote.priceUsd, quote.marketPriceUsd);
   const marketValue =
-    showDislocation && quote?.marketPriceUsd !== undefined && !waitingFx
+    showDislocation && quote?.marketPriceUsd !== undefined
       ? displayPrice(quote.marketPriceUsd, priceCurrency, rate)
       : null;
   const marketShown = marketValue === null ? null : formatMoney(marketValue, priceCurrency);
@@ -376,7 +376,7 @@ export function PricePanel({
       : null;
 
   let priceNode: ReactNode;
-  if ((pending && !quote) || waitingFx) {
+  if (pending && !quote) {
     priceNode = <Skeleton className="h-12 w-48" />;
   } else if (!quote || shown === null) {
     priceNode = (

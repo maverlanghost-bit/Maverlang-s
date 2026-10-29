@@ -35,7 +35,7 @@ export type CacheMode = "no-store" | "hour" | "private" | "short" | "swr15";
 
 const CACHE_CONTROL: Record<CacheMode, string> = {
   "no-store": "no-store",
-  hour: "public, max-age=3600, s-maxage=3600",
+  hour: "public, max-age=3600, s-maxage=3600, stale-while-revalidate=3600",
   private: "private, no-store",
   /** Búsqueda del mercado (M84): 30 s navegador / 60 s CDN + revalidación en segundo plano. */
   short: "public, max-age=30, s-maxage=60, stale-while-revalidate=60",

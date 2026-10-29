@@ -94,7 +94,8 @@ describe("la ficha no rearma la cascada", () => {
     const start = index.indexOf("async function realHistory(");
     const end = index.indexOf("async function loadHistory(");
     const body = index.slice(start, end);
-    expect(body).toContain("livePrices.multiplierFor(");
+    expect(index).toContain("livePrices.multiplierFor(");
+    expect(body).toContain("closesFor(");
     expect(body).not.toContain("livePrices.list(");
     expect(index.match(/livePrices\.list\(/g)).toHaveLength(1);
     expect(prices).toContain("backoffMs: []");
@@ -114,7 +115,8 @@ describe("la ficha no rearma la cascada", () => {
   });
 
   it("las sparklines usan el mismo sondeo y la ficha de empresa corta a 2,5 s", () => {
-    expect(queries).toContain("refetchInterval: (query: Query) => historyPollMs(query.state.data)");
+    expect(queries).toContain("getHistories(");
+    expect(queries).toContain("historyPollMs(weakestHistory(state.state.data))");
     expect(company).toContain("COMPANY_TIMEOUT_MS = 2_500");
     expect(company).toContain('new DomainError("UPSTREAM")');
     expect(company).toContain("s-maxage=3600");
