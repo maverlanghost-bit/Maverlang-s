@@ -1,5 +1,10 @@
 # PROGRESO — Maverlang
 
+## Integración SEO-seguridad — tsc y tests (2026-10-29)
+- Hecho: en `lib/catalog/assets.ts` el `cache` de React se importa como `reactCache` (la variable local del catálogo lo tapaba y en tests quedaba `null`). `perRequest` lo usa y, si un mock de `react` no exporta `cache`, corre la función igual. `useHistories` vuelve a exponer `refetch` del lote para el reintento del gráfico de cartera. El test de entorno espera que `VERCEL_ENV=production` sin variables falle (SEC-08).
+- Verificación: `npx tsc --noEmit` 0 errores. `npx vitest run`: 897 pasaron, 2 fallos preexistentes en `ui-shell-mobile` (`backdrop-blur-xl` y `#66696e`). Sin `next build`, sin `npm install`, sin push.
+- Pendiente: esos 2 tests de shell móvil.
+
 ## Integración del pulido — tsc y tests (2026-10-28)
 - Hecho: series de estudio en `price-panel` (`staleTime` estructural, `refetchInterval: false`). Simple no pide SPYx ni el historial largo; Técnico pide una vez, sin sondeo. Las suites de billetera, health y catálogo fijan `DATA_MODE`/`PRICES_MODE=mock` (la shell de desarrollo trae live y las mandaba a Supabase). `scan-secrets` espera hasta 120 s: el árbol tarda ~50 s.
 - Verificación: `npx tsc --noEmit` 0 errores; eslint de los archivos tocados limpio; vitest wallet-m66 15, wallet-m78 13, health 24, catalog-health 6, scan-secrets 8, chart-overlays 7. Sin build ni servidores.

@@ -151,6 +151,9 @@ export function useHistories(symbols: readonly string[], range: Range = "1W") {
     isError: query.isError,
     isFetching: query.isFetching,
     isSuccess: query.isSuccess,
+    refetch: () => {
+      void query.refetch();
+    },
   }));
 }
 

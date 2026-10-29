@@ -2,7 +2,7 @@ import "server-only";
 
 import { readdirSync } from "node:fs";
 import path from "node:path";
-import { cache } from "react";
+import { cache as reactCache } from "react";
 
 import { ONDO_TICKERS } from "@/config/ondo.generated";
 import { TICKERS } from "@/config/tickers";
@@ -859,8 +859,16 @@ async function storeAssets(fetchImpl: typeof fetch, now: number): Promise<Loaded
 }
 
 /**
+ * `cache` de React deduplica dentro del request. Si un test mockea `react`
+ * sin esa exportación, la función corre igual (sin deduplicar).
+ */
+function perRequest<A extends unknown[], R>(fn: (...args: A) => R): (...args: A) => R {
+  return typeof reactCache === "function" ? reactCache(fn) : fn;
+}
+
+/**
  * Una sola descarga en vuelo por `fetch`. La memoria de 5 min cubre el resto.
- * `cache()` de React deduplica la variante sin deps dentro del request.
+ * `reactCache()` deduplica la variante sin deps dentro del request.
  */
 async function loadAssets(fetchImpl: typeof fetch, now: number): Promise<LoadedAssets> {
   if (isFresh(now) && cache) return { rows: cache.rows, fromSupabase: cache.fromSupabase };
@@ -874,7 +882,7 @@ async function loadAssets(fetchImpl: typeof fetch, now: number): Promise<LoadedA
   }
 }
 
-const loadAssetsForRequest = cache(async () => loadAssets(fetch, Date.now()));
+const loadAssetsForRequest = perRequest(async () => loadAssets(fetch, Date.now()));
 
 /**
  * Salvaguarda: si Supabase responde filas pero el alcance efectivo queda
@@ -1038,7 +1046,7 @@ async function findAssetBySymbolImpl(symbol: string, deps?: SymbolLookup): Promi
   return findAssetByPrimaryKey(wanted, fetchImpl, now, deps);
 }
 
-const findAssetForRequest = cache((symbol: string, scope: string, flags: string) =>
+const findAssetForRequest = perRequest((symbol: string, scope: string, flags: string) =>
   findAssetBySymbolImpl(symbol, {
     scope: scope === "" ? undefined : (scope as CatalogScope),
     allowHidden: flags.includes("h"),

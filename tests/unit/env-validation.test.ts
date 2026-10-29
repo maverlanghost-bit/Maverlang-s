@@ -169,12 +169,12 @@ describe("M59: development acepta vacio y solo avisa", () => {
     expect(String(warn.mock.calls[0]?.[0])).toContain("AUTH_MODE");
   });
 
-  it("NODE_ENV=production + VERCEL_ENV=production sin explicitas: no falla", () => {
+  it("VERCEL_ENV=production sin explicitas: falla (SEC-08)", () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-    const result = assertServerEnv({ NODE_ENV: "production", VERCEL_ENV: "production" });
-    expect(result.strict).toBe(false);
-    expect(result.mode).toBe("development");
-    expect(warn).toHaveBeenCalled();
+    expect(() => assertServerEnv({ NODE_ENV: "production", VERCEL_ENV: "production" })).toThrow(
+      /Faltan variables para production/,
+    );
+    expect(warn).not.toHaveBeenCalled();
   });
 
   it("APP_ENV=production con faltantes: falla", () => {
