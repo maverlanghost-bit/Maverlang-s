@@ -1,5 +1,12 @@
 # PROGRESO — Maverlang
 
+## Fix: % del carrusel de Mercado y gráfico interactivo (2026-10-30)
+- Bug: `market-today.tsx` multiplicaba la variación del periodo por 100 antes de `formatPercent` (que ya usa `style: "percent"` con fracciones). Por eso una baja de -35 % salía como -3.500 %. Ahora se calcula como fracción, igual que `changePct`.
+- Eje derecho: antes mostraba valores inventados a partir del % del titular. Ahora muestra máximo, medio y mínimo reales de la serie respecto del primer punto, alineados con las líneas guía.
+- Gráfico interactivo: al pasar el mouse o arrastrar el dedo aparece una línea vertical con punto, y el titular muestra el % desde el inicio del periodo, el precio USD y la fecha/hora de ese punto. Al soltar vuelve al valor del periodo. El swipe del carrusel no se dispara sobre el gráfico (`touch-action: pan-y`).
+- SVG con `preserveAspectRatio="none"` + `vector-effect: non-scaling-stroke`; los puntos van en HTML para que no se deformen.
+- Verificación: `tsc` 0 errores; Vitest (`market-movers`, `ui-screens-broker`, `copy-guard`, `client-imports`) 34/34.
+
 ## Asistente IA Estilo Grok + Barra Lateral de Chat IA (2026-10-30)
 - Hecho (Barra lateral de IA en `components/app-shell/sidebar.tsx`): al entrar a `/app/asistente`, la barra lateral de escritorio se transforma en un riel de chat IA estilo Grok con botón superior `"Volver a Mercado"` (`/app`) + toggle de colapso, buscador `StockSearchButton`, acción principal `"Nuevo chat"`, herramientas rápidas (`Analizar acción hoy`, `Comparar acciones`, `Analizar mi cartera`, `Importar captura`), lista en vivo `"Recientes en esta sesión"` sincronizada con `mv_ai_chat_v1` / `mv-ai-chat` y pie de perfil limpio con tooltips a la derecha al colapsar.
 - Hecho (Lienzo y Compositor estilo Grok en `chat-view.tsx`, `composer.tsx`, `transcript.tsx` y `asistente-screen.tsx`): lienzo limpio con indicador superior derecho `"Privado"` y retorno `← Mercado` en móvil; en escritorio con chat vacío el titular y el compositor se centran verticalmente al estilo Grok. Tarjeta compositora blanca de doble fila (`rounded-[26px]`) con textarea superior y barra inferior (botón `+`, chip `Importar captura`, selector `Fast / Análisis ▾` y botón circular con onda de voz/envío) más chips de sugerencias debajo.

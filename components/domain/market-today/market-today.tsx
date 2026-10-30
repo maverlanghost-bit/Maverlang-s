@@ -30,6 +30,11 @@ type ListId = (typeof LISTS)[number];
 
 type SpotlightRange = "1D" | "1W" | "1M" | "3M" | "1Y";
 
+/** Lienzo del gráfico destacado (unidades del viewBox). */
+const CHART_W = 520;
+const CHART_H = 124;
+const CHART_PAD = 2.5;
+
 const SPOTLIGHT_RANGES: { id: SpotlightRange; labelEs: string; labelEn: string; periodEs: string; periodEn: string }[] = [
   { id: "1D", labelEs: "1D", labelEn: "1D", periodEs: "hoy", periodEn: "today" },
   { id: "1W", labelEs: "1S", labelEn: "1W", periodEs: "en 1 semana", periodEn: "past week" },
@@ -153,37 +158,105 @@ export function MarketToday() {
 
   const historyQuery = useHistory(activeCard?.symbol ?? "", range);
 
-  const chartValues = useMemo(() => {
+  /** Serie del gráfico: historial real del rango o, mientras carga, el sparkline del ranking. */
+  const series = useMemo<{ p: number; t: number | null }[]>(() => {
     const pts = historyQuery.data?.points;
     if (pts && pts.length >= 2) {
-      return pts.map((pt) => pt.p);
+      return pts
+        .filter((pt) => Number.isFinite(pt.p) && pt.p > 0)
+        .map((pt) => ({ p: pt.p, t: pt.t < 1e12 ? pt.t * 1000 : pt.t }));
     }
-    return activeCard?.spark ?? [];
+    return (activeCard?.spark ?? []).filter((p) => Number.isFinite(p) && p > 0).map((p) => ({ p, t: null }));
   }, [activeCard, historyQuery.data]);
+  const hasHistory = (historyQuery.data?.points?.length ?? 0) >= 2;
 
-  const displayPct = useMemo(() => {
+  const [hoverIdx, setHoverIdx] = useState<number | null>(null);
+  const hoverPoint = hoverIdx !== null ? series[hoverIdx] : undefined;
+
+  /** Coordenadas (mismo cálculo que `sparklineSmoothPath`) para el cursor interactivo. */
+  const chartCoords = useMemo(() => {
+    const n = series.length;
+    if (n < 2) return [] as { x: number; y: number }[];
+    let min = series[0]!.p;
+    let max = min;
+    for (const pt of series) {
+      if (pt.p < min) min = pt.p;
+      if (pt.p > max) max = pt.p;
+    }
+    const span = max - min;
+    const innerW = CHART_W - CHART_PAD * 2;
+    const innerH = CHART_H - CHART_PAD * 2;
+    return series.map((pt, i) => ({
+      x: CHART_PAD + (i / (n - 1)) * innerW,
+      y: CHART_PAD + innerH - (span > 0 ? (pt.p - min) / span : 0.5) * innerH,
+    }));
+  }, [series]);
+
+  /**
+   * Variación como fracción (formatPercent usa style "percent": 0,035 → 3,5 %).
+   * Antes se multiplicaba por 100 y salían cifras como -3.500 %.
+   */
+  const basePct = useMemo(() => {
     if (!activeCard) return 0;
-    const pts = historyQuery.data?.points;
-    if (range !== "1D" && pts && pts.length >= 2) {
-      const first = pts[0]?.p ?? 0;
-      const last = pts[pts.length - 1]?.p ?? 0;
-      if (first > 0) return ((last - first) / first) * 100;
+    if (range !== "1D" && hasHistory && series.length >= 2) {
+      const first = series[0]!.p;
+      const last = series[series.length - 1]!.p;
+      if (first > 0) return (last - first) / first;
     }
     return activeCard.changePct;
-  }, [activeCard, historyQuery.data, range]);
+  }, [activeCard, hasHistory, range, series]);
 
-  const chartShape = useMemo(() => sparklineSmoothPath(chartValues, 520, 124), [chartValues]);
-  const isPositive = displayPct >= 0;
+  const displayPct = useMemo(() => {
+    const first = series[0]?.p ?? 0;
+    if (hoverPoint && first > 0) return (hoverPoint.p - first) / first;
+    return basePct;
+  }, [basePct, hoverPoint, series]);
+
+  const chartValues = useMemo(() => series.map((pt) => pt.p), [series]);
+  const chartShape = useMemo(() => sparklineSmoothPath(chartValues, CHART_W, CHART_H), [chartValues]);
+  const isPositive = basePct >= 0;
   const strokeColor = isPositive ? "#059669" : "#e11d48";
+  const hoverPositive = displayPct >= 0;
 
+  /** Eje derecho real: máximo, medio y mínimo de la serie respecto del primer punto. */
   const axisLabels = useMemo(() => {
-    const absMax = Math.max(Math.abs(displayPct), 2);
-    const topVal = isPositive ? Math.round(absMax * 1.15) : 0;
-    const midVal = isPositive ? Math.round(absMax * 0.55) : -Math.round(absMax * 0.55);
-    const botVal = isPositive ? 0 : -Math.round(absMax * 1.15);
-    const fmt = (n: number) => `${n > 0 ? "+" : ""}${n}%`;
-    return { top: fmt(topVal), mid: fmt(midVal), bot: fmt(botVal) };
-  }, [displayPct, isPositive]);
+    const first = series[0]?.p ?? 0;
+    if (first <= 0 || series.length < 2) return null;
+    let min = first;
+    let max = first;
+    for (const pt of series) {
+      if (pt.p < min) min = pt.p;
+      if (pt.p > max) max = pt.p;
+    }
+    const pct = (v: number) => (v - first) / first;
+    return { top: formatPercent(pct(max)), mid: formatPercent(pct((max + min) / 2)), bot: formatPercent(pct(min)) };
+  }, [series]);
+
+  const usdFormatter = useMemo(
+    () => new Intl.NumberFormat(locale, { style: "currency", currency: "USD", minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+    [locale],
+  );
+  const dateFormatter = useMemo(
+    () =>
+      new Intl.DateTimeFormat(
+        locale,
+        range === "1D"
+          ? { hour: "2-digit", minute: "2-digit" }
+          : range === "1Y"
+            ? { day: "numeric", month: "short", year: "numeric" }
+            : { day: "numeric", month: "short" },
+      ),
+    [locale, range],
+  );
+
+  function scrub(clientX: number, rect: DOMRect) {
+    const n = series.length;
+    if (n < 2 || rect.width <= 0) return;
+    const innerLeft = rect.left + (CHART_PAD / CHART_W) * rect.width;
+    const innerWidth = rect.width * ((CHART_W - CHART_PAD * 2) / CHART_W);
+    const ratio = Math.min(1, Math.max(0, (clientX - innerLeft) / innerWidth));
+    setHoverIdx(Math.round(ratio * (n - 1)));
+  }
 
   const options: { id: ListId; label: string }[] = [
     { id: "gainers", label: copy.gainers },
@@ -322,87 +395,128 @@ export function MarketToday() {
               <div className="mt-2.5 flex items-baseline gap-2">
                 <span
                   className={cn(
-                    "num text-2xl font-bold tracking-tight tabular-nums sm:text-[28px]",
-                    isPositive ? "text-up" : "text-down",
+                    "num text-2xl font-bold tracking-tight tabular-nums transition-colors sm:text-[28px]",
+                    hoverPositive ? "text-up" : "text-down",
                   )}
                 >
                   {formatPercent(displayPct)}
                 </span>
                 <span className="text-xs font-medium text-fg-muted">
-                  {language === "en" ? activeRangeMeta.periodEn : activeRangeMeta.periodEs}
+                  {hoverPoint
+                    ? `${usdFormatter.format(hoverPoint.p)}${hoverPoint.t !== null ? ` · ${dateFormatter.format(new Date(hoverPoint.t))}` : ""}`
+                    : language === "en"
+                      ? activeRangeMeta.periodEn
+                      : activeRangeMeta.periodEs}
                 </span>
               </div>
 
-              <div className="relative my-2 h-[136px] w-full sm:h-[148px]">
+              <div
+                className="relative my-2 h-[136px] w-full cursor-crosshair select-none pr-14 sm:h-[148px]"
+                style={{ touchAction: "pan-y" }}
+                onTouchStart={(event) => event.stopPropagation()}
+                onTouchEnd={(event) => event.stopPropagation()}
+              >
                 {chartShape ? (
-                  <svg
-                    viewBox="0 0 560 128"
-                    className="h-full w-full overflow-visible"
-                    aria-hidden
+                  <div
+                    className="relative h-full w-full"
+                    role="img"
+                    aria-label={`${activeCard.symbol}: ${formatPercent(basePct)} ${language === "en" ? activeRangeMeta.periodEn : activeRangeMeta.periodEs}`}
+                    onPointerMove={(event) => scrub(event.clientX, event.currentTarget.getBoundingClientRect())}
+                    onPointerDown={(event) => scrub(event.clientX, event.currentTarget.getBoundingClientRect())}
+                    onPointerLeave={() => setHoverIdx(null)}
+                    onPointerCancel={() => setHoverIdx(null)}
+                    onPointerUp={(event) => {
+                      if (event.pointerType !== "mouse") setHoverIdx(null);
+                    }}
                   >
-                    <defs>
-                      <linearGradient id={chartGradId} x1="0" x2="0" y1="0" y2="1">
-                        <stop offset="0%" stopColor={strokeColor} stopOpacity="0.22" />
-                        <stop offset="100%" stopColor={strokeColor} stopOpacity="0.0" />
-                      </linearGradient>
-                    </defs>
-                    <line
-                      x1="0"
-                      y1="16"
-                      x2="518"
-                      y2="16"
-                      stroke="currentColor"
-                      className="text-border/70"
-                      strokeDasharray="3 3"
-                    />
-                    <line
-                      x1="0"
-                      y1="64"
-                      x2="518"
-                      y2="64"
-                      stroke="currentColor"
-                      className="text-border/70"
-                      strokeDasharray="3 3"
-                    />
-                    <line
-                      x1="0"
-                      y1="112"
-                      x2="518"
-                      y2="112"
-                      stroke="currentColor"
-                      className="text-border/70"
-                      strokeDasharray="3 3"
-                    />
-                    <path d={chartShape.area} fill={`url(#${chartGradId})`} />
-                    <path
-                      d={chartShape.line}
-                      fill="none"
-                      stroke={strokeColor}
-                      strokeWidth="2.2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                    <circle
-                      cx={chartShape.lastX}
-                      cy={chartShape.lastY}
-                      r="4"
-                      fill={strokeColor}
-                      className="drop-shadow-xs"
-                    />
-                  </svg>
+                    <svg
+                      viewBox={`0 0 ${CHART_W} ${CHART_H}`}
+                      preserveAspectRatio="none"
+                      className="absolute inset-0 h-full w-full overflow-visible"
+                      aria-hidden
+                    >
+                      <defs>
+                        <linearGradient id={chartGradId} x1="0" x2="0" y1="0" y2="1">
+                          <stop offset="0%" stopColor={strokeColor} stopOpacity="0.22" />
+                          <stop offset="100%" stopColor={strokeColor} stopOpacity="0.0" />
+                        </linearGradient>
+                      </defs>
+                      {[CHART_PAD, CHART_H / 2, CHART_H - CHART_PAD].map((y) => (
+                        <line
+                          key={y}
+                          x1="0"
+                          y1={y}
+                          x2={CHART_W}
+                          y2={y}
+                          stroke="currentColor"
+                          className="text-border/70"
+                          strokeDasharray="3 3"
+                          vectorEffect="non-scaling-stroke"
+                        />
+                      ))}
+                      <path d={chartShape.area} fill={`url(#${chartGradId})`} />
+                      <path
+                        d={chartShape.line}
+                        fill="none"
+                        stroke={strokeColor}
+                        strokeWidth="2.2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        vectorEffect="non-scaling-stroke"
+                        className="transition-opacity"
+                        opacity={hoverIdx !== null ? 0.9 : 1}
+                      />
+                    </svg>
+                    {hoverIdx !== null && chartCoords[hoverIdx] ? (
+                      <>
+                        <span
+                          aria-hidden
+                          className="pointer-events-none absolute inset-y-0 w-px bg-fg/25"
+                          style={{ left: `${(chartCoords[hoverIdx]!.x / CHART_W) * 100}%` }}
+                        />
+                        <span
+                          aria-hidden
+                          className="pointer-events-none absolute size-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white shadow-[0_2px_8px_rgba(12,15,20,0.25)]"
+                          style={{
+                            left: `${(chartCoords[hoverIdx]!.x / CHART_W) * 100}%`,
+                            top: `${(chartCoords[hoverIdx]!.y / CHART_H) * 100}%`,
+                            backgroundColor: strokeColor,
+                          }}
+                        />
+                      </>
+                    ) : (
+                      <span
+                        aria-hidden
+                        className="pointer-events-none absolute size-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full"
+                        style={{
+                          left: `${(chartShape.lastX / CHART_W) * 100}%`,
+                          top: `${(chartShape.lastY / CHART_H) * 100}%`,
+                          backgroundColor: strokeColor,
+                          boxShadow: `0 0 0 4px ${isPositive ? "rgba(5,150,105,0.18)" : "rgba(225,29,72,0.18)"}`,
+                        }}
+                      />
+                    )}
+                    {historyQuery.isFetching && !hasHistory ? (
+                      <span className="pointer-events-none absolute top-1 left-1 text-[10px] text-fg-muted">
+                        {copy.loading}
+                      </span>
+                    ) : null}
+                  </div>
                 ) : (
                   <div className="flex h-full items-center justify-center rounded-2xl bg-surface-1/60 text-xs text-fg-muted">
                     {copy.empty}
                   </div>
                 )}
-                <div
-                  aria-hidden
-                  className="pointer-events-none absolute inset-y-1 right-0 flex flex-col justify-between py-1 text-right text-[10px] font-medium text-fg-muted tabular-nums"
-                >
-                  <span>{axisLabels.top}</span>
-                  <span>{axisLabels.mid}</span>
-                  <span>{axisLabels.bot}</span>
-                </div>
+                {axisLabels ? (
+                  <div
+                    aria-hidden
+                    className="pointer-events-none absolute inset-y-0 right-0 flex w-14 flex-col justify-between text-right text-[10px] font-medium text-fg-muted tabular-nums"
+                  >
+                    <span className="-translate-y-1/2">{axisLabels.top}</span>
+                    <span>{axisLabels.mid}</span>
+                    <span className="translate-y-1/2">{axisLabels.bot}</span>
+                  </div>
+                ) : null}
               </div>
 
               <div className="mt-2 flex flex-wrap items-center justify-between gap-3 border-t border-border/60 pt-3">
