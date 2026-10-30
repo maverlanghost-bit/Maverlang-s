@@ -1,5 +1,10 @@
 # PROGRESO — Maverlang
 
+## Hero de Mercado Estilo Polymarket/Fintual con Carrusel Spotlight y Ranking (2026-10-30)
+- Hecho (Carrusel Spotlight + Ranking en `market-today.tsx`, `mover-card.tsx` y `skeleton.tsx`): rediseñado el bloque inicial de `/app` en una grilla Bento 2 columnas (`lg:col-span-8` / `lg:col-span-4`) de altura compacta (`~300px`). La tarjeta izquierda es un carrusel deslizable de acciones destacadas con selector de periodo (`1D | 1S | 1M | 3M | 1A`), métrica grande en `tabular-nums`, curva suave en vivo (`useHistory` + `sparklineSmoothPath`) con líneas de referencia y eje `%`, botones `+ Seguir` / `Ver` y paginación (`••━••` + `‹ ›` + swipe táctil). La tarjeta derecha muestra `"Mejor rendimiento"` con `role="tablist"` (`Más suben | Más bajan | Más vistos`), lista numerada `1..5` y botón inferior para rotar vista.
+- Hecho (Activos inferiores en `market-screen.tsx` y `ticker-card.tsx`): barra de filtros/ordenamiento en contenedor traslúcido, `TickerCard` con sparkline integrado para Favoritos y Vistos recientemente, y listado `"Acciones"` en contenedor tipo tarjeta unificada.
+- Verificación: `npx tsc --noEmit` (0 errores) y Vitest (`market-movers`, `ui-screens-broker`, `ui-shell-mobile`, `copy-guard`, `client-imports`: 42/42 tests en verde).
+
 ## Copiloto IA Bento, Simetría/Tooltips de Sidebar y Velocidad de Gráficos (2026-10-30)
 - Hecho (Rediseño Copiloto IA `/app/asistente`): eliminado el túnel `lg:border-x` en `chat-view.tsx`; header flotante Liquid Glass con insignia *Maverlang AI Core* + píldora `Copiloto 24/7`; hero central con Orbe 3D Liquid Glass y grilla Bento 2x2 interactiva en `transcript.tsx`; Command Dock flotante en `composer.tsx`.
 - Hecho (Simetría de Sidebar colapsado, Tooltips a la derecha y tarjeta Saldo): `tooltip.tsx` soporta `side="right"` sin recorte; `sidebar.tsx` y `stock-search.tsx` usan `overflow-visible z-30` y centrado simétrico 1:1 en riel de 72px (`px-3.5` + `mx-auto size-11 justify-center gap-0`); `balance-header.tsx` suma padding ejecutivo `px-3 py-2.5` en `variant="sidebar"`.

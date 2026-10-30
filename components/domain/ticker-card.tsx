@@ -36,10 +36,10 @@ export function TickerCard({
   lowLiquidityLabel?: string | null;
 }) {
   return (
-    <div className={cn("relative w-64 shrink-0 snap-start sm:w-60", className)}>
+    <div className={cn("relative min-w-[220px] flex-1 basis-60 shrink-0 snap-start", className)}>
       <Link
         href={href}
-        className="flex h-full min-h-32 flex-col gap-3 rounded-2xl border border-border/70 bg-surface-1/50 p-4 pr-14 transition-all duration-200 ease-spring hover:-translate-y-0.5 hover:bg-surface-1/90 hover:shadow-md active:bg-surface-2/60"
+        className="group relative flex h-full min-h-32 min-w-[220px] flex-1 basis-60 snap-start flex-col justify-between gap-3 rounded-2xl border border-border/80 bg-white/90 p-4 pr-12 shadow-[0_8px_24px_-14px_rgba(12,15,20,0.08)] transition-all duration-200 ease-spring hover:-translate-y-0.5 hover:border-brand/35 hover:bg-white hover:shadow-[0_14px_32px_-12px_rgba(12,15,20,0.12)] active:bg-surface-2/60"
       >
         <span className="flex items-center gap-2">
           <TickerLogo symbol={symbol} name={name} logoUrl={logoUrl} size={36} decorative loading="eager" sizes="40px" />

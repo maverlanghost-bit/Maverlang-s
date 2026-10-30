@@ -471,7 +471,7 @@ export function MarketScreen({
         <p id={filterSortLabelId} className="label">
           {t.market.filterSortLabel}
         </p>
-        <div className="-mx-5 flex items-center gap-1.5 overflow-x-auto px-5 pb-1 [scrollbar-width:none] max-sm:[mask-image:linear-gradient(to_right,black_calc(100%-2rem),transparent)] sm:mx-0 sm:flex-wrap sm:px-0 [&::-webkit-scrollbar]:hidden">
+        <div className="-mx-5 flex items-center gap-1.5 overflow-x-auto rounded-2xl border border-border/70 bg-white/75 px-3.5 py-2.5 shadow-[0_4px_16px_-8px_rgba(12,15,20,0.05)] backdrop-blur-md [scrollbar-width:none] max-sm:[mask-image:linear-gradient(to_right,black_calc(100%-2rem),transparent)] sm:mx-0 sm:flex-wrap [&::-webkit-scrollbar]:hidden">
           <ChipGroup bare labelId={sortLabelId} value={sort} options={sortOptions} onChange={onSortChange} />
           <span aria-hidden className="h-6 w-px shrink-0 bg-border/70" />
           <ChipGroup bare labelId={filtersLabelId} value={filter} options={filterOptions} onChange={onFilterChange} />
@@ -550,7 +550,7 @@ export function MarketScreen({
               </Button>
             </div>
           ) : null}
-          <ul className="flex min-w-0 flex-col gap-1.5">
+          <ul className="flex min-w-0 flex-col divide-y divide-border/50 rounded-3xl border border-border/80 bg-white/90 p-2 shadow-[0_10px_30px_-16px_rgba(12,15,20,0.07)]">
             {listRows.map((entry) => {
               const shownPrice = entry.quote
                 ? priceRows([{ item: entry.item, quote: entry.quote, index: entry.index }], currency, rate)[0]

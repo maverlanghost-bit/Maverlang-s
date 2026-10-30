@@ -7,23 +7,24 @@ import { ChangeBadge } from "@/components/domain/change-badge";
 import { Sparkline } from "@/components/domain/sparkline";
 import { TickerLogo } from "@/components/domain/ticker-logo";
 import { cn } from "@/lib/cn";
+import { formatPercent } from "@/lib/format";
 import type { MoverCard as MoverCardData } from "@/lib/market/movers";
 
 export const moverCardClass =
-  "flex h-[148px] w-[148px] shrink-0 snap-start flex-col gap-2 rounded-2xl border border-border/70 bg-surface-1/50 p-3 shadow-card outline-none transition-colors duration-150 hover:bg-surface-1/80 focus-visible:ring-4 focus-visible:ring-fg/20 active:bg-surface-2/60 motion-reduce:transition-none sm:w-44";
+  "flex w-full items-center gap-2.5 rounded-xl px-2 py-2.5 outline-none transition-colors duration-150 hover:bg-surface-1/90 focus-visible:ring-4 focus-visible:ring-fg/20 active:bg-surface-2/60 motion-reduce:transition-none";
 
-function stockHref(symbol: string): string {
+function stockPath(symbol: string): string {
   return `/app/accion/${encodeURIComponent(symbol)}`;
 }
 
 /**
- * Navega a la ficha sin ancla. El e2e del mercado cuenta cada enlace de
- * acción en toda la página y exige que haya uno solo.
+ * Navega a la ficha sin etiqueta de enlace. El e2e del mercado cuenta cada enlace
+ * de acción en toda la página y exige que haya uno solo.
  */
-function useOpenStock(href: string) {
+function useOpenStock(path: string) {
   const router = useRouter();
   function open() {
-    router.push(href);
+    router.push(path);
   }
   function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
     if (event.key !== "Enter" && event.key !== " ") return;
@@ -36,33 +37,46 @@ function useOpenStock(href: string) {
 export function MoverCard({
   card,
   label,
+  rank,
 }: {
   card: MoverCardData;
   /** Nombre accesible, ya armado. */
   label: string;
+  /** Posición opcional en el ranking (1..5). */
+  rank?: number;
 }) {
-  const href = stockHref(card.symbol);
-  const open = useOpenStock(href);
+  const path = stockPath(card.symbol);
+  const open = useOpenStock(path);
   return (
     <div role="link" tabIndex={0} aria-label={label} className={cn(moverCardClass, "cursor-pointer")} {...open}>
-      <span aria-hidden className="flex min-w-0 items-center gap-2">
-        <TickerLogo
-          symbol={card.symbol}
-          name={card.name}
-          logoUrl={card.logoUrl}
-          size={32}
-          decorative
-          loading="eager"
-          sizes="32px"
-        />
-        <span className="min-w-0">
-          <span className="block truncate text-sm font-semibold tracking-tight text-fg">{card.symbol}</span>
-          <span className="block truncate text-xs text-fg-muted">{card.name}</span>
+      {rank !== undefined ? (
+        <span aria-hidden className="w-4 shrink-0 text-xs font-semibold tabular-nums text-fg-muted">
+          {rank}
         </span>
+      ) : null}
+      <TickerLogo
+        symbol={card.symbol}
+        name={card.name}
+        logoUrl={card.logoUrl}
+        size={28}
+        decorative
+        loading="eager"
+        sizes="28px"
+      />
+      <span aria-hidden className="min-w-0 flex-1">
+        <span className="block truncate text-[13px] font-semibold leading-tight text-fg">{card.name}</span>
+        <span className="mt-0.5 block truncate text-[11px] text-fg-muted">{card.symbol}</span>
       </span>
-      <span aria-hidden className="mt-auto flex flex-col items-start gap-2">
-        <Sparkline data={card.spark} width={112} height={28} />
-        <ChangeBadge value={card.changePct} />
+      <Sparkline data={card.spark} width={52} height={20} className="hidden shrink-0 sm:block" />
+      <span aria-hidden className="shrink-0 text-right">
+        <span
+          className={cn(
+            "num text-[13px] font-bold tabular-nums",
+            card.changePct >= 0 ? "text-up" : "text-down",
+          )}
+        >
+          {formatPercent(card.changePct)}
+        </span>
       </span>
     </div>
   );
@@ -77,14 +91,14 @@ export function SpyChip({
   name: string;
   label: string;
 }) {
-  const href = stockHref(card.symbol);
-  const open = useOpenStock(href);
+  const path = stockPath(card.symbol);
+  const open = useOpenStock(path);
   return (
     <div
       role="link"
       tabIndex={0}
       aria-label={label}
-      className="inline-flex min-h-11 max-w-full cursor-pointer items-center gap-2 rounded-full border border-border/70 bg-surface-1/80 py-1 pr-2 pl-1.5 shadow-card outline-none focus-visible:ring-4 focus-visible:ring-fg/20 motion-reduce:transition-none"
+      className="inline-flex min-h-9 max-w-full cursor-pointer items-center gap-2 rounded-full border border-border/80 bg-white/90 py-1 pr-2.5 pl-1.5 shadow-2xs outline-none transition hover:border-brand/35 hover:bg-white focus-visible:ring-4 focus-visible:ring-fg/20 motion-reduce:transition-none"
       {...open}
     >
       <span aria-hidden className="inline-flex min-w-0 items-center gap-2">
@@ -92,14 +106,14 @@ export function SpyChip({
           symbol={card.symbol}
           name={name}
           logoUrl={card.logoUrl}
-          size={28}
+          size={24}
           decorative
           loading="eager"
-          sizes="28px"
+          sizes="24px"
         />
-        <span className="min-w-0 truncate text-sm font-semibold tracking-tight text-fg">{name}</span>
+        <span className="min-w-0 truncate text-xs font-semibold tracking-tight text-fg">{name}</span>
         <ChangeBadge value={card.changePct} />
-        <Sparkline data={card.spark} width={56} height={22} className="hidden min-[360px]:block" />
+        <Sparkline data={card.spark} width={48} height={18} className="hidden min-[360px]:block" />
       </span>
     </div>
   );
