@@ -238,6 +238,7 @@ export function MarketScreen({
               sort: serverSort,
             }),
           staleTime: SEARCH_STALE_MS,
+          placeholderData: (previous: Awaited<ReturnType<typeof searchMarket>> | undefined) => previous,
         };
       }),
     [page, serverCategory, serverSort],
@@ -319,7 +320,7 @@ export function MarketScreen({
   // Sparklines 1W: sólo cuando el lote de precios ya tiene datos. `isPending`
   // parpadea al rearmar useQueries y relanzaba ~20 veces el mismo history.
   const sparkKey = symbolsByPage
-    .map((symbols, index) => (priceQueries[index]?.data ? symbols.join(",") : ""))
+    .map((symbols) => symbols.join(","))
     .join("|");
   const sparkSymbols = useMemo(() => {
     if (!sparkKey) return [];

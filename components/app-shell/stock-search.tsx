@@ -180,7 +180,8 @@ export function StockSearchButton({
       aria-haspopup="dialog"
       onClick={onClick}
       className={cn(
-        "flex min-h-11 w-full cursor-pointer items-center gap-2 rounded-xl text-sm outline-none transition duration-200 ease-spring focus-visible:ring-4 focus-visible:ring-fg/20 active:scale-[0.98]",
+        "flex min-h-11 cursor-pointer items-center rounded-xl text-sm outline-none transition duration-200 ease-spring focus-visible:ring-4 focus-visible:ring-fg/20 active:scale-[0.98]",
+        collapsed ? "mx-auto size-11 justify-center gap-0 px-0" : "w-full gap-2.5 px-1",
         api.open ? "bg-surface-2 font-medium text-fg" : "text-fg-body hover:bg-surface-2",
       )}
     >
@@ -190,7 +191,7 @@ export function StockSearchButton({
       <span
         className={cn(
           "overflow-hidden whitespace-nowrap transition-all duration-200 ease-spring",
-          collapsed ? "max-w-0 opacity-0" : "max-w-44 opacity-100",
+          collapsed ? "sr-only" : "truncate",
         )}
       >
         {t.shell.search}
@@ -198,7 +199,7 @@ export function StockSearchButton({
     </button>
   );
 
-  return collapsed ? <Tooltip content={t.shell.search}>{button}</Tooltip> : button;
+  return collapsed ? <Tooltip content={t.shell.search} side="right">{button}</Tooltip> : button;
 }
 
 function StockSearchPanel({

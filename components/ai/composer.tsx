@@ -46,7 +46,7 @@ export function Composer({
   return (
     <form
       onSubmit={submit}
-      className="min-w-0 bg-gradient-to-t from-bg via-bg/95 to-transparent px-3 pt-2 pb-2.5"
+      className="mx-auto w-full max-w-3xl min-w-0 bg-gradient-to-t from-bg via-bg/95 to-transparent px-3 pt-1.5 pb-2.5 sm:px-6"
       aria-busy={typing || undefined}
     >
       {showSuggestions ? (
@@ -57,7 +57,7 @@ export function Composer({
               type="button"
               disabled={typing}
               onClick={() => onSuggest(item.id, item.text)}
-              className="min-h-9 shrink-0 rounded-full border border-border/80 bg-bg-elevated/85 px-3.5 py-1.5 text-[12px] font-medium text-fg shadow-[0_4px_14px_-4px_rgba(12,15,20,0.07)] backdrop-blur-md outline-none transition-all duration-200 hover:-translate-y-[1px] hover:border-brand/45 hover:bg-brand-soft/60 focus-visible:ring-4 focus-visible:ring-fg/20 active:scale-[0.98] disabled:opacity-40"
+              className="rounded-full border border-border/75 bg-white/80 px-3 py-1 text-xs font-medium text-fg-body shadow-2xs backdrop-blur-md transition-all hover:border-brand/45 hover:bg-brand-soft/60 hover:text-fg disabled:opacity-40"
             >
               {item.text}
             </button>
@@ -84,13 +84,13 @@ export function Composer({
           {photoError}
         </p>
       ) : null}
-      <div className="flex items-end gap-2 rounded-[26px] border border-white/65 bg-white/82 p-1.5 shadow-[0_14px_38px_-10px_rgba(12,15,20,0.14),0_2px_8px_rgba(12,15,20,0.05),inset_0_1px_0_rgba(255,255,255,0.9)] backdrop-blur-2xl backdrop-saturate-180 transition-all duration-300 focus-within:border-brand/50 focus-within:shadow-[0_16px_42px_-10px_rgba(5,150,105,0.22),inset_0_1px_0_rgba(255,255,255,0.95)]">
+      <div className="flex items-end gap-2 rounded-[28px] border border-white/80 bg-white/90 p-2 shadow-[0_18px_46px_-12px_rgba(12,15,20,0.15),0_2px_10px_rgba(12,15,20,0.04),inset_0_1.5px_0_rgba(255,255,255,0.95)] backdrop-blur-2xl backdrop-saturate-200 transition-all duration-300 focus-within:border-brand/50 focus-within:ring-4 focus-within:ring-brand/12">
         <button
           type="button"
           onClick={onAttach}
           disabled={typing}
           aria-label={copy.attach}
-          className="inline-flex size-10 shrink-0 items-center justify-center rounded-full bg-surface-2/80 text-fg-muted outline-none transition-all duration-150 hover:bg-surface-3 hover:text-fg focus-visible:ring-4 focus-visible:ring-fg/20 active:scale-[0.96] disabled:opacity-40"
+          className="inline-flex size-10 shrink-0 items-center justify-center rounded-full border border-border/60 bg-bg-subtle/85 text-fg-body transition-all hover:border-brand/40 hover:bg-brand-soft/60 hover:text-brand disabled:opacity-40"
         >
           <CameraIcon />
         </button>
@@ -129,7 +129,7 @@ export function Composer({
           disabled={!canSend}
           aria-label={copy.send}
           className={cn(
-            "inline-flex size-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-brand to-emerald-500 text-white shadow-[0_6px_18px_-3px_rgba(5,150,105,0.55)] outline-none transition-all hover:scale-[1.03] focus-visible:ring-4 focus-visible:ring-brand/30 active:scale-[0.96] disabled:opacity-35 disabled:shadow-none disabled:hover:scale-100",
+            "inline-flex size-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-brand via-emerald-500 to-teal-500 text-white shadow-[0_8px_20px_-4px_rgba(5,150,105,0.6)] transition-all hover:scale-[1.04] active:scale-[0.96] disabled:opacity-35 disabled:shadow-none",
           )}
         >
           <SendIcon />

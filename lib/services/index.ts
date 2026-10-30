@@ -252,7 +252,7 @@ function releasedHistory(value: HistoryResult): HistoryResult {
   return value === HISTORY_EMPTY ? { points: [], source: "mock" } : value;
 }
 
-const HISTORY_BATCH_WORKERS = 6;
+const HISTORY_BATCH_WORKERS = 20;
 
 /** Varias series con el mismo rango. Una función, tope de workers, la memo de `historyWithSource`. */
 export async function historiesWithSource(

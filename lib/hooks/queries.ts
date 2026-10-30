@@ -141,6 +141,7 @@ export function useHistories(symbols: readonly string[], range: Range = "1W") {
     refetchInterval: (state) => historyPollMs(weakestHistory(state.state.data)),
     refetchIntervalInBackground: false,
     refetchOnWindowFocus: false,
+    placeholderData: (previous) => previous,
   });
   if (list.length === 0) return [];
   return list.map((symbol) => ({

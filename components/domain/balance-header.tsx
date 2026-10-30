@@ -40,7 +40,7 @@ export function BalanceHeader({
   if (hidden === true) {
     value = (
       <>
-        <span className="num text-sm tabular-nums tracking-[0.2em] text-fg" aria-hidden>
+        <span className="num text-[15px] font-semibold tabular-nums tracking-[0.2em] text-fg" aria-hidden>
           ••••••
         </span>
         <span className="sr-only">{t.shell.balanceHidden}</span>
@@ -49,7 +49,12 @@ export function BalanceHeader({
   } else if (amount !== null) {
     value = (
       <>
-        <PriceText value={amount} currency={shownCurrency} size="sm" className="block truncate font-medium tabular-nums tracking-tight" />
+        <PriceText
+          value={amount}
+          currency={shownCurrency}
+          size="sm"
+          className="block truncate text-[15px] font-semibold tabular-nums tracking-tight text-fg"
+        />
         {currency === "CLP" && shownCurrency === "USD" ? (
           <p className="text-xs text-fg-muted">{t.detail.fxMissing}</p>
         ) : null}
@@ -61,29 +66,50 @@ export function BalanceHeader({
     value = <Skeleton className="h-5 w-28" />;
   }
 
+  if (variant === "bar") {
+    return (
+      <div className={cn("flex min-w-0 items-center gap-1 rounded-xl px-1 tabular-nums tracking-tight", className)}>
+        <div className="min-w-0 flex-1">
+          <p className="sr-only">{t.shell.balance}</p>
+          <div aria-live="polite">{value}</div>
+        </div>
+        <IconButton
+          label={hidden === true ? t.shell.showBalance : t.shell.hideBalance}
+          size="sm"
+          className="size-9"
+          aria-pressed={hidden === true}
+          disabled={hidden === null || !userId}
+          onClick={toggle}
+        >
+          {hidden === true ? <IconEyeOff /> : <IconEye />}
+        </IconButton>
+      </div>
+    );
+  }
+
   return (
     <div
       className={cn(
-        "flex min-w-0 items-center gap-1 rounded-2xl border border-border/80 bg-[radial-gradient(120%_90%_at_0%_0%,rgba(5,150,105,0.07),transparent_65%)] shadow-[0_12px_36px_-16px_rgba(12,15,20,0.08)] tabular-nums tracking-tight",
+        "rounded-xl border border-border/75 bg-white/80 px-3 py-2.5 shadow-[0_4px_14px_-6px_rgba(12,15,20,0.06)] backdrop-blur-md tabular-nums tracking-tight",
         className,
       )}
     >
-      <div className="min-w-0 flex-1">
-        <p className={variant === "bar" ? "sr-only" : "label"}>{t.shell.balance}</p>
-        <div className={variant === "sidebar" ? "mt-0.5" : undefined} aria-live="polite">
-          {value}
-        </div>
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-[11px] font-semibold tracking-wider text-fg-muted uppercase">{t.shell.balance}</p>
+        <IconButton
+          label={hidden === true ? t.shell.showBalance : t.shell.hideBalance}
+          size="sm"
+          className="-mr-1 size-7 text-fg-muted hover:text-fg"
+          aria-pressed={hidden === true}
+          disabled={hidden === null || !userId}
+          onClick={toggle}
+        >
+          {hidden === true ? <IconEyeOff /> : <IconEye />}
+        </IconButton>
       </div>
-      <IconButton
-        label={hidden === true ? t.shell.showBalance : t.shell.hideBalance}
-        size="sm"
-        className="size-11"
-        aria-pressed={hidden === true}
-        disabled={hidden === null || !userId}
-        onClick={toggle}
-      >
-        {hidden === true ? <IconEyeOff /> : <IconEye />}
-      </IconButton>
+      <div className="mt-1 text-[15px] font-semibold tracking-tight text-fg" aria-live="polite">
+        {value}
+      </div>
     </div>
   );
 }

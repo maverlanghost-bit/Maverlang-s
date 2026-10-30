@@ -75,13 +75,13 @@ export function Sidebar({
         if (shouldToggleSidebarClick(event.target as Element | null)) onToggle();
       }}
       className={cn(
-        "sticky top-0 hidden h-dvh shrink-0 flex-col overflow-x-hidden overflow-y-auto border-r border-border/70 bg-surface-1/40 backdrop-blur-xl backdrop-saturate-180 lg:flex",
+        "sticky top-0 z-30 hidden h-dvh shrink-0 flex-col overflow-visible border-r border-border/70 bg-surface-1/40 backdrop-blur-xl backdrop-saturate-180 lg:flex",
         WIDTH_ANIMATION,
         collapsed ? "w-[72px] cursor-e-resize" : "w-[220px] cursor-w-resize",
       )}
     >
       {/* Marca: el mismo archivo que el favicon. Mismo slot fijo que los íconos. */}
-      <div className="flex items-center justify-between px-2 py-3">
+      <div className={cn("flex items-center py-3", collapsed ? "justify-center px-0" : "justify-between px-3")}>
         <Link
           href="/app"
           aria-label={site.name}
@@ -103,7 +103,7 @@ export function Sidebar({
           </button>
         ) : null}
       </div>
-      <nav aria-label={t.nav.label} className="flex-1 px-2">
+      <nav aria-label={t.nav.label} className={cn("flex-1", collapsed ? "px-3.5" : "px-2.5")}>
         <ul className="flex flex-col gap-1">
           <li>
             <StockSearchButton collapsed={collapsed} />
@@ -117,7 +117,8 @@ export function Sidebar({
                 aria-label={collapsed ? t.nav[item.id] : undefined}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "flex min-h-11 cursor-pointer items-center gap-2 rounded-xl text-sm outline-none transition duration-200 ease-spring focus-visible:ring-4 focus-visible:ring-fg/20 active:scale-[0.98]",
+                  "flex min-h-11 cursor-pointer items-center rounded-xl text-sm outline-none transition duration-200 ease-spring focus-visible:ring-4 focus-visible:ring-fg/20 active:scale-[0.98]",
+                  collapsed ? "mx-auto size-11 justify-center gap-0 px-0" : "w-full gap-2.5 px-1",
                   active
                     ? "bg-fg/[0.06] font-medium text-fg shadow-[inset_0_1px_0_rgba(255,255,255,0.85),0_1px_3px_rgba(12,15,20,0.05)] ring-1 ring-border/60"
                     : "text-fg-body hover:bg-fg/[0.04] hover:text-fg",
@@ -129,7 +130,7 @@ export function Sidebar({
                 <span
                   className={cn(
                     "overflow-hidden whitespace-nowrap transition-all duration-200 ease-spring",
-                    collapsed ? "max-w-0 opacity-0" : "max-w-44 opacity-100",
+                    collapsed ? "sr-only" : "truncate",
                   )}
                 >
                   {t.nav[item.id]}
@@ -138,24 +139,30 @@ export function Sidebar({
             );
             return (
               <li key={item.id}>
-                {collapsed ? <Tooltip content={t.nav[item.id]}>{link}</Tooltip> : link}
+                {collapsed ? (
+                  <Tooltip content={t.nav[item.id]} side="right">
+                    {link}
+                  </Tooltip>
+                ) : (
+                  link
+                )}
               </li>
             );
           })}
         </ul>
       </nav>
-      <div className="border-t border-border/70 px-2 py-2">
+      <div className={cn("border-t border-border/70", collapsed ? "px-3.5 py-3" : "px-3 py-3")}>
         {!collapsed ? (
           <>
-            <AccountSwitch mode={accountMode} onChange={onAccountChange ?? (() => {})} />
-            <div className="mt-3">
-              <BalanceHeader variant="sidebar" />
+            <BalanceHeader variant="sidebar" />
+            <div className="mt-2.5">
+              <AccountSwitch mode={accountMode} onChange={onAccountChange ?? (() => {})} />
             </div>
           </>
         ) : null}
         <div
           ref={menuRef}
-          className={cn("relative", !collapsed && "mt-3")}
+          className={cn("relative", !collapsed && "mt-2.5")}
           onKeyDown={(event) => {
             if (event.key === "Escape") setMenuOpen(false);
           }}
@@ -204,16 +211,18 @@ export function Sidebar({
               {!collapsed ? <Skeleton className="h-4 w-24" /> : null}
             </div>
           ) : collapsed ? (
-            <Link
-              href="/app/perfil"
-              aria-label={loading ? t.shell.account : `${name}. ${t.shell.account}`}
-              title={loading ? t.shell.account : name}
-              className="flex min-h-11 cursor-pointer items-center rounded-xl outline-none hover:bg-surface-2 focus-visible:ring-4 focus-visible:ring-fg/20"
-            >
-              <span className="flex size-11 shrink-0 items-center justify-center">
-                <Avatar alt="" fallback={name} size="md" className="size-10" />
-              </span>
-            </Link>
+            <Tooltip content={name || t.shell.account} side="right">
+              <Link
+                href="/app/perfil"
+                aria-label={loading ? t.shell.account : `${name}. ${t.shell.account}`}
+                title={loading ? t.shell.account : name}
+                className="mx-auto flex size-11 cursor-pointer items-center justify-center rounded-xl outline-none hover:bg-surface-2 focus-visible:ring-4 focus-visible:ring-fg/20"
+              >
+                <span className="flex size-11 shrink-0 items-center justify-center">
+                  <Avatar alt="" fallback={name} size="md" className="size-10" />
+                </span>
+              </Link>
+            </Tooltip>
           ) : (
             <button
               type="button"

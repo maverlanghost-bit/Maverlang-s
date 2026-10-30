@@ -23,10 +23,10 @@ export const maxDuration = 30;
  * Sin la secret de Supabase (demo, CI) se usa la serie de referencia del mock.
  */
 
-const FRESH_MS = 60_000;
-const STALE_MS = 15 * 60_000;
+const FRESH_MS = 120_000;
+const STALE_MS = 30 * 60_000;
 const PAGE_SIZE = 50;
-const MAX_PAGES = 20;
+const MAX_PAGES = 2;
 
 let memo: { at: number; board: TodayBoard } | null = null;
 let pending: Promise<TodayBoard> | null = null;
@@ -47,7 +47,7 @@ function ticksAreDown(): Promise<boolean> {
 async function listOffered(): Promise<OfferedName[]> {
   const out: OfferedName[] = [];
   for (let page = 1; page <= MAX_PAGES; page += 1) {
-    const result = await searchCatalog({ q: "", page, pageSize: PAGE_SIZE, sort: "name" });
+    const result = await searchCatalog({ q: "", page, pageSize: PAGE_SIZE, sort: "liquidity" });
     for (const asset of result.items) {
       out.push({
         symbol: asset.symbol,
@@ -101,7 +101,7 @@ function refresh(now: number): Promise<TodayBoard> {
     readTicks,
     readCloses,
     now,
-    concurrency: 24,
+    concurrency: 32,
   })
     .then((board) => {
       const hasRows = board.gainers.length + board.losers.length + board.viewed.length > 0 || board.spy !== null;
