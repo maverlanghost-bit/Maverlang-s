@@ -27,6 +27,7 @@ export function Transcript({
 }) {
   const endRef = useRef<HTMLDivElement>(null);
   const busy = typing;
+  const isEmpty = messages.length === 0 && !busy;
   const signature = `${messages.length}:${busy ? "1" : "0"}:${messages[messages.length - 1]?.id ?? ""}`;
 
   useEffect(() => {
@@ -39,34 +40,38 @@ export function Transcript({
   const last = messages.length - 1;
 
   return (
-    <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 sm:px-6">
+    <div
+      className={cn(
+        "min-h-0 overflow-y-auto overscroll-contain px-4 py-4 sm:px-6",
+        isEmpty ? "flex-1 lg:flex-none lg:pb-5" : "flex-1",
+      )}
+    >
       <div className="sr-only" aria-live="polite" aria-atomic="true">
         {announcement}
       </div>
-      {messages.length === 0 && !busy ? (
-        <div className="mx-auto flex min-h-full w-full max-w-2xl flex-col items-center justify-center py-4 text-center">
-          <div aria-hidden="true" className="relative mb-4 flex size-16 items-center justify-center">
-            <div className="absolute -inset-2 rounded-3xl bg-gradient-to-tr from-brand/25 via-emerald-400/15 to-sky-400/20 blur-xl" />
-            <div className="relative flex size-16 items-center justify-center rounded-[22px] border border-white/85 bg-gradient-to-br from-white/95 via-brand-soft/60 to-emerald-500/15 text-brand shadow-[0_16px_40px_-10px_rgba(5,150,105,0.32),inset_0_1.5px_0_rgba(255,255,255,0.95)]">
+      {isEmpty ? (
+        <div className="mx-auto flex min-h-full w-full max-w-2xl flex-col items-center justify-center py-2 text-center lg:min-h-0">
+          <div aria-hidden="true" className="relative mb-3 flex size-12 items-center justify-center lg:size-11">
+            <div className="relative flex size-12 items-center justify-center rounded-2xl border border-border/75 bg-white text-fg shadow-xs lg:size-11">
               <SparkleIcon />
             </div>
           </div>
-          <p className="text-2xl font-semibold tracking-tight text-fg sm:text-[28px]">{copy.emptyTitle}</p>
+          <p className="text-2xl font-semibold tracking-tight text-fg sm:text-[32px]">{copy.emptyTitle}</p>
           <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-fg-muted sm:text-[15px]">
             {copy.emptyBody}
           </p>
           {onSuggest ? (
-            <div className="mt-6 grid w-full grid-cols-1 gap-2.5 text-left sm:grid-cols-2">
+            <div className="mt-5 grid w-full grid-cols-1 gap-2 text-left sm:grid-cols-2 lg:hidden">
               {copy.suggestions.map((item) => (
                 <button
                   key={item.id}
                   type="button"
                   onClick={() => onSuggest(item.id, item.text)}
-                  className="group flex items-start gap-3 rounded-2xl border border-white/80 bg-white/80 p-3.5 text-left shadow-[0_8px_24px_-12px_rgba(12,15,20,0.08),inset_0_1px_0_rgba(255,255,255,0.9)] backdrop-blur-xl transition-all duration-200 hover:-translate-y-0.5 hover:border-brand/40 hover:bg-white/95 hover:shadow-[0_14px_32px_-12px_rgba(5,150,105,0.18)]"
+                  className="group flex items-start gap-3 rounded-2xl border border-border/75 bg-white/90 p-3 text-left shadow-2xs transition-all duration-200 hover:border-brand/40 hover:bg-white"
                 >
                   <span
                     aria-hidden="true"
-                    className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-brand-soft/75 text-brand transition-colors group-hover:bg-brand group-hover:text-white"
+                    className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-brand-soft/75 text-brand transition-colors group-hover:bg-brand group-hover:text-white"
                   >
                     <SuggestionBentoIcon id={item.id} />
                   </span>
@@ -74,7 +79,7 @@ export function Transcript({
                     <span className="block text-[13px] font-semibold leading-snug text-fg transition-colors group-hover:text-brand">
                       {item.text}
                     </span>
-                    <span className="mt-1 block text-[11px] font-medium text-fg-muted transition-colors group-hover:text-brand/80">
+                    <span className="mt-0.5 block text-[11px] font-medium text-fg-muted">
                       Consultar ahora →
                     </span>
                   </span>
@@ -84,7 +89,7 @@ export function Transcript({
           ) : null}
         </div>
       ) : (
-        <ol aria-label={copy.transcript} className="mx-auto flex w-full max-w-3xl flex-col gap-4">
+        <ol aria-label={copy.transcript} className="mx-auto flex w-full max-w-2xl flex-col gap-4">
           {messages.map((message, index) => (
             <li
               key={message.id}
@@ -103,11 +108,11 @@ export function Transcript({
               ) : null}
               {message.text && !message.notice ? (
                 message.role === "user" ? (
-                  <p className="max-w-[85%] rounded-[22px] rounded-br-md bg-gradient-to-br from-fg via-fg/95 to-fg/90 px-4 py-3 text-[14.5px] leading-relaxed break-words whitespace-pre-wrap text-bg shadow-[0_10px_26px_-10px_rgba(12,15,20,0.28)] motion-safe:animate-fade-in motion-reduce:animate-none">
+                  <p className="max-w-[85%] rounded-[22px] rounded-br-md bg-fg px-4 py-3 text-[14.5px] leading-relaxed break-words whitespace-pre-wrap text-bg shadow-xs motion-safe:animate-fade-in motion-reduce:animate-none">
                     {message.text}
                   </p>
                 ) : (
-                  <div className="w-full max-w-[92%] rounded-[24px] rounded-tl-md border border-white/85 bg-white/92 p-4 text-[14.5px] leading-relaxed text-fg shadow-[0_12px_34px_-14px_rgba(12,15,20,0.09),inset_0_1px_0_rgba(255,255,255,0.9)] backdrop-blur-xl motion-safe:animate-fade-in motion-reduce:animate-none sm:p-5">
+                  <div className="w-full max-w-[94%] rounded-[24px] rounded-tl-md border border-border/80 bg-white p-4 text-[14.5px] leading-relaxed text-fg shadow-xs motion-safe:animate-fade-in motion-reduce:animate-none sm:p-5">
                     <div
                       aria-hidden="true"
                       className="mb-2 inline-flex items-center gap-2 text-[11px] font-semibold tracking-wider text-fg-muted uppercase"
@@ -148,7 +153,7 @@ export function Transcript({
 
 function Typing({ label }: { label: string }) {
   return (
-    <p className="inline-flex items-center gap-2 rounded-[22px] rounded-bl-md border border-white/85 bg-white/92 px-4 py-3 text-sm text-fg-muted shadow-[0_12px_34px_-14px_rgba(12,15,20,0.09)] backdrop-blur-xl">
+    <p className="inline-flex items-center gap-2 rounded-[22px] rounded-bl-md border border-border/80 bg-white px-4 py-3 text-sm text-fg-muted shadow-xs">
       <span className="inline-flex items-center gap-1" aria-hidden>
         <Dot delay="0ms" />
         <Dot delay="160ms" />
@@ -170,11 +175,11 @@ function Dot({ delay }: { delay: string }) {
 
 function SparkleIcon() {
   return (
-    <svg viewBox="0 0 24 24" className="size-7" fill="none" aria-hidden="true">
+    <svg viewBox="0 0 24 24" className="size-6" fill="none" aria-hidden="true">
       <path
         d="M12 3.25c.45 3.6 1.95 5.1 5.55 5.55-3.6.45-5.1 1.95-5.55 5.55-.45-3.6-1.95-5.1-5.55-5.55 3.6-.45 5.1-1.95 5.55-5.55Z"
         fill="currentColor"
-        fillOpacity="0.18"
+        fillOpacity="0.14"
         stroke="currentColor"
         strokeWidth="1.6"
         strokeLinejoin="round"
@@ -207,7 +212,7 @@ function MiniSparkleIcon() {
 function SuggestionBentoIcon({ id }: { id: string }) {
   if (id === "tesla" || id === "stock") {
     return (
-      <svg viewBox="0 0 20 20" className="size-4.5" fill="none" aria-hidden="true">
+      <svg viewBox="0 0 20 20" className="size-4" fill="none" aria-hidden="true">
         <path
           d="M3.25 13.75 7.5 9.5l3 2.75 6.25-6.5M13.25 5.75h3.5v3.5"
           stroke="currentColor"
@@ -220,7 +225,7 @@ function SuggestionBentoIcon({ id }: { id: string }) {
   }
   if (id === "compare") {
     return (
-      <svg viewBox="0 0 20 20" className="size-4.5" fill="none" aria-hidden="true">
+      <svg viewBox="0 0 20 20" className="size-4" fill="none" aria-hidden="true">
         <path
           d="M6.5 3.75v12.5M6.5 3.75 4 6.25M6.5 3.75 9 6.25M13.5 16.25V3.75M13.5 16.25 11 13.75M13.5 16.25 16 13.75"
           stroke="currentColor"
@@ -233,7 +238,7 @@ function SuggestionBentoIcon({ id }: { id: string }) {
   }
   if (id === "portfolio") {
     return (
-      <svg viewBox="0 0 20 20" className="size-4.5" fill="none" aria-hidden="true">
+      <svg viewBox="0 0 20 20" className="size-4" fill="none" aria-hidden="true">
         <path
           d="M10 3.25a6.75 6.75 0 1 0 6.75 6.75H10V3.25Z"
           stroke="currentColor"
@@ -252,7 +257,7 @@ function SuggestionBentoIcon({ id }: { id: string }) {
     );
   }
   return (
-    <svg viewBox="0 0 20 20" className="size-4.5" fill="none" aria-hidden="true">
+    <svg viewBox="0 0 20 20" className="size-4" fill="none" aria-hidden="true">
       <path
         d="M7.25 4.25h5.5l1 1.6h2a1.5 1.5 0 0 1 1.5 1.5v7.4a1.5 1.5 0 0 1-1.5 1.5H4.25a1.5 1.5 0 0 1-1.5-1.5v-7.4a1.5 1.5 0 0 1 1.5-1.5h2l1-1.6Z"
         stroke="currentColor"

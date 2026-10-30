@@ -1,9 +1,10 @@
 "use client";
 
+import { useState, type ChangeEvent, type FormEvent, type RefObject } from "react";
+
 import { IconClose } from "@/components/ui/icons";
-import { cn } from "@/lib/cn";
 import type { AsistenteCopy, AsistenteSuggestionId } from "@/content/i18n/extra-asistente";
-import type { ChangeEvent, FormEvent, RefObject } from "react";
+import { cn } from "@/lib/cn";
 
 export function Composer({
   copy,
@@ -34,6 +35,7 @@ export function Composer({
   onRemoveImage: () => void;
   fileRef: RefObject<HTMLInputElement | null>;
 }) {
+  const [mode, setMode] = useState<"fast" | "deep">("fast");
   const canSend = !typing && (draft.trim().length > 0 || pendingImage != null);
   const showSuggestions = suggestions;
 
@@ -46,24 +48,9 @@ export function Composer({
   return (
     <form
       onSubmit={submit}
-      className="mx-auto w-full max-w-3xl min-w-0 bg-gradient-to-t from-bg via-bg/95 to-transparent px-3 pt-1.5 pb-2.5 sm:px-6"
+      className="mx-auto w-full max-w-2xl min-w-0 px-3 pt-1.5 pb-2.5 sm:px-6"
       aria-busy={typing || undefined}
     >
-      {showSuggestions ? (
-        <div className="-mx-1 flex min-w-0 gap-2 overflow-x-auto px-1 pb-2.5 no-scrollbar lg:flex-wrap lg:overflow-visible">
-          {copy.suggestions.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              disabled={typing}
-              onClick={() => onSuggest(item.id, item.text)}
-              className="rounded-full border border-border/75 bg-white/80 px-3 py-1 text-xs font-medium text-fg-body shadow-2xs backdrop-blur-md transition-all hover:border-brand/45 hover:bg-brand-soft/60 hover:text-fg disabled:opacity-40"
-            >
-              {item.text}
-            </button>
-          ))}
-        </div>
-      ) : null}
       {pendingImage ? (
         <div className="mb-2 flex items-center gap-2 px-1">
           {/* La foto es un data URL del usuario: el optimizador de Next no la acepta. */}
@@ -84,26 +71,8 @@ export function Composer({
           {photoError}
         </p>
       ) : null}
-      <div className="flex items-end gap-2 rounded-[28px] border border-white/80 bg-white/90 p-2 shadow-[0_18px_46px_-12px_rgba(12,15,20,0.15),0_2px_10px_rgba(12,15,20,0.04),inset_0_1.5px_0_rgba(255,255,255,0.95)] backdrop-blur-2xl backdrop-saturate-200 transition-all duration-300 focus-within:border-brand/50 focus-within:ring-4 focus-within:ring-brand/12">
-        <button
-          type="button"
-          onClick={onAttach}
-          disabled={typing}
-          aria-label={copy.attach}
-          className="inline-flex size-10 shrink-0 items-center justify-center rounded-full border border-border/60 bg-bg-subtle/85 text-fg-body transition-all hover:border-brand/40 hover:bg-brand-soft/60 hover:text-brand disabled:opacity-40"
-        >
-          <CameraIcon />
-        </button>
-        <input
-          ref={fileRef}
-          type="file"
-          accept="image/jpeg,image/png"
-          capture="environment"
-          className="sr-only"
-          tabIndex={-1}
-          aria-hidden
-          onChange={onFile}
-        />
+
+      <div className="rounded-[26px] border border-border/80 bg-white px-4 pt-3.5 pb-2.5 shadow-[0_12px_40px_-12px_rgba(12,15,20,0.08),0_2px_8px_rgba(12,15,20,0.03)] transition-all duration-200 focus-within:border-fg/25 focus-within:shadow-[0_16px_48px_-12px_rgba(12,15,20,0.12)]">
         <label htmlFor="ai-pregunta" className="sr-only">
           {copy.placeholder}
         </label>
@@ -122,34 +91,128 @@ export function Composer({
               if (canSend) onSubmit();
             }
           }}
-          className="max-h-32 min-h-10 w-full min-w-0 resize-none rounded-xl border-0 bg-transparent px-2 py-2 text-base text-fg outline-none placeholder:text-fg-muted focus-visible:ring-0 disabled:opacity-40"
+          className="max-h-36 min-h-[44px] w-full min-w-0 resize-none border-0 bg-transparent px-0.5 py-1 text-[15px] text-fg outline-none placeholder:text-fg-muted focus-visible:ring-0 disabled:opacity-40 sm:text-base"
         />
-        <button
-          type="submit"
-          disabled={!canSend}
-          aria-label={copy.send}
-          className={cn(
-            "inline-flex size-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-brand via-emerald-500 to-teal-500 text-white shadow-[0_8px_20px_-4px_rgba(5,150,105,0.6)] transition-all hover:scale-[1.04] active:scale-[0.96] disabled:opacity-35 disabled:shadow-none",
-          )}
-        >
-          <SendIcon />
-        </button>
+
+        <div className="mt-2 flex items-center justify-between gap-2 pt-1">
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={onAttach}
+              disabled={typing}
+              aria-label={copy.attach}
+              className="inline-flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-full text-fg-body transition hover:bg-surface-2 hover:text-fg disabled:opacity-40"
+            >
+              <PlusIcon />
+            </button>
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/jpeg,image/png"
+              capture="environment"
+              className="sr-only"
+              tabIndex={-1}
+              aria-hidden
+              onChange={onFile}
+            />
+            <button
+              type="button"
+              onClick={onAttach}
+              disabled={typing}
+              className="hidden cursor-pointer items-center gap-1.5 rounded-full border border-border/70 bg-surface-1/70 px-3 py-1 text-xs font-medium text-fg-body transition hover:bg-surface-2 hover:text-fg disabled:opacity-40 sm:inline-flex"
+            >
+              <CameraIcon />
+              <span>Importar captura</span>
+            </button>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setMode((prev) => (prev === "fast" ? "deep" : "fast"))}
+              className="inline-flex cursor-pointer items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium text-fg-body transition hover:bg-surface-2 hover:text-fg"
+            >
+              <RocketModeIcon />
+              <span>{mode === "fast" ? "Fast" : "Análisis"}</span>
+              <ChevronSmallIcon />
+            </button>
+
+            <button
+              type="submit"
+              disabled={!canSend}
+              aria-label={copy.send}
+              className={cn(
+                "inline-flex size-9 shrink-0 items-center justify-center rounded-full transition-all",
+                canSend
+                  ? "cursor-pointer bg-fg text-bg shadow-sm hover:opacity-90 active:scale-95"
+                  : "bg-brand-soft/85 text-brand disabled:opacity-80",
+              )}
+            >
+              {canSend ? <SendIcon /> : <GrokWaveIcon />}
+            </button>
+          </div>
+        </div>
       </div>
+
+      {showSuggestions ? (
+        <div className="-mx-1 mt-3 flex min-w-0 gap-2 overflow-x-auto px-1 pb-1 no-scrollbar lg:flex-wrap lg:justify-center lg:overflow-visible">
+          {copy.suggestions.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              disabled={typing}
+              onClick={() => onSuggest(item.id, item.text)}
+              className="shrink-0 cursor-pointer rounded-full border border-border/75 bg-white px-3.5 py-1.5 text-xs font-medium text-fg-body shadow-2xs transition-all hover:border-fg/30 hover:bg-surface-1 hover:text-fg disabled:opacity-40"
+            >
+              {item.text}
+            </button>
+          ))}
+        </div>
+      ) : null}
+
       <p className="px-1 pt-2 text-center text-[11px] leading-snug text-fg-muted">{copy.disclaimer}</p>
     </form>
   );
 }
 
+function PlusIcon() {
+  return (
+    <svg viewBox="0 0 16 16" className="size-4.5" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden>
+      <path d="M8 3.25v9.5M3.25 8h9.5" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 function CameraIcon() {
   return (
-    <svg viewBox="0 0 16 16" className="size-4" fill="none" aria-hidden>
+    <svg viewBox="0 0 16 16" className="size-3.5" fill="none" aria-hidden>
       <path
         d="M6 3.5h4l.8 1.3H13a1.2 1.2 0 0 1 1.2 1.2v6.3A1.2 1.2 0 0 1 13 13.5H3A1.2 1.2 0 0 1 1.8 12.3V6A1.2 1.2 0 0 1 3 4.8h2.2L6 3.5Z"
         stroke="currentColor"
-        strokeWidth="1.5"
+        strokeWidth="1.4"
         strokeLinejoin="round"
       />
-      <circle cx="8" cy="8.6" r="2.1" stroke="currentColor" strokeWidth="1.5" />
+      <circle cx="8" cy="8.6" r="2.1" stroke="currentColor" strokeWidth="1.4" />
+    </svg>
+  );
+}
+
+function RocketModeIcon() {
+  return (
+    <svg viewBox="0 0 16 16" className="size-3.5 text-fg-muted" fill="none" stroke="currentColor" strokeWidth="1.4" aria-hidden>
+      <path
+        d="M9.5 2.5c2.2 0 4 1.8 4 4 0 2.5-2.2 4.8-4.8 6.2l-1.7-1.7L5.3 9.3 3.6 7.6C5 5 7.3 2.5 9.5 2.5Z"
+        strokeLinejoin="round"
+      />
+      <path d="M3.5 12.5 5 11" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function ChevronSmallIcon() {
+  return (
+    <svg viewBox="0 0 12 12" className="size-3 text-fg-muted" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden>
+      <path d="m3 4.5 3 3 3-3" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
@@ -157,7 +220,21 @@ function CameraIcon() {
 function SendIcon() {
   return (
     <svg viewBox="0 0 16 16" className="size-4" fill="none" aria-hidden>
-      <path d="M8 12.5V3.5M4.5 6.5 8 3.2 11.5 6.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      <path
+        d="M8 12.5V3.5M4.5 6.5 8 3.2 11.5 6.5"
+        stroke="currentColor"
+        strokeWidth="1.65"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function GrokWaveIcon() {
+  return (
+    <svg viewBox="0 0 16 16" className="size-4" fill="none" stroke="currentColor" strokeWidth="1.65" aria-hidden>
+      <path d="M3 7v2M5.5 5v6M8 3.5v9M10.5 5.5v5M13 7v2" strokeLinecap="round" />
     </svg>
   );
 }

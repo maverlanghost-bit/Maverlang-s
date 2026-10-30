@@ -96,6 +96,37 @@ export function AsistenteScreen({
     };
   }, []);
 
+  useEffect(() => {
+    const onCommand = (event: Event) => {
+      const custom = event as CustomEvent<
+        | { type: "clear" }
+        | { type: "attach" }
+        | { type: "prompt"; id: AsistenteSuggestionId | "tesla" | "photo"; text: string }
+      >;
+      const detail = custom.detail;
+      if (!detail) return;
+      if (detail.type === "clear") {
+        if (busy.current) return;
+        lastRef.current = null;
+        resetChat();
+        setDraft("");
+        setPendingImage(null);
+        setPhotoError(null);
+        setAnnouncement("");
+      } else if (detail.type === "attach") {
+        fileRef.current?.click();
+      } else if (detail.type === "prompt") {
+        if (detail.id === "import" || detail.id === "photo") {
+          fileRef.current?.click();
+        } else {
+          void send(detail.text, null);
+        }
+      }
+    };
+    window.addEventListener("mv-ai-command", onCommand);
+    return () => window.removeEventListener("mv-ai-command", onCommand);
+  });
+
   async function run(path: ReturnType<typeof endpointFor>, body: ReturnType<typeof buildAiRequest>) {
     busy.current = true;
     setTyping(true);
