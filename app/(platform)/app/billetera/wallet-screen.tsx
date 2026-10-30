@@ -17,6 +17,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useSession } from "@/lib/auth";
 import { logoPathFromSymbol } from "@/lib/catalog/logos";
+import { cn } from "@/lib/cn";
 import { formatDateTime, formatMoney, type MoneyCurrency } from "@/lib/format";
 import { useAccountMode } from "@/lib/hooks/use-account-mode";
 import { useHideBalance } from "@/lib/hooks/use-hide-balance";
@@ -32,6 +33,14 @@ import { formatSol, solIsLow } from "@/lib/wallet/send-cost";
 const DEPOSIT_HREF = "/app/billetera/depositar";
 const SEND_HREF = "/app/billetera/enviar";
 const RECEIVE_HREF = "/app/billetera/recibir";
+
+type ActivityFilter = "all" | "investments" | "cash";
+
+const ACTIVITY_FILTERS: { id: ActivityFilter; label: string }[] = [
+  { id: "all", label: "Todas" },
+  { id: "investments", label: "Inversiones" },
+  { id: "cash", label: "Depósitos y retiros" },
+];
 
 const STATUS_TONE: Record<OrderStatus, BadgeTone> = {
   pending: "warn",
@@ -135,6 +144,7 @@ export function WalletScreen() {
   const activity = useActivity();
   const tickers = useTickers();
   const fx = useFx();
+  const [activityFilter, setActivityFilter] = useState<ActivityFilter>("all");
 
   if (session.status === "loading" || balances.isPending) {
     return <LoadingState label={t.states.loading} />;
@@ -178,6 +188,14 @@ export function WalletScreen() {
   const pendingFx = currency === "CLP" && !fxKnown && fx.isPending;
   const usdcView = moneyView(usdcUi, currency, fxKnown ? rate : undefined);
   const masked = hidden === true;
+
+  const allActivities = activity.data ?? [];
+  const filteredActivities =
+    activityFilter === "all"
+      ? allActivities
+      : activityFilter === "investments"
+        ? allActivities.filter((row) => row.kind === "buy" || row.kind === "sell")
+        : allActivities.filter((row) => row.kind !== "buy" && row.kind !== "sell");
 
   return (
     <div className="flex flex-col gap-6">
@@ -268,13 +286,36 @@ export function WalletScreen() {
       </Card>
 
       <Card>
-        <h2 id="actividad" className="text-lg font-semibold tracking-tight scroll-mt-24">
-          {t.wallet.activity}
-        </h2>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <h2 id="actividad" className="text-lg font-semibold tracking-tight scroll-mt-24">
+            {t.wallet.activity}
+          </h2>
+          <div role="group" aria-label="Filtrar actividad" className="flex flex-wrap items-center gap-1.5">
+            {ACTIVITY_FILTERS.map((filter) => {
+              const active = activityFilter === filter.id;
+              return (
+                <button
+                  key={filter.id}
+                  type="button"
+                  aria-pressed={active}
+                  onClick={() => setActivityFilter(filter.id)}
+                  className={cn(
+                    "cursor-pointer rounded-full border px-3 py-1 text-xs font-medium transition duration-150",
+                    active
+                      ? "border-fg/20 bg-fg text-bg shadow-[0_1px_2px_rgba(12,15,20,0.08)]"
+                      : "border-border/70 bg-surface-1/70 text-fg-muted hover:bg-surface-2 hover:text-fg",
+                  )}
+                >
+                  {filter.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
         <ActivityList
           pending={activity.isPending}
           error={activity.isError}
-          rows={activity.data ?? []}
+          rows={filteredActivities}
           hidden={masked}
           currency={currency}
           rate={fxKnown ? rate : undefined}

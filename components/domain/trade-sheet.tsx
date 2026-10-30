@@ -441,7 +441,11 @@ function TradeFlow({ side, ticker }: { side: Side; ticker: Ticker }) {
         ? fill(t.trade.doneBuy, { amount: formatShares(result.outAmountUi), name: ticker.name })
         : fill(t.trade.doneSell, { amount: formatShares(result.inAmountUi), name: ticker.name });
     return (
-      <div role="status" aria-live="polite" className="flex flex-col items-stretch gap-4 py-2 text-center">
+      <div role="status" aria-live="polite" className="flex flex-col items-stretch gap-4 rounded-2xl border border-white/65 bg-white/80 p-5 text-center shadow-[0_12px_32px_-12px_rgba(12,15,20,0.08),inset_0_1px_0_rgba(255,255,255,0.9)] backdrop-blur-xl tabular-nums">
+        <div className="mx-auto inline-flex items-center gap-2 rounded-full border border-brand/30 bg-brand-soft/80 px-3.5 py-1 text-xs font-semibold text-brand shadow-[0_0_16px_rgba(5,150,105,0.28)]">
+          <span className="h-2 w-2 rounded-full bg-brand shadow-[0_0_8px_rgba(5,150,105,0.85)]" aria-hidden="true" />
+          <span>OK</span>
+        </div>
         <p className="text-2xl text-fg">{t.trade.done}</p>
         <p className="text-sm text-balance text-fg-body">{summary}</p>
         {result.side === "sell" ? (
@@ -540,7 +544,11 @@ function TradeFlow({ side, ticker }: { side: Side; ticker: Ticker }) {
           <MarketStatusPill open={false} label={market.data.session === "closed" ? t.market.closed : t.market.offHours} />
         ) : null}
         {halted ? <p className="text-center text-sm text-down">{t.detail.tradeHaltedNote}</p> : null}
-        {fresh && quote ? <CostBreakdown rows={costRows(t, quote, side, displayCurrency, fxRate)} /> : null}
+        {fresh && quote ? (
+          <div className="rounded-2xl border border-white/65 bg-surface-1/75 p-3.5 shadow-[0_8px_24px_-12px_rgba(12,15,20,0.08),inset_0_1px_0_rgba(255,255,255,0.85)] backdrop-blur-xl tabular-nums">
+            <CostBreakdown rows={costRows(t, quote, side, displayCurrency, fxRate)} />
+          </div>
+        ) : null}
         {dollarsNote ? <p className="text-center text-xs text-fg-muted">{dollarsNote}</p> : null}
         {/* M83: aviso antes de confirmar. Texto borrador hasta la revisión
             del abogado; si la exige, cambia en un solo lugar. */}
@@ -588,6 +596,62 @@ function TradeFlow({ side, ticker }: { side: Side; ticker: Ticker }) {
           setCurrency(next);
         }}
       />
+      {side === "buy" && (currency === "CLP" || currency === "USDC") ? (
+        <div className="flex flex-wrap items-center justify-center gap-2">
+          {(currency === "CLP"
+            ? ([
+                { val: 10000, label: "$10.000" },
+                { val: 50000, label: "$50.000" },
+                { val: 100000, label: "$100.000" },
+                { val: 250000, label: "$250.000" },
+              ] as const).filter((item) => !quickValues.includes(item.val))
+            : ([
+                { val: 10, label: "US$10" },
+                { val: 50, label: "US$50" },
+                { val: 100, label: "US$100" },
+                { val: 250, label: "US$250" },
+              ] as const)
+          ).map((preset) => (
+            <button
+              key={preset.label}
+              type="button"
+              onClick={() => setAmountRaw(String(preset.val))}
+              className="rounded-full border border-border/80 bg-surface-1/80 px-3 py-1 text-xs font-medium text-fg tabular-nums transition-all duration-150 hover:border-brand/40 hover:bg-brand-soft/50 hover:text-brand active:scale-95"
+            >
+              {preset.label}
+            </button>
+          ))}
+        </div>
+      ) : null}
+      {side === "sell" && shares > 0 ? (
+        <div className="flex flex-wrap items-center justify-center gap-2">
+          {([
+            { pct: 0.25, label: "25%" },
+            { pct: 0.5, label: "50%" },
+            { pct: 0.75, label: "75%" },
+            { pct: 1, label: "100%" },
+          ] as const).map((preset) => (
+            <button
+              key={preset.label}
+              type="button"
+              onClick={() => {
+                const base =
+                  currency === "SHARES"
+                    ? shares * preset.pct
+                    : currency === "CLP" && priceUsd && fxRate
+                      ? Math.floor(shares * priceUsd * fxRate * preset.pct)
+                      : priceUsd
+                        ? Number((shares * priceUsd * preset.pct).toFixed(2))
+                        : shares * preset.pct;
+                setAmountRaw(String(Number(base.toFixed(6))));
+              }}
+              className="rounded-full border border-border/80 bg-surface-1/80 px-3 py-1 text-xs font-medium text-fg tabular-nums transition-all duration-150 hover:border-brand/40 hover:bg-brand-soft/50 hover:text-brand active:scale-95"
+            >
+              {preset.label}
+            </button>
+          ))}
+        </div>
+      ) : null}
       {available ? <p className="text-center text-sm text-fg-muted">{available}</p> : null}
       {side === "buy" ? <p className="text-center text-xs text-fg-muted">{minHelp}</p> : null}
       {halted ? (

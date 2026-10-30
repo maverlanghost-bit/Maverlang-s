@@ -4,9 +4,10 @@ import { memo, useCallback, useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
 
 import { ActivityItem } from "@/components/domain/activity-item";
-import { AllocationBar, type AllocationSlice } from "@/components/domain/allocation-bar";
+import { AllocationBar, type AllocationItem, type AllocationSlice } from "@/components/domain/allocation-bar";
 import { ChangeBadge } from "@/components/domain/change-badge";
 import { FlashPrice } from "@/components/domain/flash-price";
+import { InvestmentHistory } from "@/components/domain/investment-history";
 import { SvgPriceChart } from "@/components/domain/svg-price-chart";
 import { InfoTip } from "@/components/domain/info-tip";
 import { PriceFreshness } from "@/components/domain/price-freshness";
@@ -47,8 +48,8 @@ const SUMMARY_CARD = "flex min-h-36 min-w-0 flex-col justify-between gap-2 p-3 s
 const VALUE_FIGURE = "text-lg tracking-tight whitespace-nowrap sm:text-3xl";
 const GAIN_FIGURE = "text-base tracking-tight whitespace-nowrap sm:text-xl";
 
-const POSITION_COLORS = ["#0a0a0a", "#ff6a08", "#1c7c5b", "#2b7fd9", "#99651a", "#5c6570", "#cc2c55", "#3d6b58"] as const;
-const CASH_COLOR = "#c5cad3";
+const POSITION_COLORS = ["#059669", "#0ea5e9", "#8b5cf6", "#f59e0b", "#ec4899", "#14b8a6", "#10b981", "#6366f1"] as const;
+const CASH_COLOR = "#64748b";
 
 const STATUS_TONE: Record<OrderStatus, BadgeTone> = {
   pending: "warn",
@@ -535,7 +536,7 @@ export function PortfolioScreen() {
         key: position.symbol,
         label: tickerBySymbol.get(position.symbol)?.name ?? position.symbol,
         valueUsd: position.valueUsd,
-        color: POSITION_COLORS[sliceInputs.length % POSITION_COLORS.length] ?? "#0a0a0a",
+        color: POSITION_COLORS[sliceInputs.length % POSITION_COLORS.length] ?? "#059669",
       });
     }
     if (loaded.cashUsdc > 0) {
@@ -555,6 +556,15 @@ export function PortfolioScreen() {
         valueLabel: masked ? "••••" : pendingFx ? "…" : formatMoney(view.amount, view.currency),
       };
     });
+    const allocationItems: AllocationItem[] = loaded.positions
+      .filter((position) => position.valueUsd > 0)
+      .map((position, index) => ({
+        symbol: position.symbol,
+        name: tickerBySymbol.get(position.symbol)?.name ?? position.symbol,
+        valueUsd: position.valueUsd,
+        pct: loaded.totalUsd > 0 ? position.valueUsd / loaded.totalUsd : 0,
+        color: POSITION_COLORS[index % POSITION_COLORS.length] ?? "#059669",
+      }));
 
     const orders = tradeActivity(activity.data ?? []);
     const cashView = moneyView(loaded.cashUsdc, currency, rate);
@@ -636,7 +646,20 @@ export function PortfolioScreen() {
               <Card>
                 <h2 className="text-lg font-semibold tracking-tight">{t.portfolio.allocation}</h2>
                 <div className="mt-4">
-                  <AllocationBar label={t.portfolio.allocationLabel} slices={slices} />
+                  <AllocationBar
+                    label={t.portfolio.allocationLabel}
+                    slices={slices}
+                    items={allocationItems}
+                    cashUsd={loaded.cashUsdc}
+                    totalUsd={loaded.totalUsd}
+                    formatValue={(usd) => {
+                      if (masked) return "••••";
+                      if (pendingFx) return "…";
+                      const view = moneyView(usd, currency, rate);
+                      return formatMoney(view.amount, view.currency);
+                    }}
+                    lang={language}
+                  />
                 </div>
               </Card>
             ) : null}
@@ -724,6 +747,18 @@ export function PortfolioScreen() {
             <Link href={DEPOSIT_HREF}>{t.trade.deposit}</Link>
           </Button>
         </Card>
+
+        <InvestmentHistory
+          items={activity.data ?? []}
+          loading={activity.isPending}
+          lang={language}
+          formatUsdValue={(usd) => formatMoney(usd, "USD")}
+          formatClpValue={(clp) => formatMoney(clp, "CLP")}
+          displayCurrency={currency}
+          fxRate={rate}
+          masked={masked}
+          tickersBySymbol={tickerBySymbol}
+        />
 
         <Card>
           <h2 className="text-lg font-semibold tracking-tight">{t.portfolio.history}</h2>

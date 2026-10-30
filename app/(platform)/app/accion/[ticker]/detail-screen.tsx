@@ -250,7 +250,7 @@ function AccountActions({
     return (
       <div
         ref={barRef}
-        className="fixed inset-x-0 z-20 border-t border-border/70 bg-bg/90 px-4 pt-3 pb-1 backdrop-blur-xl min-[400px]:px-5 lg:hidden"
+        className="fixed inset-x-0 z-20 border-t border-white/65 bg-white/82 px-4 pt-3 pb-1 backdrop-blur-xl backdrop-saturate-180 shadow-[0_-12px_32px_-12px_rgba(12,15,20,0.12),inset_0_1px_0_rgba(255,255,255,0.85)] min-[400px]:px-5 lg:hidden"
         style={
           aboveTabs
             ? { bottom: "var(--app-tabs-height)" }
@@ -329,7 +329,7 @@ function TradeActions({
     return (
       <div
         ref={barRef}
-        className="fixed inset-x-0 z-20 border-t border-border/70 bg-bg/90 px-4 py-3 backdrop-blur-xl min-[400px]:px-5 lg:hidden"
+        className="fixed inset-x-0 z-20 border-t border-white/65 bg-white/82 px-4 py-3 backdrop-blur-xl backdrop-saturate-180 shadow-[0_-12px_32px_-12px_rgba(12,15,20,0.12),inset_0_1px_0_rgba(255,255,255,0.85)] min-[400px]:px-5 lg:hidden"
         style={{ bottom: "var(--app-tabs-height)" }}
       >
         <div className="mx-auto max-w-6xl">
@@ -677,7 +677,7 @@ export function DetailScreen({
     if (mode === "real") {
       if (variant === "bar") {
         return (
-          <div className="fixed inset-x-0 z-20 border-t border-border/70 bg-bg/90 px-4 py-3 backdrop-blur-xl min-[400px]:px-5 lg:hidden" style={{ bottom: "var(--app-tabs-height)" }}>
+          <div className="fixed inset-x-0 z-20 border-t border-white/65 bg-white/82 px-4 py-3 backdrop-blur-xl backdrop-saturate-180 shadow-[0_-12px_32px_-12px_rgba(12,15,20,0.12),inset_0_1px_0_rgba(255,255,255,0.85)] min-[400px]:px-5 lg:hidden" style={{ bottom: "var(--app-tabs-height)" }}>
             <p className="mx-auto max-w-6xl text-center text-sm text-fg-muted">{t.account.comingTitle}</p>
           </div>
         );
@@ -767,6 +767,17 @@ export function DetailScreen({
           </div>
           <ul className="flex min-w-0 max-w-full list-none gap-1.5 overflow-x-auto p-0 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" aria-label={t.detail.chips}>
             {category ? <FactChip>{category}</FactChip> : null}
+            <li className="shrink-0">
+              <Link
+                href="/app/asistente"
+                className="inline-flex items-center gap-1.5 rounded-full border border-brand/30 bg-brand-soft/60 px-3 py-1 text-[12px] leading-4 font-medium whitespace-nowrap text-brand transition-all hover:border-brand/50 hover:bg-brand-soft"
+              >
+                <svg className="size-3.5 shrink-0" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                  <path d="M8 1l1.65 4.35L14 7l-4.35 1.65L8 13l-1.65-4.35L2 7l4.35-1.65L8 1z" />
+                </svg>
+                {language === "en" ? `Ask AI about ${ticker.symbol}` : `Preguntar a la IA sobre ${ticker.symbol}`}
+              </Link>
+            </li>
             <FactChip>{t.detail.tokenOnSolana}</FactChip>
             {effectiveBlock !== null ? <FactChip>{t.detail.tradeUnavailable}</FactChip> : null}
             {/* Horario real por acción (M39): suspendida, abierto, extendido, nocturno o cerrado. */}

@@ -25,7 +25,7 @@ import { displayPrice } from "@/lib/market/browse";
 import { barAvailability, BENCHMARK_COLOR, type ChartOverlay } from "@/lib/market/chart-geometry";
 import { poolDislocated, poolDislocationPct } from "@/lib/market/dislocation";
 import { chartStudies, SMA_PERIODS, SPY_SYMBOL, type ChartStudies, type SmaPeriod } from "@/lib/market/indicators";
-import { DETAIL_RANGES, isDetailRange, isReferenceHistory, rangeMove, toneOf } from "@/lib/market/series";
+import { DETAIL_RANGES, isDetailRange, isReferenceHistory, rangeBounds, rangeMove, toneOf } from "@/lib/market/series";
 import type { Currency, PricePoint, Quote, Range } from "@/lib/types";
 
 const NO_POINTS: readonly PricePoint[] = [];
@@ -251,6 +251,7 @@ export function PricePanel({
   const points = history.data?.points ?? NO_POINTS;
   const period = periodBounds(points, livePoint);
   const move = rangeMove(points);
+  const stats = !history.isPending && !history.isError ? rangeBounds(points) : null;
   // Referencia si el historial es mock o no está marcado real, sea cual sea
   // la fuente del precio actual. Sin datos cargados no hay serie que rotular.
   // Sin línea dibujada (menos de 2 puntos) no hay serie que rotular.
@@ -396,7 +397,15 @@ export function PricePanel({
     priceNode = (
       <div className="flex min-w-0 max-w-full flex-col gap-2">
         <span className="font-medium">
-          <FlashPrice value={shown} currency={priceCurrency} size="lg" live={point === null} force={hoverForce} />
+          <span className="inline-flex items-center gap-2.5">
+            <FlashPrice value={shown} currency={priceCurrency} size="lg" live={point === null} force={hoverForce} />
+            {point === null ? (
+              <span
+                className="inline-flex h-2 w-2 shrink-0 rounded-full bg-brand shadow-[0_0_8px_rgba(5,150,105,0.75)] motion-safe:animate-pulse"
+                aria-hidden="true"
+              />
+            ) : null}
+          </span>
         </span>
         <PriceFreshness
           at={polledAt > 0 ? polledAt : (priceUpdatedAt ?? quote.updatedAt)}
@@ -558,6 +567,34 @@ export function PricePanel({
         ) : null}
         {technical ? <p className="mt-3 text-xs text-fg-muted">{copy.disclaimer}</p> : null}
       </div>
+      {stats && stats.low > 0 && stats.high > stats.low && currentUsd !== null && Number.isFinite(currentUsd) ? (() => {
+        const spotUsd = currentUsd;
+        const pct = Math.min(100, Math.max(0, ((spotUsd - stats.low) / (stats.high - stats.low)) * 100));
+        const lowShown = displayPrice(stats.low, priceCurrency, rate);
+        const highShown = displayPrice(stats.high, priceCurrency, rate);
+        const lowLabel = formatMoney(lowShown ?? stats.low, lowShown === null ? "USD" : priceCurrency);
+        const highLabel = formatMoney(highShown ?? stats.high, highShown === null ? "USD" : priceCurrency);
+        const rangeCaption = range === "ALL" ? t.detail.rangeShort.ALL : t.detail.rangeCaption[range];
+        return (
+          <div className="rounded-2xl border border-border/70 bg-surface-1/60 px-4 py-3 backdrop-blur-md">
+            <div className="mb-2 flex items-center justify-between gap-2 text-xs text-fg-muted tabular-nums">
+              <span>
+                {fill(t.detail.rangeLow, { range: rangeCaption })}: <strong className="font-semibold text-fg">{lowLabel}</strong>
+              </span>
+              <span>
+                {fill(t.detail.rangeHigh, { range: rangeCaption })}: <strong className="font-semibold text-fg">{highLabel}</strong>
+              </span>
+            </div>
+            <div className="relative h-2 w-full rounded-full bg-gradient-to-r from-down/25 via-brand/30 to-up/40">
+              <span
+                className="absolute top-1/2 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-brand shadow-[0_0_10px_rgba(5,150,105,0.8)] transition-all duration-300"
+                style={{ left: `${pct}%` }}
+                aria-hidden="true"
+              />
+            </div>
+          </div>
+        );
+      })() : null}
       {sourceLine ? <p className="text-xs text-fg-muted">{sourceLine}</p> : null}
     </section>
   );
