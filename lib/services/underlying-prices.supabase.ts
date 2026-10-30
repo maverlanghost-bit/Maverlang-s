@@ -6,7 +6,7 @@ import type { PricePoint, Range } from "@/lib/types";
 
 export const PRICES_TAG = "underlying-prices";
 /** 1D sólo si los ticks no alcanzan. ALL pide ~10 años; PostgREST corta en 1000 filas. */
-const DAYS: Record<Range, number> = { "1D": 3, "1W": 8, "1M": 32, "3M": 93, "1Y": 366, ALL: 3650 };
+const DAYS: Record<Range, number> = { "1D": 5, "1W": 8, "1M": 32, "3M": 93, "1Y": 366, ALL: 3650 };
 const PAGE = 1000;
 /** ALL son varias páginas. Si la base no responde, no se sostiene la ficha. */
 const CLOSE_BUDGET_MS = 2_500;

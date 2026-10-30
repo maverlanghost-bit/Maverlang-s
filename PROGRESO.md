@@ -1,5 +1,11 @@
 # PROGRESO — Maverlang
 
+## Fix: Cambio Instantáneo de Rango (1D/1S/1M/3M/1A) en Carrusel Spotlight (2026-10-30)
+- Causa raíz 1: en `market-today.tsx`, cuando un rango aún estaba cargando o `1D` devolvía `[]` (sin ticks intradía), `series` hacía fallback al `spark` completo del ranking (~22 cierres de 1 mes), haciendo que `1D`, `1S` y `1M` dibujaran exactamente la misma curva.
+- Causa raíz 2: en `lib/services/underlying-prices.supabase.ts`, `DAYS["1D"]` era `3` días calendario, lo que en fines de semana o feriados devolvía < 2 filas y vaciaba `1D`. Ampliado a `"1D": 5` para garantizar cierres recientes.
+- Solución: `market-today.tsx` ahora precarga (`queryClient.prefetchQuery`) los 5 rangos (`1D`, `1W`, `1M`, `3M`, `1Y`) de las acciones destacadas en paralelo, recorta proporcionalmente la vista previa por ventana (`1D` = últimos 3 puntos, `1W` = últimos 6, `1M` = mes) mientras resuelve el historial y reinicia el cursor interactivo al cambiar de rango o slide.
+- Verificación: `npx tsc --noEmit` (0 errores) y Vitest (`market-movers`, `reference-series`, `history-live-data`, `ui-screens-broker`, `copy-guard`, `client-imports`: 49/49 tests en verde).
+
 ## Fix: % del carrusel de Mercado y gráfico interactivo (2026-10-30)
 - Bug: `market-today.tsx` multiplicaba la variación del periodo por 100 antes de `formatPercent` (que ya usa `style: "percent"` con fracciones). Por eso una baja de -35 % salía como -3.500 %. Ahora se calcula como fracción, igual que `changePct`.
 - Eje derecho: antes mostraba valores inventados a partir del % del titular. Ahora muestra máximo, medio y mínimo reales de la serie respecto del primer punto, alineados con las líneas guía.

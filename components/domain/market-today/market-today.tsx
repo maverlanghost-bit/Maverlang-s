@@ -1,8 +1,8 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { useId, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } from "react";
 
 import { MoverCard, SpyChip } from "@/components/domain/market-today/mover-card";
 import { TodaySkeleton } from "@/components/domain/market-today/skeleton";
@@ -11,7 +11,7 @@ import { TickerLogo } from "@/components/domain/ticker-logo";
 import { Button } from "@/components/ui/button";
 import { indexFromKey } from "@/components/ui/keys";
 import { hoyCopy } from "@/content/i18n/extra-hoy";
-import { ApiError } from "@/lib/api/client";
+import { ApiError, getHistory } from "@/lib/api/client";
 import { apiResultSchema } from "@/lib/api/contracts";
 import { cn } from "@/lib/cn";
 import { formatPercent } from "@/lib/format";
@@ -158,7 +158,31 @@ export function MarketToday() {
 
   const historyQuery = useHistory(activeCard?.symbol ?? "", range);
 
-  /** Serie del gráfico: historial real del rango o, mientras carga, el sparkline del ranking. */
+  /** Precarga todos los rangos de las acciones destacadas para que cambiar entre 1D/1S/1M/3M/1A sea instantáneo. */
+  const queryClient = useQueryClient();
+  useEffect(() => {
+    const targets = featuredPool.slice(0, 3);
+    for (const card of targets) {
+      const symbol = card.symbol.trim();
+      if (!symbol) continue;
+      for (const item of SPOTLIGHT_RANGES) {
+        if (symbol === activeCard?.symbol && item.id === range) continue;
+        void queryClient.prefetchQuery({
+          queryKey: ["history", symbol, item.id] as const,
+          queryFn: () => getHistory(symbol, item.id),
+          staleTime: 60_000,
+        });
+      }
+    }
+  }, [activeCard?.symbol, featuredPool, queryClient, range]);
+
+  /**
+   * Serie del gráfico según el rango activo:
+   * - Si `useHistory(symbol, range)` ya devolvió >= 2 puntos reales, usa esa serie exacta.
+   * - Si aún está cargando o `1D` no tiene ticks intradía, recorta `spark` a la ventana
+   *   proporcional (`1D` = últimos 3 cierres, `1W` = últimos 6 cierres, `1M` = mes completo)
+   *   para que cada pestaña muestre su propia curva y horizonte temporal.
+   */
   const series = useMemo<{ p: number; t: number | null }[]>(() => {
     const pts = historyQuery.data?.points;
     if (pts && pts.length >= 2) {
@@ -166,9 +190,22 @@ export function MarketToday() {
         .filter((pt) => Number.isFinite(pt.p) && pt.p > 0)
         .map((pt) => ({ p: pt.p, t: pt.t < 1e12 ? pt.t * 1000 : pt.t }));
     }
-    return (activeCard?.spark ?? []).filter((p) => Number.isFinite(p) && p > 0).map((p) => ({ p, t: null }));
-  }, [activeCard, historyQuery.data]);
+    const cleanSpark = (activeCard?.spark ?? []).filter((p) => Number.isFinite(p) && p > 0);
+    if (cleanSpark.length >= 2) {
+      if (range === "1D") {
+        return cleanSpark.slice(-3).map((p) => ({ p, t: null }));
+      }
+      if (range === "1W" && historyQuery.isPending) {
+        return cleanSpark.slice(-6).map((p) => ({ p, t: null }));
+      }
+      if (range === "1M" && historyQuery.isPending) {
+        return cleanSpark.map((p) => ({ p, t: null }));
+      }
+    }
+    return [];
+  }, [activeCard, historyQuery.data, historyQuery.isPending, range]);
   const hasHistory = (historyQuery.data?.points?.length ?? 0) >= 2;
+  const chartLoading = historyQuery.isPending && series.length < 2;
 
   const [hoverIdx, setHoverIdx] = useState<number | null>(null);
   const hoverPoint = hoverIdx !== null ? series[hoverIdx] : undefined;
@@ -196,17 +233,18 @@ export function MarketToday() {
    * Variación como fracción (formatPercent usa style "percent": 0,035 → 3,5 %).
    * Antes se multiplicaba por 100 y salían cifras como -3.500 %.
    */
-  const basePct = useMemo(() => {
-    if (!activeCard) return 0;
-    if (range !== "1D" && hasHistory && series.length >= 2) {
+  const basePct = useMemo<number | null>(() => {
+    if (!activeCard) return null;
+    if (range === "1D") return activeCard.changePct;
+    if (series.length >= 2) {
       const first = series[0]!.p;
       const last = series[series.length - 1]!.p;
       if (first > 0) return (last - first) / first;
     }
-    return activeCard.changePct;
-  }, [activeCard, hasHistory, range, series]);
+    return null;
+  }, [activeCard, range, series]);
 
-  const displayPct = useMemo(() => {
+  const displayPct = useMemo<number | null>(() => {
     const first = series[0]?.p ?? 0;
     if (hoverPoint && first > 0) return (hoverPoint.p - first) / first;
     return basePct;
@@ -214,9 +252,9 @@ export function MarketToday() {
 
   const chartValues = useMemo(() => series.map((pt) => pt.p), [series]);
   const chartShape = useMemo(() => sparklineSmoothPath(chartValues, CHART_W, CHART_H), [chartValues]);
-  const isPositive = basePct >= 0;
+  const isPositive = (basePct ?? 0) >= 0;
   const strokeColor = isPositive ? "#059669" : "#e11d48";
-  const hoverPositive = displayPct >= 0;
+  const hoverPositive = (displayPct ?? 0) >= 0;
 
   /** Eje derecho real: máximo, medio y mínimo de la serie respecto del primer punto. */
   const axisLabels = useMemo(() => {
@@ -277,6 +315,7 @@ export function MarketToday() {
 
   function stepSlide(delta: number) {
     if (featuredPool.length <= 1) return;
+    setHoverIdx(null);
     setSlideIndex((prev) => (prev + delta + featuredPool.length) % featuredPool.length);
   }
 
@@ -377,7 +416,11 @@ export function MarketToday() {
                       <button
                         key={item.id}
                         type="button"
-                        onClick={() => setRange(item.id)}
+                        aria-pressed={active}
+                        onClick={() => {
+                          setHoverIdx(null);
+                          setRange(item.id);
+                        }}
                         className={cn(
                           "cursor-pointer rounded-full px-2.5 py-1 text-[11px] transition-all",
                           active
@@ -399,7 +442,7 @@ export function MarketToday() {
                     hoverPositive ? "text-up" : "text-down",
                   )}
                 >
-                  {formatPercent(displayPct)}
+                  {displayPct === null ? "—" : formatPercent(displayPct)}
                 </span>
                 <span className="text-xs font-medium text-fg-muted">
                   {hoverPoint
@@ -418,9 +461,10 @@ export function MarketToday() {
               >
                 {chartShape ? (
                   <div
+                    key={`${activeCard.symbol}-${range}`}
                     className="relative h-full w-full"
                     role="img"
-                    aria-label={`${activeCard.symbol}: ${formatPercent(basePct)} ${language === "en" ? activeRangeMeta.periodEn : activeRangeMeta.periodEs}`}
+                    aria-label={`${activeCard.symbol}: ${basePct === null ? "" : formatPercent(basePct)} ${language === "en" ? activeRangeMeta.periodEn : activeRangeMeta.periodEs}`}
                     onPointerMove={(event) => scrub(event.clientX, event.currentTarget.getBoundingClientRect())}
                     onPointerDown={(event) => scrub(event.clientX, event.currentTarget.getBoundingClientRect())}
                     onPointerLeave={() => setHoverIdx(null)}
@@ -501,6 +545,10 @@ export function MarketToday() {
                         {copy.loading}
                       </span>
                     ) : null}
+                  </div>
+                ) : chartLoading ? (
+                  <div className="flex h-full items-center justify-center rounded-2xl bg-surface-1/60 text-xs text-fg-muted motion-safe:animate-pulse">
+                    {copy.loading}
                   </div>
                 ) : (
                   <div className="flex h-full items-center justify-center rounded-2xl bg-surface-1/60 text-xs text-fg-muted">
