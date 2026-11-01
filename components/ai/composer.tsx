@@ -1,10 +1,40 @@
 "use client";
 
-import { useState, type ChangeEvent, type FormEvent, type RefObject } from "react";
+import Link from "next/link";
+import { useEffect, useState, type ChangeEvent, type FormEvent, type RefObject } from "react";
+import { createPortal } from "react-dom";
 
 import { IconClose } from "@/components/ui/icons";
 import type { AsistenteCopy, AsistenteSuggestionId } from "@/content/i18n/extra-asistente";
 import { cn } from "@/lib/cn";
+
+// Mismo valor que AI_DOCK_SLOT_ID de components/app-shell/nav.ts.
+const DOCK_SLOT_ID = "mv-ai-dock-slot";
+const MOBILE_QUERY = "(max-width: 1023px)";
+
+/** Devuelve el contenedor del dock m�vil (dentro de la barra inferior) o null. */
+function useDockSlot(): HTMLElement | null {
+  const [slot, setSlot] = useState<HTMLElement | null>(null);
+  useEffect(() => {
+    const query = window.matchMedia(MOBILE_QUERY);
+    const find = () => {
+      const el = query.matches ? document.getElementById(DOCK_SLOT_ID) : null;
+      setSlot((prev) => (prev === el ? prev : el));
+      return el;
+    };
+    find();
+    query.addEventListener("change", find);
+    const observer = new MutationObserver(() => {
+      if (find()) observer.disconnect();
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+    return () => {
+      query.removeEventListener("change", find);
+      observer.disconnect();
+    };
+  }, []);
+  return slot;
+}
 
 export function Composer({
   copy,
@@ -45,54 +75,157 @@ export function Composer({
     onSubmit();
   }
 
+  const dockSlot = useDockSlot();
+
+  const pendingBlock = pendingImage ? (
+    <div className="mb-2 flex items-center gap-2 px-1">
+      {/* La foto es un data URL del usuario: el optimizador de Next no la acepta. */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={pendingImage} alt={copy.photoAlt} className="h-14 w-14 rounded-xl object-cover shadow-sm" />
+      <button
+        type="button"
+        onClick={onRemoveImage}
+        className="inline-flex min-h-10 items-center gap-1 rounded-full border border-border/70 bg-bg-elevated/85 px-3 text-sm text-fg-body backdrop-blur-md outline-none hover:bg-surface-2 focus-visible:ring-4 focus-visible:ring-fg/20"
+      >
+        <IconClose />
+        {copy.removePhoto}
+      </button>
+    </div>
+  ) : null;
+
+  const errorBlock = photoError ? (
+    <p role="alert" className="mb-2 px-1 text-sm leading-relaxed break-words text-down">
+      {photoError}
+    </p>
+  ) : null;
+
+  const fileInput = (
+    <input
+      ref={fileRef}
+      type="file"
+      accept="image/jpeg,image/png"
+      capture="environment"
+      className="sr-only"
+      tabIndex={-1}
+      aria-hidden
+      onChange={onFile}
+    />
+  );
+
+  const textarea = (
+    <>
+      <label htmlFor="ai-pregunta" className="sr-only">
+        {copy.placeholder}
+      </label>
+      <textarea
+        id="ai-pregunta"
+        value={draft}
+        rows={1}
+        enterKeyHint="send"
+        autoComplete="off"
+        placeholder={copy.placeholder}
+        disabled={typing}
+        onChange={(event) => onDraft(event.target.value)}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" && !event.shiftKey) {
+            event.preventDefault();
+            if (canSend) onSubmit();
+          }
+        }}
+        className={
+          dockSlot
+            ? "max-h-28 min-h-10 min-w-0 flex-1 resize-none border-0 bg-transparent px-1 py-2.5 text-[16px] leading-5 text-fg outline-none placeholder:text-fg-muted focus-visible:ring-0 disabled:opacity-40"
+            : "max-h-36 min-h-[44px] w-full min-w-0 resize-none border-0 bg-transparent px-0.5 py-1 text-[15px] text-fg outline-none placeholder:text-fg-muted focus-visible:ring-0 disabled:opacity-40 sm:text-base"
+        }
+      />
+    </>
+  );
+
+  const sendButton = (
+    <button
+      type="submit"
+      disabled={!canSend}
+      aria-label={copy.send}
+      className={cn(
+        "inline-flex size-9 shrink-0 items-center justify-center rounded-full transition-all",
+        canSend
+          ? "cursor-pointer bg-fg text-bg shadow-sm hover:opacity-90 active:scale-95"
+          : "bg-brand-soft/85 text-brand disabled:opacity-80",
+      )}
+    >
+      {canSend ? <SendIcon /> : <GrokWaveIcon />}
+    </button>
+  );
+
+  const chips = showSuggestions ? (
+    <div
+      className={cn(
+        "-mx-1 flex min-w-0 gap-2 overflow-x-auto px-1 pb-1 no-scrollbar lg:flex-wrap lg:justify-center lg:overflow-visible",
+        dockSlot ? "mt-1" : "mt-3",
+      )}
+    >
+      {copy.suggestions.map((item) => (
+        <button
+          key={item.id}
+          type="button"
+          disabled={typing}
+          onClick={() => onSuggest(item.id, item.text)}
+          className="shrink-0 cursor-pointer rounded-full border border-border/75 bg-white px-3.5 py-1.5 text-xs font-medium text-fg-body shadow-2xs transition-all hover:border-fg/30 hover:bg-surface-1 hover:text-fg disabled:opacity-40"
+        >
+          {item.text}
+        </button>
+      ))}
+    </div>
+  ) : null;
+
+  const disclaimer = <p className="px-1 pt-2 text-center text-[11px] leading-snug text-fg-muted">{copy.disclaimer}</p>;
+
+  if (dockSlot) {
+    // M�vil: el formulario vive dentro de la barra inferior (dock); chips y aviso quedan sobre ella.
+    return (
+      <>
+        <div className="mx-auto w-full max-w-2xl min-w-0 px-3 pt-1.5 pb-1">
+          {pendingBlock}
+          {errorBlock}
+          {chips}
+          {disclaimer}
+        </div>
+        {createPortal(
+          <form
+            onSubmit={submit}
+            aria-busy={typing || undefined}
+            className="flex min-h-12 w-full min-w-0 items-center gap-1.5 px-1.5"
+          >
+            <button
+              type="button"
+              onClick={onAttach}
+              disabled={typing}
+              aria-label={copy.attach}
+              className="inline-flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-full text-fg-body transition hover:bg-surface-2 hover:text-fg disabled:opacity-40"
+            >
+              <PlusIcon />
+            </button>
+            {fileInput}
+            {textarea}
+            {sendButton}
+          </form>,
+          dockSlot,
+        )}
+      </>
+    );
+  }
+
   return (
     <form
       onSubmit={submit}
       className="mx-auto w-full max-w-2xl min-w-0 px-3 pt-1.5 pb-2.5 sm:px-6"
       aria-busy={typing || undefined}
     >
-      {pendingImage ? (
-        <div className="mb-2 flex items-center gap-2 px-1">
-          {/* La foto es un data URL del usuario: el optimizador de Next no la acepta. */}
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={pendingImage} alt={copy.photoAlt} className="h-14 w-14 rounded-xl object-cover shadow-sm" />
-          <button
-            type="button"
-            onClick={onRemoveImage}
-            className="inline-flex min-h-10 items-center gap-1 rounded-full border border-border/70 bg-bg-elevated/85 px-3 text-sm text-fg-body backdrop-blur-md outline-none hover:bg-surface-2 focus-visible:ring-4 focus-visible:ring-fg/20"
-          >
-            <IconClose />
-            {copy.removePhoto}
-          </button>
-        </div>
-      ) : null}
-      {photoError ? (
-        <p role="alert" className="mb-2 px-1 text-sm leading-relaxed break-words text-down">
-          {photoError}
-        </p>
-      ) : null}
+      {pendingBlock}
+      {errorBlock}
 
       <div className="rounded-[26px] border border-border/80 bg-white px-4 pt-3.5 pb-2.5 shadow-[0_12px_40px_-12px_rgba(12,15,20,0.08),0_2px_8px_rgba(12,15,20,0.03)] transition-all duration-200 focus-within:border-fg/25 focus-within:shadow-[0_16px_48px_-12px_rgba(12,15,20,0.12)]">
-        <label htmlFor="ai-pregunta" className="sr-only">
-          {copy.placeholder}
-        </label>
-        <textarea
-          id="ai-pregunta"
-          value={draft}
-          rows={1}
-          enterKeyHint="send"
-          autoComplete="off"
-          placeholder={copy.placeholder}
-          disabled={typing}
-          onChange={(event) => onDraft(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key === "Enter" && !event.shiftKey) {
-              event.preventDefault();
-              if (canSend) onSubmit();
-            }
-          }}
-          className="max-h-36 min-h-[44px] w-full min-w-0 resize-none border-0 bg-transparent px-0.5 py-1 text-[15px] text-fg outline-none placeholder:text-fg-muted focus-visible:ring-0 disabled:opacity-40 sm:text-base"
-        />
+        {textarea}
 
         <div className="mt-2 flex items-center justify-between gap-2 pt-1">
           <div className="flex items-center gap-1.5">
@@ -105,16 +238,7 @@ export function Composer({
             >
               <PlusIcon />
             </button>
-            <input
-              ref={fileRef}
-              type="file"
-              accept="image/jpeg,image/png"
-              capture="environment"
-              className="sr-only"
-              tabIndex={-1}
-              aria-hidden
-              onChange={onFile}
-            />
+            {fileInput}
             <button
               type="button"
               onClick={onAttach}
@@ -133,48 +257,27 @@ export function Composer({
               className="inline-flex cursor-pointer items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium text-fg-body transition hover:bg-surface-2 hover:text-fg"
             >
               <RocketModeIcon />
-              <span>{mode === "fast" ? "Fast" : "Análisis"}</span>
+              <span>{mode === "fast" ? "Fast" : "An�lisis"}</span>
               <ChevronSmallIcon />
             </button>
-
-            <button
-              type="submit"
-              disabled={!canSend}
-              aria-label={copy.send}
-              className={cn(
-                "inline-flex size-9 shrink-0 items-center justify-center rounded-full transition-all",
-                canSend
-                  ? "cursor-pointer bg-fg text-bg shadow-sm hover:opacity-90 active:scale-95"
-                  : "bg-brand-soft/85 text-brand disabled:opacity-80",
-              )}
-            >
-              {canSend ? <SendIcon /> : <GrokWaveIcon />}
-            </button>
+            {sendButton}
           </div>
         </div>
       </div>
 
-      {showSuggestions ? (
-        <div className="-mx-1 mt-3 flex min-w-0 gap-2 overflow-x-auto px-1 pb-1 no-scrollbar lg:flex-wrap lg:justify-center lg:overflow-visible">
-          {copy.suggestions.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              disabled={typing}
-              onClick={() => onSuggest(item.id, item.text)}
-              className="shrink-0 cursor-pointer rounded-full border border-border/75 bg-white px-3.5 py-1.5 text-xs font-medium text-fg-body shadow-2xs transition-all hover:border-fg/30 hover:bg-surface-1 hover:text-fg disabled:opacity-40"
-            >
-              {item.text}
-            </button>
-          ))}
-        </div>
-      ) : null}
-
-      <p className="px-1 pt-2 text-center text-[11px] leading-snug text-fg-muted">{copy.disclaimer}</p>
+      {chips}
+      {disclaimer}
     </form>
   );
 }
 
+function BackIcon() {
+  return (
+    <svg viewBox="0 0 16 16" className="size-4" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden>
+      <path d="M10 3 5 8l5 5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
 function PlusIcon() {
   return (
     <svg viewBox="0 0 16 16" className="size-4.5" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden>

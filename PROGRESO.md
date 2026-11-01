@@ -1,5 +1,11 @@
 # PROGRESO — Maverlang
 
+## Shell Móvil: Nav Fijo, Morph a Dock de IA, Píldora AI y Cluster Flotante Superior (2026-11-01)
+- Hecho (Nav móvil fijo y morph a Dock de chat IA en `bottom-tabs.tsx` y `liquid-glass.css`): la barra inferior queda 100% fija sin oscilaciones por scroll (`data-hidden="false"`). Al entrar a `/app/asistente`, el contenedor Liquid Glass hace una transición suave (morph de 360ms) convirtiéndose en el dock de chat con botón circular de retorno al mercado (`/app`) y portal directo del formulario de `Composer`.
+- Hecho (Pestaña AI en `bottom-tabs.tsx`): el ícono central muestra exactamente `AI` en negro/contraste limpio (`liquid-tab__ai`) sin texto debajo (con accesibilidad `sr-only`).
+- Hecho (Header móvil flotante Liquid Glass en `top-bar.tsx` y `app-shell.tsx`): eliminada la barra superior ancha con bordes; reemplazada por un clúster flotante traslúcido arriba a la izquierda sobrepuesto al contenido (avatar de perfil con punto Demo + botón de búsqueda con efecto Liquid Glass). Moneda preservada en perfil.
+- Verificación: `npx tsc --noEmit` (0 errores) y Vitest (111/111 suites, 975/975 tests en verde).
+
 ## Fix: Cambio Instantáneo de Rango (1D/1S/1M/3M/1A) en Carrusel Spotlight (2026-10-30)
 - Causa raíz 1: en `market-today.tsx`, cuando un rango aún estaba cargando o `1D` devolvía `[]` (sin ticks intradía), `series` hacía fallback al `spark` completo del ranking (~22 cierres de 1 mes), haciendo que `1D`, `1S` y `1M` dibujaran exactamente la misma curva.
 - Causa raíz 2: en `lib/services/underlying-prices.supabase.ts`, `DAYS["1D"]` era `3` días calendario, lo que en fines de semana o feriados devolvía < 2 filas y vaciaba `1D`. Ampliado a `"1D": 5` para garantizar cierres recientes.

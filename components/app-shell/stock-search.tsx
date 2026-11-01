@@ -140,7 +140,7 @@ export function StockSearchButton({
   variant = "nav",
   collapsed = false,
 }: {
-  variant?: "nav" | "icon";
+  variant?: "nav" | "icon" | "chip";
   collapsed?: boolean;
 }) {
   const api = useContext(StockSearchContext);
@@ -153,7 +153,7 @@ export function StockSearchButton({
     if (anchor) api?.toggleFrom(anchor);
   }
 
-  if (variant === "icon") {
+  if (variant === "icon" || variant === "chip") {
     return (
       <button
         ref={ref}
@@ -163,7 +163,11 @@ export function StockSearchButton({
         aria-expanded={api.open}
         aria-haspopup="dialog"
         onClick={onClick}
-        className="flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-full text-fg-body outline-none hover:bg-surface-2 focus-visible:ring-4 focus-visible:ring-fg/20"
+        className={
+          variant === "chip"
+            ? "liquid-glass--chip"
+            : "flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-full text-fg-body outline-none hover:bg-surface-2 focus-visible:ring-4 focus-visible:ring-fg/20"
+        }
       >
         <IconSearch />
       </button>

@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useRef, type ChangeEvent, type RefObject } from "react";
 
 import { Composer } from "@/components/ai/composer";
@@ -51,7 +50,7 @@ export function ChatView({
   useChatViewport(panelRef);
   const isEmpty = messages.length === 0 && !typing;
 
-  // Mobile viewport baseline above docked nav (data-mode="composer"): calc(100dvh - 3.5rem - 5.25rem - env(safe-area-inset-bottom, 0px))
+  // Móvil: sin barra superior; el compositor vive en el dock de la barra inferior (padding inferior = --app-tabs-height).
   return (
     <div
       ref={panelRef}
@@ -60,15 +59,8 @@ export function ChatView({
       style={{ top: 0, right: 0, left: 0, height: "100dvh" }}
     >
       <div className="mx-auto flex h-full min-h-0 w-full max-w-4xl flex-col">
-        <div className="flex items-center justify-between gap-3 px-4 pt-3 pb-1.5 sm:px-6">
+        <div className="flex min-h-10 items-center justify-between gap-3 pt-[calc(env(safe-area-inset-top,0px)+0.625rem)] pr-4 pb-1.5 pl-[108px] sm:pr-6 lg:pt-3 lg:pl-6">
           <div className="flex min-w-0 items-center gap-2.5">
-            <Link
-              href="/app"
-              className="inline-flex min-h-8 items-center gap-1.5 rounded-full border border-border/75 bg-white/85 px-3 py-1 text-xs font-semibold text-fg shadow-2xs transition hover:border-brand/40 hover:bg-brand-soft/40 hover:text-brand lg:hidden"
-            >
-              <BackArrowIcon />
-              <span>Mercado</span>
-            </Link>
             <div className="flex min-w-0 items-center gap-2">
               <h1 className="truncate text-xs font-medium text-fg-muted sm:text-[13px]">{copy.pageTitle}</h1>
               <span className="hidden rounded-full border border-border/70 bg-surface-1/80 px-2 py-0.5 text-[10px] font-medium text-fg-muted sm:inline-flex">
@@ -132,14 +124,6 @@ export function ChatView({
         </div>
       </div>
     </div>
-  );
-}
-
-function BackArrowIcon() {
-  return (
-    <svg viewBox="0 0 16 16" className="size-3.5" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
-      <path d="M13 8H3m0 0 4-4M3 8l4 4" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
   );
 }
 

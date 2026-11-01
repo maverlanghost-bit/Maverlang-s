@@ -7,6 +7,9 @@ import { IconChart, IconPortfolio, IconStar, IconUser, IconWallet } from "@/comp
 import { isCredentialPath } from "@/lib/auth/paths";
 import { cn } from "@/lib/cn";
 
+/** Id del contenedor del dock de IA dentro del vidrio de la barra inferior (móvil). */
+export const AI_DOCK_SLOT_ID = "mv-ai-dock-slot";
+
 export type ShellSection = "market" | "portfolio" | "wallet" | "profile";
 
 export type ShellTabId = "market" | "portfolio" | "assistant" | "favorites" | "wallet";

@@ -3,6 +3,7 @@
 import Link from "next/link";
 
 import { AccountSwitch } from "@/components/app-shell/account-switch";
+import { CurrencySwitch } from "@/components/app-shell/currency-switch";
 import { Avatar } from "@/components/ui/avatar";
 import { Card } from "@/components/ui/card";
 import { ErrorState } from "@/components/ui/error-state";
@@ -136,6 +137,10 @@ export function ProfileScreen({ version }: { version: string }) {
         </div>
       </Card>
       <Card className="flex flex-col gap-4 p-4 md:p-6">
+        <div className="flex items-center justify-between gap-3 lg:hidden">
+          <span className="text-sm text-fg">{t.shell.currencyLabel}</span>
+          <CurrencySwitch />
+        </div>
         <AccountSwitch mode={account.mode} onChange={account.select} />
         {account.mode === "demo" ? (
           <div>

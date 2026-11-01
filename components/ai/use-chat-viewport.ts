@@ -20,7 +20,7 @@ export function useChatViewport(panelRef: RefObject<HTMLElement | null>) {
       const offsetTop = vv?.offsetTop ?? 0;
       const height = vv?.height ?? window.innerHeight;
       const keyboard = Math.max(0, window.innerHeight - offsetTop - height);
-      const header = desktop ? 0 : headerHeight(panel);
+      const header = 0; // sin barra superior: el chat ocupa todo el alto y deja espacio al cluster flotante
       const left = desktop ? asideWidth(panel) : 0;
       const tabs = desktop || keyboard > 80 ? 0 : tabsHeight();
       panel.style.top = `${offsetTop}px`;
@@ -39,9 +39,7 @@ export function useChatViewport(panelRef: RefObject<HTMLElement | null>) {
     const query = window.matchMedia("(min-width: 1024px)");
     query.addEventListener("change", apply);
     const observer = new ResizeObserver(apply);
-    const header = chromeHeader(panel);
     const aside = chromeAside(panel);
-    if (header) observer.observe(header);
     if (aside) observer.observe(aside);
 
     return () => {
@@ -55,24 +53,11 @@ export function useChatViewport(panelRef: RefObject<HTMLElement | null>) {
   }, [panelRef]);
 }
 
-function chromeHeader(panel: HTMLElement): HTMLElement | null {
-  for (const header of document.querySelectorAll("header")) {
-    if (!panel.contains(header)) return header;
-  }
-  return null;
-}
-
 function chromeAside(panel: HTMLElement): HTMLElement | null {
   for (const aside of document.querySelectorAll("aside")) {
     if (!panel.contains(aside)) return aside;
   }
   return null;
-}
-
-function headerHeight(panel: HTMLElement): number {
-  const header = chromeHeader(panel);
-  if (!header) return 0;
-  return Math.max(0, header.getBoundingClientRect().height);
 }
 
 function asideWidth(panel: HTMLElement): number {

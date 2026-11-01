@@ -1,22 +1,25 @@
 "use client";
 
-import { useEffect, useRef, useState, type CSSProperties, type RefObject } from "react";
+import { useEffect, useRef, type CSSProperties, type RefObject } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import "./liquid-glass.css";
 
 import {
+  AI_DOCK_SLOT_ID,
   activeMobileTab,
   mobileTabs,
-  nextTabBarHidden,
   shellTabLabel,
 } from "@/components/app-shell/nav";
-import { IconStar } from "@/components/ui/icons";
+import { IconBack, IconStar } from "@/components/ui/icons";
 import { cn } from "@/lib/cn";
 import { useT } from "@/lib/hooks/use-t";
 
-/** Publica el alto en reposo (sin el translate del scroll) para la barra de compra y los toasts. */
+/**
+ * Publica el alto de la barra (o del dock de IA) para la barra de compra, los toasts
+ * y el padding del contenido. El ResizeObserver lo actualiza cuadro a cuadro durante el morph.
+ */
 function useTabsHeight(ref: RefObject<HTMLElement | null>) {
   useEffect(() => {
     const root = document.documentElement;
@@ -44,62 +47,17 @@ function useTabsHeight(ref: RefObject<HTMLElement | null>) {
   }, [ref]);
 }
 
-/** Se esconde al bajar y vuelve al subir. El foco dentro de la barra la deja fija. */
-function useTabBarHidden(pathname: string, pinned: boolean): boolean {
-  const [state, setState] = useState({ path: pathname, hidden: false });
-  const previous = useRef(0);
-  const generation = useRef(0);
-
-  if (state.path !== pathname) {
-    setState({ path: pathname, hidden: false });
-  }
-
-  useEffect(() => {
-    generation.current += 1;
-    previous.current = window.scrollY || 0;
-  }, [pathname]);
-
-  useEffect(() => {
-    previous.current = window.scrollY || 0;
-    let frame = 0;
-    let frameGeneration = 0;
-    const onScroll = () => {
-      if (frame) return;
-      frameGeneration = generation.current;
-      frame = window.requestAnimationFrame(() => {
-        frame = 0;
-        if (frameGeneration !== generation.current) return;
-        const nextY = window.scrollY || document.documentElement.scrollTop || 0;
-        const from = previous.current;
-        previous.current = nextY;
-        setState((current) => {
-          const next = nextTabBarHidden(current.hidden, from, nextY);
-          if (next === current.hidden) return current;
-          return { path: current.path, hidden: next };
-        });
-      });
-    };
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => {
-      window.removeEventListener("scroll", onScroll);
-      if (frame) window.cancelAnimationFrame(frame);
-    };
-  }, []);
-
-  const hidden = state.path === pathname ? state.hidden : false;
-  return pinned ? false : hidden;
-}
-
+/**
+ * Barra inferior fija: sin transform por scroll, sin ocultarse nunca.
+ * En /app/asistente el mismo vidrio se transforma (morph) en el dock del chat.
+ */
 export function BottomTabs() {
   const pathname = usePathname();
   const { t, language } = useT();
   const navRef = useRef<HTMLElement>(null);
-  const [pinned, setPinned] = useState(false);
   const assistantRoute =
     pathname === "/app/asistente" || pathname.startsWith("/app/asistente/");
   const mode = assistantRoute ? "composer" : "nav";
-  // Anclado: pasar `true` deja el óvalo fijo. Un scroll corto no lo esconde.
-  const hidden = useTabBarHidden(pathname, true);
   const activeIndex = activeMobileTab(pathname);
   useTabsHeight(navRef);
 
@@ -108,15 +66,9 @@ export function BottomTabs() {
       ref={navRef}
       role="navigation"
       aria-label={t.nav.label}
-      data-hidden={hidden && !pinned ? "true" : "false"}
+      data-hidden="false" /* Barra fija sin oscilaciones de nextTabBarHidden */
       data-mode={mode}
       data-assistant={assistantRoute ? "true" : "false"}
-      onFocus={() => setPinned(true)}
-      onBlur={(event) => {
-        const next = event.relatedTarget;
-        if (next instanceof Node && event.currentTarget.contains(next)) return;
-        setPinned(false);
-      }}
       className="liquid-nav pointer-events-none fixed inset-x-0 bottom-0 z-30 flex justify-center px-4 pb-[calc(0.875rem+env(safe-area-inset-bottom))] md:hidden"
     >
       <div
@@ -126,7 +78,7 @@ export function BottomTabs() {
       >
         <span
           className="liquid-glass__pill"
-          data-hidden={activeIndex < 0 ? "true" : undefined}
+          data-hidden={activeIndex < 0 || assistantRoute ? "true" : undefined}
           style={{ "--tab-index": activeIndex < 0 ? 0 : activeIndex } as CSSProperties}
           aria-hidden="true"
         />
@@ -141,24 +93,44 @@ export function BottomTabs() {
                 <Link
                   href={item.href}
                   aria-current={active ? "page" : undefined}
+                  aria-label={center ? label : undefined}
                   data-state={active ? "active" : "inactive"}
+                  tabIndex={assistantRoute ? -1 : undefined}
                   className={cn("liquid-tab", center && "liquid-tab--center")}
                 >
                   {center ? (
-                    <span className="liquid-tab__mark" aria-hidden="true">
-                      <Icon className="liquid-tab__icon" />
-                    </span>
-                  ) : item.id === "favorites" ? (
-                    <IconStar filled={active} className="liquid-tab__icon" />
+                    <>
+                      <span className="liquid-tab__ai" aria-hidden="true">
+                        AI
+                      </span>
+                      <span className="sr-only">{label}</span>
+                    </>
                   ) : (
-                    <Icon className="liquid-tab__icon" />
+                    <>
+                      {item.id === "favorites" ? (
+                        <IconStar filled={active} className="liquid-tab__icon" />
+                      ) : (
+                        <Icon className="liquid-tab__icon" />
+                      )}
+                      <span className="liquid-tab__label">{label}</span>
+                    </>
                   )}
-                  <span className="liquid-tab__label">{label}</span>
                 </Link>
               </li>
             );
           })}
         </ul>
+        <div className="liquid-glass__dockwrap">
+          <Link
+            href="/app"
+            aria-label={language === "en" ? "Back to market" : "Volver al mercado"}
+            tabIndex={assistantRoute ? undefined : -1}
+            className="liquid-glass__back"
+          >
+            <IconBack className="size-4" />
+          </Link>
+          <div id={AI_DOCK_SLOT_ID} className="liquid-glass__dock" />
+        </div>
       </div>
     </nav>
   );

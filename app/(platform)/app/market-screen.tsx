@@ -289,6 +289,7 @@ export function MarketScreen({
     [symbolsByPage],
   );
   const priceQueries = useQueries({ queries: priceQueryOptions });
+  // Optimización paralela: priceQueries[index]?.data
   const quotesBySymbol = (() => {
     const map = new Map<string, Quote>();
     for (const query of priceQueries) {

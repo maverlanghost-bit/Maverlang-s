@@ -9,26 +9,28 @@ function readRepoFile(relPath: string): string {
 }
 
 describe("UI Shell & Mobile Broker Header (x.ai/bot light aesthetic)", () => {
-  it("TopBar móvil no renderiza el logo ancho BrandMark y muestra título contextual + CurrencySwitch + buscador", () => {
+  it("TopBar móvil es un cluster flotante Liquid Glass (avatar + buscador), sin barra ancha ni título", () => {
     const src = readRepoFile("components/app-shell/top-bar.tsx");
     expect(src).not.toContain("<BrandMark");
-    expect(src).toContain("sectionTitle");
-    expect(src).toContain("CurrencySwitch");
+    expect(src).not.toContain("<header");
+    expect(src).not.toContain("sectionTitle");
+    expect(src).not.toContain("CurrencySwitch");
+    expect(src).toContain("fixed");
+    expect(src).toContain("env(safe-area-inset-top)");
+    expect(src).toContain("liquid-glass--chip");
     expect(src).toContain("StockSearchButton");
-    expect(src).toContain("backdrop-blur-xl");
-    expect(src).toContain("border-border/70");
+    expect(src).toContain("lg:hidden");
+    expect(src).toContain("/app/perfil");
   });
 
-  it("TopBar resuelve títulos contextuales para mercado, cartera, billetera, perfil, ajustes y ficha de acción", () => {
-    const src = readRepoFile("components/app-shell/top-bar.tsx");
-    expect(src).toContain("/^\\/app\\/accion\\/([^/]+)/");
-    expect(src).toContain("t.nav.market");
-    expect(src).toContain("t.nav.portfolio");
-    expect(src).toContain("t.nav.wallet");
-    expect(src).toContain("t.nav.profile");
-    expect(src).toContain("t.nav.settings");
+  it("El chip flotante tiene estilos Liquid Glass al final de liquid-glass.css y CurrencySwitch vive en el perfil", () => {
+    const css = readRepoFile("components/app-shell/liquid-glass.css");
+    expect(css).toContain("/* === floating chips (Agent C) === */");
+    expect(css).toContain(".liquid-glass--chip");
+    expect(css).toContain("backdrop-filter");
+    expect(readRepoFile("components/app-shell/stock-search.tsx")).toContain('"chip"');
+    expect(readRepoFile("app/(platform)/app/perfil/profile-screen.tsx")).toContain("CurrencySwitch");
   });
-
   it("PublicHeader usa BrandMark con compactOnMobile en móvil y acabado translúcido", () => {
     const src = readRepoFile("components/app-shell/public-header.tsx");
     expect(src).toContain("<BrandMark compactOnMobile");

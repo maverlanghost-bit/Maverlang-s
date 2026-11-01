@@ -9,6 +9,7 @@ import { PublicHeader } from "@/components/app-shell/public-header";
 import { Sidebar } from "@/components/app-shell/sidebar";
 import { StockSearchRoot } from "@/components/app-shell/stock-search";
 import { TopBar } from "@/components/app-shell/top-bar";
+import { cn } from "@/lib/cn";
 import { serializeSidebarCookie } from "@/lib/app-shell/sidebar";
 import { useAccountMode } from "@/lib/hooks/use-account-mode";
 import { useT } from "@/lib/hooks/use-t";
@@ -72,6 +73,8 @@ function ShellFrame({
   const { t, language } = useT();
   const [collapsed, setCollapsed] = useState(sidebarCollapsed);
   const account = useAccountMode(accountInitial);
+  const pathname = usePathname();
+  const assistantRoute = pathname === "/app/asistente" || pathname.startsWith("/app/asistente/");
   const toggleSidebar = useCallback(() => {
     setCollapsed((previous) => {
       const next = !previous;
@@ -95,7 +98,7 @@ function ShellFrame({
           <Sidebar collapsed={collapsed} onToggle={toggleSidebar} accountMode={account.mode} onAccountChange={account.select} />
           <div className="flex min-h-dvh min-w-0 flex-col">
             <TopBar accountMode={account.mode} />
-            <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col px-4 pt-4 pb-[var(--app-tabs-height)] sm:px-5 sm:pt-6 lg:px-8 lg:pb-0 lg:pt-8">
+            <div className={cn("mx-auto flex w-full max-w-6xl flex-1 flex-col px-4 pb-[var(--app-tabs-height)] sm:px-5 lg:px-8 lg:pb-0 lg:pt-8", assistantRoute ? "pt-0" : "pt-[calc(env(safe-area-inset-top)+4.25rem)]")}>
               <main id="contenido" tabIndex={-1} className="flex-1 scroll-mt-16 outline-none">
                 {children}
               </main>
