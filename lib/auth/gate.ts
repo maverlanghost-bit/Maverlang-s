@@ -4,10 +4,12 @@ import {
   AUTH_STAY_PARAM,
   isCredentialPath,
   isIngresarPath,
+  isMfaVerifyPath,
   isOnboardingPath,
   isPasswordFlowPath,
   isPublicAppPath,
   isRegistroPath,
+  MFA_VERIFY_PATH,
   safeNextPath,
   splitPath,
 } from "@/lib/auth/paths";
@@ -47,6 +49,12 @@ export type GateInput = {
    * o perfil completo antiguo). Si no se informa, vale `supabaseOnboarded`.
    */
   supabaseDemoReady?: boolean;
+  /**
+   * MFA (auditoría 2026-11): sesión `aal1` con factor TOTP verificado.
+   * Fail-closed: en modo Supabase, si no se informa se considera pendiente.
+   * El middleware lo calcula con los claims y `getUser`; los tests lo fijan.
+   */
+  supabaseMfaRequired?: boolean;
 };
 
 export type GateDecision =
@@ -129,14 +137,29 @@ function isAceptarPath(pathname: string): boolean {
   return pathname === "/app/aceptar" || pathname.startsWith("/app/aceptar/");
 }
 
-/** M57b: el TOTP vive bajo el ingreso y necesita la sesión `aal1` para subir a `aal2`. */
-function isMfaVerifyPath(pathname: string): boolean {
-  return pathname === "/app/ingresar/verificar" || pathname.startsWith("/app/ingresar/verificar/");
+/**
+ * Rutas que exigen haber pasado el TOTP cuando hay un factor verificado.
+ * Quedan abiertas la verificación, la recuperación de contraseña y las rutas
+ * públicas del mercado/ajustes. El ingreso y el registro con sesión también
+ * esperan: no aportan nada a una sesión `aal1` pendiente.
+ */
+export function requiresMfaStepPath(pathname: string): boolean {
+  if (!isAppPath(pathname)) return false;
+  if (isMfaVerifyPath(pathname)) return false;
+  if (isPublicAppPath(pathname)) return false;
+  if (isPasswordFlowPath(pathname)) return false;
+  return true;
 }
 
 function redirectTo(path: string): GateDecision {
   const target = splitPath(path);
   return { kind: "redirect", pathname: target.pathname, search: target.search };
+}
+
+function mfaRedirect(pathname: string, search: string): GateDecision {
+  const params = new URLSearchParams();
+  params.set("next", safeNextPath(`${pathname}${search}`) ?? "/app");
+  return { kind: "redirect", pathname: MFA_VERIFY_PATH, search: `?${params.toString()}` };
 }
 
 function loginRedirect(pathname: string, search: string): GateDecision {
@@ -204,6 +227,14 @@ export function decideGate(input: GateInput): GateDecision {
   if (!hasSession) {
     if (isCredentialPath(input.pathname) || isPublic) return NEXT;
     return loginRedirect(input.pathname, input.search);
+  }
+
+  // Auditoría 2026-11: una sesión `aal1` con TOTP verificado no entra a rutas
+  // privadas hasta confirmar el código. Fail-closed si el middleware no pudo
+  // leer el nivel (se informa `undefined`).
+  const mfaRequired = input.useSupabase && (input.supabaseMfaRequired ?? true);
+  if (mfaRequired && requiresMfaStepPath(input.pathname)) {
+    return mfaRedirect(input.pathname, input.search);
   }
 
   // M43: en supabase manda la aceptación mínima (demoReady), no el perfil completo.

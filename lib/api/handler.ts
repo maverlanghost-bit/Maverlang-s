@@ -15,7 +15,6 @@ import {
   type ApiResult,
 } from "@/lib/api/result";
 import { requestAccountMode } from "@/lib/account/server";
-import { DEMO_WALLET_ADDRESS } from "@/lib/auth/demo-user";
 import { isSupabaseAuth } from "@/lib/auth/mode";
 import { serverEnv } from "@/lib/env";
 import { isCatalogSymbol } from "@/lib/catalog/symbol";
@@ -318,10 +317,10 @@ export function requireCronSecret(req: Request): void {
 
 export function requireWallet(session: Session): string {
   if (session.walletAddress) return session.walletAddress;
-  // La cartera real no está asociada al usuario. Con datos mock se sirve la demo.
-  const dataMode = process.env.DATA_MODE?.trim() || "mock";
-  if (dataMode !== "live" && isSupabaseAuth()) return DEMO_WALLET_ADDRESS;
-  throw new DomainError("VALIDATION", "Falta la billetera.");
+  // Falla cerrado: sin billetera verificada en la sesión no se usa la demo ni
+  // ninguna dirección implícita. La demo tiene su rama explícita (por usuario)
+  // en cada ruta; una cuenta real nunca hereda la billetera demo.
+  throw new DomainError("VALIDATION", "Falta la billetera verificada de tu cuenta.");
 }
 
 /** Símbolo con el que se puede operar (allowlist dinámica, M54). Si no → MINT_NOT_ALLOWED. */

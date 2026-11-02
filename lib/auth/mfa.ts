@@ -2,11 +2,12 @@
 
 import { site } from "@/config/site";
 import { classifyLoginError } from "@/lib/auth/login-errors";
-import { safeNextPath } from "@/lib/auth/paths";
+import { mfaStepFromLevels } from "@/lib/auth/mfa-policy";
+import { MFA_VERIFY_PATH, safeNextPath } from "@/lib/auth/paths";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
 /** Segundo paso TOTP. El gate deja pasar esta ruta con la sesión `aal1`. */
-export const MFA_VERIFY_PATH = "/app/ingresar/verificar";
+export { MFA_VERIFY_PATH };
 
 const BAD_CODE = "Código incorrecto o vencido. Intenta con el código nuevo de tu app";
 
@@ -16,6 +17,7 @@ const MESSAGES = {
   rate: "Demasiados intentos. Espera un rato e inténtalo de nuevo.",
   unavailable: "La verificación en dos pasos no está disponible en este entorno.",
   aal: "Confirma el código de tu app antes de desactivar.",
+  enroll_aal: "Confirma el código de tu app antes de agregar otro método.",
   generic: "No pudimos completar la acción. Inténtalo otra vez.",
 } as const;
 
@@ -127,16 +129,23 @@ export function totpQrSrc(qrCode: string): string {
   return "";
 }
 
-/** `true` sólo si falta el segundo factor: la sesión está en `aal1` y el siguiente nivel es `aal2`. */
+/**
+ * `true` sólo si falta el segundo factor: la sesión está en `aal1` y el
+ * siguiente nivel es `aal2`.
+ *
+ * Fail-closed: si Supabase no responde o devuelve niveles ilegibles, se pide
+ * el código. La pantalla de verificación muestra el error y permite reintentar
+ * o salir; nunca se deja pasar una sesión sin comprobar.
+ */
 export async function needsMfaStep(): Promise<boolean> {
+  const supabase = getClient();
+  if (!supabase) return false;
   try {
-    const supabase = getClient();
-    if (!supabase) return false;
     const { data, error } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
-    if (error || !data) return false;
-    return data.nextLevel === "aal2" && data.currentLevel === "aal1";
+    if (error) return true;
+    return mfaStepFromLevels(data);
   } catch {
-    return false;
+    return true;
   }
 }
 
@@ -163,6 +172,11 @@ export async function enrollTotp(): Promise<{ ok: true; enrollment: TotpEnrollme
   try {
     const supabase = getClient();
     if (!supabase) return failure("unavailable");
+    // Un factor nuevo no puede convertirse en la puerta de atrás del segundo
+    // paso: si ya hay TOTP verificado y la sesión sigue en aal1, primero se
+    // confirma el código actual. Sin factor verificado (enrolamiento inicial)
+    // no hay paso pendiente y se permite.
+    if (await needsMfaStep()) return failure("enroll_aal");
     const listed = await supabase.auth.mfa.listFactors();
     if (listed.error || !listed.data) return listed.error ? failureFrom(listed.error) : failure("generic");
     for (const factor of listed.data.all ?? []) {

@@ -5,6 +5,7 @@ import { DomainError } from "@/lib/api/result";
 import { apiOperateBlock } from "@/lib/compliance/real-quote";
 import { withRateLimit } from "@/lib/security/rate-limit";
 import { getServices } from "@/lib/services";
+import { requireSessionWalletMatch } from "@/lib/wallet/identity";
 
 export const runtime = "nodejs";
 
@@ -26,7 +27,13 @@ export function POST(req: Request) {
     const body = await parseJson(req, onrampSessionRequestSchema);
     const userLimited = await withRateLimit(req, "trade", [session.userId]);
     if (userLimited) return userLimited;
-    const data = await callService(req, () => services.onramp.createSession(body, session.userId));
+    // La dirección del cuerpo sólo se acepta si ES la billetera verificada de
+    // la sesión (texto exacto, base58 distingue mayúsculas). Si no hay
+    // billetera verificada, no se crea la sesión de depósito.
+    const walletAddress = requireSessionWalletMatch(session.walletAddress, body.walletAddress);
+    const data = await callService(req, () =>
+      services.onramp.createSession({ ...body, walletAddress }, session.userId),
+    );
     return readOutput(onrampSessionSchema, data);
   });
 }

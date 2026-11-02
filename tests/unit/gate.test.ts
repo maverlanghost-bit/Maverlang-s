@@ -17,6 +17,8 @@ const base: GateInput = {
   useSupabase: false,
   supabaseSession: false,
   supabaseOnboarded: false,
+  // Estos tests no ejercitan MFA: el chequeo del gate va aparte en mfa.test.
+  supabaseMfaRequired: false,
 };
 
 function gate(overrides: Partial<GateInput> = {}) {

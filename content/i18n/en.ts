@@ -635,6 +635,7 @@ export const en = {
       rate: "Too many attempts. Wait a moment and try again.",
       unavailable: "Two-step verification isn't available in this environment.",
       aal: "Confirm the code from your app before turning it off.",
+      enroll_aal: "Confirm the code from your app before adding another method.",
       generic: "We couldn't finish that. Try again.",
     },
   },

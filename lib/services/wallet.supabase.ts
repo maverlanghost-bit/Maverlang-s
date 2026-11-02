@@ -8,6 +8,13 @@ import { serverEnv } from "@/lib/env";
 import { isValidSolanaAddress } from "@/lib/solana/address";
 import { fetchPrivySolanaWallet, verifyPrivyAccessToken } from "@/lib/services/auth.privy";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { isMissingSchemaError } from "@/lib/supabase/schema-error";
+import {
+  planPrivyWalletBinding,
+  PRIVY_BINDING_MIGRATION,
+  PRIVY_DID_PREFIX,
+  type WalletBindingRow,
+} from "@/lib/wallet/identity";
 
 /**
  * M66: billeteras Solana verificadas por usuario (`public.wallets`).
@@ -24,6 +31,12 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
  * propio token de Privy. No se deduce ni se cruza por correo, nombre ni ningún
  * otro dato: si no hay token verificable o falta configuración, se falla
  * cerrado. Una dirección ya vinculada a otra cuenta no se reasigna.
+ *
+ * Desde 0040 el DID verificado (`did:privy:…`) se guarda en
+ * `wallets.privy_user_id` con índice único. Eso convierte la asociación en
+ * algo persistente y auditable: un DID pertenece a una sola cuenta Supabase y
+ * una cuenta no puede alternar de DID. Si la columna no existe, la vinculación
+ * real falla cerrada; la demo en memoria sigue igual.
  */
 
 /** URL histórica; el endpoint real por usuario se construye en `auth.privy.ts`. */
@@ -36,6 +49,8 @@ export interface VerifiedSolanaWallet {
   chain: "solana";
   walletClientType: WalletClientType;
   privyWalletId: string | null;
+  /** DID de Privy que demostró poseer la billetera; `null` en la demo. */
+  privyUserId: string | null;
   /** `privy` = verificada contra la API; `mock` = demo determinista. */
   source: "privy" | "mock";
 }
@@ -110,7 +125,14 @@ function mockSolanaWallet(userId: string): VerifiedSolanaWallet {
     // Inalcanzable con el encoder probado; si algún día cambia, falla ruidoso.
     throw new DomainError("INTERNAL");
   }
-  return { address, chain: "solana", walletClientType: "privy", privyWalletId: null, source: "mock" };
+  return {
+    address,
+    chain: "solana",
+    walletClientType: "privy",
+    privyWalletId: null,
+    privyUserId: null,
+    source: "mock",
+  };
 }
 
 function resolvePrivyConfig(params: PrivyWalletVerifyParams): { appId: string; appSecret: string } | null {
@@ -193,6 +215,7 @@ export async function verifyPrivySolanaWallet(
     chain: "solana",
     walletClientType: linked.walletClientType,
     privyWalletId: linked.privyWalletId,
+    privyUserId: claims.userId,
     source: "privy",
   };
 }
@@ -254,91 +277,184 @@ async function persistMockWallet(userId: string, wallet: VerifiedSolanaWallet): 
 const WALLET_COLUMNS =
   "user_id,chain,address,privy_wallet_id,wallet_client_type,is_primary,verified_at,created_at";
 
+type BindingQueryError = { code?: string; message?: string } | null;
+
+interface WalletWriteResult {
+  data: unknown;
+  error: BindingQueryError;
+}
+
+interface WalletBindingState {
+  byPrivyUser: WalletBindingRow | null;
+  byAddress: WalletBindingRow | null;
+  userRows: WalletBindingRow[];
+}
+
+/**
+ * La migración 0040 es requisito para vincular en real. Si todavía no está
+ * aplicada, se falla cerrado con un mensaje explícito en vez de guardar una
+ * billetera sin identidad demostrable.
+ */
+function throwBindingQueryError(error: BindingQueryError): void {
+  if (!error) return;
+  if (isMissingSchemaError(error)) {
+    throw new DomainError(
+      "UPSTREAM",
+      `No se puede verificar la identidad de la billetera: falta la migración ${PRIVY_BINDING_MIGRATION} en Supabase.`,
+    );
+  }
+  throw new DomainError("INTERNAL");
+}
+
+function bindingRowOf(data: unknown): WalletBindingRow | null {
+  if (data === null || data === undefined) return null;
+  if (typeof data !== "object") throw new DomainError("INTERNAL");
+  const row = data as Record<string, unknown>;
+  const userId = typeof row.user_id === "string" ? row.user_id : "";
+  const address = typeof row.address === "string" ? row.address : "";
+  if (userId === "" || address === "") throw new DomainError("INTERNAL");
+  const privyUserId =
+    typeof row.privy_user_id === "string" && row.privy_user_id.trim() !== ""
+      ? row.privy_user_id.trim()
+      : null;
+  return { userId, address, privyUserId };
+}
+
+function bindingRowsOf(data: unknown): WalletBindingRow[] {
+  if (!Array.isArray(data)) throw new DomainError("INTERNAL");
+  return data
+    .map((row) => bindingRowOf(row))
+    .filter((row): row is WalletBindingRow => row !== null);
+}
+
+async function readWalletBindingState(
+  admin: ReturnType<typeof adminWalletClient>,
+  userId: string,
+  address: string,
+  privyUserId: string,
+): Promise<WalletBindingState> {
+  const [byPrivy, byAddress, userRows] = await Promise.all([
+    admin
+      .from("wallets")
+      .select("user_id,address,privy_user_id")
+      .eq("privy_user_id", privyUserId)
+      .maybeSingle(),
+    admin
+      .from("wallets")
+      .select("user_id,address,privy_user_id")
+      .eq("chain", "solana")
+      .eq("address", address)
+      .maybeSingle(),
+    admin.from("wallets").select("user_id,address,privy_user_id").eq("user_id", userId),
+  ]);
+  throwBindingQueryError(byPrivy.error);
+  throwBindingQueryError(byAddress.error);
+  throwBindingQueryError(userRows.error);
+  return {
+    byPrivyUser: bindingRowOf(byPrivy.data),
+    byAddress: bindingRowOf(byAddress.data),
+    userRows: bindingRowsOf(userRows.data),
+  };
+}
+
+async function writeWalletBinding(
+  admin: ReturnType<typeof adminWalletClient>,
+  action: "insert" | "update" | "move",
+  params: {
+    userId: string;
+    address: string;
+    privyUserId: string;
+    values: Record<string, unknown>;
+  },
+): Promise<WalletWriteResult> {
+  if (action === "insert") {
+    const query = admin
+      .from("wallets")
+      .insert({
+        user_id: params.userId,
+        chain: "solana",
+        address: params.address,
+        ...params.values,
+        is_primary: false,
+      })
+      .select(WALLET_COLUMNS)
+      .single();
+    return (await query) as unknown as WalletWriteResult;
+  }
+  if (action === "move") {
+    // Mismo DID, dirección nueva: se mueve la fila existente (no se crea una
+    // segunda identidad). La comparación de la dirección es exacta.
+    const query = admin
+      .from("wallets")
+      .update({ ...params.values, address: params.address })
+      .eq("user_id", params.userId)
+      .eq("chain", "solana")
+      .eq("privy_user_id", params.privyUserId)
+      .select(WALLET_COLUMNS)
+      .single();
+    return (await query) as unknown as WalletWriteResult;
+  }
+  const query = admin
+    .from("wallets")
+    .update(params.values)
+    .eq("user_id", params.userId)
+    .eq("chain", "solana")
+    .eq("address", params.address)
+    .select(WALLET_COLUMNS)
+    .single();
+  return (await query) as unknown as WalletWriteResult;
+}
+
 async function persistSupabaseWallet(
   userId: string,
   wallet: VerifiedSolanaWallet,
 ): Promise<StoredWallet> {
-  const admin = adminWalletClient();
-  const now = new Date().toISOString();
-
-  // Unicidad por (chain, address): nunca se reasigna una billetera de otra cuenta.
-  const { data: existing, error: existingError } = await admin
-    .from("wallets")
-    .select("user_id")
-    .eq("chain", wallet.chain)
-    .eq("address", wallet.address)
-    .maybeSingle();
-  if (existingError) throw new DomainError("INTERNAL");
-  const owner =
-    existing && typeof (existing as Record<string, unknown>).user_id === "string"
-      ? ((existing as Record<string, unknown>).user_id as string)
-      : null;
-  if (owner !== null && owner !== userId) {
-    throw new DomainError("VALIDATION", "Esa billetera ya está vinculada a otra cuenta.");
+  const privyUserId = wallet.privyUserId?.trim() ?? "";
+  if (wallet.source !== "privy" || !privyUserId.startsWith(PRIVY_DID_PREFIX)) {
+    throw new DomainError(
+      "UPSTREAM",
+      "No se puede guardar la billetera sin una identidad de Privy verificada.",
+    );
   }
 
+  const admin = adminWalletClient();
+  const now = new Date().toISOString();
+  const address = wallet.address.trim();
   const values = {
     privy_wallet_id: wallet.privyWalletId,
+    privy_user_id: privyUserId,
     wallet_client_type: wallet.walletClientType,
     verified_at: now,
     updated_at: now,
   };
 
-  // Se inserta SIN primaria: si el `unique (chain, address)` choca con una
-  // fila de otra cuenta, no se toca nada. El `upsert` anterior podía cambiar
-  // el `user_id` de la fila existente y "robar" la billetera en una carrera.
-  if (owner === null) {
-    const inserted = await admin
-      .from("wallets")
-      .insert({
-        user_id: userId,
-        chain: wallet.chain,
-        address: wallet.address,
-        ...values,
-        is_primary: false,
-      })
-      .select(WALLET_COLUMNS)
-      .single();
-    if (inserted.error || !inserted.data) {
-      // 23505 = unique_violation: otra request la vinculó entre el SELECT y el INSERT.
-      if (inserted.error?.code === "23505") {
-        const raced = await admin
-          .from("wallets")
-          .select("user_id")
-          .eq("chain", wallet.chain)
-          .eq("address", wallet.address)
-          .maybeSingle();
-        const racedOwner =
-          raced.data && typeof (raced.data as Record<string, unknown>).user_id === "string"
-            ? ((raced.data as Record<string, unknown>).user_id as string)
-            : null;
-        if (racedOwner !== userId) {
-          throw new DomainError("VALIDATION", "Esa billetera ya está vinculada a otra cuenta.");
-        }
-        const updated = await admin
-          .from("wallets")
-          .update(values)
-          .eq("user_id", userId)
-          .eq("chain", wallet.chain)
-          .eq("address", wallet.address)
-          .select(WALLET_COLUMNS)
-          .single();
-        if (updated.error || !updated.data) throw new DomainError("INTERNAL");
-      } else {
-        throw new DomainError("INTERNAL");
-      }
+  let saved: Record<string, unknown> | null = null;
+  // Dos intentos: si otra request gana la carrera del índice único, se relee
+  // el estado y se vuelve a decidir. Nunca se reasigna a otro dueño.
+  for (let attempt = 0; attempt < 2 && saved === null; attempt += 1) {
+    const state = await readWalletBindingState(admin, userId, address, privyUserId);
+    const action = planPrivyWalletBinding({
+      userId,
+      privyUserId,
+      address,
+      ...state,
+    });
+    const result = await writeWalletBinding(admin, action, {
+      userId,
+      address,
+      privyUserId,
+      values,
+    });
+    if (!result.error && result.data) {
+      saved = result.data as Record<string, unknown>;
+      break;
     }
-  } else {
-    const updated = await admin
-      .from("wallets")
-      .update(values)
-      .eq("user_id", userId)
-      .eq("chain", wallet.chain)
-      .eq("address", wallet.address)
-      .select(WALLET_COLUMNS)
-      .single();
-    if (updated.error || !updated.data) throw new DomainError("INTERNAL");
+    // 23505 = unique_violation: DID o dirección tomados entre la lectura y la
+    // escritura. Sólo es reintentable; la próxima lectura decide con datos
+    // frescos y rechaza si el dueño es otra cuenta.
+    if (result.error?.code !== "23505") throw new DomainError("INTERNAL");
   }
+  if (saved === null) throw new DomainError("INTERNAL");
 
   // Sólo una primaria por usuario y cadena: se desmarcan las demás primero.
   const cleared = await admin
@@ -347,7 +463,7 @@ async function persistSupabaseWallet(
     .eq("user_id", userId)
     .eq("chain", wallet.chain)
     .eq("is_primary", true)
-    .neq("address", wallet.address);
+    .neq("address", address);
   if (cleared.error) throw new DomainError("INTERNAL");
 
   const primary = await admin
@@ -355,7 +471,7 @@ async function persistSupabaseWallet(
     .update({ is_primary: true, updated_at: now })
     .eq("user_id", userId)
     .eq("chain", wallet.chain)
-    .eq("address", wallet.address)
+    .eq("address", address)
     .select(WALLET_COLUMNS)
     .single();
   if (primary.error || !primary.data) throw new DomainError("INTERNAL");
@@ -377,7 +493,15 @@ export async function syncVerifiedPrivyWallet(params: PrivyWalletSyncParams): Pr
   return persistVerifiedWallet(params.userId, verified);
 }
 
-/** Billeteras verificadas del usuario. La primaria queda primero en demo. */
+/**
+ * Billeteras verificadas del usuario. La primaria queda primero en demo.
+ *
+ * En el store real sólo cuentan las filas con un DID de Privy persistido
+ * (0040): una fila antigua sin DID no demuestra qué identidad la vinculó y,
+ * por lo tanto, no se expone ni se usa como billetera verificada. Esas filas
+ * requieren volver a sincronizar. Si falta la columna, la lectura devuelve
+ * vacío (fail-closed), nunca una billetera sin identidad demostrable.
+ */
 export async function getUserWallets(userId: string): Promise<StoredWallet[]> {
   if (!usesLiveWalletStore()) {
     return [...(mockWalletStore.get(userId) ?? [])].sort(
@@ -388,11 +512,18 @@ export async function getUserWallets(userId: string): Promise<StoredWallet[]> {
     const admin = createSupabaseAdminClient();
     const { data, error } = await admin
       .from("wallets")
-      .select("user_id,chain,address,privy_wallet_id,wallet_client_type,is_primary,verified_at,created_at")
+      .select(
+        "user_id,chain,address,privy_wallet_id,wallet_client_type,is_primary,verified_at,created_at,privy_user_id",
+      )
       .eq("user_id", userId)
       .order("created_at", { ascending: true });
     if (error || !data) return [];
-    return (data as Record<string, unknown>[]).map(walletRowOf);
+    return (data as Record<string, unknown>[])
+      .filter((row) => {
+        const did = typeof row.privy_user_id === "string" ? row.privy_user_id.trim() : "";
+        return did.startsWith(PRIVY_DID_PREFIX);
+      })
+      .map(walletRowOf);
   } catch {
     // Sin configuración de Supabase no hay billetera verificable: fail-closed.
     return [];

@@ -287,6 +287,16 @@ export interface ValidatedSponsorship {
   readonly userSignaturePresent: boolean;
 }
 
+/**
+ * Datos de una transacción ya validada, sin la marca de tipos. Sólo
+ * `validateSponsorTransaction` debe convertirlos a `ValidatedSponsorship`
+ * tras terminar todas las comprobaciones.
+ */
+export type ValidatedSponsorshipData = Omit<
+  ValidatedSponsorship,
+  typeof validatedSponsorshipBrand
+>;
+
 export interface SponsorSignInput {
   readonly transactionBase64: string;
   readonly sponsorFeePayer: string;

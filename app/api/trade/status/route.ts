@@ -12,7 +12,7 @@ import {
 import { withRateLimit } from "@/lib/security/rate-limit";
 import { getServices } from "@/lib/services";
 import { demoSupabase } from "@/lib/services/demo.supabase";
-import { assertRealTradingDataMode } from "@/lib/trade/real-guards";
+import { assertLiveEngineAccess, assertRealTradingDataMode } from "@/lib/trade/real-guards";
 import type { Order } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -27,7 +27,12 @@ export function GET(req: Request) {
     if (ipLimited) return ipLimited;
     const { id } = parseQuery(req, tradeStatusQuerySchema);
     const services = getServices();
-    if (isRealAccountRequest(req)) {
+    const realAccount = isRealAccountRequest(req);
+    const demoAccount = isUserDemoRequest(req);
+    // Auditoría 2026-11: con DATA_MODE=live, sin cuenta real de Supabase ni
+    // demo explícita no se lee el motor live (evita fuga de órdenes ajenas).
+    assertLiveEngineAccess(realAccount, demoAccount);
+    if (realAccount) {
       // M46: sólo el camino real se apaga (503 REAL_DISABLED). El camino
       // demo de abajo sigue igual.
       assertRealTradingEnabled();
@@ -42,7 +47,7 @@ export function GET(req: Request) {
       const data = await callService(req, () => status(id, session.userId));
       return readOutput(orderSchema, data);
     }
-    if (isUserDemoRequest(req)) {
+    if (demoAccount) {
       const session = await requireSession(services, req);
       const userLimited = await withRateLimit(req, "trade", [session.userId]);
       if (userLimited) return userLimited;

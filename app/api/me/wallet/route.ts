@@ -26,7 +26,30 @@ export const dynamic = "force-dynamic";
  * Con identidad Supabase se exige además el access token de Privy (header
  * `Authorization: Bearer` o cookie `privy-token`), verificado con firma ES256.
  * Sin token, sin clave de verificación o sin app secret no se vincula nada.
+ * El DID verificado se persiste en `wallets.privy_user_id` (0040): un DID no
+ * se puede reasignar a otra cuenta ni una cuenta puede cambiar de DID. Si la
+ * migración no está aplicada, el POST real falla cerrado y no guarda nada.
+ *
+ * BLOQUEO TEMPORAL (2026-11-02): con identidad Supabase el POST queda cerrado.
+ * La primera asociación de un DID de Privy sólo demuestra posesión simultánea
+ * de una sesión Supabase y de un token de Privy, no que ambas identidades sean
+ * la misma persona (TOFU). Mientras no exista una prueba verificable de esa
+ * correspondencia, este endpoint no vincula ni reasigna nada. El bloqueo cubre
+ * toda identidad Supabase (incluida `mv_account=demo`), porque la fila de
+ * `public.wallets` se comparte con la cuenta real y permitir la demo sería un
+ * bypass trivial. La demo en memoria (`AUTH_MODE=mock`) sigue funcionando.
+ * GET no cambia: sólo lee las billeteras ya vinculadas.
  */
+
+const WALLET_LINKING_LOCKED_MESSAGE =
+  "La vinculación de billetera está deshabilitada temporalmente. No se vinculó ni reasignó ninguna billetera.";
+
+/** Cierra el POST para toda identidad Supabase. Ver bloqueo temporal arriba. */
+function assertWalletLinkingOpen(): void {
+  if (isSupabaseAuth()) {
+    throw new DomainError("REAL_DISABLED", WALLET_LINKING_LOCKED_MESSAGE);
+  }
+}
 
 function walletsPayload(
   wallets: StoredWallet[],
@@ -52,6 +75,9 @@ export async function POST(req: Request) {
     assertSameOrigin(req);
     const services = getServices();
     const session = await requireSession(services, req);
+    // Bloqueo temporal cerrado: ninguna cuenta Supabase vincula ni reasigna.
+    // Se ejecuta antes de leer el cuerpo y de llamar a cualquier servicio.
+    assertWalletLinkingOpen();
     // Esquema estricto: cualquier `address` del cliente se rechaza con 400 y
     // jamás llega a la base. La guardada sale de la verificación en servidor.
     await parseJson(req, walletSyncRequestSchema);

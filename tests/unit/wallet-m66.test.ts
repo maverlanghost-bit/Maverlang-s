@@ -1,3 +1,4 @@
+import { generateKeyPairSync, sign as signJwt } from "node:crypto";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
@@ -12,7 +13,6 @@ import { DomainError } from "@/lib/api/result";
 import type { Services } from "@/lib/services";
 import {
   getUserWallets,
-  PRIVY_USERS_ME_URL,
   resetMockWalletsForTests,
   syncVerifiedPrivyWallet,
   verifyPrivySolanaWallet,
@@ -34,6 +34,39 @@ const ROOT = path.resolve(__dirname, "..", "..");
 /** Dirección Solana bien formada (programa del SOL envuelto). */
 const VALID_SOL = "So11111111111111111111111111111111111111112";
 const USER = "u-m66-wallet";
+const PRIVY_DID = "did:privy:test-wallet";
+
+/**
+ * Par de claves efímero para firmar los tokens de prueba. No se lee `.env` ni
+ * se usan credenciales reales: cada corrida genera su propia clave ES256.
+ */
+const jwtKeys = generateKeyPairSync("ec", { namedCurve: "prime256v1" });
+const PRIVY_VERIFICATION_KEY = jwtKeys.publicKey
+  .export({ type: "spki", format: "pem" })
+  .toString();
+
+function base64Url(value: Buffer | string): string {
+  return Buffer.from(value).toString("base64url");
+}
+
+function privyAccessToken(overrides: { aud?: string; sub?: string; exp?: number } = {}): string {
+  const now = Math.floor(Date.now() / 1000);
+  const header = base64Url(JSON.stringify({ alg: "ES256", typ: "JWT" }));
+  const payload = base64Url(
+    JSON.stringify({
+      iss: "privy.io",
+      aud: overrides.aud ?? "app",
+      sub: overrides.sub ?? PRIVY_DID,
+      iat: now - 10,
+      exp: overrides.exp ?? now + 600,
+    }),
+  );
+  const signature = signJwt("sha256", Buffer.from(`${header}.${payload}`), {
+    key: jwtKeys.privateKey,
+    dsaEncoding: "ieee-p1363",
+  }).toString("base64url");
+  return `${header}.${payload}.${signature}`;
+}
 
 const { getSessionMock } = vi.hoisted(() => ({ getSessionMock: vi.fn() }));
 
@@ -54,7 +87,15 @@ function jsonResponse(payload: unknown, _ok = true, status = 200): Response {
 }
 
 function privyParams(fetchImpl: typeof fetch): Parameters<typeof verifyPrivySolanaWallet>[0] {
-  return { userId: USER, accessToken: "tok", appId: "app", appSecret: "sec", dataMode: "live", fetchImpl };
+  return {
+    userId: USER,
+    accessToken: privyAccessToken(),
+    appId: "app",
+    appSecret: "sec",
+    verificationKey: PRIVY_VERIFICATION_KEY,
+    dataMode: "live",
+    fetchImpl,
+  };
 }
 
 async function codeOf(promise: Promise<unknown>): Promise<string> {
@@ -158,12 +199,14 @@ describe("M66: verifyPrivySolanaWallet (fetchImpl mockeado)", () => {
     expect(wallet.source).toBe("privy");
     expect(wallet.privyWalletId).toBe("w_123");
     expect(wallet.walletClientType).toBe("privy");
+    // El DID sale del token verificado, no de un campo del cliente.
+    expect(wallet.privyUserId).toBe(PRIVY_DID);
     expect(fetchImpl).toHaveBeenCalledTimes(1);
     const [url, init] = fetchImpl.mock.calls[0] as unknown as [string, RequestInit];
-    expect(url).toBe(PRIVY_USERS_ME_URL);
+    expect(url).toBe(`https://api.privy.io/v1/users/${encodeURIComponent(PRIVY_DID)}`);
     const headers = init.headers as Record<string, string>;
     expect(headers["privy-app-id"]).toBe("app");
-    expect(headers.authorization).toBe("Bearer tok");
+    expect(headers.authorization).toBe(`Basic ${Buffer.from("app:sec").toString("base64")}`);
   });
 
   it("dirección inválida devuelta por Privy → VALIDATION", async () => {
@@ -194,15 +237,25 @@ describe("M66: verifyPrivySolanaWallet (fetchImpl mockeado)", () => {
     }
   });
 
-  it("error HTTP y falla de red → INTERNAL (sin eco del cuerpo)", async () => {
+  it("error HTTP y falla de red → UPSTREAM (sin eco del cuerpo)", async () => {
     const httpFail = vi.fn(() => Promise.resolve(jsonResponse({ detail: "token inválido" }, false, 401)));
     expect(await codeOf(verifyPrivySolanaWallet(privyParams(httpFail as unknown as typeof fetch)))).toBe(
-      "INTERNAL",
+      "UPSTREAM",
     );
     const networkFail = vi.fn(() => Promise.reject(new Error("ECONNREFUSED 127.0.0.1")));
     expect(await codeOf(verifyPrivySolanaWallet(privyParams(networkFail as unknown as typeof fetch)))).toBe(
-      "INTERNAL",
+      "UPSTREAM",
     );
+  });
+
+  it("token con otra audiencia → UNAUTHORIZED y no consulta la billetera", async () => {
+    const fetchImpl = vi.fn(() => Promise.resolve(jsonResponse({})));
+    const params = {
+      ...privyParams(fetchImpl as unknown as typeof fetch),
+      accessToken: privyAccessToken({ aud: "otra-app" }),
+    };
+    expect(await codeOf(verifyPrivySolanaWallet(params))).toBe("UNAUTHORIZED");
+    expect(fetchImpl).not.toHaveBeenCalled();
   });
 
   it("sin token ni credenciales Privy → mock, sin llamadas de red", async () => {

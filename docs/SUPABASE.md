@@ -212,3 +212,35 @@ NO aplicada. Después de `0011`, pega **una sola vez** `supabase/migrations/0015
 - `handle_new_user` rechaza residencia o nacionalidad de la lista provisoria (`registro_us_person`, 42501) antes de crear la fila. [REVISIÓN ABOGADO] lista provisoria.
 
 Hasta que se pegue el SQL, el onboarding reintenta el update del perfil sin esas columnas: la declaración y el consentimiento `us_person` no quedan guardados.
+
+## Billeteras vinculadas a Privy (0040) — asociación persistente
+
+NO aplicada. Después de `0029`, pega **una sola vez** `supabase/migrations/0040_wallets_privy_binding.sql` en el SQL Editor y ejecútalo. También es idempotente. Agrega:
+
+- `public.wallets.privy_user_id` (DID `did:privy:...` verificado al vincular) e índice único parcial `wallets_privy_user_id_key`. Un DID pertenece a una sola cuenta Supabase.
+- El servidor guarda el DID sólo después de verificar la firma ES256 del access token de Privy y leer la billetera con ese `sub`. La sesión de Supabase y el token de Privy tienen que viajar en el mismo request.
+
+Reglas de identidad (código, no sólo SQL):
+
+- Una cuenta Supabase no puede alternar entre dos DIDs de Privy: se rechaza con 400. Cambiar de identidad requiere intervención del operador.
+- Un DID ya ligado a otra cuenta no se reasigna; tampoco una dirección ya ligada a otra cuenta.
+- Si el mismo DID cambia la dirección Solana en Privy, se mueve la fila existente (no se crea una segunda identidad).
+- Las direcciones Solana se comparan como texto exacto. base58 distingue mayúsculas: nunca se usa `toLowerCase()` ni `ilike` para decidir identidad.
+- Sin `0040`, la vinculación real falla cerrada (502) y no guarda nada. La demo en memoria (`AUTH_MODE=mock`) sigue igual.
+- `/api/onramp/session` y `/api/wallet/send/build` exigen que la dirección del cuerpo sea exactamente la billetera verificada de la sesión.
+
+Limitaciones que no se pueden resolver sólo con este código:
+
+- La primera vinculación es confianza en el primer uso (TOFU): se demuestra posesión de una sesión Supabase y de un token de Privy vigente, no que ambas identidades sean la misma persona. Privy no emite una prueba criptográfica que nombre el `sub` de Supabase.
+- Si alguien obtiene a la vez una sesión Supabase y un token de Privy de otra persona **antes** de que esa billetera esté vinculada, puede hacer la primera vinculación. Después de 0040 el DID queda tomado y un segundo intento se rechaza.
+- Las filas antiguas sin DID dejan de exponerse y de escanearse: no se puede demostrar qué identidad las vinculó. Con el bloqueo temporal vigente no se pueden volver a sincronizar; quedan ocultas hasta que se habilite una vinculación verificable.
+- En cuenta real, los endpoints de cartera/billetera siguen devolviendo vacío mientras el dinero real esté apagado. No se sirven saldos reales sin esa habilitación.
+
+### Bloqueo temporal de vinculación (2026-11-02)
+
+- `POST /api/me/wallet` responde **503 `REAL_DISABLED`** con un mensaje propio a toda identidad Supabase. No lee el cuerpo, no llama a `syncVerifiedPrivyWallet` y no escribe ni reasigna filas de `public.wallets`. `GET` no cambia: sólo lee las billeteras ya vinculadas.
+- Motivo: la primera asociación de un DID de Privy sólo demuestra posesión simultánea de una sesión Supabase y un token de Privy, no que ambas identidades sean la misma persona (TOFU). Mientras no exista una prueba verificable de esa correspondencia, se prefiere cerrar antes que aceptar una asociación no demostrable.
+- Alcance: incluye `mv_account=demo` bajo Supabase, porque la fila de `public.wallets` es la misma que usará la cuenta real; permitir la demo sería un bypass trivial (vincular en demo, cambiar a real).
+- La demo en memoria (`AUTH_MODE=mock`) sigue igual: su `POST` se mantiene y no toca Supabase.
+- Para levantarlo: implementar una prueba de correspondencia Supabase↔Privy y quitar el llamado a `assertWalletLinkingOpen()` de `app/api/me/wallet/route.ts`. No borrar 0040 ni las validaciones del store.
+- Tests: `tests/unit/wallet-link-lockdown.test.ts` (Supabase 503 sin tocar el store, cookie demo también bloqueada, demo mock 200).

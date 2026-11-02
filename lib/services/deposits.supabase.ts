@@ -114,21 +114,27 @@ export interface DepositScanWallet {
   address: string;
 }
 
-/** Total de billeteras Solana verificadas, para rotar el lote del cron. */
+/**
+ * Total de billeteras Solana con identidad Privy persistida (0040), para
+ * rotar el lote del cron. Las filas antiguas sin DID no se escanean: no se
+ * puede demostrar a qué identidad pertenecen.
+ */
 export async function countDepositScanWallets(): Promise<number | null> {
   const admin = createSupabaseAdminClient();
   const { count, error } = await admin
     .from("wallets")
     .select("user_id", { count: "exact", head: true })
-    .eq("chain", "solana");
+    .eq("chain", "solana")
+    .like("privy_user_id", "did:privy:%");
   if (error || typeof count !== "number") return null;
   return count;
 }
 
 /**
- * Página de billeteras verificadas a revisar. El `user_id` sale SIEMPRE de
- * `wallets` (verificado por M66), nunca de la cadena ni del cliente: es el
- * aislamiento por usuario del barrido. `null` si la lectura falla.
+ * Página de billeteras con identidad Privy verificada a revisar. El `user_id`
+ * sale SIEMPRE de `wallets` (verificado por M66 + DID persistido de 0040),
+ * nunca de la cadena ni del cliente: es el aislamiento por usuario del
+ * barrido. Las filas sin DID quedan fuera. `null` si la lectura falla.
  */
 export async function listWalletsForDepositScan(
   limit: number,
@@ -139,6 +145,7 @@ export async function listWalletsForDepositScan(
     .from("wallets")
     .select("user_id,address")
     .eq("chain", "solana")
+    .like("privy_user_id", "did:privy:%")
     .order("user_id", { ascending: true })
     .range(offset, offset + limit - 1);
   if (error || !Array.isArray(data)) return null;

@@ -276,10 +276,22 @@ export async function checkLimits(
     );
   }
 
-  const [orders, globalOrders] = await Promise.all([
-    deps.listOrders(userId).catch(() => [] as CountedOrder[]),
-    deps.listOrdersAllUsers().catch(() => [] as CountedOrder[]),
-  ]);
+  // Auditoría 2026-11: si la lectura de órdenes falla NO se asume gasto 0
+  // (eso abría los topes diario/mensual/global). Se falla cerrado con 502 y
+  // la operación real no sigue; el reintento lo hace el usuario.
+  let orders: CountedOrder[];
+  let globalOrders: CountedOrder[];
+  try {
+    [orders, globalOrders] = await Promise.all([
+      deps.listOrders(userId),
+      deps.listOrdersAllUsers(),
+    ]);
+  } catch {
+    throw new DomainError(
+      "UPSTREAM",
+      "No pudimos verificar tus límites. Intenta de nuevo en un momento.",
+    );
+  }
 
   const dayWindow = countedWindow(now, "day");
   const monthWindow = countedWindow(now, "month");

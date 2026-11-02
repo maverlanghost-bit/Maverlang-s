@@ -14,7 +14,7 @@ import { apiOperateBlock } from "@/lib/compliance/real-quote";
 import { withRateLimit } from "@/lib/security/rate-limit";
 import { getServices } from "@/lib/services";
 import { demoSupabase } from "@/lib/services/demo.supabase";
-import { assertRealTradeAllowed, assertRealTradingDataMode } from "@/lib/trade/real-guards";
+import { assertLiveEngineAccess, assertRealTradeAllowed, assertRealTradingDataMode } from "@/lib/trade/real-guards";
 
 export const runtime = "nodejs";
 
@@ -27,10 +27,15 @@ export function POST(req: Request) {
     if (ipLimited) return ipLimited;
     const services = getServices();
     const session = await requireSession(services, req);
+    const realAccount = isRealAccountRequest(req);
+    const demoAccount = isUserDemoRequest(req);
+    // Auditoría 2026-11: con DATA_MODE=live, sin sesión Supabase verificada
+    // ni cuenta real explícita no se firma ni se envía nada al motor live.
+    assertLiveEngineAccess(realAccount, demoAccount);
     const userLimited = await withRateLimit(req, "trade", [session.userId]);
     if (userLimited) return userLimited;
     const body = await parseJson(req, tradeSubmitRequestSchema);
-    if (isRealAccountRequest(req)) {
+    if (realAccount) {
       // M46: el camino real se apaga (503 REAL_DISABLED) hasta que
       // REAL_TRADING_READY=true. Con el flag encendido, pasa al motor live.
       assertRealTradingEnabled();
@@ -40,7 +45,7 @@ export function POST(req: Request) {
       // submit (el req. del traspaso: "la orden built se rechaza al submit").
       await assertRealTradeAllowed(session.userId, null);
     }
-    if (isUserDemoRequest(req)) {
+    if (demoAccount) {
       const demoLimited = await withRateLimit(req, "demoTrade", [session.userId]);
       if (demoLimited) return demoLimited;
       const data = await callService(req, () => demoSupabase.trade.submit(session.userId, body));

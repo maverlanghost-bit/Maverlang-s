@@ -1,5 +1,43 @@
 # PROGRESO — Maverlang
 
+## T25 — Auditoría de seguridad (2026-11-02)
+- Protección MFA, aislamiento del chat, guardas de trading y validación de identidad de billetera.
+- Trading real y vinculación real de Privy a Supabase bloqueados hasta completar controles verificables.
+- Migración 0040 preparada, no aplicada; verificar RLS, configuración y recuperación en entorno de pruebas.
+- Verificación final: typecheck correcto; 120 archivos y 1041 pruebas locales aprobadas.
+- audit:deps bloqueado por zod y decode-uri-component; bigint-buffer de riesgo alto aceptado previamente.
+- Pendiente: límites y reservas atómicos, conciliación, depósitos/retiros, RLS/MFA directo y auditoría externa.
+
+## Auditoría MFA Supabase — sesión aal1 con TOTP verificado (2026-11-02)
+- Hecho: `needsMfaStep` ahora falla cerrado (error, datos nulos o niveles ambiguos → pide código).
+- Hecho: el gate redirige a `/app/ingresar/verificar?next=…` las rutas privadas de `/app` cuando el middleware marca MFA pendiente; quedan abiertas verificación, recuperar/restablecer, mercado, detalle y ajustes (enrolamiento).
+- Hecho: el middleware calcula `mfaRequired` con `getUser(jwt)` (autoridad de factores) y `aal` del token validado; `undefined` en el gate se interpreta como pendiente (fail-closed).
+- Hecho: `supabaseSessionAuth.getSession` devuelve `null` (401 en API) si hay TOTP verificado y la sesión sigue en `aal1`.
+- Hecho: `enrollTotp` rechaza agregar un factor desde una sesión `aal1` con TOTP verificado (evita la puerta trasera del enrolamiento); el enrolamiento inicial sigue permitido.
+- Archivos: `lib/auth/mfa-policy.ts` (nuevo), `lib/auth/mfa.ts`, `lib/auth/gate.ts`, `lib/auth/paths.ts`, `lib/supabase/middleware.ts`, `middleware.ts`, `lib/services/auth.supabase.ts`, `content/i18n/{es-CL,en}.ts` y pruebas `mfa*`.
+- Verificación: `npx tsc --noEmit` 0 errores; eslint de los archivos tocados limpio; `npm test` 120 archivos / 1041 tests en verde.
+- Límites: no se probó en navegador ni contra Supabase real; sin build/e2e. Llamadas directas a la REST de Supabase con un token `aal1` siguen sujetas sólo a la RLS existente (no exige `aal2`); el enrolamiento hecho fuera de la app no lo controla este cambio. Sólo se exige TOTP; otros tipos de factor no tienen UI. El chequeo MFA agrega una llamada a Auth por navegación privada con `aal1`.
+- Pendiente operador: validar el flujo real (login con TOTP, recuperación, enrolamiento) y decidir si la RLS exige `aal2`. No listo para producción por este cambio.
+
+## Seguridad — Bloqueo temporal de vinculación de billetera Supabase (2026-11-02)
+- Hecho (`app/api/me/wallet/route.ts`): `POST /api/me/wallet` responde 503 `REAL_DISABLED` con mensaje propio a toda identidad Supabase antes de leer el cuerpo y de llamar a servicios; no vincula ni reasigna. `GET` sigue sólo lectura.
+- Motivo: la primera asociación de un DID de Privy no prueba que corresponda al usuario Supabase (TOFU). Se cierra hasta tener una prueba verificable de correspondencia.
+- Alcance: también `mv_account=demo` bajo Supabase (la fila de `public.wallets` se comparte con la cuenta real; permitirlo sería bypass). La demo en memoria (`AUTH_MODE=mock`) sigue funcionando.
+- Tests nuevos (`tests/unit/wallet-link-lockdown.test.ts`, 3): Supabase 503 sin tocar el store, cookie demo bloqueada, demo mock 200.
+- Verificación: `npx vitest run wallet-link-lockdown + wallet-m66 + real-disabled` → 26/26. No se leyó `.env`, no se usaron servicios externos, no se tocaron `lib/services/wallet.supabase.ts` ni la migración 0040.
+- Documentado (`docs/SUPABASE.md`): alcance, motivo, bypass cubierto y cómo levantar el bloqueo.
+- Pendiente operador: definir e implementar la prueba Supabase↔Privy antes de reabrir; no se hizo commit (instrucción del usuario).
+
+## Fix — Asociación identidad/billetera Privy-Supabase y comparación exacta (2026-11-02)
+- Hecho (`supabase/migrations/0040_wallets_privy_binding.sql`, NO aplicada): `wallets.privy_user_id` + índice único parcial. Un DID de Privy pertenece a una sola cuenta Supabase.
+- Hecho (`lib/services/wallet.supabase.ts`, `deposits.supabase.ts`): se persiste el DID verificado; se rechaza reasignar DID/dirección a otra cuenta, alternar DID en la misma cuenta y duplicar identidad. Lectura y cron de depósitos sólo usan filas con DID. Si falta 0040, el POST real falla cerrado (502) sin guardar.
+- Hecho (`lib/wallet/identity.ts`): guardián de sesión con comparación exacta (base58 distingue mayúsculas) y planificador puro de vinculación. `/api/onramp/session` y `/api/wallet/send/build` exigen que la dirección del cuerpo sea la verificada de la sesión.
+- Hecho (`lib/api/handler.ts`): `requireWallet` ya no cae a la billetera demo; sin billetera verificada responde 400. La demo mantiene su rama explícita por usuario.
+- Documentado (`docs/SUPABASE.md`): reglas, límites TOFU, filas antiguas sin DID y pasos para aplicar 0040.
+- Pruebas locales: `wallet-identity` (12) + `wallet-identity-store` (3) + `wallet-m66` (16, tokens ES256 efímeros, sin .env) = 31/31; `wallet-m78`, `real-disabled`, `rate-limit`, `perf-static`, `api-routes-validated`, `copy-guard` 62/62.
+- `tsc --noEmit`: 1 error preexistente en `tests/unit/ai-chat-isolation.test.ts` (ruta IA, no tocada por esta tarea); sin errores nuevos.
+- Límite: no se consultaron servicios reales, no se aplicó la migración y no se hizo commit (instrucción del usuario). Pendiente operador: aplicar 0040 y probar la vinculación con Supabase/Privy reales.
+
 ## T24 — PREPARACIÓN PARCIAL: demo oculta, pesos bloqueados y andamiaje seguro (2026-11-02)
 - Hecho (pantalla demo): se ocultan direcciones y QR para no exponer datos ficticios como reales.
 - Hecho (pesos): depósitos en pesos bloqueados en la UI y en el servidor.

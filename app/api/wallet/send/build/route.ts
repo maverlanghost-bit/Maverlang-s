@@ -3,6 +3,7 @@ import { parseJson, assertSameOrigin, assertRealTradingEnabled, callService, han
 import { apiOperateBlock } from "@/lib/compliance/real-quote";
 import { withRateLimit } from "@/lib/security/rate-limit";
 import { getServices } from "@/lib/services";
+import { requireSessionWalletMatch } from "@/lib/wallet/identity";
 
 export const runtime = "nodejs";
 
@@ -24,7 +25,15 @@ export function POST(req: Request) {
     if (userLimited) return userLimited;
     const body = await parseJson(req, sendBuildRequestSchema);
     const mint = requireMint(body.mint);
-    const data = await callService(req, () => services.portfolio.sendBuild({ ...body, mint }));
+    // Con identidad Supabase, la billetera de origen tiene que ser la
+    // verificada en la sesión. No se acepta una dirección arbitraria del
+    // cuerpo. En mock no hay sesión y sigue el flujo demo de siempre.
+    const userPublicKey = session
+      ? requireSessionWalletMatch(session.walletAddress, body.userPublicKey)
+      : body.userPublicKey;
+    const data = await callService(req, () =>
+      services.portfolio.sendBuild({ ...body, mint, userPublicKey }),
+    );
     return readOutput(tradeBuildResponseSchema, data);
   });
 }

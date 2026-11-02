@@ -312,7 +312,9 @@ export async function listOrdersForLimits(
     .eq("user_id", userId)
     .order("created_at", { ascending: false })
     .limit(limit);
-  if (error || !data) return [];
+  // Auditoría 2026-11: sin lectura no se inventa una lista vacía (eso abría
+  // los topes). El error sube y `checkLimits` falla cerrado.
+  if (error || !Array.isArray(data)) throw new Error("orders_unavailable");
   return data as Array<{
     side: "buy" | "sell";
     in_amount_ui: number | null;
@@ -342,7 +344,8 @@ export async function listAllOrdersForLimits(
     .select("side,in_amount_ui,out_amount_ui,price_per_share_usd,status,created_at")
     .order("created_at", { ascending: false })
     .limit(limit);
-  if (error || !data) return [];
+  // Tope global: misma regla fail-closed que las órdenes del usuario.
+  if (error || !Array.isArray(data)) throw new Error("orders_unavailable");
   return data as Array<{
     side: "buy" | "sell";
     in_amount_ui: number | null;

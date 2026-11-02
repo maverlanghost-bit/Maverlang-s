@@ -639,6 +639,7 @@ export const esCL = {
       rate: "Demasiados intentos. Espera un rato e inténtalo de nuevo.",
       unavailable: "La verificación en dos pasos no está disponible en este entorno.",
       aal: "Confirma el código de tu app antes de desactivar.",
+      enroll_aal: "Confirma el código de tu app antes de agregar otro método.",
       generic: "No pudimos completar la acción. Inténtalo otra vez.",
     },
   },

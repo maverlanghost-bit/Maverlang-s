@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import type { AiChatRequest, AiWidget } from "@/components/ai/contract";
 import { aiMessages } from "@/content/i18n/extra-b";
+import type { SessionStatus } from "@/lib/auth/types";
 
 /** Misma escala que el dominio: 0,012 = 1,2 %. */
 export type ChatNotice = {
@@ -20,7 +21,19 @@ export interface ChatMessage {
 
 export type AiEndpoint = "/api/ai/chat" | "/api/ai/import-portfolio";
 
+/**
+ * Clave histórica sin identidad. Queda en cuarentena: no se migra ni se
+ * presenta a ninguna cuenta, porque no hay forma de atribuirla con seguridad.
+ */
 export const AI_HISTORY_KEY = "mv_ai_chat_v1";
+export const AI_HISTORY_SCOPE_PREFIX = "mv_ai_chat_v2";
+/** El invitado no escribe en `sessionStorage`: sólo memoria de esta pestaña. */
+export const AI_GUEST_SCOPE_KEY = `${AI_HISTORY_SCOPE_PREFIX}::guest-memory`;
+
+export type ChatScope =
+  | { kind: "account"; key: string; storageKey: string }
+  | { kind: "guest"; key: string; storageKey: null };
+
 export const MAX_TEXT = 2_000;
 export const MAX_HISTORY = 40;
 export const MAX_API_TURNS = 16;
@@ -226,10 +239,93 @@ export function browserStore(): KeyValueStore | null {
   }
 }
 
-export function readChatHistory(store: KeyValueStore | null): ChatMessage[] {
+function fnv1a32(value: string, seed: number): number {
+  let hash = seed >>> 0;
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 0x01000193) >>> 0;
+  }
+  return hash >>> 0;
+}
+
+/**
+ * Huella estable y opaca de la identidad. La clave de `sessionStorage` no
+ * guarda el id de la cuenta, así el historial de otra sesión no se puede
+ * identificar leyendo las claves del navegador.
+ */
+export function chatIdentityFingerprint(userId: string): string {
+  const first = fnv1a32(userId, 0x811c9dc5);
+  const second = fnv1a32(userId, 0x9e3779b9);
+  return `${first.toString(16).padStart(8, "0")}${second.toString(16).padStart(8, "0")}`;
+}
+
+/**
+ * Identidad del chat:
+ * - `loading` no tiene scope (no lee ni escribe nada);
+ * - `unauthenticated` usa memoria de pestaña, sin persistencia;
+ * - `authenticated` usa una clave propia derivada del id.
+ *
+ * Nunca devuelve la clave histórica sin identidad.
+ */
+export function resolveChatScope(
+  status: SessionStatus,
+  userId: string | null | undefined,
+): ChatScope | null {
+  if (status === "loading") return null;
+  if (status === "unauthenticated") {
+    return { kind: "guest", key: AI_GUEST_SCOPE_KEY, storageKey: null };
+  }
+  const id = (userId ?? "").trim();
+  if (!id) return null;
+  const key = `${AI_HISTORY_SCOPE_PREFIX}::u:${chatIdentityFingerprint(id)}`;
+  return { kind: "account", key, storageKey: key };
+}
+
+const EMPTY_HISTORY: ChatMessage[] = [];
+
+/** Snapshot en memoria de un solo scope: al cambiar identidad se descarta. */
+let snapshotScopeKey: string | null | undefined;
+let snapshotMessages: ChatMessage[] = EMPTY_HISTORY;
+
+/**
+ * Devuelve la conversación del scope activo. Si la identidad cambió, vacía la
+ * memoria anterior y sólo entonces lee la clave de la nueva identidad. Un
+ * scope `null` (sesión cargando) no lee nada.
+ */
+export function readChatSnapshot(scope: ChatScope | null): ChatMessage[] {
+  const key = scope?.key ?? null;
+  if (snapshotScopeKey === key) return snapshotMessages;
+  snapshotScopeKey = key;
+  const history = scope?.storageKey ? readChatHistory(browserStore(), scope.storageKey) : EMPTY_HISTORY;
+  snapshotMessages = history.length === 0 ? EMPTY_HISTORY : history;
+  return snapshotMessages;
+}
+
+/**
+ * Publica en el scope capturado. Si la identidad ya cambió, rechaza la
+ * escritura para que una respuesta tardía no caiga en la cuenta equivocada.
+ */
+export function publishChatSnapshot(scope: ChatScope | null, messages: readonly ChatMessage[]): boolean {
+  const key = scope?.key ?? null;
+  if (snapshotScopeKey !== key) return false;
+  const next = messages.length === 0 ? EMPTY_HISTORY : messages.slice(-MAX_HISTORY);
+  snapshotMessages = next;
+  if (scope?.storageKey) writeChatHistory(browserStore(), next, scope.storageKey);
+  return true;
+}
+
+/** "Nuevo chat": borra sólo el scope actual (nunca la clave histórica ni otro usuario). */
+export function resetChatSnapshot(scope: ChatScope | null): void {
+  snapshotScopeKey = scope?.key ?? null;
+  snapshotMessages = EMPTY_HISTORY;
+  if (scope?.storageKey) clearChatHistory(browserStore(), scope.storageKey);
+}
+
+/** Lee una clave explícita. Sin clave usa la histórica, que sólo está en cuarentena. */
+export function readChatHistory(store: KeyValueStore | null, key: string = AI_HISTORY_KEY): ChatMessage[] {
   if (!store) return [];
   try {
-    return parseHistory(store.getItem(AI_HISTORY_KEY));
+    return parseHistory(store.getItem(key));
   } catch {
     return [];
   }
@@ -244,26 +340,30 @@ function withoutImages(messages: readonly ChatMessage[]): ChatMessage[] {
   });
 }
 
-export function writeChatHistory(store: KeyValueStore | null, messages: readonly ChatMessage[]): void {
+export function writeChatHistory(
+  store: KeyValueStore | null,
+  messages: readonly ChatMessage[],
+  key: string = AI_HISTORY_KEY,
+): void {
   if (!store) return;
   const trimmed = messages.slice(-MAX_HISTORY);
   const full = JSON.stringify(trimmed);
   const payload = full.length > MAX_STORE_CHARS ? JSON.stringify(withoutImages(trimmed)) : full;
   try {
-    store.setItem(AI_HISTORY_KEY, payload);
+    store.setItem(key, payload);
   } catch {
     try {
-      store.setItem(AI_HISTORY_KEY, JSON.stringify(withoutImages(trimmed)));
+      store.setItem(key, JSON.stringify(withoutImages(trimmed)));
     } catch {
       // Sin espacio: la conversación sigue en memoria.
     }
   }
 }
 
-export function clearChatHistory(store: KeyValueStore | null): void {
+export function clearChatHistory(store: KeyValueStore | null, key: string = AI_HISTORY_KEY): void {
   if (!store) return;
   try {
-    store.removeItem(AI_HISTORY_KEY);
+    store.removeItem(key);
   } catch {
     // Nada que borrar.
   }

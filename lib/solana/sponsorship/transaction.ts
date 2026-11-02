@@ -17,6 +17,7 @@ import {
   SponsorError,
   type SponsorTransactionLimits,
   type ValidatedSponsorship,
+  type ValidatedSponsorshipData,
 } from "./contracts";
 
 /**
@@ -37,7 +38,7 @@ import {
 
 const BASE_SIGNATURE_FEE_LAMPORTS = 5_000;
 const DEFAULT_COMPUTE_UNITS_PER_INSTRUCTION = 200_000;
-const MICRO_LAMPORTS_PER_LAMPORT = 1_000_000n;
+const MICRO_LAMPORTS_PER_LAMPORT = BigInt(1_000_000);
 
 const BASE64_RE = /^[A-Za-z0-9+/]*={0,2}$/;
 const SHA256_HEX_RE = /^[0-9a-f]{64}$/;
@@ -437,7 +438,7 @@ export function validateSponsorTransaction(
     }
   }
 
-  return {
+  const validated: ValidatedSponsorshipData = {
     transactionBase64,
     transactionBytes: bytes.length,
     sponsorFeePayer: limits.sponsorFeePayer,
@@ -455,7 +456,11 @@ export function validateSponsorTransaction(
     instructionCount: instructions.length,
     accountCount: accountKeys.length,
     userSignaturePresent,
-  } as ValidatedSponsorship;
+  };
+  // Única conversión al tipo marcado: ocurre aquí, después de todas las
+  // comprobaciones. La marca es sólo de tipos y no existe en tiempo de
+  // ejecución.
+  return validated as ValidatedSponsorship;
 }
 
 /**

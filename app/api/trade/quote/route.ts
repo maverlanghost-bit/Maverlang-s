@@ -22,6 +22,7 @@ import { demoSupabase } from "@/lib/services/demo.supabase";
 import {
   assertRealTradeAllowed,
   assertRealTradingDataMode,
+  assertLiveEngineAccess,
 } from "@/lib/trade/real-guards";
 import type { TradeQuote, TradeQuoteRequest } from "@/lib/types";
 
@@ -98,15 +99,21 @@ export function POST(req: Request) {
     const services = getServices();
     const session = await requireSupabaseUser(services, req);
     let userId = session?.userId ?? null;
+    const realAccount = isRealAccountRequest(req);
+    const demoAccount = isUserDemoRequest(req);
+    // Auditoría 2026-11: con DATA_MODE=live, un request sin sesión Supabase
+    // verificada y cuenta real explícita no llega al motor live (ni siquiera
+    // a validar el símbolo). La demo de Supabase sigue su propio camino.
+    assertLiveEngineAccess(realAccount, demoAccount);
     if (session) {
       const userLimited =
         (await withRateLimit(req, "trade", [session.userId])) ??
-        (isUserDemoRequest(req) ? await withRateLimit(req, "demoTrade", [session.userId]) : null);
+        (demoAccount ? await withRateLimit(req, "demoTrade", [session.userId]) : null);
       if (userLimited) return userLimited;
     }
     const body = await parseJson(req, tradeQuoteRequestSchema);
     const symbol = await requireSymbolForBuyGuard(body.symbol, body.side);
-    if (isRealAccountRequest(req)) {
+    if (realAccount) {
       // El camino real se apaga (503 REAL_DISABLED) hasta que
       // REAL_TRADING_READY=true. Cotizar no mueve dinero, pero se mantiene
       // coherente con build/submit: apagado hasta encender el flag.
@@ -123,7 +130,7 @@ export function POST(req: Request) {
           : await realQuoteAmountUsd(body, realUserId);
       await assertRealTradeAllowed(realUserId, amountUsd);
     }
-    if (isUserDemoRequest(req)) {
+    if (demoAccount) {
       const demoUserId = session?.userId ?? (await requireSession(services, req)).userId;
       const data = await callService(req, () => demoSupabase.trade.quote(demoUserId, { ...body, symbol }));
       assertLiveBuyCost(body.side, data.priceDeviationBps);

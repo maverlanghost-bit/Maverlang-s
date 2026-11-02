@@ -15,7 +15,7 @@ import { apiOperateBlock } from "@/lib/compliance/real-quote";
 import { withRateLimit } from "@/lib/security/rate-limit";
 import { getServices } from "@/lib/services";
 import { demoSupabase } from "@/lib/services/demo.supabase";
-import { assertRealTradeAllowed, assertRealTradingDataMode } from "@/lib/trade/real-guards";
+import { assertLiveEngineAccess, assertRealTradeAllowed, assertRealTradingDataMode } from "@/lib/trade/real-guards";
 import type { TradeBuildRequest, TradeBuildResponse } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -33,14 +33,20 @@ export function POST(req: Request) {
     const services = getServices();
     const session = await requireSupabaseUser(services, req);
     let userId = session?.userId ?? null;
+    const realAccount = isRealAccountRequest(req);
+    const demoAccount = isUserDemoRequest(req);
+    // Auditoría 2026-11: con DATA_MODE=live, sin sesión Supabase verificada
+    // ni cuenta real explícita no se llega al motor live (flags, beta y
+    // límites sólo existen en la rama real). La demo de Supabase sigue igual.
+    assertLiveEngineAccess(realAccount, demoAccount);
     if (session) {
       const userLimited =
         (await withRateLimit(req, "trade", [session.userId])) ??
-        (isUserDemoRequest(req) ? await withRateLimit(req, "demoTrade", [session.userId]) : null);
+        (demoAccount ? await withRateLimit(req, "demoTrade", [session.userId]) : null);
       if (userLimited) return userLimited;
     }
     const body = await parseJson(req, tradeBuildRequestSchema);
-    if (isRealAccountRequest(req)) {
+    if (realAccount) {
       // M46: el camino real se apaga (503 REAL_DISABLED) hasta que
       // REAL_TRADING_READY=true. Con el flag encendido, pasa al motor live
       // de abajo. El camino demo sigue igual.
@@ -53,7 +59,7 @@ export function POST(req: Request) {
       userId = realUserId;
       await assertRealTradeAllowed(realUserId, null);
     }
-    if (isUserDemoRequest(req)) {
+    if (demoAccount) {
       const demoUserId = session?.userId ?? (await requireSession(services, req)).userId;
       const data = await callService(req, () => demoSupabase.trade.build(demoUserId, body));
       return readOutput(tradeBuildResponseSchema, data);

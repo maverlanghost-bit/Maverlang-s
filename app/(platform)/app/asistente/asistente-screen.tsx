@@ -1,32 +1,41 @@
 "use client";
 
-import { useEffect, useRef, useState, useSyncExternalStore, type ChangeEvent } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type ChangeEvent,
+} from "react";
 
 import { postAssistant } from "@/components/ai/api";
 import { ChatView } from "@/components/ai/chat-view";
 import { ImagePrepError, compressImageFile } from "@/components/ai/image";
 import {
   announceAssistant,
-  browserStore,
   buildAiRequest,
-  clearChatHistory,
   cleanTicker,
   createId,
   endpointFor,
-  readChatHistory,
+  publishChatSnapshot,
+  readChatSnapshot,
+  resetChatSnapshot,
+  resolveChatScope,
   seedQuestion,
-  writeChatHistory,
   MAX_TEXT,
   type ChatMessage,
+  type ChatScope,
 } from "@/components/ai/model";
 import { asistenteText, type AsistenteSuggestionId } from "@/content/i18n/extra-asistente";
+import { useSession } from "@/lib/auth/session-context";
 import { useT } from "@/lib/hooks/use-t";
 
 const EMPTY: ChatMessage[] = [];
 const HISTORY_EVENT = "mv-ai-chat";
-
-let hydrated = false;
-let current: ChatMessage[] = EMPTY;
+/** En el servidor no hay pintura; en el cliente se limpia antes del primer frame. */
+const useIsomorphicLayoutEffect = typeof window === "undefined" ? useEffect : useLayoutEffect;
 
 function emitHistory() {
   if (typeof window === "undefined") return;
@@ -39,33 +48,8 @@ function subscribeChat(onChange: () => void) {
   return () => window.removeEventListener(HISTORY_EVENT, onChange);
 }
 
-/** Primera lectura: sessionStorage. Después, la memoria de esta pestaña (conserva las fotos). */
-function readSnapshot(): ChatMessage[] {
-  if (!hydrated) {
-    hydrated = true;
-    const history = readChatHistory(browserStore());
-    current = history.length === 0 ? EMPTY : history;
-  }
-  return current;
-}
-
 function serverSnapshot(): ChatMessage[] {
   return EMPTY;
-}
-
-function publishChat(messages: readonly ChatMessage[]) {
-  const next = messages.length === 0 ? EMPTY : messages.slice();
-  hydrated = true;
-  current = next;
-  writeChatHistory(browserStore(), next);
-  emitHistory();
-}
-
-function resetChat() {
-  hydrated = true;
-  current = EMPTY;
-  clearChatHistory(browserStore());
-  emitHistory();
 }
 
 export function AsistenteScreen({
@@ -78,7 +62,11 @@ export function AsistenteScreen({
   const { language, t } = useT();
   const copy = asistenteText(language);
   const ticker = cleanTicker(initialTicker);
-  const messages = useSyncExternalStore(subscribeChat, readSnapshot, serverSnapshot);
+  const session = useSession();
+  const userId = session.user?.id ?? null;
+  const scope = useMemo(() => resolveChatScope(session.status, userId), [session.status, userId]);
+  const scopeKey = scope?.key ?? null;
+  const messages = useSyncExternalStore(subscribeChat, () => readChatSnapshot(scope), serverSnapshot);
   const [draft, setDraft] = useState(() => seedQuestion(initialQuery, initialTicker, copy.seed));
   const [pendingImage, setPendingImage] = useState<string | null>(null);
   const [typing, setTyping] = useState(false);
@@ -87,7 +75,18 @@ export function AsistenteScreen({
   const fileRef = useRef<HTMLInputElement>(null);
   const busy = useRef(false);
   const alive = useRef(true);
-  const lastRef = useRef<{ path: ReturnType<typeof endpointFor>; body: ReturnType<typeof buildAiRequest> } | null>(null);
+  /** Cambia con la identidad: invalida respuestas y fotos que lleguen tarde. */
+  const epoch = useRef(0);
+  const lastIdentity = useRef<string | null | undefined>(undefined);
+  const hadIdentity = useRef(false);
+  /** Última identidad pintada; cubre la ventana entre render y layout effect. */
+  const scopeKeyRef = useRef<string | null>(scopeKey);
+  scopeKeyRef.current = scopeKey;
+  const lastRef = useRef<{
+    path: ReturnType<typeof endpointFor>;
+    body: ReturnType<typeof buildAiRequest>;
+    scopeKey: string | null;
+  } | null>(null);
 
   useEffect(() => {
     alive.current = true;
@@ -95,6 +94,43 @@ export function AsistenteScreen({
       alive.current = false;
     };
   }, []);
+
+  /**
+   * Al cambiar la identidad se vacía todo lo efímero de la sesión anterior.
+   * La primera identidad real (después de `loading`) conserva el borrador que
+   * viene de `?q=`; los cambios posteriores no.
+   */
+  useIsomorphicLayoutEffect(() => {
+    const previous = lastIdentity.current;
+    if (previous === scopeKey) return;
+    lastIdentity.current = scopeKey;
+
+    if (previous === undefined) {
+      if (scopeKey !== null) hadIdentity.current = true;
+      return;
+    }
+
+    const firstRealIdentity = !hadIdentity.current && scopeKey !== null;
+    if (scopeKey !== null) hadIdentity.current = true;
+    if (firstRealIdentity) return;
+
+    epoch.current += 1;
+    busy.current = false;
+    lastRef.current = null;
+    setTyping(false);
+    setPhotoError(null);
+    setAnnouncement("");
+    setPendingImage(null);
+    setDraft("");
+  }, [scopeKey]);
+
+  function publish(activeScope: ChatScope | null, activeEpoch: number, next: readonly ChatMessage[]): boolean {
+    if (epoch.current !== activeEpoch) return false;
+    if (scopeKeyRef.current !== (activeScope?.key ?? null)) return false;
+    if (!publishChatSnapshot(activeScope, next)) return false;
+    emitHistory();
+    return true;
+  }
 
   useEffect(() => {
     const onCommand = (event: Event) => {
@@ -108,7 +144,8 @@ export function AsistenteScreen({
       if (detail.type === "clear") {
         if (busy.current) return;
         lastRef.current = null;
-        resetChat();
+        resetChatSnapshot(scope);
+        emitHistory();
         setDraft("");
         setPendingImage(null);
         setPhotoError(null);
@@ -127,11 +164,18 @@ export function AsistenteScreen({
     return () => window.removeEventListener("mv-ai-command", onCommand);
   });
 
-  async function run(path: ReturnType<typeof endpointFor>, body: ReturnType<typeof buildAiRequest>) {
+  async function run(
+    path: ReturnType<typeof endpointFor>,
+    body: ReturnType<typeof buildAiRequest>,
+    activeScope: ChatScope | null,
+    activeEpoch: number,
+  ) {
     busy.current = true;
     setTyping(true);
-    lastRef.current = { path, body };
+    lastRef.current = { path, body, scopeKey: activeScope?.key ?? null };
     const result = await postAssistant(path, body);
+    // La identidad cambió mientras esperábamos: la respuesta es de otra sesión.
+    if (epoch.current !== activeEpoch || scopeKeyRef.current !== (activeScope?.key ?? null)) return;
     const labels = {
       ready: copy.ready,
       compare: copy.compareTitle,
@@ -155,44 +199,48 @@ export function AsistenteScreen({
           text: "",
           notice: { kind: result.error, message: result.message.trim() || fallback },
         };
-    publishChat([...readSnapshot(), message]);
+    const published = publish(activeScope, activeEpoch, [...readChatSnapshot(activeScope), message]);
     busy.current = false;
     if (!alive.current) return;
     setTyping(false);
-    setAnnouncement(announceAssistant(message, labels));
+    if (published) setAnnouncement(announceAssistant(message, labels));
   }
 
   async function send(textOverride?: string, imageOverride?: string | null) {
     if (busy.current) return;
+    const activeScope = scope;
+    const activeEpoch = epoch.current;
     const image = imageOverride === undefined ? pendingImage : imageOverride;
     const raw = (textOverride ?? draft).trim();
     const text = (raw || (image ? copy.photoCaption : "")).slice(0, MAX_TEXT);
     if (!text) return;
     const user: ChatMessage = { id: createId(), role: "user", text };
     if (image) user.imageDataUrl = image;
-    publishChat([...readSnapshot(), user]);
+    if (!publish(activeScope, activeEpoch, [...readChatSnapshot(activeScope), user])) return;
     if (textOverride == null) setDraft("");
     if (imageOverride === undefined) setPendingImage(null);
     setPhotoError(null);
     const body = buildAiRequest({
-      messages: readSnapshot(),
+      messages: readChatSnapshot(activeScope),
       image: image ?? undefined,
       ticker,
     });
-    await run(endpointFor(Boolean(image)), body);
+    await run(endpointFor(Boolean(image)), body, activeScope, activeEpoch);
   }
 
   async function onFile(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     event.target.value = "";
     if (!file) return;
+    const activeEpoch = epoch.current;
+    const activeScopeKey = scopeKey;
     try {
       const dataUrl = await compressImageFile(file);
-      if (!alive.current) return;
+      if (!alive.current || epoch.current !== activeEpoch || scopeKeyRef.current !== activeScopeKey) return;
       setPendingImage(dataUrl);
       setPhotoError(null);
     } catch (error) {
-      if (!alive.current) return;
+      if (!alive.current || epoch.current !== activeEpoch || scopeKeyRef.current !== activeScopeKey) return;
       const code = error instanceof ImagePrepError ? error.code : "fail";
       setPhotoError(code === "size" ? copy.photoBig : code === "type" ? copy.photoType : copy.photoFail);
     }
@@ -209,17 +257,24 @@ export function AsistenteScreen({
   async function retry() {
     const last = lastRef.current;
     if (!last || busy.current) return;
-    const next = readSnapshot().slice();
+    if (last.scopeKey !== scopeKey) {
+      lastRef.current = null;
+      return;
+    }
+    const activeScope = scope;
+    const activeEpoch = epoch.current;
+    const next = readChatSnapshot(activeScope).slice();
     if (next[next.length - 1]?.notice) next.pop();
+    if (!publish(activeScope, activeEpoch, next)) return;
     setAnnouncement("");
-    publishChat(next);
-    await run(last.path, last.body);
+    await run(last.path, last.body, activeScope, activeEpoch);
   }
 
   function clear() {
     if (busy.current) return;
     lastRef.current = null;
-    resetChat();
+    resetChatSnapshot(scope);
+    emitHistory();
     setDraft("");
     setPendingImage(null);
     setPhotoError(null);

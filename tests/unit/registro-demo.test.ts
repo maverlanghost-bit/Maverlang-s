@@ -123,6 +123,8 @@ const base: GateInput = {
   supabaseSession: true,
   supabaseOnboarded: false,
   supabaseDemoReady: true,
+  // Los casos de MFA viven en mfa.test; acá el foco es la aceptación demo.
+  supabaseMfaRequired: false,
 };
 
 function gate(overrides: Partial<GateInput> = {}) {

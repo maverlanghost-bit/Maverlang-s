@@ -266,8 +266,9 @@ describe("chat del asistente", () => {
     expect(frame).toContain("visualViewport");
     expect(view).toContain("100dvh");
     expect(frame).toContain("--app-tabs-height");
-    expect(screen).toContain("readChatHistory");
-    expect(screen).toContain("writeChatHistory");
+    expect(screen).toContain("readChatSnapshot");
+    expect(screen).toContain("publishChatSnapshot");
+    expect(screen).toContain("resolveChatScope");
     expect(screen).toContain("compressImageFile");
     expect(screen).toContain("endpointFor");
     expect(page).toContain("params.q");

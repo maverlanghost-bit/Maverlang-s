@@ -11,6 +11,13 @@ function isPath(pathname: string, base: string): boolean {
   return pathname === base || pathname.startsWith(`${base}/`);
 }
 
+/** Segundo paso TOTP: necesita la sesión `aal1` y no puede pedir MFA otra vez. */
+export const MFA_VERIFY_PATH = "/app/ingresar/verificar";
+
+export function isMfaVerifyPath(pathname: string): boolean {
+  return isPath(pathname, MFA_VERIFY_PATH);
+}
+
 export function isIngresarPath(pathname: string): boolean {
   return isPath(pathname, "/app/ingresar");
 }

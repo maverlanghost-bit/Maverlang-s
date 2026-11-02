@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 
 import { mergeBlockedCountries } from "@/config/compliance";
-import { decideGate, blockedCountryList } from "@/lib/auth/gate";
+import { decideGate, blockedCountryList, requiresMfaStepPath } from "@/lib/auth/gate";
 import { MOCK_ONBOARDING_COOKIE, MOCK_SESSION_COOKIE, PRIVY_SESSION_COOKIE } from "@/lib/auth/cookies";
 import { isSupabaseAuth, shouldUsePrivy } from "@/lib/auth/mode";
 import { copySupabaseResponse, mergeSupabaseIntoNext, updateSession } from "@/lib/supabase/middleware";
@@ -74,12 +74,14 @@ export async function middleware(request: NextRequest) {
   let supabaseSession = false;
   let supabaseOnboarded = false;
   let supabaseDemoReady = false;
+  let supabaseMfaRequired = false;
   let refreshed: NextResponse | null = null;
   if (useSupabase) {
-    const updated = await updateSession(request);
+    const updated = await updateSession(request, { checkMfa: requiresMfaStepPath(pathname) });
     supabaseSession = updated.hasSession;
     supabaseOnboarded = updated.onboarded;
     supabaseDemoReady = updated.demoReady;
+    supabaseMfaRequired = updated.mfaRequired;
     refreshed = updated.response;
   }
 
@@ -113,6 +115,7 @@ export async function middleware(request: NextRequest) {
     supabaseSession,
     supabaseOnboarded,
     supabaseDemoReady,
+    supabaseMfaRequired,
   });
 
   if (decision.kind === "next" || (decision.pathname === pathname && decision.search === search)) {

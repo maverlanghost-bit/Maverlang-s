@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { BrandFavicon } from "@/components/app-shell/brand-image";
 import { usePathname } from "next/navigation";
@@ -10,6 +10,7 @@ import { openCommandPalette } from "@/components/app-shell/command-palette";
 import { CurrencySwitch } from "@/components/app-shell/currency-switch";
 import { isShellSectionActive, shellNav } from "@/components/app-shell/nav";
 import { StockSearchButton } from "@/components/app-shell/stock-search";
+import { readChatSnapshot, resolveChatScope, type ChatMessage } from "@/components/ai/model";
 import { BalanceHeader } from "@/components/domain/balance-header";
 import { Avatar } from "@/components/ui/avatar";
 import { IconChevron } from "@/components/ui/icons";
@@ -20,11 +21,11 @@ import { site } from "@/config/site";
 import { asistenteText } from "@/content/i18n/extra-asistente";
 import { shouldIgnoreSidebarShortcut, shouldToggleSidebarClick } from "@/lib/app-shell/sidebar";
 import type { AccountMode } from "@/lib/account/mode";
+import { useSession } from "@/lib/auth/session-context";
 import { cn } from "@/lib/cn";
 import { useT } from "@/lib/hooks/use-t";
 
 const WIDTH_ANIMATION = "transition-[width] duration-200 ease-spring";
-const AI_STORAGE_KEY = "mv_ai_chat_v1";
 
 /** Título del historial real de la sesión (no hay conversaciones guardadas). */
 const AI_RECENT_LABEL = {
@@ -42,28 +43,19 @@ function dispatchAiCommand(
   window.dispatchEvent(new CustomEvent("mv-ai-command", { detail }));
 }
 
-function readRecentUserPrompts(): string[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = window.sessionStorage.getItem(AI_STORAGE_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw) as unknown;
-    if (!Array.isArray(parsed)) return [];
-    const prompts: string[] = [];
-    const seen = new Set<string>();
-    for (let i = parsed.length - 1; i >= 0; i -= 1) {
-      const item = parsed[i] as { role?: unknown; text?: unknown } | null;
-      if (!item || item.role !== "user" || typeof item.text !== "string") continue;
-      const clean = item.text.trim();
-      if (!clean || seen.has(clean)) continue;
-      seen.add(clean);
-      prompts.push(clean);
-      if (prompts.length >= 5) break;
-    }
-    return prompts;
-  } catch {
-    return [];
+function readRecentUserPrompts(messages: readonly ChatMessage[]): string[] {
+  const prompts: string[] = [];
+  const seen = new Set<string>();
+  for (let i = messages.length - 1; i >= 0; i -= 1) {
+    const item = messages[i];
+    if (!item || item.role !== "user") continue;
+    const clean = item.text.trim();
+    if (!clean || seen.has(clean)) continue;
+    seen.add(clean);
+    prompts.push(clean);
+    if (prompts.length >= 5) break;
   }
+  return prompts;
 }
 
 function ArrowLeftIcon({ className }: { className?: string }) {
@@ -123,11 +115,23 @@ export function Sidebar({
   /** Menú del perfil: Perfil, Ajustes, moneda y salir. */
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
-  const [recentPrompts, setRecentPrompts] = useState<string[]>([]);
+  const session = useSession();
+  const userId = session.user?.id ?? null;
+  const chatScope = useMemo(() => resolveChatScope(session.status, userId), [session.status, userId]);
+  const chatScopeKey = chatScope?.key ?? null;
+  const [recent, setRecent] = useState<{ scopeKey: string | null; prompts: string[] }>({
+    scopeKey: chatScopeKey,
+    prompts: [],
+  });
+  /** Nunca mostrar la lista de otra identidad, ni siquiera en el frame previo al efecto. */
+  const recentPrompts = recent.scopeKey === chatScopeKey ? recent.prompts : [];
 
   useEffect(() => {
     if (!isAiRoute) return;
-    const sync = () => setRecentPrompts(readRecentUserPrompts());
+    const sync = () => {
+      const messages = chatScope ? readChatSnapshot(chatScope) : [];
+      setRecent({ scopeKey: chatScopeKey, prompts: readRecentUserPrompts(messages) });
+    };
     sync();
     window.addEventListener("mv-ai-chat", sync);
     window.addEventListener("storage", sync);
@@ -135,7 +139,7 @@ export function Sidebar({
       window.removeEventListener("mv-ai-chat", sync);
       window.removeEventListener("storage", sync);
     };
-  }, [isAiRoute]);
+  }, [chatScope, chatScopeKey, isAiRoute]);
 
   /** Clic afuera cierra el menú del perfil. */
   useEffect(() => {
