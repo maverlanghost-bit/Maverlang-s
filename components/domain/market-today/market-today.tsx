@@ -6,12 +6,13 @@ import { useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } fro
 
 import { MoverCard, SpyChip } from "@/components/domain/market-today/mover-card";
 import { TodaySkeleton } from "@/components/domain/market-today/skeleton";
+import { buildFeaturedPool } from "@/components/domain/market-today/spotlight";
 import { sparklineSmoothPath } from "@/components/domain/sparkline";
 import { TickerLogo } from "@/components/domain/ticker-logo";
 import { Button } from "@/components/ui/button";
 import { indexFromKey } from "@/components/ui/keys";
 import { hoyCopy } from "@/content/i18n/extra-hoy";
-import { ApiError, getHistory } from "@/lib/api/client";
+import { ApiError, getHistory, searchMarket } from "@/lib/api/client";
 import { apiResultSchema } from "@/lib/api/contracts";
 import { cn } from "@/lib/cn";
 import { formatPercent } from "@/lib/format";
@@ -19,9 +20,9 @@ import { useHistory } from "@/lib/hooks/queries";
 import { useFavorites } from "@/lib/hooks/use-favorites";
 import { useT } from "@/lib/hooks/use-t";
 import {
+  dayChange,
   formatChileClock,
   todayBoardSchema,
-  type MoverCard as MoverCardData,
   type TodayBoard,
 } from "@/lib/market/movers";
 
@@ -105,23 +106,8 @@ function ChileClock({ label, locale }: { label: string; locale: "es-CL" | "en" }
   );
 }
 
-function cardLabel(template: string, card: MoverCardData): string {
+function cardLabel(template: string, card: { name: string }): string {
   return template.replace("{name}", card.name);
-}
-
-function buildFeaturedPool(board: TodayBoard | undefined): MoverCardData[] {
-  if (!board) return [];
-  const merged = [...board.gainers, ...board.viewed, ...board.losers];
-  const seen = new Set<string>();
-  const all: MoverCardData[] = [];
-  for (const item of merged) {
-    if (seen.has(item.symbol)) continue;
-    seen.add(item.symbol);
-    all.push(item);
-  }
-  const withSpark = all.filter((item) => item.spark.length >= 2);
-  const source = withSpark.length > 0 ? withSpark : all;
-  return source.slice(0, 6);
 }
 
 export function MarketToday() {
@@ -144,6 +130,18 @@ export function MarketToday() {
     refetchOnWindowFocus: false,
   });
 
+  /**
+   * Catálogo visible para el carrusel. Es opcional: si falla, el selector cae a
+   * las listas reales del tablero (`board`) sin inventar fichas.
+   */
+  const catalog = useQuery({
+    queryKey: ["market-today-spotlight-catalog", "listed", 50, "liquidity"],
+    queryFn: () => searchMarket({ q: "", page: 1, pageSize: 50, sort: "liquidity", scope: "listed" }),
+    staleTime: 5 * 60_000,
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: false,
+  });
+
   const [picked, setPicked] = useState<ListId | null>(null);
   const list: ListId =
     picked ?? LISTS.find((id) => (board.data?.[id].length ?? 0) > 0) ?? "gainers";
@@ -152,7 +150,10 @@ export function MarketToday() {
   const [range, setRange] = useState<SpotlightRange>("1M");
   const touchStartX = useRef<number | null>(null);
 
-  const featuredPool = useMemo(() => buildFeaturedPool(board.data), [board.data]);
+  const featuredPool = useMemo(
+    () => buildFeaturedPool(board.data, catalog.data?.items),
+    [board.data, catalog.data],
+  );
   const safeSlideIndex = featuredPool.length > 0 ? slideIndex % featuredPool.length : 0;
   const activeCard = featuredPool[safeSlideIndex] ?? null;
 
@@ -230,19 +231,41 @@ export function MarketToday() {
   }, [series]);
 
   /**
+   * Variación del día a partir de la serie real de 1D, con la misma regla del
+   * tablero: dos cierres diarios o la ventana de 24 h con ticks. Así una ficha
+   * que sólo viene del catálogo no muestra cinco días como si fueran "hoy".
+   */
+  const dayChangePct = useMemo<number | null>(() => {
+    const data = historyQuery.data;
+    if (!data || data.points.length < 2) return null;
+    const points = data.points.map((pt) => ({
+      t: pt.t < 1e12 ? pt.t * 1000 : pt.t,
+      p: pt.p,
+    }));
+    return dayChange(points, Date.now(), data.source === "closes");
+  }, [historyQuery.data]);
+
+  /**
    * Variación como fracción (formatPercent usa style "percent": 0,035 → 3,5 %).
    * Antes se multiplicaba por 100 y salían cifras como -3.500 %.
    */
   const basePct = useMemo<number | null>(() => {
     if (!activeCard) return null;
-    if (range === "1D") return activeCard.changePct;
+    // 1D conserva la variación del día que ya calculó el tablero. Una ficha que
+    // sólo viene del catálogo (sin tablero) usa la serie real de 1D.
+    if (range === "1D") {
+      if (activeCard.changePct !== null && Number.isFinite(activeCard.changePct)) {
+        return activeCard.changePct;
+      }
+      return dayChangePct;
+    }
     if (series.length >= 2) {
       const first = series[0]!.p;
       const last = series[series.length - 1]!.p;
       if (first > 0) return (last - first) / first;
     }
     return null;
-  }, [activeCard, range, series]);
+  }, [activeCard, dayChangePct, range, series]);
 
   const displayPct = useMemo<number | null>(() => {
     const first = series[0]?.p ?? 0;

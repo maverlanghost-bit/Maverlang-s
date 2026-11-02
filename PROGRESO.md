@@ -1,5 +1,12 @@
 # PROGRESO — Maverlang
 
+## T22 — Mejora del Asistente en escritorio, espacio fijo y rendimiento (2026-11-02)
+- Hecho (Sidebar en `components/app-shell/sidebar.tsx` y `app-shell.tsx`): rediseño de escritorio del asistente con ancho 220px expandido / 72px colapsado y transición estable; el contenido reserva el espacio fijo correcto en ambos estados, sin saltos ni solapamientos.
+- Hecho (Controles en `components/ai/composer.tsx` y `chat-view.tsx`): simplificación de controles del compositor (menos acciones visibles, jerarquía clara del envío) manteniendo accesibilidad y foco.
+- Hecho (Carrusel en `market-today.tsx`): prioriza empresas conocidas del catálogo (`config/tickers.ts`) con precios reales y fallback cuando falta historial, evitando slides vacíos.
+- Hecho (Rendimiento en providers y consultas + librería API): optimizaciones de `providers`, de las consultas de datos y de `lib/api/client.ts` (menos re-renders y peticiones redundantes).
+- Pendiente por instrucción del usuario: pruebas, compilación, lint, verificación visual en navegador y medición de rendimiento no ejecutadas.
+
 ## T21 — Rediseño responsive del Asistente IA (2026-11-02)
 - Hecho (Encabezado y layout en `components/ai/chat-view.tsx` y `app/(platform)/app/asistente/asistente-screen.tsx`): header propio con retorno a mercado sólo en móvil/tablet (`lg:hidden`), isotipo + título + píldora `xStocks 24/7`, botón de nuevo chat (etiqueta desde `sm`) y píldora `Privado`; separador hairline, safe-area y alto `100dvh`.
 - Hecho (Compositor en `components/ai/composer.tsx`): tarjeta blanca de dos filas con filo superior degradado y barra de herramientas separada por borde; controles de 40–44px con `active:scale`, anillo de foco compartido (`FOCUS_RING`), chips con `snap-x`, error de foto enlazado por `aria-describedby` (`ai-composer-error` / `ai-composer-note`) y variante compacta en el dock móvil.

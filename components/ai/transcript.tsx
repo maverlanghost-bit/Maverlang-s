@@ -44,25 +44,26 @@ export function Transcript({
       className={cn(
         "min-h-0 overflow-y-auto overscroll-contain",
         isEmpty
-          ? "flex-1 px-4 lg:flex-none lg:pb-5"
-          : "flex-1 px-4 pt-3 pb-6 sm:px-6 sm:pt-5 sm:pb-8",
+          ? "flex-1 px-4 sm:px-6 lg:flex-none lg:px-0 lg:pb-5"
+          : "flex-1 px-4 pt-4 pb-6 sm:px-6 sm:pt-6 sm:pb-8 lg:px-0 lg:pt-7 lg:pb-9",
       )}
     >
       <div className="sr-only" aria-live="polite" aria-atomic="true">
         {announcement}
       </div>
       {isEmpty ? (
-        <div className="mx-auto flex min-h-full w-full max-w-2xl flex-col items-center justify-center pt-3 pb-6 text-center sm:pt-5 sm:pb-8 lg:min-h-0 lg:pt-0 lg:pb-0">
-          <div aria-hidden="true" className="relative mb-5 flex items-center justify-center sm:mb-6">
-            <div className="absolute size-20 rounded-full bg-surface-1 blur-xl sm:size-24" />
-            <div className="relative flex size-14 items-center justify-center rounded-[20px] border border-border/70 bg-white text-fg shadow-[inset_0_1px_0_rgb(255_255_255/0.9),0_10px_28px_-14px_rgb(10_10_10/0.35)] sm:size-16">
+        <div className="mx-auto flex min-h-full w-full max-w-2xl flex-col items-center justify-center px-1 pt-4 pb-7 text-center sm:pt-6 sm:pb-9 lg:min-h-0 lg:px-0 lg:pt-0 lg:pb-0">
+          <div aria-hidden="true" className="relative mb-6 flex items-center justify-center lg:mb-8">
+            <span className="absolute -inset-7 rounded-full bg-[radial-gradient(closest-side,#f0f0f0_0%,rgba(255,255,255,0)_76%)]" />
+            <span className="absolute inset-[-10px] rounded-[30px] border border-border/40" />
+            <span className="relative flex size-16 items-center justify-center rounded-[22px] border border-border/70 bg-white text-fg shadow-[inset_0_1px_0_rgba(255,255,255,0.9)] lg:size-20 lg:rounded-[26px]">
               <SparkleIcon />
-            </div>
+            </span>
           </div>
-          <p className="max-w-[18ch] text-balance text-[26px] leading-[1.12] font-semibold tracking-[-0.025em] text-fg sm:max-w-none sm:text-[34px]">
+          <p className="max-w-[19ch] text-balance text-[30px] leading-[1.08] font-semibold tracking-[-0.03em] text-fg sm:max-w-none sm:text-[36px] lg:max-w-[22ch] lg:text-[40px]">
             {copy.emptyTitle}
           </p>
-          <p className="mx-auto mt-3 max-w-[34ch] text-pretty text-[14px] leading-[1.65] text-fg-muted sm:mt-3.5 sm:max-w-md sm:text-[15.5px]">
+          <p className="mx-auto mt-3 max-w-[36ch] text-pretty text-[14px] leading-[1.65] text-fg-muted sm:mt-3.5 sm:max-w-md sm:text-[15px]">
             {copy.emptyBody}
           </p>
           {onSuggest ? (
@@ -72,7 +73,7 @@ export function Transcript({
                   key={item.id}
                   type="button"
                   onClick={() => onSuggest(item.id, item.text)}
-                  className="group flex min-h-[68px] items-start gap-3 rounded-2xl border border-border/70 bg-white p-3.5 text-left shadow-xs transition duration-200 ease-[var(--ease-inout)] hover:-translate-y-0.5 hover:border-fg/20 hover:shadow-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand active:translate-y-0 motion-reduce:transform-none motion-reduce:transition-none sm:p-4"
+                  className="group flex min-h-[68px] items-start gap-3 rounded-2xl border border-border/70 bg-white p-3.5 text-left transition duration-200 ease-[var(--ease-inout)] hover:-translate-y-0.5 hover:border-fg/20 hover:bg-surface-1/40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand active:translate-y-0 motion-reduce:transform-none motion-reduce:transition-none sm:p-4"
                 >
                   <span
                     aria-hidden="true"
@@ -97,7 +98,7 @@ export function Transcript({
           ) : null}
         </div>
       ) : (
-        <ol aria-label={copy.transcript} className="mx-auto flex w-full max-w-2xl flex-col gap-5 sm:gap-6">
+        <ol aria-label={copy.transcript} className="mx-auto flex w-full max-w-2xl flex-col gap-6 sm:gap-7 lg:gap-8">
           {messages.map((message, index) => (
             <li
               key={message.id}
@@ -116,12 +117,12 @@ export function Transcript({
               ) : null}
               {message.text && !message.notice ? (
                 message.role === "user" ? (
-                  <p className="max-w-[88%] rounded-[20px] rounded-br-[6px] bg-fg px-4 py-2.5 text-[15px] leading-relaxed break-words whitespace-pre-wrap text-bg shadow-xs motion-safe:animate-fade-in motion-reduce:animate-none sm:max-w-[75%] sm:px-[18px] sm:py-3">
+                  <p className="max-w-[88%] rounded-[20px] rounded-br-[7px] bg-fg px-4 py-2.5 text-[14.5px] leading-[1.6] break-words whitespace-pre-wrap text-bg motion-safe:animate-fade-in motion-reduce:animate-none sm:max-w-[78%] sm:px-[18px] sm:py-3 sm:text-[15px]">
                     {message.text}
                   </p>
                 ) : (
                   <div className="w-full min-w-0 motion-safe:animate-fade-in motion-reduce:animate-none">
-                    <div className="mb-1.5 flex items-center gap-2 px-0.5" aria-hidden="true">
+                    <div className="mb-2 flex items-center gap-2 px-0.5" aria-hidden="true">
                       <span className="flex size-6 items-center justify-center rounded-lg border border-border/60 bg-surface-1 text-fg">
                         <MiniSparkleIcon />
                       </span>
@@ -129,7 +130,7 @@ export function Transcript({
                         {copy.assistant}
                       </span>
                     </div>
-                    <div className="rounded-[20px] rounded-tl-[6px] border border-border/70 bg-white px-4 py-3.5 text-[15px] leading-[1.7] text-fg-body shadow-[0_1px_2px_rgb(10_10_10/0.03)] sm:px-5 sm:py-4">
+                    <div className="max-w-[68ch] text-[15px] leading-[1.75] text-fg-body sm:text-[15.5px]">
                       <p className="break-words whitespace-pre-wrap">{message.text}</p>
                     </div>
                   </div>
@@ -140,11 +141,14 @@ export function Transcript({
                 <img
                   src={message.imageDataUrl}
                   alt={copy.photoAlt}
-                  className="mt-2.5 max-h-40 max-w-[85%] rounded-2xl border border-border/70 object-cover shadow-xs sm:max-h-48"
+                  className={cn(
+                    "mt-3 max-h-52 max-w-[85%] rounded-2xl border border-border/70 object-cover sm:max-h-60",
+                    message.role === "user" ? "self-end" : "self-start",
+                  )}
                 />
               ) : null}
               {message.widgets && message.widgets.length > 0 ? (
-                <div className="mt-3 w-full min-w-0">{renderWidgets(message.widgets)}</div>
+                <div className="mt-4 w-full min-w-0">{renderWidgets(message.widgets)}</div>
               ) : null}
             </li>
           ))}
@@ -162,10 +166,10 @@ export function Transcript({
 
 function Typing({ label }: { label: string }) {
   return (
-    <p
-      role="status"
-      className="inline-flex items-center gap-2.5 rounded-[18px] rounded-tl-[6px] border border-border/70 bg-white px-4 py-3 text-[13px] font-medium text-fg-muted shadow-[0_1px_2px_rgb(10_10_10/0.03)]"
-    >
+    <p role="status" className="flex items-center gap-2.5 text-[12.5px] font-medium text-fg-muted">
+      <span className="flex size-6 shrink-0 items-center justify-center rounded-lg border border-border/60 bg-surface-1 text-fg" aria-hidden>
+        <MiniSparkleIcon />
+      </span>
       <span className="inline-flex items-center gap-1" aria-hidden>
         <Dot delay="0ms" />
         <Dot delay="160ms" />
@@ -187,7 +191,7 @@ function Dot({ delay }: { delay: string }) {
 
 function SparkleIcon() {
   return (
-    <svg viewBox="0 0 24 24" className="size-6 sm:size-7" fill="none" aria-hidden="true">
+    <svg viewBox="0 0 24 24" className="size-7 lg:size-8" fill="none" aria-hidden="true">
       <path
         d="M12 3.25c.45 3.6 1.95 5.1 5.55 5.55-3.6.45-5.1 1.95-5.55 5.55-.45-3.6-1.95-5.1-5.55-5.55 3.6-.45 5.1-1.95 5.55-5.55Z"
         fill="currentColor"

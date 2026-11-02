@@ -1,6 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useState, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+} from "react";
 import { usePathname } from "next/navigation";
 
 import { BottomTabs } from "@/components/app-shell/bottom-tabs";
@@ -49,6 +56,13 @@ function SyncToastOffset({ includeTabs }: { includeTabs: boolean }) {
   return null;
 }
 
+/**
+ * Ancho real de la barra lateral en escritorio (debe coincidir con `w-[72px]` /
+ * `w-[220px]` de sidebar.tsx). Se publica como `--app-sidebar-width` para que
+ * las capas fijas —el chat de IA— sepan cuánto espacio tienen a la derecha.
+ */
+const SIDEBAR_WIDTH = { collapsed: 72, expanded: 220 } as const;
+
 /** Sin tabs privadas, la barra de la ficha queda al borde de la pantalla. */
 function ClearPrivateTabs() {
   useLayoutEffect(() => {
@@ -84,7 +98,14 @@ function ShellFrame({
   }, []);
 
   return (
-    <div className="relative min-h-dvh bg-bg">
+    <div
+      className="relative min-h-dvh bg-bg"
+      style={
+        {
+          "--app-sidebar-width": `${collapsed ? SIDEBAR_WIDTH.collapsed : SIDEBAR_WIDTH.expanded}px`,
+        } as CSSProperties
+      }
+    >
       <SyncDocumentLanguage language={language} />
       <SyncToastOffset includeTabs />
       <a
@@ -118,7 +139,10 @@ function PublicFrame({ children }: { children: ReactNode }) {
   const { t, language } = useT();
 
   return (
-    <div className="relative min-h-dvh bg-bg">
+    <div
+      className="relative min-h-dvh bg-bg"
+      style={{ "--app-sidebar-width": "0px" } as CSSProperties}
+    >
       <SyncDocumentLanguage language={language} />
       <ClearPrivateTabs />
       <SyncToastOffset includeTabs={false} />

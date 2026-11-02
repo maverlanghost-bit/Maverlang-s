@@ -26,7 +26,7 @@ import { Tooltip } from "@/components/ui/tooltip";
 import { getPrices, searchMarket, type MarketSearchItem } from "@/lib/api/client";
 import { cn } from "@/lib/cn";
 import { formatMoney } from "@/lib/format";
-import { useFx } from "@/lib/hooks/queries";
+import { priceQueryKey, useFx } from "@/lib/hooks/queries";
 import { useT } from "@/lib/hooks/use-t";
 import { displayPrice } from "@/lib/market/browse";
 import type { Currency, Quote } from "@/lib/types";
@@ -285,9 +285,12 @@ function StockSearchPanel({
     staleTime: 30_000,
   });
   const items: MarketSearchItem[] = needle ? (search.data?.items ?? []) : [];
-  const symbols = items.map((item) => item.symbol);
+  // Misma clave canónica que `usePrices`/mercado/cartera: recorta, deduplica
+  // y ordena. Si el buscador y una lista piden los mismos símbolos, comparten
+  // caché en vez de abrir dos entradas para la misma consulta.
+  const symbols = priceQueryKey(items.map((item) => item.symbol));
   const prices = useQuery({
-    queryKey: ["prices", [...symbols].sort()] as const,
+    queryKey: ["prices", symbols] as const,
     queryFn: () => getPrices(symbols),
     enabled: symbols.length > 0,
     staleTime: 15_000,

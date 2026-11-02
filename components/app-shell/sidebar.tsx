@@ -17,6 +17,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip } from "@/components/ui/tooltip";
 import { AccountSwitch } from "@/components/app-shell/account-switch";
 import { site } from "@/config/site";
+import { asistenteText } from "@/content/i18n/extra-asistente";
 import { shouldIgnoreSidebarShortcut, shouldToggleSidebarClick } from "@/lib/app-shell/sidebar";
 import type { AccountMode } from "@/lib/account/mode";
 import { cn } from "@/lib/cn";
@@ -24,6 +25,12 @@ import { useT } from "@/lib/hooks/use-t";
 
 const WIDTH_ANIMATION = "transition-[width] duration-200 ease-spring";
 const AI_STORAGE_KEY = "mv_ai_chat_v1";
+
+/** Título del historial real de la sesión (no hay conversaciones guardadas). */
+const AI_RECENT_LABEL = {
+  "es-CL": "Preguntas recientes",
+  en: "Recent questions",
+} as const;
 
 function dispatchAiCommand(
   detail:
@@ -85,41 +92,6 @@ function ComposeChatIcon({ className }: { className?: string }) {
   );
 }
 
-function TrendSparkIcon({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" className={className} aria-hidden>
-      <path d="m2.5 11 3.5-3.5 2.5 2.5 5-5.5" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M10.5 4.5h3v3" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
-function CompareArrowsIcon({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" className={className} aria-hidden>
-      <path d="M3 5.5h10m0 0L10.5 3M13 5.5 10.5 8M13 10.5H3m0 0L5.5 8M3 10.5 5.5 13" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
-function PiePortfolioIcon({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" className={className} aria-hidden>
-      <path d="M8 2.5v5.5h5.5A5.5 5.5 0 1 1 8 2.5Z" strokeLinejoin="round" />
-      <path d="M10 2.2A5.5 5.5 0 0 1 13.8 6H10V2.2Z" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
-function CameraCaptureIcon({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" className={className} aria-hidden>
-      <path d="M2.5 5.5A1.5 1.5 0 0 1 4 4h1.3l.9-1.2h3.6L10.7 4H12a1.5 1.5 0 0 1 1.5 1.5v6A1.5 1.5 0 0 1 12 13H4a1.5 1.5 0 0 1-1.5-1.5v-6Z" strokeLinejoin="round" />
-      <circle cx="8" cy="8.5" r="2" />
-    </svg>
-  );
-}
-
 function HistoryChatIcon({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" className={className} aria-hidden>
@@ -128,33 +100,6 @@ function HistoryChatIcon({ className }: { className?: string }) {
     </svg>
   );
 }
-
-const AI_QUICK_TOOLS = [
-  {
-    key: "tesla",
-    label: "Analizar acción hoy",
-    icon: TrendSparkIcon,
-    run: () => dispatchAiCommand({ type: "prompt", id: "tesla", text: "¿Cómo va Tesla hoy?" }),
-  },
-  {
-    key: "compare",
-    label: "Comparar acciones",
-    icon: CompareArrowsIcon,
-    run: () => dispatchAiCommand({ type: "prompt", id: "compare", text: "Compara Apple y Microsoft" }),
-  },
-  {
-    key: "portfolio",
-    label: "Analizar mi cartera",
-    icon: PiePortfolioIcon,
-    run: () => dispatchAiCommand({ type: "prompt", id: "portfolio", text: "¿Cómo va mi cartera?" }),
-  },
-  {
-    key: "photo",
-    label: "Importar captura",
-    icon: CameraCaptureIcon,
-    run: () => dispatchAiCommand({ type: "attach" }),
-  },
-] as const;
 
 export function Sidebar({
   collapsed,
@@ -169,7 +114,9 @@ export function Sidebar({
 }) {
   const pathname = usePathname();
   const isAiRoute = pathname.startsWith("/app/asistente");
-  const { t } = useT();
+  const { t, language } = useT();
+  const newChatLabel = asistenteText(language).clear;
+  const recentLabel = AI_RECENT_LABEL[language];
   const account = useAccountLabel();
   const name = account.name;
   const loading = account.loading;
@@ -223,18 +170,18 @@ export function Sidebar({
       className={cn(
         "sticky top-0 z-30 hidden h-dvh shrink-0 flex-col overflow-visible border-r border-border/70 bg-surface-1/40 backdrop-blur-xl backdrop-saturate-180 lg:flex",
         WIDTH_ANIMATION,
-        collapsed ? "w-[72px] cursor-e-resize" : isAiRoute ? "w-[244px] cursor-w-resize" : "w-[220px] cursor-w-resize",
+        collapsed ? "w-[72px] cursor-e-resize" : "w-[220px] cursor-w-resize",
       )}
     >
       {isAiRoute ? (
         <>
-          <div className={cn("flex items-center gap-2 py-3", collapsed ? "justify-center px-0" : "justify-between px-3")}>
+          <div className={cn("flex items-center gap-1 py-3", collapsed ? "justify-center px-0" : "justify-between px-3")}>
             {collapsed ? (
-              <Tooltip content="Volver a Mercado" side="right">
+              <Tooltip content={t.detail.backToMarket} side="right">
                 <Link
                   href="/app"
-                  aria-label="Volver a Mercado"
-                  className="mx-auto flex size-11 cursor-pointer items-center justify-center rounded-xl border border-border/70 bg-white/85 text-fg shadow-2xs outline-none transition hover:border-brand/40 hover:bg-brand-soft/40 hover:text-brand focus-visible:ring-4 focus-visible:ring-fg/20"
+                  aria-label={t.detail.backToMarket}
+                  className="mx-auto flex size-11 cursor-pointer items-center justify-center rounded-xl text-fg-body outline-none transition hover:bg-surface-2 hover:text-fg focus-visible:ring-4 focus-visible:ring-fg/20"
                 >
                   <ArrowLeftIcon className="size-4" />
                 </Link>
@@ -243,17 +190,17 @@ export function Sidebar({
               <>
                 <Link
                   href="/app"
-                  className="group flex min-h-10 flex-1 cursor-pointer items-center gap-2 rounded-xl border border-border/70 bg-white/85 px-3 py-1.5 text-xs font-semibold text-fg shadow-2xs outline-none transition hover:border-brand/40 hover:bg-brand-soft/40 hover:text-brand focus-visible:ring-4 focus-visible:ring-fg/20"
+                  className="group flex min-h-11 min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-lg px-2 text-[13px] font-medium text-fg-body outline-none transition duration-150 ease-spring hover:bg-fg/[0.05] hover:text-fg focus-visible:ring-4 focus-visible:ring-fg/20"
                 >
-                  <ArrowLeftIcon className="size-3.5 shrink-0 transition-transform group-hover:-translate-x-0.5" />
-                  <span className="truncate">Volver a Mercado</span>
+                  <ArrowLeftIcon className="size-4 shrink-0 text-fg-muted transition duration-150 group-hover:-translate-x-0.5 group-hover:text-fg" />
+                  <span className="min-w-0 truncate">{t.detail.backToMarket}</span>
                 </Link>
                 <button
                   type="button"
                   onClick={onToggle}
                   aria-label="Alternar barra lateral"
                   title="Alternar barra lateral (⌘B)"
-                  className="inline-flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-xl text-fg-muted outline-none transition hover:bg-fg/[0.06] hover:text-fg focus-visible:ring-4 focus-visible:ring-fg/20"
+                  className="inline-flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-lg text-fg-muted outline-none transition hover:bg-fg/[0.06] hover:text-fg focus-visible:ring-4 focus-visible:ring-fg/20"
                 >
                   <SidebarPanelIcon className="size-4" />
                 </button>
@@ -261,17 +208,14 @@ export function Sidebar({
             )}
           </div>
 
-          <nav aria-label={t.nav.label} className={cn("flex-1 overflow-y-auto", collapsed ? "px-3.5" : "px-2.5")}>
+          <nav aria-label={t.nav.label} className={cn("flex-1 overflow-y-auto pb-2", collapsed ? "px-3.5" : "px-2.5")}>
             <ul className="flex flex-col gap-1">
               <li>
-                <StockSearchButton collapsed={collapsed} />
-              </li>
-              <li>
                 {collapsed ? (
-                  <Tooltip content="Nuevo chat" side="right">
+                  <Tooltip content={newChatLabel} side="right">
                     <button
                       type="button"
-                      aria-label="Nuevo chat"
+                      aria-label={newChatLabel}
                       onClick={() => dispatchAiCommand({ type: "clear" })}
                       className="mx-auto flex size-11 cursor-pointer items-center justify-center rounded-xl bg-fg text-bg shadow-xs outline-none transition hover:bg-fg/90 focus-visible:ring-4 focus-visible:ring-fg/20 active:scale-[0.98]"
                     >
@@ -282,81 +226,44 @@ export function Sidebar({
                   <button
                     type="button"
                     onClick={() => dispatchAiCommand({ type: "clear" })}
-                    className="flex min-h-11 w-full cursor-pointer items-center gap-2.5 rounded-xl bg-fg px-1 text-sm font-medium text-bg shadow-xs outline-none transition hover:bg-fg/90 focus-visible:ring-4 focus-visible:ring-fg/20 active:scale-[0.98]"
+                    className="flex min-h-11 w-full cursor-pointer items-center rounded-xl bg-fg pr-3 text-left text-sm font-medium text-bg shadow-xs outline-none transition hover:bg-fg/90 focus-visible:ring-4 focus-visible:ring-fg/20 active:scale-[0.98]"
                   >
                     <span className="flex size-11 shrink-0 items-center justify-center">
                       <ComposeChatIcon className="size-4" />
                     </span>
-                    <span className="truncate">Nuevo chat</span>
+                    <span className="min-w-0 truncate">{newChatLabel}</span>
                   </button>
                 )}
               </li>
-
-              {AI_QUICK_TOOLS.map((tool) => {
-                const Icon = tool.icon;
-                const btn = (
-                  <button
-                    type="button"
-                    aria-label={collapsed ? tool.label : undefined}
-                    onClick={tool.run}
-                    className={cn(
-                      "flex min-h-10 cursor-pointer items-center rounded-xl text-left text-sm text-fg-body outline-none transition duration-200 ease-spring hover:bg-fg/[0.05] hover:text-fg focus-visible:ring-4 focus-visible:ring-fg/20 active:scale-[0.98]",
-                      collapsed ? "mx-auto size-11 justify-center gap-0 px-0" : "w-full gap-2.5 px-1",
-                    )}
-                  >
-                    <span className="flex size-10 shrink-0 items-center justify-center">
-                      <Icon className="size-4" />
-                    </span>
-                    <span
-                      className={cn(
-                        "overflow-hidden whitespace-nowrap transition-all duration-200 ease-spring",
-                        collapsed ? "sr-only" : "truncate text-[13px]",
-                      )}
-                    >
-                      {tool.label}
-                    </span>
-                  </button>
-                );
-                return (
-                  <li key={tool.key}>
-                    {collapsed ? (
-                      <Tooltip content={tool.label} side="right">
-                        {btn}
-                      </Tooltip>
-                    ) : (
-                      btn
-                    )}
-                  </li>
-                );
-              })}
+              <li>
+                <StockSearchButton collapsed={collapsed} />
+              </li>
             </ul>
 
-            {!collapsed ? (
-              <div className="mt-4 border-t border-border/60 pt-3">
-                <p className="px-2 pb-1.5 text-[11px] font-semibold tracking-wider text-fg-muted uppercase">
-                  Recientes en esta sesión
-                </p>
-                {recentPrompts.length > 0 ? (
-                  <ul className="flex flex-col gap-0.5">
-                    {recentPrompts.map((promptText) => (
-                      <li key={promptText}>
-                        <button
-                          type="button"
-                          onClick={() => dispatchAiCommand({ type: "prompt", id: "tesla", text: promptText })}
-                          className="flex min-h-9 w-full cursor-pointer items-center gap-2 rounded-xl px-2.5 py-1.5 text-left text-xs text-fg-muted outline-none transition hover:bg-fg/[0.05] hover:text-fg focus-visible:ring-4 focus-visible:ring-fg/20"
-                        >
-                          <HistoryChatIcon className="size-3.5 shrink-0 text-fg-muted" />
-                          <span className="truncate">{promptText}</span>
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <div className=" mx-1 rounded-xl border border-border/60 bg-white/55 px-3 py-2.5 text-xs text-fg-muted">
-                    Tus consultas de hoy aparecerán aquí.
-                  </div>
-                )}
-              </div>
+            {!collapsed && recentPrompts.length > 0 ? (
+              <section aria-labelledby="mv-ai-recent" className="mt-5 border-t border-border/60 pt-3">
+                <h2
+                  id="mv-ai-recent"
+                  className="px-2 pb-1.5 text-[10px] font-semibold tracking-[0.12em] text-fg-muted uppercase"
+                >
+                  {recentLabel}
+                </h2>
+                <ul className="flex flex-col gap-0.5">
+                  {recentPrompts.map((promptText) => (
+                    <li key={promptText}>
+                      <button
+                        type="button"
+                        title={promptText}
+                        onClick={() => dispatchAiCommand({ type: "prompt", id: "tesla", text: promptText })}
+                        className="group flex min-h-8 w-full cursor-pointer items-center gap-2 rounded-lg px-2 py-1 text-left text-xs leading-snug text-fg-muted outline-none transition duration-150 ease-spring hover:bg-fg/[0.05] hover:text-fg focus-visible:ring-4 focus-visible:ring-fg/20"
+                      >
+                        <HistoryChatIcon className="size-3.5 shrink-0 text-fg-muted transition group-hover:text-fg" />
+                        <span className="min-w-0 truncate">{promptText}</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </section>
             ) : null}
           </nav>
 

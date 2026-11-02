@@ -67,9 +67,7 @@ export function Composer({
   onRemoveImage: () => void;
   fileRef: RefObject<HTMLInputElement | null>;
 }) {
-  const [mode, setMode] = useState<"fast" | "deep">("fast");
   const canSend = !typing && (draft.trim().length > 0 || pendingImage != null);
-  const showSuggestions = suggestions;
 
   function submit(event: FormEvent) {
     event.preventDefault();
@@ -80,19 +78,20 @@ export function Composer({
   const dockSlot = useDockSlot();
 
   const pendingBlock = pendingImage ? (
-    <div className="mb-2 flex items-center gap-2.5 px-1">
+    <div className="mb-2.5 flex items-center gap-2.5 rounded-2xl border border-border/70 bg-white/85 p-2 pr-2.5">
       {/* La foto es un data URL del usuario: el optimizador de Next no la acepta. */}
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={pendingImage}
-        alt={copy.photoAlt}
-        className="h-14 w-14 shrink-0 rounded-2xl border border-border/70 object-cover shadow-2xs"
+        alt=""
+        className="size-12 shrink-0 rounded-xl border border-border/60 object-cover"
       />
+      <p className="min-w-0 flex-1 truncate text-xs font-medium text-fg-body">{copy.photoAlt}</p>
       <button
         type="button"
         onClick={onRemoveImage}
         className={cn(
-          "inline-flex min-h-10 touch-manipulation items-center gap-1.5 rounded-full border border-border/70 bg-white/90 px-3 text-xs font-medium text-fg-body shadow-2xs backdrop-blur-md transition hover:border-border-strong hover:bg-surface-1 hover:text-fg active:scale-[0.98] motion-reduce:transition-none",
+          "inline-flex min-h-9 shrink-0 touch-manipulation items-center gap-1.5 rounded-full border border-border/70 bg-white px-3 text-xs font-medium text-fg-body transition hover:border-border-strong hover:bg-surface-1 hover:text-fg active:scale-[0.98] motion-reduce:transition-none",
           FOCUS_RING,
         )}
       >
@@ -149,7 +148,7 @@ export function Composer({
         className={
           dockSlot
             ? "max-h-11 min-h-11 min-w-0 flex-1 resize-none border-0 bg-transparent px-1.5 py-2.5 text-[16px] leading-5 text-fg outline-none placeholder:text-fg-muted focus-visible:ring-0 disabled:opacity-50"
-            : "max-h-36 min-h-[52px] w-full min-w-0 resize-none border-0 bg-transparent px-0.5 py-1 text-[15.5px] leading-6 text-fg outline-none placeholder:text-fg-muted focus-visible:ring-0 disabled:opacity-50 sm:text-base"
+            : "max-h-40 min-h-11 min-w-0 flex-1 resize-none border-0 bg-transparent px-1 py-2.5 text-[15.5px] leading-6 text-fg outline-none placeholder:text-fg-muted focus-visible:ring-0 disabled:opacity-50"
         }
       />
     </>
@@ -160,26 +159,41 @@ export function Composer({
       type="submit"
       disabled={!canSend}
       aria-label={copy.send}
+      title={copy.send}
       className={cn(
         "inline-flex shrink-0 touch-manipulation items-center justify-center rounded-full transition-all duration-150 active:scale-95 motion-reduce:transition-none",
         dockSlot ? "size-11" : "size-10",
         canSend
-          ? "cursor-pointer bg-fg text-bg shadow-[0_2px_10px_rgba(10,10,10,0.24)] hover:opacity-90"
+          ? "cursor-pointer bg-fg text-bg hover:opacity-90"
           : "cursor-not-allowed bg-surface-2 text-fg-subtle",
         FOCUS_RING,
       )}
     >
-      {canSend ? <SendIcon /> : <GrokWaveIcon />}
+      <SendIcon />
     </button>
   );
 
-  const chips = showSuggestions ? (
-    <div
+  const attachButton = (
+    <button
+      type="button"
+      onClick={onAttach}
+      disabled={typing}
+      aria-label={copy.attach}
+      title={copy.attach}
       className={cn(
-        "no-scrollbar -mx-1 flex min-w-0 snap-x snap-mandatory gap-1.5 overflow-x-auto scroll-px-2 px-1 pb-1 lg:mx-0 lg:flex-wrap lg:justify-center lg:overflow-visible lg:pb-0",
-        dockSlot ? "mt-1.5" : "mt-3",
+        "inline-flex shrink-0 touch-manipulation cursor-pointer items-center justify-center rounded-full text-fg-muted transition hover:bg-surface-1 hover:text-fg active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 motion-reduce:transition-none",
+        dockSlot ? "size-11" : "size-10",
+        FOCUS_RING,
       )}
     >
+      <CameraIcon />
+    </button>
+  );
+
+  // En escritorio las sugerencias viven bajo el compositor; en móvil, la grilla
+  // del estado vacío ya las ofrece más grande, así que aquí no se repiten.
+  const chips = suggestions ? (
+    <div className="mt-3 hidden min-w-0 flex-wrap items-center justify-center gap-2 lg:flex">
       {copy.suggestions.map((item) => (
         <button
           key={item.id}
@@ -187,7 +201,7 @@ export function Composer({
           disabled={typing}
           onClick={() => onSuggest(item.id, item.text)}
           className={cn(
-            "min-h-9 shrink-0 snap-start touch-manipulation cursor-pointer rounded-full border border-border/75 bg-white px-3.5 text-xs font-medium text-fg-body shadow-2xs transition hover:border-border-strong hover:bg-surface-1 hover:text-fg active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40 motion-reduce:transition-none lg:min-h-8",
+            "min-h-9 shrink-0 touch-manipulation cursor-pointer rounded-full border border-border/75 bg-white px-3.5 text-[12.5px] font-medium text-fg-body transition hover:border-border-strong hover:bg-surface-1 hover:text-fg active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40 motion-reduce:transition-none",
             FOCUS_RING,
           )}
         >
@@ -198,19 +212,18 @@ export function Composer({
   ) : null;
 
   const disclaimer = (
-    <p id="ai-composer-note" className="px-1 pt-2 text-center text-[11px] leading-relaxed text-balance text-fg-muted">
+    <p id="ai-composer-note" className="px-1 pt-2.5 text-center text-[11px] leading-relaxed text-balance text-fg-muted">
       {copy.disclaimer}
     </p>
   );
 
   if (dockSlot) {
-    // Móvil: el formulario vive dentro de la barra inferior (dock); chips y aviso quedan sobre ella.
+    // Móvil: el formulario vive dentro de la barra inferior (dock); foto, error y aviso quedan sobre ella.
     return (
       <>
-        <div className="mx-auto w-full max-w-2xl min-w-0 px-3 pt-1.5 pb-1">
+        <div className="mx-auto w-full max-w-2xl min-w-0 px-4 pt-1.5 pb-1 sm:px-6">
           {pendingBlock}
           {errorBlock}
-          {chips}
           {disclaimer}
         </div>
         {createPortal(
@@ -219,18 +232,7 @@ export function Composer({
             aria-busy={typing || undefined}
             className="flex min-h-12 w-full min-w-0 items-center gap-1.5 px-1"
           >
-            <button
-              type="button"
-              onClick={onAttach}
-              disabled={typing}
-              aria-label={copy.attach}
-              className={cn(
-                "inline-flex size-11 shrink-0 touch-manipulation cursor-pointer items-center justify-center rounded-full text-fg-body transition hover:bg-surface-2 hover:text-fg active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 motion-reduce:transition-none",
-                FOCUS_RING,
-              )}
-            >
-              <PlusIcon />
-            </button>
+            {attachButton}
             {fileInput}
             {textarea}
             {sendButton}
@@ -244,66 +246,22 @@ export function Composer({
   return (
     <form
       onSubmit={submit}
-      className="mx-auto w-full max-w-2xl min-w-0 px-3 pt-1.5 pb-2.5 sm:px-6 sm:pb-3"
       aria-busy={typing || undefined}
+      className="mx-auto w-full max-w-2xl min-w-0 px-4 pt-2 pb-3 sm:px-6 sm:pb-4 lg:px-0 lg:pb-6"
     >
       {pendingBlock}
       {errorBlock}
 
-      <div className="relative rounded-[26px] border border-border/80 bg-white shadow-[0_1px_2px_rgba(12,15,20,0.04),0_12px_36px_-18px_rgba(12,15,20,0.18)] transition-[border-color,box-shadow] duration-200 focus-within:border-fg/20 focus-within:ring-4 focus-within:ring-fg/5 focus-within:shadow-[0_1px_2px_rgba(12,15,20,0.04),0_18px_46px_-18px_rgba(12,15,20,0.24)] motion-reduce:transition-none">
+      <div className="relative rounded-3xl border border-border/80 bg-white shadow-[0_1px_2px_rgba(12,15,20,0.04),0_18px_40px_-28px_rgba(12,15,20,0.25)] transition-[border-color,box-shadow] duration-200 focus-within:border-fg/20 focus-within:ring-4 focus-within:ring-fg/[0.06] motion-reduce:transition-none">
         <span
-          aria-hidden
-          className="pointer-events-none absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-fg/10 to-transparent"
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-fg/10 to-transparent"
         />
-
-        <div className="px-3.5 pt-3 sm:px-4 sm:pt-3.5">{textarea}</div>
-
-        <div className="mt-1 flex items-end justify-between gap-2 border-t border-border/60 px-2 py-2 sm:px-2.5">
-          <div className="flex min-w-0 items-center gap-1.5">
-            <button
-              type="button"
-              onClick={onAttach}
-              disabled={typing}
-              aria-label={copy.attach}
-              className={cn(
-                "inline-flex size-10 shrink-0 touch-manipulation cursor-pointer items-center justify-center rounded-full border border-border/70 bg-white text-fg-body shadow-2xs transition hover:border-border-strong hover:bg-surface-1 hover:text-fg active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 motion-reduce:transition-none",
-                FOCUS_RING,
-              )}
-            >
-              <PlusIcon />
-            </button>
-            {fileInput}
-            <button
-              type="button"
-              onClick={onAttach}
-              disabled={typing}
-              className={cn(
-                "hidden min-h-10 touch-manipulation cursor-pointer items-center gap-1.5 rounded-full bg-surface-1 px-3 text-xs font-medium text-fg-body transition hover:bg-surface-2 hover:text-fg active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40 motion-reduce:transition-none sm:inline-flex",
-                FOCUS_RING,
-              )}
-            >
-              <CameraIcon />
-              <span>Importar captura</span>
-            </button>
-          </div>
-
-          <div className="flex shrink-0 items-center gap-1.5">
-            <button
-              type="button"
-              onClick={() => setMode((prev) => (prev === "fast" ? "deep" : "fast"))}
-              className={cn(
-                "inline-flex min-h-10 touch-manipulation cursor-pointer items-center gap-1.5 rounded-full border border-border/70 bg-surface-1/60 px-3 text-xs font-semibold text-fg-body transition hover:border-border-strong hover:bg-surface-2 hover:text-fg active:scale-[0.98] motion-reduce:transition-none",
-                FOCUS_RING,
-              )}
-            >
-              <RocketModeIcon />
-              <span>{mode === "fast" ? "Fast" : "Análisis"}</span>
-              <ChevronSmallIcon
-                className={cn("transition-transform duration-200 motion-reduce:transition-none", mode === "deep" && "rotate-180")}
-              />
-            </button>
-            {sendButton}
-          </div>
+        <div className="flex min-w-0 items-end gap-1.5 px-2 py-2 sm:px-3">
+          {attachButton}
+          {fileInput}
+          {textarea}
+          {sendButton}
         </div>
       </div>
 
@@ -313,17 +271,9 @@ export function Composer({
   );
 }
 
-function PlusIcon() {
-  return (
-    <svg viewBox="0 0 16 16" className="size-4.5" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden>
-      <path d="M8 3.25v9.5M3.25 8h9.5" strokeLinecap="round" />
-    </svg>
-  );
-}
-
 function CameraIcon() {
   return (
-    <svg viewBox="0 0 16 16" className="size-3.5" fill="none" aria-hidden>
+    <svg viewBox="0 0 16 16" className="size-4.5" fill="none" aria-hidden>
       <path
         d="M6 3.5h4l.8 1.3H13a1.2 1.2 0 0 1 1.2 1.2v6.3A1.2 1.2 0 0 1 13 13.5H3A1.2 1.2 0 0 1 1.8 12.3V6A1.2 1.2 0 0 1 3 4.8h2.2L6 3.5Z"
         stroke="currentColor"
@@ -331,33 +281,6 @@ function CameraIcon() {
         strokeLinejoin="round"
       />
       <circle cx="8" cy="8.6" r="2.1" stroke="currentColor" strokeWidth="1.4" />
-    </svg>
-  );
-}
-
-function RocketModeIcon() {
-  return (
-    <svg viewBox="0 0 16 16" className="size-3.5 text-fg-muted" fill="none" stroke="currentColor" strokeWidth="1.4" aria-hidden>
-      <path
-        d="M9.5 2.5c2.2 0 4 1.8 4 4 0 2.5-2.2 4.8-4.8 6.2l-1.7-1.7L5.3 9.3 3.6 7.6C5 5 7.3 2.5 9.5 2.5Z"
-        strokeLinejoin="round"
-      />
-      <path d="M3.5 12.5 5 11" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function ChevronSmallIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      viewBox="0 0 12 12"
-      className={cn("size-3 text-fg-muted", className)}
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      aria-hidden
-    >
-      <path d="m3 4.5 3 3 3-3" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
@@ -372,14 +295,6 @@ function SendIcon() {
         strokeLinecap="round"
         strokeLinejoin="round"
       />
-    </svg>
-  );
-}
-
-function GrokWaveIcon() {
-  return (
-    <svg viewBox="0 0 16 16" className="size-4" fill="none" stroke="currentColor" strokeWidth="1.65" aria-hidden>
-      <path d="M3 7v2M5.5 5v6M8 3.5v9M10.5 5.5v5M13 7v2" strokeLinecap="round" />
     </svg>
   );
 }

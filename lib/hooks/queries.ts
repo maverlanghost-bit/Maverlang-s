@@ -64,6 +64,10 @@ export function useTickers() {
     queryKey: ["tickers"],
     queryFn: getTickers,
     staleTime: HOUR_MS,
+    // Sin esto, el catálogo se descartaba a los 5 min (gcTime por defecto)
+    // y al volver a cartera/billetera se pedía de nuevo aunque siguiera
+    // fresco una hora. Retenerlo no alarga la frescura: manda `staleTime`.
+    gcTime: HOUR_MS,
   });
 }
 

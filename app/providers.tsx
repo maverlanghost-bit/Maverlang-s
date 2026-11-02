@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useState, type ComponentType, type ReactNode } from "react";
 
 import { ToastProvider } from "@/components/ui/toast";
-import { queryRetry } from "@/lib/api/client";
+import { queryRetry } from "@/lib/api/retry";
 import { LoadingSession, SessionProvider } from "@/lib/auth/session-context";
 import type { SessionValue } from "@/lib/auth/types";
 
@@ -63,14 +63,23 @@ function getQueryClient() {
   return browserQueryClient;
 }
 
-/** QueryClient y toasts en toda la app. La sesión real sólo entra en /app y /admin. */
-export function Providers({ children }: { children: ReactNode }) {
+/**
+ * Sólo este subárbol depende de la ruta. Así, navegar dentro de la app no
+ * re-renderiza `QueryClientProvider` ni `ToastProvider` (cuyo valor de
+ * contexto se recrea y arrastraría a todos los `useToast`).
+ */
+function SessionGate({ children }: { children: ReactNode }) {
   const pathname = usePathname() ?? "/";
   const account = needsAccount(pathname);
+  return account ? <AccountShell>{children}</AccountShell> : <GuestSession>{children}</GuestSession>;
+}
+
+/** QueryClient y toasts en toda la app. La sesión real sólo entra en /app y /admin. */
+export function Providers({ children }: { children: ReactNode }) {
   return (
     <QueryClientProvider client={getQueryClient()}>
       <ToastProvider>
-        {account ? <AccountShell>{children}</AccountShell> : <GuestSession>{children}</GuestSession>}
+        <SessionGate>{children}</SessionGate>
       </ToastProvider>
     </QueryClientProvider>
   );
