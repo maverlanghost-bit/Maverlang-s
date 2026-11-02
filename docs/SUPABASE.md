@@ -244,3 +244,37 @@ Limitaciones que no se pueden resolver sólo con este código:
 - La demo en memoria (`AUTH_MODE=mock`) sigue igual: su `POST` se mantiene y no toca Supabase.
 - Para levantarlo: implementar una prueba de correspondencia Supabase↔Privy y quitar el llamado a `assertWalletLinkingOpen()` de `app/api/me/wallet/route.ts`. No borrar 0040 ni las validaciones del store.
 - Tests: `tests/unit/wallet-link-lockdown.test.ts` (Supabase 503 sin tocar el store, cookie demo también bloqueada, demo mock 200).
+
+## RLS de billeteras, depósitos y retiros (0041) — endurecimiento local
+
+NO aplicada. Después de `0040`, pega **una sola vez**
+`supabase/migrations/0041_wallets_deposits_rls.sql` en el SQL Editor y
+ejecútalo. También es idempotente. Agrega:
+
+- `force row level security` en `public.wallets`, `public.crypto_deposits`,
+  `public.wallet_movements` y `public.wallet_reconciliations`.
+- `public.wallets`: `select` sólo de columnas públicas para `authenticated`
+  (`id`, `user_id`, `chain`, `address`, `wallet_client_type`, `is_primary`,
+  `verified_at`, `created_at`). `privy_user_id` y `privy_wallet_id` quedan
+  fuera del `GRANT`; sin `insert`, `update` ni `delete` de clientes.
+- Política `wallets_select_own` más estricta: sólo filas con DID
+  `did:privy:...` y, si la sesión tiene TOTP verificado, exige `aal2`
+  (función `public.mfa_step_pending()`, fail-closed). Sin factor TOTP no
+  cambia nada.
+- Checks `NOT VALID` de formato de DID, de firma/referencia no vacías y de
+  montos finitos (0 < `amount_ui` < 1e15, que excluye NaN/Infinity), más
+  el índice único `wallets_one_privy_identity_per_user`: una cuenta Supabase
+  no puede tener dos identidades Privy distintas.
+- Las tablas de depósitos, movimientos y conciliaciones siguen **sin
+  políticas**: sólo `service_role` las lee y escribe.
+
+Antes de aplicar, correr las comprobaciones de duplicados que están al inicio
+del archivo. Después, validar las restricciones cuando los datos históricos
+estén limpios (`ALTER TABLE ... VALIDATE CONSTRAINT ...`).
+
+Límites: la migración **no se aplicó** en este entorno ni se probó contra
+Supabase real. La función depende de `auth.mfa_factors`; si el proyecto no la
+expone, la política deniega (fail-closed) y hay que revisar antes de
+habilitar. El espejo `profiles.wallet_address` sigue siendo legible por su
+dueño (la política MFA nueva cubre `wallets`, no toda la fila de `profiles`).
+La vinculación real sigue bloqueada y el dinero real sigue apagado.

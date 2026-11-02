@@ -226,6 +226,11 @@ export async function verifyTotp(factorId: string, code: string): Promise<{ ok: 
 
 export async function removeTotp(factorId: string): Promise<{ ok: true } | MfaFailure> {
   if (!factorId) return failure("generic");
+  // Defensa en profundidad: no se quita un TOTP verificado desde una sesión
+  // `aal1`. Supabase también lo exige, pero no se depende sólo de eso: si el
+  // chequeo falla o es ambiguo, `needsMfaStep` devuelve `true` y no se llama
+  // a `unenroll` (fail-closed).
+  if (await needsMfaStep()) return failure("aal");
   try {
     const supabase = getClient();
     if (!supabase) return failure("unavailable");

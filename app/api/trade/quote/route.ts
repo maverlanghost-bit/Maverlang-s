@@ -23,7 +23,13 @@ import {
   assertRealTradeAllowed,
   assertRealTradingDataMode,
   assertLiveEngineAccess,
+  reserveRealTradeAmount,
 } from "@/lib/trade/real-guards";
+import { assertQuoteIntegrity } from "@/lib/trade/integrity";
+import {
+  quoteReservationAmount,
+  reservationExpiry,
+} from "@/lib/trade/reservations";
 import type { TradeQuote, TradeQuoteRequest } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -113,6 +119,7 @@ export function POST(req: Request) {
     }
     const body = await parseJson(req, tradeQuoteRequestSchema);
     const symbol = await requireSymbolForBuyGuard(body.symbol, body.side);
+    let realOwnerId: string | null = null;
     if (realAccount) {
       // El camino real se apaga (503 REAL_DISABLED) hasta que
       // REAL_TRADING_READY=true. Cotizar no mueve dinero, pero se mantiene
@@ -122,13 +129,13 @@ export function POST(req: Request) {
       // M74: kill switch → beta → límites (por orden, día, mes y global).
       // El notional del quote en dólares sale del motor live; con la cuenta
       // demo el flujo demo no pasa por acá.
-      const realUserId = userId ?? (await requireSession(services, req)).userId;
-      userId = realUserId;
+      realOwnerId = userId ?? (await requireSession(services, req)).userId;
+      userId = realOwnerId;
       const amountUsd =
         body.side === "buy" && body.amountCurrency === "USDC"
           ? body.amount
-          : await realQuoteAmountUsd(body, realUserId);
-      await assertRealTradeAllowed(realUserId, amountUsd);
+          : await realQuoteAmountUsd(body, realOwnerId);
+      await assertRealTradeAllowed(realOwnerId, amountUsd);
     }
     if (demoAccount) {
       const demoUserId = session?.userId ?? (await requireSession(services, req)).userId;
@@ -141,6 +148,29 @@ export function POST(req: Request) {
     const quote = services.trade.quote as OwnerScopedQuote;
     const data = await callService(req, () => quote({ ...body, symbol }, userId ?? undefined));
     assertLiveBuyCost(body.side, data.priceDeviationBps);
+    if (realAccount && realOwnerId) {
+      // Integridad de la cotización + reserva atómica de cupo. La reserva se
+      // keyed por el id de la cotización; build/submit la validan y la
+      // consumen. Ambas llamadas siguen detrás de REAL_EXECUTION_LOCKED.
+      assertQuoteIntegrity({
+        inAmountUi: data.inAmountUi,
+        outAmountUi: data.outAmountUi,
+        pricePerShareUsd: data.pricePerShareUsd,
+        expiresAt: data.expiresAt,
+        platformFeeUsd: data.costs.platformFeeUsd,
+      });
+      await reserveRealTradeAmount({
+        userId: realOwnerId,
+        requestId: data.id,
+        amountUsd: quoteReservationAmount({
+          side: data.side,
+          inAmountUi: data.inAmountUi,
+          outAmountUi: data.outAmountUi,
+          pricePerShareUsd: data.pricePerShareUsd,
+        }),
+        expiresAt: reservationExpiry(data.expiresAt),
+      });
+    }
     return readOutput(tradeQuoteSchema, data);
   });
 }

@@ -32,7 +32,16 @@ import {
   type ReconcileOrderPatch,
   type ReconcileRow,
 } from "@/lib/services/orders.supabase";
+import {
+  readTradeReservation,
+  releaseTradeReservation,
+} from "@/lib/services/trade-reservations.supabase";
 import { redactRpcSecrets, translateSolanaError } from "@/lib/solana/tx-errors";
+import {
+  orderIntegrityIssue,
+  orderNotionalFromRow,
+  reservationExceedsTolerance,
+} from "@/lib/trade/integrity";
 
 /** Lectura normalizada de `getSignatureStatuses` (una por firma pedida). */
 export interface SignatureStatusRead {
@@ -69,6 +78,13 @@ export interface ReconcileDeps {
   submittedExpireMinutes?: number;
   /** Tope de órdenes por corrida. Default 200 (un lote de `getSignatureStatuses`). */
   limit?: number;
+  /** Lectura de la reserva asociada (0042). Default: Supabase en producción. */
+  readReservation?: (
+    userId: string,
+    requestId: string,
+  ) => Promise<{ amountUsd: number; status: string; expiresAt: string } | null>;
+  /** Libera la reserva cuando la orden falla/expira. Default: Supabase. */
+  releaseReservation?: (userId: string, requestId: string) => Promise<boolean>;
   /** Log de avisos (RPC caído). Default: `console.warn` redactado. */
   log?: (message: string) => void;
 }
@@ -169,7 +185,11 @@ export async function reconcilePendingOrders(deps: ReconcileDeps = {}): Promise<
   const startedAt = Date.now();
   const dataMode = deps.dataMode ? deps.dataMode() : effectiveDataMode();
   const hasInjectedAccess =
-    deps.listOpen !== undefined || deps.update !== undefined || deps.getSignatureStatuses !== undefined;
+    deps.listOpen !== undefined ||
+    deps.update !== undefined ||
+    deps.getSignatureStatuses !== undefined ||
+    deps.readReservation !== undefined ||
+    deps.releaseReservation !== undefined;
   // Sin acceso inyectado en mock no hay nada real que conciliar (demo/CI).
   if (dataMode !== "live" && !hasInjectedAccess) {
     return {
@@ -193,6 +213,12 @@ export async function reconcilePendingOrders(deps: ReconcileDeps = {}): Promise<
   const update = deps.update ?? ((id: string, patch: ReconcileOrderPatch) => updateOrderReconciled(id, patch, deps.admin));
   const getSignatureStatuses = deps.getSignatureStatuses ?? defaultGetSignatureStatuses;
   const log = deps.log ?? ((message: string) => console.warn(message));
+  // Con acceso inyectado (tests) no se cae a Supabase por accidente. En
+  // producción sin inyección, la reserva y su liberación son reales.
+  const readReservation =
+    deps.readReservation ?? (hasInjectedAccess ? undefined : readTradeReservation);
+  const releaseReservation =
+    deps.releaseReservation ?? (hasInjectedAccess ? undefined : releaseTradeReservation);
 
   const cutoffIso = new Date(nowMs - minAgeSeconds * 1000).toISOString();
   let rows: ReconcileRow[] | null = null;
@@ -236,19 +262,74 @@ export async function reconcilePendingOrders(deps: ReconcileDeps = {}): Promise<
   let unchanged = 0;
   for (const row of rows) {
     let patch: ReconcileOrderPatch | null = null;
-    if (row.status === "pending" && !row.tx_signature) {
+
+    // 1. Integridad de la fila: montos corruptos no se confirman ni quedan
+    //    abiertos para siempre. Los fixtures viejos sin columnas de monto no
+    //    se marcan (la lectura real siempre las trae).
+    const hasAmountColumns =
+      (row.side === "buy" || row.side === "sell") &&
+      (row.in_amount_ui !== undefined || row.out_amount_ui !== undefined);
+    const integrity = hasAmountColumns ? orderIntegrityIssue(row) : null;
+    if (integrity) {
+      patch = {
+        status: "failed",
+        error_code: integrity,
+        error: "No pudimos validar los montos de la orden.",
+      };
+    }
+
+    // 2. Reserva atómica: una reserva liberada o que no coincide con el
+    //    notional de la orden es una señal de manipulación/carrera.
+    if (!patch && readReservation && row.user_id && row.request_id) {
+      let reservation: { amountUsd: number; status: string; expiresAt: string } | null = null;
+      try {
+        reservation = await readReservation(row.user_id, row.request_id);
+      } catch {
+        reservation = null;
+      }
+      if (reservation?.status === "released") {
+        patch = {
+          status: "failed",
+          error_code: "RESERVATION_RELEASED",
+          error: "La reserva de la operación fue liberada antes de confirmarse.",
+        };
+      } else if (reservation && reservation.amountUsd > 0) {
+        const notional = orderNotionalFromRow(row);
+        if (notional !== null && reservationExceedsTolerance(reservation.amountUsd, notional)) {
+          patch = {
+            status: "failed",
+            error_code: "AMOUNT_MISMATCH",
+            error: "El monto de la orden no coincide con el cupo reservado.",
+          };
+        }
+      }
+    }
+
+    // 3. Estado on-chain / vencimiento de la cotización.
+    if (!patch && row.status === "pending" && !row.tx_signature) {
       patch = pendingQuoteExpired(row, nowMs, pendingExpireMinutes)
         ? { status: "expired", error_code: "QUOTE_EXPIRED" }
         : null;
-    } else if (row.status === "submitted" && row.tx_signature) {
+    } else if (!patch && row.status === "submitted" && row.tx_signature) {
       patch = decideSubmitted(row, statuses.get(row.tx_signature), nowMs, submittedExpireMinutes);
     }
+
     // `confirmed`/`failed`/`expired` no llegan por la lectura y una fila
     // ajena al spec no se toca: la idempotencia es doble (SELECT + guard).
     if (patch && (await update(row.id, patch))) {
       if (patch.status === "confirmed") confirmed += 1;
       else if (patch.status === "failed") failed += 1;
       else expired += 1;
+      // El cupo sólo se libera cuando la orden NO se ejecutó. Una confirmada
+      // mantiene su reserva consumida (el gasto lo cuenta `orders`).
+      if (patch.status !== "confirmed" && releaseReservation && row.user_id && row.request_id) {
+        try {
+          await releaseReservation(row.user_id, row.request_id);
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          log(`[reconcile-orders] no se pudo liberar la reserva: ${redactRpcSecrets(message)}`);
+        }
+      }
     } else {
       unchanged += 1;
     }

@@ -6,9 +6,12 @@ import "server-only";
  * con `REAL_TRADING_READY != true` la respuesta sigue siendo 503
  * REAL_DISABLED y nada de esto se ejecuta).
  *
- * - Bloqueo de ejecución real (auditoría 2026-11): mientras no existan
- *   reservas atómicas de límites ni revalidación de montos en build/submit,
- *   TODA operación real queda bloqueada con 503 REAL_DISABLED, incluso con
+ * - Bloqueo de ejecución real (auditoría 2026-11): las reservas atómicas
+ *   (0042), la revalidación de montos en build/submit y la huella de la
+ *   transacción armada ya existen, pero la compuerta sigue cerrada hasta
+ *   completar la verificación integral (migración aplicada, conciliación de
+ *   reservas, pruebas contra Supabase real y revisión externa). TODA
+ *   operación real responde 503 REAL_DISABLED, incluso con
  *   `REAL_TRADING_READY=true`. La demo no pasa por estas guardias.
  * - Motor live obligatorio: con `DATA_MODE != live` la cuenta real responde
  *   503 REAL_DISABLED (nunca se opera dinero real contra el motor mock).
@@ -31,6 +34,11 @@ import {
   listOrdersForLimits,
 } from "@/lib/services/orders.supabase";
 import {
+  createTradeReservationStore,
+  listActiveReservationsForLimits,
+  listAllActiveReservationsForLimits,
+} from "@/lib/services/trade-reservations.supabase";
+import {
   assertBetaAccess,
   assertTradingEnabled,
   checkLimits,
@@ -38,19 +46,26 @@ import {
   type CountedOrder,
   type LimitsDeps,
 } from "@/lib/trade/limits";
+import {
+  assertReservationActive,
+  assertSubmitReservation,
+  mapReservationFailure,
+  releaseQuietly,
+  rekeyOrThrow,
+  reserveOrThrow,
+  type ReservationInput,
+  type ReservationRecord,
+} from "@/lib/trade/reservations";
 
 /**
  * Bloqueo explícito de la ejecución real (auditoría 2026-11).
  *
- * Motivo: `checkLimits` cuenta órdenes ya creadas, pero no reserva cupo de
- * forma atómica entre quote/build/submit. Dos solicitudes concurrentes pueden
- * pasar el mismo tope, y una orden `built` no revalida que el monto siga
- * coincidiendo con la cotización al firmarse. Hasta implementar reservas
- * atómicas y esa revalidación, este flag queda fijo en `true` y no se puede
- * abrir con variables de entorno.
- *
- * No es una variable de configuración: es una compuerta de código. Sólo se
- * cambia cuando existan las garantías de arriba (T20/auditoría posterior).
+ * La reserva atómica de cupo (migración 0042), la revalidación de montos de
+ * build, la comparación mensaje-armado/mensaje-firmado y la liberación de
+ * reservas en la conciliación ya están implementadas. Aun así el bloqueo
+ * sigue en `true`: falta aplicar 0042 en un entorno de pruebas, correr la
+ * conciliación contra Supabase real y completar la verificación integral de
+ * seguridad. El flag es una compuerta de código, no una variable de entorno.
  */
 export const REAL_EXECUTION_LOCKED: boolean = true;
 
@@ -62,6 +77,71 @@ export const REAL_EXECUTION_LOCKED: boolean = true;
 export function assertRealExecutionLocked(): void {
   if (!REAL_EXECUTION_LOCKED) return;
   throw new DomainError("REAL_DISABLED");
+}
+
+function reservationStore() {
+  return createTradeReservationStore();
+}
+
+/**
+ * Reserva cupo atómico para una cotización real. La función SQL toma los
+ * locks y aplica los topes vigentes; si no cabe, lanza LIMIT_*. Se llama
+ * después de `assertRealTradeAllowed` y sigue detrás de la compuerta.
+ */
+export async function reserveRealTradeAmount(
+  input: ReservationInput,
+): Promise<ReservationRecord> {
+  assertRealExecutionLocked();
+  return reserveOrThrow(reservationStore(), input);
+}
+
+/** Valida que la reserva de un `quoteId` siga activa antes de armar la tx. */
+export async function assertRealTradeReservation(
+  userId: string,
+  requestId: string,
+  amountUsd?: number,
+): Promise<void> {
+  assertRealExecutionLocked();
+  const store = reservationStore();
+  let record: ReservationRecord | null;
+  try {
+    record = await store.read(userId, requestId);
+  } catch (error) {
+    if (error instanceof DomainError) throw error;
+    throw mapReservationFailure(error);
+  }
+  assertReservationActive(record, { amountUsd });
+}
+
+/** Re-etiqueta la reserva si Jupiter cambió el requestId al armar la tx. */
+export async function rekeyRealTradeReservation(
+  userId: string,
+  oldRequestId: string,
+  newRequestId: string,
+): Promise<void> {
+  assertRealExecutionLocked();
+  await rekeyOrThrow(reservationStore(), userId, oldRequestId, newRequestId);
+}
+
+/**
+ * Antes de enviar: consume la reserva o acepta un reintento idempotente si
+ * ya estaba consumida. Nunca deja pasar una reserva liberada/vencida.
+ */
+export async function assertRealSubmitReservation(
+  userId: string,
+  requestId: string,
+): Promise<"consumed" | "already_consumed"> {
+  assertRealExecutionLocked();
+  return assertSubmitReservation(reservationStore(), userId, requestId);
+}
+
+/** Libera el cupo cuando la ejecución no ocurrió (fallo/expiración). */
+export async function releaseRealTradeReservation(
+  userId: string,
+  requestId: string,
+): Promise<boolean> {
+  assertRealExecutionLocked();
+  return releaseQuietly(reservationStore(), userId, requestId);
 }
 
 function toCounted(
@@ -90,6 +170,11 @@ export function realTradeLimitsDeps(): LimitsDeps {
     isBetaUser: (userId) => isBetaUser(userId),
     listOrders: async (userId) => toCounted(await listOrdersForLimits(userId)),
     listOrdersAllUsers: async () => toCounted(await listAllOrdersForLimits()),
+    // Defensa en profundidad: además de las órdenes, el chequeo de límites
+    // suma las reservas atómicas activas (0042). Si esta lectura falla,
+    // `checkLimits` falla cerrado.
+    listReservations: (userId) => listActiveReservationsForLimits(userId),
+    listReservationsAllUsers: () => listAllActiveReservationsForLimits(),
     now: () => new Date(),
   };
 }
@@ -152,8 +237,9 @@ export async function assertRealTradeAllowed(
   // depende de `REAL_TRADING_READY`, del kill switch ni de la beta.
   assertRealExecutionLocked();
 
-  // Esta secuencia queda lista para cuando se levante el bloqueo, una vez
-  // implementadas las reservas atómicas y la revalidación de montos.
+  // Secuencia lista para cuando se levante el bloqueo: kill switch → beta →
+  // límites de defensa en profundidad. La reserva atómica (0042) se toma
+  // después, al cotizar, y es la pieza autoritativa de cupo.
   const deps = realTradeLimitsDeps();
   await assertTradingEnabled(deps);
   await assertBetaAccess(userId, deps);

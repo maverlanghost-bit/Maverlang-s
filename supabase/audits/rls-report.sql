@@ -50,3 +50,24 @@ from information_schema.role_table_grants
 where grantee in ('anon', 'authenticated')
   and table_schema = 'public'
 order by 2, 1, 3;
+
+-- 5. Tablas con RLS pero SIN FORCE (esperado: 0 filas en las sensibles).
+select c.relname as tabla_sin_force
+from pg_class c
+join pg_namespace n on n.oid = c.relnamespace
+where n.nspname = 'public'
+  and c.relkind in ('r', 'p')
+  and c.relrowsecurity
+  and not c.relforcerowsecurity
+order by 1;
+
+-- 6. Grants por columna en public (0041: wallets no expone privy_*).
+select grantee as rol,
+  table_name as tabla,
+  column_name as columna,
+  privilege_type as privilegio
+from information_schema.column_privileges
+where grantee in ('anon', 'authenticated')
+  and table_schema = 'public'
+  and table_name in ('wallets', 'crypto_deposits', 'wallet_movements', 'wallet_reconciliations')
+order by 2, 1, 3, 4;

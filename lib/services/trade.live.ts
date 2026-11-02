@@ -21,6 +21,12 @@ import { buildSwapParams, parsedOrderToTradeQuote } from "@/lib/market/jupiter-t
 import { fetchJupiterOrder } from "@/lib/market/jupiter-client";
 import { jupiterSwapUrl, jupiterOrderParams, parseJupiterOrder } from "@/lib/market/jupiter-order";
 import { parseJupiterExecute } from "@/lib/market/jupiter-order";
+import {
+  assertBuiltAmountsMatch,
+  assertQuoteIntegrity,
+  assertSignedTransactionMatchesBuilt,
+  computeNotionalUsd,
+} from "@/lib/trade/integrity";
 import { NETWORK_FEE_SOL, TOKEN_ACCOUNT_RENT_SOL } from "@/lib/wallet/send-cost";
 import type {
   Order,
@@ -72,12 +78,23 @@ interface StoredLiveQuote {
   feeBps: number;
   feeUsd: number;
   expiresAt: string;
+  /** Decimales/multiplicadores del cruce: se re-parsea el build con ellos. */
+  inputDecimals: number;
+  outputDecimals: number;
+  inputMultiplier: number;
+  outputMultiplier: number;
   /**
    * Una cotización se arma UNA sola vez. La reserva se toma antes de pedir
    * la tx a Jupiter para que dos builds simultáneos no generen dos txs
    * firmables de la misma operación.
    */
   built: boolean;
+  /**
+   * Transacción sin firmar que devolvió Jupiter en `build`. En `submit` se
+   * compara con la firmada: mismo mensaje, firma distinta. Sin esto un
+   * requestId válido podría firmar otra operación.
+   */
+  builtTransactionBase64: string | null;
 }
 
 const liveQuotes = new Map<string, StoredLiveQuote>();
@@ -237,6 +254,16 @@ export const liveTrade = {
       throw new DomainError("PRICE_DEVIATION");
     }
 
+    // Integridad: montos/precio finitos y vencimiento futuro. Una cotización
+    // corrupta no se guarda ni llega a la reserva de cupo.
+    assertQuoteIntegrity({
+      inAmountUi: quote.inAmountUi,
+      outAmountUi: quote.outAmountUi,
+      pricePerShareUsd: quote.pricePerShareUsd,
+      expiresAt: quote.expiresAt,
+      platformFeeUsd: quote.costs.platformFeeUsd,
+    });
+
     // Guardamos los parámetros crudos del swap para armar la tx en `build`
     // (Jupiter necesita re-cotizar con el `taker` para devolver la tx armada).
     pruneLiveQuotes(Date.now());
@@ -255,7 +282,12 @@ export const liveTrade = {
       feeBps: quote.costs.platformFeeBps,
       feeUsd: quote.costs.platformFeeUsd,
       expiresAt: quote.expiresAt,
+      inputDecimals: buy ? USDC_DECIMALS : STOCK_DECIMALS,
+      outputDecimals: buy ? STOCK_DECIMALS : USDC_DECIMALS,
+      inputMultiplier: buy ? 1 : stockMultiplier,
+      outputMultiplier: buy ? stockMultiplier : 1,
       built: false,
+      builtTransactionBase64: null,
     });
 
     return quote;
@@ -320,12 +352,54 @@ export const liveTrade = {
       );
     }
 
-    const order = body as { transaction?: string | null; requestId?: string };
+    const order = body as Parameters<typeof parseJupiterOrder>[0] & {
+      transaction?: string | null;
+      requestId?: string;
+    };
     const transaction = typeof order.transaction === "string" ? order.transaction : "";
     if (!transaction) {
       // Jupiter cotizó pero no pudo armar la tx (ver errorCode en la respuesta).
       throw new DomainError("UPSTREAM", "Jupiter no pudo armar la transacción.");
     }
+
+    // Revalidación de montos: el build con `taker` vuelve a cotizar. El monto
+    // de entrada no puede cambiar y la salida sólo dentro del slippage. La
+    // orden registrará los montos efectivos que el usuario firma.
+    let builtParsed;
+    try {
+      builtParsed = parseJupiterOrder(
+        { ...order, requestId: order.requestId ?? stored.requestId },
+        {
+          side: stored.side,
+          inputMint: stored.inputMint,
+          outputMint: stored.outputMint,
+          inputDecimals: stored.inputDecimals,
+          outputDecimals: stored.outputDecimals,
+          inputMultiplier: stored.inputMultiplier,
+          outputMultiplier: stored.outputMultiplier,
+          platformFeeBps: stored.feeBps,
+        },
+      );
+    } catch (error) {
+      throw new DomainError(
+        "UPSTREAM",
+        error instanceof Error ? error.message : "Jupiter devolvió montos inválidos al armar la transacción.",
+      );
+    }
+    const effective = assertBuiltAmountsMatch(
+      {
+        inAmountUi: stored.inAmountUi,
+        outAmountUi: stored.outAmountUi,
+        pricePerShareUsd: stored.priceUsd,
+      },
+      builtParsed,
+      defaultSlippageBps + 100,
+    );
+    stored.inAmountUi = effective.inAmountUi;
+    stored.outAmountUi = effective.outAmountUi;
+    stored.priceUsd = effective.pricePerShareUsd;
+    stored.builtTransactionBase64 = transaction;
+
     // La tx armada puede traer un requestId nuevo; si no, reusamos el de la quote.
     const requestId = typeof order.requestId === "string" && order.requestId ? order.requestId : stored.requestId;
     // Guardamos la cotización bajo el requestId devuelto, para que `submit`
@@ -378,6 +452,24 @@ export const liveTrade = {
       throw new DomainError("QUOTE_EXPIRED", "La cotización venció. Pide una nueva.");
     }
     if (stored.userId === null) stored.userId = userId;
+    if (!stored.builtTransactionBase64) {
+      // El build no guardó la transacción: no hay forma de probar que la
+      // firmada corresponde. Falla cerrado.
+      throw new DomainError("NOT_FOUND", "No encontramos esa operación.");
+    }
+    // Integridad de la cotización efectiva y de la transacción firmada: el
+    // mensaje debe ser exactamente el que armó el servidor.
+    assertQuoteIntegrity({
+      inAmountUi: stored.inAmountUi,
+      outAmountUi: stored.outAmountUi,
+      pricePerShareUsd: stored.priceUsd,
+      expiresAt: stored.expiresAt,
+      platformFeeUsd: stored.feeUsd,
+    });
+    await assertSignedTransactionMatchesBuilt(
+      stored.builtTransactionBase64,
+      signedTransactionBase64,
+    );
 
     // Reclamo previo: fila `pending` con request_id único. Dos submits
     // simultáneos no pueden ejecutar dos veces la misma operación.
@@ -394,6 +486,12 @@ export const liveTrade = {
         priceUsd: stored.priceUsd,
         feeBps: stored.feeBps,
         feeUsd: stored.feeUsd,
+        notionalUsd: computeNotionalUsd({
+          side: stored.side,
+          inAmountUi: stored.inAmountUi,
+          outAmountUi: stored.outAmountUi,
+          pricePerShareUsd: stored.priceUsd,
+        }),
         quoteExpiresAt: stored.expiresAt,
       });
     } catch {

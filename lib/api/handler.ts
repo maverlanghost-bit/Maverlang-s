@@ -136,10 +136,48 @@ function validationFieldsMessage(error: ZodError): string {
 function declaredBodyBytes(req: Request): number | null {
   const raw = req.headers.get("content-length")?.trim() ?? "";
   if (!/^\d+$/.test(raw)) return null;
-  // Más de 7 dígitos ya supera el tope de 16 KB. No se convierte a Number.
-  if (raw.length > 7) return MAX_BODY_BYTES + 1;
+  // Más de 15 dígitos no cabe en un entero seguro: se trata como "supera
+  // cualquier tope" sin convertirlo a Number.
+  if (raw.length > 15) return Number.MAX_SAFE_INTEGER;
   const value = Number(raw);
-  return Number.isSafeInteger(value) ? value : MAX_BODY_BYTES + 1;
+  return Number.isSafeInteger(value) ? value : Number.MAX_SAFE_INTEGER;
+}
+
+/**
+ * Lee el cuerpo por bytes sin confiar en `Content-Length`. Cada chunk se suma
+ * antes de guardarse; al pasar de `maxBytes` se corta el stream (413) sin
+ * cargar el resto. Los bytes se combinan antes de decodificar, así un carácter
+ * UTF-8 partido entre chunks se conserva.
+ */
+async function readBodyBytes(req: Request, maxBytes: number): Promise<Uint8Array> {
+  const body = req.body;
+  if (!body) return new Uint8Array(0);
+  const reader = body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (!value || value.byteLength === 0) continue;
+      total += value.byteLength;
+      if (total > maxBytes) {
+        // Corta la descarga: no se lee ni se retiene el resto del cuerpo.
+        await reader.cancel().catch(() => undefined);
+        throw new DomainError("PAYLOAD_TOO_LARGE");
+      }
+      chunks.push(value);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+  const bytes = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return bytes;
 }
 
 export async function parseJson<T>(
@@ -151,10 +189,7 @@ export async function parseJson<T>(
   // SEC-10: si el cliente declara un cuerpo enorme, no se lee.
   const declared = declaredBodyBytes(req);
   if (declared !== null && declared > maxBytes) throw new DomainError("PAYLOAD_TOO_LARGE");
-  const text = await req.text();
-  if (new TextEncoder().encode(text).length > maxBytes) {
-    throw new DomainError("PAYLOAD_TOO_LARGE");
-  }
+  const text = new TextDecoder().decode(await readBodyBytes(req, maxBytes));
   let raw: unknown;
   try {
     raw = text.trim() === "" ? undefined : (JSON.parse(text) as unknown);

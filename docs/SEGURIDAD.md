@@ -18,6 +18,10 @@ servidor (`service_role`).
 | `user_favorites` | nada | no ve, no inserta con su `user_id`, no borra | lee, inserta y borra; sin UPDATE |
 | `waitlist` | nada | n/a | nadie (ni lectura ni escritura directa; sólo el servidor) |
 | `_migration_flags` | nada | n/a | nadie (ni lectura ni escritura directa; sólo el servidor) |
+| `wallets` (0029/0041) | nada | no ve la de B | lee sólo sus filas con DID de Privy y sólo columnas públicas; sin insert/update/delete; con TOTP verificado exige `aal2` |
+| `crypto_deposits` (0025/0041) | nada | n/a | nadie (ni lectura ni escritura directa; sólo el servidor) |
+| `wallet_movements` (0030/0041) | nada | n/a | nadie (ni lectura ni escritura directa; sólo el servidor) |
+| `wallet_reconciliations` (0030/0041) | nada | n/a | nadie (ni lectura ni escritura directa; sólo el servidor) |
 
 Funciones `demo_trade` y `demo_reset`: anon y `authenticated` siempre
 denegados (sólo `service_role`), incluso con el `user_id` propio.
@@ -26,7 +30,7 @@ denegados (sólo `service_role`), incluso con el `user_id` propio.
 
 ```bash
 npm run audit:rls -- --dry-run   # imprime la matriz, sin conectarse
-npm run audit:rls                # contra desarrollo, con 0005 a 0009 aplicadas
+npm run audit:rls                # contra desarrollo, con las migraciones de la matriz aplicadas
 ```
 
 El script crea 2 usuarios temporales (`rls-a-…`/`rls-b-…@example.test`),
@@ -37,14 +41,16 @@ los usuarios al final (`finally`; sus filas caen en cascada).
 Reporte de sólo lectura para el SQL Editor: `supabase/audits/rls-report.sql`
 (tablas sin RLS, políticas por tabla, funciones `security definer` sin
 `search_path`, grants de anon/authenticated). Endurecimiento idempotente:
-`supabase/migrations/0009_rls_hardening.sql` (se pega después de 0008).
+`supabase/migrations/0009_rls_hardening.sql` (se pega después de 0008) y
+`supabase/migrations/0041_wallets_deposits_rls.sql` (después de 0040).
 
 ## Tablas futuras
 
-Cada tarea que cree una tabla (`asset_safety`, `orders`, `wallets`,
-depósitos y retiros) debe: activar RLS en su migración y agregar su fila a
-`AUDIT_TABLES` y a la matriz de `scripts/audit-rls.mjs`. Si aparece una tabla
-de `public` sin fila en la matriz, la auditoría FALLA.
+Cada tarea que cree una tabla (`asset_safety`, `orders`, retiros, etc.) debe:
+activar RLS en su migración y agregar su fila a `AUDIT_TABLES` y a la matriz
+de `scripts/audit-rls.mjs`. Si aparece una tabla de `public` sin fila en la
+matriz, la auditoría FALLA. `wallets`, `crypto_deposits`, `wallet_movements` y
+`wallet_reconciliations` ya están cubiertas.
 
 ## Cabeceras y CSP (M48)
 

@@ -104,12 +104,18 @@ export function validateAndPrepareWithdrawal(params: PrepareWithdrawalParams): P
   if (!isWithdrawableMint(mint)) {
     return { ok: false, code: "ASSET_NOT_ALLOWED", status: 400, message: "Ese activo no está permitido." };
   }
-  // 5. Monto: positivo, finito y dentro del saldo disponible.
+  // 5. Monto: positivo, finito y dentro del saldo disponible. Un saldo
+  //    ilegible (NaN/Infinity/negativo) no se interpreta como "sin tope":
+  //    se rechaza cerrado.
+  const available = params.availableBalanceUi;
+  if (typeof available !== "number" || !Number.isFinite(available) || available < 0) {
+    return { ok: false, code: "VALIDATION", status: 400, message: "No pudimos leer tu saldo disponible." };
+  }
   const amount = params.amountUi;
   if (typeof amount !== "number" || !Number.isFinite(amount) || amount <= 0) {
     return { ok: false, code: "VALIDATION", status: 400, message: "Ingresa un monto válido." };
   }
-  if (amount > params.availableBalanceUi + 1e-12) {
+  if (amount > available + 1e-12) {
     return { ok: false, code: "INSUFFICIENT_FUNDS", status: 400, message: "No tienes saldo suficiente." };
   }
   return {

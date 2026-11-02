@@ -14,7 +14,12 @@ import { apiOperateBlock } from "@/lib/compliance/real-quote";
 import { withRateLimit } from "@/lib/security/rate-limit";
 import { getServices } from "@/lib/services";
 import { demoSupabase } from "@/lib/services/demo.supabase";
-import { assertLiveEngineAccess, assertRealTradeAllowed, assertRealTradingDataMode } from "@/lib/trade/real-guards";
+import {
+  assertLiveEngineAccess,
+  assertRealSubmitReservation,
+  assertRealTradeAllowed,
+  assertRealTradingDataMode,
+} from "@/lib/trade/real-guards";
 
 export const runtime = "nodejs";
 
@@ -44,6 +49,10 @@ export function POST(req: Request) {
       // se rechaza ACÁ si `trading_enabled` se apagó entre el build y el
       // submit (el req. del traspaso: "la orden built se rechaza al submit").
       await assertRealTradeAllowed(session.userId, null);
+      // Reserva atómica: se consume antes de enviar. Un reintento con la
+      // reserva ya consumida es idempotente (el request_id único de orders
+      // impide ejecutar dos veces); una reserva liberada/vencida corta acá.
+      await assertRealSubmitReservation(session.userId, body.requestId);
     }
     if (demoAccount) {
       const demoLimited = await withRateLimit(req, "demoTrade", [session.userId]);

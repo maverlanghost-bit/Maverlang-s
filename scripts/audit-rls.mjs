@@ -36,12 +36,15 @@
  *   service_role.
  * - compliance_events (M75): nada para anon/authenticated. residence_country
  *   no se edita desde authenticated después de onboarding_completed.
+ * - wallets (0029/0041): anon nada; A lee sólo sus filas verificadas y sólo
+ *   columnas públicas (nunca privy_user_id/privy_wallet_id); sin insert,
+ *   update ni delete. crypto_deposits, wallet_movements y
+ *   wallet_reconciliations: nada para anon/authenticated (sólo service_role).
  * - funciones demo_trade/demo_reset: anon y authenticated siempre denegados
  *   (sólo service_role), incluso con el user_id propio.
  *
- * Tablas futuras (orders, wallets, depósitos y retiros): cada tarea que las
- * cree debe agregar su fila a AUDIT_TABLES y a esta matriz
- * (asset_safety_runs/events ya entraron en M53).
+ * Tablas futuras (orders, retiros, etc.): cada tarea que las cree debe
+ * agregar su fila a AUDIT_TABLES y a esta matriz.
  */
 import { randomBytes } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
@@ -77,6 +80,12 @@ const AUDIT_TABLES = [
   // M74: el usuario lee sólo su fila; escritura sólo service_role.
   "user_limits",
   "beta_users",
+  // 0029/0030/0041: billeteras y movimientos. wallets sólo lectura propia;
+  // depósitos, movimientos y conciliaciones son exclusivos del servidor.
+  "wallets",
+  "crypto_deposits",
+  "wallet_movements",
+  "wallet_reconciliations",
 ];
 
 /** Columnas sensibles de profiles que authenticated nunca puede cambiar (0009). */
@@ -179,6 +188,11 @@ function dryRun() {
     // M74: el usuario lee sólo su fila; nadie escribe desde clientes.
     ["user_limits", "anon: nada", "A→B: no ve la de B", "A propio: sólo lectura; sin escritura"],
     ["beta_users", "anon: nada", "A→B: no ve la de B", "A propio: sólo lectura; sin escritura"],
+    // 0029/0030/0041: billeteras y movimientos.
+    ["wallets", "anon: nada", "A→B: no ve la de B", "A propio: lee sólo filas con DID y columnas públicas; sin escritura"],
+    ["crypto_deposits", "anon: nada", "A→B: nada", "nadie (ni lectura ni escritura directa)"],
+    ["wallet_movements", "anon: nada", "A→B: nada", "nadie (ni lectura ni escritura directa)"],
+    ["wallet_reconciliations", "anon: nada", "A→B: nada", "nadie (ni lectura ni escritura directa)"],
     ["is_admin()", "anon: denegado", "A: denegado", "sólo service_role"],
     ["demo_trade()", "anon: denegado", "A con user_id de B: denegado", "A con user_id propio: denegado (sólo service_role)"],
     ["demo_reset()", "anon: denegado", "A con user_id de B: denegado", "A con user_id propio: denegado (sólo service_role)"],
@@ -238,6 +252,10 @@ async function main() {
   let idA = null;
   let idB = null;
   const probeWaitlistEmail = `rls-audit+${ts}@example.test`;
+  const probeWalletAddress = `rls-probe-wallet-${ts}`;
+  const probeDepositSignature = `rls-deposit-${ts}`;
+  const probeMovementReference = `rls-movement-${ts}`;
+  const probeReconcileDuration = -(ts % 2_000_000_000);
 
   try {
     const createdA = await admin.auth.admin.createUser({
@@ -511,6 +529,85 @@ async function main() {
     const delBeta = await clientA.from("beta_users").delete().eq("user_id", idA).select("user_id");
     record("A DELETE beta_users (denegado)", !!delBeta.error, delBeta.error ? redact(delBeta.error.message) : "borró");
 
+    // 0029/0041: wallets — lectura propia de columnas públicas, sin escritura.
+    const selWalletsOwn = await clientA.from("wallets").select("user_id,address").limit(3);
+    record(
+      "A SELECT wallets (sólo propias y columnas públicas)",
+      !selWalletsOwn.error && (selWalletsOwn.data ?? []).every((r) => r.user_id === idA),
+      selWalletsOwn.error ? redact(selWalletsOwn.error.message) : `${selWalletsOwn.data?.length ?? 0} filas propias`,
+    );
+    const selWalletsB = await clientA.from("wallets").select("user_id,address").eq("user_id", idB);
+    record("A SELECT wallets de B (nada)", readDenied(selWalletsB, [idB]), selWalletsB.error ? redact(selWalletsB.error.message) : "0 filas");
+    const selWalletPrivy = await clientA.from("wallets").select("privy_user_id").limit(1);
+    record(
+      "A SELECT wallets.privy_user_id (columna revocada)",
+      !!selWalletPrivy.error,
+      selWalletPrivy.error ? redact(selWalletPrivy.error.message) : "leyó la columna privada",
+    );
+    const insWallet = await clientA
+      .from("wallets")
+      .insert({ user_id: idA, chain: "solana", address: probeWalletAddress })
+      .select("user_id");
+    record("A INSERT wallets (denegado)", !!insWallet.error, insWallet.error ? redact(insWallet.error.message) : "insertó");
+    const updWallet = await clientA.from("wallets").update({ is_primary: false }).eq("user_id", idA).select("user_id");
+    record(
+      "A UPDATE wallets (denegado/0 filas)",
+      !!updWallet.error || (updWallet.data ?? []).length === 0,
+      updWallet.error ? redact(updWallet.error.message) : `${updWallet.data?.length ?? 0} filas`,
+    );
+    const delWallet = await clientA.from("wallets").delete().eq("user_id", idA).select("user_id");
+    record(
+      "A DELETE wallets (denegado/0 filas)",
+      !!delWallet.error || (delWallet.data ?? []).length === 0,
+      delWallet.error ? redact(delWallet.error.message) : `${delWallet.data?.length ?? 0} filas`,
+    );
+
+    // crypto_deposits, wallet_movements y wallet_reconciliations: sólo servidor.
+    const insDeposit = await clientA
+      .from("crypto_deposits")
+      .insert({ user_id: idA, mint: "USDC", amount_ui: 1, signature: probeDepositSignature })
+      .select("id");
+    record("A INSERT crypto_deposits (denegado)", !!insDeposit.error, insDeposit.error ? redact(insDeposit.error.message) : "insertó");
+    const selDeposits = await clientA.from("crypto_deposits").select("id").limit(3);
+    record(
+      "A SELECT crypto_deposits (denegado)",
+      !!selDeposits.error || (selDeposits.data ?? []).length === 0,
+      selDeposits.error ? redact(selDeposits.error.message) : `${selDeposits.data?.length ?? 0} filas`,
+    );
+    const insMovement = await clientA
+      .from("wallet_movements")
+      .insert({
+        user_id: idA,
+        kind: "deposit",
+        mint: "USDC",
+        amount_ui: 1,
+        reference: probeMovementReference,
+        status: "pending",
+      })
+      .select("id");
+    record("A INSERT wallet_movements (denegado)", !!insMovement.error, insMovement.error ? redact(insMovement.error.message) : "insertó");
+    const selMovements = await clientA.from("wallet_movements").select("id").limit(3);
+    record(
+      "A SELECT wallet_movements (denegado)",
+      !!selMovements.error || (selMovements.data ?? []).length === 0,
+      selMovements.error ? redact(selMovements.error.message) : `${selMovements.data?.length ?? 0} filas`,
+    );
+    const insReconcile = await clientA
+      .from("wallet_reconciliations")
+      .insert({ duration_ms: probeReconcileDuration })
+      .select("id");
+    record(
+      "A INSERT wallet_reconciliations (denegado)",
+      !!insReconcile.error,
+      insReconcile.error ? redact(insReconcile.error.message) : "insertó",
+    );
+    const selReconcile = await clientA.from("wallet_reconciliations").select("id").limit(3);
+    record(
+      "A SELECT wallet_reconciliations (denegado)",
+      !!selReconcile.error || (selReconcile.data ?? []).length === 0,
+      selReconcile.error ? redact(selReconcile.error.message) : `${selReconcile.data?.length ?? 0} filas`,
+    );
+
     // ---- funciones con el user_id de otro (y propio: también denegado) ----
     const tradeAsB = await clientA.rpc("demo_trade", {
       p_user: idB,
@@ -560,6 +657,16 @@ async function main() {
     // M57: si la sonda de app_flags hubiese entrado (no debe), se borra.
     try {
       await admin.from("app_flags").delete().eq("key", `rls-probe-${ts}`);
+    } catch {
+      // Sin rastro esperado.
+    }
+    // 0041: limpieza de sondas de billetera/movimientos por si un GRANT viejo
+    // las hubiera dejado entrar (no debe).
+    try {
+      await admin.from("wallets").delete().eq("address", probeWalletAddress);
+      await admin.from("crypto_deposits").delete().eq("signature", probeDepositSignature);
+      await admin.from("wallet_movements").delete().eq("reference", probeMovementReference);
+      await admin.from("wallet_reconciliations").delete().eq("duration_ms", probeReconcileDuration);
     } catch {
       // Sin rastro esperado.
     }

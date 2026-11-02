@@ -18,6 +18,12 @@ function makeRow(overrides: Partial<ReconcileRow> = {}): ReconcileRow {
     tx_signature: "tx_signature" in overrides ? (overrides.tx_signature ?? null) : "sig-1",
     created_at: overrides.created_at ?? new Date(NOW_MS - 5 * 60_000).toISOString(),
     quote_expires_at: "quote_expires_at" in overrides ? (overrides.quote_expires_at ?? null) : null,
+    user_id: overrides.user_id ?? null,
+    request_id: overrides.request_id ?? null,
+    side: overrides.side,
+    in_amount_ui: overrides.in_amount_ui,
+    out_amount_ui: overrides.out_amount_ui,
+    price_per_share_usd: overrides.price_per_share_usd,
   };
 }
 
@@ -139,6 +145,153 @@ describe("M72: reconcilePendingOrders", () => {
     expect(applied.get("o-fail")?.error_code).toBe("INSUFFICIENT_FUNDS");
     expect(applied.get("o-expire-tx")?.error_code).toBe("TX_EXPIRED");
     expect(applied.get("o-expire-quote")?.error_code).toBe("QUOTE_EXPIRED");
+  });
+});
+
+describe("Auditoría 2026-11: integridad y reservas en la conciliación", () => {
+  it("cierra como failed una orden con montos corruptos y libera su reserva", async () => {
+    const row = makeRow({
+      id: "o-corrupt",
+      status: "pending",
+      tx_signature: null,
+      user_id: "u-1",
+      request_id: "req-1",
+      side: "buy",
+      in_amount_ui: 0,
+      out_amount_ui: 0.4,
+    });
+    const applied = new Map<string, ReconcileOrderPatch>();
+    const released: string[] = [];
+    const summary = await reconcilePendingOrders({
+      now: () => NOW,
+      dataMode: () => "live",
+      listOpen: async () => [row],
+      readReservation: async () => ({ amountUsd: 100, status: "reserved", expiresAt: "" }),
+      releaseReservation: async (userId, requestId) => {
+        released.push(`${userId}:${requestId}`);
+        return true;
+      },
+      update: async (id, patch) => {
+        applied.set(id, patch);
+        return true;
+      },
+    });
+    expect(summary.failed).toBe(1);
+    expect(applied.get("o-corrupt")?.error_code).toBe("INVALID_AMOUNT");
+    expect(released).toEqual(["u-1:req-1"]);
+  });
+
+  it("cierra como failed si la reserva fue liberada antes de confirmar", async () => {
+    const row = makeRow({
+      id: "o-released",
+      status: "submitted",
+      tx_signature: "sig-ok",
+      user_id: "u-1",
+      request_id: "req-1",
+      side: "buy",
+      in_amount_ui: 100,
+      out_amount_ui: 0.4,
+    });
+    const applied = new Map<string, ReconcileOrderPatch>();
+    const summary = await reconcilePendingOrders({
+      now: () => NOW,
+      dataMode: () => "live",
+      listOpen: async () => [row],
+      getSignatureStatuses: async () => [{ status: "finalized", err: null }],
+      readReservation: async () => ({ amountUsd: 100, status: "released", expiresAt: "" }),
+      releaseReservation: async () => true,
+      update: async (id, patch) => {
+        applied.set(id, patch);
+        return true;
+      },
+    });
+    expect(summary.failed).toBe(1);
+    expect(applied.get("o-released")?.error_code).toBe("RESERVATION_RELEASED");
+  });
+
+  it("cierra como failed si el notional se despega de la reserva", async () => {
+    const row = makeRow({
+      id: "o-mismatch",
+      status: "submitted",
+      tx_signature: "sig-ok",
+      user_id: "u-1",
+      request_id: "req-1",
+      side: "buy",
+      in_amount_ui: 50,
+      out_amount_ui: 0.4,
+    });
+    const applied = new Map<string, ReconcileOrderPatch>();
+    await reconcilePendingOrders({
+      now: () => NOW,
+      dataMode: () => "live",
+      listOpen: async () => [row],
+      getSignatureStatuses: async () => [{ status: "finalized", err: null }],
+      readReservation: async () => ({ amountUsd: 100, status: "consumed", expiresAt: "" }),
+      releaseReservation: async () => true,
+      update: async (id, patch) => {
+        applied.set(id, patch);
+        return true;
+      },
+    });
+    expect(applied.get("o-mismatch")?.error_code).toBe("AMOUNT_MISMATCH");
+  });
+
+  it("una orden confirmada no libera la reserva consumida", async () => {
+    const row = makeRow({
+      id: "o-ok",
+      status: "submitted",
+      tx_signature: "sig-ok",
+      user_id: "u-1",
+      request_id: "req-1",
+      side: "buy",
+      in_amount_ui: 100,
+      out_amount_ui: 0.4,
+    });
+    let released = 0;
+    const summary = await reconcilePendingOrders({
+      now: () => NOW,
+      dataMode: () => "live",
+      listOpen: async () => [row],
+      getSignatureStatuses: async () => [{ status: "finalized", err: null }],
+      readReservation: async () => ({ amountUsd: 100, status: "consumed", expiresAt: "" }),
+      releaseReservation: async () => {
+        released += 1;
+        return true;
+      },
+      update: async () => true,
+    });
+    expect(summary.confirmed).toBe(1);
+    expect(released).toBe(0);
+  });
+
+  it("si la lectura de la reserva falla, no cierra la orden por eso", async () => {
+    const row = makeRow({
+      id: "o-noread",
+      status: "pending",
+      tx_signature: null,
+      user_id: "u-1",
+      request_id: "req-1",
+      side: "buy",
+      in_amount_ui: 100,
+      out_amount_ui: 0.4,
+      created_at: new Date(NOW_MS - 2 * 60_000).toISOString(),
+    });
+    let released = 0;
+    const summary = await reconcilePendingOrders({
+      now: () => NOW,
+      dataMode: () => "live",
+      listOpen: async () => [row],
+      readReservation: async () => {
+        throw new Error("db down");
+      },
+      releaseReservation: async () => {
+        released += 1;
+        return true;
+      },
+      update: async () => true,
+    });
+    expect(summary.unchanged).toBe(1);
+    expect(released).toBe(0);
   });
 });
 

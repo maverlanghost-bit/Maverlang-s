@@ -129,6 +129,8 @@ export interface OrderExecutionClaim {
   priceUsd: number;
   feeBps: number;
   feeUsd: number;
+  /** Notional en dólares que se validó contra la cotización/reserva. */
+  notionalUsd: number;
   quoteExpiresAt: string | null;
 }
 
@@ -155,6 +157,7 @@ export async function claimOrderExecution(row: OrderExecutionClaim): Promise<Cla
       price_per_share_usd: row.priceUsd,
       fee_bps: row.feeBps,
       fee_usd: row.feeUsd,
+      notional_usd: row.notionalUsd,
       status: "pending",
       signature: null,
       error: null,
@@ -310,6 +313,7 @@ export async function listOrdersForLimits(
     .from("orders")
     .select("side,in_amount_ui,out_amount_ui,price_per_share_usd,status,created_at")
     .eq("user_id", userId)
+    .eq("is_demo", false)
     .order("created_at", { ascending: false })
     .limit(limit);
   // Auditoría 2026-11: sin lectura no se inventa una lista vacía (eso abría
@@ -342,6 +346,7 @@ export async function listAllOrdersForLimits(
   const { data, error } = await admin
     .from("orders")
     .select("side,in_amount_ui,out_amount_ui,price_per_share_usd,status,created_at")
+    .eq("is_demo", false)
     .order("created_at", { ascending: false })
     .limit(limit);
   // Tope global: misma regla fail-closed que las órdenes del usuario.
@@ -362,13 +367,20 @@ export async function listAllOrdersForLimits(
  */
 export type OrdersAdmin = ReturnType<typeof createSupabaseAdminClient>;
 
-/** Fila abierta que revisa la conciliación (M72). */
+/** Fila abierta que revisa la conciliación (M72 + integridad 2026-11). */
 export interface ReconcileRow {
   id: string;
   status: "pending" | "submitted" | "confirmed" | "failed" | "expired";
   tx_signature: string | null;
   quote_expires_at: string | null;
   created_at: string;
+  /** Presentes en producción; opcionales para no romper fixtures de tests. */
+  user_id?: string | null;
+  request_id?: string | null;
+  side?: "buy" | "sell" | string | null;
+  in_amount_ui?: number | null;
+  out_amount_ui?: number | null;
+  price_per_share_usd?: number | null;
 }
 
 /** Cambios que puede hacer la conciliación (M72). */
@@ -393,7 +405,9 @@ export async function listOpenRealOrders(opts: {
   const client = opts.admin ?? createSupabaseAdminClient();
   const { data, error } = await client
     .from("orders")
-    .select("id,status,tx_signature,quote_expires_at,created_at")
+    .select(
+      "id,user_id,request_id,status,tx_signature,quote_expires_at,created_at,side,in_amount_ui,out_amount_ui,price_per_share_usd",
+    )
     .eq("is_demo", false)
     .in("status", ["pending", "submitted"])
     .lte("created_at", opts.cutoffIso)

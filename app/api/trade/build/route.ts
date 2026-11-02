@@ -15,7 +15,13 @@ import { apiOperateBlock } from "@/lib/compliance/real-quote";
 import { withRateLimit } from "@/lib/security/rate-limit";
 import { getServices } from "@/lib/services";
 import { demoSupabase } from "@/lib/services/demo.supabase";
-import { assertLiveEngineAccess, assertRealTradeAllowed, assertRealTradingDataMode } from "@/lib/trade/real-guards";
+import {
+  assertLiveEngineAccess,
+  assertRealTradeAllowed,
+  assertRealTradeReservation,
+  assertRealTradingDataMode,
+  rekeyRealTradeReservation,
+} from "@/lib/trade/real-guards";
 import type { TradeBuildRequest, TradeBuildResponse } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -46,6 +52,7 @@ export function POST(req: Request) {
       if (userLimited) return userLimited;
     }
     const body = await parseJson(req, tradeBuildRequestSchema);
+    let realOwnerId: string | null = null;
     if (realAccount) {
       // M46: el camino real se apaga (503 REAL_DISABLED) hasta que
       // REAL_TRADING_READY=true. Con el flag encendido, pasa al motor live
@@ -55,9 +62,12 @@ export function POST(req: Request) {
       // M74: kill switch → beta → límites. La carrera de dos builds
       // simultáneos se corta acá: cada build re-comprueba los topes antes
       // de armar la tx y submit vuelve a comprobarlos al firmar.
-      const realUserId = userId ?? (await requireSession(services, req)).userId;
-      userId = realUserId;
-      await assertRealTradeAllowed(realUserId, null);
+      realOwnerId = userId ?? (await requireSession(services, req)).userId;
+      userId = realOwnerId;
+      await assertRealTradeAllowed(realOwnerId, null);
+      // La reserva creada al cotizar debe seguir activa. Se valida ANTES de
+      // pedirle la transacción a Jupiter: una reserva vencida no arma nada.
+      await assertRealTradeReservation(realOwnerId, body.quoteId);
     }
     if (demoAccount) {
       const demoUserId = session?.userId ?? (await requireSession(services, req)).userId;
@@ -67,6 +77,11 @@ export function POST(req: Request) {
     // El dueño de la cotización viaja al motor: un quoteId ajeno → NOT_FOUND.
     const build = services.trade.build as OwnerScopedBuild;
     const data = await callService(req, () => build(body, userId ?? undefined));
+    if (realAccount && realOwnerId && data.requestId !== body.quoteId) {
+      // Jupiter puede cambiar el requestId al armar la transacción. La
+      // reserva se re-etiqueta; submit exige la reserva con el id final.
+      await rekeyRealTradeReservation(realOwnerId, body.quoteId, data.requestId);
+    }
     return readOutput(tradeBuildResponseSchema, data);
   });
 }

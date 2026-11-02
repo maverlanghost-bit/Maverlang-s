@@ -56,11 +56,22 @@ export type CountedOrder = {
   createdAt: string;
 };
 
+/**
+ * Reserva de cupo activa (migración 0042). Cuenta como cupo comprometido:
+ * se suma a los topes diario/mensual/global mientras siga vigente y no se
+ * haya consumido ni liberado.
+ */
+export type CountedReservation = {
+  amountUsd: number;
+  expiresAt: string;
+};
+
 export type FlagBoolReader = (key: string) => Promise<boolean>;
 export type FlagValueReader = (key: string) => Promise<unknown>;
 export type LimitsRowReader = (userId: string) => Promise<UserLimitRow>;
 export type BetaMemberReader = (userId: string) => Promise<boolean>;
 export type OrdersReader = (userId: string) => Promise<CountedOrder[]>;
+export type ReservationsReader = (userId: string) => Promise<CountedReservation[]>;
 
 export type LimitsDeps = {
   getFlagBool: FlagBoolReader;
@@ -70,6 +81,13 @@ export type LimitsDeps = {
   listOrders: OrdersReader;
   /** Global: todas las órdenes contables del día (sólo para el tope global). */
   listOrdersAllUsers: () => Promise<CountedOrder[]>;
+  /**
+   * Reservas activas (opcional por compatibilidad). Si está y la lectura
+   * falla, `checkLimits` falla cerrado con UPSTREAM. La pieza autoritativa es
+   * la función SQL de 0042; esto es defensa en profundidad.
+   */
+  listReservations?: ReservationsReader;
+  listReservationsAllUsers?: () => Promise<CountedReservation[]>;
   now: () => Date;
 };
 
@@ -226,6 +244,21 @@ export function countOrdersInWindow(
   return total;
 }
 
+/**
+ * Suma las reservas activas en `nowMs`: monto positivo y vencimiento futuro.
+ * Una reserva vencida no retiene cupo (el SQL tampoco la cuenta).
+ */
+export function countActiveReservations(rows: CountedReservation[], nowMs: number): number {
+  let total = 0;
+  for (const row of rows) {
+    const expiresMs = Date.parse(row.expiresAt);
+    if (!Number.isFinite(expiresMs) || expiresMs <= nowMs) continue;
+    if (!(row.amountUsd > 0) || !Number.isFinite(row.amountUsd)) continue;
+    total += row.amountUsd;
+  }
+  return total;
+}
+
 function round2(n: number): number {
   return Math.round((n + USD_EPSILON) * 100) / 100;
 }
@@ -281,10 +314,16 @@ export async function checkLimits(
   // la operación real no sigue; el reintento lo hace el usuario.
   let orders: CountedOrder[];
   let globalOrders: CountedOrder[];
+  let reservations: CountedReservation[];
+  let globalReservations: CountedReservation[];
   try {
-    [orders, globalOrders] = await Promise.all([
+    [orders, globalOrders, reservations, globalReservations] = await Promise.all([
       deps.listOrders(userId),
       deps.listOrdersAllUsers(),
+      deps.listReservations ? deps.listReservations(userId) : Promise.resolve<CountedReservation[]>([]),
+      deps.listReservationsAllUsers
+        ? deps.listReservationsAllUsers()
+        : Promise.resolve<CountedReservation[]>([]),
     ]);
   } catch {
     throw new DomainError(
@@ -299,40 +338,49 @@ export async function checkLimits(
   const dailyLimit = userRow?.daily_usd ?? defaults.daily_usd;
   const monthlyLimit = userRow?.monthly_usd ?? defaults.monthly_usd;
 
+  const reservedNow = countActiveReservations(reservations, now.getTime());
+  const reservedGlobalNow = countActiveReservations(globalReservations, now.getTime());
+
   const spentMonth = countOrdersInWindow(orders, monthWindow);
-  if (spentMonth + amountUsd > monthlyLimit) {
+  if (spentMonth + reservedNow + amountUsd > monthlyLimit) {
     return verdict(
       false,
       "LIMIT_MONTHLY",
       monthlyLimit,
-      monthlyLimit - spentMonth,
+      monthlyLimit - spentMonth - reservedNow,
       `Alcanzaste tu límite mensual (US$${round2(monthlyLimit)}).`,
     );
   }
 
   const spentDay = countOrdersInWindow(orders, dayWindow);
-  if (spentDay + amountUsd > dailyLimit) {
+  if (spentDay + reservedNow + amountUsd > dailyLimit) {
     return verdict(
       false,
       "LIMIT_DAILY",
       dailyLimit,
-      dailyLimit - spentDay,
+      dailyLimit - spentDay - reservedNow,
       `Alcanzaste tu límite diario (US$${round2(dailyLimit)}).`,
     );
   }
 
   const spentGlobalDay = countOrdersInWindow(globalOrders, dayWindow);
-  if (spentGlobalDay + amountUsd > globalCap) {
+  if (spentGlobalDay + reservedGlobalNow + amountUsd > globalCap) {
     return verdict(
       false,
       "LIMIT_GLOBAL",
       globalCap,
-      globalCap - spentGlobalDay,
+      globalCap - spentGlobalDay - reservedGlobalNow,
       `Alcanzamos el tope global del día (US$${round2(globalCap)}). Intenta mañana.`,
     );
   }
 
-  return verdict(true, null, dailyLimit, dailyLimit - spentDay - amountUsd, "");
+  return verdict(
+    true,
+    null,
+    dailyLimit,
+    dailyLimit - spentDay - reservedNow - amountUsd,
+    "",
+  );
 }
 
 // ---------------------------------------------------------------------------

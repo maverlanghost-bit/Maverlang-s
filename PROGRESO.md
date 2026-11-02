@@ -1,5 +1,30 @@
 # PROGRESO — Maverlang
 
+## T26 — Refuerzo de seguridad (2026-11-02)
+- Límites de cuerpos JSON por streaming; actualización parcial de dependencias y exclusión de artefactos en lint.
+- Reservas y conciliación de trading preparadas en 0042; el trading real permanece bloqueado.
+- Políticas para billeteras y depósitos preparadas en 0041; ninguna migración se aplicó.
+- Pruebas finales: typecheck correcto; 125 archivos y 1117 pruebas aprobadas.
+- audit:deps sigue bloqueado por zod; bigint-buffer continúa como riesgo alto aceptado.
+- Pendientes: PostgreSQL con concurrencia, RLS y MFA reales, flujos Privy en navegador, depósitos/retiros, lint y auditoría externa.
+
+## Auditoría MFA/RLS/billetera y depósitos/retiros (2026-11-02)
+- Migración local nueva `supabase/migrations/0041_wallets_deposits_rls.sql` (NO aplicada, idempotente): fuerza RLS en `wallets`, `crypto_deposits`, `wallet_movements` y `wallet_reconciliations`; `wallets` sólo expone columnas públicas (nunca `privy_user_id`/`privy_wallet_id`) y su política exige `aal2` cuando hay TOTP verificado (`public.mfa_step_pending()`, fail-closed). Checks de DID/firma y una identidad Privy por cuenta.
+- MFA (`lib/auth/mfa.ts`): `removeTotp` exige el segundo paso antes de `unenroll`; si el nivel no se puede leer, no quita el factor.
+- Retiros (`lib/wallet/withdrawals.ts`): un saldo disponible NaN/Infinity/negativo se rechaza con `VALIDATION`; antes podía saltarse el tope.
+- Auditoría RLS: `scripts/audit-rls.mjs` suma las cuatro tablas, sondas de lectura/escritura y limpieza; `supabase/audits/rls-report.sql`, `docs/SEGURIDAD.md` y `docs/SUPABASE.md` actualizados.
+- Pruebas: `tests/unit/wallet-security-rls.test.ts` (17) y suite completa del árbol en verde (125 archivos / 1116 tests, incluye cambios previos sin commit); `audit:rls --dry-run` OK; eslint de los archivos tocados limpio.
+- `tsc` de los archivos de producción tocados limpio. El `npx tsc --noEmit` global sigue fallando por `node_modules` incompleto (`@privy-io/react-auth/solana` y tipos de vitest), no por estos cambios.
+- Límites: migración NO aplicada ni probada contra Supabase real; bloqueo de vinculación y `REAL_DISABLED` intactos; no se leyó `.env`, no se usaron servicios reales, no se tocaron archivos de trading ni dependencias, y no hubo commit.
+
+## Endurecimiento de `parseJson` para cuerpos chunked (2026-11-02)
+- Hecho (`lib/api/handler.ts`): `parseJson` ya no usa `req.text()`; lee `req.body` por chunks con `getReader()` y suma bytes antes de retenerlos. Al superar `maxBytes` cancela el stream y responde 413 `PAYLOAD_TOO_LARGE` sin cargar el resto (aplica aunque falte `Content-Length`).
+- Hecho: los chunks se combinan y decodifican con `TextDecoder` al final, así se conserva un carácter UTF-8 partido entre chunks. `maxBytes` configurable sigue igual (default `MAX_BODY_BYTES` = 16 KB).
+- Hecho: `declaredBodyBytes` ahora soporta topes configurables > 16 KB (sólo usa `Number.MAX_SAFE_INTEGER` como centinela para valores no seguros); el atajo por `Content-Length` declarado se conserva.
+- Pruebas (`tests/unit/parse-json-stream.test.ts`, 4): cuerpo chunked sin `content-length` en el límite exacto con UTF-8 partido, un byte sobre el límite, corte sin leer los chunks restantes y tope por defecto.
+- Verificación: `npx vitest run` completo → 121 archivos / 1045 tests en verde; `npx tsc --noEmit` y eslint de los archivos tocados limpios.
+- Sin commit ni push (instrucción del usuario). No se leyó `.env` ni se usaron servicios reales.
+
 ## T25 — Auditoría de seguridad (2026-11-02)
 - Protección MFA, aislamiento del chat, guardas de trading y validación de identidad de billetera.
 - Trading real y vinculación real de Privy a Supabase bloqueados hasta completar controles verificables.
