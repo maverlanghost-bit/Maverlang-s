@@ -1,5 +1,12 @@
 # PROGRESO — Maverlang
 
+## T28 — Investigación de vulnerabilidades restantes (2026-11-02)
+- Zod 3 transitivo: no se encontró parche oficial compatible; borrador local incompleto descartado.
+- Vitest 4.1.12: 59 pruebas en copia aislada; instalación principal no completada por npm y red.
+- No se alteraron package.json ni package-lock.json; Vitest instalado permanece en 3.2.7.
+- Pendiente: alertas críticas de tinypool/dev y alta de Zod; validar upgrades con suite integral y navegador.
+- Dinero real y asociación real de billetera continúan bloqueados.
+
 ## T27 — Seguridad y verificaciones aisladas (2026-11-02)
 - Corregidos lint, validación de depósitos/retiros y bloqueo de vinculación de identidad; retirado bigint-buffer.
 - Envíos seleccionan programa SPL/Token-2022 según mint; requieren validación real antes de habilitar fondos.
