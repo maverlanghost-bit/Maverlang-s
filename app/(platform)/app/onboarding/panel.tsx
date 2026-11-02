@@ -5,6 +5,7 @@ import { useId, type ReactNode } from "react";
 import { Controller, type Control } from "react-hook-form";
 
 import { US_PERSON_DECLARATION_TEXT } from "@/config/compliance";
+import { PESO_DEPOSITS_ENABLED } from "@/config/onramp";
 import { site } from "@/config/site";
 import { BLOCKED_COUNTRY_MESSAGE } from "@/lib/auth/registro-schema";
 import { Button } from "@/components/ui/button";
@@ -399,22 +400,27 @@ export function DoneStep({
   return (
     <div className="mt-4">
       <p className="text-sm leading-relaxed text-fg-body">
-        Tu registro quedó guardado. Puedes depositar pesos o explorar las acciones.
+        {PESO_DEPOSITS_ENABLED
+          ? "Tu registro quedó guardado. Puedes depositar pesos o explorar las acciones."
+          : "Tu registro quedó guardado. Puedes explorar las acciones."}
       </p>
       <div className="mt-6 flex flex-col gap-3">
+        {/* Primera versión: sólo USDC por Solana. El acceso en pesos queda oculto, no borrado. */}
+        {PESO_DEPOSITS_ENABLED ? (
+          <Button
+            type="button"
+            size="lg"
+            className="w-full"
+            loading={busyHref === "/app/billetera/depositar"}
+            disabled={busy}
+            onClick={onDeposit}
+          >
+            Depositar pesos
+          </Button>
+        ) : null}
         <Button
           type="button"
-          size="lg"
-          className="w-full"
-          loading={busyHref === "/app/billetera/depositar"}
-          disabled={busy}
-          onClick={onDeposit}
-        >
-          Depositar pesos
-        </Button>
-        <Button
-          type="button"
-          variant="secondary"
+          variant={PESO_DEPOSITS_ENABLED ? "secondary" : "primary"}
           size="lg"
           className="w-full"
           loading={busyHref === "/app"}

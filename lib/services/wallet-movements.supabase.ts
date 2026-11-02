@@ -126,6 +126,11 @@ export async function recordWalletReconciliation(summary: ReconcileSummary): Pro
 /**
  * Upsert de un movimiento desde su fuente (depósito M78, on-ramp M80,
  * retiro M79). `reference` es única (0030): repetir no duplica.
+ *
+ * Devuelve `true` sólo si la fila se insertó de verdad (`ignoreDuplicates`
+ * + `select`): un conflicto no es error, pero tampoco es actividad nueva.
+ * `createdAt` permite fechar el movimiento con el `blockTime` real de la
+ * cadena; si falta, la tabla usa `now()`.
  */
 export async function upsertWalletMovement(row: {
   userId: string;
@@ -136,20 +141,27 @@ export async function upsertWalletMovement(row: {
   status: WalletMovementStatus;
   signature: string | null;
   counterpartyAddress: string | null;
+  createdAt?: string | null;
 }): Promise<boolean> {
   const admin = createSupabaseAdminClient();
-  const { error } = await admin.from("wallet_movements").upsert(
-    {
-      user_id: row.userId,
-      kind: row.kind,
-      mint: row.mint,
-      amount_ui: row.amountUi,
-      reference: row.reference,
-      status: row.status,
-      signature: row.signature,
-      counterparty_address: row.counterpartyAddress,
-    },
-    { onConflict: "reference", ignoreDuplicates: true },
-  );
-  return !error;
+  const payload: Record<string, unknown> = {
+    user_id: row.userId,
+    kind: row.kind,
+    mint: row.mint,
+    amount_ui: row.amountUi,
+    reference: row.reference,
+    status: row.status,
+    signature: row.signature,
+    counterparty_address: row.counterpartyAddress,
+  };
+  // Sólo se fija la fecha si es un ISO válido: nunca se inventa una fecha.
+  if (typeof row.createdAt === "string" && Number.isFinite(Date.parse(row.createdAt))) {
+    payload.created_at = row.createdAt;
+  }
+  const { data, error } = await admin
+    .from("wallet_movements")
+    .upsert(payload, { onConflict: "reference", ignoreDuplicates: true })
+    .select("reference");
+  if (error) throw error;
+  return Array.isArray(data) && data.length > 0;
 }

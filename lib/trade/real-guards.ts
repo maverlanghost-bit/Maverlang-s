@@ -6,12 +6,15 @@ import "server-only";
  * con `REAL_TRADING_READY != true` la respuesta sigue siendo 503
  * REAL_DISABLED y nada de esto se ejecuta).
  *
+ * - Motor live obligatorio: con `DATA_MODE != live` la cuenta real responde
+ *   503 REAL_DISABLED (nunca se opera dinero real contra el motor mock).
  * - Kill switch: `trading_enabled=false` → 503 TRADING_PAUSED (cache 30 s).
  * - Beta cerrada: con `beta_only=true`, sólo `beta_users` cotiza/armar/envía.
  * - Límites: por orden, diario, mensual y global en America/Santiago.
  */
 
 import { DomainError } from "@/lib/api/result";
+import { serverEnv } from "@/lib/env";
 import {
   isBetaUser,
   readFlagValue,
@@ -60,6 +63,15 @@ export function realTradeLimitsDeps(): LimitsDeps {
     listOrdersAllUsers: async () => toCounted(await listAllOrdersForLimits()),
     now: () => new Date(),
   };
+}
+
+/**
+ * Defensa en profundidad: una cuenta real sólo opera si el motor de datos es
+ * live. Con `DATA_MODE=mock` las rutas reales responderían con el motor mock
+ * (saldos y órdenes de juguete), así que se apagan con 503 REAL_DISABLED.
+ */
+export function assertRealTradingDataMode(): void {
+  if (serverEnv.DATA_MODE !== "live") throw new DomainError("REAL_DISABLED");
 }
 
 /** Verifica los límites y lanza el DomainError del código que falló. */

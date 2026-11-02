@@ -15,7 +15,7 @@ import { DEMO_SESSION_USER } from "@/lib/auth/demo-user";
 import { ExportWalletProvider, exportMockWallet } from "@/lib/auth/export-wallet";
 import { purgePrivateQueryCache } from "@/lib/auth/private-cache";
 import { SessionProvider } from "@/lib/auth/session-context";
-import { SignerProvider, signMockTransaction } from "@/lib/auth/sign-transaction";
+import { SignerProvider, signDemoTransaction } from "@/lib/auth/sign-transaction";
 import type { LinkedLogin, SessionStatus, SessionUser, SessionValue } from "@/lib/auth/types";
 
 type Snapshot = { status: SessionStatus; user: SessionUser | null };
@@ -72,7 +72,7 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <SessionProvider value={value}>
-      <SignerProvider sign={signMockTransaction}>
+      <SignerProvider sign={signDemoTransaction}>
         <ExportWalletProvider exportWallet={exportMockWallet}>{children}</ExportWalletProvider>
       </SignerProvider>
     </SessionProvider>

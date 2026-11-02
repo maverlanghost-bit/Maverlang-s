@@ -64,7 +64,8 @@ export const AI_TOOLS: readonly XaiTool[] = [
     type: "function",
     function: {
       name: "get_stock",
-      description: "Precio y serie de una acción del catálogo. No opines si conviene.",
+      description:
+        "Precio y serie de una acción del catálogo. Puedes explicar qué muestran los datos y qué riesgos hay, sin recomendar comprar ni vender.",
       parameters: objectParams(
         {
           query: { type: "string", description: "Ticker o nombre, como TSLAx o Tesla." },
@@ -78,7 +79,8 @@ export const AI_TOOLS: readonly XaiTool[] = [
     type: "function",
     function: {
       name: "compare_stocks",
-      description: "Compara hasta 4 acciones del catálogo en el mismo rango. Sólo datos.",
+      description:
+        "Compara hasta 4 acciones del catálogo en el mismo rango. Puedes explicar diferencias, supuestos y riesgos, sin recomendar una opción.",
       parameters: objectParams(
         {
           tickers: { type: "array", items: { type: "string" }, description: "Nombres o símbolos." },
@@ -92,7 +94,8 @@ export const AI_TOOLS: readonly XaiTool[] = [
     type: "function",
     function: {
       name: "get_portfolio",
-      description: "Cartera del usuario con sesión. Si no hay sesión, no inventes posiciones.",
+      description:
+        "Cartera del usuario con sesión. Puedes describirla y explicar sus datos, sin sugerir ajustes personalizados. Si no hay sesión, no inventes posiciones.",
       parameters: objectParams({}, []),
     },
   },

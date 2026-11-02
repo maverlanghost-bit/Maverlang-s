@@ -240,10 +240,14 @@ export const mockTrade = {
     });
   },
 
-  async status(id: string): Promise<Order> {
+  async status(id: string, userId?: string): Promise<Order> {
     return simulateMock(`status:${id}`, () => {
       const order = recallOrder(id);
-      if (!order) throw new DomainError("NOT_FOUND", "No encontramos esa orden.");
+      // En mock sin sesión no hay dueño que comparar; con sesión, un id de
+      // otro usuario responde igual que uno inexistente.
+      if (!order || (userId && order.userId !== userId)) {
+        throw new DomainError("NOT_FOUND", "No encontramos esa orden.");
+      }
       return order;
     });
   },

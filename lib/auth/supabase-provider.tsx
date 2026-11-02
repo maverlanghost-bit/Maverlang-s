@@ -7,10 +7,10 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 
 import { clearClientCookie } from "@/lib/auth/browser-cookies";
 import { MOCK_ONBOARDING_COOKIE, MOCK_SESSION_COOKIE } from "@/lib/auth/cookies";
-import { ExportWalletProvider, exportMockWallet } from "@/lib/auth/export-wallet";
+import { ExportWalletProvider, unavailableExportWallet } from "@/lib/auth/export-wallet";
 import { purgePrivateQueryCache } from "@/lib/auth/private-cache";
 import { SessionProvider } from "@/lib/auth/session-context";
-import { SignerProvider, signMockTransaction } from "@/lib/auth/sign-transaction";
+import { SignerProvider, type SignTrade } from "@/lib/auth/sign-transaction";
 import type { LinkedLogin, SessionStatus, SessionUser, SessionValue } from "@/lib/auth/types";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
@@ -30,6 +30,15 @@ function toSessionUser(user: User): SessionUser {
     walletAddress: null,
   };
 }
+
+/**
+ * Con sesión Supabase no hay firma local: hasta que una billetera Solana esté
+ * vinculada y verificada en el servidor, cualquier intento de firmar falla.
+ * No se usa `signDemoTransaction` aquí para no aparentar una firma real.
+ */
+const rejectSign: SignTrade = async () => {
+  throw new Error("NO_WALLET");
+};
 
 export function SupabaseAuthProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
@@ -99,8 +108,8 @@ export function SupabaseAuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <SessionProvider value={value}>
-      <SignerProvider sign={signMockTransaction}>
-        <ExportWalletProvider exportWallet={exportMockWallet}>{children}</ExportWalletProvider>
+      <SignerProvider sign={rejectSign}>
+        <ExportWalletProvider exportWallet={unavailableExportWallet}>{children}</ExportWalletProvider>
       </SignerProvider>
     </SessionProvider>
   );

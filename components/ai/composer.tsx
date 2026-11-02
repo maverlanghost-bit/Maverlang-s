@@ -211,9 +211,16 @@ export function Composer({
     </div>
   ) : null;
 
-  const disclaimer = (
-    <p id="ai-composer-note" className="px-1 pt-2.5 text-center text-[11px] leading-relaxed text-balance text-fg-muted">
-      {copy.disclaimer}
+  // Aviso permanente y único: se renderiza una sola vez en cada variante
+  // (dock móvil o compositor de escritorio), nunca junto a otro igual.
+  const adviceNotice = (
+    <p
+      id="ai-composer-note"
+      role="note"
+      data-ai-advice-notice
+      className="mx-auto max-w-[46ch] px-1 pt-2.5 text-center text-[11.5px] leading-relaxed text-balance text-fg-muted sm:text-xs"
+    >
+      {copy.adviceNotice}
     </p>
   );
 
@@ -224,7 +231,7 @@ export function Composer({
         <div className="mx-auto w-full max-w-2xl min-w-0 px-4 pt-1.5 pb-1 sm:px-6">
           {pendingBlock}
           {errorBlock}
-          {disclaimer}
+          {adviceNotice}
         </div>
         {createPortal(
           <form
@@ -266,7 +273,7 @@ export function Composer({
       </div>
 
       {chips}
-      {disclaimer}
+      {adviceNotice}
     </form>
   );
 }

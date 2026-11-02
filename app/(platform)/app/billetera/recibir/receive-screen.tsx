@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 
+import { DemoAddressNotice } from "@/components/domain/demo-address-notice";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { CopyButton } from "@/components/ui/copy-button";
@@ -11,7 +12,9 @@ import { QRCode } from "@/components/ui/qr-code";
 import { useToast } from "@/components/ui/toast";
 import { site } from "@/config/site";
 import { useSession } from "@/lib/auth";
+import { useAccountMode } from "@/lib/hooks/use-account-mode";
 import { useT } from "@/lib/hooks/use-t";
+import { receivableAddress } from "@/lib/wallet/receivable-address";
 
 function fill(template: string, values: Record<string, string>) {
   let next = template;
@@ -21,11 +24,13 @@ function fill(template: string, values: Record<string, string>) {
 
 export function ReceiveScreen() {
   const { t } = useT();
+  const { mode } = useAccountMode();
   const session = useSession();
   const { toast } = useToast();
-  const address = session.user?.walletAddress?.trim() ?? "";
+  const address = receivableAddress(mode, session.user?.walletAddress);
 
   async function onShare() {
+    if (!address) return;
     const text = `${fill(t.wallet.shareText, { brand: site.name })}\n${address}`;
     if (typeof navigator.share === "function") {
       try {
@@ -51,26 +56,33 @@ export function ReceiveScreen() {
       <PageHeader title={t.wallet.receiveTitle} description={t.wallet.receiveLead} />
       {session.status === "loading" ? (
         <LoadingState label={t.states.loading} />
+      ) : mode !== "real" ? (
+        // Protección inmediata: la demo no muestra QR ni dirección para recibir.
+        <DemoAddressNotice />
       ) : (
         <Card className="flex flex-col items-center gap-5 text-center">
           {address ? (
             <>
               <QRCode value={address} size={196} label={t.wallet.qrLabel} />
               <p className="num max-w-full break-all text-sm text-fg">{address}</p>
+              <p className="text-sm leading-relaxed text-fg-muted">{t.wallet.verifiedOnly}</p>
               <div className="flex flex-wrap justify-center gap-2">
                 <CopyButton value={address} label={t.wallet.copy} copiedLabel={t.wallet.copied} />
                 <Button variant="secondary" size="sm" onClick={() => void onShare()}>
                   {t.wallet.share}
                 </Button>
               </div>
+              <ul aria-label={t.wallet.warnings} className="flex w-full flex-col gap-2 text-left">
+                <li className="rounded-xl bg-warn-bg px-4 py-3 text-sm font-medium leading-relaxed text-fg">{t.wallet.onlySolana}</li>
+                <li className="rounded-xl bg-warn-bg px-4 py-3 text-sm font-medium leading-relaxed text-fg">{t.wallet.onlyAssets}</li>
+              </ul>
             </>
           ) : (
-            <p className="text-sm text-fg-muted">{t.wallet.noWallet}</p>
+            <>
+              <p className="text-sm text-fg-muted">{t.wallet.noWallet}</p>
+              <p className="text-sm leading-relaxed text-fg-muted">{t.wallet.noVerifiedWallet}</p>
+            </>
           )}
-          <ul aria-label={t.wallet.warnings} className="flex w-full flex-col gap-2 text-left">
-            <li className="rounded-xl bg-warn-bg px-4 py-3 text-sm font-medium leading-relaxed text-fg">{t.wallet.onlySolana}</li>
-            <li className="rounded-xl bg-warn-bg px-4 py-3 text-sm font-medium leading-relaxed text-fg">{t.wallet.onlyAssets}</li>
-          </ul>
         </Card>
       )}
     </div>

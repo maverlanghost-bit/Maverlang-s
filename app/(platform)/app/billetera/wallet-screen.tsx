@@ -4,13 +4,13 @@ import Link from "next/link";
 import { useState, type ReactNode } from "react";
 
 import { ActivityItem } from "@/components/domain/activity-item";
+import { DemoAddressNotice } from "@/components/domain/demo-address-notice";
 import { PriceText } from "@/components/domain/price-text";
 import { RealAccountEmpty } from "@/components/domain/real-account-empty";
 import { TickerLogo } from "@/components/domain/ticker-logo";
 import type { BadgeTone } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { CopyButton } from "@/components/ui/copy-button";
 import { ErrorState } from "@/components/ui/error-state";
 import { LoadingState } from "@/components/ui/loading-state";
 import { PageHeader } from "@/components/ui/page-header";
@@ -181,7 +181,6 @@ export function WalletScreen() {
   const usdcUi = usdc?.uiAmount ?? 0;
   const solUi = sol?.uiAmount ?? 0;
   const lowSol = solIsLow(solUi);
-  const address = session.user?.walletAddress?.trim() ?? "";
   const tickerBySymbol = new Map((tickers.data ?? []).map((ticker) => [ticker.symbol, ticker]));
   const rate = fx.data?.rate;
   const fxKnown = typeof rate === "number" && Number.isFinite(rate) && rate > 0;
@@ -272,18 +271,8 @@ export function WalletScreen() {
         )}
       </Card>
 
-      <Card>
-        <h2 className="text-lg font-semibold tracking-tight">{t.wallet.address}</h2>
-        <p className="mt-1 text-sm text-fg-muted">{t.wallet.addressHint}</p>
-        {address ? (
-          <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-            <p className="num min-w-0 flex-1 break-all text-sm text-fg">{address}</p>
-            <CopyButton value={address} label={t.wallet.copy} copiedLabel={t.wallet.copied} />
-          </div>
-        ) : (
-          <p className="mt-4 text-sm text-fg-muted">{t.account.noAddress}</p>
-        )}
-      </Card>
+      {/* Protección demo: sin dirección ni copia para evitar envíos de fondos reales. */}
+      <DemoAddressNotice />
 
       <Card>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

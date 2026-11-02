@@ -1,5 +1,16 @@
 # PROGRESO — Maverlang
 
+## T24 — PREPARACIÓN PARCIAL: demo oculta, pesos bloqueados y andamiaje seguro (2026-11-02)
+- Hecho (pantalla demo): se ocultan direcciones y QR para no exponer datos ficticios como reales.
+- Hecho (pesos): deshabilitados en la UI y rechazados en el servidor; no se aceptan montos CLP.
+- Hecho (IA): aviso de modo demo y libertad informativa; sin promesas de rentabilidad.
+- En desarrollo: autenticación, conciliación de depósitos y órdenes; patrocinio SOL sin llaves apagado.
+- Pendiente explícito: no listo para fondos reales ni para activar flags.
+- Pendiente: vinculación verificable Supabase-Privy y su UI; patrocinio KMS/config/integración; feed de depósitos incompleto.
+- Pendiente: órdenes con riesgo de perder la firma tras ejecución si falla la persistencia; tests existentes desalineados.
+- Pendiente por instrucción del usuario: no se ejecutaron tests, typecheck, lint, build, medición ni verificación en navegador.
+- Límite: no se afirman garantías no verificadas.
+
 ## T23 — Favoritas paginadas, estados de Cartera por lotes y limpieza de caché privada (2026-11-02)
 - Hecho (Favoritas, `app/(platform)/app/favoritas/use-favorite-catalog.ts`): usa el catálogo paginado compartido con Mercado (50 por página) en vez de una búsqueda por símbolo; reutiliza la clave de la portada y pide páginas extra sólo si falta alguna favorita.
 - Hecho (Cartera, `lib/api/client.ts`): `getAssetStatuses` deduplica sin distinguir mayúsculas, divide en lotes de `ASSET_STATUS_BATCH_MAX` (50), limita la concurrencia a 3 y recombina en el orden original; un lote fallido deja `status: null` en sus símbolos sin invalidar los demás.

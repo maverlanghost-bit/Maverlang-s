@@ -18,18 +18,44 @@ export interface CryptoDepositRow {
   created_at: string;
 }
 
-/** Firmas ya registradas para un usuario (evita contar dos veces). */
+/**
+ * Firmas ya registradas para un usuario (evita contar dos veces).
+ * No distingue "sin firmas" de "no se pudo leer": para el barrido del cron
+ * usar `listDepositSignaturesForScan`, que falla cerrado.
+ */
 export async function listDepositSignatures(userId: string): Promise<Set<string>> {
+  return (await listDepositSignaturesForScan(userId)) ?? new Set();
+}
+
+/**
+ * Firmas ya registradas, con error explícito: `null` = no se pudo leer.
+ * `limit` acota la lectura del cron; sin él se leen todas (comportamiento
+ * histórico de `listDepositSignatures`).
+ */
+export async function listDepositSignaturesForScan(
+  userId: string,
+  limit?: number,
+): Promise<Set<string> | null> {
   const admin = createSupabaseAdminClient();
-  const { data, error } = await admin
+  const base = admin
     .from("crypto_deposits")
     .select("signature")
-    .eq("user_id", userId);
-  if (error || !data) return new Set();
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false });
+  const bounded = typeof limit === "number" && Number.isInteger(limit) && limit > 0
+    ? base.limit(limit)
+    : base;
+  const { data, error } = await bounded;
+  if (error || !data) return null;
   return new Set((data as { signature: string | null }[]).map((row) => row.signature).filter((s): s is string => Boolean(s)));
 }
 
-/** Registra un depósito. `onConflict: signature` lo hace idempotente. */
+/**
+ * Registra un depósito. `onConflict: signature` lo hace idempotente.
+ * Devuelve `true` sólo si la fila se insertó de verdad: con
+ * `ignoreDuplicates` un conflicto no es error, pero tampoco es un depósito
+ * nuevo (idempotencia real, no "upsert aceptado").
+ */
 export async function insertCryptoDeposit(row: {
   userId: string;
   mint: string;
@@ -38,17 +64,87 @@ export async function insertCryptoDeposit(row: {
   fromAddress: string | null;
 }): Promise<boolean> {
   const admin = createSupabaseAdminClient();
-  const { error } = await admin.from("crypto_deposits").upsert(
-    {
-      user_id: row.userId,
-      mint: row.mint,
-      amount_ui: row.amountUi,
-      signature: row.signature,
-      from_address: row.fromAddress,
-    },
-    { onConflict: "signature", ignoreDuplicates: true },
-  );
-  return !error;
+  const { data, error } = await admin
+    .from("crypto_deposits")
+    .upsert(
+      {
+        user_id: row.userId,
+        mint: row.mint,
+        amount_ui: row.amountUi,
+        signature: row.signature,
+        from_address: row.fromAddress,
+      },
+      { onConflict: "signature", ignoreDuplicates: true },
+    )
+    .select("id");
+  if (error) throw error;
+  return Array.isArray(data) && data.length > 0;
+}
+
+/**
+ * Dueño actual de una firma (aislamiento por usuario). La firma es única
+ * global en `crypto_deposits`: antes de reparar una actividad hay que
+ * confirmar que la firma no quedó registrada a nombre de otro usuario.
+ * `ok: false` = no se pudo leer (el llamador debe fallar cerrado).
+ */
+export async function findCryptoDepositOwner(
+  signature: string,
+): Promise<{ ok: true; userId: string | null } | { ok: false }> {
+  const admin = createSupabaseAdminClient();
+  const { data, error } = await admin
+    .from("crypto_deposits")
+    .select("user_id")
+    .eq("signature", signature)
+    .maybeSingle();
+  if (error) return { ok: false };
+  const userId = typeof (data as { user_id?: unknown } | null)?.user_id === "string"
+    ? (data as { user_id: string }).user_id
+    : null;
+  return { ok: true, userId };
+}
+
+// ---------------------------------------------------------------------------
+// Barrido de depósitos del cron (M78 → seguimiento en staging).
+// Lecturas acotadas y con error explícito (`null`): una base que no se pudo
+// leer nunca se interpreta como "no hay billeteras que revisar".
+// ---------------------------------------------------------------------------
+
+export interface DepositScanWallet {
+  userId: string;
+  address: string;
+}
+
+/** Total de billeteras Solana verificadas, para rotar el lote del cron. */
+export async function countDepositScanWallets(): Promise<number | null> {
+  const admin = createSupabaseAdminClient();
+  const { count, error } = await admin
+    .from("wallets")
+    .select("user_id", { count: "exact", head: true })
+    .eq("chain", "solana");
+  if (error || typeof count !== "number") return null;
+  return count;
+}
+
+/**
+ * Página de billeteras verificadas a revisar. El `user_id` sale SIEMPRE de
+ * `wallets` (verificado por M66), nunca de la cadena ni del cliente: es el
+ * aislamiento por usuario del barrido. `null` si la lectura falla.
+ */
+export async function listWalletsForDepositScan(
+  limit: number,
+  offset: number,
+): Promise<DepositScanWallet[] | null> {
+  const admin = createSupabaseAdminClient();
+  const { data, error } = await admin
+    .from("wallets")
+    .select("user_id,address")
+    .eq("chain", "solana")
+    .order("user_id", { ascending: true })
+    .range(offset, offset + limit - 1);
+  if (error || !Array.isArray(data)) return null;
+  return (data as { user_id: string; address: string }[])
+    .filter((row) => typeof row.user_id === "string" && row.user_id !== "" && typeof row.address === "string")
+    .map((row) => ({ userId: row.user_id, address: row.address }));
 }
 
 /** Lista los depósitos de un usuario (para el historial). */

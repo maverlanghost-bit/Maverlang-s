@@ -32,3 +32,11 @@ export function useExportKey(): ExportWallet {
 export async function exportMockWallet(): Promise<ExportWalletResult> {
   return "mock";
 }
+
+/**
+ * Identidad real sin billetera vinculada: exportar debe fallar cerrado, no
+ * aparentar que existe una clave exportable.
+ */
+export const unavailableExportWallet: ExportWallet = async () => {
+  throw new Error("NO_WALLET");
+};

@@ -10,11 +10,13 @@ import { serverEnv } from "@/lib/env";
 import { DomainError } from "@/lib/api/result";
 import { livePrices } from "@/lib/services/prices.live";
 import {
-  findOrderByRequestId,
+  claimOrderExecution,
+  finalizeOrderExecution,
   getOrderById,
-  insertOrder,
+  getOrderByIdForUser,
   updateOrderStatus,
 } from "@/lib/services/orders.supabase";
+import { translateSolanaError } from "@/lib/solana/tx-errors";
 import { buildSwapParams, parsedOrderToTradeQuote } from "@/lib/market/jupiter-tx";
 import { fetchJupiterOrder } from "@/lib/market/jupiter-client";
 import { jupiterSwapUrl, jupiterOrderParams, parseJupiterOrder } from "@/lib/market/jupiter-order";
@@ -31,14 +33,15 @@ import type {
 } from "@/lib/types";
 
 /**
- * Compra y venta live contra Jupiter Swap v2. El `quote` ya está conectado y
- * verificado contra la red real (AAPLx cotiza con precio de mercado). El
- * `build`/`submit`/`status` de dinero real siguen pendientes de la firma
- * on-chain (Privy + tx firmada); sus TODO exactos están en cada método.
+ * Compra y venta live contra Jupiter Swap v2. `quote` cotiza con precio de
+ * mercado; `build` arma la tx con el `taker`; `submit` la envía firmada por
+ * el cliente (Privy) y `status` concilia la fila con la cadena.
  *
- * Flujo de compra: entra USDC, sale la acción. Venta: al revés. El `quote`
- * respeta el allowlist (`requireOperable`) y lee el multiplicador Token-2022
- * del mint por el RPC para convertir crudo <-> acciones.
+ * Reglas de staging: una cotización pertenece a un usuario (build/submit
+ * rechazan un id ajeno), `submit` reclama la orden en Supabase antes de
+ * enviar (idempotencia real) y cualquier fallo de RPC/base que impida
+ * verificar precios o registrar la orden falla cerrado. Nada de precios
+ * inventados ni ejecución sin traza.
  */
 
 const QUOTE_TTL_MS = 60_000;
@@ -55,6 +58,8 @@ const STOCK_DECIMALS = 8;
  */
 interface StoredLiveQuote {
   requestId: string;
+  /** Dueño de la cotización. `null` sólo en entornos sin sesión (mock/dev). */
+  userId: string | null;
   side: "buy" | "sell";
   symbol: string;
   mint: string;
@@ -62,7 +67,17 @@ interface StoredLiveQuote {
   outputMint: string;
   amountRaw: bigint;
   priceUsd: number;
+  inAmountUi: number;
+  outAmountUi: number;
+  feeBps: number;
+  feeUsd: number;
   expiresAt: string;
+  /**
+   * Una cotización se arma UNA sola vez. La reserva se toma antes de pedir
+   * la tx a Jupiter para que dos builds simultáneos no generen dos txs
+   * firmables de la misma operación.
+   */
+  built: boolean;
 }
 
 const liveQuotes = new Map<string, StoredLiveQuote>();
@@ -74,12 +89,26 @@ function pruneLiveQuotes(now: number): void {
   }
 }
 
-/** Multiplicador vigente del mint. 1 si el RPC falla (nunca rompe el quote). */
+/**
+ * Una cotización con dueño sólo la puede usar ese usuario. Sin dueño (rutas
+ * sin sesión en mock/dev) se mantiene el comportamiento anterior.
+ */
+function quoteOwnedBy(stored: StoredLiveQuote, userId?: string): boolean {
+  return stored.userId === null || stored.userId === userId;
+}
+
+/**
+ * Multiplicador vigente del mint. Si el RPC falla NO se asume 1: un
+ * multiplicador inventado cambiaría las acciones y el precio. Falla cerrado.
+ */
 async function multiplierOf(connection: Connection, mint: string): Promise<number> {
   try {
     return await fetchMintMultiplier(connection, mint);
   } catch {
-    return 1;
+    throw new DomainError(
+      "UPSTREAM",
+      "No pudimos verificar el activo en la red. Intenta de nuevo en un momento.",
+    );
   }
 }
 
@@ -91,7 +120,7 @@ export const liveTrade = {
    * `livePrices.list`. Devuelve un `TradeQuote` con costos y desviación.
    * Verificado contra la red: AAPLx cotiza con precio de mercado real.
    */
-  async quote(request: TradeQuoteRequest): Promise<TradeQuote> {
+  async quote(request: TradeQuoteRequest, userId?: string): Promise<TradeQuote> {
     if (!(request.amount > 0) || !Number.isFinite(request.amount)) {
       throw new DomainError("VALIDATION", "El monto tiene que ser mayor que cero.");
     }
@@ -213,6 +242,7 @@ export const liveTrade = {
     pruneLiveQuotes(Date.now());
     liveQuotes.set(quote.id, {
       requestId: quote.id,
+      userId: userId ?? null,
       side: request.side,
       symbol: asset.symbol,
       mint: asset.mint,
@@ -220,7 +250,12 @@ export const liveTrade = {
       outputMint: params.outputMint,
       amountRaw: params.amountRaw,
       priceUsd: quote.pricePerShareUsd,
+      inAmountUi: quote.inAmountUi,
+      outAmountUi: quote.outAmountUi,
+      feeBps: quote.costs.platformFeeBps,
+      feeUsd: quote.costs.platformFeeUsd,
       expiresAt: quote.expiresAt,
+      built: false,
     });
 
     return quote;
@@ -237,7 +272,7 @@ export const liveTrade = {
    * → VALIDATION; Jupiter no pudo armar la tx (transaction vacía) → UPSTREAM;
    * red → UPSTREAM.
    */
-  async build(request: TradeBuildRequest): Promise<TradeBuildResponse> {
+  async build(request: TradeBuildRequest, userId?: string): Promise<TradeBuildResponse> {
     const userPublicKey = request.userPublicKey?.trim() ?? "";
     if (userPublicKey.length < 32) {
       throw new DomainError("VALIDATION", "Falta la billetera para operar.");
@@ -246,6 +281,19 @@ export const liveTrade = {
     if (!stored || Date.parse(stored.expiresAt) <= Date.now()) {
       throw new DomainError("QUOTE_EXPIRED", "La cotización venció. Pide una nueva.");
     }
+    // Una cotización ajena responde NOT_FOUND: no se arma una tx con la
+    // cotización de otro usuario ni se revela que existe.
+    if (!quoteOwnedBy(stored, userId)) {
+      throw new DomainError("NOT_FOUND", "No encontramos esa cotización.");
+    }
+    if (stored.userId === null && userId) stored.userId = userId;
+    // Reserva antes del await: si dos builds llegan a la vez, sólo el
+    // primero arma la tx. Un build fallido no se reintenta con la misma
+    // cotización (el cliente pide una nueva): nunca dos txs firmables.
+    if (stored.built) {
+      throw new DomainError("QUOTE_EXPIRED", "Esta cotización ya se usó. Pide una nueva.");
+    }
+    stored.built = true;
 
     // Re-cotizamos con el taker para obtener la transacción armada.
     const url = jupiterSwapUrl(serverEnv.JUPITER_BASE_URL, "/swap/v2/order");
@@ -280,9 +328,13 @@ export const liveTrade = {
     }
     // La tx armada puede traer un requestId nuevo; si no, reusamos el de la quote.
     const requestId = typeof order.requestId === "string" && order.requestId ? order.requestId : stored.requestId;
-    // Guardamos la cotización también bajo el requestId devuelto, para que
-    // `submit` la recupere aunque Jupiter haya asignado uno distinto al armar la tx.
-    if (requestId !== stored.requestId) liveQuotes.set(requestId, stored);
+    // Guardamos la cotización bajo el requestId devuelto, para que `submit`
+    // la recupere aunque Jupiter haya asignado uno distinto al armar la tx.
+    // El id crudo de la cotización deja de servir como requestId.
+    if (requestId !== stored.requestId) {
+      liveQuotes.set(requestId, stored);
+      liveQuotes.delete(request.quoteId);
+    }
 
     return {
       requestId,
@@ -296,11 +348,14 @@ export const liveTrade = {
    * orden en Supabase (`orders`). Jupiter aterriza la transacción; acá sólo
    * la firmó el cliente con Privy, este método no vuelve a firmar.
    *
-   * Idempotencia: si el mismo `requestId` ya quedó `submitted`, se devuelve
-   * la orden existente sin volver a ejecutar (evita doble gasto).
+   * Idempotencia: ANTES de mandar la tx se inserta la orden en `pending` con
+   * el `request_id` único. Si el mismo requestId ya existe (aunque esté
+   * `pending` por un corte previo), se devuelve esa fila sin volver a
+   * ejecutar. Sin reclamo en base NO se envía nada (falla cerrado).
    *
-   * Errores: requestId desconocido → NOT_FOUND; tx vacía → VALIDATION; red →
-   * UPSTREAM. Firma rechazada por Jupiter → status `failed` (no UPSTREAM).
+   * Errores: requestId desconocido o de otro usuario → NOT_FOUND; tx vacía →
+   * VALIDATION; red/no se pudo registrar → UPSTREAM. Firma rechazada por
+   * Jupiter → status `failed` (no UPSTREAM).
    */
   async submit(request: TradeSubmitRequest, userId: string): Promise<TradeSubmitResponse> {
     const signedTransactionBase64 = request.signedTransactionBase64?.trim() ?? "";
@@ -311,11 +366,48 @@ export const liveTrade = {
     if (!stored) {
       throw new DomainError("NOT_FOUND", "No encontramos esa operación.");
     }
+    if (!quoteOwnedBy(stored, userId)) {
+      throw new DomainError("NOT_FOUND", "No encontramos esa operación.");
+    }
+    // Sólo se envía lo que pasó por `build`: un quoteId crudo no es un
+    // requestId válido para submit.
+    if (!stored.built) {
+      throw new DomainError("NOT_FOUND", "No encontramos esa operación.");
+    }
+    if (Date.parse(stored.expiresAt) <= Date.now()) {
+      throw new DomainError("QUOTE_EXPIRED", "La cotización venció. Pide una nueva.");
+    }
+    if (stored.userId === null) stored.userId = userId;
 
-    // Idempotencia: si ya hay una orden viva con este requestId, no repetir.
-    const existing = await findOrderByRequestId(userId, request.requestId);
-    if (existing && existing.status !== "failed") {
-      return { orderId: existing.id, signature: existing.signature, status: existing.status };
+    // Reclamo previo: fila `pending` con request_id único. Dos submits
+    // simultáneos no pueden ejecutar dos veces la misma operación.
+    let claim: Awaited<ReturnType<typeof claimOrderExecution>>;
+    try {
+      claim = await claimOrderExecution({
+        userId,
+        requestId: request.requestId,
+        side: stored.side,
+        symbol: stored.symbol,
+        mint: stored.mint,
+        inAmountUi: stored.inAmountUi,
+        outAmountUi: stored.outAmountUi,
+        priceUsd: stored.priceUsd,
+        feeBps: stored.feeBps,
+        feeUsd: stored.feeUsd,
+        quoteExpiresAt: stored.expiresAt,
+      });
+    } catch {
+      claim = null;
+    }
+    if (!claim) {
+      throw new DomainError(
+        "UPSTREAM",
+        "No pudimos registrar la operación. No se envió nada.",
+      );
+    }
+    if (!claim.claimed) {
+      // Ya existía (submitted/confirmed/failed/pending): nunca re-ejecutar.
+      return { orderId: claim.id, signature: claim.signature, status: claim.status };
     }
 
     // Ejecutamos contra Jupiter.
@@ -336,6 +428,9 @@ export const liveTrade = {
       const body = (await response.json()) as unknown;
       result = parseJupiterExecute(body as Parameters<typeof parseJupiterExecute>[0]);
     } catch (error) {
+      // La tx pudo o no haber llegado: el reclamo `pending` impide un
+      // segundo envío y la conciliación lo cierra por vencimiento. No se
+      // inventa un estado final ni se libera el requestId.
       throw new DomainError(
         "UPSTREAM",
         error instanceof Error ? error.message : "No pudimos enviar la operación.",
@@ -343,24 +438,21 @@ export const liveTrade = {
     }
 
     const orderStatus: Order["status"] = result.status === "submitted" ? "submitted" : "failed";
-    const inserted = await insertOrder({
-      userId,
-      requestId: request.requestId,
-      side: stored.side,
-      symbol: stored.symbol,
-      mint: stored.mint,
-      priceUsd: stored.priceUsd,
-      feeBps: feeConfig.bps,
-      status: orderStatus,
-      signature: result.signature,
-      error: result.error ?? null,
-    });
-    if (!inserted) {
-      // Jupiter ya la ejecutó pero no pudimos guardar: devolvemos el estado
-      // sin orderId; el polling por requestId la recupera.
-      return { orderId: "", signature: result.signature, status: orderStatus };
+    try {
+      const finalized = await finalizeOrderExecution(claim.id, {
+        status: result.status,
+        signature: result.signature,
+        error: result.error ?? null,
+      });
+      if (!finalized) {
+        // La tx ya salió. La fila queda `pending` (la conciliación la cierra);
+        // se registra el id para poder rastrearla, nunca la tx firmada.
+        console.warn(`[trade] orden ${claim.id} ejecutada sin cierre en base`);
+      }
+    } catch {
+      console.warn(`[trade] orden ${claim.id} ejecutada sin cierre en base`);
     }
-    return { orderId: inserted.id, signature: result.signature, status: orderStatus };
+    return { orderId: claim.id, signature: result.signature, status: orderStatus };
   },
 
   /**
@@ -368,12 +460,15 @@ export const liveTrade = {
    * abierta, confirma en cadena con `getSignatureStatuses`. No pisa un
    * `confirmed` con un fallo transitorio del RPC (devuelve el guardado).
    *
-   * Errores: id ajeno o inexistente → NOT_FOUND. RPC caído al confirmar →
-   * devuelve la orden guardada tal cual (no UPSTREAM: el cliente sigue
-   * pollenado y la confirmación llega en el siguiente tick).
+   * Errores: id ajeno o inexistente → NOT_FOUND (la lectura por userId no
+   * distingue ambos casos). RPC caído al confirmar → devuelve la orden
+   * guardada tal cual (no UPSTREAM: el cliente sigue pollenado y la
+   * confirmación llega en el siguiente tick).
    */
-  async status(id: string): Promise<Order> {
-    const data = await getOrderById(id);
+  async status(id: string, userId?: string): Promise<Order> {
+    // Con sesión, la consulta exige `user_id`: un id ajeno nunca se lee ni
+    // se actualiza. Sin sesión (mock/dev) se mantiene la lectura directa.
+    const data = userId ? await getOrderByIdForUser(id, userId) : await getOrderById(id);
     if (!data) {
       throw new DomainError("NOT_FOUND", "No encontramos esa orden.");
     }
@@ -384,15 +479,25 @@ export const liveTrade = {
       const rpcUrl = serverEnv.SOLANA_RPC_URL ?? "https://api.mainnet-beta.solana.com";
       const connection = new Connection(rpcUrl, "confirmed");
       try {
-        const { value } = await connection.getSignatureStatuses([data.signature]);
+        const { value } = await connection.getSignatureStatuses([data.signature], {
+          // Sin historial, una firma fuera de la ventana reciente vuelve
+          // como null y la orden quedaría `submitted` para siempre.
+          searchTransactionHistory: true,
+        });
         const onchain = value[0];
         if (onchain) {
           const confirmed = onchain.confirmationStatus === "finalized" || onchain.confirmationStatus === "confirmed";
           const failed = Boolean(onchain.err);
           const next: Order["status"] = failed ? "failed" : confirmed ? "confirmed" : status;
           if (next !== status) {
+            const translated = failed ? translateSolanaError(onchain.err) : null;
+            await updateOrderStatus(id, next as "confirmed" | "failed", {
+              error: translated ? translated.userMessage : null,
+              errorCode: translated ? translated.code : null,
+              confirmedAt: next === "confirmed" ? new Date().toISOString() : null,
+              txSignature: data.signature,
+            });
             status = next;
-            await updateOrderStatus(id, next as "confirmed" | "failed");
           }
         }
       } catch {

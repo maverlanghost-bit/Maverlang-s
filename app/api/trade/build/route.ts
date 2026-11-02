@@ -15,9 +15,13 @@ import { apiOperateBlock } from "@/lib/compliance/real-quote";
 import { withRateLimit } from "@/lib/security/rate-limit";
 import { getServices } from "@/lib/services";
 import { demoSupabase } from "@/lib/services/demo.supabase";
-import { assertRealTradeAllowed } from "@/lib/trade/real-guards";
+import { assertRealTradeAllowed, assertRealTradingDataMode } from "@/lib/trade/real-guards";
+import type { TradeBuildRequest, TradeBuildResponse } from "@/lib/types";
 
 export const runtime = "nodejs";
+
+/** El servicio live acepta el dueño de la cotización como segundo argumento. */
+type OwnerScopedBuild = (request: TradeBuildRequest, userId?: string) => Promise<TradeBuildResponse>;
 
 export function POST(req: Request) {
   return handle("no-store", async () => {
@@ -28,6 +32,7 @@ export function POST(req: Request) {
     if (ipLimited) return ipLimited;
     const services = getServices();
     const session = await requireSupabaseUser(services, req);
+    let userId = session?.userId ?? null;
     if (session) {
       const userLimited =
         (await withRateLimit(req, "trade", [session.userId])) ??
@@ -40,18 +45,22 @@ export function POST(req: Request) {
       // REAL_TRADING_READY=true. Con el flag encendido, pasa al motor live
       // de abajo. El camino demo sigue igual.
       assertRealTradingEnabled();
+      assertRealTradingDataMode();
       // M74: kill switch → beta → límites. La carrera de dos builds
       // simultáneos se corta acá: cada build re-comprueba los topes antes
       // de armar la tx y submit vuelve a comprobarlos al firmar.
-      const userId = session?.userId ?? (await requireSession(services, req)).userId;
-      await assertRealTradeAllowed(userId, null);
+      const realUserId = userId ?? (await requireSession(services, req)).userId;
+      userId = realUserId;
+      await assertRealTradeAllowed(realUserId, null);
     }
     if (isUserDemoRequest(req)) {
-      const userId = session?.userId ?? (await requireSession(services, req)).userId;
-      const data = await callService(req, () => demoSupabase.trade.build(userId, body));
+      const demoUserId = session?.userId ?? (await requireSession(services, req)).userId;
+      const data = await callService(req, () => demoSupabase.trade.build(demoUserId, body));
       return readOutput(tradeBuildResponseSchema, data);
     }
-    const data = await callService(req, () => services.trade.build(body));
+    // El dueño de la cotización viaja al motor: un quoteId ajeno → NOT_FOUND.
+    const build = services.trade.build as OwnerScopedBuild;
+    const data = await callService(req, () => build(body, userId ?? undefined));
     return readOutput(tradeBuildResponseSchema, data);
   });
 }

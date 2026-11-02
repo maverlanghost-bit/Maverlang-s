@@ -8,6 +8,7 @@ import { hasAuthSession } from "@/lib/auth/gate";
 import { isSupabaseAuth, shouldUsePrivy, warnAuthOnce } from "@/lib/auth/mode";
 import { claimsDemoReady, claimsOnboarded } from "@/lib/auth/registro-schema";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { verifyPrivySessionToken } from "@/lib/services/auth.privy";
 
 export type ServerSession = {
   hasSession: boolean;
@@ -47,13 +48,17 @@ export const readServerSession = cache(async function readServerSession(): Promi
 
   const mockSession = jar.get(MOCK_SESSION_COOKIE)?.value ?? null;
   const privyToken = jar.get(PRIVY_SESSION_COOKIE)?.value ?? null;
+  const usePrivy = shouldUsePrivy();
+  // La cookie `privy-token` por sí sola no autentica: se verifica su firma ES256
+  // y sus claims. Sin clave de verificación o con un token inválido, no hay sesión.
+  const privySession = usePrivy && privyToken ? await verifyPrivySessionToken(privyToken) : null;
   return {
     hasSession: hasAuthSession({
       useSupabase: false,
       supabaseSession: false,
-      usePrivy: shouldUsePrivy(),
+      usePrivy,
       mockSession: mockSession && mockSession.length > 0 ? mockSession : null,
-      privyToken: privyToken && privyToken.length > 0 ? privyToken : null,
+      privyToken: privySession ? "verified" : null,
     }),
     onboarded,
     demoReady: onboarded,

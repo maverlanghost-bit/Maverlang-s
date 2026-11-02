@@ -1,7 +1,8 @@
 /**
  * Textos del asistente. Misma forma en es-CL y en.
  * No van en es-CL.ts / en.ts: esta parte no edita esos archivos.
- * No es recomendación de inversión.
+ * `adviceNotice` es el aviso permanente del compositor: informativo, breve y
+ * localizado. No es una recomendación ni una autorización legal.
  */
 
 export type AsistenteSuggestionId = "tesla" | "compare" | "portfolio" | "import";
@@ -20,6 +21,8 @@ export type AsistenteCopy = {
   send: string;
   attach: string;
   typing: string;
+  /** Aviso permanente bajo el compositor. */
+  adviceNotice: string;
   disclaimer: string;
   suggestions: readonly AsistenteSuggestion[];
   emptyTitle: string;
@@ -83,6 +86,7 @@ export const asistenteCopy: { esCL: AsistenteCopy; en: AsistenteCopy } = {
     send: "Enviar",
     attach: "Adjuntar foto",
     typing: "Escribiendo",
+    adviceNotice: "Las respuestas son informativas y no son consejos de inversión.",
     disclaimer: "No es recomendación de inversión",
     suggestions: suggestionsEs,
     emptyTitle: "¿En qué te ayudo?",
@@ -130,6 +134,7 @@ export const asistenteCopy: { esCL: AsistenteCopy; en: AsistenteCopy } = {
     send: "Send",
     attach: "Attach photo",
     typing: "Writing",
+    adviceNotice: "Answers are informational and not investment advice.",
     disclaimer: "Not investment advice",
     suggestions: suggestionsEn,
     emptyTitle: "How can I help?",

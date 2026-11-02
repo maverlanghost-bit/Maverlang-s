@@ -1,4 +1,11 @@
 /**
+ * Primera versión: sólo depósitos USDC por Solana. El código del depósito en
+ * pesos (on-ramp) queda intacto, pero oculto de la UI y del onboarding.
+ * Cambiar a `true` cuando el flujo en pesos esté aprobado para operar.
+ */
+export const PESO_DEPOSITS_ENABLED: boolean = false;
+
+/**
  * Piso en pesos del depósito.
  * [VERIFICAR] con Koywe y Onramper antes de producción: este número no está confirmado.
  * Los chips de la pantalla parten en este mismo piso.

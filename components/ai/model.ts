@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import type { AiChatRequest, AiWidget } from "@/components/ai/contract";
+import { aiMessages } from "@/content/i18n/extra-b";
 
 /** Misma escala que el dominio: 0,012 = 1,2 %. */
 export type ChatNotice = {
@@ -26,6 +27,30 @@ export const MAX_API_TURNS = 16;
 export const MAX_POINTS = 400;
 export const CHART_W = 320;
 export const CHART_H = 96;
+
+/**
+ * El servidor agrega su aviso al final de las respuestas sobre acciones.
+ * La interfaz muestra un aviso permanente bajo el compositor, así que aquí se
+ * quita esa copia del texto para no repetir el mismo mensaje en pantalla.
+ */
+const INLINE_NOTICES = [aiMessages.esCL.disclaimer, aiMessages.en.disclaimer].flatMap((notice) => [
+  notice,
+  notice.replace(/\.$/, ""),
+]);
+
+export function stripInlineNotice(text: string): string {
+  let out = text.trimEnd();
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const notice of INLINE_NOTICES) {
+      if (!out.endsWith(notice)) continue;
+      out = out.slice(0, -notice.length).trimEnd();
+      changed = true;
+    }
+  }
+  return out;
+}
 
 const pointSchema = z.object({
   t: z.number().finite(),
@@ -98,7 +123,7 @@ const okSchema = z
   })
   .transform((value) => ({
     ok: true as const,
-    text: value.text,
+    text: stripInlineNotice(value.text),
     widgets: parseWidgets(value.widgets),
   }));
 
@@ -153,7 +178,10 @@ export function parseStoredMessage(input: unknown): ChatMessage | null {
   const message: ChatMessage = {
     id: parsed.data.id,
     role: parsed.data.role,
-    text: parsed.data.text.slice(0, MAX_TEXT),
+    text: (parsed.data.role === "assistant" ? stripInlineNotice(parsed.data.text) : parsed.data.text).slice(
+      0,
+      MAX_TEXT,
+    ),
   };
   if (parsed.data.widgets) message.widgets = parseWidgets(parsed.data.widgets);
   const image = parsed.data.imageDataUrl;
@@ -295,7 +323,7 @@ export function toApiMessages(messages: readonly ChatMessage[]): AiChatRequest["
   const turns: AiChatRequest["messages"] = [];
   for (const message of messages) {
     if (message.notice) continue;
-    const content = message.text.trim();
+    const content = (message.role === "assistant" ? stripInlineNotice(message.text) : message.text).trim();
     if (!content) continue;
     turns.push({ role: message.role, content: content.slice(0, MAX_TEXT) });
   }

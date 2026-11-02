@@ -20,10 +20,12 @@ export function useSignTrade(): SignTrade {
 }
 
 /**
- * Mock: no hay clave. Espera y devuelve la misma transacción.
- * El servidor mock sólo comprueba que el campo firmado no venga vacío.
+ * Firma de DEMO (AUTH_MODE=mock). No hay clave privada: espera y devuelve la
+ * misma transacción, así que NO es una firma criptográfica y nunca debe
+ * montarse con una identidad real (Supabase/Privy). El servidor mock sólo
+ * comprueba que el campo firmado no venga vacío.
  */
-export async function signMockTransaction(transactionBase64: string): Promise<string> {
+export async function signDemoTransaction(transactionBase64: string): Promise<string> {
   if (transactionBase64.trim() === "") throw new Error("NO_WALLET");
   await new Promise((resolve) => {
     setTimeout(resolve, MOCK_SIGN_MS);

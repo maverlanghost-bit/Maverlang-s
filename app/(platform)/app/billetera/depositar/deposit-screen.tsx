@@ -4,6 +4,7 @@ import Link from "next/link";
 
 import { PageHeader } from "@/components/ui/page-header";
 import { Tabs } from "@/components/ui/tabs";
+import { PESO_DEPOSITS_ENABLED } from "@/config/onramp";
 import { useT } from "@/lib/hooks/use-t";
 
 import { PesoDeposit } from "./peso-deposit";
@@ -18,14 +19,19 @@ export function DepositScreen() {
         {t.wallet.back}
       </Link>
       <PageHeader title={t.wallet.depositTitle} description={t.wallet.depositLead} />
-      <Tabs
-        label={t.wallet.depositTabs}
-        defaultValue="clp"
-        tabs={[
-          { value: "clp", label: t.wallet.depositPesos, content: <PesoDeposit /> },
-          { value: "usdc", label: t.wallet.depositUsdc, content: <UsdcDeposit /> },
-        ]}
-      />
+      {/* Primera versión: sólo USDC. El depósito en pesos sigue en el código, oculto. */}
+      {PESO_DEPOSITS_ENABLED ? (
+        <Tabs
+          label={t.wallet.depositTabs}
+          defaultValue="usdc"
+          tabs={[
+            { value: "clp", label: t.wallet.depositPesos, content: <PesoDeposit /> },
+            { value: "usdc", label: t.wallet.depositUsdc, content: <UsdcDeposit /> },
+          ]}
+        />
+      ) : (
+        <UsdcDeposit />
+      )}
     </div>
   );
 }

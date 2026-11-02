@@ -14,7 +14,7 @@ import { apiOperateBlock } from "@/lib/compliance/real-quote";
 import { withRateLimit } from "@/lib/security/rate-limit";
 import { getServices } from "@/lib/services";
 import { demoSupabase } from "@/lib/services/demo.supabase";
-import { assertRealTradeAllowed } from "@/lib/trade/real-guards";
+import { assertRealTradeAllowed, assertRealTradingDataMode } from "@/lib/trade/real-guards";
 
 export const runtime = "nodejs";
 
@@ -34,6 +34,7 @@ export function POST(req: Request) {
       // M46: el camino real se apaga (503 REAL_DISABLED) hasta que
       // REAL_TRADING_READY=true. Con el flag encendido, pasa al motor live.
       assertRealTradingEnabled();
+      assertRealTradingDataMode();
       // M74: kill switch → beta → límites. Una orden ya `built` sin firmar
       // se rechaza ACÁ si `trading_enabled` se apagó entre el build y el
       // submit (el req. del traspaso: "la orden built se rechaza al submit").
