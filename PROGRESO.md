@@ -2,8 +2,8 @@
 
 ## T24 — PREPARACIÓN PARCIAL: demo oculta, pesos bloqueados y andamiaje seguro (2026-11-02)
 - Hecho (pantalla demo): se ocultan direcciones y QR para no exponer datos ficticios como reales.
-- Hecho (pesos): deshabilitados en la UI y rechazados en el servidor; no se aceptan montos CLP.
-- Hecho (IA): aviso de modo demo y libertad informativa; sin promesas de rentabilidad.
+- Hecho (pesos): depósitos en pesos bloqueados en la UI y en el servidor.
+- Hecho (IA): aviso permanente de que las respuestas no son consejos de inversión; sin promesas de rentabilidad.
 - En desarrollo: autenticación, conciliación de depósitos y órdenes; patrocinio SOL sin llaves apagado.
 - Pendiente explícito: no listo para fondos reales ni para activar flags.
 - Pendiente: vinculación verificable Supabase-Privy y su UI; patrocinio KMS/config/integración; feed de depósitos incompleto.
