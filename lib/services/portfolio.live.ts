@@ -1,13 +1,11 @@
 import "server-only";
 
-import { Connection, PublicKey, VersionedTransaction, TransactionMessage } from "@solana/web3.js";
+import { Connection, PublicKey } from "@solana/web3.js";
 import {
   TOKEN_2022_PROGRAM_ID,
   TOKEN_PROGRAM_ID,
-  createAssociatedTokenAccountIdempotentInstruction,
-  createTransferInstruction,
-  getAssociatedTokenAddressSync,
-} from "@solana/spl-token";
+} from "@/lib/solana/token-instructions";
+import { buildSendTransaction } from "@/lib/solana/send-build";
 
 import type {
   Activity,
@@ -26,6 +24,7 @@ import { isValidSolanaAddress } from "@/lib/solana/address";
 import { DomainError } from "@/lib/api/result";
 import { listOrdersForActivity } from "@/lib/services/orders.supabase";
 import { insertCryptoDeposit, listDepositSignatures } from "@/lib/services/deposits.supabase";
+import { netTokenDeltasByMint } from "@/lib/wallet/token-deltas";
 
 const USDC_DECIMALS = 6;
 const STOCK_DECIMALS = 8;
@@ -221,39 +220,34 @@ export const livePortfolio = {
     }
 
     const connection = getServerConnection();
+    const mint = new PublicKey(request.mint);
     const owner = new PublicKey(from);
-    const decimals = kind === "usdc" ? USDC_DECIMALS : STOCK_DECIMALS;
-    const multiplier = kind === "stock" ? await fetchMintMultiplier(connection, request.mint) : 1;
-    const rawAmount = kind === "usdc"
+    const destinationOwner = new PublicKey(to);
+    const sendKind = kind === "usdc" ? "usdc" : "stock";
+    const decimals = sendKind === "usdc" ? USDC_DECIMALS : STOCK_DECIMALS;
+    const multiplier = sendKind === "stock"
+      ? await fetchMintMultiplier(connection, request.mint)
+      : 1;
+    const rawAmount = sendKind === "usdc"
       ? BigInt(Math.round(request.amountUi * 10 ** USDC_DECIMALS))
       : sharesToRaw(request.amountUi, decimals, multiplier);
 
-    // Verificamos saldo leyendo el ATA de origen.
-    const source = getAssociatedTokenAddressSync(new PublicKey(request.mint), owner, false);
-    const sourceAccount = await connection.getTokenAccountBalance(source).catch(() => null);
-    const balance = sourceAccount ? BigInt(sourceAccount.value.amount) : BigInt(0);
-    if (balance < rawAmount) {
-      throw new DomainError("INSUFFICIENT_FUNDS");
-    }
-
-    // Armamos la transferencia (ATA destino idempotente + transferencia).
-    const destination = getAssociatedTokenAddressSync(new PublicKey(request.mint), new PublicKey(to), true);
-    const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash("confirmed");
-    const transaction = new VersionedTransaction(
-      new TransactionMessage({
-        payerKey: owner,
-        recentBlockhash: blockhash,
-        instructions: [
-          createAssociatedTokenAccountIdempotentInstruction(owner, destination, new PublicKey(to), new PublicKey(request.mint)),
-          createTransferInstruction(source, destination, owner, rawAmount),
-        ],
-      }).compileToV0Message(),
-    );
-    void lastValidBlockHeight;
+    // El mint, el ATA de origen y el ATA de destino se validan contra el
+    // programa dueño real antes de armar la transacción.
+    const { blockhash } = await connection.getLatestBlockhash("confirmed");
+    const built = await buildSendTransaction({
+      connection,
+      mint,
+      kind: sendKind,
+      owner,
+      to: destinationOwner,
+      rawAmount,
+      recentBlockhash: blockhash,
+    });
 
     return {
       requestId: `send:${request.mint}:${rawAmount.toString()}:${Date.now()}`,
-      transactionBase64: Buffer.from(transaction.serialize()).toString("base64"),
+      transactionBase64: built.transactionBase64,
       expiresAt: new Date(Date.now() + 60_000).toISOString(),
     };
   },
@@ -284,21 +278,27 @@ export const livePortfolio = {
     );
 
     const found: { mint: string; amountUi: number; signature: string; from: string | null }[] = [];
-    for (const tx of parsed) {
+    for (let i = 0; i < fresh.length; i += 1) {
+      const tx = parsed[i] ?? null;
+      const requested = fresh[i]?.signature?.trim() ?? "";
       if (!tx || !tx.meta || tx.meta.err) continue;
-      const pre = tx.meta.preTokenBalances ?? [];
-      const post = tx.meta.postTokenBalances ?? [];
-      for (const after of post) {
-        if (after.owner !== input.address) continue;
-        const before = pre.find((b) => b.accountIndex === after.accountIndex && b.mint === after.mint);
-        const delta = (after.uiTokenAmount.uiAmount ?? 0) - (before?.uiTokenAmount.uiAmount ?? 0);
-        if (delta <= 0) continue;
-        const kind = classifyMint(after.mint);
+      const signature = tx.transaction.signatures[0]?.trim() ?? "";
+      // Sólo vale la transacción que el RPC devolvió para la firma pedida.
+      if (!signature || (requested !== "" && signature !== requested)) continue;
+      // Delta neto por mint: mover fondos entre cuentas propias no es depósito.
+      const deltas = netTokenDeltasByMint({
+        owner: input.address,
+        pre: tx.meta.preTokenBalances ?? [],
+        post: tx.meta.postTokenBalances ?? [],
+      });
+      for (const [mint, amount] of deltas) {
+        if (!(amount > 0)) continue;
+        const kind = classifyMint(mint);
         if (kind !== "usdc" && kind !== "stock") continue;
         found.push({
-          mint: after.mint,
-          amountUi: delta,
-          signature: tx.transaction.signatures[0] ?? "",
+          mint,
+          amountUi: amount,
+          signature,
           from: null,
         });
       }

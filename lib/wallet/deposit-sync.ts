@@ -9,6 +9,7 @@ import {
   type IndexedUsdcDeposit,
   type UsdcDepositCandidate,
 } from "@/lib/wallet/deposit-indexer";
+import { netTokenDeltasByMint } from "@/lib/wallet/token-deltas";
 
 /**
  * Seguimiento de depósitos USDC en Solana (M78) conectado al cron de
@@ -21,7 +22,8 @@ import {
  *   usuario no se reasigna: se rechaza (`foreign`).
  * - Estados honestos: la cadena sólo puede decir `processed` (detectado),
  *   `confirmed` o `finalized`. Se persiste `detected` como
- *   `wallet_movements.pending` y `confirmed`/`finalized` como `confirmed`:
+ *   `wallet_movements.pending` (sin entrar al libro `crypto_deposits`, que
+ *   todavía podría revertirse) y `confirmed`/`finalized` como `confirmed`:
  *   la tabla (0030) no tiene un valor `finalized` y no se inventa uno. El
  *   conteo de `finalized` se reporta aparte para observabilidad.
  * - Idempotencia: la firma es única en `crypto_deposits` y en
@@ -56,6 +58,16 @@ export const DEPOSIT_SCAN_MAX_DURATION_MS = 40_000;
 const ROTATION_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 export type DepositLifecycleStatus = "detected" | "confirmed" | "finalized";
+
+/**
+ * Sólo un depósito con confirmación on-chain suficiente entra al libro
+ * `crypto_deposits` (que es el registro durable del dinero recibido).
+ * `detected` (processed o sin estado) todavía puede revertirse: se muestra
+ * como movimiento `pending`, pero no se asienta como depósito confirmado.
+ */
+export function isDepositLedgerEligible(lifecycle: DepositLifecycleStatus): boolean {
+  return lifecycle === "confirmed" || lifecycle === "finalized";
+}
 
 export interface DepositScanWallet {
   userId: string;
@@ -192,17 +204,6 @@ export function walletMovementStatusForLifecycle(
   return lifecycle === "detected" ? "pending" : "confirmed";
 }
 
-function uiAmountOf(balance: ParsedTokenBalanceLike): number | null {
-  const { uiAmount, amount, decimals } = balance.uiTokenAmount;
-  if (typeof uiAmount === "number" && Number.isFinite(uiAmount)) return uiAmount;
-  if (typeof amount === "string" && /^\d+$/.test(amount)) {
-    const raw = Number(amount);
-    const places = typeof decimals === "number" && decimals >= 0 ? decimals : 6;
-    if (Number.isFinite(raw)) return raw / 10 ** places;
-  }
-  return null;
-}
-
 /** Redondeo a micro-USDC para que sumas de deltas den un monto estable. */
 function roundUsdc(value: number): number {
   return Math.round(value * 1_000_000) / 1_000_000;
@@ -210,9 +211,12 @@ function roundUsdc(value: number): number {
 
 /**
  * Extrae depósitos USDC de transacciones parseadas. Puro: no toca red ni
- * base. Sólo cuenta deltas positivos del mint USDC en cuentas de token cuyo
- * `owner` es la billetera escaneada (aislamiento por usuario); agrega varios
- * ATAs del mismo mint en una sola candidata por transacción.
+ * base. Sólo cuenta el delta NETO del mint USDC para la billetera escaneada
+ * (aislamiento por usuario): sumar sólo las cuentas que suben permitiría
+ * "depositar" moviendo USDC entre dos cuentas propias del mismo mint.
+ *
+ * Además, la firma que reporta la transacción tiene que ser la que se pidió
+ * al RPC: una respuesta desordenada o adulterada no se usa para acreditar.
  */
 export function extractUsdcDepositsFromTransactions(params: {
   walletAddress: string;
@@ -224,49 +228,43 @@ export function extractUsdcDepositsFromTransactions(params: {
   const found: ScannedDeposit[] = [];
 
   for (let i = 0; i < params.signatures.length; i += 1) {
+    const requested = (params.signatures[i] ?? "").trim();
     const tx = params.transactions[i] ?? null;
     if (!tx || !tx.meta) continue;
-    const signature = (tx.transaction?.signatures?.[0] ?? params.signatures[i] ?? "").trim();
+    const signature = (tx.transaction?.signatures?.[0] ?? "").trim();
     if (!signature) continue;
+    // El RPC debe devolver la misma transacción que se pidió. Si no calza,
+    // no se usa: evita acreditar con datos de otra firma.
+    if (requested !== "" && signature !== requested) continue;
 
     const status = params.statuses[i] ?? null;
     const lifecycle = depositLifecycleFromStatus(status);
     const err = status?.err ?? tx.meta.err ?? null;
     const pre = tx.meta.preTokenBalances ?? [];
     const post = tx.meta.postTokenBalances ?? [];
-    const deltas = new Map<string, number>();
 
-    for (const after of post) {
-      if (after.owner !== wallet) continue;
-      if (after.mint !== USDC_MINT_SOLANA) continue;
-      const afterUi = uiAmountOf(after);
-      if (afterUi === null) continue;
-      const before = pre.find((row) => row.accountIndex === after.accountIndex && row.mint === after.mint);
-      const beforeUi = before ? uiAmountOf(before) : 0;
-      const delta = afterUi - (beforeUi ?? 0);
-      if (!(delta > 0)) continue;
-      deltas.set(after.mint, (deltas.get(after.mint) ?? 0) + delta);
-    }
+    // Neto por mint: las bajadas de otras cuentas propias compensan las subidas.
+    const deltas = netTokenDeltasByMint({ owner: wallet, pre, post });
+    const amount = deltas.get(USDC_MINT_SOLANA) ?? 0;
+    if (!(amount > 0)) continue;
+    const amountUi = roundUsdc(amount);
+    if (!(amountUi > 0)) continue;
 
     const blockTimeMs =
       typeof tx.blockTime === "number" && Number.isFinite(tx.blockTime) && tx.blockTime > 0
         ? tx.blockTime * 1000
         : null;
 
-    for (const [mint, amount] of deltas) {
-      const amountUi = roundUsdc(amount);
-      if (!(amountUi > 0)) continue;
-      found.push({
-        signature,
-        mint,
-        destination: wallet,
-        amountUi,
-        err,
-        from: null,
-        lifecycle,
-        blockTimeMs,
-      });
-    }
+    found.push({
+      signature,
+      mint: USDC_MINT_SOLANA,
+      destination: wallet,
+      amountUi,
+      err,
+      from: null,
+      lifecycle,
+      blockTimeMs,
+    });
   }
 
   return found;
@@ -314,20 +312,25 @@ async function liveDeps(): Promise<DepositSyncDeps> {
       };
     },
     recordDeposit: async (input) => {
+      // `processed`/sin estado puede revertirse: sólo deja actividad pendiente.
+      // El libro durable `crypto_deposits` se escribe cuando la cadena confirma.
       let inserted = false;
-      try {
-        inserted = await depositService.insertCryptoDeposit({
-          userId: input.userId,
-          mint: input.mint,
-          amountUi: input.amountUi,
-          signature: input.signature,
-          fromAddress: input.fromAddress,
-        });
-      } catch {
-        return "error";
+      if (isDepositLedgerEligible(input.lifecycle)) {
+        try {
+          inserted = await depositService.insertCryptoDeposit({
+            userId: input.userId,
+            mint: input.mint,
+            amountUi: input.amountUi,
+            signature: input.signature,
+            fromAddress: input.fromAddress,
+          });
+        } catch {
+          return "error";
+        }
       }
       if (!inserted) {
-        // La firma existe: sólo se repara la actividad si es del mismo usuario.
+        // La firma puede existir: sólo se repara la actividad si es del mismo
+        // usuario. Una firma registrada a nombre de otro nunca se reasigna.
         const owner = await depositService.findCryptoDepositOwner(input.signature);
         if (!owner.ok) return "error";
         if (owner.userId !== null && owner.userId !== input.userId) return "foreign";

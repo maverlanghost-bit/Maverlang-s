@@ -52,6 +52,18 @@ de `scripts/audit-rls.mjs`. Si aparece una tabla de `public` sin fila en la
 matriz, la auditoría FALLA. `wallets`, `crypto_deposits`, `wallet_movements` y
 `wallet_reconciliations` ya están cubiertas.
 
+## Depósitos y retiros (auditoría 2026-11)
+
+- El barrido USDC calcula el delta **neto** por billetera sobre el mint oficial:
+  mover fondos entre cuentas de token propias no se registra como depósito. La
+  firma de la transacción tiene que coincidir con la pedida al RPC.
+- `processed`/sin estado deja sólo un movimiento `wallet_movements.pending`; el
+  libro durable `crypto_deposits` se escribe al confirmar/finalizar.
+- Los retiros usan una `reference` aleatoria (UUID) y, si la ruta informa la
+  billetera verificada de la sesión, el origen debe ser exactamente ésa.
+- La vinculación Supabase↔Privy sigue cerrada (TOFU no demostrable) en la ruta
+  y en el servicio; ver `docs/SUPABASE.md`.
+
 ## Cabeceras y CSP (M48)
 
 Todas las respuestas llevan: `X-Content-Type-Options: nosniff`,

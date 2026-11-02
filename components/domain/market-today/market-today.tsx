@@ -91,6 +91,30 @@ function chileClockServerSnapshot(): number | null {
   return null;
 }
 
+/**
+ * Reloj del cambio diario. Resolución de un minuto: basta para la ventana de
+ * 24 h y evita llamar `Date.now()` durante el render.
+ */
+const DAY_CLOCK_MS = 60_000;
+let dayClockValue: number | null = null;
+
+function subscribeDayClock(onStoreChange: () => void) {
+  const id = window.setInterval(() => {
+    dayClockValue = Date.now();
+    onStoreChange();
+  }, DAY_CLOCK_MS);
+  return () => window.clearInterval(id);
+}
+
+function dayClockSnapshot(): number | null {
+  dayClockValue ??= Date.now();
+  return dayClockValue;
+}
+
+function dayClockServerSnapshot(): number | null {
+  return null;
+}
+
 function ChileClock({ label, locale }: { label: string; locale: "es-CL" | "en" }) {
   const now = useSyncExternalStore(subscribeChileClock, chileClockSnapshot, chileClockServerSnapshot);
   if (now === null) {
@@ -158,6 +182,7 @@ export function MarketToday() {
   const activeCard = featuredPool[safeSlideIndex] ?? null;
 
   const historyQuery = useHistory(activeCard?.symbol ?? "", range);
+  const dayNow = useSyncExternalStore(subscribeDayClock, dayClockSnapshot, dayClockServerSnapshot);
 
   /** Precarga todos los rangos de las acciones destacadas para que cambiar entre 1D/1S/1M/3M/1A sea instantáneo. */
   const queryClient = useQueryClient();
@@ -237,13 +262,13 @@ export function MarketToday() {
    */
   const dayChangePct = useMemo<number | null>(() => {
     const data = historyQuery.data;
-    if (!data || data.points.length < 2) return null;
+    if (!data || data.points.length < 2 || dayNow === null) return null;
     const points = data.points.map((pt) => ({
       t: pt.t < 1e12 ? pt.t * 1000 : pt.t,
       p: pt.p,
     }));
-    return dayChange(points, Date.now(), data.source === "closes");
-  }, [historyQuery.data]);
+    return dayChange(points, dayNow, data.source === "closes");
+  }, [dayNow, historyQuery.data]);
 
   /**
    * Variación como fracción (formatPercent usa style "percent": 0,035 → 3,5 %).

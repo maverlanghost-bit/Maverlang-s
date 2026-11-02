@@ -3,7 +3,7 @@ import {
   createAssociatedTokenAccountIdempotentInstruction,
   createTransferInstruction,
   getAssociatedTokenAddressSync,
-} from "@solana/spl-token";
+} from "@/lib/solana/token-instructions";
 
 import { USDC_MINT } from "@/config/tickers";
 

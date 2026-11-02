@@ -180,7 +180,8 @@ describe("M66: verifyPrivySolanaWallet (fetchImpl mockeado)", () => {
     const fetchImpl = vi.fn(() =>
       Promise.resolve(
         jsonResponse({
-          id: "did:privy:user",
+          // Privy devuelve el mismo DID que se consultó en la ruta.
+          id: PRIVY_DID,
           linked_accounts: [
             { type: "wallet", chain_type: "evm", address: "0xabc" },
             {

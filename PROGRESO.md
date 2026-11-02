@@ -1,5 +1,40 @@
 # PROGRESO — Maverlang
 
+## T27 — Seguridad y verificaciones aisladas (2026-11-02)
+- Corregidos lint, validación de depósitos/retiros y bloqueo de vinculación de identidad; retirado bigint-buffer.
+- Envíos seleccionan programa SPL/Token-2022 según mint; requieren validación real antes de habilitar fondos.
+- PostgreSQL 17 aislado: 33 pruebas, incluidas concurrencia y RLS; corregidos errores SQL en 0029 y 0042.
+- Suite integrada: 128 archivos, 1171 pruebas; typecheck, lint y scan:secrets correctos; 7 pruebas E2E demo.
+- Next cargó automáticamente .env.local al construir E2E; no se leyeron ni registraron valores.
+- audit:deps sigue bloqueado por zod transitivo; pendientes Privy/Supabase reales, depósitos, retiros y auditoría externa.
+- Migraciones no aplicadas a infraestructura; trading y vinculación reales siguen bloqueados.
+
+## Pruebas reales de SQL 0041/0042 en PostgreSQL aislado (2026-11-02)
+- Hecho: `supabase/tests/run-db-tests.mjs` (+ README) levanta PostgreSQL 17 embebido en un puerto libre y directorio temporal; sin Docker, sin `psql`, sin `.env` y sin tocar `package.json`.
+- Cobertura: RLS/columnas/MFA de 0041, privilegios, restricciones `NOT VALID`, topes por orden/día/mes/global, ventanas `America/Santiago`, idempotencia y concurrencia real con 2/10/25 conexiones.
+- Bugs SQL corregidos: `0029` creaba la política sin `on public.wallets` (syntax error); `0042` no daba `EXECUTE` explícito a `safe_positive_numeric` ni grants de tabla a `service_role`.
+- `0042`: una reserva `consumed` deja de contar si ya existe su orden (antes se contaba dos veces); el tope global ya no excluye `requestId` homónimos de otros usuarios.
+- Verificación: harness 33/33 en dos corridas; `trade-reservations`, `wallet-m66` y `wallet-security-rls` 65/65; `git diff --check` limpio.
+- Límites: stub fiel de `auth.*`/privilegios, no Supabase real/PostgREST/GoTrue; `REAL_EXECUTION_LOCKED` intacto; sin suite completa y sin commit (instrucción del usuario).
+
+## Fix lint real (`npm run lint`) — 2026-11-02
+- `favoritas-screen.tsx`: la restricción de precios se marca en el `catch` del `queryFn` (callback asíncrono) en vez de un `useEffect` con `setState`; mismo comportamiento pegajoso al fallar un lote.
+- `use-favorite-catalog.ts`: se desestructuran `data/isError/isPending/isSuccess/refetch` de la primera página para cerrar el warning de `exhaustive-deps` sin cambiar la paginación.
+- `command-palette.tsx`: la limpieza de búsqueda e índice ocurre al abrir (atajo o evento), no en el efecto; el efecto sólo enfoca el input.
+- `market-today.tsx`: la variación diaria usa un reloj externo de 60 s (`useSyncExternalStore`) en vez de `Date.now()` durante el render.
+- Verificación: `npm run lint` sin errores ni warnings; pruebas focalizadas `market-movers`, `price-alerts`, `herramientas-cartera-ui`, `favorites`, `nav-liquid-glass` → 42/42.
+- Sin cambios en reglas, trading, auth ni dependencias; sin `.env`, sin suite completa y sin commit (instrucción del usuario).
+
+## Auditoría de depósitos/retiros/vinculación y auth Supabase-Privy (2026-11-02)
+- Depósitos (`lib/wallet/deposit-sync.ts`, `lib/wallet/token-deltas.ts`): el delta USDC ahora es NETO por billetera (mover fondos entre cuentas propias ya no crea un depósito); la firma de la tx debe coincidir con la pedida al RPC; `processed`/sin estado deja sólo `wallet_movements.pending` y no entra al libro `crypto_deposits` (`isDepositLedgerEligible`).
+- `lib/services/portfolio.live.ts` (`detectDeposits`) usa el mismo delta neto y la misma comprobación de firma.
+- Retiros (`lib/wallet/withdrawals.ts`): `reference` con `randomUUID` (dos retiros iguales en el mismo ms no colisionan); `sessionWalletAddress` opcional exige que el origen sea exactamente la billetera verificada y falla si no hay.
+- Vinculación (`lib/wallet/linking-policy.ts`, `app/api/me/wallet/route.ts`, `lib/services/wallet.supabase.ts`): el bloqueo por identidad Supabase se aplica en la ruta y en `syncVerifiedPrivyWallet`; la demo mock sigue operando.
+- Privy (`lib/services/auth.privy.ts`): se rechaza un token >16 KB, una ventana `exp<=iat` y una respuesta de Privy con `id` distinto del DID verificado.
+- Pruebas nuevas `tests/unit/wallet-deposits-linking-security.test.ts` (20) + fixture de `wallet-m66` corregido (el `id` de Privy coincide con el DID consultado).
+- Verificación: 14 archivos / 143 pruebas focalizadas en verde; `npx tsc --noEmit` y eslint de los archivos tocados limpios.
+- Límites: sin Supabase/Privy/Solana reales, sin `.env`, sin suite completa; migraciones 0041/0042 intactas; áreas de trading intactas; sin commit.
+
 ## T26 — Refuerzo de seguridad (2026-11-02)
 - Límites de cuerpos JSON por streaming; actualización parcial de dependencias y exclusión de artefactos en lint.
 - Reservas y conciliación de trading preparadas en 0042; el trading real permanece bloqueado.

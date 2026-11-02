@@ -242,8 +242,9 @@ Limitaciones que no se pueden resolver sólo con este código:
 - Motivo: la primera asociación de un DID de Privy sólo demuestra posesión simultánea de una sesión Supabase y un token de Privy, no que ambas identidades sean la misma persona (TOFU). Mientras no exista una prueba verificable de esa correspondencia, se prefiere cerrar antes que aceptar una asociación no demostrable.
 - Alcance: incluye `mv_account=demo` bajo Supabase, porque la fila de `public.wallets` es la misma que usará la cuenta real; permitir la demo sería un bypass trivial (vincular en demo, cambiar a real).
 - La demo en memoria (`AUTH_MODE=mock`) sigue igual: su `POST` se mantiene y no toca Supabase.
-- Para levantarlo: implementar una prueba de correspondencia Supabase↔Privy y quitar el llamado a `assertWalletLinkingOpen()` de `app/api/me/wallet/route.ts`. No borrar 0040 ni las validaciones del store.
-- Tests: `tests/unit/wallet-link-lockdown.test.ts` (Supabase 503 sin tocar el store, cookie demo también bloqueada, demo mock 200).
+- El bloqueo se aplica en dos capas: `app/api/me/wallet/route.ts` y el propio `syncVerifiedPrivyWallet` (`lib/wallet/linking-policy.ts`). Así un llamador futuro no puede crear la asociación TOFU saltándose la ruta.
+- Para levantarlo: implementar una prueba de correspondencia Supabase↔Privy y quitar ambas llamadas a `assertWalletLinkingOpen()`. No borrar 0040 ni las validaciones del store.
+- Tests: `tests/unit/wallet-link-lockdown.test.ts` (Supabase 503 sin tocar el store, cookie demo también bloqueada, demo mock 200) y `tests/unit/wallet-deposits-linking-security.test.ts` (el servicio también falla cerrado antes de verificar o tocar la base).
 
 ## RLS de billeteras, depósitos y retiros (0041) — endurecimiento local
 

@@ -15,6 +15,7 @@ import {
   PRIVY_DID_PREFIX,
   type WalletBindingRow,
 } from "@/lib/wallet/identity";
+import { assertWalletLinkingOpen } from "@/lib/wallet/linking-policy";
 
 /**
  * M66: billeteras Solana verificadas por usuario (`public.wallets`).
@@ -489,6 +490,10 @@ async function persistVerifiedWallet(userId: string, wallet: VerifiedSolanaWalle
  * `verifyPrivySolanaWallet`; el cuerpo del cliente no aporta direcciones.
  */
 export async function syncVerifiedPrivyWallet(params: PrivyWalletSyncParams): Promise<StoredWallet> {
+  // Defensa en profundidad: la ruta ya bloquea toda identidad Supabase, pero
+  // el servicio también falla cerrado para que otro llamador futuro no pueda
+  // crear la asociación TOFU saltándose el bloqueo.
+  assertWalletLinkingOpen();
   const verified = await verifyPrivySolanaWallet(params);
   return persistVerifiedWallet(params.userId, verified);
 }

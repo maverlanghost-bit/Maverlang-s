@@ -29,6 +29,8 @@ const PRIVY_API_BASE = "https://api.privy.io/v1";
 const PRIVY_ISSUER = "privy.io";
 const PRIVY_FETCH_MS = 5_000;
 const CLOCK_SKEW_SECONDS = 30;
+/** Un access token real mide pocos KB; uno enorme sólo consume CPU/memoria. */
+const MAX_ACCESS_TOKEN_LENGTH = 16_384;
 
 /** URL histórica del endpoint de usuario. Se conserva para compatibilidad de imports. */
 export const PRIVY_USERS_ME_URL = `${PRIVY_API_BASE}/users/me`;
@@ -165,6 +167,7 @@ export async function verifyPrivyAccessToken(
 ): Promise<PrivyAccessTokenClaims> {
   const token = params.accessToken.trim();
   if (token === "") throw unauthorized();
+  if (token.length > MAX_ACCESS_TOKEN_LENGTH) throw unauthorized();
   const appId = appIdOf(params.appId);
   const verificationKey = verificationKeyOf(params.verificationKey);
 
@@ -200,6 +203,8 @@ export async function verifyPrivyAccessToken(
   const nbf = numberClaim(payload.nbf);
   if (exp === null || exp + CLOCK_SKEW_SECONDS < nowSeconds) throw unauthorized();
   if (iat === null || iat - CLOCK_SKEW_SECONDS > nowSeconds) throw unauthorized();
+  // Una ventana invertida no es un token válido: no se interpreta como vigente.
+  if (exp <= iat) throw unauthorized();
   if (nbf !== null && nbf - CLOCK_SKEW_SECONDS > nowSeconds) throw unauthorized();
 
   if (payload.iss !== PRIVY_ISSUER) throw unauthorized();
@@ -284,6 +289,16 @@ export async function fetchPrivySolanaWallet(
     payload = await response.json();
   } catch {
     throw new DomainError("UPSTREAM", "Privy devolvió una respuesta ilegible.");
+  }
+  // La respuesta debe corresponder al DID ya verificado en el token. Si Privy
+  // devuelve otra identidad, no se acepta ninguna billetera.
+  const responseId = recordOf(payload)?.id;
+  const returnedUserId = typeof responseId === "string" ? responseId.trim() : "";
+  if (returnedUserId !== "" && returnedUserId !== userId) {
+    throw new DomainError(
+      "UNAUTHORIZED",
+      "Privy devolvió una identidad distinta a la verificada en el token.",
+    );
   }
   return extractSolanaWallet(payload);
 }

@@ -13,6 +13,7 @@ import { withRateLimit } from "@/lib/security/rate-limit";
 import { getServices } from "@/lib/services";
 import { privyAccessTokenOf } from "@/lib/services/auth.privy";
 import { getUserWallets, syncVerifiedPrivyWallet, type StoredWallet } from "@/lib/services/wallet.supabase";
+import { assertWalletLinkingOpen } from "@/lib/wallet/linking-policy";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -30,7 +31,8 @@ export const dynamic = "force-dynamic";
  * se puede reasignar a otra cuenta ni una cuenta puede cambiar de DID. Si la
  * migración no está aplicada, el POST real falla cerrado y no guarda nada.
  *
- * BLOQUEO TEMPORAL (2026-11-02): con identidad Supabase el POST queda cerrado.
+ * BLOQUEO TEMPORAL (2026-11-02): con identidad Supabase el POST responde
+ * 503 `REAL_DISABLED` y queda cerrado.
  * La primera asociación de un DID de Privy sólo demuestra posesión simultánea
  * de una sesión Supabase y de un token de Privy, no que ambas identidades sean
  * la misma persona (TOFU). Mientras no exista una prueba verificable de esa
@@ -40,16 +42,6 @@ export const dynamic = "force-dynamic";
  * bypass trivial. La demo en memoria (`AUTH_MODE=mock`) sigue funcionando.
  * GET no cambia: sólo lee las billeteras ya vinculadas.
  */
-
-const WALLET_LINKING_LOCKED_MESSAGE =
-  "La vinculación de billetera está deshabilitada temporalmente. No se vinculó ni reasignó ninguna billetera.";
-
-/** Cierra el POST para toda identidad Supabase. Ver bloqueo temporal arriba. */
-function assertWalletLinkingOpen(): void {
-  if (isSupabaseAuth()) {
-    throw new DomainError("REAL_DISABLED", WALLET_LINKING_LOCKED_MESSAGE);
-  }
-}
 
 function walletsPayload(
   wallets: StoredWallet[],

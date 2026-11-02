@@ -31,5 +31,6 @@ grant select on public.wallets to authenticated;
 
 drop policy if exists wallets_select_own on public.wallets;
 create policy wallets_select_own
+  on public.wallets
   for select to authenticated
   using (auth.uid() = user_id);

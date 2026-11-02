@@ -114,6 +114,13 @@ export function useFavoriteCatalog(symbols: readonly string[]): FavoriteCatalog 
 
   const enabled = wanted.size > 0;
   const first = useQuery(catalogQueryOptions(1, enabled));
+  const {
+    data: firstData,
+    isError: firstIsError,
+    isPending: firstIsPending,
+    isSuccess: firstIsSuccess,
+    refetch: refetchFirst,
+  } = first;
 
   /**
    * El caso normal es que la portada de Mercado ya haya cacheado la primera
@@ -122,16 +129,16 @@ export function useFavoriteCatalog(symbols: readonly string[]): FavoriteCatalog 
    */
   const firstCoversAll = useMemo(() => {
     if (!enabled) return false;
-    const items = first.data?.items;
+    const items = firstData?.items;
     if (!items || items.length === 0) return false;
     const found = new Set(items.map((item) => item.symbol.toLowerCase()));
     for (const symbol of wanted) {
       if (!found.has(symbol)) return false;
     }
     return true;
-  }, [enabled, first.data, wanted]);
+  }, [enabled, firstData, wanted]);
 
-  const total = first.data?.total ?? 0;
+  const total = firstData?.total ?? 0;
   const pageCount = Math.min(
     MAX_CATALOG_PAGES,
     Math.max(1, Math.ceil(total / FAVORITES_CATALOG_PAGE_SIZE)),
@@ -139,7 +146,7 @@ export function useFavoriteCatalog(symbols: readonly string[]): FavoriteCatalog 
   const restCount = firstCoversAll ? 0 : Math.max(0, pageCount - 1);
   const rest = useQueries({
     queries: Array.from({ length: restCount }, (_, index) =>
-      catalogQueryOptions(index + 2, enabled && first.isSuccess),
+      catalogQueryOptions(index + 2, enabled && firstIsSuccess),
     ),
   });
 
@@ -154,33 +161,33 @@ export function useFavoriteCatalog(symbols: readonly string[]): FavoriteCatalog 
         items.push(item);
       }
     };
-    add(first.data?.items);
+    add(firstData?.items);
     for (const query of rest) add(query.data?.items);
 
     return {
       items,
       bySymbol,
-      isInitialPending: enabled && first.isPending,
-      isPending: enabled && (first.isPending || rest.some((query) => query.isPending)),
-      isError: enabled && first.isError,
+      isInitialPending: enabled && firstIsPending,
+      isPending: enabled && (firstIsPending || rest.some((query) => query.isPending)),
+      isError: enabled && firstIsError,
       isSettled:
         enabled &&
-        first.isSuccess &&
+        firstIsSuccess &&
         rest.every((query) => query.isSuccess || query.isError),
       isComplete:
-        enabled && first.isSuccess && rest.every((query) => query.isSuccess),
+        enabled && firstIsSuccess && rest.every((query) => query.isSuccess),
       refetch: () => {
-        void first.refetch();
+        void refetchFirst();
         for (const query of rest) void query.refetch();
       },
     };
   }, [
     enabled,
-    first.data,
-    first.isError,
-    first.isPending,
-    first.isSuccess,
-    first.refetch,
+    firstData,
+    firstIsError,
+    firstIsPending,
+    firstIsSuccess,
+    refetchFirst,
     rest,
   ]);
 }

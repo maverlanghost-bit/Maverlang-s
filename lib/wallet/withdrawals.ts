@@ -11,6 +11,8 @@ import "server-only";
  * como único código nuevo de dominio.
  */
 
+import { randomUUID } from "node:crypto";
+
 import { TICKERS, USDC_MINT } from "@/config/tickers";
 import { serverEnv } from "@/lib/env";
 import { isValidSolanaAddress } from "@/lib/solana/address";
@@ -63,6 +65,12 @@ export interface PrepareWithdrawalParams {
   amountUi: number;
   /** Saldo disponible del activo en la cuenta del usuario (UI). */
   availableBalanceUi: number;
+  /**
+   * Billetera verificada de la sesión. Si se informa, la billetera de origen
+   * tiene que ser exactamente ésta (base58 distingue mayúsculas). Una cuenta
+   * sin billetera verificada no puede retirar.
+   */
+  sessionWalletAddress?: string | null;
   /** Override opcional para tests; por defecto lee `REAL_TRADING_READY`. */
   realTradingEnabled?: boolean;
 }
@@ -94,6 +102,27 @@ export function validateAndPrepareWithdrawal(params: PrepareWithdrawalParams): P
   }
   if (!isValidSolanaAddress(source)) {
     return { ok: false, code: "VALIDATION", status: 400, message: "La billetera de origen no es válida." };
+  }
+  // 2b. Si el llamador tiene la billetera verificada de la sesión, el origen
+  //     tiene que ser exactamente ésa. Sin billetera verificada no se retira.
+  if (params.sessionWalletAddress !== undefined) {
+    const verified = params.sessionWalletAddress?.trim() ?? "";
+    if (verified === "") {
+      return {
+        ok: false,
+        code: "VALIDATION",
+        status: 400,
+        message: "Tu cuenta no tiene una billetera Solana verificada. Vincúlala antes de retirar.",
+      };
+    }
+    if (source !== verified) {
+      return {
+        ok: false,
+        code: "VALIDATION",
+        status: 400,
+        message: "La billetera de origen no coincide con la verificada en tu cuenta.",
+      };
+    }
   }
   // 3. Prohibido auto-enviarse: el retiro sale de la app, no da vueltas.
   if (destination === source) {
@@ -127,7 +156,9 @@ export function validateAndPrepareWithdrawal(params: PrepareWithdrawalParams): P
       amountUi: amount,
       networkFeeSol: 0.000005,
       tokenAccountRentSol: 0.0016,
-      reference: `withdraw:${mint}:${amount}:${Date.now()}`,
+      // Identificador único: dos retiros iguales en el mismo milisegundo no
+      // pueden colisionar en `wallet_movements.reference`.
+      reference: `withdraw:${mint}:${amount}:${randomUUID()}`,
     },
   };
 }

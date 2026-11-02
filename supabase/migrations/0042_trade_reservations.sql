@@ -75,6 +75,10 @@ create index if not exists trade_reservations_active_idx
 alter table public.trade_reservations enable row level security;
 alter table public.trade_reservations force row level security;
 revoke all on table public.trade_reservations from public, anon, authenticated;
+-- Explícito para no depender de los privilegios por defecto del proyecto:
+-- las funciones SECURITY INVOKER corren como service_role y necesitan estos
+-- permisos incluso en un PostgreSQL sin los defaults de Supabase.
+grant select, insert, update on table public.trade_reservations to service_role;
 
 -- 3. Helper: lee un tope numérico positivo desde app_flags sin romper por
 -- basura (jsonb number/string). Si no es válido, usa el default.
@@ -110,6 +114,8 @@ $$;
 
 revoke all on function public.safe_positive_numeric(jsonb, numeric)
   from public, anon, authenticated;
+grant execute on function public.safe_positive_numeric(jsonb, numeric)
+  to service_role;
 
 -- 4. Reserva atómica. El lock global va primero y el del usuario después:
 --    todos los caminos toman los locks en el mismo orden (sin deadlocks).
@@ -253,16 +259,26 @@ begin
 
   -- Reservas activas del usuario. Se cuentan todas las vigentes (aunque se
   -- hayan creado antes de medianoche): son cupo comprometido, no gasto.
-  -- `consumed` también cuenta hasta su vencimiento: cierra la ventana en que
-  -- una reserva consumida todavía no tiene fila en `orders` y podría liberar
-  -- cupo para una segunda operación.
+  -- `consumed` cuenta sólo mientras NO exista su orden contable: la orden ya
+  -- suma el mismo monto. Contarla otra vez bloqueaba operaciones legítimas
+  -- hasta el vencimiento de la reserva.
   select coalesce(sum(r.amount_usd), 0)
     into v_reserved
     from public.trade_reservations r
    where r.user_id = p_user_id
      and r.status in ('reserved', 'consumed')
      and r.expires_at > now()
-     and r.request_id <> v_request_id;
+     and (
+       r.status = 'reserved'
+       or not exists (
+         select 1
+           from public.orders o
+          where o.user_id = r.user_id
+            and o.request_id = r.request_id
+            and o.is_demo = false
+            and o.status in ('pending', 'submitted', 'confirmed', 'signed', 'built')
+       )
+     );
 
   -- Tope global del día: órdenes de todos los usuarios + reservas activas.
   select coalesce(sum(
@@ -281,12 +297,26 @@ begin
      and o.created_at >= v_day_start
      and o.created_at < v_day_end;
 
+  -- El filtro por requestId es sólo del usuario: aplicarlo globalmente dejaba
+  -- fuera la reserva de OTRO usuario que usara el mismo identificador. En este
+  -- punto no existe una reserva de este usuario con `v_request_id` (la
+  -- idempotencia salió antes), así que el global no necesita excluir nada.
   select coalesce(sum(r.amount_usd), 0)
     into v_global_reserved
     from public.trade_reservations r
    where r.status in ('reserved', 'consumed')
      and r.expires_at > now()
-     and r.request_id <> v_request_id;
+     and (
+       r.status = 'reserved'
+       or not exists (
+         select 1
+           from public.orders o
+          where o.user_id = r.user_id
+            and o.request_id = r.request_id
+            and o.is_demo = false
+            and o.status in ('pending', 'submitted', 'confirmed', 'signed', 'built')
+       )
+     );
 
   if v_month_orders + v_reserved + v_amount > v_monthly then
     raise exception 'MV_LIMIT_MONTHLY' using errcode = 'P0001';

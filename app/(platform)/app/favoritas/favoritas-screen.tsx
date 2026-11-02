@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useQueries } from "@tanstack/react-query";
 
@@ -102,7 +102,19 @@ export function FavoritasScreen() {
   const priceQueries = useQueries({
     queries: chunks.map((chunk) => ({
       queryKey: ["prices", chunk] as const,
-      queryFn: () => getPrices(chunk),
+      /**
+       * Si el lote falla se marca la restricción desde la propia consulta (un
+       * callback asíncrono, no un efecto): el siguiente render vuelve a pedir
+       * sólo los símbolos que el catálogo muestra.
+       */
+      queryFn: async () => {
+        try {
+          return await getPrices(chunk);
+        } catch (error) {
+          setPricesRestricted(true);
+          throw error;
+        }
+      },
       enabled: chunk.length > 0,
       staleTime: PRICE_MS,
       refetchInterval: PRICE_MS,
@@ -111,11 +123,6 @@ export function FavoritasScreen() {
       placeholderData: (previous: Quote[] | undefined) => previous,
     })),
   });
-
-  useEffect(() => {
-    if (pricesRestricted || !catalog.isSettled) return;
-    if (priceQueries.some((query) => query.isError)) setPricesRestricted(true);
-  }, [catalog.isSettled, priceQueries, pricesRestricted]);
 
   const quotes = useMemo(() => {
     const map = new Map<string, Quote>();

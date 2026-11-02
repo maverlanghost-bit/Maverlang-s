@@ -65,10 +65,14 @@ export function CommandPalette() {
     const onKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
+        setQuery("");
+        setActiveIndex(0);
         setOpen((prev) => !prev);
       }
     };
     const onOpenEvent = () => {
+      setQuery("");
+      setActiveIndex(0);
       setOpen(true);
     };
     window.addEventListener("keydown", onKeyDown);
@@ -81,8 +85,6 @@ export function CommandPalette() {
 
   useEffect(() => {
     if (!open) return;
-    setQuery("");
-    setActiveIndex(0);
     const id = window.requestAnimationFrame(() => {
       inputRef.current?.focus();
     });
