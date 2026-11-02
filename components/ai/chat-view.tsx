@@ -50,7 +50,7 @@ export function ChatView({
   useChatViewport(panelRef);
   const isEmpty = messages.length === 0 && !typing;
 
-  // M�vil: sin barra superior; el compositor vive en el dock de la barra inferior (padding inferior = --app-tabs-height).
+  // Móvil: sin barra superior; el compositor vive en el dock de la barra inferior (padding inferior = --app-tabs-height).
   return (
     <div
       ref={panelRef}
@@ -82,7 +82,7 @@ export function ChatView({
               </Button>
             ) : null}
             <span
-              title="Sesión privada guardada sólo en tu navegador"
+              title="SesiÃ³n privada guardada sÃ³lo en tu navegador"
               className="inline-flex min-h-8 items-center gap-1.5 rounded-full border border-border/70 bg-white/75 px-3 py-1 text-xs font-medium text-fg-body shadow-2xs"
             >
               <PrivateShieldIcon />
