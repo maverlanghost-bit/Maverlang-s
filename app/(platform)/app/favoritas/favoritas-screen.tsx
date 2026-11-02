@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useQueries } from "@tanstack/react-query";
 
@@ -18,15 +18,17 @@ import { PageHeader } from "@/components/ui/page-header";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { Skeleton } from "@/components/ui/skeleton";
 import { alertasText, fillAlert } from "@/content/i18n/extra-alertas";
-import { getPrices, searchMarket } from "@/lib/api/client";
+import { getPrices } from "@/lib/api/client";
+import { isCatalogSymbol } from "@/lib/catalog/symbol";
 import { cn } from "@/lib/cn";
 import { useFavorites, useSyncFavorites } from "@/lib/hooks/use-favorites";
-import { PRICE_MS, useFx, useHistories } from "@/lib/hooks/queries";
+import { PRICE_MS, priceQueryKey, useFx, useHistories } from "@/lib/hooks/queries";
 import { useT } from "@/lib/hooks/use-t";
 import { isRealSparkHistory, downsample, displayPrice } from "@/lib/market/browse";
 import { anchorSeriesToSpot } from "@/lib/market/series";
 import { chunkSymbols, sortFavoriteRows, uniqueSymbols, type FavoriteSort } from "@/lib/services/alerts-logic";
 import type { Quote } from "@/lib/types";
+import { useFavoriteCatalog } from "./use-favorite-catalog";
 
 function tickerHref(symbol: string) {
   return `/app/accion/${encodeURIComponent(symbol)}`;
@@ -57,40 +59,63 @@ export function FavoritasScreen() {
 
   const favoriteKey = (symbols ?? []).join("\n");
   const favoriteSymbols = useMemo(() => uniqueSymbols(favoriteKey ? favoriteKey.split("\n") : []), [favoriteKey]);
-
-  const searchQueriesDef = useMemo(
-    () =>
-      favoriteSymbols.map((symbol) => ({
-        queryKey: ["market-search", symbol, "favoritas", "listed"] as const,
-        queryFn: () => searchMarket({ q: symbol, page: 1, pageSize: 50, sort: "name", scope: "listed" }),
-        staleTime: 60_000,
-      })),
+  /** Lo guardado manda al quitar: el catálogo puede traer `AAPLx` y el almacén `AAPLX`. */
+  const storedSymbolByKey = useMemo(
+    () => new Map(favoriteSymbols.map((symbol) => [symbol.toLowerCase(), symbol])),
     [favoriteSymbols],
   );
-  const searchQueries = useQueries({ queries: searchQueriesDef });
 
-  const catalogKey = searchQueries
-    .map((query, index) => {
-      const symbol = favoriteSymbols[index];
-      if (!symbol) return "";
-      const item = (query.data?.items ?? []).find((row) => row.symbol.toLowerCase() === symbol.toLowerCase());
-      return item?.symbol ?? "";
-    })
-    .filter((symbol) => symbol.length > 0)
-    .join(",");
-  const priceSymbols = useMemo(() => (catalogKey ? catalogKey.split(",") : []), [catalogKey]);
+  // Un solo catálogo (paginado) resuelve nombre, logo y estado de todas las filas.
+  // Antes se pedía una búsqueda de mercado por cada símbolo favorito. Si la
+  // primera página ya cubre todas las favoritas, no se piden las siguientes.
+  const catalog = useFavoriteCatalog(favoriteSymbols);
+  const catalogBySymbol = catalog.bySymbol;
+
+  /**
+   * Precios en paralelo con el catálogo. La clave va en minúsculas para que el
+   * símbolo guardado (`AAPLX`) y el del catálogo (`AAPLx`) compartan una sola
+   * consulta: ni se pide dos veces ni se espera a la búsqueda para arrancar.
+   * La API resuelve el símbolo sin distinguir mayúsculas.
+   */
+  const [pricesRestricted, setPricesRestricted] = useState(false);
+  const favoritePriceSymbols = useMemo(
+    () =>
+      priceQueryKey(
+        favoriteSymbols.filter((symbol) => isCatalogSymbol(symbol)).map((symbol) => symbol.toLowerCase()),
+      ),
+    [favoriteSymbols],
+  );
+  /**
+   * Si un favorito quedó fuera del catálogo visible (oculto o retirado), el lote
+   * de precios falla entero. Cuando las páginas ya terminaron (bien o con error)
+   * se reintenta sólo con los símbolos que el catálogo sí muestra, igual que la
+   * versión anterior, sin perder el resto. Esperar a `isComplete` dejaba el
+   * reintento bloqueado para siempre si fallaba una página secundaria.
+   */
+  const catalogPriceSymbols = useMemo(() => {
+    if (!catalog.isSettled) return null;
+    return favoritePriceSymbols.filter((symbol) => catalogBySymbol.has(symbol));
+  }, [catalog.isSettled, catalogBySymbol, favoritePriceSymbols]);
+  const priceSymbols =
+    pricesRestricted && catalogPriceSymbols ? catalogPriceSymbols : favoritePriceSymbols;
   const chunks = useMemo(() => chunkSymbols(priceSymbols, 50), [priceSymbols]);
   const priceQueries = useQueries({
     queries: chunks.map((chunk) => ({
-      queryKey: ["prices", [...chunk].sort()] as const,
+      queryKey: ["prices", chunk] as const,
       queryFn: () => getPrices(chunk),
       enabled: chunk.length > 0,
       staleTime: PRICE_MS,
       refetchInterval: PRICE_MS,
       refetchOnWindowFocus: false as const,
+      refetchIntervalInBackground: false as const,
       placeholderData: (previous: Quote[] | undefined) => previous,
     })),
   });
+
+  useEffect(() => {
+    if (pricesRestricted || !catalog.isSettled) return;
+    if (priceQueries.some((query) => query.isError)) setPricesRestricted(true);
+  }, [catalog.isSettled, priceQueries, pricesRestricted]);
 
   const quotes = useMemo(() => {
     const map = new Map<string, Quote>();
@@ -100,13 +125,9 @@ export function FavoritasScreen() {
     return map;
   }, [priceQueries]);
 
-  const sparkKey = priceQueries.some((query) => query.data)
-    ? [...quotes.keys()].sort().join(",")
-    : "";
-  const sparkSymbols = useMemo(() => {
-    if (!sparkKey) return [];
-    return sparkKey.split(",").map((key) => quotes.get(key)?.symbol ?? key);
-  }, [sparkKey, quotes]);
+  // Sparklines en paralelo con los precios: ya no esperan a que llegue la cotización.
+  // El lote de historial admite hasta 50 símbolos por llamada.
+  const sparkSymbols = useMemo(() => priceSymbols.slice(0, 50), [priceSymbols]);
   const histories = useHistories(sparkSymbols);
 
   const sparkBySymbol = useMemo(() => {
@@ -124,9 +145,8 @@ export function FavoritasScreen() {
   }, [sparkSymbols, histories, quotes]);
 
   const rows = useMemo(() => {
-    const built: Row[] = favoriteSymbols.map((symbol, index) => {
-      const items = searchQueries[index]?.data?.items ?? [];
-      const item = items.find((row) => row.symbol.toLowerCase() === symbol.toLowerCase()) ?? null;
+    const built: Row[] = favoriteSymbols.map((symbol) => {
+      const item = catalogBySymbol.get(symbol.toLowerCase()) ?? null;
       const canonical = item?.symbol ?? symbol;
       const quote = quotes.get(canonical.toLowerCase()) ?? null;
       const change = quote && Number.isFinite(quote.change24hPct) ? quote.change24hPct : null;
@@ -142,17 +162,19 @@ export function FavoritasScreen() {
       };
     });
     return sortFavoriteRows(built, sort);
-  }, [favoriteSymbols, searchQueries, quotes, sparkBySymbol, sort]);
+  }, [favoriteSymbols, catalogBySymbol, quotes, sparkBySymbol, sort]);
 
   const pendingFavorites = symbols === null;
-  const searching = favoriteSymbols.length > 0 && searchQueries.some((query) => query.isPending) && rows.every((row) => row.name === row.symbol && row.priceUsd == null);
-  const searchFailed = favoriteSymbols.length > 0 && searchQueries.every((query) => query.isError);
+  // Con la primera página ya resuelta se muestran las filas; las páginas
+  // siguientes sólo completan nombre, logo y estado sin volver a tapar la lista.
+  const searching = favoriteSymbols.length > 0 && catalog.isInitialPending;
+  const searchFailed = favoriteSymbols.length > 0 && catalog.isError;
   const rate = fx.data?.rate;
   const fxKnown = typeof rate === "number" && Number.isFinite(rate) && rate > 0;
   const shownCurrency = currency === "CLP" && fxKnown ? "CLP" : "USD";
 
   function retry() {
-    for (const query of searchQueries) void query.refetch();
+    catalog.refetch();
     for (const query of priceQueries) void query.refetch();
     if (currency === "CLP") void fx.refetch();
   }
@@ -211,7 +233,7 @@ export function FavoritasScreen() {
                   reviewLabel={row.underReview ? t.market.underReview : null}
                   reviewHint={row.underReview ? t.market.underReviewHint : null}
                   favoriteLabel={fillAlert(t.market.favoriteOn, { name: row.name })}
-                  onToggle={() => toggle(row.symbol)}
+                  onToggle={() => toggle(storedSymbolByKey.get(row.symbol.toLowerCase()) ?? row.symbol)}
                 />
               </li>
             );

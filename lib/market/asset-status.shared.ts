@@ -6,6 +6,13 @@ import { MIN_TRADE_USD } from "@/config/trade";
  * componentes `"use client"` importan SOLO de aquí.
  */
 
+/**
+ * Tope del lote de estado (`/api/market/status/batch`). Vive en `.shared`
+ * para que el contrato HTTP y el servicio usen el mismo número sin arrastrar
+ * `server-only` al cliente.
+ */
+export const ASSET_STATUS_BATCH_MAX = 50;
+
 export type AssetTradingMode = "TwentyFourFive" | "MarketHours" | "Regular" | "unknown";
 export type AssetPeriod = "market" | "extended" | "overnight" | "closed" | "unknown";
 export type AssetStatusSource = "live" | "catalog" | "mock";

@@ -1,5 +1,6 @@
 "use client";
 
+import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useCallback, useMemo, useSyncExternalStore, type ReactNode } from "react";
 
@@ -12,6 +13,7 @@ import {
 import { MOCK_ONBOARDING_COOKIE, MOCK_SESSION_COOKIE } from "@/lib/auth/cookies";
 import { DEMO_SESSION_USER } from "@/lib/auth/demo-user";
 import { ExportWalletProvider, exportMockWallet } from "@/lib/auth/export-wallet";
+import { purgePrivateQueryCache } from "@/lib/auth/private-cache";
 import { SessionProvider } from "@/lib/auth/session-context";
 import { SignerProvider, signMockTransaction } from "@/lib/auth/sign-transaction";
 import type { LinkedLogin, SessionStatus, SessionUser, SessionValue } from "@/lib/auth/types";
@@ -35,6 +37,7 @@ function readSnapshot(): Snapshot {
 
 export function MockAuthProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const snapshot = useSyncExternalStore(subscribeAuthCookies, readSnapshot, () => LOADING);
 
   const login = useCallback(async () => {
@@ -42,11 +45,14 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const logout = useCallback(async () => {
+    // Primero se cierra la sesión y después se purga: si quedara algún
+    // observer montado, su refetch ya no puede volver a leer datos privados.
     clearClientCookie(MOCK_SESSION_COOKIE);
     clearClientCookie(MOCK_ONBOARDING_COOKIE);
+    await purgePrivateQueryCache(queryClient);
     router.push("/");
     router.refresh();
-  }, [router]);
+  }, [queryClient, router]);
 
   const linkedLogins = useMemo<LinkedLogin[]>(() => {
     const email = snapshot.user?.email ?? null;

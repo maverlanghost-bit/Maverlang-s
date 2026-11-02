@@ -8,6 +8,7 @@ import {
   type WalletWithMetadata,
 } from "@privy-io/react-auth";
 import { useExportWallet } from "@privy-io/react-auth/solana";
+import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useCallback, useMemo, type ReactNode } from "react";
 
@@ -16,6 +17,7 @@ import { MOCK_ONBOARDING_COOKIE, MOCK_SESSION_COOKIE } from "@/lib/auth/cookies"
 import { ExportWalletProvider, type ExportWallet } from "@/lib/auth/export-wallet";
 import { privyAppId } from "@/lib/auth/mode";
 import { MockAuthProvider } from "@/lib/auth/mock-provider";
+import { purgePrivateQueryCache } from "@/lib/auth/private-cache";
 import { PrivyTradeSigner } from "@/lib/auth/privy-signer";
 import { SessionProvider } from "@/lib/auth/session-context";
 import type { LinkedLogin, LoginMethod, SessionUser, SessionValue } from "@/lib/auth/types";
@@ -74,6 +76,7 @@ function toSessionUser(user: User): SessionUser {
 
 function PrivySession({ children }: { children: ReactNode }) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { ready, authenticated, user, login, logout } = usePrivy();
   const { exportWallet } = useExportWallet();
   const sessionUser = user ? toSessionUser(user) : null;
@@ -101,13 +104,16 @@ function PrivySession({ children }: { children: ReactNode }) {
         try {
           await logout();
         } finally {
+          // Se purga después del cierre de Privy: las respuestas privadas que
+          // alcanzaron a completarse durante el `await` también se descartan.
+          await purgePrivateQueryCache(queryClient);
           router.push("/");
           router.refresh();
         }
       },
       linkedLogins,
     };
-  }, [authenticated, linkedLogins, login, logout, ready, router, sessionUser]);
+  }, [authenticated, linkedLogins, login, logout, queryClient, ready, router, sessionUser]);
 
   return (
     <SessionProvider value={value}>

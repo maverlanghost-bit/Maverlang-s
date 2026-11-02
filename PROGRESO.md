@@ -1,5 +1,12 @@
 # PROGRESO — Maverlang
 
+## T23 — Favoritas paginadas, estados de Cartera por lotes y limpieza de caché privada (2026-11-02)
+- Hecho (Favoritas, `app/(platform)/app/favoritas/use-favorite-catalog.ts`): usa el catálogo paginado compartido con Mercado (50 por página) en vez de una búsqueda por símbolo; reutiliza la clave de la portada y pide páginas extra sólo si falta alguna favorita.
+- Hecho (Cartera, `lib/api/client.ts`): `getAssetStatuses` deduplica sin distinguir mayúsculas, divide en lotes de `ASSET_STATUS_BATCH_MAX` (50), limita la concurrencia a 3 y recombina en el orden original; un lote fallido deja `status: null` en sus símbolos sin invalidar los demás.
+- Hecho (`lib/auth/private-cache.ts`): al montar, cerrar sesión o cambiar de usuario se cancelan y eliminan las consultas privadas en vuelo y se vacía la caché de mutaciones; las claves públicas de mercado se conservan.
+- Pendiente por instrucción del usuario: no se ejecutaron tests, typecheck, lint, build, medición de rendimiento ni verificación en navegador.
+- Límites conocidos: los datos locales (p. ej. el chat) no se borran; escrituras manuales ya en vuelo pueden persistir tras el logout; las favoritas de una página fallida pueden quedar sin metadatos (nombre/logo).
+
 ## T22 — Mejora del Asistente en escritorio, espacio fijo y rendimiento (2026-11-02)
 - Hecho (Sidebar en `components/app-shell/sidebar.tsx` y `app-shell.tsx`): rediseño de escritorio del asistente con ancho 220px expandido / 72px colapsado y transición estable; el contenido reserva el espacio fijo correcto en ambos estados, sin saltos ni solapamientos.
 - Hecho (Controles en `components/ai/composer.tsx` y `chat-view.tsx`): simplificación de controles del compositor (menos acciones visibles, jerarquía clara del envío) manteniendo accesibilidad y foco.

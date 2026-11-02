@@ -29,11 +29,12 @@ import { formatDateTime, formatMoney, formatShares, type MoneyCurrency } from "@
 import { useAccountMode } from "@/lib/hooks/use-account-mode";
 import { useHideBalance } from "@/lib/hooks/use-hide-balance";
 import { DEMO_INITIAL_USD } from "@/lib/services/demo.logic";
-import { useActivity, useAssetStatus, useFx, useHistories, usePortfolio, useTickers } from "@/lib/hooks/queries";
+import { useActivity, useAssetStatuses, useFx, useHistories, usePortfolio, useTickers } from "@/lib/hooks/queries";
 import { priceFlashDirection, type PriceFlash } from "@/lib/hooks/use-price-flash";
 import { useT } from "@/lib/hooks/use-t";
 import { logoPathFromSymbol } from "@/lib/catalog/logos";
 import { displayPrice } from "@/lib/market/browse";
+import type { AssetStatus } from "@/lib/market/asset-status.shared";
 import { DETAIL_RANGES, isDetailRange, isReferenceHistory, rangeMove, toneOf } from "@/lib/market/series";
 import { periodPerformance, portfolioPerformance, type PortfolioPerformance, type RankedPosition } from "@/lib/portfolio/performance";
 import { balancedPortions, decodePoints, encodePoints, portfolioValueSeries, sumUsd, sumsMatch, tradeActivity } from "@/lib/portfolio/series";
@@ -89,13 +90,14 @@ function moneyView(usd: number, currency: Currency, rate: number | undefined): {
  * Aviso de seguridad por posición (M54c-fix): `hidden` muestra que ya no se
  * puede comprar pero sí vender. El chip "En revisión" sigue a `underReview`
  * (las Ondo aprobadas quedan en `watch` en la base, pero sin chip).
+ * El estado llega del lote de la cartera: una sola petición para todas las
+ * posiciones. Si ese símbolo falló (`undefined`), la fila no muestra aviso.
  * El botón Vender de la fila sigue disponible en ambos casos.
  */
-function PositionSafetyNote({ symbol }: { symbol: string }) {
+function PositionSafetyNote({ status }: { status: AssetStatus | undefined }) {
   const { t } = useT();
-  const asset = useAssetStatus(symbol);
   const notice =
-    asset.data?.safetyStatus === "hidden" ? "hidden" : asset.data?.underReview ? "review" : null;
+    status?.safetyStatus === "hidden" ? "hidden" : status?.underReview ? "review" : null;
   if (notice === null) return null;
   if (notice === "hidden") {
     return <p className="px-2 pb-2 text-sm leading-relaxed text-fg-muted">{t.portfolio.hiddenNotice}</p>;
@@ -469,6 +471,15 @@ export function PortfolioScreen() {
     return map;
   }, [tickers.data]);
 
+  // Una sola petición de estado para todas las posiciones de la cartera.
+  // `useTickers` no reemplaza estos datos: el catálogo no trae `safetyStatus`,
+  // `period` ni `halted`, así que usarlo para el aviso inventaría estado.
+  const positionSymbols = useMemo(
+    () => (portfolio.data?.positions ?? []).map((position) => position.symbol),
+    [portfolio.data],
+  );
+  const { bySymbol: assetStatusBySymbol } = useAssetStatuses(positionSymbols, mode === "demo");
+
   const loaded = portfolio.data;
   const rate = fx.data?.rate;
   const fxKnown = typeof rate === "number" && Number.isFinite(rate) && rate > 0;
@@ -718,7 +729,9 @@ export function PortfolioScreen() {
                           />
                         </p>
                       ) : null}
-                      <PositionSafetyNote symbol={position.symbol} />
+                      <PositionSafetyNote
+                        status={assetStatusBySymbol.get(position.symbol.toLowerCase())}
+                      />
                     </li>
                   );
                 })}

@@ -4,6 +4,7 @@ import { MIN_TRADE_USD } from "@/config/trade";
 import { findAssetBySymbol, type CatalogAsset } from "@/lib/catalog/assets";
 import { serverEnv } from "@/lib/env";
 import {
+  ASSET_STATUS_BATCH_MAX,
   normalizeMode,
   normalizePeriod,
   type AssetPeriod,
@@ -41,6 +42,8 @@ export {
 const XSTOCKS_BASE = "https://api.xstocks.fi/api/v2/public";
 const TIMEOUT_MS = 2_500;
 const CACHE_MS = 60_000;
+/** xStocks hace dos llamadas por símbolo: el lote no dispara los 50 a la vez. */
+const BATCH_CONCURRENCY = 10;
 
 export function isLiveStatusEnabled(): boolean {
   return serverEnv.PRICES_MODE === "live" || serverEnv.MARKET_STATUS_MODE === "live";
@@ -275,4 +278,54 @@ export async function status(symbol: string, deps?: AssetStatusDeps): Promise<As
     // Cae al mock.
   }
   return fromMock(now);
+}
+
+/** Un símbolo del lote: estado real o `null` si ese activo falló. */
+export interface AssetStatusBatchItem {
+  symbol: string;
+  status: AssetStatus | null;
+}
+
+/**
+ * Estado de varios activos reutilizando exactamente `status()` (misma fuente
+ * live → catálogo → mock y mismo cache de 60 s). Deduplica sin distinguir
+ * mayúsculas y conserva el orden de entrada. Un error inesperado de un símbolo
+ * queda aislado en `status: null`; los demás se resuelven igual. La
+ * concurrencia se acota porque live hace dos llamadas por símbolo.
+ */
+export async function statuses(
+  symbols: readonly string[],
+  deps?: AssetStatusDeps,
+): Promise<AssetStatusBatchItem[]> {
+  const unique: string[] = [];
+  const seen = new Set<string>();
+  for (const symbol of symbols) {
+    const trimmed = symbol.trim();
+    const key = trimmed.toLowerCase();
+    if (!trimmed || seen.has(key)) continue;
+    seen.add(key);
+    unique.push(trimmed);
+    if (unique.length >= ASSET_STATUS_BATCH_MAX) break;
+  }
+
+  const bySymbol = new Map<string, AssetStatus | null>();
+  let next = 0;
+  async function worker() {
+    for (;;) {
+      const index = next;
+      next += 1;
+      const symbol = unique[index];
+      if (!symbol) return;
+      try {
+        bySymbol.set(symbol, await status(symbol, deps));
+      } catch {
+        bySymbol.set(symbol, null);
+      }
+    }
+  }
+
+  await Promise.all(
+    Array.from({ length: Math.min(BATCH_CONCURRENCY, unique.length) }, () => worker()),
+  );
+  return unique.map((symbol) => ({ symbol, status: bySymbol.get(symbol) ?? null }));
 }

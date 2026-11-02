@@ -7,6 +7,7 @@ import { HISTORY_EMPTY_STALE_MS, historyStaleMs } from "@/lib/api/contracts";
 import {
   getActivity,
   getAssetStatus,
+  getAssetStatuses,
   getBalances,
   getConsents,
   getDeletionStatus,
@@ -20,6 +21,7 @@ import {
   getPrices,
   getTickers,
   searchMarket,
+  type AssetStatus,
   type MarketSearchParams,
 } from "@/lib/api/client";
 import { useSession } from "@/lib/auth/session-context";
@@ -183,6 +185,33 @@ export function useAssetStatus(symbol: string, enabled = true) {
     refetchInterval: 60_000,
     refetchIntervalInBackground: false,
   });
+}
+
+/**
+ * Estados de varios activos en UNA petición (cartera). La clave se ordena y
+ * deduplica: reordenar posiciones no repite el fetch. Cada símbolo que falla
+ * llega con `status: null` y su fila simplemente omite el aviso, sin tumbar
+ * los estados del resto. Mismo refresco que `useAssetStatus` (60 s).
+ */
+export function useAssetStatuses(symbols: readonly string[], enabled = true) {
+  const signature = priceQueryKey(symbols).join("\u0000");
+  const key = useMemo(() => (signature.length === 0 ? [] : signature.split("\u0000")), [signature]);
+  const query = useQuery({
+    queryKey: ["asset-statuses", key] as const,
+    queryFn: () => getAssetStatuses(key),
+    enabled: enabled && key.length > 0,
+    staleTime: 60_000,
+    refetchInterval: 60_000,
+    refetchIntervalInBackground: false,
+  });
+  const bySymbol = useMemo(() => {
+    const map = new Map<string, AssetStatus>();
+    for (const entry of query.data ?? []) {
+      if (entry.status) map.set(entry.symbol.toLowerCase(), entry.status);
+    }
+    return map;
+  }, [query.data]);
+  return { bySymbol, isPending: query.isPending, isError: query.isError, refetch: query.refetch };
 }
 
 export function usePortfolio(enabled = true) {

@@ -3,6 +3,12 @@ import "server-only";
 import { tickerBySymbol } from "@/config/tickers";
 import { findAssetBySymbol } from "@/lib/catalog/assets";
 import { serverEnv } from "@/lib/env";
+import {
+  status as assetStatus,
+  statuses as assetStatuses,
+  type AssetStatus,
+  type AssetStatusBatchItem,
+} from "@/lib/market/asset-status";
 import { yahooSymbol } from "@/lib/market/underlying-move";
 import { mockAuth } from "@/lib/services/auth.mock";
 import { privyAuth } from "@/lib/services/auth.privy";
@@ -56,6 +62,11 @@ export interface Services {
     history(symbol: string, range: Range): Promise<PricePoint[]>;
     fx(): Promise<FxRate>;
     market(): Promise<MarketStatus>;
+  };
+  /** Horario real por activo (M39): live → catálogo → mock, con cache de 60 s. */
+  market: {
+    status(symbol: string): Promise<AssetStatus>;
+    statuses(symbols: readonly string[]): Promise<AssetStatusBatchItem[]>;
   };
   trade: {
     quote(request: TradeQuoteRequest): Promise<TradeQuote>;
@@ -339,6 +350,10 @@ export function getServices(): Services {
   const supabaseSession = isSupabaseAuth();
   return {
     prices: priceServices(),
+    market: {
+      status: (symbol) => assetStatus(symbol),
+      statuses: (symbols) => assetStatuses(symbols),
+    },
     trade: dataLive ? liveTrade : mockTrade,
     portfolio: dataLive ? livePortfolio : mockPortfolio,
     onramp: dataLive ? liveOnramp() : mockOnramp,

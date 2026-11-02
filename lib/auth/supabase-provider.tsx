@@ -1,12 +1,14 @@
 "use client";
 
 import type { User } from "@supabase/supabase-js";
+import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 import { clearClientCookie } from "@/lib/auth/browser-cookies";
 import { MOCK_ONBOARDING_COOKIE, MOCK_SESSION_COOKIE } from "@/lib/auth/cookies";
 import { ExportWalletProvider, exportMockWallet } from "@/lib/auth/export-wallet";
+import { purgePrivateQueryCache } from "@/lib/auth/private-cache";
 import { SessionProvider } from "@/lib/auth/session-context";
 import { SignerProvider, signMockTransaction } from "@/lib/auth/sign-transaction";
 import type { LinkedLogin, SessionStatus, SessionUser, SessionValue } from "@/lib/auth/types";
@@ -31,9 +33,11 @@ function toSessionUser(user: User): SessionUser {
 
 export function SupabaseAuthProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const [status, setStatus] = useState<SessionStatus>(supabase ? "loading" : "unauthenticated");
   const [user, setUser] = useState<SessionUser | null>(null);
+  const lastUserId = useRef<string | null>(null);
 
   useEffect(() => {
     if (!supabase) return;
@@ -41,13 +45,21 @@ export function SupabaseAuthProvider({ children }: { children: ReactNode }) {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       const next = session?.user ? toSessionUser(session.user) : null;
+      const nextId = next?.id ?? null;
+      const changed = lastUserId.current !== nextId;
+      lastUserId.current = nextId;
+
+      // Antes de publicar el usuario nuevo se descarta la caché privada del
+      // anterior. Un `TOKEN_REFRESHED` del mismo usuario no la toca.
+      if (changed) void purgePrivateQueryCache(queryClient);
+
       setUser(next);
       setStatus(next ? "authenticated" : "unauthenticated");
     });
     return () => {
       subscription.unsubscribe();
     };
-  }, [supabase]);
+  }, [queryClient, supabase]);
 
   const login = useCallback(async () => {
     router.push("/app/ingresar");
@@ -59,12 +71,15 @@ export function SupabaseAuthProvider({ children }: { children: ReactNode }) {
     try {
       await supabase?.auth.signOut();
     } catch {
+      // Si falla el cierre global, se intenta el local; la limpieza de datos
+      // privados ocurre igual en el `finally`.
       await supabase?.auth.signOut({ scope: "local" });
     } finally {
+      await purgePrivateQueryCache(queryClient);
       router.push("/");
       router.refresh();
     }
-  }, [router, supabase]);
+  }, [queryClient, router, supabase]);
 
   const linkedLogins = useMemo<LinkedLogin[]>(() => {
     const email = user?.email ?? null;

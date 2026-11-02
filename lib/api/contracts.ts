@@ -3,6 +3,7 @@ import { z } from "zod";
 import { MAX_ORDER_USD } from "@/config/trade";
 import { API_ERROR_STATUS, DomainError, isApiErrorCode } from "@/lib/api/result";
 import { CATALOG_SYMBOL } from "@/lib/catalog/symbol";
+import { ASSET_STATUS_BATCH_MAX } from "@/lib/market/asset-status.shared";
 import type { ApiErrorCode } from "@/lib/types";
 
 /**
@@ -120,6 +121,53 @@ export const marketStatusQuerySchema = z
     symbol: tradableSymbolSchema.optional(),
   })
   .strict();
+
+/**
+ * Lote de estado por acción (cartera): mismo formato de símbolo que
+ * `/api/prices` y tope de 50 por llamada. Se deduplica sin distinguir
+ * mayúsculas para no pedir dos veces el mismo activo.
+ */
+export const assetStatusBatchQuerySchema = z
+  .object({
+    symbols: z
+      .string()
+      .optional()
+      .transform((value) => {
+        const list: string[] = [];
+        const seen = new Set<string>();
+        for (const part of (value ?? "").split(",")) {
+          const trimmed = part.trim();
+          const key = trimmed.toLowerCase();
+          if (!trimmed || seen.has(key)) continue;
+          seen.add(key);
+          list.push(trimmed);
+        }
+        return list;
+      })
+      .refine((list) => list.length > 0, "Indica al menos un símbolo.")
+      .refine(
+        (list) => list.length <= ASSET_STATUS_BATCH_MAX,
+        `Como máximo ${ASSET_STATUS_BATCH_MAX} símbolos por llamada.`,
+      )
+      .refine((list) => list.every((symbol) => CATALOG_SYMBOL.test(symbol)), {
+        message: "Símbolo inválido.",
+      }),
+  })
+  .strict();
+
+/**
+ * `status: null` es una falla parcial: ese activo no trajo estado (por ejemplo,
+ * xStocks y el catálogo fallaron a la vez) y la cartera omite su aviso sin
+ * tumbar el resto del lote.
+ */
+export const assetStatusBatchEntrySchema = z.object({
+  symbol: tradableSymbolSchema,
+  status: assetStatusSchema.nullable(),
+});
+
+export const assetStatusBatchResponseSchema = z.object({
+  statuses: z.array(assetStatusBatchEntrySchema),
+});
 
 export const balanceSchema = z.object({
   mint: z.string().min(1),
@@ -643,6 +691,10 @@ export const apiContracts = {
   },
   "GET /api/fx/usdclp": { response: fxRateSchema },
   "GET /api/market/status": { query: marketStatusQuerySchema, response: marketStatusSchema },
+  "GET /api/market/status/batch": {
+    query: assetStatusBatchQuerySchema,
+    response: assetStatusBatchResponseSchema,
+  },
   "POST /api/trade/quote": { body: tradeQuoteRequestSchema, response: tradeQuoteSchema },
   "POST /api/trade/build": { body: tradeBuildRequestSchema, response: tradeBuildResponseSchema },
   "POST /api/trade/submit": { body: tradeSubmitRequestSchema, response: tradeSubmitResponseSchema },

@@ -3,6 +3,8 @@ import { z, type ZodType } from "zod";
 import {
   activityResponseSchema,
   apiResultSchema,
+  assetStatusBatchEntrySchema,
+  assetStatusBatchResponseSchema,
   assetStatusSchema,
   balancesResponseSchema,
   consentsResponseSchema,
@@ -30,6 +32,7 @@ import {
   type ProfileUpdate,
 } from "@/lib/api/contracts";
 import { httpStatusFor, type ApiErrorCode } from "@/lib/api/result";
+import { ASSET_STATUS_BATCH_MAX } from "@/lib/market/asset-status.shared";
 import type {
   Activity,
   Balance,
@@ -176,6 +179,70 @@ export type AssetStatus = z.infer<typeof assetStatusSchema>;
 export function getAssetStatus(symbol: string): Promise<AssetStatus> {
   const query = new URLSearchParams({ symbol: symbol.trim() });
   return request(`/api/market/status?${query.toString()}`, assetStatusSchema, { cache: "no-store" });
+}
+
+export type AssetStatusBatchEntry = z.infer<typeof assetStatusBatchEntrySchema>;
+
+/** Lotes de estado que pueden estar en vuelo a la vez. */
+const ASSET_STATUS_BATCH_CONCURRENCY = 3;
+
+/**
+ * Estados del lote (`/api/market/status/batch`). Se deduplica sin distinguir
+ * mayúsculas y se conserva el orden de entrada. El endpoint acepta hasta
+ * `ASSET_STATUS_BATCH_MAX` (50) símbolos por llamada, así que una cartera más
+ * grande se divide en lotes con concurrencia acotada y se combina en el orden
+ * original. Un símbolo que falla no invalida el resto: llega con
+ * `status: null` (también los de un lote cuya petición completa falle).
+ */
+export async function getAssetStatuses(symbols: readonly string[]): Promise<AssetStatusBatchEntry[]> {
+  const list: string[] = [];
+  const seen = new Set<string>();
+  for (const symbol of symbols) {
+    const trimmed = symbol.trim();
+    const key = trimmed.toLowerCase();
+    if (!trimmed || seen.has(key)) continue;
+    seen.add(key);
+    list.push(trimmed);
+  }
+  if (list.length === 0) return [];
+
+  const batches: string[][] = [];
+  for (let index = 0; index < list.length; index += ASSET_STATUS_BATCH_MAX) {
+    batches.push(list.slice(index, index + ASSET_STATUS_BATCH_MAX));
+  }
+
+  const bySymbol = new Map<string, AssetStatusBatchEntry["status"]>();
+  let next = 0;
+  async function worker() {
+    for (;;) {
+      const batch = batches[next];
+      next += 1;
+      if (!batch) return;
+      try {
+        const query = new URLSearchParams({ symbols: batch.join(",") });
+        const data = await request(
+          `/api/market/status/batch?${query.toString()}`,
+          assetStatusBatchResponseSchema,
+          { cache: "no-store" },
+        );
+        for (const entry of data.statuses) {
+          bySymbol.set(entry.symbol.toLowerCase(), entry.status);
+        }
+      } catch {
+        // Un lote caído no invalida los demás: sus símbolos quedan sin aviso.
+        for (const symbol of batch) bySymbol.set(symbol.toLowerCase(), null);
+      }
+    }
+  }
+
+  await Promise.all(
+    Array.from({ length: Math.min(ASSET_STATUS_BATCH_CONCURRENCY, batches.length) }, () => worker()),
+  );
+
+  return list.map((symbol) => ({
+    symbol,
+    status: bySymbol.get(symbol.toLowerCase()) ?? null,
+  }));
 }
 
 export interface HistoryResponse {
