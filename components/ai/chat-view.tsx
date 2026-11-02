@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRef, type ChangeEvent, type RefObject } from "react";
 
 import { Composer } from "@/components/ai/composer";
@@ -28,8 +29,10 @@ export function ChatView({
   onRetry,
   onClear,
   fileRef,
+  backLabel,
 }: {
   copy: AsistenteCopy;
+  backLabel: string;
   messages: readonly ChatMessage[];
   draft: string;
   pendingImage: string | null;
@@ -50,7 +53,8 @@ export function ChatView({
   useChatViewport(panelRef);
   const isEmpty = messages.length === 0 && !typing;
 
-  // Móvil: sin barra superior; el compositor vive en el dock de la barra inferior (padding inferior = --app-tabs-height).
+  // Móvil: el compositor vive en el dock de la barra inferior (padding inferior = --app-tabs-height).
+  // El header es local a la pantalla: retorno al mercado solo en móvil/tablet (en lg manda la sidebar).
   return (
     <div
       ref={panelRef}
@@ -59,37 +63,66 @@ export function ChatView({
       style={{ top: 0, right: 0, left: 0, height: "100dvh" }}
     >
       <div className="mx-auto flex h-full min-h-0 w-full max-w-4xl flex-col">
-        <div className="flex min-h-10 items-center justify-between gap-3 pt-[calc(env(safe-area-inset-top,0px)+0.625rem)] pr-4 pb-1.5 pl-[108px] sm:pr-6 lg:pt-3 lg:pl-6">
-          <div className="flex min-w-0 items-center gap-2.5">
-            <div className="flex min-w-0 items-center gap-2">
-              <h1 className="truncate text-xs font-medium text-fg-muted sm:text-[13px]">{copy.pageTitle}</h1>
-              <span className="hidden rounded-full border border-border/70 bg-surface-1/80 px-2 py-0.5 text-[10px] font-medium text-fg-muted sm:inline-flex">
-                xStocks 24/7
-              </span>
+        <header className="relative z-10 shrink-0">
+          <div className="mx-auto w-full max-w-4xl px-4 pt-[calc(env(safe-area-inset-top,0px)+0.75rem)] pb-2.5 sm:px-6 sm:pb-3 lg:pt-6 lg:pb-3.5">
+            <div className="mx-auto flex w-full max-w-2xl items-center justify-between gap-3">
+              <div className="flex min-w-0 items-center gap-2.5 sm:gap-3">
+                <Link
+                  href="/app"
+                  aria-label={backLabel}
+                  className="inline-flex size-9 shrink-0 items-center justify-center rounded-full border border-border/75 bg-white/85 text-fg-body shadow-2xs transition hover:border-fg/25 hover:bg-white hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fg active:scale-95 motion-reduce:transition-none lg:hidden"
+                >
+                  <ArrowLeftIcon />
+                </Link>
+                <span
+                  aria-hidden="true"
+                  className="hidden size-10 shrink-0 items-center justify-center rounded-2xl border border-border/70 bg-white text-fg shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_8px_20px_-12px_rgba(12,15,20,0.4)] sm:flex"
+                >
+                  <AssistantSparkIcon />
+                </span>
+                <div className="min-w-0">
+                  <div className="flex min-w-0 items-center gap-2">
+                    <h1 className="truncate text-[15px] leading-tight font-semibold tracking-tight text-fg sm:text-base">
+                      {copy.pageTitle}
+                    </h1>
+                    <span className="hidden shrink-0 rounded-full border border-border/70 bg-surface-1/80 px-2 py-0.5 text-[10px] font-medium text-fg-muted sm:inline-flex">
+                      xStocks 24/7
+                    </span>
+                  </div>
+                  <p className="mt-0.5 hidden truncate text-xs leading-relaxed text-fg-muted sm:block">
+                    {copy.lead}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+                {messages.length > 0 ? (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    aria-label={copy.clear}
+                    className="inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-full border border-border/75 bg-white/85 px-2.5 py-1 text-xs font-medium text-fg-body shadow-2xs transition hover:border-fg/30 hover:bg-white hover:text-fg sm:px-3"
+                    onClick={onClear}
+                  >
+                    <ResetSparkleIcon />
+                    <span className="hidden sm:inline">{copy.clear}</span>
+                  </Button>
+                ) : null}
+                <span
+                  title="Sesión privada guardada sólo en tu navegador"
+                  className="inline-flex h-9 items-center gap-1.5 rounded-full border border-border/70 bg-white/75 px-2.5 text-xs font-medium text-fg-body shadow-2xs sm:px-3"
+                >
+                  <PrivateShieldIcon />
+                  <span>Privado</span>
+                </span>
+              </div>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            {messages.length > 0 ? (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="inline-flex min-h-8 shrink-0 items-center gap-1.5 rounded-full border border-border/75 bg-white/85 px-3 py-1 text-xs font-medium text-fg-body shadow-2xs transition hover:border-fg/30 hover:bg-white hover:text-fg"
-                onClick={onClear}
-              >
-                <ResetSparkleIcon />
-                <span>{copy.clear}</span>
-              </Button>
-            ) : null}
-            <span
-              title="SesiÃ³n privada guardada sÃ³lo en tu navegador"
-              className="inline-flex min-h-8 items-center gap-1.5 rounded-full border border-border/70 bg-white/75 px-3 py-1 text-xs font-medium text-fg-body shadow-2xs"
-            >
-              <PrivateShieldIcon />
-              <span>Privado</span>
-            </span>
+          <div aria-hidden="true" className="mx-auto w-full max-w-4xl px-4 sm:px-6">
+            <div className="mx-auto h-px w-full max-w-2xl bg-gradient-to-r from-transparent via-border to-transparent" />
           </div>
-        </div>
+        </header>
 
         <div
           className={cn(
@@ -124,6 +157,35 @@ export function ChatView({
         </div>
       </div>
     </div>
+  );
+}
+
+function ArrowLeftIcon() {
+  return (
+    <svg viewBox="0 0 16 16" className="size-4" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
+      <path d="M13 8H3m0 0 4-4M3 8l4 4" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function AssistantSparkIcon() {
+  return (
+    <svg viewBox="0 0 20 20" className="size-5" fill="none" aria-hidden="true">
+      <path
+        d="M10 2.75c.38 3.02 1.63 4.27 4.65 4.65-3.02.38-4.27 1.63-4.65 4.65-.38-3.02-1.63-4.27-4.65-4.65 3.02-.38 4.27-1.63 4.65-4.65Z"
+        fill="currentColor"
+        fillOpacity="0.16"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M15 13.1c.2 1.55.84 2.2 2.4 2.4-1.56.2-2.2.84-2.4 2.4-.2-1.56-.84-2.2-2.4-2.4 1.56-.2 2.2-.85 2.4-2.4Z"
+        stroke="currentColor"
+        strokeWidth="1.3"
+        strokeLinejoin="round"
+      />
+    </svg>
   );
 }
 

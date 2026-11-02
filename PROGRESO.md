@@ -1,5 +1,13 @@
 # PROGRESO — Maverlang
 
+## T21 — Rediseño responsive del Asistente IA (2026-11-02)
+- Hecho (Encabezado y layout en `components/ai/chat-view.tsx` y `app/(platform)/app/asistente/asistente-screen.tsx`): header propio con retorno a mercado sólo en móvil/tablet (`lg:hidden`), isotipo + título + píldora `xStocks 24/7`, botón de nuevo chat (etiqueta desde `sm`) y píldora `Privado`; separador hairline, safe-area y alto `100dvh`.
+- Hecho (Compositor en `components/ai/composer.tsx`): tarjeta blanca de dos filas con filo superior degradado y barra de herramientas separada por borde; controles de 40–44px con `active:scale`, anillo de foco compartido (`FOCUS_RING`), chips con `snap-x`, error de foto enlazado por `aria-describedby` (`ai-composer-error` / `ai-composer-note`) y variante compacta en el dock móvil.
+- Hecho (Transcripción en `components/ai/transcript.tsx`): estado vacío con halo + orbe, titular balanceado y sugerencias de 68px mínimos con elevación al hover; burbujas asimétricas (20px / 6px), etiqueta del asistente fuera de la burbuja y `role="status"` en el indicador de escritura.
+- Hecho (Shell en `components/app-shell/top-bar.tsx` y `app-shell.tsx`): `TopBar` acepta `hideMobileCluster`; en `/app/asistente` se ocultan en móvil el avatar de perfil y el botón de búsqueda (el chat trae su propio encabezado), sin tocar la paleta `⌘K`.
+- Hecho (copys): `ChatView` recibe `backLabel` desde `asistente-screen.tsx` (`t.detail.backToMarket`); corregidos textos con mojibake (`móvil`, `Análisis`, tooltip de sesión privada).
+- Pendiente por instrucción del usuario: no se ejecutaron pruebas, lint, `tsc --noEmit`, compilación ni revisión visual en navegador.
+
 ## Shell Móvil: Nav Fijo, Morph a Dock de IA, Píldora AI y Cluster Flotante Superior (2026-11-01)
 - Hecho (Nav móvil fijo y morph a Dock de chat IA en `bottom-tabs.tsx` y `liquid-glass.css`): la barra inferior queda 100% fija sin oscilaciones por scroll (`data-hidden="false"`). Al entrar a `/app/asistente`, el contenedor Liquid Glass hace una transición suave (morph de 360ms) convirtiéndose en el dock de chat con botón circular de retorno al mercado (`/app`) y portal directo del formulario de `Composer`.
 - Hecho (Pestaña AI en `bottom-tabs.tsx`): el ícono central muestra exactamente `AI` en negro/contraste limpio (`liquid-tab__ai`) sin texto debajo (con accesibilidad `sr-only`).

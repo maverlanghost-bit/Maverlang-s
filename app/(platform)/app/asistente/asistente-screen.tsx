@@ -75,7 +75,7 @@ export function AsistenteScreen({
   initialQuery: string;
   initialTicker: string;
 }) {
-  const { language } = useT();
+  const { language, t } = useT();
   const copy = asistenteText(language);
   const ticker = cleanTicker(initialTicker);
   const messages = useSyncExternalStore(subscribeChat, readSnapshot, serverSnapshot);
@@ -244,6 +244,7 @@ export function AsistenteScreen({
       onRetry={() => void retry()}
       onClear={clear}
       fileRef={fileRef}
+      backLabel={t.detail.backToMarket}
     />
   );
 }

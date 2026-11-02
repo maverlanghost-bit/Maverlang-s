@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useState, type ChangeEvent, type FormEvent, type RefObject } from "react";
 import { createPortal } from "react-dom";
 
@@ -12,7 +11,10 @@ import { cn } from "@/lib/cn";
 const DOCK_SLOT_ID = "mv-ai-dock-slot";
 const MOBILE_QUERY = "(max-width: 1023px)";
 
-/** Devuelve el contenedor del dock m�vil (dentro de la barra inferior) o null. */
+/** Anillo de foco compartido por todos los controles del compositor. */
+const FOCUS_RING = "outline-none focus-visible:ring-4 focus-visible:ring-fg/20";
+
+/** Devuelve el contenedor del dock móvil (dentro de la barra inferior) o null. */
 function useDockSlot(): HTMLElement | null {
   const [slot, setSlot] = useState<HTMLElement | null>(null);
   useEffect(() => {
@@ -78,14 +80,21 @@ export function Composer({
   const dockSlot = useDockSlot();
 
   const pendingBlock = pendingImage ? (
-    <div className="mb-2 flex items-center gap-2 px-1">
+    <div className="mb-2 flex items-center gap-2.5 px-1">
       {/* La foto es un data URL del usuario: el optimizador de Next no la acepta. */}
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={pendingImage} alt={copy.photoAlt} className="h-14 w-14 rounded-xl object-cover shadow-sm" />
+      <img
+        src={pendingImage}
+        alt={copy.photoAlt}
+        className="h-14 w-14 shrink-0 rounded-2xl border border-border/70 object-cover shadow-2xs"
+      />
       <button
         type="button"
         onClick={onRemoveImage}
-        className="inline-flex min-h-10 items-center gap-1 rounded-full border border-border/70 bg-bg-elevated/85 px-3 text-sm text-fg-body backdrop-blur-md outline-none hover:bg-surface-2 focus-visible:ring-4 focus-visible:ring-fg/20"
+        className={cn(
+          "inline-flex min-h-10 touch-manipulation items-center gap-1.5 rounded-full border border-border/70 bg-white/90 px-3 text-xs font-medium text-fg-body shadow-2xs backdrop-blur-md transition hover:border-border-strong hover:bg-surface-1 hover:text-fg active:scale-[0.98] motion-reduce:transition-none",
+          FOCUS_RING,
+        )}
       >
         <IconClose />
         {copy.removePhoto}
@@ -94,7 +103,11 @@ export function Composer({
   ) : null;
 
   const errorBlock = photoError ? (
-    <p role="alert" className="mb-2 px-1 text-sm leading-relaxed break-words text-down">
+    <p
+      id="ai-composer-error"
+      role="alert"
+      className="mb-2 rounded-xl border border-down/20 bg-down-bg/80 px-3 py-2 text-xs leading-relaxed break-words text-down"
+    >
       {photoError}
     </p>
   ) : null;
@@ -125,6 +138,7 @@ export function Composer({
         autoComplete="off"
         placeholder={copy.placeholder}
         disabled={typing}
+        aria-describedby={photoError ? "ai-composer-error ai-composer-note" : "ai-composer-note"}
         onChange={(event) => onDraft(event.target.value)}
         onKeyDown={(event) => {
           if (event.key === "Enter" && !event.shiftKey) {
@@ -134,8 +148,8 @@ export function Composer({
         }}
         className={
           dockSlot
-            ? "max-h-28 min-h-10 min-w-0 flex-1 resize-none border-0 bg-transparent px-1 py-2.5 text-[16px] leading-5 text-fg outline-none placeholder:text-fg-muted focus-visible:ring-0 disabled:opacity-40"
-            : "max-h-36 min-h-[44px] w-full min-w-0 resize-none border-0 bg-transparent px-0.5 py-1 text-[15px] text-fg outline-none placeholder:text-fg-muted focus-visible:ring-0 disabled:opacity-40 sm:text-base"
+            ? "max-h-11 min-h-11 min-w-0 flex-1 resize-none border-0 bg-transparent px-1.5 py-2.5 text-[16px] leading-5 text-fg outline-none placeholder:text-fg-muted focus-visible:ring-0 disabled:opacity-50"
+            : "max-h-36 min-h-[52px] w-full min-w-0 resize-none border-0 bg-transparent px-0.5 py-1 text-[15.5px] leading-6 text-fg outline-none placeholder:text-fg-muted focus-visible:ring-0 disabled:opacity-50 sm:text-base"
         }
       />
     </>
@@ -147,10 +161,12 @@ export function Composer({
       disabled={!canSend}
       aria-label={copy.send}
       className={cn(
-        "inline-flex size-9 shrink-0 items-center justify-center rounded-full transition-all",
+        "inline-flex shrink-0 touch-manipulation items-center justify-center rounded-full transition-all duration-150 active:scale-95 motion-reduce:transition-none",
+        dockSlot ? "size-11" : "size-10",
         canSend
-          ? "cursor-pointer bg-fg text-bg shadow-sm hover:opacity-90 active:scale-95"
-          : "bg-brand-soft/85 text-brand disabled:opacity-80",
+          ? "cursor-pointer bg-fg text-bg shadow-[0_2px_10px_rgba(10,10,10,0.24)] hover:opacity-90"
+          : "cursor-not-allowed bg-surface-2 text-fg-subtle",
+        FOCUS_RING,
       )}
     >
       {canSend ? <SendIcon /> : <GrokWaveIcon />}
@@ -160,8 +176,8 @@ export function Composer({
   const chips = showSuggestions ? (
     <div
       className={cn(
-        "-mx-1 flex min-w-0 gap-2 overflow-x-auto px-1 pb-1 no-scrollbar lg:flex-wrap lg:justify-center lg:overflow-visible",
-        dockSlot ? "mt-1" : "mt-3",
+        "no-scrollbar -mx-1 flex min-w-0 snap-x snap-mandatory gap-1.5 overflow-x-auto scroll-px-2 px-1 pb-1 lg:mx-0 lg:flex-wrap lg:justify-center lg:overflow-visible lg:pb-0",
+        dockSlot ? "mt-1.5" : "mt-3",
       )}
     >
       {copy.suggestions.map((item) => (
@@ -170,7 +186,10 @@ export function Composer({
           type="button"
           disabled={typing}
           onClick={() => onSuggest(item.id, item.text)}
-          className="shrink-0 cursor-pointer rounded-full border border-border/75 bg-white px-3.5 py-1.5 text-xs font-medium text-fg-body shadow-2xs transition-all hover:border-fg/30 hover:bg-surface-1 hover:text-fg disabled:opacity-40"
+          className={cn(
+            "min-h-9 shrink-0 snap-start touch-manipulation cursor-pointer rounded-full border border-border/75 bg-white px-3.5 text-xs font-medium text-fg-body shadow-2xs transition hover:border-border-strong hover:bg-surface-1 hover:text-fg active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40 motion-reduce:transition-none lg:min-h-8",
+            FOCUS_RING,
+          )}
         >
           {item.text}
         </button>
@@ -178,10 +197,14 @@ export function Composer({
     </div>
   ) : null;
 
-  const disclaimer = <p className="px-1 pt-2 text-center text-[11px] leading-snug text-fg-muted">{copy.disclaimer}</p>;
+  const disclaimer = (
+    <p id="ai-composer-note" className="px-1 pt-2 text-center text-[11px] leading-relaxed text-balance text-fg-muted">
+      {copy.disclaimer}
+    </p>
+  );
 
   if (dockSlot) {
-    // M�vil: el formulario vive dentro de la barra inferior (dock); chips y aviso quedan sobre ella.
+    // Móvil: el formulario vive dentro de la barra inferior (dock); chips y aviso quedan sobre ella.
     return (
       <>
         <div className="mx-auto w-full max-w-2xl min-w-0 px-3 pt-1.5 pb-1">
@@ -194,14 +217,17 @@ export function Composer({
           <form
             onSubmit={submit}
             aria-busy={typing || undefined}
-            className="flex min-h-12 w-full min-w-0 items-center gap-1.5 px-1.5"
+            className="flex min-h-12 w-full min-w-0 items-center gap-1.5 px-1"
           >
             <button
               type="button"
               onClick={onAttach}
               disabled={typing}
               aria-label={copy.attach}
-              className="inline-flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-full text-fg-body transition hover:bg-surface-2 hover:text-fg disabled:opacity-40"
+              className={cn(
+                "inline-flex size-11 shrink-0 touch-manipulation cursor-pointer items-center justify-center rounded-full text-fg-body transition hover:bg-surface-2 hover:text-fg active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 motion-reduce:transition-none",
+                FOCUS_RING,
+              )}
             >
               <PlusIcon />
             </button>
@@ -218,23 +244,31 @@ export function Composer({
   return (
     <form
       onSubmit={submit}
-      className="mx-auto w-full max-w-2xl min-w-0 px-3 pt-1.5 pb-2.5 sm:px-6"
+      className="mx-auto w-full max-w-2xl min-w-0 px-3 pt-1.5 pb-2.5 sm:px-6 sm:pb-3"
       aria-busy={typing || undefined}
     >
       {pendingBlock}
       {errorBlock}
 
-      <div className="rounded-[26px] border border-border/80 bg-white px-4 pt-3.5 pb-2.5 shadow-[0_12px_40px_-12px_rgba(12,15,20,0.08),0_2px_8px_rgba(12,15,20,0.03)] transition-all duration-200 focus-within:border-fg/25 focus-within:shadow-[0_16px_48px_-12px_rgba(12,15,20,0.12)]">
-        {textarea}
+      <div className="relative rounded-[26px] border border-border/80 bg-white shadow-[0_1px_2px_rgba(12,15,20,0.04),0_12px_36px_-18px_rgba(12,15,20,0.18)] transition-[border-color,box-shadow] duration-200 focus-within:border-fg/20 focus-within:ring-4 focus-within:ring-fg/5 focus-within:shadow-[0_1px_2px_rgba(12,15,20,0.04),0_18px_46px_-18px_rgba(12,15,20,0.24)] motion-reduce:transition-none">
+        <span
+          aria-hidden
+          className="pointer-events-none absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-fg/10 to-transparent"
+        />
 
-        <div className="mt-2 flex items-center justify-between gap-2 pt-1">
-          <div className="flex items-center gap-1.5">
+        <div className="px-3.5 pt-3 sm:px-4 sm:pt-3.5">{textarea}</div>
+
+        <div className="mt-1 flex items-end justify-between gap-2 border-t border-border/60 px-2 py-2 sm:px-2.5">
+          <div className="flex min-w-0 items-center gap-1.5">
             <button
               type="button"
               onClick={onAttach}
               disabled={typing}
               aria-label={copy.attach}
-              className="inline-flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-full text-fg-body transition hover:bg-surface-2 hover:text-fg disabled:opacity-40"
+              className={cn(
+                "inline-flex size-10 shrink-0 touch-manipulation cursor-pointer items-center justify-center rounded-full border border-border/70 bg-white text-fg-body shadow-2xs transition hover:border-border-strong hover:bg-surface-1 hover:text-fg active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 motion-reduce:transition-none",
+                FOCUS_RING,
+              )}
             >
               <PlusIcon />
             </button>
@@ -243,22 +277,30 @@ export function Composer({
               type="button"
               onClick={onAttach}
               disabled={typing}
-              className="hidden cursor-pointer items-center gap-1.5 rounded-full border border-border/70 bg-surface-1/70 px-3 py-1 text-xs font-medium text-fg-body transition hover:bg-surface-2 hover:text-fg disabled:opacity-40 sm:inline-flex"
+              className={cn(
+                "hidden min-h-10 touch-manipulation cursor-pointer items-center gap-1.5 rounded-full bg-surface-1 px-3 text-xs font-medium text-fg-body transition hover:bg-surface-2 hover:text-fg active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40 motion-reduce:transition-none sm:inline-flex",
+                FOCUS_RING,
+              )}
             >
               <CameraIcon />
               <span>Importar captura</span>
             </button>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex shrink-0 items-center gap-1.5">
             <button
               type="button"
               onClick={() => setMode((prev) => (prev === "fast" ? "deep" : "fast"))}
-              className="inline-flex cursor-pointer items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium text-fg-body transition hover:bg-surface-2 hover:text-fg"
+              className={cn(
+                "inline-flex min-h-10 touch-manipulation cursor-pointer items-center gap-1.5 rounded-full border border-border/70 bg-surface-1/60 px-3 text-xs font-semibold text-fg-body transition hover:border-border-strong hover:bg-surface-2 hover:text-fg active:scale-[0.98] motion-reduce:transition-none",
+                FOCUS_RING,
+              )}
             >
               <RocketModeIcon />
-              <span>{mode === "fast" ? "Fast" : "An�lisis"}</span>
-              <ChevronSmallIcon />
+              <span>{mode === "fast" ? "Fast" : "Análisis"}</span>
+              <ChevronSmallIcon
+                className={cn("transition-transform duration-200 motion-reduce:transition-none", mode === "deep" && "rotate-180")}
+              />
             </button>
             {sendButton}
           </div>
@@ -271,13 +313,6 @@ export function Composer({
   );
 }
 
-function BackIcon() {
-  return (
-    <svg viewBox="0 0 16 16" className="size-4" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden>
-      <path d="M10 3 5 8l5 5" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
 function PlusIcon() {
   return (
     <svg viewBox="0 0 16 16" className="size-4.5" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden>
@@ -312,9 +347,16 @@ function RocketModeIcon() {
   );
 }
 
-function ChevronSmallIcon() {
+function ChevronSmallIcon({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 12 12" className="size-3 text-fg-muted" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden>
+    <svg
+      viewBox="0 0 12 12"
+      className={cn("size-3 text-fg-muted", className)}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      aria-hidden
+    >
       <path d="m3 4.5 3 3 3-3" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
