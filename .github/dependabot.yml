@@ -15,3 +15,14 @@ updates:
           - "minor"
           - "patch"
     open-pull-requests-limit: 5
+  # CI-01: las acciones están fijadas a SHA completo; sin este ecosistema el
+  # pin se queda viejo y nadie se entera de un parche de seguridad.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    groups:
+      actions:
+        patterns:
+          - "*"
+    open-pull-requests-limit: 5

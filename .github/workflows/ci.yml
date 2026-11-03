@@ -9,6 +9,20 @@ on:
   push:
     branches: [main]
 
+# CI-01 / M-08: el GITHUB_TOKEN de este pipeline es de sólo lectura.
+# `contents: read` a nivel de workflow; ningún job eleva el permiso porque
+# ninguno lo necesita (upload-artifact usa ACTIONS_RUNTIME_TOKEN, no el
+# GITHUB_TOKEN). Si un job futuro requiere escritura, se eleva ahí y sólo ahí.
+permissions:
+  contents: read
+
+# Común a los tres jobs. `ALLOW_MOCK_AUTH` lo exige el endurecimiento de auth
+# cuando NODE_ENV=production: el build y el e2e corren así en el runner y, sin
+# el flag, el arranque falla aunque AUTH_MODE sea mock. Sólo afecta a los datos
+# de prueba de este workflow, que no tiene secretos reales.
+env:
+  ALLOW_MOCK_AUTH: "true"
+
 jobs:
   checks:
     name: checks (typecheck, lint, test, secretos, dependencias)
@@ -24,17 +38,22 @@ jobs:
       PRICES_MODE: mock
       RATE_LIMIT_BACKEND: memory
     steps:
+      # Acciones fijadas a SHA completo (CI-01): un tag `v4` es mutable y su
+      # dueño puede moverlo. El comentario es el tag resuelto con
+      # `git ls-remote`; Dependabot (github-actions) mantiene los pines.
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
       - name: Node 22 con caché de npm
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 22
           cache: npm
 
-      - name: npm 11 (el lockfile se genera con npm 11)
-        run: npm install -g npm@11
+      # npm exacto: el lockfile se genera con npm 11 y Node 22 trae npm 10.
+      # Una versión flotante (`npm@11`) cambia el instalador sin revisión.
+      - name: npm 11.19.0 (el lockfile se genera con npm 11)
+        run: npm install -g npm@11.19.0
 
       - name: Instalar dependencias
         run: npm ci
@@ -48,7 +67,10 @@ jobs:
       - name: Tests
         run: npm test
 
-      - name: Escáner de secretos
+      # Sólo árbol de trabajo (git ls-files): en un checkout limpio no hay
+      # bundle todavía. El escaneo del bundle corre en el job `build`, después
+      # del build y con --require-bundle (SEC-01).
+      - name: Escáner de secretos (árbol de trabajo)
         run: npm run scan:secrets
 
       - name: Auditoría de dependencias
@@ -69,22 +91,28 @@ jobs:
       RATE_LIMIT_BACKEND: memory
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
       - name: Node 22 con caché de npm
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 22
           cache: npm
 
-      - name: npm 11 (el lockfile se genera con npm 11)
-        run: npm install -g npm@11
+      - name: npm 11.19.0 (el lockfile se genera con npm 11)
+        run: npm install -g npm@11.19.0
 
       - name: Instalar dependencias
         run: npm ci
 
       - name: Build de producción
         run: npm run build
+
+      # SEC-01: el escaneo del bundle cliente sólo tiene sentido después del
+      # build. `--require-bundle` hace fallar el paso si no hay `.next/static`
+      # en vez de imprimir "se salta" y salir 0.
+      - name: Escáner de secretos (bundle cliente, exige build)
+        run: npm run scan:secrets -- --require-bundle
 
   # E2E con Playwright en Linux: `npm run e2e` (scripts/e2e.mjs) construye
   # con `next build` y sirve el build. Todo en mock: sin secretos reales.
@@ -101,16 +129,16 @@ jobs:
       RATE_LIMIT_BACKEND: memory
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
       - name: Node 22 con caché de npm
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 22
           cache: npm
 
-      - name: npm 11 (el lockfile se genera con npm 11)
-        run: npm install -g npm@11
+      - name: npm 11.19.0 (el lockfile se genera con npm 11)
+        run: npm install -g npm@11.19.0
 
       - name: Instalar dependencias
         run: npm ci
@@ -123,7 +151,7 @@ jobs:
 
       - name: Subir reporte y trazas si falla
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: playwright-e2e
           path: |
