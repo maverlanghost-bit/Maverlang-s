@@ -46,15 +46,30 @@ términos y privacidad.
 - Reconoce `PGRST202` y `42883` (función inexistente) para que la falta de 0043
   sea un error claro y no un `UPSTREAM` genérico.
 
+### `supabase/migrations/0044_profiles_column_grants.sql`
+
+`REVOKE ALL ON TABLE` **no revoca los grants por columna**. Si una migración o
+un ajuste manual anterior dejó `GRANT UPDATE (columna)` sobre `rut`, `email`,
+`telefono`, etc., el lockdown de 0043 no los tocaba. 0044 recorre
+`information_schema.columns`, revoca `INSERT`/`UPDATE` por columna en
+`profiles` y `consents`, y vuelve a dejar solo:
+
+- `profiles`: `SELECT` + `UPDATE (nombre, language, display_currency)`.
+- `consents`: `SELECT`.
+
+Es idempotente y no toca funciones ni triggers.
+
 ## Orden de despliegue (importante)
 
 1. **Aplicar 0043 en Supabase** (SQL Editor). Es idempotente.
-2. **Recién después** desplegar el código de esta rama. Si el código sale antes,
+2. **Aplicar 0044** (limpieza de grants por columna). Sin este paso, un grant
+   por columna anterior puede seguir permitiendo escribir PII.
+3. **Recién después** desplegar el código de esta rama. Si el código sale antes,
    el perfil responde `INTERNAL` con el mensaje de migración faltante (falla
    cerrado, no pierde datos).
-3. **No aplicar 0038 después de 0043.** 0038 vuelve a crear el trigger sin el
+4. **No aplicar 0038 después de 0043.** 0038 vuelve a crear el trigger sin el
    bypass de la RPC y rompe el onboarding. 0043 ya incluye el lockdown.
-4. Verificar con la consulta de abajo.
+5. Verificar con la consulta de abajo. Esperado: `0, 3, 1`.
 
 ## Verificación
 
