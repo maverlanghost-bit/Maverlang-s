@@ -23,6 +23,9 @@
 --      sigue vigente (idempotente; no revive una vencida).
 --   5. `release_trade_reservation(...)`: libera una reserva activa cuando la
 --      orden falla/expira (la conciliación la llama).
+--   5b. `release_other_trade_reservations(...)`: D-06 — una sola reserva
+--      especulativa por usuario; la cotización nueva libera las anteriores
+--      dentro de la misma transacción de reserva (índice único parcial).
 --   6. `rekey_trade_reservation(...)`: Jupiter puede devolver un requestId
 --      distinto al armar la transacción; la reserva se re-etiqueta sin cambiar
 --      el monto (el monto ya se validó contra la cotización).
@@ -67,6 +70,32 @@ create index if not exists trade_reservations_active_user_idx
 create index if not exists trade_reservations_active_idx
   on public.trade_reservations (expires_at)
   where status in ('reserved', 'consumed');
+
+-- D-06 (auditoría 2026-11): UNA sola reserva especulativa por usuario. Cada
+-- cotización creaba una reserva nueva y las activas se sumaban: tres
+-- cotizaciones de US$200 agotaban el tope diario de US$500 sin operar. La
+-- reserva nueva reemplaza a la anterior, así que el índice único hace
+-- imposible acumularlas aunque el código llame mal. `consumed` queda fuera:
+-- esa reserva ya representa una ejecución en curso o hecha.
+--
+-- Saneamiento previo: si una versión anterior dejó varias `reserved` por
+-- usuario, se conserva la más reciente y se liberan las demás. Sin esto el
+-- índice no podría crearse sobre datos viejos.
+update public.trade_reservations r
+   set status = 'released',
+       updated_at = now()
+ where r.status = 'reserved'
+   and exists (
+     select 1
+       from public.trade_reservations newer
+      where newer.user_id = r.user_id
+        and newer.status = 'reserved'
+        and (newer.created_at, newer.id) > (r.created_at, r.id)
+   );
+
+create unique index if not exists trade_reservations_one_active_idx
+  on public.trade_reservations (user_id)
+  where status = 'reserved';
 
 -- Las filas no se borran: son traza de auditoría. Los índices parciales y el
 -- filtro `expires_at > now()` mantienen barato el cálculo de cupo; la
@@ -117,7 +146,44 @@ revoke all on function public.safe_positive_numeric(jsonb, numeric)
 grant execute on function public.safe_positive_numeric(jsonb, numeric)
   to service_role;
 
--- 4. Reserva atómica. El lock global va primero y el del usuario después:
+-- 4. Liberación de reservas especulativas previas (D-06). Una cotización
+--    nueva reemplaza a la anterior: se liberan las `reserved` del usuario que
+--    no sean la que se está reservando. No toca `consumed` (ejecución en
+--    curso) ni borra filas (traza de auditoría). `p_keep_request_id` vacío
+--    libera todas.
+create or replace function public.release_other_trade_reservations(
+  p_user_id uuid,
+  p_keep_request_id text
+)
+returns integer
+language plpgsql
+security invoker
+set search_path = public, pg_temp
+as $$
+declare
+  v_keep text := btrim(coalesce(p_keep_request_id, ''));
+  v_count integer := 0;
+begin
+  if p_user_id is null then
+    raise exception 'MV_RESERVATION_INVALID' using errcode = '22023';
+  end if;
+  update public.trade_reservations
+     set status = 'released',
+         updated_at = now()
+   where user_id = p_user_id
+     and status = 'reserved'
+     and request_id <> v_keep;
+  get diagnostics v_count = row_count;
+  return v_count;
+end;
+$$;
+
+revoke all on function public.release_other_trade_reservations(uuid, text)
+  from public, anon, authenticated;
+grant execute on function public.release_other_trade_reservations(uuid, text)
+  to service_role;
+
+-- 5. Reserva atómica. El lock global va primero y el del usuario después:
 --    todos los caminos toman los locks en el mismo orden (sin deadlocks).
 --    Las funciones son SECURITY INVOKER: sólo `service_role` tiene EXECUTE y
 --    ese rol ya tiene BYPASSRLS; no se escala privilegio desde la función.
@@ -184,6 +250,12 @@ begin
     end if;
     raise exception 'MV_RESERVATION_CONFLICT' using errcode = '23505';
   end if;
+
+  -- D-06: la cotización nueva reemplaza a la anterior. Se liberan las
+  -- reservas especulativas previas del usuario (vencidas o no) dentro de la
+  -- misma transacción y bajo los locks: si no, cada cotización nueva sumaba
+  -- otra retención y tres de US$200 agotaban el tope diario de US$500.
+  perform public.release_other_trade_reservations(p_user_id, v_request_id);
 
   -- Topes vigentes: fila propia > default de app_flags > constante segura.
   select value into v_limits from public.app_flags where key = 'limits_default';
@@ -342,7 +414,7 @@ revoke all on function public.reserve_trade_amount(uuid, text, numeric, timestam
 grant execute on function public.reserve_trade_amount(uuid, text, numeric, timestamptz)
   to service_role;
 
--- 5. Consumo idempotente. Sólo una reserva `reserved` y vigente pasa a
+-- 6. Consumo idempotente. Sólo una reserva `reserved` y vigente pasa a
 --    `consumed`; una vencida o ya consumida devuelve false (el llamador falla
 --    cerrado o trata el reintento como idempotente).
 create or replace function public.consume_trade_reservation(
@@ -376,7 +448,7 @@ revoke all on function public.consume_trade_reservation(uuid, text, numeric)
 grant execute on function public.consume_trade_reservation(uuid, text, numeric)
   to service_role;
 
--- 6. Liberación. Sólo toca reservas activas; liberar dos veces es inocuo.
+-- 7. Liberación. Sólo toca reservas activas; liberar dos veces es inocuo.
 create or replace function public.release_trade_reservation(
   p_user_id uuid,
   p_request_id text
@@ -405,7 +477,7 @@ revoke all on function public.release_trade_reservation(uuid, text)
 grant execute on function public.release_trade_reservation(uuid, text)
   to service_role;
 
--- 7. Re-etiqueta la reserva cuando Jupiter cambia el requestId al armar la
+-- 8. Re-etiqueta la reserva cuando Jupiter cambia el requestId al armar la
 --    transacción. NO cambia el monto: ese monto ya se validó contra la
 --    cotización y el build sólo puede desviarse dentro del slippage.
 create or replace function public.rekey_trade_reservation(
@@ -469,7 +541,7 @@ revoke all on function public.rekey_trade_reservation(uuid, text, text)
 grant execute on function public.rekey_trade_reservation(uuid, text, text)
   to service_role;
 
--- 8. Lectura acotada (build/submit y conciliación).
+-- 9. Lectura acotada (build/submit y conciliación).
 create or replace function public.read_trade_reservation(
   p_user_id uuid,
   p_request_id text

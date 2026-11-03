@@ -26,6 +26,7 @@ import {
   assertQuoteIntegrity,
   assertSignedTransactionMatchesBuilt,
   computeNotionalUsd,
+  readTransactionSignature,
 } from "@/lib/trade/integrity";
 import { NETWORK_FEE_SOL, TOKEN_ACCOUNT_RENT_SOL } from "@/lib/wallet/send-cost";
 import type {
@@ -473,6 +474,12 @@ export const liveTrade = {
 
     // Reclamo previo: fila `pending` con request_id único. Dos submits
     // simultáneos no pueden ejecutar dos veces la misma operación.
+    //
+    // D-05: la firma se deriva de la tx firmada y se guarda EN ESTE MISMO
+    // reclamo, antes de llamar a Jupiter. Si `/execute` se pierde, la orden
+    // queda `pending` con firma y la conciliación puede consultar la cadena
+    // en vez de cerrarla como `expired` y liberar cupo sin evidencia.
+    const signedSignature = await readTransactionSignature(signedTransactionBase64);
     let claim: Awaited<ReturnType<typeof claimOrderExecution>>;
     try {
       claim = await claimOrderExecution({
@@ -493,6 +500,7 @@ export const liveTrade = {
           pricePerShareUsd: stored.priceUsd,
         }),
         quoteExpiresAt: stored.expiresAt,
+        signature: signedSignature,
       });
     } catch {
       claim = null;

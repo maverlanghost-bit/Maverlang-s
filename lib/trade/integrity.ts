@@ -1,6 +1,7 @@
 import "server-only";
 
 import { DomainError } from "@/lib/api/result";
+import { encodeBase58 } from "@/lib/solana/address";
 
 /**
  * Integridad del trading real (auditoría 2026-11).
@@ -187,6 +188,41 @@ export async function assertSignedTransactionMatchesBuilt(
       "VALIDATION",
       "La transacción firmada no corresponde a la operación armada. Pide una nueva cotización.",
     );
+  }
+}
+
+/**
+ * Firma base58 de la transacción que firmó el cliente (auditoría D-05).
+ *
+ * El servidor la deriva del propio `signedTransactionBase64` ANTES de llamar
+ * a `/swap/v2/execute`. Si la respuesta de Jupiter se pierde (timeout, 502,
+ * corte de la lambda), la orden queda en `pending` pero con firma conocida:
+ * la conciliación puede consultar la cadena y decidir con evidencia en vez de
+ * expirar la orden y liberar cupo a ciegas.
+ *
+ * `null` si la transacción no trae firma o no se puede leer; el llamador no
+ * debe inventar una.
+ */
+export async function readTransactionSignature(value: string): Promise<string | null> {
+  const bytes = decodeBase64(value);
+  const { Transaction, VersionedTransaction } = await import("@solana/web3.js");
+  // Una tx sin firmar trae la firma en ceros: no es evidencia de nada.
+  const usable = (signature: Uint8Array | null | undefined): string | null => {
+    if (!signature || signature.length === 0) return null;
+    if (signature.every((byte) => byte === 0)) return null;
+    return encodeBase58(signature);
+  };
+  try {
+    const versioned = VersionedTransaction.deserialize(bytes);
+    return usable(versioned.signatures[0]);
+  } catch {
+    // No era versionada; se intenta legacy abajo.
+  }
+  try {
+    const legacy = Transaction.from(bytes);
+    return usable(legacy.signature);
+  } catch {
+    return null;
   }
 }
 

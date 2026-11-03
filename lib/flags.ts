@@ -11,7 +11,10 @@ export const FLAG_TTL_MS = 30_000;
 export const ADMIN_FLAGS = [
   { key: "trading_enabled", label: "Operar" },
   { key: "onramp_enabled", label: "Entrada de dinero" },
-  { key: "offramp_enabled", label: "Salida de dinero" },
+  // D-18/D-01: un solo nombre para el kill switch de salidas. El panel y el
+  // código (`assertWithdrawalsEnabled`) leen `withdrawals_enabled`; el antiguo
+  // `offramp_enabled` queda como clave heredada sólo en el default seguro.
+  { key: "withdrawals_enabled", label: "Salida de dinero" },
   { key: "signup_enabled", label: "Registro de cuentas" },
   { key: "beta_only", label: "Sólo beta" },
 ] as const;

@@ -41,6 +41,7 @@ import {
 import {
   assertBetaAccess,
   assertTradingEnabled,
+  assertWithdrawalsEnabled,
   checkLimits,
   orderNotionalUsd,
   type CountedOrder,
@@ -50,6 +51,7 @@ import {
   assertReservationActive,
   assertSubmitReservation,
   mapReservationFailure,
+  releaseOtherReservations,
   releaseQuietly,
   rekeyOrThrow,
   reserveOrThrow,
@@ -142,6 +144,39 @@ export async function releaseRealTradeReservation(
 ): Promise<boolean> {
   assertRealExecutionLocked();
   return releaseQuietly(reservationStore(), userId, requestId);
+}
+
+/**
+ * Dependencias reales del kill switch de salidas (`withdrawals_enabled`, la
+ * misma clave que muestra el panel en "Salida de dinero"). Fuera de
+ * `real-guards` para que una ruta de salida no arme su propio lector de flags.
+ */
+export function realWithdrawalGuardDeps(): Pick<LimitsDeps, "getFlagBool"> {
+  return { getFlagBool: (key) => getFlag(key) };
+}
+
+/**
+ * Kill switch de salidas (auditoría D-01). Toda ruta que arme una salida de
+ * dinero lo consulta ANTES de armar: apagado en el panel → 503 REAL_DISABLED.
+ * La compuerta de ejecución real va primero, así que mientras
+ * `REAL_EXECUTION_LOCKED` siga en `true` nada llega al proveedor.
+ */
+export async function assertRealWithdrawalsEnabled(): Promise<void> {
+  assertRealExecutionLocked();
+  await assertWithdrawalsEnabled(realWithdrawalGuardDeps());
+}
+
+/**
+ * D-06: libera las reservas especulativas previas del usuario antes de pedir
+ * una cotización nueva. Sin `keepRequestId` libera todas; la función SQL
+ * repite la liberación dentro de la transacción de reserva.
+ */
+export async function releaseRealTradeReservations(
+  userId: string,
+  keepRequestId: string = "",
+): Promise<number> {
+  assertRealExecutionLocked();
+  return releaseOtherReservations(reservationStore(), userId, keepRequestId);
 }
 
 function toCounted(

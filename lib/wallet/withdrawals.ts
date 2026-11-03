@@ -9,11 +9,18 @@ import "server-only";
  * reutilizan los existentes de `lib/api/result.ts` (mismos mensajes y
  * estados HTTP que ya conoce el cliente), con `SELF_TRANSFER_NOT_ALLOWED`
  * como único código nuevo de dominio.
+ *
+ * Auditoría D-01: esta función NO es la compuerta de seguridad. La ruta de
+ * retiro que se construya (D-02) tiene que llamar `assertRealExecutionLocked()`
+ * y `assertRealWithdrawalsEnabled()` ANTES de llegar acá, igual que
+ * `app/api/wallet/send/build/route.ts`. Acá sólo viven la validación y el
+ * tope por operación (`assertSendWithinOperationLimit`).
  */
 
 import { randomUUID } from "node:crypto";
 
 import { TICKERS, USDC_MINT } from "@/config/tickers";
+import { DomainError } from "@/lib/api/result";
 import { serverEnv } from "@/lib/env";
 import { isValidSolanaAddress } from "@/lib/solana/address";
 
@@ -81,6 +88,69 @@ function isRealTradingEnabled(override?: boolean): boolean {
   if (raw === "true" || raw === "1") return true;
   if (raw === "false" || raw === "0") return false;
   return Boolean(serverEnv.REAL_TRADING_READY);
+}
+
+/**
+ * Tope de salida por operación (auditoría D-01), en dólares.
+ *
+ * El único camino de salida implementado (`POST /api/wallet/send/build`)
+ * armaba transferencias sin ningún tope. Un tope diario/mensual necesita el
+ * libro de retiros que todavía no existe (D-02): sumarlo sobre `orders` sería
+ * contar operaciones de trading, no salidas. Por eso el control que se puede
+ * sostener hoy es el tope por operación, y el monto se valora contra el precio
+ * vivo (USDC = 1:1); sin precio no hay notional y la salida se rechaza.
+ *
+ * `WITHDRAWALS_MAX_USD_PER_OPERATION` puede BAJAR el tope, nunca subirlo.
+ */
+export const WITHDRAWAL_MAX_USD_PER_OPERATION = 500;
+
+/** Tope vigente por operación. `env` sólo puede reducirlo. */
+export function withdrawalMaxUsdPerOperation(): number {
+  const raw = (process.env.WITHDRAWALS_MAX_USD_PER_OPERATION ?? "").trim();
+  const parsed = Number(raw);
+  if (!raw || !Number.isFinite(parsed) || parsed <= 0) return WITHDRAWAL_MAX_USD_PER_OPERATION;
+  return Math.min(parsed, WITHDRAWAL_MAX_USD_PER_OPERATION);
+}
+
+/**
+ * Notional en dólares de una salida. USDC es 1:1; una acción se valora con su
+ * precio vivo. Sin precio válido devuelve `null` (no se asume 0: eso saltaría
+ * el tope).
+ */
+export function sendNotionalUsd(input: {
+  mint: string;
+  amountUi: number;
+  priceUsd?: number | null;
+}): number | null {
+  const amount = input.amountUi;
+  if (typeof amount !== "number" || !Number.isFinite(amount) || amount <= 0) return null;
+  if (input.mint === USDC_MINT) return amount;
+  const price = input.priceUsd;
+  if (typeof price !== "number" || !Number.isFinite(price) || price <= 0) return null;
+  return amount * price;
+}
+
+/**
+ * Rechaza una salida que supere el tope por operación. `null` = no se pudo
+ * valorar: también se rechaza (fail closed).
+ */
+export function assertSendWithinOperationLimit(notionalUsd: number | null): void {
+  const cap = withdrawalMaxUsdPerOperation();
+  if (notionalUsd === null) {
+    throw new DomainError(
+      "UPSTREAM",
+      "No pudimos valorar la salida. No se armó ninguna transacción.",
+    );
+  }
+  if (!Number.isFinite(notionalUsd) || notionalUsd <= 0) {
+    throw new DomainError("VALIDATION", "El monto de la salida no es válido.");
+  }
+  if (notionalUsd > cap) {
+    throw new DomainError(
+      "LIMIT_ORDER",
+      `El tope por salida es US$${Number(cap.toFixed(2))}. Divide el envío en partes.`,
+    );
+  }
 }
 
 /**
