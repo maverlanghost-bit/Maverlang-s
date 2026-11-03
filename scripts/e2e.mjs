@@ -17,6 +17,9 @@ for (const [key, value] of Object.entries(process.env)) {
 }
 env.AUTH_MODE = "mock";
 env.NEXT_PUBLIC_AUTH_MODE = "mock";
+// A-01: el e2e corre la demo sobre un build/`next start` de producción.
+// ALLOW_MOCK_AUTH=true es el opt-in explícito que el guard de auth exige.
+env.ALLOW_MOCK_AUTH = "true";
 env.DATA_MODE = "mock";
 env.NEXT_PUBLIC_DATA_MODE = "mock";
 env.PRICES_MODE = "mock";

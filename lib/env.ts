@@ -109,7 +109,11 @@ function countryListEnv(fallback: string[]) {
 
 const dataModeEnv = () => enumEnv(["mock", "live"] as const, "mock");
 
-/** Valor inválido o vacío → mock, para que el proceso no se caiga al arrancar. El modo efectivo está en `authMode()`. */
+/**
+ * Valor inválido o vacío → mock en el esquema, para no tumbar el parseo en
+ * desarrollo. El modo efectivo lo decide `authMode()`: en producción un typo
+ * lanza y la demo exige `ALLOW_MOCK_AUTH=true` (A-01).
+ */
 function authFlagEnv() {
   return z.preprocess((value) => {
     const cleaned = cleanEnv(value)?.toLowerCase();
@@ -178,6 +182,14 @@ function buildServerSchema(source: EnvSource) {
     DATA_MODE: dataModeEnv(),
     /** mock | supabase. El modo efectivo exige además URL y clave pública (`authMode`). */
     AUTH_MODE: authFlagEnv(),
+    /**
+     * Auditoría A-01: aceptar la demo de autenticación en producción.
+     * Default `false`: con `NODE_ENV=production` o `VERCEL_ENV=production`
+     * `authMode()` lanza si el modo resuelto es mock y la cookie
+     * `a24_mock_session` no autentica. Sólo un `true` explícito publica la
+     * demo. (En Vercel la variable vive en el entorno del proyecto, no en el repo.)
+     */
+    ALLOW_MOCK_AUTH: boolEnv(false),
     /**
      * Precio actual y dólar. Si la variable no existe, queda `mock` (tests y CI): no llama a Jupiter, al RPC ni a mindicador.
      * Con `live`, el historial de referencia se reescala al spot y el dólar sale de `FX_SOURCE_URL`.
