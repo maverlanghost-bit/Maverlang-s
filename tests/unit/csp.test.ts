@@ -48,6 +48,34 @@ describe("M48: política de producción", () => {
     expect(connect).toContain("wss://proyecto-test.supabase.co");
   });
 
+  it("M-01: sin comodín, ningún proyecto Supabase ajeno entra al connect-src", () => {
+    const connect = directiveOf(policy, "connect-src");
+    expect(connect).not.toMatch(/\*\.supabase\.co/);
+    expect(connect.split(/\s+/).filter((token) => token.includes("supabase.co"))).toEqual([
+      "https://proyecto-test.supabase.co",
+      "wss://proyecto-test.supabase.co",
+    ]);
+  });
+
+  it("M-01: sin NEXT_PUBLIC_SUPABASE_URL falla cerrado (sólo 'self', sin comodín)", () => {
+    const sinUrl = buildCsp({ nonce: "abc123==", isDev: false });
+    const connect = directiveOf(sinUrl, "connect-src");
+    expect(connect).not.toContain("supabase.co");
+    expect(connect).not.toMatch(/\*\.supabase\.co/);
+    expect(connect.replace(/^connect-src\s+/, "").split(/\s+/)[0]).toBe("'self'");
+    // Un valor inválido tampoco habilita comodines ni hosts arbitrarios.
+    const basura = buildCsp({ nonce: "abc123==", isDev: false, supabaseUrl: "no-es-una-url" });
+    expect(directiveOf(basura, "connect-src")).not.toContain("supabase.co");
+  });
+
+  it("M-01: require-trusted-types-for queda fuera (rompería el JSON-LD)", () => {
+    // `lib/seo/jsonld.tsx` usa dangerouslySetInnerHTML y no hay política
+    // `trusted-types` registrada: activar la directiva lanzaría TypeError en
+    // el navegador. Si algún día se activa, este test debe cambiar a propósito.
+    expect(policy).not.toContain("require-trusted-types-for");
+    expect(policy).not.toContain("trusted-types");
+  });
+
   it("incluye Privy y el RPC sin hardcodear proyectos", () => {
     const connect = directiveOf(policy, "connect-src");
     expect(connect).toContain("https://auth.privy.io");
@@ -100,7 +128,7 @@ describe("M48: modo de CSP", () => {
 });
 
 describe("M48: cabeceras estáticas", () => {
-  it("las 6 cabeceras con valores exactos", () => {
+  it("las 9 cabeceras de producción con valores exactos", () => {
     const headers = Object.fromEntries(
       buildStaticHeaders({ isProd: true }).map(({ key, value }) => [key, value]),
     );
@@ -114,12 +142,22 @@ describe("M48: cabeceras estáticas", () => {
       "camera=(), microphone=(), geolocation=(), payment=(), usb=()",
     );
     expect(headers["Cross-Origin-Opener-Policy"]).toBe("same-origin-allow-popups");
+    expect(headers["Cross-Origin-Resource-Policy"]).toBe("same-origin");
+    expect(headers["X-DNS-Prefetch-Control"]).toBe("off");
+    expect(headers["X-Permitted-Cross-Domain-Policies"]).toBe("none");
+    expect(Object.keys(headers)).toHaveLength(9);
   });
 
   it("HSTS sólo en producción", () => {
     const keys = buildStaticHeaders({ isProd: false }).map(({ key }) => key);
     expect(keys).not.toContain("Strict-Transport-Security");
-    expect(keys).toHaveLength(5);
+    expect(keys).toHaveLength(8);
+  });
+
+  it("no activa COEP (rompería imágenes e iframes de terceros)", () => {
+    expect(buildStaticHeaders({ isProd: true }).map(({ key }) => key)).not.toContain(
+      "Cross-Origin-Embedder-Policy",
+    );
   });
 });
 
@@ -136,11 +174,25 @@ describe("M48: next.config", () => {
       "Referrer-Policy",
       "Permissions-Policy",
       "Cross-Origin-Opener-Policy",
+      "Cross-Origin-Resource-Policy",
+      "X-DNS-Prefetch-Control",
+      "X-Permitted-Cross-Domain-Policies",
     ]) {
       expect(keys).toContain(key);
     }
+  });
+
+  it("B-01: /api/* recibe nosniff y CORP desde next.config", async () => {
+    const rules = await nextConfig.headers!();
     const api = rules.find((rule) => rule.source === "/api/:path*");
-    expect(api?.headers.map((header) => header.key)).toContain("X-Content-Type-Options");
+    expect(api).toBeDefined();
+    const headers = Object.fromEntries(
+      (api?.headers ?? []).map((header) => [header.key, header.value]),
+    );
+    expect(headers["X-Content-Type-Options"]).toBe("nosniff");
+    expect(headers["Cross-Origin-Resource-Policy"]).toBe("same-origin");
+    expect(headers["X-DNS-Prefetch-Control"]).toBe("off");
+    expect(headers["X-Permitted-Cross-Domain-Policies"]).toBe("none");
   });
 });
 

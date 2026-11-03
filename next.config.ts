@@ -1,6 +1,6 @@
 import type { NextConfig } from "next";
 
-import { buildStaticHeaders } from "./lib/security/headers";
+import { buildApiHeaders, buildStaticHeaders } from "./lib/security/headers";
 
 const distDir = process.env.NEXT_DIST_DIR?.trim();
 const isProd = process.env.NODE_ENV === "production";
@@ -16,11 +16,12 @@ const nextConfig: NextConfig = {
   async headers() {
     const pageHeaders = buildStaticHeaders({ isProd }).map(({ key, value }) => ({ key, value }));
     return [
+      // Cubre páginas, estáticos y también `/api/*` (Next aplica todas las
+      // reglas que hacen match y la última gana por cabecera).
       { source: "/(.*)", headers: pageHeaders },
-      {
-        source: "/api/:path*",
-        headers: [{ key: "X-Content-Type-Options", value: "nosniff" }],
-      },
+      // B-01: la API se declara aparte para que CORP/nosniff no dependan del
+      // matcher del middleware ni de la regla general.
+      { source: "/api/:path*", headers: buildApiHeaders() },
     ];
   },
 };

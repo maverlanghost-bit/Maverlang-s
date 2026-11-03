@@ -3,8 +3,9 @@
  * para poder usarlas en `middleware.ts` (edge), `next.config.ts` y tests.
  *
  * Orígenes externos verificados:
- * - Supabase (REST, auth y websockets): `*.supabase.co` + origen del proyecto
- *   desde env (sin hardcodear el proyecto).
+ * - Supabase (REST, auth y websockets): sólo el origen exacto del proyecto
+ *   desde `NEXT_PUBLIC_SUPABASE_URL` (https y su wss). M-01: sin comodín
+ *   `*.supabase.co`, que dejaba exfiltrar a cualquier proyecto Supabase.
  * - Privy (`lib/auth/privy-provider.tsx` + https://docs.privy.io/security/implementation-guide/content-security-policy):
  *   `auth.privy.io`, `*.privy.io`, `*.privy.systems`, RPC `*.rpc.privy.systems`,
  *   Turnstile `challenges.cloudflare.com`.
@@ -104,7 +105,7 @@ export type BuildCspInput = {
   nonce: string;
   /** `true` en desarrollo: Next necesita `'unsafe-eval'`. Nunca en producción. */
   isDev: boolean;
-  /** `NEXT_PUBLIC_SUPABASE_URL` (opcional; el comodín cubre cualquier proyecto). */
+  /** `NEXT_PUBLIC_SUPABASE_URL` (opcional: sin ella no se agrega comodín). */
   supabaseUrl?: string | undefined | null;
   /** `NEXT_PUBLIC_SOLANA_RPC_URL` ya resuelta u origen (opcional; cae al cluster). */
   rpcUrl?: string | undefined | null;
@@ -118,12 +119,14 @@ export function buildCsp(input: BuildCspInput): string {
   const nonce = sanitizeNonce(input.nonce);
   const cluster = cleanToken(input.rpcCluster) ?? "mainnet-beta";
 
-  const connect: string[] = [
-    "'self'",
-    "https://*.supabase.co",
-    "wss://*.supabase.co",
-    ...PRIVY_CONNECT,
-  ];
+  // M-01 (auditoría W-02): sin `https://*.supabase.co` ni `wss://*.supabase.co`.
+  // Sólo entra el origen exacto del proyecto (`NEXT_PUBLIC_SUPABASE_URL`, más
+  // su wss). Si la variable falta en producción no se agrega comodín: la
+  // política queda en `'self'` + Privy + RPC y la app no puede hablar con
+  // Supabase. Eso falla cerrado y se ve de inmediato (`lib/env.ts`
+  // `productionGaps` ya exige la variable), en vez de autorizar exfiltración a
+  // cualquier proyecto Supabase que cree un atacante.
+  const connect: string[] = ["'self'", ...PRIVY_CONNECT];
   const supabaseOrigin = originOf(input.supabaseUrl);
   if (supabaseOrigin && !connect.includes(supabaseOrigin)) connect.push(supabaseOrigin);
   const supabaseWss = wssOf(supabaseOrigin);
@@ -132,6 +135,13 @@ export function buildCsp(input: BuildCspInput): string {
     originOf(input.rpcUrl) ?? CLUSTER_RPC_ORIGIN[cluster] ?? CLUSTER_RPC_ORIGIN["mainnet-beta"];
   if (rpcOrigin && !connect.includes(rpcOrigin)) connect.push(rpcOrigin);
 
+  // M-01: `require-trusted-types-for 'script'` queda fuera a propósito.
+  // `lib/seo/jsonld.tsx` usa `dangerouslySetInnerHTML` (React asigna
+  // `innerHTML`, sink de Trusted Types) y no hay política registrada: con la
+  // directiva activa ese render lanza TypeError y las páginas se quedan sin
+  // JSON-LD o en blanco. Privy, Google Identity y el SDK de Supabase tampoco
+  // documentan soporte. Antes de activarla: rollout en `report-only`, política
+  // `trusted-types` propia y verificación manual del login.
   const script = ["'self'", `'nonce-${nonce}'`, "'strict-dynamic'", "https://challenges.cloudflare.com"];
   if (input.isDev) script.push("'unsafe-eval'");
 
