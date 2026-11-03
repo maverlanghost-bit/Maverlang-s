@@ -271,6 +271,7 @@ export type ApiErrorCode =
   // M55: compra de un activo en revisión (sólo compra; la venta sigue M54c).
   | "ASSET_UNAVAILABLE"
   | "RATE_LIMITED"
+  | "RATE_LIMIT_UNAVAILABLE"
   | "PAYLOAD_TOO_LARGE"
   | "REAL_DISABLED"
   // M74: límites por usuario y globales.

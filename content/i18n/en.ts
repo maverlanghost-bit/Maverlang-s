@@ -319,6 +319,8 @@ export const en = {
       // M55: buying an asset under review (sell still allowed).
       ASSET_UNAVAILABLE: "This asset is under review and can't be traded right now.",
       RATE_LIMITED: "Too many requests. Try again in a few seconds.",
+      RATE_LIMIT_UNAVAILABLE:
+        "Request control is unavailable right now. Try again in a few minutes.",
       PAYLOAD_TOO_LARGE: "The data is too large.",
       REAL_DISABLED: "Real money isn't available in this demo yet.",
       // M74: user limits and kill switches.

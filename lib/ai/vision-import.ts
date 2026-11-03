@@ -148,7 +148,7 @@ export async function reserveAiCall(subject: string): Promise<{ ok: boolean; res
 
 export function rateSubject(userId: string | null, req: Request): string {
   if (userId && userId.trim()) return `user:${userId.trim()}`;
-  return `ip:${ipOfRequest(req)}`;
+  return `ip:${ipOfRequest(req) ?? "unknown"}`;
 }
 
 let cachedCatalog: CatalogRef[] | null = null;

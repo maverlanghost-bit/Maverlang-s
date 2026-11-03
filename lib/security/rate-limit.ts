@@ -1,5 +1,7 @@
 import "server-only";
 
+import { isIP } from "node:net";
+
 import { Ratelimit } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
 
@@ -10,8 +12,10 @@ import { errorMessage, fail } from "@/lib/api/result";
  * instancias de Vercel) y ventana deslizante en memoria en local o tests.
  *
  * `limit(key, policy)` es la primitiva. `withRateLimit(req, policy, parts)`
- * es el atajo para las rutas: devuelve `null` si pasa o la respuesta 429
- * con `Retry-After` si no. Siempre ANTES de llamar servicios externos.
+ * es el atajo para las rutas: devuelve `null` si pasa, la 429 con
+ * `Retry-After` si no, o la 503 si el backend no puede aplicar el cupo de
+ * una política sensible (A-02/A1-03: no se falla abierto a memoria).
+ * Siempre ANTES de llamar servicios externos.
  */
 
 /** Ventanas en ms. `trade` lleva dos topes: por usuario y por IP. */
@@ -56,7 +60,27 @@ export interface RateLimitResult {
   ok: boolean;
   remaining: number;
   resetMs: number;
+  /** El backend no puede aplicar el cupo: la ruta debe fallar cerrada (503). */
+  unavailable?: boolean;
 }
+
+/**
+ * Políticas que protegen costo real (Jupiter/xAI), escrituras o spam.
+ * En producción y sin backend global NO se sirven con memoria por instancia:
+ * `withRateLimit` responde 503 en vez de multiplicar el cupo por cada lambda.
+ */
+export const SENSITIVE_RATE_LIMIT_POLICIES = [
+  "trade",
+  "tradeIp",
+  "ai",
+  "waitlist",
+  "search",
+  "prices",
+  "webhook",
+  "cron",
+] as const satisfies readonly RateLimitPolicyName[];
+
+const SENSITIVE_POLICIES: ReadonlySet<RateLimitPolicyName> = new Set(SENSITIVE_RATE_LIMIT_POLICIES);
 
 type Backend = "memory" | "upstash" | "auto";
 
@@ -71,16 +95,28 @@ function upstashConfigured(): boolean {
   );
 }
 
+function isProduction(): boolean {
+  return process.env.NODE_ENV === "production";
+}
+
 let warnedNoUpstash = false;
 let warnedUpstashDown = false;
+let warnedUnavailable = false;
 
 /** En producción sin Upstash la memoria no es global: se avisa una vez. */
 function warnProductionMemoryOnce(): void {
-  if (warnedNoUpstash || process.env.NODE_ENV !== "production") return;
+  if (warnedNoUpstash || !isProduction()) return;
   warnedNoUpstash = true;
   console.warn(
     "rate-limit: sin UPSTASH_REDIS_REST_URL/TOKEN, con memoria local (no es global entre instancias).",
   );
+}
+
+/** Política sensible sin backend global: se falla cerrado y se avisa una vez. */
+function warnUnavailableOnce(reason: string): void {
+  if (warnedUnavailable) return;
+  warnedUnavailable = true;
+  console.error(`rate-limit: ${reason} Las políticas sensibles responden 503 hasta configurar Upstash.`);
 }
 
 /**
@@ -96,16 +132,137 @@ export function resolvePolicy(name: RateLimitPolicyName): RateLimitPolicy {
   return { limit: base.limit, windowMs: base.windowMs };
 }
 
-/** IP en Vercel: primer valor de `x-forwarded-for`, o `x-real-ip`. */
-export function ipOfRequest(req: Request): string {
-  const forwarded = req.headers.get("x-forwarded-for");
-  if (forwarded) {
-    const first = forwarded.split(",")[0]?.trim();
-    if (first) return first.slice(0, 200);
+/* --- IP del cliente (A-02/A1-03: el sujeto no puede venir del cliente) --- */
+
+/** Largo máximo de una IPv6 con IPv4 embebida (`xxxx:…:255.255.255.255`). */
+const MAX_IP_LENGTH = 45;
+
+/** IPv6 → forma canónica RFC 5952; una IPv4 mapeada vuelve como IPv4 en punto. */
+function canonicalIpv6(raw: string): string | null {
+  const lower = raw.toLowerCase();
+  // Zona (`fe80::1%eth0`) y corchetes (`[::1]`) fuera: no son una IP de cabecera.
+  if (lower.includes("%") || lower.includes("[")) return null;
+
+  let text = lower;
+  const tailStart = lower.lastIndexOf(":") + 1;
+  const tail = lower.slice(tailStart);
+  if (tail.includes(".")) {
+    if (isIP(tail) !== 4) return null;
+    const octets = tail.split(".").map((part) => Number.parseInt(part, 10));
+    if (octets.length !== 4 || octets.some((octet) => !Number.isInteger(octet))) return null;
+    const high = ((octets[0]! << 8) | octets[1]!).toString(16);
+    const low = ((octets[2]! << 8) | octets[3]!).toString(16);
+    text = `${lower.slice(0, tailStart)}${high}:${low}`;
   }
-  const real = req.headers.get("x-real-ip")?.trim();
-  if (real) return real.slice(0, 200);
-  return "unknown";
+
+  const halves = text.split("::");
+  if (halves.length > 2) return null;
+  const split = (part: string | undefined): string[] => (part ? part.split(":") : []);
+  const left = split(halves[0]);
+  const right = halves.length === 2 ? split(halves[1]) : [];
+  const missing = 8 - left.length - right.length;
+  // `::` tiene que abreviar al menos un grupo; sin `::` deben ser ocho exactos.
+  if (halves.length === 2 ? missing < 1 : missing !== 0) return null;
+
+  const groups = [...left, ...Array.from({ length: missing }, () => "0"), ...right];
+  const hex: string[] = [];
+  for (const group of groups) {
+    if (!/^[0-9a-f]{1,4}$/.test(group)) return null;
+    hex.push(Number.parseInt(group, 16).toString(16));
+  }
+
+  // `::ffff:1.2.3.4` y `::ffff:102:304` son la misma IPv4: se canonicalizan a punto.
+  if (hex.slice(0, 5).every((part) => part === "0") && hex[5] === "ffff") {
+    const high = Number.parseInt(hex[6]!, 16);
+    const low = Number.parseInt(hex[7]!, 16);
+    return `${high >> 8}.${high & 0xff}.${low >> 8}.${low & 0xff}`;
+  }
+
+  return compressIpv6(hex);
+}
+
+/** Comprime la corrida de ceros más larga (la primera si hay empate). */
+function compressIpv6(groups: readonly string[]): string {
+  let bestStart = -1;
+  let bestLength = 0;
+  for (let index = 0; index < groups.length; ) {
+    if (groups[index] !== "0") {
+      index += 1;
+      continue;
+    }
+    let end = index;
+    while (end < groups.length && groups[end] === "0") end += 1;
+    const length = end - index;
+    if (length >= 2 && length > bestLength) {
+      bestStart = index;
+      bestLength = length;
+    }
+    index = end;
+  }
+  if (bestStart < 0) return groups.join(":");
+  const head = groups.slice(0, bestStart).join(":");
+  const tail = groups.slice(bestStart + bestLength).join(":");
+  return `${head}::${tail}`;
+}
+
+/** IP canónica: IPv4 en punto o IPv6 comprimida en minúsculas; si no es IP, `null`. */
+export function canonicalIp(value: string): string | null {
+  const candidate = value.trim();
+  if (!candidate || candidate.length > MAX_IP_LENGTH) return null;
+  const family = isIP(candidate);
+  if (family === 4) return candidate;
+  if (family === 6) return canonicalIpv6(candidate);
+  return null;
+}
+
+/** Descarta loopback, privadas, link-local, CGNAT, multicast y reservadas. */
+function isPublicIp(ip: string): boolean {
+  if (isIP(ip) === 4) {
+    const octets = ip.split(".").map((part) => Number.parseInt(part, 10));
+    const [a, b] = octets;
+    if (a === undefined || b === undefined) return false;
+    if (a === 0 || a === 10 || a === 127) return false;
+    if (a === 169 && b === 254) return false;
+    if (a === 172 && b >= 16 && b <= 31) return false;
+    if (a === 192 && b === 168) return false;
+    if (a === 100 && b >= 64 && b <= 127) return false;
+    if (a === 198 && (b === 18 || b === 19)) return false;
+    if (a >= 224) return false;
+    return true;
+  }
+  if (ip === "::" || ip === "::1") return false;
+  const first = Number.parseInt(ip.split(":")[0] || "0", 16);
+  if ((first & 0xfe00) === 0xfc00) return false; // fc00::/7 (ULA)
+  if ((first & 0xffc0) === 0xfe80) return false; // fe80::/10 (link-local)
+  if ((first & 0xff00) === 0xff00) return false; // ff00::/8 (multicast)
+  return true;
+}
+
+/** Valor público más a la derecha de una lista; nunca el primero a ciegas. */
+function publicIpFromList(value: string | null): string | null {
+  if (!value) return null;
+  const parts = value.split(",");
+  for (let index = parts.length - 1; index >= 0; index -= 1) {
+    const ip = canonicalIp(parts[index] ?? "");
+    if (ip && isPublicIp(ip)) return ip;
+  }
+  return null;
+}
+
+/**
+ * IP del cliente, o `null` si ninguna cabecera trae una IP pública válida.
+ *
+ * Orden: `x-real-ip` → `x-vercel-forwarded-for` (los pone la plataforma y
+ * `XFF` no los puede sobrescribir) → `x-forwarded-for`, del que se toma el
+ * valor público **más a la derecha**. Se valida con `node:net` y se
+ * canonicaliza (IPv4 mapeada incluida); loopback y privadas se ignoran.
+ */
+export function ipOfRequest(req: Request): string | null {
+  return (
+    publicIpFromList(req.headers.get("x-real-ip")) ??
+    publicIpFromList(req.headers.get("x-vercel-forwarded-for")) ??
+    publicIpFromList(req.headers.get("x-forwarded-for"))
+  );
 }
 
 function sanitizePart(part: string): string {
@@ -140,6 +297,10 @@ function memoryLimit(key: string, policy: RateLimitPolicy, now: number): RateLim
   return { ok: true, remaining: policy.limit - fresh.length, resetMs: policy.windowMs };
 }
 
+function unavailableResult(): RateLimitResult {
+  return { ok: false, remaining: 0, resetMs: 0, unavailable: true };
+}
+
 /* --- Upstash (producción, global) --- */
 
 let redisClient: Redis | null = null;
@@ -152,6 +313,9 @@ function upstashLimiter(policy: RateLimitPolicy): Ratelimit {
   redisClient ??= new Redis({
     url: process.env.UPSTASH_REDIS_REST_URL!.trim(),
     token: process.env.UPSTASH_REDIS_REST_TOKEN!.trim(),
+    // Sin reintentos: con Redis caído cada request debe fallar rápido (429/503),
+    // no sumar segundos de backoff antes de decidir.
+    retry: false,
   });
   const limiter = new Ratelimit({
     redis: redisClient,
@@ -170,22 +334,46 @@ export function __resetRateLimitsForTests(): void {
   redisClient = null;
   warnedNoUpstash = false;
   warnedUpstashDown = false;
+  warnedUnavailable = false;
 }
 
 /**
  * Primitiva: `limit(key, policy)` → `{ ok, remaining, resetMs }`.
- * Con Upstash configurado (o `RATE_LIMIT_BACKEND=upstash`) usa Redis;
- * si no, memoria. Si Upstash falla, avisa una vez y cae a memoria
- * (disponibilidad antes que bloqueo en la demo).
+ *
+ * Backend: `RATE_LIMIT_BACKEND=upstash` exige credenciales; `auto` usa Redis
+ * si están y memoria si no; `memory` explícito siempre usa memoria.
+ * `policyName` marca las políticas sensibles: en producción, sin backend
+ * global disponible, NO caen a memoria por instancia y devuelven
+ * `{ ok: false, unavailable: true }` para que la ruta responda 503. Sin
+ * nombre se asume sensible (fail-closed): sólo `withRateLimit` conoce las
+ * políticas que pueden seguir con memoria.
  */
-export async function limit(key: string, policy: RateLimitPolicy): Promise<RateLimitResult> {
+export async function limit(
+  key: string,
+  policy: RateLimitPolicy,
+  policyName?: RateLimitPolicyName,
+): Promise<RateLimitResult> {
   const backend = backendOf();
-  const useUpstash = backend === "upstash" || (backend === "auto" && upstashConfigured());
-  if (!useUpstash) {
-    if (backend === "auto" && !upstashConfigured()) warnProductionMemoryOnce();
+  if (backend === "memory") return memoryLimit(key, policy, Date.now());
+
+  const sensitive = policyName ? SENSITIVE_POLICIES.has(policyName) : true;
+  // `upstash` explícito siempre falla cerrado; `auto` sólo en producción y
+  // para políticas sensibles. El resto mantiene la memoria por disponibilidad.
+  const failClosed = backend === "upstash" || (isProduction() && sensitive);
+
+  if (!upstashConfigured()) {
+    if (failClosed) {
+      warnUnavailableOnce(
+        backend === "upstash"
+          ? "RATE_LIMIT_BACKEND=upstash sin UPSTASH_REDIS_REST_URL/TOKEN."
+          : "producción sin UPSTASH_REDIS_REST_URL/TOKEN.",
+      );
+      return unavailableResult();
+    }
+    warnProductionMemoryOnce();
     return memoryLimit(key, policy, Date.now());
   }
-  if (backend === "upstash" && !upstashConfigured()) warnProductionMemoryOnce();
+
   try {
     const outcome = await upstashLimiter(policy).limit(key);
     return {
@@ -194,6 +382,10 @@ export async function limit(key: string, policy: RateLimitPolicy): Promise<RateL
       resetMs: Math.max(0, outcome.reset - Date.now()),
     };
   } catch {
+    if (failClosed) {
+      warnUnavailableOnce("Upstash no respondió.");
+      return unavailableResult();
+    }
     if (!warnedUpstashDown) {
       warnedUpstashDown = true;
       console.warn("rate-limit: Upstash no respondió, con memoria local.");
@@ -209,8 +401,22 @@ function rateLimitHeaders(resetMs: number): Headers {
   return headers;
 }
 
+/** 503 cuando el backend no puede aplicar el cupo: se falla cerrado, no abierto. */
+function unavailableResponse(shape: "result" | "plain"): Response {
+  const message = errorMessage("RATE_LIMIT_UNAVAILABLE");
+  const body =
+    shape === "plain"
+      ? { error: { code: "RATE_LIMIT_UNAVAILABLE", message } }
+      : fail("RATE_LIMIT_UNAVAILABLE", message);
+  const headers = new Headers();
+  headers.set("Retry-After", "30");
+  headers.set("Cache-Control", "no-store");
+  return Response.json(body, { status: 503, headers });
+}
+
 /**
- * Atajo para las rutas con `handle()`: si pasa, `null`; si no, la 429.
+ * Atajo para las rutas con `handle()`: si pasa, `null`; si no, la 429; si el
+ * backend no puede aplicar el cupo, la 503.
  * `parts` identifica al sujeto (p. ej. `[userId]`); vacío = por IP.
  * `shape "plain"` (`/api/waitlist`, sin `handle`) devuelve
  * `{ error: { code, message } }`; si no, el `ApiResult` con el mismo error.
@@ -222,8 +428,9 @@ export async function withRateLimit(
   shape: "result" | "plain" = "result",
 ): Promise<Response | null> {
   const policy = resolvePolicy(policyName);
-  const subject = parts.length > 0 ? parts : [ipOfRequest(req)];
-  const result = await limit(keyOf(policyName, subject), policy);
+  const subject = parts.length > 0 ? parts : [ipOfRequest(req) ?? "unknown"];
+  const result = await limit(keyOf(policyName, subject), policy, policyName);
+  if (result.unavailable) return unavailableResponse(shape);
   if (result.ok) return null;
   const message = errorMessage("RATE_LIMITED");
   const body =
