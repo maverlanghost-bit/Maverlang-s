@@ -9,6 +9,11 @@ on:
   push:
     branches: [main]
 
+# CI corre la demo en mock a propósito; el build es NODE_ENV=production y el
+# fix de auth (A-01) exige un opt-in explícito para no degradar a demo.
+env:
+  ALLOW_MOCK_AUTH: "true"
+
 jobs:
   checks:
     name: checks (typecheck, lint, test, secretos, dependencias)

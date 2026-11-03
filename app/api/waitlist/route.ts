@@ -4,9 +4,7 @@ import { waitlistRequestSchema } from "@/lib/api/contracts";
 import { assertSameOrigin, parseJson } from "@/lib/api/handler";
 import { DomainError } from "@/lib/api/result";
 import { withRateLimit } from "@/lib/security/rate-limit";
-import { postWaitlist, WAITLIST_SUCCESS_MESSAGE } from "@/lib/waitlist/server";
-
-export { WAITLIST_SUCCESS_MESSAGE };
+import { postWaitlist } from "@/lib/waitlist/server";
 
 export const runtime = "nodejs";
 
