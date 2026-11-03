@@ -132,6 +132,12 @@ export interface OrderExecutionClaim {
   /** Notional en dólares que se validó contra la cotización/reserva. */
   notionalUsd: number;
   quoteExpiresAt: string | null;
+  /**
+   * Firma base58 de la tx firmada por el cliente, derivada por el servidor
+   * ANTES de llamar a Jupiter (D-05). Sin ella, una respuesta perdida de
+   * `/execute` dejaría una orden `pending` imposible de conciliar on-chain.
+   */
+  signature?: string | null;
 }
 
 export interface ClaimedOrder {
@@ -159,10 +165,10 @@ export async function claimOrderExecution(row: OrderExecutionClaim): Promise<Cla
       fee_usd: row.feeUsd,
       notional_usd: row.notionalUsd,
       status: "pending",
-      signature: null,
+      signature: row.signature ?? null,
       error: null,
       is_demo: false,
-      tx_signature: null,
+      tx_signature: row.signature ?? null,
       quote_expires_at: row.quoteExpiresAt,
     })
     .select("id,status,signature")
@@ -197,15 +203,20 @@ export async function finalizeOrderExecution(
   outcome: { status: "submitted" | "failed"; signature: string | null; error: string | null },
 ): Promise<boolean> {
   const admin = createSupabaseAdminClient();
+  const patch: Record<string, unknown> = {
+    status: outcome.status,
+    error: outcome.error,
+    updated_at: new Date().toISOString(),
+  };
+  // D-05: la firma derivada al reclamar la orden NO se borra si Jupiter no la
+  // devuelve. Es la única evidencia para conciliar on-chain tras un timeout.
+  if (outcome.signature) {
+    patch.signature = outcome.signature;
+    patch.tx_signature = outcome.signature;
+  }
   const { data, error } = await admin
     .from("orders")
-    .update({
-      status: outcome.status,
-      signature: outcome.signature,
-      tx_signature: outcome.signature,
-      error: outcome.error,
-      updated_at: new Date().toISOString(),
-    })
+    .update(patch)
     .eq("id", id)
     .eq("status", "pending")
     .select("id");

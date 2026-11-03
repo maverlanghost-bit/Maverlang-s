@@ -32,6 +32,28 @@ export function decodeBase58(value: string): Uint8Array | null {
   return Uint8Array.from(bytes).reverse();
 }
 
+/** Base58 del alfabeto de Bitcoin/Solana. Bytes vacíos → cadena vacía. */
+export function encodeBase58(bytes: Uint8Array): string {
+  let zeros = 0;
+  while (zeros < bytes.length && (bytes[zeros] ?? 0) === 0) zeros += 1;
+  const digits: number[] = [];
+  for (let i = zeros; i < bytes.length; i += 1) {
+    let carry = bytes[i] ?? 0;
+    for (let j = 0; j < digits.length; j += 1) {
+      carry += (digits[j] ?? 0) * 256;
+      digits[j] = carry % 58;
+      carry = Math.floor(carry / 58);
+    }
+    while (carry > 0) {
+      digits.push(carry % 58);
+      carry = Math.floor(carry / 58);
+    }
+  }
+  let out = "1".repeat(zeros);
+  for (let i = digits.length - 1; i >= 0; i -= 1) out += ALPHABET.charAt(digits[i] ?? 0);
+  return out;
+}
+
 /** Acepta espacios al borde. El resto tiene que decodificar a 32 bytes. */
 export function isValidSolanaAddress(value: string): boolean {
   const trimmed = value.trim();

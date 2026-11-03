@@ -3,14 +3,18 @@
  * abiertas (`pending`/`submitted`, `is_demo = false`) con antigüedad mínima
  * y las cierra según el estado on-chain:
  *
- * - `pending` sin firma y cotización vencida (por antigüedad o
- *   `quote_expires_at`) → `expired` con `error_code = 'QUOTE_EXPIRED'`.
- * - `submitted` con firma confirmada/finalizada sin error → `confirmed`
- *   con `confirmed_at`.
- * - `submitted` con firma que falló on-chain → `failed` con `error_code` y
- *   mensaje humano de `translateSolanaError` (M73).
- * - `submitted` con firma no encontrada y antigüedad sobre el límite →
- *   `expired` con `error_code = 'TX_EXPIRED'`.
+ * - Con firma conocida (`tx_signature`), sea `pending` o `submitted`:
+ *   confirmada/finalizada sin error → `confirmed` con `confirmed_at`;
+ *   la tx falló on-chain → `failed` con `error_code` y mensaje humano de
+ *   `translateSolanaError` (M73); firma no encontrada y antigüedad sobre el
+ *   límite → `expired` con `error_code = 'TX_EXPIRED'`.
+ * - `pending` SIN firma: auditoría D-05. La transacción pudo haberse enviado
+ *   y perderse la respuesta de Jupiter, así que NO se cierra como `expired`
+ *   ni se libera su cupo: queda abierta, se cuenta en `needsReview` y se
+ *   avisa en el log para revisión humana. Cerrar sin evidencia permitía
+ *   operar de nuevo con el cupo ya usado.
+ * - El cupo sólo se libera con evidencia: nunca para una orden confirmada y
+ *   nunca para una `expired` sin firma registrada (`mayReleaseReservation`).
  *
  * La decisión es PURA (`pendingQuoteExpired`/`decideSubmitted`); el acceso
  * a datos y al RPC vive en deps inyectables: `listOpenRealOrders` y
@@ -97,6 +101,12 @@ export interface ReconcileSummary {
   failed: number;
   expired: number;
   unchanged: number;
+  /**
+   * Órdenes `pending` sin firma y con la cotización vencida: pudieron
+   * ejecutarse y perderse la respuesta. No se cierran solas (D-05); requieren
+   * revisión humana contra Jupiter/la cadena.
+   */
+  needsReview: number;
   durationMs: number;
 }
 
@@ -119,9 +129,28 @@ function parseMs(iso: string | null | undefined): number | null {
 }
 
 /**
+ * ¿Se puede liberar el cupo de esta orden? Sólo con evidencia de que NO se
+ * ejecutó (auditoría D-05):
+ *
+ * - `confirmed` nunca libera (el gasto lo cuenta `orders`).
+ * - `expired` sólo con firma registrada: la firma se consultó en la cadena y
+ *   no apareció. Sin firma no hay evidencia y el cupo se queda retenido.
+ * - `failed` sí: la orden fue rechazada por integridad, por error on-chain
+ *   conocido o por una reserva invalidada; no hay ejecución pendiente.
+ */
+export function mayReleaseReservation(row: ReconcileRow, patch: ReconcileOrderPatch): boolean {
+  if (patch.status === "confirmed") return false;
+  if (patch.status === "expired") return Boolean(row.tx_signature);
+  return patch.status === "failed";
+}
+
+/**
  * ¿Venció la cotización de una orden `pending` sin firma? Por antigüedad
  * (`created_at` sobre `expireMinutes`) o porque `quote_expires_at` ya pasó.
  * Puro: no toca red ni base.
+ *
+ * Ya NO decide una expiración: una `pending` sin firma pudo ejecutarse
+ * (D-05), así que sólo marca que la orden necesita revisión humana.
  */
 export function pendingQuoteExpired(row: ReconcileRow, nowMs: number, expireMinutes: number): boolean {
   const createdMs = parseMs(row.created_at);
@@ -200,6 +229,7 @@ export async function reconcilePendingOrders(deps: ReconcileDeps = {}): Promise<
       failed: 0,
       expired: 0,
       unchanged: 0,
+      needsReview: 0,
       durationMs: 0,
     };
   }
@@ -229,18 +259,25 @@ export async function reconcilePendingOrders(deps: ReconcileDeps = {}): Promise<
     log(`[reconcile-orders] no se pudo leer la tabla de órdenes: ${redactRpcSecrets(message)}`);
     rows = null;
   }
-  const finish = (counts: { confirmed: number; failed: number; expired: number; unchanged: number }, ok: boolean): ReconcileSummary => ({
+  const finish = (
+    counts: { confirmed: number; failed: number; expired: number; unchanged: number; needsReview: number },
+    ok: boolean,
+  ): ReconcileSummary => ({
     ok,
     mode,
     scanned: rows?.length ?? 0,
     ...counts,
     durationMs: Date.now() - startedAt,
   });
-  if (rows === null) return finish({ confirmed: 0, failed: 0, expired: 0, unchanged: 0 }, false);
+  if (rows === null) {
+    return finish({ confirmed: 0, failed: 0, expired: 0, unchanged: 0, needsReview: 0 }, false);
+  }
 
-  // Un solo lote on-chain con las firmas de las `submitted`.
+  // Un solo lote on-chain con las firmas conocidas. Desde D-05 una `pending`
+  // también puede traer firma (se guarda en el reclamo, antes de ejecutar) y
+  // se concilia igual que una `submitted`.
   const statuses = new Map<string, SignatureStatusRead | null | undefined>();
-  const submittedRows = rows.filter((row) => row.status === "submitted" && row.tx_signature);
+  const submittedRows = rows.filter((row) => row.tx_signature);
   if (submittedRows.length > 0) {
     const unique = [...new Set(submittedRows.map((row) => row.tx_signature).filter((sig): sig is string => Boolean(sig)))];
     try {
@@ -249,7 +286,7 @@ export async function reconcilePendingOrders(deps: ReconcileDeps = {}): Promise<
         statuses.set(signature, index < reads.length ? reads[index] : undefined);
       });
     } catch (error) {
-      // RPC caído: nada de `submitted` se decide en esta corrida (quedan
+      // RPC caído: ninguna orden con firma se decide en esta corrida (quedan
       // abiertas); se reintenta en el siguiente tick del cron.
       const message = error instanceof Error ? error.message : String(error);
       log(`[reconcile-orders] RPC de Solana no respondió: ${redactRpcSecrets(message)}`);
@@ -260,6 +297,7 @@ export async function reconcilePendingOrders(deps: ReconcileDeps = {}): Promise<
   let failed = 0;
   let expired = 0;
   let unchanged = 0;
+  let needsReview = 0;
   for (const row of rows) {
     let patch: ReconcileOrderPatch | null = null;
 
@@ -305,13 +343,18 @@ export async function reconcilePendingOrders(deps: ReconcileDeps = {}): Promise<
       }
     }
 
-    // 3. Estado on-chain / vencimiento de la cotización.
-    if (!patch && row.status === "pending" && !row.tx_signature) {
-      patch = pendingQuoteExpired(row, nowMs, pendingExpireMinutes)
-        ? { status: "expired", error_code: "QUOTE_EXPIRED" }
-        : null;
-    } else if (!patch && row.status === "submitted" && row.tx_signature) {
+    // 3. Estado on-chain / evidencia de ejecución (D-05). Sólo se decide con
+    //    una firma conocida: sin firma no hay forma de probar que la
+    //    operación NO se ejecutó, así que la orden queda abierta.
+    if (!patch && row.tx_signature) {
       patch = decideSubmitted(row, statuses.get(row.tx_signature), nowMs, submittedExpireMinutes);
+    } else if (!patch && row.status === "pending" && !row.tx_signature) {
+      if (pendingQuoteExpired(row, nowMs, pendingExpireMinutes)) {
+        // Pudo haberse enviado y perdido la respuesta: ni `expired` ni
+        // liberación de cupo. Se reporta para revisión humana.
+        needsReview += 1;
+        log(`[reconcile-orders] orden ${row.id} pending sin firma: requiere revisión manual`);
+      }
     }
 
     // `confirmed`/`failed`/`expired` no llegan por la lectura y una fila
@@ -320,9 +363,10 @@ export async function reconcilePendingOrders(deps: ReconcileDeps = {}): Promise<
       if (patch.status === "confirmed") confirmed += 1;
       else if (patch.status === "failed") failed += 1;
       else expired += 1;
-      // El cupo sólo se libera cuando la orden NO se ejecutó. Una confirmada
-      // mantiene su reserva consumida (el gasto lo cuenta `orders`).
-      if (patch.status !== "confirmed" && releaseReservation && row.user_id && row.request_id) {
+      // El cupo sólo se libera cuando la orden NO se ejecutó Y hay evidencia
+      // (D-05). Una confirmada mantiene su reserva consumida (el gasto lo
+      // cuenta `orders`) y una `expired` sin firma no libera nada.
+      if (mayReleaseReservation(row, patch) && releaseReservation && row.user_id && row.request_id) {
         try {
           await releaseReservation(row.user_id, row.request_id);
         } catch (error) {
@@ -334,5 +378,5 @@ export async function reconcilePendingOrders(deps: ReconcileDeps = {}): Promise<
       unchanged += 1;
     }
   }
-  return finish({ confirmed, failed, expired, unchanged }, true);
+  return finish({ confirmed, failed, expired, unchanged, needsReview }, true);
 }
