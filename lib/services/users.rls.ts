@@ -66,8 +66,27 @@ const DEFAULT_NOTIFY = {
 
 function throwDb(error: DbError): never {
   if (isMissingSchemaError(error)) throw new DomainError("INTERNAL", PROFILE_MIGRATION_MESSAGE);
-  if (error.code === "42501") throw new DomainError("VALIDATION", US_RESIDENT_MESSAGE);
-  if (error.code === "23514" || error.code === "23505" || error.code === "23503") {
+  if (error.code === "42501") {
+    const message = (error.message ?? "").toLowerCase();
+    if (message.includes("registro_us_person")) {
+      throw new DomainError("VALIDATION", US_RESIDENT_MESSAGE);
+    }
+    throw new DomainError("UNAUTHORIZED");
+  }
+  if (error.code === "P0002") throw new DomainError("NOT_FOUND", "No encontramos tu perfil.");
+  if (
+    error.code === "23514" ||
+    error.code === "23505" ||
+    error.code === "23503" ||
+    error.code === "22023"
+  ) {
+    const message = (error.message ?? "").toLowerCase();
+    if (message.includes("faltan_consentimientos")) {
+      throw new DomainError("VALIDATION", "Acepta los términos y la privacidad antes de continuar.");
+    }
+    if (message.includes("pais_bloqueado") || message.includes("us_person_bloqueado")) {
+      throw new DomainError("VALIDATION", US_RESIDENT_MESSAGE);
+    }
     throw new DomainError("VALIDATION", "Los datos no son válidos.");
   }
   throw new DomainError("UPSTREAM", "Supabase no respondió.");
@@ -138,7 +157,7 @@ export const rlsUsers = {
   },
 
   async update(id: string, patch: Partial<UserProfile> & ComplianceWriteInput): Promise<UserProfile> {
-    const { profile, supabase, userId } = await readRow(id);
+    const { profile, supabase } = await readRow(id);
     const country = patch.country === undefined ? profile.country : patch.country?.trim().toUpperCase() || null;
     const isUsPerson = patch.isUsPerson === undefined ? profile.isUsPerson : patch.isUsPerson;
     const nationality = patch.nationalityCountry?.trim().toUpperCase() || null;
@@ -183,26 +202,20 @@ export const rlsUsers = {
     if (compliance) Object.assign(body, compliance);
 
     if (Object.keys(body).length === 0) return profile;
-    let { data, error } = await supabase
-      .from("profiles")
-      .update(body)
-      .eq("id", userId)
-      .select(PROFILE_COLUMNS)
-      .maybeSingle();
-    // 0015 todavía no aplicada: se guardan las columnas de siempre y se sigue.
-    if (error && compliance && isMissingSchemaError(error)) {
-      for (const key of Object.keys(compliance)) delete body[key];
-      if (Object.keys(body).length === 0) return profile;
-      ({ data, error } = await supabase
-        .from("profiles")
-        .update(body)
-        .eq("id", userId)
-        .select(PROFILE_COLUMNS)
-        .maybeSingle());
+    // 0043: el perfil se escribe por RPC `security definer`. El cliente ya no
+    // tiene UPDATE de tabla sobre `profiles`; la RPC valida dueño, lista
+    // blanca de campos, país, edad, RUT y consentimientos.
+    const { data, error } = await supabase.rpc("update_my_profile", { p_patch: body });
+    if (error) {
+      // Sin la migración 0043 la RPC no existe: fallar cerrado, nunca volver
+      // al UPDATE directo (eso reabriría C-01).
+      if (isMissingSchemaError(error)) {
+        throw new DomainError("INTERNAL", PROFILE_MIGRATION_MESSAGE);
+      }
+      throwDb(error);
     }
-    if (error) throwDb(error);
     const parsed = profileRowSchema.safeParse(data);
-    if (!parsed.success) throw new DomainError("NOT_FOUND", "No encontramos tu perfil.");
+    if (!parsed.success) throw new DomainError("INTERNAL");
     return toProfile(parsed.data);
   },
 
@@ -210,23 +223,19 @@ export const rlsUsers = {
     const { supabase, userId } = await sessionClient();
     sameUser(row.userId, userId);
     if (row.version.trim() === "") throw new DomainError("VALIDATION", "Falta la versión del documento.");
-    const acceptedAt = row.acceptedAt || new Date().toISOString();
-    const inserted = await supabase
-      .from("consents")
-      .insert({ user_id: userId, doc: row.doc, version: row.version, accepted_at: acceptedAt })
-      .select("user_id,doc,version,accepted_at")
-      .maybeSingle();
-    if (inserted.error && inserted.error.code !== "23505") throwDb(inserted.error);
-    if (!inserted.error && inserted.data) return toConsent(consentRowSchema.parse(inserted.data));
-    const existing = await supabase
-      .from("consents")
-      .select("user_id,doc,version,accepted_at")
-      .eq("user_id", userId)
-      .eq("doc", row.doc)
-      .eq("version", row.version)
-      .maybeSingle();
-    if (existing.error) throwDb(existing.error);
-    const parsed = consentRowSchema.safeParse(existing.data);
+    // 0043: el INSERT directo en `consents` queda revocado; la RPC valida
+    // doc/version e inserta como auth.uid().
+    const { data, error } = await supabase.rpc("add_my_consent", {
+      p_doc: row.doc,
+      p_version: row.version.trim(),
+    });
+    if (error) {
+      if (isMissingSchemaError(error)) {
+        throw new DomainError("INTERNAL", PROFILE_MIGRATION_MESSAGE);
+      }
+      throwDb(error);
+    }
+    const parsed = consentRowSchema.safeParse(data);
     if (!parsed.success) throw new DomainError("INTERNAL");
     return toConsent(parsed.data);
   },
