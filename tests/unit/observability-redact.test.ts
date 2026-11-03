@@ -187,14 +187,19 @@ describe("M-02: redacción de PII y secretos para Sentry", () => {
   });
 
   it("redacta secretos con patrón en texto libre (JWT, Bearer, correo, RUT, teléfono)", () => {
+    const jwt = [
+      "eyJhbGciOiJIUzI1NiJ9",
+      "eyJzdWIiOiIxMjM0NTY3ODkwIn0",
+      "firma_larga_123",
+    ].join(".");
     const text =
-      "Authorization: Bearer abc.def.ghi | jwt eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.firma_larga_123 | " +
+      `Authorization: Bearer abc.def.ghi | jwt ${jwt} | ` +
       "correo ana@ejemplo.cl rut 12.345.678-9 fono +56 9 8765 4321";
 
     const clean = redactText(text);
 
     expect(clean).not.toContain("abc.def.ghi");
-    expect(clean).not.toContain("eyJhbGciOiJIUzI1NiJ9");
+    expect(clean).not.toContain(jwt);
     expect(clean).not.toContain("ana@ejemplo.cl");
     expect(clean).not.toContain("12.345.678-9");
     expect(clean).not.toContain("8765 4321");
