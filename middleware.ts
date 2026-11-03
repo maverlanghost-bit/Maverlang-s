@@ -19,7 +19,8 @@ import { buildCsp, generateNonce, resolveCspMode } from "@/lib/security/csp";
  * Next lo inyecte en los scripts; la respuesta lleva la CSP (`enforce`) o
  * `Content-Security-Policy-Report-Only` (`report-only`) más las cabeceras
  * estáticas. `CSP_MODE=off` apaga sólo la CSP. Las rutas API no pasan por
- * acá (matcher): su `nosniff` sale de `next.config.ts` y `jsonResult`.
+ * acá (matcher): su `nosniff` y `Cross-Origin-Resource-Policy` salen de
+ * `next.config.ts` (regla `/api/:path*`) y de `jsonResult`.
  */
 function securityOf(request: NextRequest): {
   nonce: string;
