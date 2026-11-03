@@ -116,16 +116,20 @@ describe("M49: ventana deslizante en memoria", () => {
     }
   });
 
-  it("la IP sale del primer x-forwarded-for o de x-real-ip", () => {
+  it("la IP sale de x-real-ip y, si sólo hay XFF, del valor público de la derecha", () => {
     const both = new Request("https://maverlang.test/", {
       headers: { "x-forwarded-for": "1.1.1.1, 2.2.2.2", "x-real-ip": "3.3.3.3" },
     });
-    expect(ipOfRequest(both)).toBe("1.1.1.1");
+    expect(ipOfRequest(both)).toBe("3.3.3.3");
     const real = new Request("https://maverlang.test/", {
       headers: { "x-real-ip": "3.3.3.3" },
     });
     expect(ipOfRequest(real)).toBe("3.3.3.3");
-    expect(ipOfRequest(new Request("https://maverlang.test/"))).toBe("unknown");
+    const forwarded = new Request("https://maverlang.test/", {
+      headers: { "x-forwarded-for": "1.1.1.1, 2.2.2.2" },
+    });
+    expect(ipOfRequest(forwarded)).toBe("2.2.2.2");
+    expect(ipOfRequest(new Request("https://maverlang.test/"))).toBeNull();
   });
 });
 

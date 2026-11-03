@@ -33,7 +33,7 @@ async function subjectOf(req: Request): Promise<string> {
   } catch {
     console.error("ai chat session");
   }
-  return ipOfRequest(req);
+  return ipOfRequest(req) ?? "unknown";
 }
 
 export async function POST(req: Request): Promise<Response> {
