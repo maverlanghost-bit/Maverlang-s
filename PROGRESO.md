@@ -1,5 +1,13 @@
 # PROGRESO — Maverlang
 
+## T31 — Cadena reproducible de migraciones (2026-11-04)
+- Ajustadas 0001, 0024, 0025 y 0028 para instalaciones nuevas y reejecución controlada.
+- PostgreSQL 17 aislado: cadena completa 0001–0046 aplicada dos veces; 15 comprobaciones aprobadas.
+- Incluye verificación de funciones finales, grants, RLS y declaración; harness documentado en supabase/tests.
+- Estado de base existente desconocido: inventario, respaldo y ensayo sobre copia obligatorios antes de aplicar.
+- Actualización de 0042 en rama de seguridad requiere migración forward para bases ya migradas.
+- Stub de Supabase; no se validaron GoTrue/PostgREST ni staging real. No se aplicaron migraciones reales.
+
 ## T30 — Declaración de persona estadounidense (2026-11-04)
 - Registro real pide respuesta explícita; demo se conserva y servidor valida versión vigente.
 - 0046 protege alta y RPC, verifica perfil completo y mantiene plan de regularización sin inventar evidencia.

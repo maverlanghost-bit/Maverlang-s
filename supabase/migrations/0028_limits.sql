@@ -27,6 +27,7 @@ create table if not exists public.user_limits (
 alter table public.user_limits enable row level security;
 
 -- Lectura de la fila propia; escritura sólo service_role.
+drop policy if exists "user_limits_select_own" on public.user_limits;
 create policy "user_limits_select_own"
   on public.user_limits
   for select
@@ -46,6 +47,7 @@ create table if not exists public.beta_users (
 
 alter table public.beta_users enable row level security;
 
+drop policy if exists "beta_users_select_own" on public.beta_users;
 create policy "beta_users_select_own"
   on public.beta_users
   for select

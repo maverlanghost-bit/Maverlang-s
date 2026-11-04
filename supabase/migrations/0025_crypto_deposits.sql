@@ -3,10 +3,17 @@
 -- Registra cada entrada de USDC (u otro mint conocido) a la billetera del
 -- usuario, para mostrarla en el historial como kind "deposit". La firma es
 -- única: un depósito no se cuenta dos veces.
+--
+-- Compatibilidad: `profiles.id` es uuid desde 0002. La versión histórica de
+-- esta migración declaraba `user_id text` y el FK text → uuid no se puede
+-- crear en PostgreSQL; por eso fallaba en una base nueva antes de 0027. Se
+-- corrige el tipo a uuid. `create table if not exists` significa que una base
+-- donde la tabla ya existe (por ejemplo, creada por 0027) no se altera y no
+-- se pierde ningún dato; 0027 mantiene la misma definición uuid.
 
 create table if not exists public.crypto_deposits (
   id uuid primary key default gen_random_uuid(),
-  user_id text not null references profiles(id) on delete cascade,
+  user_id uuid not null references profiles(id) on delete cascade,
   mint text not null,
   amount_ui numeric not null check (amount_ui > 0),
   signature text unique,
