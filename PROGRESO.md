@@ -1,5 +1,12 @@
 # PROGRESO — Maverlang
 
+## T29 — Integridad de perfiles (2026-11-03)
+- 0045 impide revertir onboarding y modificar identidad/cumplimiento tras completarlo.
+- Correo del perfil se vincula a auth.users; sincronización y reparación de desajustes incluidas.
+- 22 pruebas PostgreSQL aislado y 17 unitarias aprobadas, incluidas concurrencia y correo forjado.
+- Migración NO aplicada: requiere revisión, backup y validación con Supabase staging.
+- Pendientes de producción: integración de seguridad, billeteras, fondos, cumplimiento y dependencias.
+
 ## T28 — Investigación de vulnerabilidades restantes (2026-11-02)
 - Zod 3 transitivo: no se encontró parche oficial compatible; borrador local incompleto descartado.
 - Vitest 4.1.12: 59 pruebas en copia aislada; instalación principal no completada por npm y red.
