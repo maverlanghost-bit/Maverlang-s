@@ -9,6 +9,7 @@
 - `docs/ARQUITECTURA.md` — rutas (§2), carpetas (§3), tipos (§4), servicios (§5), reglas de dominio (§6).
 - `docs/TAREAS.md` — orden de tareas.
 - `PROGRESO.md` — estado actual. **Léelo al iniciar cada sesión.**
+- `docs/AUDITORIA-HANDOFF.md` — handoff de la auditoría de seguridad del 2026-11-03. **Léelo antes de tocar auth, perfiles, dinero, migraciones o deploy.** Ahí está el estado real: C-01 cerrado en DB y desplegado; la integración completa está en `fix/security-integration` (`a4ffabf`) y **no** está live; dinero real = NO GO hasta cerrar D-02, DB-03, DB-06/07, KYC/AML y legal.
 
 **Reglas permanentes:**
 1. Una tarea por sesión. No adelantes tareas futuras.
