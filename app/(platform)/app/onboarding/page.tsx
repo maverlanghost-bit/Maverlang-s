@@ -5,7 +5,7 @@ import { isSupabaseAuth } from "@/lib/auth/mode";
 import { safeNextPath } from "@/lib/auth/paths";
 import { serverEnv } from "@/lib/env";
 
-import { RegistroWizard } from "../registro/wizard";
+import { RealOnboardingGate } from "./real-status";
 import { OnboardingWizard } from "./wizard";
 
 function one(value: string | string[] | undefined) {
@@ -36,8 +36,7 @@ export default async function OnboardingPage({
   return (
     <main className="flex min-h-dvh items-center justify-center px-5 py-10">
       {isSupabaseAuth() ? (
-        <RegistroWizard
-          mode="completar"
+        <RealOnboardingGate
           next={returnTo}
           versions={versions}
           declarationVersion={serverEnv.US_PERSON_DECLARATION_VERSION}

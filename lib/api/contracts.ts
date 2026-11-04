@@ -358,7 +358,6 @@ export const profileUpdateSchema = z
     email: z.string().trim().min(3).nullable().optional(),
     displayName: z.string().trim().min(1).max(80).nullable().optional(),
     country: z.string().trim().length(2).toUpperCase().nullable().optional(),
-    isUsPerson: z.boolean().nullable().optional(),
     language: languageSchema.optional(),
     displayCurrency: currencySchema.optional(),
     onboardingCompleted: z.boolean().optional(),
@@ -370,9 +369,12 @@ export const profileUpdateSchema = z
       .nullable()
       .optional(),
     phone: z.string().trim().max(20).nullable().optional(),
-    // M75: declaración de no ser U.S. person. La versión la pone el servidor si falta.
+    // M75/DB-03: declaración explícita de no ser U.S. person. La respuesta
+    // viaja como "yes" | "no"; null/ausente es "no respondió". `is_us_person`
+    // ya no se acepta por contrato: sólo se deriva de un "no" explícito.
     residenceCountry: z.string().trim().length(2).toUpperCase().nullable().optional(),
     nationalityCountry: z.string().trim().length(2).toUpperCase().nullable().optional(),
+    usPersonDeclaration: z.enum(["yes", "no"]).nullable().optional(),
     usPersonDeclarationVersion: z.string().trim().min(1).max(64).optional(),
   })
   .strict();

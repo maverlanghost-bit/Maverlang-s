@@ -3,6 +3,13 @@ import "server-only";
 import { z } from "zod";
 
 import { DomainError } from "@/lib/api/result";
+import { US_RESIDENT_MESSAGE } from "@/lib/auth/registro-schema";
+import {
+  complianceDbColumns,
+  isBlockedCompliance,
+  type ComplianceWriteInput,
+} from "@/lib/compliance/profile-write";
+import { usPersonDeclarationErrorMessage, type DeclarationBlockReason } from "@/lib/compliance/us-person";
 import { serverEnv } from "@/lib/env";
 import { sanitizeFavoriteSymbols } from "@/lib/favorites/merge";
 import type { Consent, LegalDoc, Preferences, UserProfile } from "@/lib/types";
@@ -179,7 +186,6 @@ function profilePatch(patch: Partial<UserProfile>): Record<string, unknown> {
     email: "email",
     displayName: "display_name",
     country: "country",
-    isUsPerson: "is_us_person",
     walletAddress: "wallet_address",
     onboardingCompleted: "onboarding_completed",
     language: "language",
@@ -201,9 +207,30 @@ export const supabaseUsers = {
     return readProfile(id);
   },
 
-  async update(id: string, patch: Partial<UserProfile>): Promise<UserProfile> {
+  async update(id: string, patch: Partial<UserProfile> & ComplianceWriteInput): Promise<UserProfile> {
+    // DB-03: `is_us_person` no se acepta del cliente; sólo se deriva de un
+    // "no" explícito. El sí y la falta de respuesta se rechazan antes del REST,
+    // y la versión se compara contra `serverEnv` (nunca contra el cliente).
+    if (patch.isUsPerson === true) throw new DomainError("VALIDATION", US_RESIDENT_MESSAGE);
     const body = profilePatch(patch);
+    const compliance = complianceDbColumns(
+      {
+        country: patch.country,
+        residenceCountry: patch.residenceCountry,
+        nationalityCountry: patch.nationalityCountry,
+        usPersonDeclaration: patch.usPersonDeclaration,
+        usPersonDeclarationVersion: patch.usPersonDeclarationVersion,
+        onboardingCompleted: patch.onboardingCompleted,
+      },
+      new Date().toISOString(),
+    );
+    if (isBlockedCompliance(compliance)) {
+      const reason = (compliance as { blocked: DeclarationBlockReason }).blocked;
+      throw new DomainError("VALIDATION", usPersonDeclarationErrorMessage(reason));
+    }
+    if (compliance) Object.assign(body, compliance);
     if (Object.keys(body).length === 0) return readProfile(id);
+    body.updated_at = new Date().toISOString();
     const written = await rest("profiles", {
       method: "PATCH",
       query: `${eq("id", id)}&select=${PROFILE_SELECT}`,

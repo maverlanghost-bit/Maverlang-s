@@ -3,10 +3,12 @@ import { describe, expect, it } from "vitest";
 import { classifyAuthError, registroErrorMessage } from "@/lib/auth/registro-errors";
 import {
   claimsOnboarded,
+  DECLARATION_REQUIRED,
   formatRut,
   isAtLeast18,
   isValidRut,
   registroSchemaAt,
+  registroUserData,
   US_RESIDENT_MESSAGE,
 } from "@/lib/auth/registro-schema";
 
@@ -22,7 +24,7 @@ const valid = {
   rut: "12.345.678-5",
   fechaNacimiento: "2008-10-05",
   telefono: "+56 9 1234 5678",
-  notUsPerson: true,
+  usPersonDeclaration: "no",
   terminos: true,
   privacidad: true,
   riesgos: true,
@@ -73,8 +75,19 @@ describe("registroSchemaAt", () => {
     if (!country.success) {
       expect(country.error.issues.some((issue) => issue.message === US_RESIDENT_MESSAGE)).toBe(true);
     }
-    const person = schema.safeParse({ ...valid, notUsPerson: false });
+    const person = schema.safeParse({ ...valid, usPersonDeclaration: "yes" });
     expect(person.success).toBe(false);
+    if (!person.success) {
+      expect(person.error.issues.some((issue) => issue.message === US_RESIDENT_MESSAGE)).toBe(true);
+    }
+  });
+
+  it("no acepta una declaración sin responder", () => {
+    const parsed = schema.safeParse({ ...valid, usPersonDeclaration: null });
+    expect(parsed.success).toBe(false);
+    if (!parsed.success) {
+      expect(parsed.error.issues.some((issue) => issue.message === DECLARATION_REQUIRED)).toBe(true);
+    }
   });
 
   it("exige RUT sólo en Chile", () => {
@@ -87,6 +100,29 @@ describe("registroSchemaAt", () => {
     expect(
       partial.safeParse({ ...valid, email: "", password: "", passwordConfirm: "distinta" }).success,
     ).toBe(true);
+  });
+
+  it("la metadata del alta sólo se arma con una respuesta explícita 'no'", () => {
+    const versions = {
+      terminos: "2026-10-draft",
+      privacidad: "2026-10-draft",
+      riesgos: "2026-10-draft",
+    };
+    const base = {
+      nombre: "Ana Soto",
+      rut: "12.345.678-5",
+      pais: "CL",
+      nacionalidad: "CL",
+      fechaNacimiento: "2008-10-05",
+      telefono: "+56 9 1234 5678",
+    };
+    expect(() => registroUserData({ ...base, usPersonDeclaration: null }, versions)).toThrow(
+      "US_PERSON_DECLARATION_REQUIRED",
+    );
+    expect(() => registroUserData({ ...base, usPersonDeclaration: "yes" }, versions)).toThrow(
+      "US_PERSON_DECLARATION_REQUIRED",
+    );
+    expect(registroUserData({ ...base, usPersonDeclaration: "no" }, versions).is_us_person).toBe(false);
   });
 });
 

@@ -14,6 +14,8 @@ import { expect, test } from "@playwright/test";
  *   1. UI: onboarding con residencia/nacionalidad de país restringido (US)
  *      → "No disponible" y salida a `/bloqueado?motivo=residencia`.
  *      La declaración "Sí, soy de un país restringido" lleva al mismo sitio.
+ *      Sin responder la declaración (radio sin selección por defecto) el
+ *      paso 2 no avanza.
  *   2. API: `PATCH /api/me` con perfil elegible responde 200 (en el camino
  *      supabase, `residenceCountry: "US"` responde 400 `US_RESIDENT_MESSAGE`;
  *      esa capa la cubre `tests/unit/compliance-m75.test.ts`).
@@ -126,8 +128,29 @@ test("onboarding: declararse US Person en el paso 2 también bloquea", async ({ 
 
   // Paso 2: la declaración de no ser persona restringida, rechazada.
   await expect(page.getByRole("heading", { name: "Declaración" })).toBeVisible();
-  await page.getByRole("button", { name: "Sí, soy de un país restringido" }).click();
+  await page.getByRole("radio", { name: "Sí, soy de un país restringido" }).check();
   await expect(page).toHaveURL(/\/bloqueado\?motivo=residencia/);
+});
+
+test("onboarding: la declaración sin responder no deja avanzar", async ({ page }) => {
+  await page.goto("/app/ingresar");
+  await page.getByRole("button", { name: "Continuar con correo" }).click();
+  await expect(page).toHaveURL(/\/app\/onboarding/);
+
+  // Paso 1 válido: Chile/Chile.
+  await page.getByRole("combobox", { name: "País de residencia" }).click();
+  await page.getByRole("option", { name: "Chile", exact: true }).click();
+  await page.getByRole("combobox", { name: "Nacionalidad" }).click();
+  await page.getByRole("option", { name: "Chile", exact: true }).click();
+  await page.getByRole("button", { name: "Continuar" }).click();
+
+  // Sin marcar ninguna opción, el paso 2 no avanza y muestra el error.
+  await expect(page.getByRole("heading", { name: "Declaración" })).toBeVisible();
+  await expect(page.getByRole("radio", { checked: true })).toHaveCount(0);
+  await page.getByRole("button", { name: "Continuar" }).click();
+  await expect(page.getByText("Responde la declaración para continuar.")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Declaración" })).toBeVisible();
+  await expect(page).toHaveURL(/\/app\/onboarding/);
 });
 
 test("onboarding: flujo elegible completa con declaración y documentos", async ({ page }) => {
@@ -144,7 +167,7 @@ test("onboarding: flujo elegible completa con declaración y documentos", async 
   // Paso 2: aceptar la declaración de no ser US Person.
   await expect(page.getByRole("heading", { name: "Declaración" })).toBeVisible();
   await page
-    .getByRole("checkbox", { name: /Declaro que no soy ciudadano ni residente de los Estados Unidos/ })
+    .getByRole("radio", { name: /Declaro que no soy ciudadano ni residente de los Estados Unidos/ })
     .check();
   await page.getByRole("button", { name: "Continuar" }).click();
 

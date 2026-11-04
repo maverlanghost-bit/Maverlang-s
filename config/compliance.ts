@@ -61,6 +61,22 @@ export const US_PERSON_DECLARATION_VERSION = "2026-10-draft";
 export const US_PERSON_DECLARATION_TEXT =
   "Declaro que no soy ciudadano ni residente de los Estados Unidos ni de los demás países restringidos, y que no actúo por cuenta de una persona de esos países. [REVISIÓN ABOGADO]";
 
+/**
+ * DB-03: la declaración se responde explícitamente "sí" o "no".
+ * `null` es "no respondió" y no se puede convertir en `false`.
+ */
+export type UsPersonDeclaration = "yes" | "no";
+
+export const US_PERSON_QUESTION =
+  "¿Eres ciudadano o residente de los Estados Unidos o de algún país restringido?";
+export const US_PERSON_YES_LABEL = "Sí, soy de un país restringido";
+export const US_PERSON_UNANSWERED_MESSAGE = "Responde la declaración para continuar.";
+export const US_PERSON_VERSION_REQUIRED_MESSAGE = "Falta la versión de la declaración.";
+
+export function isUsPersonDeclaration(value: unknown): value is UsPersonDeclaration {
+  return value === "yes" || value === "no";
+}
+
 /** Mensaje de la cotización real. M70 lo devuelve como `GEO_BLOCKED`. */
 export const GEO_BLOCKED_MESSAGE = "No podemos ofrecer este servicio en tu ubicación";
 

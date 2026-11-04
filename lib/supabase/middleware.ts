@@ -2,20 +2,37 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 import { accessTokenAal, mfaPendingForUser } from "@/lib/auth/mfa-policy";
-import { gateFromAppMetadata, gateFromComplianceRows } from "@/lib/auth/registro-schema";
+import { gateFromComplianceRows } from "@/lib/auth/registro-schema";
 import { warnAuthOnce } from "@/lib/auth/mode";
+import { serverEnv } from "@/lib/env";
 import { readSupabasePublicConfig } from "@/lib/supabase/config";
 
 const SESSION_WARN = "No se pudo verificar la sesión de Supabase. Se trata como sin sesión.";
 
 const CACHE_HEADERS = ["cache-control", "expires", "pragma"] as const;
 
+/**
+ * DB-03: el gate lee la prueba de la declaración U.S. person, no sólo el flag.
+ * `is_us_person` nace en `false`; sin versión y fecha del servidor no hay
+ * onboarding real, sólo demo.
+ */
+const PROFILE_GATE_COLUMNS =
+  "onboarding_completed,is_us_person,us_person_declaration_version,us_person_declared_at";
+
 export type SessionRefresh = {
   response: NextResponse;
   hasSession: boolean;
-  /** `app_metadata` o `profiles.onboarding_completed`. No usa `user_metadata`. */
+  /**
+   * Onboarding real verificado: fila de `profiles` con `onboarding_completed`
+   * y declaración U.S. person con versión + fecha. Es la única autoridad:
+   * `app_metadata`/`user_metadata` no lo conceden, y un perfil ausente o un
+   * error de lectura siempre da `false`.
+   */
   onboarded: boolean;
-  /** Aceptación en `app_metadata` o en `consents` (términos + privacidad). */
+  /**
+   * Demo: aceptación mínima en `consents` (términos + privacidad). Puede ser
+   * `true` con `onboarded=false`; un "sí" a U.S. person no da demo.
+   */
   demoReady: boolean;
   /** `true` si hay TOTP verificado y la sesión no está en `aal2` (fail-closed). */
   mfaRequired: boolean;
@@ -68,23 +85,41 @@ export async function updateSession(
     let demoReady = false;
     let mfaRequired = false;
     if (hasSession) {
-      // SEC-07: el usuario puede reescribir `user_metadata`. El gate mira
-      // `app_metadata` y, si no alcanza, consents/profiles con su JWT.
-      const fromApp = gateFromAppMetadata(data?.claims ?? null);
-      onboarded = fromApp.onboarded;
-      demoReady = fromApp.demoReady;
-      if (!onboarded || !demoReady) {
-        const [consentsResult, profileResult] = await Promise.all([
-          supabase.from("consents").select("doc,version"),
-          supabase.from("profiles").select("onboarding_completed").maybeSingle(),
-        ]);
-        const fromRows = gateFromComplianceRows({
+      // SEC-07: el usuario puede reescribir `user_metadata`; por eso el gate
+      // lee las filas del servidor con su JWT. DB-03: `app_metadata` tampoco
+      // es la autoridad: se consultan `profiles` y `consents` SIEMPRE, aunque
+      // el JWT parezca completo. Un token viejo no puede tapar una fila que
+      // bloquea ni autorizar un onboarding que la fila no respalda.
+      // La versión vigente sale del env validado del servidor, no de la
+      // constante pública ni de lo que diga el JWT.
+      const expectedDeclarationVersion = serverEnv.US_PERSON_DECLARATION_VERSION;
+      const [consentsResult, profileResult] = await Promise.all([
+        supabase.from("consents").select("doc,version"),
+        supabase.from("profiles").select(PROFILE_GATE_COLUMNS).maybeSingle(),
+      ]);
+      // Error de lectura o fila ausente = sin perfil. Nunca autoriza onboarding
+      // real (fail-closed); la demo sigue saliendo sólo de `consents`.
+      const profile = profileResult.error ? null : profileResult.data;
+      const fromRows = gateFromComplianceRows(
+        {
           consents: consentsResult.error ? [] : (consentsResult.data ?? []),
-          onboardingCompleted:
-            !profileResult.error && profileResult.data?.onboarding_completed === true,
-        });
-        if (fromRows.onboarded) onboarded = true;
-        if (fromRows.demoReady) demoReady = true;
+          onboardingCompleted: profile?.onboarding_completed === true,
+          isUsPerson: profile?.is_us_person ?? null,
+          usPersonDeclarationVersion: profile?.us_person_declaration_version ?? null,
+          usPersonDeclaredAt: profile?.us_person_declared_at ?? null,
+        },
+        expectedDeclarationVersion,
+      );
+      // DB-03: la fila del servidor manda. Un `is_us_person=true` en
+      // `profiles` prevalece sobre cualquier `app_metadata` y sobre los
+      // consentimientos: no hay onboarding real ni demo.
+      if (profile?.is_us_person === true) {
+        onboarded = false;
+        demoReady = false;
+      } else {
+        onboarded = fromRows.onboarded;
+        // Demo: aceptación mínima real en `consents` (términos + privacidad).
+        demoReady = fromRows.demoReady;
       }
       if (options.checkMfa) {
         // Fail-closed: si no hay token, el usuario no se puede validar o el

@@ -1,5 +1,14 @@
 # PROGRESO — Maverlang
 
+## T30 — Declaración de persona estadounidense (2026-11-04)
+- Registro real pide respuesta explícita; demo se conserva y servidor valida versión vigente.
+- 0046 protege alta y RPC, verifica perfil completo y mantiene plan de regularización sin inventar evidencia.
+- Gate consulta perfil/consentimientos; guardas reales comprueban declaración y coherencia DB-servidor.
+- Perfiles antiguos sin evidencia vigente se derivan a soporte; flujo operativo de regularización pendiente.
+- Verificación: 137 archivos/1275 pruebas, typecheck y lint; PostgreSQL aislado 32 pruebas aprobadas.
+- 0046 NO aplicada; validar primero en Supabase staging, con versión y textos revisados por abogado.
+- E2E y servicios reales no verificados; fondos reales y vinculación siguen bloqueados.
+
 ## T29 — Integridad de perfiles (2026-11-03)
 - 0045 impide revertir onboarding y modificar identidad/cumplimiento tras completarlo.
 - Correo del perfil se vincula a auth.users; sincronización y reparación de desajustes incluidas.

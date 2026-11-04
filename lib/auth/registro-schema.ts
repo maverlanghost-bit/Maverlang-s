@@ -1,7 +1,12 @@
 import { z } from "zod";
 
 import { isResidenceCountry } from "@/app/(platform)/app/onboarding/countries";
-import { US_PERSON_DECLARATION_VERSION, isOperationBlocked } from "@/config/compliance";
+import {
+  US_PERSON_DECLARATION_VERSION,
+  US_PERSON_UNANSWERED_MESSAGE,
+  isOperationBlocked,
+  type UsPersonDeclaration,
+} from "@/config/compliance";
 import { site } from "@/config/site";
 
 /** El mismo texto que el paso de país del onboarding cuando el país es EE.UU. */
@@ -11,8 +16,8 @@ export const US_RESIDENT_MESSAGE = `${site.name} no está disponible para reside
 export const BLOCKED_COUNTRY_MESSAGE =
   "No podemos crear la cuenta con el país que indicaste. [REVISIÓN ABOGADO]";
 
-/** El mismo texto que la declaración del onboarding si no la marcan. */
-export const DECLARATION_REQUIRED = "Confirma que no eres ciudadano ni residente de EE.UU.";
+/** El mismo texto que la declaración del onboarding si no la responden. */
+export const DECLARATION_REQUIRED = US_PERSON_UNANSWERED_MESSAGE;
 
 /** Checkbox legal obligatorio del registro demo (M43). Mensaje exacto que pide la tarea. */
 export const DEMO_LEGAL_MESSAGE =
@@ -31,7 +36,11 @@ export type RegistroValues = {
   rut: string;
   fechaNacimiento: string;
   telefono: string;
-  notUsPerson: boolean;
+  /**
+   * DB-03: respuesta explícita. `null` = no respondió (bloquea el alta real y
+   * la demo); sólo `"no"` se persiste como `is_us_person = false`.
+   */
+  usPersonDeclaration: UsPersonDeclaration | null;
   terminos: boolean;
   privacidad: boolean;
   riesgos: boolean;
@@ -123,6 +132,56 @@ function flagTrue(value: unknown): boolean {
   return value === true || value === "true" || value === 1 || value === "1";
 }
 
+/**
+ * DB-03: versión vigente de la declaración según la config compartida.
+ * Devuelve `null` si la config no trae una versión usable: sin versión no se
+ * puede verificar ninguna evidencia y todo lo que la necesite falla cerrado.
+ */
+export function configuredUsPersonDeclarationVersion(): string | null {
+  const version =
+    typeof US_PERSON_DECLARATION_VERSION === "string" ? US_PERSON_DECLARATION_VERSION.trim() : "";
+  return version.length > 0 ? version : null;
+}
+
+/**
+ * DB-03: la versión guardada tiene que ser exactamente la vigente.
+ * Una versión arbitraria, vieja o inventada no prueba que la persona haya
+ * leído el texto actual. Se recorta el borde, nada más.
+ */
+export function isCurrentUsPersonDeclarationVersion(
+  value: unknown,
+  expectedVersion: string | null = configuredUsPersonDeclarationVersion(),
+): boolean {
+  const expected = expectedVersion?.trim() ?? "";
+  if (expected.length === 0) return false;
+  return text(value) === expected;
+}
+
+/**
+ * DB-03: prueba de una declaración U.S. person guardada por el servidor.
+ *
+ * No basta `is_us_person = false`: la columna nace con ese default y un perfil
+ * viejo (o un alta que saltó la UI) nunca respondió. Se exigen:
+ * - haber respondido explícitamente "no" (`is_us_person === false`),
+ * - la versión vigente del texto (no cualquier texto no vacío),
+ * - la fecha del servidor, parseable como instante ISO.
+ *
+ * `expectedVersion` permite fijar la fuente de verdad del servidor (env
+ * validado en el middleware/guards). Sin versión esperada → `false`.
+ */
+export function usPersonDeclarationVerified(
+  record: Record<string, unknown> | null,
+  expectedVersion: string | null = configuredUsPersonDeclarationVersion(),
+): boolean {
+  if (!record) return false;
+  const declaredAt = text(record.us_person_declared_at);
+  if (declaredAt.length === 0 || !Number.isFinite(Date.parse(declaredAt))) return false;
+  return (
+    record.is_us_person === false &&
+    isCurrentUsPersonDeclarationVersion(record.us_person_declaration_version, expectedVersion)
+  );
+}
+
 /** Datos del perfil, sin mirar el correo. Lo usan el formulario y el JWT. */
 export function perfilListo(
   input: {
@@ -131,7 +190,8 @@ export function perfilListo(
     rut: string;
     fechaNacimiento: string;
     telefono: string;
-    isUsPerson: boolean;
+    /** DB-03: sólo `false` (respuesta "no") cuenta como perfil listo. */
+    isUsPerson: boolean | null;
     termsVersion: string;
     privacyVersion: string;
     risksVersion: string;
@@ -143,7 +203,7 @@ export function perfilListo(
   const pais = input.pais.trim().toUpperCase();
   const nationality = (input.nationalityCountry ?? "").trim().toUpperCase();
   if (!input.nombre.trim() || input.nombre.trim().length > 80) return false;
-  if (!/^[A-Z]{2}$/.test(pais) || isOperationBlocked(pais) || input.isUsPerson) return false;
+  if (!/^[A-Z]{2}$/.test(pais) || isOperationBlocked(pais) || input.isUsPerson !== false) return false;
   if (nationality && (!/^[A-Z]{2}$/.test(nationality) || isOperationBlocked(nationality))) return false;
   if (!isAtLeast18(input.fechaNacimiento, today)) return false;
   if (!isInternationalPhone(input.telefono)) return false;
@@ -168,7 +228,8 @@ function onboardedRecord(record: Record<string, unknown> | null, today: Date): b
       rut: text(record.rut),
       fechaNacimiento: nacimiento,
       telefono: text(record.telefono),
-      isUsPerson: flagTrue(record.is_us_person),
+      isUsPerson:
+        record.is_us_person === true ? true : record.is_us_person === false ? false : null,
       termsVersion: text(record.terms_version),
       privacyVersion: text(record.privacy_version),
       risksVersion: text(record.risks_version),
@@ -188,46 +249,88 @@ export function claimsOnboarded(
 /**
  * Autorización del gate (SEC-07). Sólo `app_metadata` (lo escribe el
  * servidor). `user_metadata` no cuenta: el usuario puede cambiarlo solo.
+ *
+ * `expectedDeclarationVersion` es la versión vigente según el servidor
+ * (`serverEnv` en el middleware). Sin ella se usa la config compartida; si
+ * tampoco hay versión, la declaración no se puede verificar.
  */
 export function gateFromAppMetadata(
   claims: unknown,
   today = new Date(),
+  expectedDeclarationVersion: string | null = configuredUsPersonDeclarationVersion(),
 ): { onboarded: boolean; demoReady: boolean } {
   const app =
     claims && typeof claims === "object" ? (claims as { app_metadata?: unknown }).app_metadata : undefined;
   const record = recordOf(app);
-  const onboarded = onboardedRecord(record, today);
+  // DB-03: el onboarding real exige la declaración verificada contra la
+  // versión vigente. Un `is_us_person=false` heredado, una versión arbitraria
+  // o una fecha que no es un instante no autorizan.
+  const onboarded =
+    onboardedRecord(record, today) &&
+    usPersonDeclarationVerified(record, expectedDeclarationVersion);
   const demoReady =
-    onboarded || Boolean(record && text(record.terms_version) && text(record.privacy_version));
+    onboarded ||
+    Boolean(
+      record &&
+        record.is_us_person !== true &&
+        text(record.terms_version) &&
+        text(record.privacy_version),
+    );
   return { onboarded, demoReady };
 }
 
 /**
  * Misma decisión con filas del servidor (`consents` / `profiles`).
- * La aceptación demo son `terminos` + `privacidad`. El perfil completo
- * (`onboarding_completed`) también deja entrar.
+ * La aceptación demo son `terminos` + `privacidad`. El onboarding real exige
+ * perfil completo (`onboarding_completed`) y declaración U.S. person
+ * verificada: `is_us_person = false`, la versión vigente y la fecha del
+ * servidor. Una versión arbitraria o vieja no autoriza (DB-03).
+ * Un "sí" explícito no entra ni a la demo.
+ *
+ * `expectedDeclarationVersion` sale de `serverEnv` en el middleware; si falta,
+ * la declaración no se verifica (fail-closed).
  */
-export function gateFromComplianceRows(input: {
-  consents: readonly { doc?: unknown; version?: unknown }[];
-  onboardingCompleted: boolean;
-}): { onboarded: boolean; demoReady: boolean } {
+export function gateFromComplianceRows(
+  input: {
+    consents: readonly { doc?: unknown; version?: unknown }[];
+    onboardingCompleted: boolean;
+    isUsPerson?: boolean | null;
+    usPersonDeclarationVersion?: string | null;
+    usPersonDeclaredAt?: string | null;
+  },
+  expectedDeclarationVersion: string | null = configuredUsPersonDeclarationVersion(),
+): { onboarded: boolean; demoReady: boolean } {
   const docs = new Set<string>();
   for (const row of input.consents) {
     if (typeof row.doc !== "string" || typeof row.version !== "string") continue;
     if (row.version.trim() === "") continue;
     docs.add(row.doc);
   }
-  const onboarded = input.onboardingCompleted === true;
-  const demoReady = onboarded || (docs.has("terminos") && docs.has("privacidad"));
+  const declared = usPersonDeclarationVerified(
+    {
+      is_us_person: input.isUsPerson ?? null,
+      us_person_declaration_version: input.usPersonDeclarationVersion ?? null,
+      us_person_declared_at: input.usPersonDeclaredAt ?? null,
+    },
+    expectedDeclarationVersion,
+  );
+  const onboarded = input.onboardingCompleted === true && declared;
+  const demoReady = onboarded || (docs.has("terminos") && docs.has("privacidad") && input.isUsPerson !== true);
   return { onboarded, demoReady };
 }
 
 export function registroUserData(
-  input: Pick<RegistroValues, "nombre" | "rut" | "pais" | "fechaNacimiento" | "telefono"> & {
+  input: Pick<
+    RegistroValues,
+    "nombre" | "rut" | "pais" | "fechaNacimiento" | "telefono" | "usPersonDeclaration"
+  > & {
     nacionalidad?: string;
   },
   versions: RegistroVersions,
 ) {
+  if (input.usPersonDeclaration !== "no") {
+    throw new Error("US_PERSON_DECLARATION_REQUIRED");
+  }
   const pais = input.pais.trim().toUpperCase();
   const nationality = (input.nacionalidad ?? "").trim().toUpperCase();
   return {
@@ -236,6 +339,8 @@ export function registroUserData(
     pais,
     fecha_nacimiento: input.fechaNacimiento.trim(),
     telefono: normalizePhone(input.telefono),
+    // DB-03: `false` sólo se deriva de una respuesta explícita "no".
+    // `us_person_declared_at` lo escribe el servidor (trigger/RPC), no el cliente.
     is_us_person: false,
     residence_country: pais,
     nationality_country: /^[A-Z]{2}$/.test(nationality) ? nationality : null,
@@ -303,8 +408,12 @@ function checkDatos(data: RegistroValues, ctx: z.RefinementCtx, today: Date): vo
   if (isOperationBlocked(nacionalidad)) {
     ctx.addIssue({ code: "custom", path: ["nacionalidad"], message: blockedCountryMessage(nacionalidad) });
   }
-  if (!data.notUsPerson) {
-    ctx.addIssue({ code: "custom", path: ["notUsPerson"], message: DECLARATION_REQUIRED });
+  // DB-03: `yes` bloquea. `null` (o ausente) es "no respondió" y también
+  // bloquea: nunca se completa el alta derivando `false` de un default.
+  if (data.usPersonDeclaration === "yes") {
+    ctx.addIssue({ code: "custom", path: ["usPersonDeclaration"], message: US_RESIDENT_MESSAGE });
+  } else if (data.usPersonDeclaration !== "no") {
+    ctx.addIssue({ code: "custom", path: ["usPersonDeclaration"], message: DECLARATION_REQUIRED });
   }
   if (pais === "CL" && !isValidRut(data.rut)) {
     ctx.addIssue({ code: "custom", path: ["rut"], message: "Ingresa un RUT válido, como 12.345.678-5." });
@@ -351,7 +460,7 @@ export function registroSchemaAt(today: Date, account: boolean) {
       rut: z.string(),
       fechaNacimiento: z.string(),
       telefono: z.string(),
-      notUsPerson: z.boolean(),
+      usPersonDeclaration: z.enum(["yes", "no"]).nullable(),
       terminos: z.boolean(),
       privacidad: z.boolean(),
       riesgos: z.boolean(),

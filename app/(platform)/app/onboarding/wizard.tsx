@@ -11,6 +11,7 @@ import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { isOperationBlocked } from "@/config/compliance";
 import { ApiError, addConsent, updateMe } from "@/lib/api/client";
+import { US_RESIDENT_MESSAGE } from "@/lib/auth/registro-schema";
 import { useSession } from "@/lib/auth";
 import { writeClientCookie, readBrowserCookie } from "@/lib/auth/browser-cookies";
 import { MOCK_ONBOARDING_COOKIE, ONBOARDING_DONE } from "@/lib/auth/cookies";
@@ -218,12 +219,14 @@ function WizardBody({
 
   const country = useWatch({ control, name: "country" });
   const nationality = useWatch({ control, name: "nationality" });
-  const notUsPerson = useWatch({ control, name: "notUsPerson" });
+  const usPersonDeclaration = useWatch({ control, name: "usPersonDeclaration" });
   const terminos = useWatch({ control, name: "terminos" });
   const privacidad = useWatch({ control, name: "privacidad" });
   const riesgos = useWatch({ control, name: "riesgos" });
+  const declarationBlocked = usPersonDeclaration === "yes";
   const unavailable =
-    step === 1 && (isOperationBlocked(country) || isOperationBlocked(nationality));
+    (step === 1 && (isOperationBlocked(country) || isOperationBlocked(nationality))) ||
+    declarationBlocked;
   const consentsCurrent =
     consentsSaved &&
     terminos &&
@@ -239,7 +242,7 @@ function WizardBody({
       step,
       country,
       nationality,
-      notUsPerson,
+      usPersonDeclaration,
       terminos,
       privacidad,
       riesgos,
@@ -253,7 +256,7 @@ function WizardBody({
     step,
     country,
     nationality,
-    notUsPerson,
+    usPersonDeclaration,
     terminos,
     privacidad,
     riesgos,
@@ -336,8 +339,12 @@ function WizardBody({
       return;
     }
     if (step === 2) {
-      const ok = await trigger("notUsPerson");
+      const ok = await trigger("usPersonDeclaration");
       if (!ok) return;
+      if (getValues("usPersonDeclaration") === "yes") {
+        leaveBlocked();
+        return;
+      }
       setStep(3);
       return;
     }
@@ -363,8 +370,18 @@ function WizardBody({
     try {
       if (!finished) {
         const parsed = onboardingSchema.safeParse(getValues());
+        if (!parsed.success) {
+          setFormError("Faltan datos del registro. Vuelve a los pasos anteriores.");
+          setBusyHref(null);
+          return;
+        }
+        if (parsed.data.usPersonDeclaration === "yes") {
+          setBusyHref(null);
+          leaveBlocked();
+          return;
+        }
         if (
-          !parsed.success ||
+          parsed.data.usPersonDeclaration !== "no" ||
           isOperationBlocked(parsed.data.country) ||
           isOperationBlocked(parsed.data.nationality) ||
           !walletListed
@@ -380,7 +397,7 @@ function WizardBody({
         }
         await updateMe({
           country: parsed.data.country,
-          isUsPerson: false,
+          usPersonDeclaration: "no",
           onboardingCompleted: true,
           residenceCountry: parsed.data.country,
           nationalityCountry: parsed.data.nationality,
@@ -458,21 +475,27 @@ function WizardBody({
         ) : null}
         {unavailable ? (
           <UnavailableStep
+            message={declarationBlocked ? US_RESIDENT_MESSAGE : undefined}
+            chooseAgainLabel={declarationBlocked ? "Volver a responder" : undefined}
             onLeave={leaveBlocked}
             onChooseAgain={() => {
-              setValue("country", "", { shouldValidate: false });
-              setValue("nationality", "", { shouldValidate: false });
+              if (declarationBlocked) {
+                setValue("usPersonDeclaration", null, { shouldValidate: false });
+              } else {
+                setValue("country", "", { shouldValidate: false });
+                setValue("nationality", "", { shouldValidate: false });
+              }
               setFormError(null);
             }}
           />
         ) : null}
         {step === 2 ? (
           <Controller
-            name="notUsPerson"
+            name="usPersonDeclaration"
             control={control}
             render={({ field, fieldState }) => (
               <DeclarationStep
-                checked={field.value}
+                value={field.value}
                 onChange={field.onChange}
                 onBlur={field.onBlur}
                 inputRef={field.ref}

@@ -42,11 +42,17 @@ export type GateInput = {
   useSupabase: boolean;
   /** Sesión verificada con `getClaims` (o `getUser`). No es la cookie en crudo. */
   supabaseSession: boolean;
-  /** En supabase, sale de `user_metadata` del JWT. La cookie `a24_onb` no cuenta. */
+  /**
+   * DB-03: onboarding real verificado (perfil completo + declaración U.S.
+   * person con versión y fecha). En supabase sale de `getClaims`/filas del
+   * servidor; la cookie `a24_onb` no cuenta. Es distinto de la demo:
+   * `supabaseDemoReady` sólo prueba la aceptación legal mínima.
+   */
   supabaseOnboarded: boolean;
   /**
    * M43: aceptación mínima para la demo (`terms_version` + `privacy_version`,
    * o perfil completo antiguo). Si no se informa, vale `supabaseOnboarded`.
+   * No autoriza el onboarding real (DB-03).
    */
   supabaseDemoReady?: boolean;
   /**
@@ -241,9 +247,23 @@ export function decideGate(input: GateInput): GateDecision {
   // Con demoReady se entra a todo /app; sin aceptación se va a /app/aceptar.
   // `/app/onboarding` ya no es destino automático: sigue accesible directo.
   if (input.useSupabase) {
-    const demoReady = input.supabaseDemoReady ?? input.supabaseOnboarded;
+    // DB-03: un onboarding real verificado implica la aceptación legal; la
+    // demo sólo entra con `demoReady`. No se rebota a /app/aceptar a quien ya
+    // tiene perfil + declaración por un flag demo ausente.
+    const demoReady = input.supabaseOnboarded || input.supabaseDemoReady === true;
     if (!demoReady) {
-      if (isAceptarPath(input.pathname) || isPublic || isPasswordFlowPath(input.pathname) || isMfaVerifyPath(input.pathname)) {
+      // DB-03: el onboarding es la ruta de regularización (perfil + aceptación
+      // + declaración vigente). Se deja alcanzable incluso antes de la
+      // aceptación mínima: si no, una sesión sin consentimientos queda en un
+      // ciclo hacia /app/aceptar y nunca llega al paso que la verifica. Sigue
+      // siendo una ruta con sesión; no abre nada público.
+      if (
+        isAceptarPath(input.pathname) ||
+        isOnboardingPath(input.pathname) ||
+        isPublic ||
+        isPasswordFlowPath(input.pathname) ||
+        isMfaVerifyPath(input.pathname)
+      ) {
         return NEXT;
       }
       return aceptarRedirect(input.pathname, input.search);
@@ -258,6 +278,10 @@ export function decideGate(input: GateInput): GateDecision {
       }
       return redirectTo(next);
     }
+    // Usuarios legados (demo lista pero sin declaración verificada) siguen
+    // entrando a la demo; `/app/onboarding` queda abierto para que puedan
+    // regularizar sin que se les invente una respuesta. Las operaciones reales
+    // no las autoriza este gate: las corta `lib/trade/real-guards.ts`.
     return NEXT;
   }
 

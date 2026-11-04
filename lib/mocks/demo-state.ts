@@ -1,6 +1,7 @@
 import "server-only";
 
 import { USDC_MINT } from "@/config/tickers";
+import type { UsPersonDeclaration } from "@/config/compliance";
 import { DEMO_USER_ID, DEMO_WALLET_ADDRESS } from "@/lib/auth/demo-user";
 import { serverEnv } from "@/lib/env";
 import { DomainError } from "@/lib/api/result";
@@ -78,6 +79,13 @@ export type StoredOnramp = {
   settled: boolean;
 };
 
+/** DB-03: la demo no declara nada hasta que la persona responde. */
+export type DemoUsPersonDeclaration = {
+  value: UsPersonDeclaration | null;
+  version: string | null;
+  declaredAt: string | null;
+};
+
 type DemoState = {
   seq: number;
   cashUsdc: number;
@@ -85,6 +93,7 @@ type DemoState = {
   positions: Map<string, Lot>;
   activities: Activity[];
   profile: UserProfile;
+  usPersonDeclaration: DemoUsPersonDeclaration;
   prefs: Preferences;
   consents: Consent[];
   /** ISO de la solicitud. Null si la persona no pidió borrar la cuenta. No borra nada. */
@@ -118,7 +127,7 @@ function createState(): DemoState {
       email: "demo@example.com",
       displayName: "Cuenta demo",
       country: "CL",
-      isUsPerson: false,
+      isUsPerson: null,
       walletAddress: DEMO_WALLET_ADDRESS,
       onboardingCompleted: true,
       language: "es-CL",
@@ -128,6 +137,7 @@ function createState(): DemoState {
       birthDate: null,
       phone: null,
     },
+    usPersonDeclaration: { value: null, version: null, declaredAt: null },
     prefs: {
       notifyOrders: true,
       notifyDeposits: true,
@@ -181,11 +191,34 @@ export function getDemoProfile(): UserProfile {
   return { ...state.profile };
 }
 
+/** DB-03: evidencia de la respuesta en la demo; null si no respondió. */
+export function getDemoUsPersonDeclaration(): DemoUsPersonDeclaration {
+  return { ...state.usPersonDeclaration };
+}
+
+/** Sólo un "no" explícito con versión deja `is_us_person = false`. */
+export function recordDemoUsPersonDeclaration(
+  id: string,
+  input: { version: string; declaredAt: string },
+): void {
+  if (id !== state.profile.id) throw new DomainError("NOT_FOUND", "No encontramos esa cuenta.");
+  state.usPersonDeclaration = {
+    value: "no",
+    version: input.version,
+    declaredAt: input.declaredAt,
+  };
+  state.profile = { ...state.profile, isUsPerson: false };
+}
+
 export function updateDemoProfile(id: string, patch: Partial<UserProfile>): UserProfile {
   if (id !== state.profile.id) throw new DomainError("NOT_FOUND", "No encontramos esa cuenta.");
-  const locked = new Set<keyof UserProfile>(["id", "createdAt"]);
+  // DB-03: `isUsPerson` no se escribe directo; sale de la declaración.
+  const locked = new Set<keyof UserProfile>(["id", "createdAt", "isUsPerson"]);
   for (const key of Object.keys(patch) as (keyof UserProfile)[]) {
     if (locked.has(key)) continue;
+    // Ignora campos de cumplimiento (declaración/versión) que no son columnas
+    // del perfil: en la demo viven en `state.usPersonDeclaration`.
+    if (!(key in state.profile)) continue;
     const value = patch[key];
     if (value !== undefined) {
       state.profile = { ...state.profile, [key]: value };

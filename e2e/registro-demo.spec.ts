@@ -33,3 +33,12 @@ test("registro demo sin checkbox muestra el error y no navega", async ({ page })
   ).toBeVisible();
   await expect(page).toHaveURL(/\/app\/registro/);
 });
+
+test("registro demo no pide la declaración de US person", async ({ page }) => {
+  await page.goto("/app/registro");
+  await expect(page.getByRole("heading", { name: "Crea tu cuenta demo" })).toBeVisible();
+
+  // La demo se mantiene mínima: correo, contraseña y aceptación legal.
+  await expect(page.getByRole("radio")).toHaveCount(0);
+  await expect(page.getByText(/Eres ciudadano o residente de los Estados Unidos/)).toHaveCount(0);
+});

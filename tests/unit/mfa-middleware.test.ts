@@ -90,6 +90,26 @@ describe("updateSession y MFA", () => {
     expect(result.mfaRequired).toBe(true);
   });
 
+  it("un app_metadata completo no salta el segundo factor", async () => {
+    state.claims = {
+      sub: "user-1",
+      aal: "aal1",
+      app_metadata: {
+        onboarding_completed: true,
+        is_us_person: false,
+        terms_version: "2026-10-draft",
+        privacy_version: "2026-10-draft",
+        us_person_declaration_version: "2026-10-draft",
+        us_person_declared_at: "2026-10-08T12:00:00.000Z",
+      },
+    };
+    state.user = { id: "user-1", factors: VERIFIED };
+    const result = await updateSession(request, { checkMfa: true });
+    expect(result.hasSession).toBe(true);
+    expect(result.onboarded).toBe(false);
+    expect(result.mfaRequired).toBe(true);
+  });
+
   it("no consulta Auth para MFA cuando la ruta no lo pide", async () => {
     state.user = { id: "user-1", factors: VERIFIED };
     const result = await updateSession(request, { checkMfa: false });

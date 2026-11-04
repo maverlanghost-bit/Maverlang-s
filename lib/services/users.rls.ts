@@ -11,7 +11,12 @@ import {
   isValidRut,
   normalizePhone,
 } from "@/lib/auth/registro-schema";
-import { complianceDbColumns, type ComplianceWriteInput } from "@/lib/compliance/profile-write";
+import {
+  complianceDbColumns,
+  isBlockedCompliance,
+  type ComplianceWriteInput,
+} from "@/lib/compliance/profile-write";
+import { usPersonDeclarationErrorMessage, type DeclarationBlockReason } from "@/lib/compliance/us-person";
 import { sanitizeFavoriteSymbols } from "@/lib/favorites/merge";
 import { PROFILE_MIGRATION_MESSAGE } from "@/lib/profile/migration";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -87,6 +92,17 @@ function throwDb(error: DbError): never {
     if (message.includes("pais_bloqueado") || message.includes("us_person_bloqueado")) {
       throw new DomainError("VALIDATION", US_RESIDENT_MESSAGE);
     }
+    // 0046 ya distingue estos errores; cuando la DB valide la versión vigente
+    // (ver la nota de `us-person.ts`), el mensaje sale por acá.
+    if (message.includes("version_declaracion_requerida")) {
+      throw new DomainError("VALIDATION", usPersonDeclarationErrorMessage("missing_version"));
+    }
+    if (
+      message.includes("version_declaracion_no_vigente") ||
+      message.includes("version_declaracion_invalida")
+    ) {
+      throw new DomainError("VALIDATION", usPersonDeclarationErrorMessage("version_mismatch"));
+    }
     throw new DomainError("VALIDATION", "Los datos no son válidos.");
   }
   throw new DomainError("UPSTREAM", "Supabase no respondió.");
@@ -159,22 +175,25 @@ export const rlsUsers = {
   async update(id: string, patch: Partial<UserProfile> & ComplianceWriteInput): Promise<UserProfile> {
     const { profile, supabase } = await readRow(id);
     const country = patch.country === undefined ? profile.country : patch.country?.trim().toUpperCase() || null;
-    const isUsPerson = patch.isUsPerson === undefined ? profile.isUsPerson : patch.isUsPerson;
     const nationality = patch.nationalityCountry?.trim().toUpperCase() || null;
     const residence = patch.residenceCountry?.trim().toUpperCase() || country;
     const blockedCountry = [residence, nationality].find((code) => isOperationBlocked(code)) ?? null;
-    if (blockedCountry || isUsPerson === true) {
+    if (blockedCountry) {
       throw new DomainError(
         "VALIDATION",
-        blockedCountry === "US" || isUsPerson === true ? US_RESIDENT_MESSAGE : BLOCKED_COUNTRY_MESSAGE,
+        blockedCountry === "US" ? US_RESIDENT_MESSAGE : BLOCKED_COUNTRY_MESSAGE,
       );
     }
+    // `is_us_person` no se acepta como entrada: sólo se deriva de un "no"
+    // explícito. Se conserva el rechazo por si un llamador interno lo manda.
+    // `complianceDbColumns` compara la versión contra `serverEnv` (DB-03): una
+    // versión vieja o inventada se rechaza antes de la RPC.
+    if (patch.isUsPerson === true) throw new DomainError("VALIDATION", US_RESIDENT_MESSAGE);
 
     const body: Record<string, unknown> = {};
     if (patch.displayName !== undefined) body.nombre = patch.displayName?.trim() || null;
     if (patch.email !== undefined) body.email = patch.email;
     if (patch.country !== undefined) body.pais = country;
-    if (patch.isUsPerson !== undefined) body.is_us_person = isUsPerson;
     if (patch.onboardingCompleted !== undefined) body.onboarding_completed = patch.onboardingCompleted;
     if (patch.language !== undefined) body.language = patch.language;
     if (patch.displayCurrency !== undefined) body.display_currency = patch.displayCurrency;
@@ -192,13 +211,19 @@ export const rlsUsers = {
 
     const compliance = complianceDbColumns(
       {
-        country,
+        country: patch.country,
         residenceCountry: patch.residenceCountry,
         nationalityCountry: patch.nationalityCountry,
+        usPersonDeclaration: patch.usPersonDeclaration,
         usPersonDeclarationVersion: patch.usPersonDeclarationVersion,
+        onboardingCompleted: patch.onboardingCompleted,
       },
       new Date().toISOString(),
     );
+    if (isBlockedCompliance(compliance)) {
+      const reason = (compliance as { blocked: DeclarationBlockReason }).blocked;
+      throw new DomainError("VALIDATION", usPersonDeclarationErrorMessage(reason));
+    }
     if (compliance) Object.assign(body, compliance);
 
     if (Object.keys(body).length === 0) return profile;

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useId, type ReactNode } from "react";
 import { Controller, type Control } from "react-hook-form";
 
-import { US_PERSON_DECLARATION_TEXT } from "@/config/compliance";
+import { US_PERSON_DECLARATION_TEXT, US_PERSON_QUESTION, US_PERSON_YES_LABEL, type UsPersonDeclaration } from "@/config/compliance";
 import { PESO_DEPOSITS_ENABLED } from "@/config/onramp";
 import { site } from "@/config/site";
 import { BLOCKED_COUNTRY_MESSAGE } from "@/lib/auth/registro-schema";
@@ -170,19 +170,23 @@ export function NationalityField({
 export function UnavailableStep({
   onChooseAgain,
   onLeave,
+  message = BLOCKED_COUNTRY_MESSAGE,
+  chooseAgainLabel = "Elegir otro país",
 }: {
   onChooseAgain: () => void;
   onLeave: () => void;
+  message?: string;
+  chooseAgainLabel?: string;
 }) {
   return (
     <div className="mt-4">
-      <p className="text-sm leading-relaxed text-fg-body">{BLOCKED_COUNTRY_MESSAGE}</p>
+      <p className="text-sm leading-relaxed text-fg-body">{message}</p>
       <div className="mt-6 flex flex-col gap-3">
         <Button type="button" size="lg" className="w-full" onClick={onLeave}>
           Entendido
         </Button>
         <Button type="button" variant="secondary" size="lg" className="w-full" onClick={onChooseAgain}>
-          Elegir otro país
+          {chooseAgainLabel}
         </Button>
       </div>
     </div>
@@ -190,38 +194,78 @@ export function UnavailableStep({
 }
 
 export function DeclarationStep({
-  checked,
+  value,
   onChange,
   onBlur,
   inputRef,
   error,
   onDeclareYes,
 }: {
-  checked: boolean;
-  onChange: (checked: boolean) => void;
+  /** DB-03: `null` = sin responder. No hay opción marcada por defecto. */
+  value: UsPersonDeclaration | null;
+  onChange: (value: UsPersonDeclaration) => void;
   onBlur: () => void;
   inputRef: (element: HTMLInputElement | null) => void;
   error?: string;
   onDeclareYes: () => void;
 }) {
+  const id = useId();
+  const legendId = `${id}-legend`;
+  const errorId = `${id}-error`;
+  const described = error ? errorId : undefined;
   return (
-    <div className="mt-4 flex flex-col gap-4">
+    <fieldset
+      className="mt-4 flex flex-col gap-4"
+      role="radiogroup"
+      aria-labelledby={legendId}
+      aria-invalid={error ? true : undefined}
+      aria-describedby={described}
+    >
+      <legend id={legendId} className="text-sm font-medium text-fg">
+        {US_PERSON_QUESTION}
+      </legend>
       <p className="text-sm leading-relaxed text-fg-body">
         Para usar {site.name} tienes que declarar que no eres persona de un país restringido. Si lo eres, la cuenta no
         está disponible. [REVISIÓN ABOGADO]
       </p>
-      <CheckField
-        checked={checked}
-        onChange={onChange}
-        onBlur={onBlur}
-        inputRef={inputRef}
-        error={error}
-        label={US_PERSON_DECLARATION_TEXT}
-      />
-      <Button type="button" variant="ghost" size="lg" className="w-full" onClick={onDeclareYes}>
-        Sí, soy de un país restringido
-      </Button>
-    </div>
+      <div className="flex flex-col gap-3">
+        <div className="flex min-h-11 items-start gap-3">
+          <input
+            ref={inputRef}
+            id={`${id}-no`}
+            type="radio"
+            name={id}
+            value="no"
+            checked={value === "no"}
+            onChange={() => onChange("no")}
+            onBlur={onBlur}
+            className="mt-0.5 size-5 shrink-0 accent-fg"
+          />
+          <label htmlFor={`${id}-no`} className="cursor-pointer text-sm leading-relaxed text-fg">
+            {US_PERSON_DECLARATION_TEXT}
+          </label>
+        </div>
+        <div className="flex min-h-11 items-start gap-3">
+          <input
+            id={`${id}-yes`}
+            type="radio"
+            name={id}
+            value="yes"
+            checked={value === "yes"}
+            onChange={() => {
+              onChange("yes");
+              onDeclareYes();
+            }}
+            onBlur={onBlur}
+            className="mt-0.5 size-5 shrink-0 accent-fg"
+          />
+          <label htmlFor={`${id}-yes`} className="cursor-pointer text-sm leading-relaxed text-fg">
+            {US_PERSON_YES_LABEL}
+          </label>
+        </div>
+      </div>
+      <FieldError id={errorId} message={error} />
+    </fieldset>
   );
 }
 

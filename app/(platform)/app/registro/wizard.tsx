@@ -30,7 +30,7 @@ import { useSession } from "@/lib/auth";
 import { writeClientCookie } from "@/lib/auth/browser-cookies";
 import { MOCK_ONBOARDING_COOKIE, ONBOARDING_DONE } from "@/lib/auth/cookies";
 import { authMode, clientAuthModeInput } from "@/lib/auth/mode";
-import { ingresarPath } from "@/lib/auth/paths";
+import { ingresarPath, onboardingPath } from "@/lib/auth/paths";
 import { publishRegistroMetadata, resendRegistro, signUpDemo, signUpRegistro } from "@/lib/auth/registro-client";
 import {
   DEMO_LEGAL_MESSAGE,
@@ -58,7 +58,7 @@ const EMPTY: RegistroValues = {
   rut: "",
   fechaNacimiento: "",
   telefono: "",
-  notUsPerson: false,
+  usPersonDeclaration: null,
   terminos: false,
   privacidad: false,
   riesgos: false,
@@ -155,7 +155,15 @@ function TextField({
   );
 }
 
-function MailScreen({ email, next }: { email: string; next: string | null }) {
+function MailScreen({
+  email,
+  next,
+  realFlow = false,
+}: {
+  email: string;
+  next: string | null;
+  realFlow?: boolean;
+}) {
   const headingRef = useRef<HTMLHeadingElement>(null);
   const [left, setLeft] = useState(60);
   const [error, setError] = useState<string | null>(null);
@@ -193,6 +201,22 @@ function MailScreen({ email, next }: { email: string; next: string | null }) {
       <p className="mt-3 text-sm leading-relaxed text-fg-body">
         Te enviamos un enlace a <span className="font-medium break-all text-fg">{email}</span>. Ábrelo para confirmar la cuenta.
       </p>
+      {realFlow ? (
+        <div className="mt-4 rounded-2xl bg-surface-2 p-4">
+          <p className="text-sm leading-relaxed text-fg-body">
+            Cuando confirmes el correo, completa tu registro para cuenta real antes de operar. Hasta entonces la
+            cuenta queda en modo demo y no habilita operaciones reales.
+          </p>
+          <p className="mt-2">
+            <Link
+              href="/app/onboarding"
+              className="inline-flex min-h-11 items-center rounded-sm px-1 font-medium text-fg underline decoration-border underline-offset-4 outline-none hover:decoration-fg focus-visible:ring-4 focus-visible:ring-fg/20"
+            >
+              Completar mi registro
+            </Link>
+          </p>
+        </div>
+      ) : null}
       {error ? (
         <p className="mt-4 text-sm text-down" role="alert">
           {error}
@@ -289,18 +313,50 @@ export function RegistroWizard({
   versions,
   declarationVersion,
   demoForBlocked = false,
+  realRegistration = false,
 }: {
   mode: Mode;
   next: string | null;
   versions: RegistroVersions;
   declarationVersion?: string;
   demoForBlocked?: boolean;
+  /**
+   * DB-03: con Supabase activo, el alta real es el camino principal y la demo
+   * queda como opción explícita. En mock (sin cuentas reales) la demo sigue
+   * siendo el único alta disponible.
+   */
+  realRegistration?: boolean;
 }) {
   const { status, login } = useSession();
-  const [sentEmail, setSentEmail] = useState<string | null>(null);
+  const [sentEmail, setSentEmail] = useState<{ email: string; real: boolean } | null>(null);
+  const [flow, setFlow] = useState<"real" | "demo">(() => (realRegistration ? "real" : "demo"));
 
-  if (sentEmail) return <MailScreen email={sentEmail} next={next} />;
-  if (mode === "alta") return <DemoRegistroForm next={next} versions={versions} onSent={setSentEmail} login={login} />;
+  if (sentEmail) return <MailScreen email={sentEmail.email} next={next} realFlow={sentEmail.real} />;
+  if (mode === "alta") {
+    if (realRegistration && flow === "real") {
+      return (
+        <RegistroForm
+          mode="alta"
+          next={next}
+          versions={versions}
+          declarationVersion={declarationVersion}
+          demoForBlocked={demoForBlocked}
+          onSent={(email) => setSentEmail({ email, real: true })}
+          login={login}
+          onUseDemo={() => setFlow("demo")}
+        />
+      );
+    }
+    return (
+      <DemoRegistroForm
+        next={next}
+        versions={versions}
+        onSent={(email) => setSentEmail({ email, real: false })}
+        login={login}
+        onUseReal={realRegistration ? () => setFlow("real") : undefined}
+      />
+    );
+  }
   if (status === "loading") return <LoadingCard />;
   if (status !== "authenticated") return <NeedSession />;
 
@@ -311,7 +367,7 @@ export function RegistroWizard({
       versions={versions}
       declarationVersion={declarationVersion}
       demoForBlocked={demoForBlocked}
-      onSent={setSentEmail}
+      onSent={(email) => setSentEmail({ email, real: false })}
       login={login}
     />
   );
@@ -334,11 +390,13 @@ function DemoRegistroForm({
   versions,
   onSent,
   login,
+  onUseReal,
 }: {
   next: string | null;
   versions: RegistroVersions;
   onSent: (email: string) => void;
   login: (method?: "email" | "google") => Promise<void>;
+  onUseReal?: () => void;
 }) {
   const router = useRouter();
   const { toast } = useToast();
@@ -422,8 +480,15 @@ function DemoRegistroForm({
         <h1 className="text-3xl text-balance">Crea tu cuenta demo</h1>
         <p className="mt-3 text-sm leading-relaxed text-fg-body">
           Te damos US$10.000 ficticios para practicar. Crea tu cuenta, explora el mercado y haz tu primera
-          compra sin dinero real.
+          compra sin dinero real. La demo no habilita operaciones reales.
         </p>
+        {onUseReal ? (
+          <div className="mt-4">
+            <Button type="button" variant="secondary" size="lg" className="w-full" onClick={onUseReal}>
+              Crear una cuenta real
+            </Button>
+          </div>
+        ) : null}
         <TextField
           id="registro-email"
           label="Correo"
@@ -517,6 +582,7 @@ function RegistroForm({
   demoForBlocked,
   onSent,
   login,
+  onUseDemo,
 }: {
   mode: Mode;
   next: string | null;
@@ -525,6 +591,7 @@ function RegistroForm({
   demoForBlocked: boolean;
   onSent: (email: string) => void;
   login: (method?: "email" | "google") => Promise<void>;
+  onUseDemo?: () => void;
 }) {
   const router = useRouter();
   const { toast } = useToast();
@@ -630,7 +697,9 @@ function RegistroForm({
         }
         toast({ title: t.auth.accountCreated, tone: "up" });
         router.refresh();
-        router.push(result.destination.path);
+        // DB-03: el alta real no termina en la demo. El perfil nace sin
+        // onboarding_completed; el paso siguiente es el onboarding real.
+        router.push(onboardingPath(result.destination.path));
         return;
       }
       if (!versions.terminos || !versions.privacidad || !versions.riesgos) {
@@ -645,7 +714,7 @@ function RegistroForm({
       await updateMe({
         displayName: values.nombre,
         country: values.pais,
-        isUsPerson: false,
+        usPersonDeclaration: "no",
         onboardingCompleted: true,
         rut: values.pais === "CL" ? formatRut(values.rut) : null,
         birthDate: values.fechaNacimiento,
@@ -679,7 +748,7 @@ function RegistroForm({
       step === 1
         ? (["email", "password", "passwordConfirm"] as const)
         : step === 2
-          ? (["nombre", "pais", "nacionalidad", "rut", "fechaNacimiento", "telefono", "notUsPerson"] as const)
+          ? (["nombre", "pais", "nacionalidad", "rut", "fechaNacimiento", "telefono", "usPersonDeclaration"] as const)
           : (["terminos", "privacidad", "riesgos"] as const);
     const ok = await trigger([...names]);
     if (!ok) return;
@@ -740,6 +809,18 @@ function RegistroForm({
                 Ya tengo cuenta
               </Link>
             </p>
+            {onUseDemo ? (
+              <p className="mt-2 text-center text-sm leading-relaxed text-fg-muted">
+                ¿Solo quieres probar?{" "}
+                <button
+                  type="button"
+                  onClick={onUseDemo}
+                  className="inline-flex min-h-11 items-center rounded-sm px-1 font-medium text-fg underline decoration-border underline-offset-4 outline-none hover:decoration-fg focus-visible:ring-4 focus-visible:ring-fg/20"
+                >
+                  Usar la cuenta demo
+                </button>
+              </p>
+            ) : null}
           </div>
         ) : null}
         {step === 2 && !unavailable ? (
@@ -820,11 +901,11 @@ function RegistroForm({
             />
             <div className="mt-4">
               <Controller
-                name="notUsPerson"
+                name="usPersonDeclaration"
                 control={control}
                 render={({ field, fieldState }) => (
                   <DeclarationStep
-                    checked={field.value}
+                    value={field.value ?? null}
                     onChange={field.onChange}
                     onBlur={field.onBlur}
                     inputRef={field.ref}

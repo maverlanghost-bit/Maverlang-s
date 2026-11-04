@@ -37,6 +37,7 @@ describe("metadata del alta", () => {
         pais: "cl",
         fechaNacimiento: "2008-10-05",
         telefono: "+56 9 1234 5678",
+        usPersonDeclaration: "no",
       },
       VERSIONS,
     );

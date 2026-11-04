@@ -2,6 +2,7 @@ import "server-only";
 
 import { tickerBySymbol } from "@/config/tickers";
 import { findAssetBySymbol } from "@/lib/catalog/assets";
+import type { ComplianceWriteInput } from "@/lib/compliance/profile-write";
 import { serverEnv } from "@/lib/env";
 import {
   status as assetStatus,
@@ -89,7 +90,7 @@ export interface Services {
   };
   users: {
     get(id: string): Promise<UserProfile>;
-    update(id: string, patch: Partial<UserProfile>): Promise<UserProfile>;
+    update(id: string, patch: Partial<UserProfile> & ComplianceWriteInput): Promise<UserProfile>;
     addConsent(row: Consent): Promise<Consent>;
     listConsents(id: string): Promise<Consent[]>;
     /** La solicitud no borra la cuenta. En mock queda el instante; en live el stub no persiste. */

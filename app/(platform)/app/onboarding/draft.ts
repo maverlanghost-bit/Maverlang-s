@@ -1,4 +1,4 @@
-import { isOperationBlocked } from "@/config/compliance";
+import { isOperationBlocked, type UsPersonDeclaration } from "@/config/compliance";
 
 import type { OnboardingInput } from "./schema";
 
@@ -17,7 +17,8 @@ export type OnboardingDraft = {
   step: OnboardingStep;
   country: string;
   nationality: string;
-  notUsPerson: boolean;
+  /** DB-03: `null` = no respondió; no se completa el onboarding sin "no". */
+  usPersonDeclaration: UsPersonDeclaration | null;
   terminos: boolean;
   privacidad: boolean;
   riesgos: boolean;
@@ -40,7 +41,7 @@ export function emptyDraft(userId: string): OnboardingDraft {
     step: 1,
     country: "",
     nationality: "",
-    notUsPerson: false,
+    usPersonDeclaration: null,
     terminos: false,
     privacidad: false,
     riesgos: false,
@@ -55,7 +56,7 @@ export function formValues(draft: OnboardingDraft): OnboardingInput {
   return {
     country: draft.country,
     nationality: draft.nationality,
-    notUsPerson: draft.notUsPerson,
+    usPersonDeclaration: draft.usPersonDeclaration,
     terminos: draft.terminos,
     privacidad: draft.privacidad,
     riesgos: draft.riesgos,
@@ -94,7 +95,7 @@ export function clampDraft(draft: OnboardingDraft, versions: LegalVersions): Onb
   let step = draft.step;
 
   if (!countryOk) step = 1;
-  else if (!draft.notUsPerson) step = Math.min(step, 2) as OnboardingStep;
+  else if (draft.usPersonDeclaration !== "no") step = Math.min(step, 2) as OnboardingStep;
   else if (!consentsOk) step = Math.min(step, 3) as OnboardingStep;
   else if (!draft.walletReady) step = Math.min(step, 4) as OnboardingStep;
 
@@ -121,6 +122,16 @@ export function loadDraft(userId: string, versions: LegalVersions): OnboardingDr
     if (!raw) return null;
     const parsed: unknown = JSON.parse(raw);
     if (!isRecord(parsed) || parsed.v !== 1 || parsed.userId !== userId) return null;
+    // Compatibilidad: los borradores viejos guardaban `notUsPerson: true`
+    // cuando la persona había respondido "no". `false` era "sin marcar".
+    const legacyNo = parsed.notUsPerson === true;
+    const savedDeclaration = parsed.usPersonDeclaration;
+    const usPersonDeclaration: UsPersonDeclaration | null =
+      savedDeclaration === "yes" || savedDeclaration === "no"
+        ? savedDeclaration
+        : legacyNo
+          ? "no"
+          : null;
     const draft = clampDraft(
       {
         v: 1,
@@ -128,7 +139,7 @@ export function loadDraft(userId: string, versions: LegalVersions): OnboardingDr
         step: isStep(parsed.step) ? parsed.step : 1,
         country: typeof parsed.country === "string" ? parsed.country.trim().toUpperCase() : "",
         nationality: typeof parsed.nationality === "string" ? parsed.nationality.trim().toUpperCase() : "",
-        notUsPerson: parsed.notUsPerson === true,
+        usPersonDeclaration,
         terminos: parsed.terminos === true,
         privacidad: parsed.privacidad === true,
         riesgos: parsed.riesgos === true,

@@ -121,6 +121,7 @@ describe("M75: declaración", () => {
     const record = declarationRecord({
       residenceCountry: "cl",
       nationalityCountry: "CL",
+      usPersonDeclaration: "no",
       declaredAt,
     });
     expect(record).toEqual({
@@ -135,7 +136,12 @@ describe("M75: declaración", () => {
 
   it("no arma el registro si la nacionalidad es US", () => {
     expect(
-      declarationRecord({ residenceCountry: "CL", nationalityCountry: "US", declaredAt }),
+      declarationRecord({
+        residenceCountry: "CL",
+        nationalityCountry: "US",
+        usPersonDeclaration: "no",
+        declaredAt,
+      }),
     ).toEqual({ blocked: true, reason: "nationality" });
   });
 
@@ -152,6 +158,7 @@ describe("M75: declaración", () => {
         nacionalidad: "cl",
         fechaNacimiento: "2008-10-05",
         telefono: "+56912345678",
+        usPersonDeclaration: "no",
       },
       { terminos: "2026-10-draft", privacidad: "2026-10-draft", riesgos: "2026-10-draft" },
     );
