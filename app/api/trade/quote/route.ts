@@ -24,19 +24,21 @@ import {
   assertRealTradingDataMode,
   assertLiveEngineAccess,
   releaseRealTradeReservations,
-  reserveRealTradeAmount,
 } from "@/lib/trade/real-guards";
 import { assertQuoteIntegrity } from "@/lib/trade/integrity";
-import {
-  quoteReservationAmount,
-  reservationExpiry,
-} from "@/lib/trade/reservations";
 import type { TradeQuote, TradeQuoteRequest } from "@/lib/types";
 
 export const runtime = "nodejs";
 
-/** El servicio live acepta el dueño de la cotización como segundo argumento. */
-type OwnerScopedQuote = (request: TradeQuoteRequest, userId?: string) => Promise<TradeQuote>;
+/**
+ * El servicio live acepta el dueño de la cotización como segundo argumento y,
+ * para valoraciones internas, `{ persist: false }` como tercero.
+ */
+type OwnerScopedQuote = (
+  request: TradeQuoteRequest,
+  userId?: string,
+  options?: { persist?: boolean },
+) => Promise<TradeQuote>;
 
 /**
  * Guardia en vivo al cotizar (M55, demo hoy y real en M70): la COMPRA de un
@@ -82,7 +84,9 @@ async function realQuoteAmountUsd(
   const services = getServices();
   try {
     const quote = services.trade.quote as OwnerScopedQuote;
-    const valued = await quote({ ...body, symbol: body.symbol }, userId);
+    // Valoración interna: NO reserva cupo ni guarda la cotización (nadie la va
+    // a armar). El resultado sólo sirve para calcular el notional de los topes.
+    const valued = await quote({ ...body, symbol: body.symbol }, userId, { persist: false });
     return valued.side === "buy" ? valued.inAmountUi : valued.outAmountUi;
   } catch (error) {
     // Sin precio no hay notional: NO se asume 0 (eso saltaría los topes).
@@ -155,26 +159,16 @@ export function POST(req: Request) {
     const data = await callService(req, () => quote({ ...body, symbol }, userId ?? undefined));
     assertLiveBuyCost(body.side, data.priceDeviationBps);
     if (realAccount && realOwnerId) {
-      // Integridad de la cotización + reserva atómica de cupo. La reserva se
-      // keyed por el id de la cotización; build/submit la validan y la
-      // consumen. Ambas llamadas siguen detrás de REAL_EXECUTION_LOCKED.
+      // Integridad de la cotización. El cupo y la cotización quedan guardados
+      // por el motor live en la MISMA fila de `trade_reservations` (ola 6):
+      // build/submit la leen de ahí desde cualquier instancia y validan la
+      // reserva. Todo esto sigue detrás de REAL_EXECUTION_LOCKED.
       assertQuoteIntegrity({
         inAmountUi: data.inAmountUi,
         outAmountUi: data.outAmountUi,
         pricePerShareUsd: data.pricePerShareUsd,
         expiresAt: data.expiresAt,
         platformFeeUsd: data.costs.platformFeeUsd,
-      });
-      await reserveRealTradeAmount({
-        userId: realOwnerId,
-        requestId: data.id,
-        amountUsd: quoteReservationAmount({
-          side: data.side,
-          inAmountUi: data.inAmountUi,
-          outAmountUi: data.outAmountUi,
-          pricePerShareUsd: data.pricePerShareUsd,
-        }),
-        expiresAt: reservationExpiry(data.expiresAt),
       });
     }
     return readOutput(tradeQuoteSchema, data);

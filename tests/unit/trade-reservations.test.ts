@@ -425,12 +425,15 @@ describe("Rutas reales: reservas conectadas detrás del bloqueo", () => {
   const build = readFileSync(path.join(ROOT, "app/api/trade/build/route.ts"), "utf8");
   const submit = readFileSync(path.join(ROOT, "app/api/trade/submit/route.ts"), "utf8");
 
-  it("quote reserva cupo después de cotizar y validar integridad", () => {
+  it("quote reserva cupo al guardar la cotización y valida integridad", () => {
     expect(quote).toMatch(/assertQuoteIntegrity\(/);
-    expect(quote).toMatch(/reserveRealTradeAmount\(/);
-    expect(quote.indexOf("reserveRealTradeAmount(")).toBeGreaterThan(
-      quote.indexOf("assertRealTradeAllowed("),
-    );
+    // Ola 6/T38: el cupo y la cotización se guardan juntos, en la reserva
+    // compartida, dentro del motor live (una sola fila por cotización).
+    const live = readFileSync(path.join(ROOT, "lib", "services", "trade.live.ts"), "utf8");
+    expect(live).toMatch(/saveQuotedTrade\(/);
+    const store = readFileSync(path.join(ROOT, "lib", "trade", "quote-store.ts"), "utf8");
+    expect(store).toMatch(/reserveOrThrow\(/);
+    expect(store).toMatch(/releaseQuietly\(/);
   });
 
   it("build valida la reserva antes de armar y la re-etiqueta si cambia el requestId", () => {

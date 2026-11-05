@@ -1,5 +1,18 @@
 # PROGRESO — Maverlang
 
+## T38 — Cotización real en la reserva compartida y el comercio sigue apagado (2026-11-05)
+- `lib/trade/quote-store.ts` (nuevo): la cotización real deja de vivir en un `Map`. `saveQuotedTrade` reserva cupo (0042/0047) y guarda el payload JSON en la MISMA fila (`quote_payload`); `loadQuotedTrade`/`claimQuotedTradeBuild`/`recordQuotedTradeBuild` leen y arman desde ahí. Almacén caído o payload inválido → UPSTREAM/QUOTE_EXPIRED: nunca memoria de respaldo.
+- `lib/services/trade.live.ts`: `createLiveTrade(stores)` inyectable, sin `liveQuotes` ni `pruneLiveQuotes`. `quote` persiste (salvo valoración interna `{persist:false}`), `build` reclama `built` con compare-and-set en la base (una tx firmable por cotización, también entre instancias) y `submit` lee la cotización compartida. Dueño obligatorio.
+- `supabase/migrations/0049_trade_quote_store.sql` (nueva, **no aplicada**): columnas `quote_symbol`/`quote_payload` y RPC `save_trade_quote`, `claim_trade_quote_build`, `record_trade_quote_build`, `read_trade_quote` (sólo `service_role`). No edita 0042 ni 0047; el TTL es el `expiresAt` de la cotización.
+- `lib/services/trade-quotes.supabase.ts` (nuevo): RPC con el cliente admin dentro de la lista blanca M57; no propaga mensajes de PostgREST.
+- `app/api/trade/quote/route.ts`: la ruta ya no reserva (lo hace el motor al guardar la cotización) y la valoración de límites usa `{persist:false}`. `lib/mocks/demo-state.ts` conserva su `Map`: la demo no pasa por la tabla.
+- Tests `tests/unit/trade-quote-store-t38.test.ts` (13, almacenes falsos en memoria, sin red): dos procesos no comparten la cotización si no pasan por el almacén; una segunda cotización del mismo usuario y símbolo deja UNA reserva abierta; otro dueño no la lee ni la arma; payload corrupto o armado sin tx se descarta; almacén caído → build/submit UPSTREAM; `trade.live` sin `new Map`.
+- Ajuste de las pruebas que fijaban la reserva dentro de la ruta (`trade-reservations`, `money-d01-d05-d06`).
+- Verificación: `tsc --noEmit` 0; eslint de los archivos tocados 0; `trade-quote-store-t38` **13/13**; suites de dinero/reservas 6 archivos **118/118**; cadena 0001–0049 en PostgreSQL aislado **18/18** (0049 incluida, dos pasadas completas).
+- `REAL_EXECUTION_LOCKED` sigue en `true`; `trading_enabled`, `deposits_enabled` y `withdrawals_enabled` sin tocar; sin `.env`, sin Supabase real, sin push.
+- 0049 no se aplicó a ninguna base real: sólo PostgreSQL 17 aislado en `%TEMP%`.
+- Pendiente: aplicar 0049 en staging sobre copia (inventario y respaldo primero); D-02, DB-03, DB-06/07, KYC/AML y legal siguen abiertos.
+
 ## T37 — Cuotas de patrocinio fail-closed sin clave ni mainnet (2026-11-05)
 - `supabase/migrations/0048_sponsor_usage.sql` (nueva, **no aplicada**): `sponsor_usage` (contadores por usuario/hora, usuario/día y sponsor/día en America/Santiago) y `sponsor_usage_requests` (libro por `requestId`). RLS forzada, sólo `service_role`; `reserve_sponsor_usage`/`release_sponsor_usage` atómicas con locks de asesoramiento. No edita 0042 ni 0047.
 - `lib/solana/sponsorship/usage-store.ts` (nuevo): implementa `SponsorUsageStore`; sólo repite el `allowed === true` de la base. Tabla ausente, RPC caída, fila vacía, `"true"` string o código desconocido → `SPONSOR_LIMITER_UNAVAILABLE`. El default del sistema sigue siendo `DENY_ALL_SPONSOR_USAGE_STORE`.

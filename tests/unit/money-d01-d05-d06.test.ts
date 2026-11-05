@@ -384,9 +384,10 @@ describe("D-06: cotizar no acumula reservas", () => {
     expect(quote.indexOf("releaseRealTradeReservations(")).toBeLessThan(
       quote.indexOf("assertRealTradeAllowed("),
     );
-    expect(quote.indexOf("releaseRealTradeReservations(")).toBeLessThan(
-      quote.indexOf("reserveRealTradeAmount("),
-    );
+    // Ola 6/T38: la reserva nueva se toma al guardar la cotización en la misma
+    // fila (motor live), no en la ruta. Igual reemplaza a la anterior.
+    const live = readFileSync(path.join(ROOT, "lib/services/trade.live.ts"), "utf8");
+    expect(live).toContain("saveQuotedTrade(");
   });
 });
 

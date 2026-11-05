@@ -1,5 +1,5 @@
 /**
- * Arnés de la cadena completa de migraciones (0001..0046) en PostgreSQL aislado.
+ * Arnés de la cadena completa de migraciones (0001..0049) en PostgreSQL aislado.
  *
  * - Levanta un PostgreSQL 17 embebido en 127.0.0.1 con puerto libre y
  *   directorio temporal propio. No usa Docker, no usa `psql`, no lee `.env`
@@ -298,14 +298,14 @@ try {
   }
 
   if (failures.length === 0) {
-    await test("0001..0048 se aplican en orden, sin archivos faltantes ni duplicados", async () => {
+    await test("0001..0049 se aplican en orden, sin archivos faltantes ni duplicados", async () => {
       assert.equal(
         MIGRATION_FILES.length,
-        39,
+        40,
         "la cadena cambió: actualizar la lista esperada del arnés",
       );
       assert.match(MIGRATION_FILES[0], /^0001_/);
-      assert.match(MIGRATION_FILES.at(-1), /^0048_/);
+      assert.match(MIGRATION_FILES.at(-1), /^0049_/);
       assert.deepEqual(applied, MIGRATION_FILES);
     });
 
@@ -905,6 +905,124 @@ try {
 
       await admin.query("delete from public.sponsor_usage_requests where sponsor_id = 'acme-test'");
       await admin.query("delete from public.sponsor_usage where sponsor_id = 'acme-test'");
+    });
+
+    await test("0049 guarda la cotización en la reserva, se arma una vez y no revive liberadas", async () => {
+      const cols = await admin.query(`
+        select column_name, data_type
+          from information_schema.columns
+         where table_schema = 'public'
+           and table_name = 'trade_reservations'
+           and column_name in ('quote_symbol', 'quote_payload')
+         order by column_name
+      `);
+      assert.deepEqual(
+        cols.rows.map((r) => r.column_name),
+        ["quote_payload", "quote_symbol"],
+        "faltan las columnas del payload de la cotización",
+      );
+      assert.equal(cols.rows[0].data_type, "jsonb");
+
+      assert.equal(await functionPriv("service_role", "public.save_trade_quote(uuid,text,text,jsonb)"), true);
+      assert.equal(await functionPriv("authenticated", "public.save_trade_quote(uuid,text,text,jsonb)"), false);
+      assert.equal(await functionPriv("anon", "public.save_trade_quote(uuid,text,text,jsonb)"), false);
+      assert.equal(await functionPriv("service_role", "public.claim_trade_quote_build(uuid,text)"), true);
+      assert.equal(await functionPriv("authenticated", "public.claim_trade_quote_build(uuid,text)"), false);
+      assert.equal(await functionPriv("service_role", "public.record_trade_quote_build(uuid,text,jsonb)"), true);
+      assert.equal(await functionPriv("authenticated", "public.record_trade_quote_build(uuid,text,jsonb)"), false);
+      assert.equal(await functionPriv("service_role", "public.read_trade_quote(uuid,text)"), true);
+      assert.equal(await functionPriv("authenticated", "public.read_trade_quote(uuid,text)"), false);
+      assert.equal(await tablePriv("authenticated", "public.trade_reservations", "SELECT"), false);
+
+      const payload = JSON.stringify({
+        version: 1,
+        requestId: "chain-q-1",
+        side: "buy",
+        symbol: "AAPLx",
+        built: false,
+      });
+
+      await admin.query(
+        "select * from public.reserve_trade_amount($1, 'chain-q-1', 120, now() + interval '10 minutes')",
+        [USER_RPC],
+      );
+      const saved = await admin.query(
+        "select public.save_trade_quote($1, 'chain-q-1', 'AAPLx', $2::jsonb) as ok",
+        [USER_RPC, payload],
+      );
+      assert.equal(saved.rows[0].ok, true, "debía guardar la cotización en la reserva");
+
+      const savedAgain = await admin.query(
+        "select public.save_trade_quote($1, 'chain-q-1', 'AAPLx', $2::jsonb) as ok",
+        [USER_RPC, payload],
+      );
+      assert.equal(savedAgain.rows[0].ok, false, "una cotización guardada no se reescribe");
+
+      const read = await admin.query(
+        "select * from public.read_trade_quote($1, 'chain-q-1')",
+        [USER_RPC],
+      );
+      assert.equal(read.rows.length, 1);
+      assert.equal(read.rows[0].quote_symbol, "AAPLx");
+      assert.equal(read.rows[0].quote_status, "reserved");
+      assert.equal(read.rows[0].quote_payload.built, false);
+
+      const claim = await admin.query(
+        "select public.claim_trade_quote_build($1, 'chain-q-1') as ok",
+        [USER_RPC],
+      );
+      assert.equal(claim.rows[0].ok, true, "el primer armado debía reclamar la cotización");
+      const claimAgain = await admin.query(
+        "select public.claim_trade_quote_build($1, 'chain-q-1') as ok",
+        [USER_RPC],
+      );
+      assert.equal(claimAgain.rows[0].ok, false, "una cotización se arma UNA sola vez");
+
+      const recorded = await admin.query(
+        "select public.record_trade_quote_build($1, 'chain-q-1', $2::jsonb) as ok",
+        [
+          USER_RPC,
+          JSON.stringify({
+            inAmountUi: 120,
+            outAmountUi: 0.5,
+            priceUsd: 240,
+            builtTransactionBase64: "tx-armada",
+            built: false,
+          }),
+        ],
+      );
+      assert.equal(recorded.rows[0].ok, true);
+      const afterRecord = await admin.query(
+        "select * from public.read_trade_quote($1, 'chain-q-1')",
+        [USER_RPC],
+      );
+      assert.equal(afterRecord.rows[0].quote_payload.built, true, "el patch no puede apagar built");
+      assert.equal(afterRecord.rows[0].quote_payload.builtTransactionBase64, "tx-armada");
+      assert.equal(Number(afterRecord.rows[0].quote_payload.inAmountUi), 120);
+
+      // Una reserva liberada no se arma ni acepta una cotización nueva.
+      await admin.query(
+        "select * from public.reserve_trade_amount($1, 'chain-q-2', 90, now() + interval '10 minutes')",
+        [USER_RPC],
+      );
+      await admin.query("select public.release_trade_reservation($1, 'chain-q-2')", [USER_RPC]);
+      const saveOnReleased = await admin.query(
+        "select public.save_trade_quote($1, 'chain-q-2', 'AAPLx', $2::jsonb) as ok",
+        [USER_RPC, payload.replace("chain-q-1", "chain-q-2")],
+      );
+      assert.equal(saveOnReleased.rows[0].ok, false, "una reserva liberada no acepta cotización");
+      const claimOnReleased = await admin.query(
+        "select public.claim_trade_quote_build($1, 'chain-q-2') as ok",
+        [USER_RPC],
+      );
+      assert.equal(claimOnReleased.rows[0].ok, false, "una reserva liberada no se arma");
+      const readReleased = await admin.query(
+        "select count(*)::int as n from public.read_trade_quote($1, 'chain-q-2')",
+        [USER_RPC],
+      );
+      assert.equal(readReleased.rows[0].n, 0);
+
+      await admin.query("delete from public.trade_reservations where user_id = $1", [USER_RPC]);
     });
 
     await test("toda la cadena se puede reaplicar sin errores ni pérdida de datos", async () => {
