@@ -1,5 +1,16 @@
 # PROGRESO — Maverlang
 
+## T33 — Migración forward de reservas sin tocar la base real (2026-11-05)
+- `supabase/migrations/0047_trade_reservations_forward.sql`: lleva una base que ya ejecutó la 0042 vieja (db3c416) al esquema de la 0042 nueva. **No aplicada a ninguna base**: no hay infraestructura tocada ni migraciones corridas fuera de PostgreSQL aislado.
+- Dedupe previo al unique `(user_id, request_id)`: canónica = `consumed` más antigua, luego `reserved`, luego `released`; las demás no se borran, se re-etiquetan `left(orig,190) || '#dup-' || id`; las `reserved` perdedoras pasan a `released`; las `consumed` conservan estado (fail-closed). Regla completa en la cabecera del SQL.
+- Prueba nueva `supabase/tests/run-trade-reservations-forward-tests.mjs`: 0042 vieja (fixture `supabase/tests/fixtures/0042_trade_reservations_pre_0047.sql`) + duplicados + 0047 dos veces → **9/9**.
+- Cadena 0001–0047 (`run-migration-chain-tests.mjs`): **16/16**, dos pasadas completas; se agregó el check del unique y de `release_other_trade_reservations`.
+- `run-db-tests.mjs`: tenía **4 fallas preexistentes** de T32 (assertions de la 0042 vieja sin D-06, verificadas también en HEAD). Actualizadas a la semántica vigente → **33/33**.
+- `scripts/inventory-migrations.mjs`: sólo lectura, sin conexión; si ve `DATABASE_URL` u otra variable de conexión, termina sin conectar.
+- Mutación de control: quitar `release_other_trade_reservations` de 0047 en una copia hace fallar la prueba D-06 (las pruebas no son vacías).
+- `REAL_EXECUTION_LOCKED` sigue en `true`; sin push, sin reset, sin tocar 0042, CSS, landing ni copy.
+- Pendiente: aplicar 0047 en staging sobre copia (inventario + respaldo primero); D-02, DB-03, DB-06/07, KYC/AML y legal siguen abiertos.
+
 ## T32 — Integrar la auditoría de seguridad sin abrir el dinero real (2026-11-05)
 - Merge de `fix/security-integration` (a4ffabf) sobre main (db3c416): dos conflictos resueltos a mano; sin reset, sin push.
 - `.github/workflows/ci.yml`: se conserva CI-01/M-08 con `permissions: contents: read`; `ALLOW_MOCK_AUTH` intacto debajo.

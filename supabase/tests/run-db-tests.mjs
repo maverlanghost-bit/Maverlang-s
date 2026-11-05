@@ -703,11 +703,17 @@ try {
     await seedOrder(user, 400);
     const service = await connectAs("service_role");
     try {
+      // 400 de la orden + 100 de la reserva = tope diario exacto.
       await reserve(service, user, "req-100", 100);
+
+      // D-06: la cotización nueva reemplaza a la anterior, así que una reserva
+      // ya no se acumula sobre otra. Lo que sigue sumando es la orden real: con
+      // 500 de órdenes del día, cualquier reserva nueva se pasa.
+      await seedOrder(user, 100);
       await expectSqlError(
         () => reserve(service, user, "req-1", 1),
         /MV_LIMIT_DAILY/,
-        "tope diario exacto",
+        "tope diario con órdenes que ya lo llenan",
       );
     } finally {
       await service.end();
@@ -766,7 +772,9 @@ try {
     const service2 = await connectAs("service_role");
     try {
       await reserve(service2, user2, "req-last-month", 200);
-      await seedOrder(user2, 1900);
+      // D-06: la reserva anterior deja de sumar cuando llega una nueva, así que
+      // el mes lo llenan las órdenes reales: 2000 hoy + 100 > 2000.
+      await seedOrder(user2, 2000);
       await expectSqlError(
         () => reserve(service2, user2, "req-month", 100),
         /MV_LIMIT_MONTHLY/,
@@ -1137,12 +1145,18 @@ try {
         capture(() => reserve(clients[0], user, "race-a", 300)),
         capture(() => reserve(clients[1], user, "race-b", 300)),
       ]);
-      const ok = results.filter((r) => r.ok);
-      const failed = results.filter((r) => !r.ok);
-      assert.equal(ok.length, 1, `se esperaba 1 éxito, hubo ${ok.length}`);
-      assert.equal(failed.length, 1);
-      assert.match(failed[0].error.message, /MV_LIMIT_DAILY/);
-      assert.equal(await countReservations(user), 1);
+      // D-06: las dos cotizaciones se aceptan, pero la última reemplaza a la
+      // anterior; nunca quedan dos reservas activas ni se supera el cupo.
+      assert.equal(results.filter((r) => r.ok).length, 2, "ambas cotizaciones deben aceptarse");
+      const active = await admin.query(
+        `select count(*)::int as n, coalesce(sum(amount_usd), 0)::text as total
+           from public.trade_reservations
+          where user_id = $1 and status = 'reserved'`,
+        [user],
+      );
+      assert.equal(active.rows[0].n, 1, "debe quedar una sola reserva activa");
+      assert.equal(Number(active.rows[0].total), 300, "el cupo activo no se acumula");
+      assert.equal(await countReservations(user), 2, "la reserva reemplazada se conserva como traza");
     } finally {
       await Promise.all(clients.map((c) => c.end()));
     }
@@ -1163,13 +1177,19 @@ try {
         ),
       );
       const ok = results.filter((r) => r.ok).length;
-      assert.equal(ok, 8, `se esperaban 8 reservas de US$60, hubo ${ok}`);
-      assert.equal(results.filter((r) => !r.ok).length, 2);
+      // D-06: cada cotización nueva reemplaza la anterior, así que las 10 pasan
+      // y sólo la última queda reteniendo cupo (US$60 << tope diario US$500).
+      assert.equal(ok, 10, `las 10 cotizaciones debían aceptarse, hubo ${ok}`);
       const { rows } = await admin.query(
-        "select coalesce(sum(amount_usd), 0)::numeric as total from public.trade_reservations where user_id = $1",
+        `select count(*) filter (where status = 'reserved')::int as activas,
+                coalesce(sum(amount_usd) filter (where status = 'reserved'), 0)::numeric as total
+           from public.trade_reservations
+          where user_id = $1`,
         [user],
       );
-      assert.equal(Number(rows[0].total), 480);
+      assert.equal(rows[0].activas, 1, "debe quedar una sola reserva activa");
+      assert.equal(Number(rows[0].total), 60, "el cupo retenido debe ser el de la última");
+      assert.equal(await countReservations(user), 10, "las reemplazadas quedan como traza");
     } finally {
       await Promise.all(clients.map((c) => c.end()));
     }

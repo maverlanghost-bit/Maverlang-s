@@ -298,14 +298,14 @@ try {
   }
 
   if (failures.length === 0) {
-    await test("0001..0046 se aplican en orden, sin archivos faltantes ni duplicados", async () => {
+    await test("0001..0047 se aplican en orden, sin archivos faltantes ni duplicados", async () => {
       assert.equal(
         MIGRATION_FILES.length,
-        37,
+        38,
         "la cadena cambió: actualizar la lista esperada del arnés",
       );
       assert.match(MIGRATION_FILES[0], /^0001_/);
-      assert.match(MIGRATION_FILES.at(-1), /^0046_/);
+      assert.match(MIGRATION_FILES.at(-1), /^0047_/);
       assert.deepEqual(applied, MIGRATION_FILES);
     });
 
@@ -706,6 +706,76 @@ try {
       );
       const { rows } = await admin.query("select 1 from auth.users where id = $1", [USER_US]);
       assert.equal(rows.length, 0, "el usuario bloqueado no debe existir");
+    });
+
+    await test("0047 deja el unique (user_id, request_id) y libera las otras reservas", async () => {
+      const unique = await admin.query(`
+        select count(*)::int as n
+          from pg_index i
+         where i.indrelid = 'public.trade_reservations'::regclass
+           and i.indisunique
+           and i.indpred is null
+           and i.indnkeyatts = 2
+           and pg_get_indexdef(i.indexrelid, 1, true) = 'user_id'
+           and pg_get_indexdef(i.indexrelid, 2, true) = 'request_id'
+      `);
+      assert.equal(unique.rows[0].n, 1, "falta el unique (user_id, request_id)");
+
+      const oneActive = await admin.query(`
+        select count(*)::int as n from pg_indexes
+         where schemaname = 'public'
+           and indexname = 'trade_reservations_one_active_idx'
+      `);
+      assert.equal(oneActive.rows[0].n, 1, "falta el índice de una reserva activa por usuario");
+
+      assert.equal(
+        await functionPriv("service_role", "public.release_other_trade_reservations(uuid,text)"),
+        true,
+      );
+      assert.equal(
+        await functionPriv("authenticated", "public.release_other_trade_reservations(uuid,text)"),
+        false,
+      );
+
+      // Comportamiento: la cotización nueva reemplaza a la anterior.
+      await admin.query(
+        "select * from public.reserve_trade_amount($1, 'chain-41', 100, now() + interval '10 minutes')",
+        [USER_RPC],
+      );
+      await admin.query(
+        "select * from public.reserve_trade_amount($1, 'chain-42', 150, now() + interval '10 minutes')",
+        [USER_RPC],
+      );
+
+      const afterSecond = await admin.query(
+        `select status, amount_usd::text
+           from public.trade_reservations
+          where user_id = $1 and request_id in ('chain-41', 'chain-42')
+          order by request_id`,
+        [USER_RPC],
+      );
+      assert.deepEqual(
+        afterSecond.rows.map((r) => r.status),
+        ["released", "reserved"],
+        "la reserva anterior debía liberarse y sobrevivir como traza",
+      );
+
+      const released = await admin.query(
+        "select public.release_other_trade_reservations($1, '') as n",
+        [USER_RPC],
+      );
+      assert.equal(released.rows[0].n, 1, "debía liberar la reserva activa");
+
+      const kept = await admin.query(
+        "select count(*)::int as n from public.trade_reservations where user_id = $1",
+        [USER_RPC],
+      );
+      assert.equal(kept.rows[0].n, 2, "liberar no puede borrar filas");
+
+      await admin.query(
+        "delete from public.trade_reservations where user_id = $1",
+        [USER_RPC],
+      );
     });
 
     await test("toda la cadena se puede reaplicar sin errores ni pérdida de datos", async () => {

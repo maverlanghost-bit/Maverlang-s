@@ -1,4 +1,4 @@
-# Pruebas de SQL en PostgreSQL aislado (0041 / 0042)
+# Pruebas de SQL en PostgreSQL aislado (0041 / 0042 / 0047)
 
 Estas pruebas levantan un **PostgreSQL 17 embebido** en `127.0.0.1` con un
 puerto libre y un directorio temporal propio. No usan Docker, no usan `psql`,
@@ -69,7 +69,7 @@ El proceso sale con código 1 si alguna prueba falla.
 - Las pruebas de concurrencia usan conexiones TCP reales, pero el clúster
   corre en la misma máquina; no sustituyen una prueba de carga.
 
-## Cadena completa 0001–0046 (staging desde cero)
+## Cadena completa 0001–0047 (staging desde cero)
 
 `run-migration-chain-tests.mjs` es el arnés principal para validar que una
 base nueva puede llegar al esquema final aplicando **todas** las migraciones
@@ -85,7 +85,7 @@ base existente.
 
 Qué comprueba:
 
-1. Aplica `0001..0046` en orden, sin archivos faltantes ni duplicados, sobre
+1. Aplica `0001..0047` en orden, sin archivos faltantes ni duplicados, sobre
    un PostgreSQL 17 aislado con roles `anon`, `authenticated`, `service_role`,
    `supabase_auth_admin`, esquema `auth`, `auth.users`, `auth.mfa_factors`,
    `auth.uid()` y `auth.jwt()`.
@@ -110,12 +110,51 @@ Qué comprueba:
    idempotentes y confirma que no se modifica un perfil existente ni se
    duplica el plan de regularización. También reaplica `0025` y `0046` por
    separado.
+8. `0047` (forward de reservas): comprueba el unique `(user_id, request_id)`,
+   el índice de una sola reserva activa por usuario, el `execute` de
+   `release_other_trade_reservations` sólo para `service_role` y el
+   comportamiento real — la cotización nueva libera la anterior sin borrar
+   filas.
 
 Resultado esperado:
 
 ```
-Resultado: 15 pasaron, 0 fallaron.
+Resultado: 16 pasaron, 0 fallaron.
 ```
+
+## Migración forward 0047 sobre una base ya migrada
+
+`run-trade-reservations-forward-tests.mjs` reproduce el caso delicado: una base
+que **ya ejecutó la 0042 vieja** (commit `db3c416`) y nunca volverá a correr
+0042, porque el ledger no la reejecuta.
+
+```bash
+node supabase/tests/run-trade-reservations-forward-tests.mjs
+```
+
+- Aplica `0002`, `0011`, `0027`, `0028`, `0031` y después la 0042 vieja desde
+  el fixture `supabase/tests/fixtures/0042_trade_reservations_pre_0047.sql`.
+  Ese fixture **no** es la migración de una base nueva: en una base nueva se
+  aplica `supabase/migrations/0042_trade_reservations.sql`.
+- Carga filas repetidas de `(user_id, request_id)` (incluida una `consumed`
+  con orden real) como las dejaría una variante anterior sin el unique, y
+  aplica `0047` **dos veces**.
+- Comprueba: deduplicación sin borrar filas ni la traza de la `consumed` con
+  orden, unique final, una sola reserva activa por usuario, tope que no se
+  duplica, `consumed` que no cuenta doble y tope global que no ignora
+  requestIds de otros usuarios.
+
+Resultado esperado:
+
+```
+Resultado: 9 pasaron, 0 fallaron.
+```
+
+## Inventario de migraciones (sólo lectura)
+
+`node scripts/inventory-migrations.mjs` lista `supabase/migrations` en orden y
+los objetos que la 0047 espera. No abre conexiones; si detecta `DATABASE_URL`
+o cualquier variable de conexión en el entorno, termina sin conectar.
 
 ### Compatibilidad de la cadena (cambios históricos)
 
