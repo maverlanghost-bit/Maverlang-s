@@ -1,5 +1,16 @@
 # PROGRESO — Maverlang
 
+## T40 — Cerrar el hueco de dinero que la auditoría encontró (2026-11-05)
+- Auditoría de los tres caminos contra las funciones reales (`netTokenDeltaWithExactDecimals`, `isDepositLedgerEligible`, `validateAndPrepareWithdrawal`, `app/api/wallet/send/build/route.ts`, `trade.live.ts`, `quote-store.ts`): el producto cumple los criterios; no se tocó código de producción ni se aflojó ningún candado.
+- Hueco 1 (depósito): `depositLifecycleFromStatus` —quien decide si una firma `processed`/sin estado cuenta— no tenía prueba, y el barrido real (`syncSolanaUsdcDeposits` con dependencias de producción) tampoco. Un mapeo `processed → confirmed` habría acreditado depósitos revertibles en verde.
+- Cerrado con `tests/unit/money-t40-deposit-ledger-gate.test.ts` (10, RPC/Supabase mockeados a nivel de módulo): `processed`, sin estado y con error quedan en `detected` y no escriben `crypto_deposits` (movimiento `pending`); `confirmed`/`finalized` acreditan una sola vez con el monto neto; decimal ≠ 6 o ausente no acredita; sin `WALLET_DEPOSIT_SYNC` no barre.
+- Hueco 2 (retiro): el tope por operación sólo estaba probado como función pura; ninguna prueba ejecutaba la ruta. Cerrado con `tests/unit/money-t40-withdrawal-route-cap.test.ts` (5): 500,01 USDC → 422 `LIMIT_ORDER` sin llamar a `sendBuild`; acción sin precio → 502 `UPSTREAM`; 3 acciones a US$250 → 422.
+- Validez comprobada por mutación: `processed → confirmed` y quitar `assertSendWithinOperationLimit` de la ruta hacen fallar las pruebas nuevas (revertido al instante; `git diff` de producción vacío).
+- Compra: PASS sin cambios — cotización en la reserva compartida (sin `Map`), claim atómico, almacén caído → UPSTREAM/QUOTE_EXPIRED, segunda cotización del mismo usuario no apila topes, candado antes de todo.
+- Verificación: `npx tsc --noEmit` 0 errores; 9 archivos de dinero/depósito/retiro/cotización **120/120** (los 7 previos 105/105 intactos).
+- Candados: `REAL_EXECUTION_LOCKED = true`; `deposits_enabled`, `withdrawals_enabled` y `trading_enabled` con default `false`; `hasWalletLinkingProof()` `false`; `kms.ts` lanza `SPONSOR_KMS_REQUIRED` sin clave. Sin `.env`, sin RPC/Supabase/mainnet, sin migraciones, sin push.
+- Commit local sólo de los dos tests nuevos y este PROGRESO; sin `git add -A`.
+
 ## T39 — Verificar el conjunto T32–T38 y dejar el dinero real apagado (2026-11-05)
 - Verificación completa y en orden, sin cambiar comportamiento: `npx tsc --noEmit` **0 errores**; `npx eslint app lib tests` **0 problemas** (sin salida); `npx vitest run` **148 archivos / 1433 pruebas en verde** (61 s); arnés aislado `supabase/tests/run-migration-chain-tests.mjs` (0001–0049 aplicadas **dos veces**, PostgreSQL 17 embebido en `%TEMP%`, sin Docker ni `.env`) **18/18**; `npx next build --webpack` **exit 0**, 502 páginas estáticas en 24 s.
 - El primer build murió con `0xC0000142` al cortarse el comando a los 420 s; relanzado sin tope terminó con exit 0. Warnings del build: `middleware`→`proxy` deprecado y módulos de `node_modules` (`viem`, `@privy-io`); ninguno viene de la ola.
