@@ -1,5 +1,17 @@
 # PROGRESO — Maverlang
 
+## T39 — Verificar el conjunto T32–T38 y dejar el dinero real apagado (2026-11-05)
+- Verificación completa y en orden, sin cambiar comportamiento: `npx tsc --noEmit` **0 errores**; `npx eslint app lib tests` **0 problemas** (sin salida); `npx vitest run` **148 archivos / 1433 pruebas en verde** (61 s); arnés aislado `supabase/tests/run-migration-chain-tests.mjs` (0001–0049 aplicadas **dos veces**, PostgreSQL 17 embebido en `%TEMP%`, sin Docker ni `.env`) **18/18**; `npx next build --webpack` **exit 0**, 502 páginas estáticas en 24 s.
+- El primer build murió con `0xC0000142` al cortarse el comando a los 420 s; relanzado sin tope terminó con exit 0. Warnings del build: `middleware`→`proxy` deprecado y módulos de `node_modules` (`viem`, `@privy-io`); ninguno viene de la ola.
+- Candados intactos: `REAL_EXECUTION_LOCKED = true` (`lib/trade/real-guards.ts:79`); `trading_enabled`, `onramp_enabled`, `deposits_enabled` y `withdrawals_enabled` con default `false` fail-closed (`lib/flags.ts:32-47`); `SPONSOR_ENABLED: boolEnv(false)` (`lib/env.ts:207`).
+- `hasWalletLinkingProof()` devuelve siempre `false` (`lib/wallet/linking-proof.ts:67-71`). `kms.ts` sigue el stub que lanza `SPONSOR_KMS_REQUIRED` con `feePayer === ""`; cero `privateKey`/`secretKey`/`mnemonic` en `lib/solana/sponsorship`.
+- `lib/services/trade.live.ts` sin `liveQuotes` ni `new Map`; `lib/mocks/demo-state.ts` conserva sus `Map` (sólo demo).
+- **Olas cerradas: T32–T38** verificadas en este árbol. Ningún fallo vino de esos cambios, así que no hubo arreglos: 0 archivos de código tocados.
+- **Migraciones NO aplicadas: 0045, 0046, 0047, 0048 y 0049.** Corrieron sólo en el PostgreSQL aislado de `%TEMP%`; ninguna base real se tocó en este turno.
+- **Dinero real: NO GO.** D-02, DB-03, DB-06/07, KYC/AML y legal siguen abiertos.
+- **El encendido queda para Manu**: respaldo e inventario, ensayo sobre copia en staging, KMS/HSM real con la PUBLIC KEY del sponsor, Upstash para los límites, y `AUTH_MODE=supabase` sin `ALLOW_MOCK_AUTH`. Hasta entonces todo sigue apagado.
+- Commit local sólo de `PROGRESO.md`; sin `git add -A`, sin push, sin reset.
+
 ## T38 — Cotización real en la reserva compartida y el comercio sigue apagado (2026-11-05)
 - `lib/trade/quote-store.ts` (nuevo): la cotización real deja de vivir en un `Map`. `saveQuotedTrade` reserva cupo (0042/0047) y guarda el payload JSON en la MISMA fila (`quote_payload`); `loadQuotedTrade`/`claimQuotedTradeBuild`/`recordQuotedTradeBuild` leen y arman desde ahí. Almacén caído o payload inválido → UPSTREAM/QUOTE_EXPIRED: nunca memoria de respaldo.
 - `lib/services/trade.live.ts`: `createLiveTrade(stores)` inyectable, sin `liveQuotes` ni `pruneLiveQuotes`. `quote` persiste (salvo valoración interna `{persist:false}`), `build` reclama `built` con compare-and-set en la base (una tx firmable por cotización, también entre instancias) y `submit` lee la cotización compartida. Dueño obligatorio.
