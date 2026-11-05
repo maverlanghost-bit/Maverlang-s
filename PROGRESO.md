@@ -1,5 +1,20 @@
 # PROGRESO — Maverlang
 
+## T37 — Cuotas de patrocinio fail-closed sin clave ni mainnet (2026-11-05)
+- `supabase/migrations/0048_sponsor_usage.sql` (nueva, **no aplicada**): `sponsor_usage` (contadores por usuario/hora, usuario/día y sponsor/día en America/Santiago) y `sponsor_usage_requests` (libro por `requestId`). RLS forzada, sólo `service_role`; `reserve_sponsor_usage`/`release_sponsor_usage` atómicas con locks de asesoramiento. No edita 0042 ni 0047.
+- `lib/solana/sponsorship/usage-store.ts` (nuevo): implementa `SponsorUsageStore`; sólo repite el `allowed === true` de la base. Tabla ausente, RPC caída, fila vacía, `"true"` string o código desconocido → `SPONSOR_LIMITER_UNAVAILABLE`. El default del sistema sigue siendo `DENY_ALL_SPONSOR_USAGE_STORE`.
+- `lib/services/sponsor-usage.supabase.ts` (nuevo): RPC con el cliente admin dentro de la lista blanca M57; no propaga mensajes de PostgREST.
+- Techos duros revalidados en SQL contra `contracts.ts` (10/h, 30/día, 5000 sponsor/día, 20M/100M lamports, comisión 10M, cooldown 24 h): una llamada no puede pedir "sin límite".
+- Idempotencia: mismo `requestId` con el mismo contenido no suma dos veces; con otro contenido o ya liberado se rechaza (un `requestId` liberado no se revive). `release` descuenta sólo las ventanas de `created_at`.
+- Tests `tests/unit/sponsorship-usage-store.test.ts` (7) y `tests/unit/sponsorship-fail-closed.test.ts` (7), firmante falso en memoria (`Keypair.generate`, devnet): flag apagado/sin KMS → 0 firmas del sponsor; cupo 1/hora → segunda tx `SPONSOR_LIMIT_EXCEEDED` con el firmante llamado 1 vez; KMS tramposo que firma otro mensaje → `SPONSOR_SIGNATURE_INVALID` y libera la reserva.
+- `verifySponsorSignature`: mensaje distinto, firma basura o firma de usuario alterada → `SPONSOR_SIGNATURE_INVALID`; la firma correcta pasa.
+- `kms.ts` intacto: `KMS_REQUIRED_SPONSOR.feePayer === ""`, `signFeePayer` siempre lanza `SPONSOR_KMS_REQUIRED`; ninguna clave privada en el repo.
+- Cadena `run-migration-chain-tests.mjs`: 0001–0048 aplicadas dos veces → **17/17** (nueva prueba 0048). `supabase/tests/README.md` actualizado.
+- Verificación: `tsc --noEmit` 0; `eslint` 0; suite completa **147 archivos / 1420 pruebas**.
+- `SPONSOR_ENABLED=false`; `REAL_EXECUTION_LOCKED`, `deposits_enabled` y `withdrawals_enabled` sin tocar; sin `.env`, sin RPC real, sin mainnet, sin push.
+- 0048 no se aplicó a ninguna base real: sólo PostgreSQL 17 aislado en `%TEMP%`.
+- Pendiente: KMS/HSM real y sponsor aprobado con su PUBLIC KEY; decidir renta de ATA; D-02, DB-03, DB-06/07, KYC/AML y legal siguen abiertos.
+
 ## T36 — Dejar cerrada la vinculación hasta una prueba de la misma persona (2026-11-05)
 - `lib/wallet/linking-proof.ts` (nuevo): tipo `wallet_nonce_signature` (nonce + dirección + firma, texto exacto) y `walletLinkingProofMessage(nonce)`. `hasWalletLinkingProof()` devuelve siempre `false`: sin verificar la firma contra un nonce emitido en la sesión, una prueba declarada es sólo una afirmación del cliente.
 - No verifica firmas, no llama a Privy ni a Solana y no guarda secretos: el módulo no tiene imports ni `fetch`.

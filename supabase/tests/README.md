@@ -69,7 +69,7 @@ El proceso sale con código 1 si alguna prueba falla.
 - Las pruebas de concurrencia usan conexiones TCP reales, pero el clúster
   corre en la misma máquina; no sustituyen una prueba de carga.
 
-## Cadena completa 0001–0047 (staging desde cero)
+## Cadena completa 0001–0048 (staging desde cero)
 
 `run-migration-chain-tests.mjs` es el arnés principal para validar que una
 base nueva puede llegar al esquema final aplicando **todas** las migraciones
@@ -85,7 +85,7 @@ base existente.
 
 Qué comprueba:
 
-1. Aplica `0001..0047` en orden, sin archivos faltantes ni duplicados, sobre
+1. Aplica `0001..0048` en orden, sin archivos faltantes ni duplicados, sobre
    un PostgreSQL 17 aislado con roles `anon`, `authenticated`, `service_role`,
    `supabase_auth_admin`, esquema `auth`, `auth.users`, `auth.mfa_factors`,
    `auth.uid()` y `auth.jwt()`.
@@ -115,11 +115,20 @@ Qué comprueba:
    `release_other_trade_reservations` sólo para `service_role` y el
    comportamiento real — la cotización nueva libera la anterior sin borrar
    filas.
+9. `0048` (cuotas del patrocinio): RLS forzada y privilegios sólo para
+   `service_role` en `sponsor_usage`/`sponsor_usage_requests`, los tres
+   índices únicos, y el comportamiento real — una reserva suma las ventanas
+   usuario/hora, usuario/día y sponsor/día; el cupo agotado devuelve
+   `SPONSOR_LIMIT_EXCEEDED`; repetir el `requestId` no suma de nuevo; un
+   `requestId` liberado no se revive; `release_sponsor_usage` descuenta una
+   sola vez las ventanas originales; un tope por sobre los techos duros de
+   `contracts.ts` se rechaza con `SPONSOR_POLICY_INVALID`. No enciende el
+   patrocinio ni registra sponsors.
 
 Resultado esperado:
 
 ```
-Resultado: 16 pasaron, 0 fallaron.
+Resultado: 17 pasaron, 0 fallaron.
 ```
 
 ## Migración forward 0047 sobre una base ya migrada

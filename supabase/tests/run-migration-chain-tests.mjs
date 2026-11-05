@@ -298,14 +298,14 @@ try {
   }
 
   if (failures.length === 0) {
-    await test("0001..0047 se aplican en orden, sin archivos faltantes ni duplicados", async () => {
+    await test("0001..0048 se aplican en orden, sin archivos faltantes ni duplicados", async () => {
       assert.equal(
         MIGRATION_FILES.length,
-        38,
+        39,
         "la cadena cambió: actualizar la lista esperada del arnés",
       );
       assert.match(MIGRATION_FILES[0], /^0001_/);
-      assert.match(MIGRATION_FILES.at(-1), /^0047_/);
+      assert.match(MIGRATION_FILES.at(-1), /^0048_/);
       assert.deepEqual(applied, MIGRATION_FILES);
     });
 
@@ -683,6 +683,8 @@ try {
         "wallet_movements",
         "wallet_reconciliations",
         "trade_reservations",
+        "sponsor_usage",
+        "sponsor_usage_requests",
       ]) {
         const { rows } = await admin.query(
           "select relrowsecurity, relforcerowsecurity from pg_class where oid = $1::regclass",
@@ -776,6 +778,133 @@ try {
         "delete from public.trade_reservations where user_id = $1",
         [USER_RPC],
       );
+    });
+
+    await test("0048 registra uso del patrocinio, rechaza por cupo y libera sin revivir reservas", async () => {
+      // Privilegios: sólo service_role toca las tablas y ejecuta las RPC.
+      for (const table of ["sponsor_usage", "sponsor_usage_requests"]) {
+        assert.equal(await tablePriv("anon", `public.${table}`, "SELECT"), false);
+        assert.equal(await tablePriv("authenticated", `public.${table}`, "SELECT"), false);
+        assert.equal(await tablePriv("service_role", `public.${table}`, "SELECT"), true);
+        assert.equal(await tablePriv("service_role", `public.${table}`, "INSERT"), true);
+        assert.equal(await tablePriv("service_role", `public.${table}`, "UPDATE"), true);
+      }
+      const reserveSignature =
+        "public.reserve_sponsor_usage(text,uuid,text,bigint,text,integer,integer,integer,bigint,bigint,bigint)";
+      assert.equal(await functionPriv("service_role", reserveSignature), true);
+      assert.equal(await functionPriv("authenticated", reserveSignature), false);
+      assert.equal(await functionPriv("anon", reserveSignature), false);
+      assert.equal(await functionPriv("service_role", "public.release_sponsor_usage(text,text)"), true);
+      assert.equal(await functionPriv("authenticated", "public.release_sponsor_usage(text,text)"), false);
+
+      const indexes = await admin.query(`
+        select count(*)::int as n
+          from pg_indexes
+         where schemaname = 'public'
+           and indexname in (
+             'sponsor_usage_user_window_idx',
+             'sponsor_usage_sponsor_window_idx',
+             'sponsor_usage_requests_request_idx'
+           )
+      `);
+      assert.equal(indexes.rows[0].n, 3, "faltan los índices únicos de las ventanas o del requestId");
+
+      const sha = "b".repeat(64);
+      const reserve = (requestId, options = {}) =>
+        admin.query(
+          "select * from public.reserve_sponsor_usage($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)",
+          [
+            requestId,
+            USER_RPC,
+            "acme-test",
+            options.fee ?? 10000,
+            sha,
+            options.hour ?? 1,
+            options.day ?? 5,
+            options.sponsorDay ?? 50,
+            options.lamportsUser ?? 1000000,
+            options.lamportsSponsor ?? 5000000,
+            options.cooldown ?? 0,
+          ],
+        );
+
+      const first = (await reserve("chain-sp-1")).rows[0];
+      assert.equal(first.allowed, true);
+      assert.equal(first.code, null);
+      assert.equal(first.user_hour_count, 1);
+      assert.equal(first.user_day_count, 1);
+      assert.equal(first.sponsor_day_count, 1);
+      assert.equal(first.user_day_lamports, "10000");
+      assert.equal(first.sponsor_day_lamports, "10000");
+      assert.ok(first.last_user_sponsorship_at instanceof Date);
+
+      // Segunda reserva en la misma hora con el tope 1/hora: rechazo.
+      const second = (await reserve("chain-sp-2")).rows[0];
+      assert.equal(second.allowed, false);
+      assert.equal(second.code, "SPONSOR_LIMIT_EXCEEDED");
+
+      // Reintentar el MISMO requestId no suma de nuevo.
+      const again = (await reserve("chain-sp-1")).rows[0];
+      assert.equal(again.allowed, true);
+      assert.equal(again.user_hour_count, 1);
+      assert.equal(again.user_day_count, 1);
+
+      // Mismo requestId con otra comisión: no se revive ni se reutiliza.
+      const conflict = (await reserve("chain-sp-1", { fee: 12000 })).rows[0];
+      assert.equal(conflict.allowed, false);
+      assert.equal(conflict.code, "SPONSOR_REQUEST_INVALID");
+
+      // Tope de lamports del usuario/día (10000 + 10000 > 15000).
+      const lamports = (await reserve("chain-sp-lam", { hour: 5, lamportsUser: 15000 })).rows[0];
+      assert.equal(lamports.allowed, false);
+      assert.equal(lamports.code, "SPONSOR_LIMIT_EXCEEDED");
+
+      // Un tope por sobre el techo duro de contracts.ts no se acepta.
+      const overCap = (await reserve("chain-sp-policy", { hour: 11 })).rows[0];
+      assert.equal(overCap.allowed, false);
+      assert.equal(overCap.code, "SPONSOR_POLICY_INVALID");
+
+      // Liberar devuelve el cupo de las ventanas ORIGINALES, una sola vez.
+      const released = await admin.query(
+        "select public.release_sponsor_usage($1, $2) as ok",
+        ["chain-sp-1", "acme-test"],
+      );
+      assert.equal(released.rows[0].ok, true);
+      const metrics = await admin.query(`
+        select operations, lamports::text as lamports
+          from public.sponsor_usage
+         where sponsor_id = 'acme-test'
+         order by scope, window_kind
+      `);
+      assert.equal(metrics.rows.length, 3, "debían quedar tres ventanas");
+      for (const row of metrics.rows) {
+        assert.equal(row.operations, 0);
+        assert.equal(row.lamports, "0");
+      }
+
+      const releasedAgain = await admin.query(
+        "select public.release_sponsor_usage($1, $2) as ok",
+        ["chain-sp-1", "acme-test"],
+      );
+      assert.equal(releasedAgain.rows[0].ok, false, "liberar dos veces no descuenta dos veces");
+
+      const ledger = await admin.query(
+        "select status from public.sponsor_usage_requests where request_id = 'chain-sp-1'",
+      );
+      assert.equal(ledger.rows[0].status, "released");
+
+      // El requestId liberado no se revive.
+      const revived = (await reserve("chain-sp-1")).rows[0];
+      assert.equal(revived.allowed, false);
+      assert.equal(revived.code, "SPONSOR_REQUEST_INVALID");
+
+      // Con el cupo devuelto, una reserva nueva sí entra.
+      const afterRelease = (await reserve("chain-sp-3")).rows[0];
+      assert.equal(afterRelease.allowed, true);
+      assert.equal(afterRelease.user_hour_count, 1);
+
+      await admin.query("delete from public.sponsor_usage_requests where sponsor_id = 'acme-test'");
+      await admin.query("delete from public.sponsor_usage where sponsor_id = 'acme-test'");
     });
 
     await test("toda la cadena se puede reaplicar sin errores ni pérdida de datos", async () => {
