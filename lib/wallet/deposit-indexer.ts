@@ -5,7 +5,8 @@ import "server-only";
  *
  * Recibe transferencias SPL candidatas (lo que el RPC ya parseó) para la
  * billetera del usuario y deja pasar SÓLO depósitos USDC confirmados:
- * mint exacto de USDC, transacción sin error on-chain, destino igual a la
+ * mint exacto de USDC, decimales exactos (6), transacción sin error on-chain,
+ * destino igual a la
  * billetera (o a una cuenta de token aceptada del usuario) y monto
  * positivo. La firma de la transacción es la llave idempotente
  * (`signature` única en `crypto_deposits`): un depósito ya registrado
@@ -25,6 +26,11 @@ export interface UsdcDepositCandidate {
   signature: string;
   /** Mint de la transferencia SPL. */
   mint: string;
+  /**
+   * Decimales que el RPC reportó para el mint. Un depósito exige el valor
+   * exacto de USDC (6): sin decimal o con otro valor no se acredita.
+   */
+  decimals: number;
   /** Destino de la transferencia (billetera o cuenta de token). */
   destination: string;
   /** Monto ya convertido a UI (USDC). */
@@ -46,6 +52,7 @@ export interface IndexedUsdcDeposit {
 export type DepositRejectReason =
   | "empty_signature"
   | "mint_not_usdc"
+  | "decimals_not_usdc"
   | "tx_error_onchain"
   | "destination_mismatch"
   | "amount_not_positive";
@@ -77,20 +84,44 @@ export interface IndexDepositsResult {
 /** Registro en memoria del modo mock (determinista; sólo tests/desarrollo/demo). */
 const mockDepositStore = new Map<string, IndexedUsdcDeposit>();
 
+/**
+ * Registro con la MISMA regla que la base: la firma es la clave y un insert
+ * repetido se IGNORA (`ignoreDuplicates`). En Postgres la unicidad la impone
+ * el índice único de `crypto_deposits.signature`; aquí el `Map` hace ese
+ * papel, así que dos entregas de la misma firma —incluso en paralelo— dejan
+ * un solo crédito.
+ */
+function createDepositStore(rows: Map<string, IndexedUsdcDeposit>): IndexDepositsDeps {
+  return {
+    listKnownSignatures: async () => [...rows.keys()],
+    insertDeposit: async (deposit) => {
+      if (rows.has(deposit.signature)) return false;
+      rows.set(deposit.signature, deposit);
+      return true;
+    },
+  };
+}
+
 /** Sólo tests/desarrollo: limpia el registro en memoria del modo mock. */
 export function resetDepositIndexerMockStoreForTests(): void {
   mockDepositStore.clear();
 }
 
 function inMemoryDepositDeps(): IndexDepositsDeps {
-  return {
-    listKnownSignatures: async () => [...mockDepositStore.keys()],
-    insertDeposit: async (deposit) => {
-      if (mockDepositStore.has(deposit.signature)) return false;
-      mockDepositStore.set(deposit.signature, deposit);
-      return true;
-    },
-  };
+  return createDepositStore(mockDepositStore);
+}
+
+/**
+ * Sólo tests: libro en memoria aislado con la regla de `ignoreDuplicates`
+ * (firma = clave). Permite simular dos entregas simultáneas de la misma
+ * transferencia sin abrir conexiones reales.
+ */
+export function createInMemoryDepositLedger(): {
+  deps: IndexDepositsDeps;
+  rows: () => IndexedUsdcDeposit[];
+} {
+  const rows = new Map<string, IndexedUsdcDeposit>();
+  return { deps: createDepositStore(rows), rows: () => [...rows.values()] };
 }
 
 /** Producción (`DATA_MODE=live`): firma/registro en `crypto_deposits` vía Supabase. */
@@ -147,6 +178,12 @@ export async function indexSolanaUsdcDeposits(
     // Sólo USDC (M78): cualquier otro mint se rechaza, aunque sea del catálogo.
     if (candidate.mint !== USDC_MINT_SOLANA) {
       rejected.push({ signature, reason: "mint_not_usdc" });
+      continue;
+    }
+    // El decimal también es parte de la identidad del token: un USDC "de 9
+    // decimales" (o sin decimal informado) no es el USDC que aceptamos.
+    if (candidate.decimals !== USDC_DECIMALS) {
+      rejected.push({ signature, reason: "decimals_not_usdc" });
       continue;
     }
     // Transacción confirmada sin error on-chain.

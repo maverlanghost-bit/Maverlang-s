@@ -39,6 +39,10 @@ export function uiAmountOf(balance: TokenBalanceLike): number | null {
  * Delta neto por mint para las cuentas de `owner`. Positivo = el dueño ganó
  * tokens; negativo = perdió. Incluye cuentas que existían antes y ya no están
  * en `post` (cerradas o reasignadas), restándolas.
+ *
+ * OJO: `uiAmountOf` asume 6 decimales cuando el RPC no los trae. Eso sirve
+ * para mostrar saldos, NO para acreditar dinero: un depósito usa
+ * `netTokenDeltaWithExactDecimals`.
  */
 export function netTokenDeltasByMint(params: {
   owner: string;
@@ -80,4 +84,62 @@ export function netTokenDeltasByMint(params: {
   }
 
   return deltas;
+}
+
+/**
+ * Monto UI con el decimal EXACTO. `null` si el balance no trae `decimals` o
+ * no coincide con el esperado: para acreditar un depósito no se asume un
+ * decimal por defecto (USDC = 6, ver `USDC_DECIMALS`).
+ */
+export function uiAmountWithExactDecimals(
+  balance: TokenBalanceLike,
+  decimals: number,
+): number | null {
+  const tokenAmount = balance?.uiTokenAmount;
+  if (!tokenAmount || typeof tokenAmount !== "object") return null;
+  if (tokenAmount.decimals !== decimals) return null;
+  const { uiAmount, amount } = tokenAmount;
+  if (typeof amount === "string" && /^\d+$/.test(amount)) {
+    return Number(BigInt(amount)) / 10 ** decimals;
+  }
+  if (typeof uiAmount === "number" && Number.isFinite(uiAmount)) return uiAmount;
+  return null;
+}
+
+/**
+ * Delta neto del `mint` indicado exigiendo el decimal exacto en CADA balance
+ * del dueño que participa de la transacción (previas y posteriores, incluidas
+ * las cuentas que desaparecen). Devuelve `null` si algún balance no se puede
+ * leer con ese decimal: el llamador descarta el candidato en vez de inventar
+ * un monto. Los balances de otros mints no bloquean el cálculo.
+ */
+export function netTokenDeltaWithExactDecimals(params: {
+  owner: string;
+  mint: string;
+  decimals: number;
+  pre: readonly TokenBalanceLike[];
+  post: readonly TokenBalanceLike[];
+}): number | null {
+  const owner = params.owner.trim();
+  const ours = (rows: readonly TokenBalanceLike[]) =>
+    rows.filter((row) => row.owner === owner && row.mint === params.mint);
+  const pre = ours(params.pre);
+  const post = ours(params.post);
+
+  let delta = 0;
+  for (const after of post) {
+    const afterUi = uiAmountWithExactDecimals(after, params.decimals);
+    if (afterUi === null) return null;
+    const before = pre.find((row) => row.accountIndex === after.accountIndex);
+    const beforeUi = before ? uiAmountWithExactDecimals(before, params.decimals) : 0;
+    if (beforeUi === null) return null;
+    delta += afterUi - beforeUi;
+  }
+  for (const before of pre) {
+    if (post.some((row) => row.accountIndex === before.accountIndex)) continue;
+    const beforeUi = uiAmountWithExactDecimals(before, params.decimals);
+    if (beforeUi === null) return null;
+    delta -= beforeUi;
+  }
+  return delta;
 }

@@ -24,7 +24,15 @@ import { isValidSolanaAddress } from "@/lib/solana/address";
 import { DomainError } from "@/lib/api/result";
 import { listOrdersForActivity } from "@/lib/services/orders.supabase";
 import { insertCryptoDeposit, listDepositSignatures } from "@/lib/services/deposits.supabase";
-import { netTokenDeltasByMint } from "@/lib/wallet/token-deltas";
+import {
+  indexSolanaUsdcDeposits,
+  type UsdcDepositCandidate,
+} from "@/lib/wallet/deposit-indexer";
+import {
+  extractUsdcDepositsFromTransactions,
+  isDepositLedgerEligible,
+  type ParsedTxLike,
+} from "@/lib/wallet/deposit-sync";
 
 const USDC_DECIMALS = 6;
 const STOCK_DECIMALS = 8;
@@ -269,53 +277,54 @@ export const livePortfolio = {
 
     // Firmas recientes de la billetera (lote acotado para no barrer historia).
     const signatures = await connection.getSignaturesForAddress(owner, { limit: 25 });
-    const fresh = signatures.filter((sig) => !alreadySeen.has(sig.signature));
+    const fresh = signatures
+      .map((sig) => sig.signature)
+      .filter((signature) => signature.trim() !== "" && !alreadySeen.has(signature));
     if (fresh.length === 0) return [];
 
-    const parsed = await connection.getParsedTransactions(
-      fresh.map((sig) => sig.signature),
-      { maxSupportedTransactionVersion: 0 },
-    );
+    const [parsed, statuses] = await Promise.all([
+      connection.getParsedTransactions(fresh, {
+        commitment: "confirmed",
+        maxSupportedTransactionVersion: 0,
+      }),
+      connection.getSignatureStatuses(fresh, { searchTransactionHistory: true }),
+    ]);
 
-    const found: { mint: string; amountUi: number; signature: string; from: string | null }[] = [];
-    for (let i = 0; i < fresh.length; i += 1) {
-      const tx = parsed[i] ?? null;
-      const requested = fresh[i]?.signature?.trim() ?? "";
-      if (!tx || !tx.meta || tx.meta.err) continue;
-      const signature = tx.transaction.signatures[0]?.trim() ?? "";
-      // Sólo vale la transacción que el RPC devolvió para la firma pedida.
-      if (!signature || (requested !== "" && signature !== requested)) continue;
-      // Delta neto por mint: mover fondos entre cuentas propias no es depósito.
-      const deltas = netTokenDeltasByMint({
-        owner: input.address,
-        pre: tx.meta.preTokenBalances ?? [],
-        post: tx.meta.postTokenBalances ?? [],
-      });
-      for (const [mint, amount] of deltas) {
-        if (!(amount > 0)) continue;
-        const kind = classifyMint(mint);
-        if (kind !== "usdc" && kind !== "stock") continue;
-        found.push({
-          mint,
-          amountUi: amount,
-          signature,
-          from: null,
-        });
-      }
-    }
+    // MISMA regla de libro que el cron: extractor compartido (mint USDC,
+    // decimales exactos, delta neto, firma pedida) + `isDepositLedgerEligible`
+    // (sólo confirmed/finalized). Un `processed` no acredita.
+    const candidates: UsdcDepositCandidate[] = extractUsdcDepositsFromTransactions({
+      walletAddress: input.address,
+      signatures: fresh,
+      transactions: parsed as unknown as ReadonlyArray<ParsedTxLike | null>,
+      statuses: statuses.value,
+    }).filter((candidate) => isDepositLedgerEligible(candidate.lifecycle));
 
-    const registrados: { mint: string; amountUi: number; signature: string }[] = [];
-    for (const dep of found) {
-      if (!dep.signature) continue;
-      const ok = await insertCryptoDeposit({
-        userId: input.userId,
-        mint: dep.mint,
-        amountUi: dep.amountUi,
-        signature: dep.signature,
-        fromAddress: dep.from,
-      });
-      if (ok) registrados.push({ mint: dep.mint, amountUi: dep.amountUi, signature: dep.signature });
-    }
-    return registrados;
+    if (candidates.length === 0) return [];
+
+    // La firma es la llave: repetir la llamada no duplica el crédito.
+    const result = await indexSolanaUsdcDeposits({
+      userId: input.userId,
+      walletAddress: input.address,
+      candidates,
+      knownSignatures: alreadySeen,
+      deps: {
+        listKnownSignatures: async () => alreadySeen,
+        insertDeposit: async (deposit) =>
+          insertCryptoDeposit({
+            userId: deposit.userId,
+            mint: deposit.mint,
+            amountUi: deposit.amountUi,
+            signature: deposit.signature,
+            fromAddress: deposit.fromAddress,
+          }),
+      },
+    });
+
+    return result.indexed.map((deposit) => ({
+      mint: deposit.mint,
+      amountUi: deposit.amountUi,
+      signature: deposit.signature,
+    }));
   },
 };

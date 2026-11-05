@@ -3,13 +3,15 @@ import "server-only";
 import { isValidSolanaAddress } from "@/lib/solana/address";
 import type { SignatureStatusLike } from "@/lib/solana/signature-status";
 import { redactRpcSecrets } from "@/lib/solana/tx-errors";
+import { getFlag } from "@/lib/flags";
 import {
+  USDC_DECIMALS,
   USDC_MINT_SOLANA,
   indexSolanaUsdcDeposits,
   type IndexedUsdcDeposit,
   type UsdcDepositCandidate,
 } from "@/lib/wallet/deposit-indexer";
-import { netTokenDeltasByMint } from "@/lib/wallet/token-deltas";
+import { netTokenDeltaWithExactDecimals } from "@/lib/wallet/token-deltas";
 
 /**
  * Seguimiento de depósitos USDC en Solana (M78) conectado al cron de
@@ -39,7 +41,8 @@ import { netTokenDeltasByMint } from "@/lib/wallet/token-deltas";
  *   No firma, no transfiere y no habilita trading ni retiros.
  *
  * `DATA_MODE` distinto de `live` no toca red ni base (demo/CI). En live el
- * barrido está APAGADO por defecto: staging lo enciende explícitamente con
+ * barrido está APAGADO por defecto y necesita DOS llaves: el flag de producto
+ * `deposits_enabled` (default false, fail-closed) y el interruptor de staging
  * `WALLET_DEPOSIT_SYNC=on`. La conciliación de pendientes del cron sigue
  * funcionando con el barrido apagado.
  */
@@ -177,6 +180,19 @@ function depositSyncEnabled(): boolean {
 }
 
 /**
+ * Flag de producto `deposits_enabled` (default false). El barrido necesita
+ * las DOS llaves: este flag y `WALLET_DEPOSIT_SYNC`. Fail-closed: si el flag
+ * no se puede leer, no se barre. Este módulo nunca lo enciende.
+ */
+async function depositsFlagAllowsSweep(): Promise<boolean> {
+  try {
+    return (await getFlag("deposits_enabled")) === true;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Estado de ciclo de vida a partir de `getSignatureStatuses`. Puro.
  * - sin estado o `processed`: `detected` (puede revertirse; no se asienta).
  * - `confirmed`: `confirmed`.
@@ -244,8 +260,17 @@ export function extractUsdcDepositsFromTransactions(params: {
     const post = tx.meta.postTokenBalances ?? [];
 
     // Neto por mint: las bajadas de otras cuentas propias compensan las subidas.
-    const deltas = netTokenDeltasByMint({ owner: wallet, pre, post });
-    const amount = deltas.get(USDC_MINT_SOLANA) ?? 0;
+    // Además exige el decimal exacto de USDC: si el RPC no informa `decimals`
+    // o informa otro valor, el monto no es confiable y el candidato se
+    // descarta (no se asume 6 por defecto).
+    const amount = netTokenDeltaWithExactDecimals({
+      owner: wallet,
+      mint: USDC_MINT_SOLANA,
+      decimals: USDC_DECIMALS,
+      pre,
+      post,
+    });
+    if (amount === null) continue;
     if (!(amount > 0)) continue;
     const amountUi = roundUsdc(amount);
     if (!(amountUi > 0)) continue;
@@ -258,6 +283,7 @@ export function extractUsdcDepositsFromTransactions(params: {
     found.push({
       signature,
       mint: USDC_MINT_SOLANA,
+      decimals: USDC_DECIMALS,
       destination: wallet,
       amountUi,
       err,
@@ -393,8 +419,12 @@ export async function syncSolanaUsdcDeposits(injected?: DepositSyncDeps): Promis
 
   // Demo/CI sin deps inyectadas: no se toca la cadena ni la base.
   if (mode !== "live" && !injected) return baseSummary("mock", startedAt);
-  // Live sin el interruptor explícito: sólo se concilian pendientes.
-  if (mode === "live" && !injected && !depositSyncEnabled()) return baseSummary("live", startedAt);
+  // Live sin las dos llaves explícitas: sólo se concilian pendientes.
+  // 1) interruptor de staging 2) flag `deposits_enabled` (fail-closed).
+  if (mode === "live" && !injected) {
+    if (!depositSyncEnabled()) return baseSummary("live", startedAt);
+    if (!(await depositsFlagAllowsSweep())) return baseSummary("live", startedAt);
+  }
 
   let deps: DepositSyncDeps;
   try {

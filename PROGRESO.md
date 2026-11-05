@@ -1,5 +1,16 @@
 # PROGRESO — Maverlang
 
+## T34 — Cerrar huecos del depósito USDC sin encender el barrido (2026-11-05)
+- Decimal exacto: `netTokenDeltaWithExactDecimals` en `lib/wallet/token-deltas.ts` devuelve `null` si el balance no trae `decimals` o trae otro; `UsdcDepositCandidate.decimals` es obligatorio y el indexador rechaza con `decimals_not_usdc`. Sin 6 exactos no se acredita.
+- Una firma que el RPC ya no conoce revierte el movimiento `pending` a `failed` (`disappeared` en el resumen y en el schema del cron). Sólo escribe `wallet_movements`: `crypto_deposits` no se borra ni se revierte.
+- `portfolio.live.detectDeposits` pasa al extractor compartido + `isDepositLedgerEligible`; el barrido exige `deposits_enabled` (default false, fail-closed) **y** `WALLET_DEPOSIT_SYNC=on`.
+- Tests nuevos `tests/unit/wallet-deposits-t34-gaps.test.ts` (16): decimal 9 y ausente, control con 6, dos entregas de la misma firma = 1 crédito, reorg sobre libro confirmado, `processed` sigue pendiente, on-ramp sin firma y 4 casos de barrido apagado (RPC/Supabase mockeados para delatarse).
+- `tests/unit/wallet-m78-m79-m81.test.ts`: se agrega `decimals: 6` a sus candidatas (campo ahora obligatorio). No se borró ninguna prueba.
+- Verificación: `tsc --noEmit` 0, eslint 0, suites de wallet 49/49. Suite completa 1374/1376: los 2 fallos son timeouts de import pesado (`catalog-health`, `money-d01`) que pasan 22/22 aislados.
+- Mutación de control: quitar el guard del indexador falla 2 pruebas; quitar el de `token-deltas`, 3. Las pruebas nuevas no son vacías.
+- `REAL_EXECUTION_LOCKED` sigue en `true`; sin flags encendidos, sin `.env`, sin RPC ni Supabase reales, sin push.
+- Pendiente: staging decide `deposits_enabled`; D-02, DB-03, DB-06/07, KYC/AML y legal siguen abiertos.
+
 ## T33 — Migración forward de reservas sin tocar la base real (2026-11-05)
 - `supabase/migrations/0047_trade_reservations_forward.sql`: lleva una base que ya ejecutó la 0042 vieja (db3c416) al esquema de la 0042 nueva. **No aplicada a ninguna base**: no hay infraestructura tocada ni migraciones corridas fuera de PostgreSQL aislado.
 - Dedupe previo al unique `(user_id, request_id)`: canónica = `consumed` más antigua, luego `reserved`, luego `released`; las demás no se borran, se re-etiquetan `left(orig,190) || '#dup-' || id`; las `reserved` perdedoras pasan a `released`; las `consumed` conservan estado (fail-closed). Regla completa en la cabecera del SQL.

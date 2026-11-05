@@ -8,10 +8,14 @@ import "server-only";
  * 1. `reconcileWalletMovements()`: barrido de movimientos `pending`
  *    (`deposit`, `onramp`, `withdraw`) que resuelve su estado consultando
  *    la firma on-chain (`getSignatureStatuses`): `confirmed` (confirmed/
- *    finalized sin error) o `failed` (err on-chain); sin firma (on-ramp
+ *    finalized sin error), `failed` (err on-chain) o `failed` por
+ *    reorganización (la firma ya no existe para el RPC). Sin firma (on-ramp
  *    esperando el webhook de M80) queda `pending`. Idempotente: actualizar
  *    un estado dos veces no cuenta dos veces (`reference` única en
  *    `wallet_movements`, la 0030).
+ *
+ *    Sólo escribe `wallet_movements`: el libro durable `crypto_deposits`
+ *    (fila ya confirmada) NO se borra ni se revierte desde aquí.
  *
  * 2. `mergeUnifiedWalletActivity()`: unifica y deduplica el feed de
  *    movimientos por `reference`/`signature` (la misma transferencia puede
@@ -66,8 +70,10 @@ export interface ReconcileSummary {
   reviewed: number;
   /** Pasaron a confirmed en esta corrida. */
   confirmed: number;
-  /** Pasaron a failed en esta corrida. */
+  /** Pasaron a failed en esta corrida (err on-chain o firma desaparecida). */
   failed: number;
+  /** De los `failed`: la firma ya no existe para el RPC (reorganización). */
+  disappeared: number;
   /** Siguieron pending (aún sin confirmación on-chain suficiente). */
   pending: number;
   /** Pendientes sin firma on-chain (on-ramp: espera el webhook de M80). */
@@ -171,16 +177,28 @@ export async function reconcileWalletMovements(deps?: ReconcileDeps): Promise<Re
 
   let confirmed = 0;
   let failed = 0;
+  let disappeared = 0;
   let stillPending = 0;
   for (let i = 0; i < withSignature.length; i += 1) {
     const movement = withSignature[i]!;
-    const decision = signatureStatusToOrder(statuses[i] ?? null);
-    if (decision.status === "submitted") {
-      // `processed` o sin estado aún: puede revertirse; sigue pendiente.
-      stillPending += 1;
-      continue;
+    const status = statuses[i] ?? null;
+    let next: "confirmed" | "failed";
+    if (!status) {
+      // La firma desapareció: el RPC ya no la conoce (reorganización o
+      // reversión). El movimiento `pending` se revierte a `failed`.
+      // OJO: este módulo SÓLO escribe `wallet_movements`; una fila ya
+      // confirmada en el libro `crypto_deposits` no se borra ni se revierte.
+      next = "failed";
+      disappeared += 1;
+    } else {
+      const decision = signatureStatusToOrder(status);
+      if (decision.status === "submitted") {
+        // `processed` o sin estado aún: puede revertirse; sigue pendiente.
+        stillPending += 1;
+        continue;
+      }
+      next = decision.status === "confirmed" ? "confirmed" : "failed";
     }
-    const next = decision.status === "confirmed" ? "confirmed" : "failed";
     let changed = false;
     try {
       changed = await resolved.updateMovementStatus(movement.reference, next);
@@ -195,6 +213,7 @@ export async function reconcileWalletMovements(deps?: ReconcileDeps): Promise<Re
     reviewed: pendingBatch.length,
     confirmed,
     failed,
+    disappeared,
     pending: stillPending,
     skipped,
     durationMs: Date.now() - startedAt,

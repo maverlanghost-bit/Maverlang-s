@@ -24,9 +24,10 @@ export const dynamic = "force-dynamic";
  * corrida incompleta. En `DATA_MODE=mock` ambos pasos son no-op y responde
  * 200 con ceros (demo/CI no tocan red ni base).
  *
- * El barrido de depósitos es opt-in: en live queda apagado hasta que
- * staging configure `WALLET_DEPOSIT_SYNC=on`. La respuesta lo dice en
- * `deposits.enabled` y el resto del cron sigue funcionando igual.
+ * El barrido de depósitos es opt-in: en live queda apagado hasta que el flag
+ * `deposits_enabled` esté en true (default false) y staging configure
+ * `WALLET_DEPOSIT_SYNC=on`. La respuesta lo dice en `deposits.enabled` y el
+ * resto del cron sigue funcionando igual.
  */
 
 const depositSyncResponseSchema = z.object({
@@ -52,6 +53,7 @@ const reconcileResponseSchema = z.object({
   reviewed: z.number().int().nonnegative(),
   confirmed: z.number().int().nonnegative(),
   failed: z.number().int().nonnegative(),
+  disappeared: z.number().int().nonnegative(),
   pending: z.number().int().nonnegative(),
   skipped: z.number().int().nonnegative(),
   durationMs: z.number().int().nonnegative(),

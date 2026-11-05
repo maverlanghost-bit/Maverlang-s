@@ -4,6 +4,7 @@ import { restoreModes } from "./restore-modes";
 import { GET, POST } from "@/app/api/cron/reconcile-wallet/route";
 import { TICKERS, USDC_MINT } from "@/config/tickers";
 import {
+  USDC_DECIMALS,
   USDC_MINT_SOLANA,
   indexSolanaUsdcDeposits,
   resetDepositIndexerMockStoreForTests,
@@ -53,6 +54,7 @@ describe("M78: indexSolanaUsdcDeposits", () => {
         {
           signature: "sig-usdc-1",
           mint: USDC_MINT_SOLANA,
+          decimals: USDC_DECIMALS,
           destination: VALID_WALLET_A,
           amountUi: 150,
           err: null,
@@ -61,6 +63,7 @@ describe("M78: indexSolanaUsdcDeposits", () => {
         {
           signature: "sig-not-usdc",
           mint: nvdaMint,
+          decimals: USDC_DECIMALS,
           destination: VALID_WALLET_A,
           amountUi: 10,
           err: null,
@@ -83,6 +86,7 @@ describe("M78: indexSolanaUsdcDeposits", () => {
     const candidate = {
       signature: "sig-dup-1",
       mint: USDC_MINT_SOLANA,
+      decimals: USDC_DECIMALS,
       destination: VALID_WALLET_A,
       amountUi: 50,
       err: null,
@@ -112,6 +116,7 @@ describe("M78: indexSolanaUsdcDeposits", () => {
         {
           signature: "sig-err",
           mint: USDC_MINT_SOLANA,
+          decimals: USDC_DECIMALS,
           destination: VALID_WALLET_A,
           amountUi: 25,
           err: { InstructionError: [0, "Custom"] },
@@ -119,6 +124,7 @@ describe("M78: indexSolanaUsdcDeposits", () => {
         {
           signature: "sig-wrong-dest",
           mint: USDC_MINT_SOLANA,
+          decimals: USDC_DECIMALS,
           destination: VALID_WALLET_B,
           amountUi: 25,
           err: null,
@@ -126,6 +132,7 @@ describe("M78: indexSolanaUsdcDeposits", () => {
         {
           signature: "sig-zero",
           mint: USDC_MINT_SOLANA,
+          decimals: USDC_DECIMALS,
           destination: VALID_WALLET_A,
           amountUi: 0,
           err: null,
