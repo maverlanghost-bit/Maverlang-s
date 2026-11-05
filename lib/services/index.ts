@@ -24,7 +24,7 @@ import { historyMemoTtl, scaleCloses, ticksForRange, ticksIfEnough } from "@/lib
 import { readUnderlyingCloses } from "@/lib/services/underlying-prices.supabase";
 import { liveTrade } from "@/lib/services/trade.live";
 import { mockTrade } from "@/lib/services/trade.mock";
-import { isSupabaseAuth } from "@/lib/auth/mode";
+import { assertMockAuthAllowed, isSupabaseAuth } from "@/lib/auth/mode";
 import { supabaseSessionAuth } from "@/lib/services/auth.supabase";
 import { mockUsers } from "@/lib/services/users.mock";
 import { rlsUsers } from "@/lib/services/users.rls";
@@ -348,7 +348,11 @@ function priceServices(): Services["prices"] {
 
 export function getServices(): Services {
   const dataLive = serverEnv.DATA_MODE === "live";
+  // A-01: `isSupabaseAuth()` lanza en producción si el modo resuelto es mock
+  // sin ALLOW_MOCK_AUTH=true. El `assert` deja la garantía explícita acá: si
+  // un cambio futuro vuelve a elegir `mockAuth` en producción, falla cerrado.
   const supabaseSession = isSupabaseAuth();
+  if (!supabaseSession && !dataLive) assertMockAuthAllowed("getServices");
   return {
     prices: priceServices(),
     market: {

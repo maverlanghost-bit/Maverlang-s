@@ -57,6 +57,13 @@ export type ReservationStore = {
    * prueba que no ejerciten build.
    */
   rekey?(userId: string, oldRequestId: string, newRequestId: string): Promise<boolean>;
+  /**
+   * D-06: libera las reservas `reserved` del usuario que no sean
+   * `keepRequestId` (cadena vacía = todas). Una sola reserva especulativa por
+   * usuario: la cotización nueva reemplaza a la anterior. Opcional; la pieza
+   * autoritativa es la función SQL de 0042.
+   */
+  releaseOthers?(userId: string, keepRequestId: string): Promise<number>;
 };
 
 const LIMIT_MARKERS: ReadonlyArray<[string, "LIMIT_ORDER" | "LIMIT_DAILY" | "LIMIT_MONTHLY" | "LIMIT_GLOBAL"]> = [
@@ -159,6 +166,35 @@ export function mapReservationFailure(error: unknown): DomainError {
   return new DomainError("UPSTREAM", "No pudimos reservar el cupo de la operación. Intenta de nuevo.");
 }
 
+/**
+ * D-06: libera las reservas especulativas previas del usuario.
+ *
+ * Cada cotización creaba una reserva nueva sin liberar la anterior: tres
+ * cotizaciones de US$200 agotaban el tope diario de US$500 sin haber operado.
+ * La cotización nueva reemplaza a la anterior, así que el cupo retenido es el
+ * de una sola intención de operar.
+ *
+ * Nunca toca reservas `consumed`: ésas ya representan una ejecución en curso
+ * o hecha y deben seguir contando. `keepRequestId` vacío libera todas.
+ * Devuelve cuántas liberó; si el store no lo soporta, 0 (la SQL de 0042 hace
+ * la misma liberación dentro de la transacción de reserva).
+ */
+export async function releaseOtherReservations(
+  store: ReservationStore,
+  userId: string,
+  keepRequestId: string = "",
+): Promise<number> {
+  const owner = typeof userId === "string" ? userId.trim() : "";
+  if (!owner || !store.releaseOthers) return 0;
+  try {
+    return await store.releaseOthers(owner, keepRequestId.trim());
+  } catch {
+    // No es una compuerta de seguridad: si falla, la reserva atómica vuelve a
+    // intentar la liberación y, si tampoco puede, falla cerrado.
+    return 0;
+  }
+}
+
 /** Reserva el cupo o lanza el `DomainError` que corresponda. */
 export async function reserveOrThrow(
   store: ReservationStore,
@@ -166,6 +202,10 @@ export async function reserveOrThrow(
   now: Date = new Date(),
 ): Promise<ReservationRecord> {
   const normalized = normalizeReservationInput(input, now);
+  // D-06: una sola reserva activa por usuario. Se libera la anterior antes de
+  // crear la nueva; la función SQL repite la liberación bajo los advisory
+  // locks, así que un fallo acá no deja dos reservas activas.
+  await releaseOtherReservations(store, normalized.userId, normalized.requestId);
   let record: ReservationRecord;
   try {
     record = await store.reserve(normalized);

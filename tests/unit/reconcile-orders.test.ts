@@ -89,6 +89,7 @@ describe("M72: reconcilePendingOrders", () => {
       failed: 0,
       expired: 0,
       unchanged: 0,
+      needsReview: 0,
       durationMs: 0,
     });
   });
@@ -139,12 +140,15 @@ describe("M72: reconcilePendingOrders", () => {
     expect(summary.scanned).toBe(5);
     expect(summary.confirmed).toBe(1);
     expect(summary.failed).toBe(1);
-    expect(summary.expired).toBe(2);
-    expect(summary.unchanged).toBe(1);
+    expect(summary.expired).toBe(1);
+    expect(summary.unchanged).toBe(2);
     expect(applied.get("o-confirm")?.status).toBe("confirmed");
     expect(applied.get("o-fail")?.error_code).toBe("INSUFFICIENT_FUNDS");
     expect(applied.get("o-expire-tx")?.error_code).toBe("TX_EXPIRED");
-    expect(applied.get("o-expire-quote")?.error_code).toBe("QUOTE_EXPIRED");
+    // D-05: una `pending` sin firma ya NO se cierra como expirada; requiere
+    // revisión humana porque pudo ejecutarse sin dejar rastro local.
+    expect(applied.get("o-expire-quote")).toBeUndefined();
+    expect(summary.needsReview).toBe(1);
   });
 });
 

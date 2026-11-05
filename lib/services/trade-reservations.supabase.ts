@@ -124,6 +124,22 @@ export function createTradeReservationStore(): ReservationStore {
       if (error) throw new Error(rpcErrorMessage(error));
       return data === true;
     },
+
+    /**
+     * D-06: una sola reserva especulativa por usuario. La cotización nueva
+     * libera las `reserved` anteriores en la misma base; las `consumed` no se
+     * tocan (ya representan una ejecución en curso).
+     */
+    async releaseOthers(userId: string, keepRequestId: string): Promise<number> {
+      const admin = createSupabaseAdminClient();
+      const { data, error } = await admin.rpc("release_other_trade_reservations", {
+        p_user_id: userId,
+        p_keep_request_id: keepRequestId,
+      });
+      if (error) throw new Error(rpcErrorMessage(error));
+      const released = typeof data === "number" ? data : Number(data);
+      return Number.isFinite(released) && released > 0 ? released : 0;
+    },
   };
 }
 

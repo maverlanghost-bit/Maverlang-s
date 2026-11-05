@@ -322,6 +322,8 @@ export const esCL = {
       // M55: compra de un activo en revisión (sólo compra; vender sigue permitido).
       ASSET_UNAVAILABLE: "Este activo está en revisión y no se puede operar ahora.",
       RATE_LIMITED: "Demasiadas solicitudes. Intenta de nuevo en unos segundos.",
+      RATE_LIMIT_UNAVAILABLE:
+        "El control de solicitudes no está disponible. Intenta de nuevo en unos minutos.",
       PAYLOAD_TOO_LARGE: "Los datos son demasiado grandes.",
       REAL_DISABLED: "El dinero real todavía no está disponible en esta demo.",
       // M74: límites y kill switches.

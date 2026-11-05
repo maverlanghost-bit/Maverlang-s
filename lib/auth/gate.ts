@@ -1,5 +1,6 @@
 import { isBrowseBlocked, normalizeRegion } from "@/config/compliance";
 import { ONBOARDING_DONE } from "@/lib/auth/cookies";
+import { isMockAuthAllowed } from "@/lib/auth/mode";
 import {
   AUTH_STAY_PARAM,
   isCredentialPath,
@@ -40,6 +41,12 @@ export type GateInput = {
   demoForBlocked?: boolean;
   /** Si es true, manda Supabase: no cuentan la cookie mock ni `privy-token`. */
   useSupabase: boolean;
+  /**
+   * A-01: `ALLOW_MOCK_AUTH`. Sin esto (o fuera de producción) la cookie
+   * `a24_mock_session` no cuenta como sesión. Si no se informa se lee del
+   * entorno en `hasAuthSession`.
+   */
+  allowMockAuth?: boolean;
   /** Sesión verificada con `getClaims` (o `getUser`). No es la cookie en crudo. */
   supabaseSession: boolean;
   /**
@@ -127,12 +134,26 @@ function present(value: string | null): boolean {
   return value !== null && value.length > 0;
 }
 
+/** Argumentos de sesión que usa el gate; las señales de producción son opcionales. */
+export type AuthSessionInput = {
+  useSupabase: boolean;
+  supabaseSession: boolean;
+  usePrivy: boolean;
+  privyToken: string | null;
+  mockSession: string | null;
+  nodeEnv?: string | undefined;
+  allowMockAuth?: boolean | undefined;
+};
+
 /** Misma regla que el middleware. Supabase manda si el modo es ese; si no, Privy o la cookie mock. */
-export function hasAuthSession(
-  input: Pick<GateInput, "useSupabase" | "supabaseSession" | "usePrivy" | "privyToken" | "mockSession">,
-): boolean {
+export function hasAuthSession(input: AuthSessionInput): boolean {
   if (input.useSupabase) return input.supabaseSession;
-  return input.usePrivy ? present(input.privyToken) : present(input.mockSession);
+  if (input.usePrivy) return present(input.privyToken);
+  if (!present(input.mockSession)) return false;
+  // A-01: en producción la cookie demo no autentica salvo ALLOW_MOCK_AUTH=true.
+  // `authMode()` ya lanza antes en ese caso; esta comprobación cubre cualquier
+  // llamada que llegue al gate sin pasar por el modo efectivo.
+  return isMockAuthAllowed({ nodeEnv: input.nodeEnv, allowMockAuth: input.allowMockAuth });
 }
 
 function isAppPath(pathname: string): boolean {

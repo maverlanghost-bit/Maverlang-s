@@ -23,6 +23,7 @@ import {
   assertRealTradeAllowed,
   assertRealTradingDataMode,
   assertLiveEngineAccess,
+  releaseRealTradeReservations,
   reserveRealTradeAmount,
 } from "@/lib/trade/real-guards";
 import { assertQuoteIntegrity } from "@/lib/trade/integrity";
@@ -131,6 +132,11 @@ export function POST(req: Request) {
       // demo el flujo demo no pasa por acá.
       realOwnerId = userId ?? (await requireSession(services, req)).userId;
       userId = realOwnerId;
+      // D-06: la cotización nueva reemplaza la anterior. Se liberan las
+      // reservas especulativas previas ANTES de comprobar los topes: si no,
+      // `checkLimits` contaba dos veces la misma intención de operar y el
+      // usuario se bloqueaba solo al ajustar el monto.
+      await releaseRealTradeReservations(realOwnerId);
       const amountUsd =
         body.side === "buy" && body.amountCurrency === "USDC"
           ? body.amount

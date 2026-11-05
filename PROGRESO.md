@@ -1,5 +1,15 @@
 # PROGRESO — Maverlang
 
+## T32 — Integrar la auditoría de seguridad sin abrir el dinero real (2026-11-05)
+- Merge de `fix/security-integration` (a4ffabf) sobre main (db3c416): dos conflictos resueltos a mano; sin reset, sin push.
+- `.github/workflows/ci.yml`: se conserva CI-01/M-08 con `permissions: contents: read`; `ALLOW_MOCK_AUTH` intacto debajo.
+- `lib/services/users.rls.ts`: se conserva el bloque de HEAD (`version_declaracion_requerida`/`_no_vigente`/`_invalida`) que la rama dejaba vacío; sin él la 0046 quedaba sin mensajes.
+- Auto-merges revisados y completos: `lib/auth/gate.ts` (A-01 + DB-03), `lib/services/index.ts` (assert mock + ComplianceWriteInput), `lib/trade/real-guards.ts` (DB-03/cupos + D-01/D-06).
+- `REAL_EXECUTION_LOCKED` sigue en `true`; no se activó ningún flag de dinero ni se tocó copy/landing.
+- Migraciones NO aplicadas. La 0042 nueva (D-06) no se reescribió: una base que ya aplicó la 0042 vieja **necesita migración forward 0047** (el ledger no la reejecuta); no se creó aún.
+- Verificación: `tsc --noEmit` 0, `npm run lint` 0, `vitest run` 142 archivos / 1360 pruebas.
+- Queda en main local; sin push. E2E y servicios reales siguen sin verificar.
+
 ## T31 — Cadena reproducible de migraciones (2026-11-04)
 - Ajustadas 0001, 0024, 0025 y 0028 para instalaciones nuevas y reejecución controlada.
 - PostgreSQL 17 aislado: cadena completa 0001–0046 aplicada dos veces; 15 comprobaciones aprobadas.

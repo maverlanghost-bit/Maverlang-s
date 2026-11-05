@@ -1,5 +1,8 @@
 /**
  * M87: CI completo en GitHub Actions y protección de main.
+ * CI-01/SEC-01 (M-08): permisos mínimos del GITHUB_TOKEN, acciones fijadas a
+ * SHA completo, npm exacto, escaneo del bundle después del build y
+ * ALLOW_MOCK_AUTH en el entorno de CI.
  * Valida estáticamente el workflow, la plantilla de PR, CODEOWNERS y la
  * sección de rama protegida en docs/DEPLOY.md. Sin secretos reales: el
  * workflow sólo usa env mock/dummy.
@@ -45,7 +48,7 @@ describe("M87: workflow de CI (.github/workflows/ci.yml)", () => {
   });
 
   it("job e2e: sube artefactos de Playwright ante fallo", () => {
-    expect(ci).toContain("actions/upload-artifact@v4");
+    expect(ci).toMatch(/uses: actions\/upload-artifact@[0-9a-f]{40} # v4\.\d+\.\d+/);
     expect(ci).toMatch(/if:\s*failure\(\)/);
     expect(ci).toContain("playwright-report/");
     expect(ci).toContain("test-results/");
@@ -124,5 +127,106 @@ describe("M87: scripts/e2e.mjs portable (Linux/macOS/Windows)", () => {
     const e2e = read("scripts/e2e.mjs");
     expect(e2e).toContain('DATA_MODE = "mock"');
     expect(e2e).not.toMatch(/sb_secret_|sbp_[A-Za-z0-9]|sk_live_|sk-ant-/);
+  });
+});
+
+const WORKFLOWS = [
+  ".github/workflows/ci.yml",
+  ".github/workflows/company-facts.yml",
+  ".github/workflows/underlying-prices.yml",
+];
+
+describe("CI-01: permisos mínimos y acciones fijadas a SHA", () => {
+  const ci = read(".github/workflows/ci.yml");
+
+  it("declara permissions: contents: read a nivel de workflow", () => {
+    const lineas = ci.split("\n").map((l) => l.trim());
+    const i = lineas.indexOf("permissions:");
+    expect(i).toBeGreaterThan(-1);
+    expect(lineas[i + 1]).toBe("contents: read");
+  });
+
+  it("ningún job eleva el permiso: el workflow no concede escritura", () => {
+    expect(ci).not.toMatch(/^\s+[a-z-]+:\s*write\s*$/m);
+    expect(ci).not.toMatch(/permissions:[\s\S]{0,200}?\bwrite\b/);
+  });
+
+  it("todas las actions usan un SHA completo de 40 hex con el tag comentado", () => {
+    for (const file of WORKFLOWS) {
+      for (const linea of read(file).split("\n")) {
+        const m = /^\s*(?:-\s*)?uses:\s*(\S+)(.*)$/.exec(linea);
+        if (!m) continue;
+        const ref = m[1] ?? "";
+        if (ref.startsWith("./") || ref.startsWith("docker://")) continue;
+        expect(ref, `${file}: ${linea.trim()}`).toMatch(/^[\w.-]+\/[\w.-]+@[0-9a-f]{40}$/);
+        expect(m[2] ?? "", `${file}: falta el tag en el comentario`).toMatch(/#\s*v\d+\.\d+\.\d+/);
+      }
+    }
+  });
+
+  it("ninguna action queda apuntando a un tag flotante", () => {
+    for (const file of WORKFLOWS) {
+      expect(read(file), file).not.toMatch(/^\s*(?:-\s*)?uses:\s*\S+@v\d+(?:\.\d+)*\s*$/m);
+    }
+  });
+
+  it("npm exacto: ninguna versión flotante en el workflow", () => {
+    for (const file of WORKFLOWS) {
+      const texto = read(file);
+      const instalados = [...texto.matchAll(/npm install -g npm@(\S+)/g)].map((m) => m[1]);
+      for (const version of instalados) {
+        expect(version, `${file}: npm@${version}`).toMatch(/^\d+\.\d+\.\d+$/);
+      }
+    }
+  });
+});
+
+describe("SEC-01: el escaneo del bundle corre después del build", () => {
+  const ci = read(".github/workflows/ci.yml");
+
+  it("el job build escanea el bundle después de npm run build y exige build", () => {
+    const inicio = ci.indexOf("\n  build:");
+    const fin = ci.indexOf("\n  e2e:");
+    expect(inicio).toBeGreaterThan(-1);
+    expect(fin).toBeGreaterThan(inicio);
+    const build = ci.slice(inicio, fin);
+    const iPasoBuild = build.indexOf("npm run build");
+    const iEscaneo = build.indexOf("npm run scan:secrets -- --require-bundle");
+    expect(iPasoBuild).toBeGreaterThan(-1);
+    expect(iEscaneo).toBeGreaterThan(iPasoBuild);
+  });
+
+  it("el job checks escanea el árbol pero no afirma escanear el bundle", () => {
+    const checks = ci.slice(ci.indexOf("\n  checks:"), ci.indexOf("\n  build:"));
+    expect(checks).toContain("npm run scan:secrets");
+    expect(checks).not.toMatch(/run:.*--require-bundle/);
+  });
+
+  it("scan-secrets.mjs soporta --require-bundle y falla si no hay build", () => {
+    const script = read("scripts/scan-secrets.mjs");
+    expect(script).toContain('process.argv.includes("--require-bundle")');
+    expect(script).toMatch(/missing:\s*requireBundle/);
+    expect(script).toMatch(/total > 0 \|\| bundle\.missing/);
+  });
+});
+
+describe("ALLOW_MOCK_AUTH en el entorno de CI", () => {
+  it('declara ALLOW_MOCK_AUTH: "true" en el env del workflow', () => {
+    const ci = read(".github/workflows/ci.yml");
+    const lineas = ci.split("\n").map((l) => l.trim());
+    const corte = lineas.indexOf("jobs:");
+    const iEnv = lineas.slice(0, corte).indexOf("env:");
+    expect(iEnv).toBeGreaterThan(-1);
+    expect(lineas[iEnv + 1]).toBe('ALLOW_MOCK_AUTH: "true"');
+  });
+});
+
+describe("CI-04: Dependabot cubre las GitHub Actions fijadas", () => {
+  const dependabot = read(".github/dependabot.yml");
+
+  it("incluye el ecosistema github-actions con revisión semanal", () => {
+    expect(dependabot).toContain('package-ecosystem: "github-actions"');
+    const semanales = dependabot.match(/interval: "weekly"/g) ?? [];
+    expect(semanales.length).toBeGreaterThanOrEqual(2);
   });
 });

@@ -16,6 +16,8 @@ export const API_ERROR_STATUS = {
   // M55: el activo en revisión no se puede comprar ahora (sólo compra).
   ASSET_UNAVAILABLE: 409,
   RATE_LIMITED: 429,
+  // A-02/A1-03: sin backend global no se sirven las políticas sensibles.
+  RATE_LIMIT_UNAVAILABLE: 503,
   PAYLOAD_TOO_LARGE: 413,
   REAL_DISABLED: 503,
   // M74: límites por usuario y globales.
@@ -43,6 +45,8 @@ const ERROR_MESSAGE: Record<ApiErrorCode, string> = {
   // M55: compra de un activo en revisión.
   ASSET_UNAVAILABLE: "Este activo está en revisión y no se puede operar ahora.",
   RATE_LIMITED: "Demasiadas solicitudes. Intenta de nuevo en unos segundos.",
+  RATE_LIMIT_UNAVAILABLE:
+    "El control de solicitudes no está disponible en este momento. Intenta de nuevo en unos minutos.",
   PAYLOAD_TOO_LARGE: "Los datos son demasiado grandes.",
   REAL_DISABLED: "El dinero real todavía no está disponible.",
   // M74: límites por usuario y globales.

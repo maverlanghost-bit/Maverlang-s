@@ -17,9 +17,13 @@
  * línea entera. Sale con código 1 si encuentra algo.
  *
  * Uso:
- *   node scripts/scan-secrets.mjs            (árbol de trabajo + bundle)
- *   node scripts/scan-secrets.mjs --history  (además todo el historial)
- *   npm run scan:secrets
+ *   node scripts/scan-secrets.mjs                    (árbol de trabajo + bundle)
+ *   node scripts/scan-secrets.mjs --history          (además todo el historial)
+ *   node scripts/scan-secrets.mjs --require-bundle   (falla si no hay build)
+ *   npm run scan:secrets [-- --require-bundle]
+ *
+ * `--require-bundle` es para CI: después de `npm run build` el bundle tiene
+ * que existir, así que "sin build, se salta" deja de ser un verde válido.
  */
 import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
@@ -238,12 +242,17 @@ function collectJsFiles(dir, out) {
   return out;
 }
 
-/** Escanea el bundle cliente. Devuelve { skipped, findings }. */
-export function scanBundle() {
+/**
+ * Escanea el bundle cliente. Devuelve { skipped, missing, files, findings }.
+ * `missing` es true cuando se pidió `requireBundle` y no hay build: el
+ * llamador debe salir con error (SEC-01: en CI el bundle tiene que existir).
+ */
+export function scanBundle({ requireBundle = false } = {}) {
   const dir = bundleDir();
-  if (!dir) return { skipped: true, findings: [] };
+  if (!dir) return { skipped: true, missing: requireBundle, files: 0, findings: [] };
   const findings = [];
-  for (const abs of collectJsFiles(dir, [])) {
+  const files = collectJsFiles(dir, []);
+  for (const abs of files) {
     const text = readTextFile(abs);
     if (text === null) continue;
     // Por archivo, un hallazgo por nombre: basta para frenar el deploy.
@@ -260,7 +269,7 @@ export function scanBundle() {
       });
     }
   }
-  return { skipped: false, findings };
+  return { skipped: false, missing: false, files: files.length, findings };
 }
 
 function printFinding(f) {
@@ -271,6 +280,7 @@ function printFinding(f) {
 
 async function main() {
   const withHistory = process.argv.includes("--history");
+  const requireBundle = process.argv.includes("--require-bundle");
   const worktree = scanWorktree();
   for (const f of worktree) printFinding(f);
   let history = [];
@@ -278,15 +288,22 @@ async function main() {
     history = scanHistory();
     for (const f of history) printFinding(f);
   }
-  const bundle = scanBundle();
+  const bundle = scanBundle({ requireBundle });
   if (bundle.skipped) {
-    console.log("bundle: sin build (.next-verify/static ni .next/static), se salta.");
+    if (bundle.missing) {
+      console.log(
+        "bundle: --require-bundle y no hay build (.next-verify/static ni .next/static). Corre `npm run build` antes.",
+      );
+    } else {
+      console.log("bundle: sin build (.next-verify/static ni .next/static), se salta.");
+    }
   } else {
+    console.log(`bundle: ${bundle.files} archivo(s) JS escaneado(s).`);
     for (const f of bundle.findings) printFinding(f);
   }
   const total = worktree.length + history.length + bundle.findings.length;
-  if (total > 0) {
-    console.log(`scan:secrets: ${total} hallazgo(s).`);
+  if (total > 0 || bundle.missing) {
+    if (total > 0) console.log(`scan:secrets: ${total} hallazgo(s).`);
     process.exitCode = 1;
     return;
   }
