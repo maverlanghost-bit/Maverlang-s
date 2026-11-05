@@ -109,7 +109,13 @@ function shortError(error: unknown): string {
   const message = error instanceof Error ? error.message : String(error);
   const trimmed = message.trim();
   if (trimmed === "") return "Sin respuesta.";
-  if (/https?:\/\//i.test(trimmed)) return "El proveedor no respondió correctamente.";
+  // T41: no sólo `https://`. Un error de pg/Postgres (`postgres://…`),
+  // un WebSocket (`wss://…`) o un texto de PostgREST también exponen
+  // infraestructura y credenciales en la respuesta de salud.
+  if (/[a-z][a-z0-9+.-]*:\/\//i.test(trimmed)) return "El proveedor no respondió correctamente.";
+  if (/\b(?:PGRST\d*|postgrest\w*|permission denied|duplicate key)\b/i.test(trimmed)) {
+    return "El proveedor no respondió correctamente.";
+  }
   return trimmed.slice(0, 160);
 }
 

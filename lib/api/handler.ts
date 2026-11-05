@@ -54,6 +54,35 @@ export function jsonResult<T>(result: ApiResult<T>, cache: CacheMode): NextRespo
 /** zod ya corrió. `DomainError` sale como `fail(code)`; el resto, `INTERNAL`. */
 /** Si `run` devuelve un `Response` (p. ej. la 429 de `withRateLimit`), sale tal cual. */
 /**
+ * T41: ningún mensaje de dominio puede llevar infraestructura al cliente.
+ *
+ * Varios servicios envuelven el error de un tercero en un `DomainError`
+ * (`fetch` caído, PostgREST, Jupiter). Publicar ese texto filtra la URL del
+ * RPC —con la clave en la query—, el nombre de la tabla o el código de
+ * PostgREST. Si el mensaje huele a infraestructura se reemplaza por el mensaje
+ * canónico del código; el detalle completo queda en el log con el `requestId`.
+ */
+const INFRA_LEAK_PATTERNS: readonly RegExp[] = [
+  /[a-z][a-z0-9+.-]*:\/\//i, // http(s), postgres, wss, cualquier DSN
+  /\bPGRST\d*\b/i,
+  /postgrest/i,
+  /\brelation\s+"/i,
+  /\bpermission denied\b/i,
+  /\bduplicate key\b/i,
+  /\bdoes not exist\b/i,
+  /\b(?:api[_-]?key|secret[_-]?key|access[_-]?token)\b/i,
+];
+
+/** Sustituye por el mensaje canónico si el texto expone infraestructura. */
+function safeClientMessage(code: ApiErrorCode, message: string): string {
+  const text = message.trim();
+  if (text === "") return errorMessage(code);
+  if (text.length > 200) return errorMessage(code);
+  if (INFRA_LEAK_PATTERNS.some((pattern) => pattern.test(text))) return errorMessage(code);
+  return text;
+}
+
+/**
  * Atrapa todo: en la respuesta sólo viajan `code`, un mensaje humano en
  * español y `requestId`. El detalle (stack, mensajes de Supabase, Jupiter o
  * Postgres) queda en el log del servidor junto al `requestId`.
@@ -69,7 +98,9 @@ export async function handle<T>(cache: CacheMode, run: () => Promise<T | Respons
     const failed = failFrom(error);
     // INTERNAL siempre genérico: nunca sale `error.message` crudo de terceros.
     const message =
-      code === "INTERNAL" ? errorMessage("INTERNAL") : failed.ok ? errorMessage(code) : failed.error.message;
+      code === "INTERNAL"
+        ? errorMessage("INTERNAL")
+        : safeClientMessage(code, failed.ok ? "" : failed.error.message);
     logApiError(requestId, code, error);
     return errorResult(code, message, requestId, cache);
   }

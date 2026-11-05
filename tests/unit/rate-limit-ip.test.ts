@@ -156,10 +156,20 @@ describe("A-02: producción sin Upstash falla cerrada en políticas sensibles", 
     expect(await withRateLimit(request({ "x-real-ip": "8.8.8.8" }), "demoReset", ["u-1"])).toBeNull();
   });
 
-  it("RATE_LIMIT_BACKEND=memory explícito sí permite memoria en producción", async () => {
+  it("RATE_LIMIT_BACKEND=memory en producción no libera una política sensible", async () => {
     process.env.RATE_LIMIT_BACKEND = "memory";
-    expect(await withRateLimit(request({ "x-real-ip": "8.8.8.8" }), "search")).toBeNull();
-    expect(await withRateLimit(request({ "x-real-ip": "8.8.8.8" }), "tradeIp")).toBeNull();
+    // T41: el override sigue sirviendo para lo que no protege dinero ni cuota…
+    expect(await withRateLimit(request({ "x-real-ip": "8.8.8.8" }), "publicGet")).toBeNull();
+    expect(await withRateLimit(request({ "x-real-ip": "8.8.8.8" }), "me", ["u-1"])).toBeNull();
+    // …pero una política sensible falla cerrada: con memoria por instancia el
+    // cupo se multiplicaría por cada lambda (A-02).
+    for (const policy of ["search", "tradeIp", "prices", "trade"] as const) {
+      const response = await withRateLimit(request({ "x-real-ip": "8.8.8.8" }), policy);
+      expect(response, policy).not.toBeNull();
+      expect(response!.status, policy).toBe(503);
+      const body = (await response!.json()) as { error: { code: string } };
+      expect(body.error.code, policy).toBe("RATE_LIMIT_UNAVAILABLE");
+    }
   });
 
   it("con Upstash caído tampoco se cae a memoria en una política sensible", async () => {

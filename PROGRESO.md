@@ -1,5 +1,20 @@
 # PROGRESO — Maverlang
 
+## T41 — Verificación previa al lanzamiento: atribución, crons, cupo, RLS y reintento (2026-11-05)
+- Modelo: deepseek-v4.1-flash (opencode-go), 5 bots en 5 archivos distintos. Sin red, sin `.env`, sin Supabase cloud, sin RPC ni mainnet.
+- Nuevas pruebas: `prelaunch-deposit-attribution` (11), `prelaunch-crons` (35), `prelaunch-rate-limit` (10), `prelaunch-replay-and-geo` (9) y `supabase/tests/prelaunch-rls-0041.mjs` (15 casos en PostgreSQL 17 embebido, `%TEMP%`, sin Docker).
+- Atribución PASS: el crédito sale del `did:privy` de la fila `wallets`; `userId` en cuerpo o query no lo mueve; una firma de otra cuenta no se reasigna; el segundo barrido no escribe.
+- Crons PASS: token malo → 401; `CRON_SECRET` ausente → 503 de cada cron (401 en `/api/health/deep`); con token válido sí corren (contraprueba). `timingSafeEqual` intacto.
+- Cupo PASS tras arreglo: `RATE_LIMIT_BACKEND=memory` ya no libera políticas sensibles en producción (503, `lib/security/rate-limit.ts`); dev/demo conserva memoria. quote/build/submit/send-build pasan por `withRateLimit` antes de armar nada.
+- RLS PASS sin tocar 0041: anon y authenticated reciben 42501 y 0 filas ajenas de `crypto_deposits`; service_role sí lee. Mutación: con el SQL previo, A lee su `privy_user_id` y la prueba falla.
+- Reintento: depósito y submit PASS. Arreglo en retiro: `validateAndPrepareWithdrawal` acepta `requestId` y la ruta envía la `reference` determinista a `sendBuild`; sin clave se conserva el UUID por llamada.
+- País y mensajes PASS tras arreglo: país bloqueado → 403 `GEO_BLOCKED` sin llamar al proveedor; `handle` sanea URL/DSN/PostgREST y `trade.live` ya no reenvía el texto crudo (queda en el log con la orden).
+- Validez por mutación: quitar la `reference`, el saneo o el cierre de memoria hace fallar las pruebas nuevas (revertido; `git diff` sólo de esta tarea). Sin cambios en `package.json`, migraciones, CSS ni copy.
+- Verificación: `npx tsc --noEmit` 0 errores; `npx vitest run` **154 archivos / 1513 pruebas en verde** (61 s); `npx eslint app lib tests supabase/tests` 0 problemas; arnés RLS 15/15 exit 0.
+- Candados: `REAL_EXECUTION_LOCKED = true`; `deposits_enabled`, `withdrawals_enabled`, `trading_enabled` y `SPONSOR_ENABLED` en false; `hasWalletLinkingProof()` false; sin claves, sin push.
+- **Abierto (D-02)**: no hay libro de retiros ni reserva de intención de salida; la idempotencia depende de la UNIQUE de `wallet_movements.reference` y dos builds con la misma clave aún arman dos transacciones (sólo una puede debitar).
+- Pendiente menor: `deposit-sync` descarta depósitos a una ATA secundaria (`acceptedDestinations` sin uso): no acredita a otro, pero pierde el crédito.
+
 ## T40 — Cerrar el hueco de dinero que la auditoría encontró (2026-11-05)
 - Auditoría de los tres caminos contra las funciones reales (`netTokenDeltaWithExactDecimals`, `isDepositLedgerEligible`, `validateAndPrepareWithdrawal`, `app/api/wallet/send/build/route.ts`, `trade.live.ts`, `quote-store.ts`): el producto cumple los criterios; no se tocó código de producción ni se aflojó ningún candado.
 - Hueco 1 (depósito): `depositLifecycleFromStatus` —quien decide si una firma `processed`/sin estado cuenta— no tenía prueba, y el barrido real (`syncSolanaUsdcDeposits` con dependencias de producción) tampoco. Un mapeo `processed → confirmed` habría acreditado depósitos revertibles en verde.

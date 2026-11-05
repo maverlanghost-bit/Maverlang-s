@@ -566,9 +566,19 @@ export function createLiveTrade(deps: LiveTradeDeps): LiveTradeService {
         // La tx pudo o no haber llegado: el reclamo `pending` impide un
         // segundo envío y la conciliación lo cierra por vencimiento. No se
         // inventa un estado final ni se libera el requestId.
+        //
+        // T41: el mensaje de un `fetch` caído trae la URL del RPC con la clave
+        // en la query y, a veces, el error crudo de PostgREST. Al cliente va
+        // un mensaje fijo (la incertidumbre sí se le dice); el detalle queda en
+        // el log del servidor con el id de la orden.
+        console.error(
+          `[trade] execute falló en la orden ${claim.id}: ${
+            error instanceof Error ? (error.stack ?? error.message) : String(error)
+          }`,
+        );
         throw new DomainError(
           "UPSTREAM",
-          error instanceof Error ? error.message : "No pudimos enviar la operación.",
+          "No pudimos enviar la operación. No sabemos si salió: revisa el estado antes de reintentar.",
         );
       }
 

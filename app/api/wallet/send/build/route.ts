@@ -105,8 +105,9 @@ export function POST(req: Request) {
       : body.userPublicKey;
     // T35: la salida pasa por `validateAndPrepareWithdrawal` ANTES de armar
     // nada: billetera de la sesión, monto y destino. Un rechazo responde el
-    // error y no se llama a `sendBuild`. La referencia única (`withdraw:...:uuid`)
-    // se genera dentro de la preparación: dos retiros iguales no colisionan.
+    // error y no se llama a `sendBuild`. T41: si el cliente manda `requestId`,
+    // la referencia del movimiento se deriva de esa clave (determinista), así
+    // que un reintento no abre una segunda salida en el libro.
     const preparation = validateAndPrepareWithdrawal({
       destinationAddress: body.to,
       sourceAddress: userPublicKey,
@@ -114,6 +115,7 @@ export function POST(req: Request) {
       amountUi: body.amountUi,
       availableBalanceUi: await availableBalanceUi(services, userPublicKey, mint),
       ...(session ? { sessionWalletAddress: session.walletAddress } : {}),
+      ...(body.requestId ? { requestId: body.requestId } : {}),
     });
     if (!preparation.ok) {
       throw new DomainError(WITHDRAWAL_API_CODE[preparation.code], preparation.message);
@@ -126,7 +128,14 @@ export function POST(req: Request) {
       );
     }
     const data = await callService(req, () =>
-      services.portfolio.sendBuild({ ...body, mint, userPublicKey }),
+      services.portfolio.sendBuild({
+        ...body,
+        mint,
+        userPublicKey,
+        // T41: la referencia viaja al servicio para que el débito se registre
+        // con una sola clave por operación (UNIQUE en `wallet_movements`).
+        reference: preparation.preparation.reference,
+      }),
     );
     return readOutput(tradeBuildResponseSchema, data);
   });

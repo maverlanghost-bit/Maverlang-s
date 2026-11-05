@@ -353,10 +353,23 @@ export async function limit(
   policy: RateLimitPolicy,
   policyName?: RateLimitPolicyName,
 ): Promise<RateLimitResult> {
-  const backend = backendOf();
-  if (backend === "memory") return memoryLimit(key, policy, Date.now());
-
   const sensitive = policyName ? SENSITIVE_POLICIES.has(policyName) : true;
+  const backend = backendOf();
+  // T41: `RATE_LIMIT_BACKEND=memory` es una decisión de operador, pero en
+  // producción no puede aplicarse a una política sensible: el cupo pasaría a
+  // contar por instancia y se multiplicaría por cada lambda (A-02), que es
+  // justo lo que la ventana global evita. Se falla cerrado igual que sin
+  // credenciales. Desarrollo, demo y test siguen con memoria.
+  if (backend === "memory") {
+    if (isProduction() && sensitive) {
+      warnUnavailableOnce(
+        "RATE_LIMIT_BACKEND=memory en producción: una política sensible no se aplica por instancia.",
+      );
+      return unavailableResult();
+    }
+    return memoryLimit(key, policy, Date.now());
+  }
+
   // `upstash` explícito siempre falla cerrado; `auto` sólo en producción y
   // para políticas sensibles. El resto mantiene la memoria por disponibilidad.
   const failClosed = backend === "upstash" || (isProduction() && sensitive);

@@ -301,6 +301,12 @@ export const sendBuildRequestSchema = z
     mint: z.string().min(32),
     amountUi: z.number().finite().positive(),
     userPublicKey: z.string().min(32),
+    // T41: clave de idempotencia opcional. Con ella la `reference` del retiro
+    // es determinista y el libro (UNIQUE) no puede descontar dos veces.
+    requestId: z
+      .string()
+      .regex(/^[A-Za-z0-9._:-]{8,128}$/, "La clave de idempotencia no es válida.")
+      .optional(),
   })
   .strict();
 

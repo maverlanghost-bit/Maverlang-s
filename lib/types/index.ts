@@ -197,6 +197,14 @@ export interface SendBuildRequest {
   mint: string;
   amountUi: number;
   userPublicKey: string;
+  /**
+   * Clave de idempotencia del cliente (T41). El servidor deriva de ella la
+   * `reference` del movimiento de retiro: un reintento no abre una segunda
+   * salida en el libro.
+   */
+  requestId?: string;
+  /** Referencia del movimiento, derivada de `requestId` por el servidor. */
+  reference?: string;
 }
 
 export type OnrampProviderId = "koywe" | "onramper";

@@ -80,6 +80,23 @@ export interface PrepareWithdrawalParams {
   sessionWalletAddress?: string | null;
   /** Override opcional para tests; por defecto lee `REAL_TRADING_READY`. */
   realTradingEnabled?: boolean;
+  /**
+   * Clave de idempotencia del cliente (T41). Si viene, la `reference` se
+   * deriva de forma determinista (`withdraw:<origen>:<mint>:<clave>`): un
+   * reintento del mismo retiro produce la MISMA referencia, y
+   * `wallet_movements.reference` es UNIQUE, así que el libro no puede
+   * descontar dos veces. Sin clave se conserva el UUID por llamada para que
+   * dos retiros iguales no colisionen.
+   */
+  requestId?: string;
+}
+
+/** Mismo alfabeto que los `requestId` que ya usa el cliente. */
+const IDEMPOTENCY_KEY = /^[A-Za-z0-9._:-]{8,128}$/;
+
+/** `true` si el texto puede usarse como clave de idempotencia. */
+export function isIdempotencyKey(value: string): boolean {
+  return IDEMPOTENCY_KEY.test(value);
 }
 
 function isRealTradingEnabled(override?: boolean): boolean {
@@ -166,6 +183,17 @@ export function validateAndPrepareWithdrawal(params: PrepareWithdrawalParams): P
   }
   const destination = params.destinationAddress?.trim() ?? "";
   const source = params.sourceAddress?.trim() ?? "";
+  // 1b. Clave de idempotencia (T41): si viene malformada se rechaza en vez de
+  //     ignorarla en silencio (el cliente creería que su reintento deduplica).
+  const requestId = (params.requestId ?? "").trim();
+  if (requestId !== "" && !isIdempotencyKey(requestId)) {
+    return {
+      ok: false,
+      code: "VALIDATION",
+      status: 400,
+      message: "La clave de idempotencia no es válida.",
+    };
+  }
   // 2. Direcciones válidas en Solana (base58, 32 bytes).
   if (!isValidSolanaAddress(destination)) {
     return { ok: false, code: "VALIDATION", status: 400, message: "La dirección de destino no es válida." };
@@ -226,9 +254,14 @@ export function validateAndPrepareWithdrawal(params: PrepareWithdrawalParams): P
       amountUi: amount,
       networkFeeSol: 0.000005,
       tokenAccountRentSol: 0.0016,
-      // Identificador único: dos retiros iguales en el mismo milisegundo no
-      // pueden colisionar en `wallet_movements.reference`.
-      reference: `withdraw:${mint}:${amount}:${randomUUID()}`,
+      // T41: con clave de idempotencia la referencia es determinista, así que
+      // un reintento del mismo retiro choca con la UNIQUE de
+      // `wallet_movements.reference` en vez de abrir una segunda salida en el
+      // libro. Sin clave: identificador único por llamada, para que dos
+      // retiros iguales en el mismo milisegundo no colisionen.
+      reference: requestId
+        ? `withdraw:${source}:${mint}:${requestId}`
+        : `withdraw:${mint}:${amount}:${randomUUID()}`,
     },
   };
 }
