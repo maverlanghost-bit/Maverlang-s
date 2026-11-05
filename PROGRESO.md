@@ -1,5 +1,15 @@
 # PROGRESO — Maverlang
 
+## T35 — Validar el retiro antes de armarlo y dejarlo apagado (2026-11-05)
+- `app/api/wallet/send/build/route.ts`: tras resolver la billetera de la sesión, la salida pasa por `validateAndPrepareWithdrawal` (origen, mint, monto, destino, `sessionWalletAddress`). Si `ok:false` responde el error y **no** llama a `services.portfolio.sendBuild`.
+- Saldo leído de `services.portfolio.balances(origen)`; sin fila del mint = 0, lectura caída o `uiAmount` no finito = `NaN` → rechazo "No pudimos leer tu saldo disponible" (nunca se asume "sin tope").
+- Códigos del dominio que el contrato no conoce se mapean sin romper el cliente: `SELF_TRANSFER_NOT_ALLOWED`→`VALIDATION` (400), `ASSET_NOT_ALLOWED`→`MINT_NOT_ALLOWED` (400), `INSUFFICIENT_FUNDS`→`INSUFFICIENT_FUNDS` (422). El mensaje viaja tal cual.
+- Orden intacto: `assertRealTradingEnabled` → `assertRealExecutionLocked` → rate limit → sesión → `assertRealWithdrawalsEnabled` → validación → tope por operación → `sendBuild`. `REAL_EXECUTION_LOCKED` sigue en `true`; un solo flag (`withdrawals_enabled`, default false).
+- Conciliación: sin cambios de código (T34 ya dejaba `processed`/sin estado en `pending` y sólo `err` en `failed`); se agrega la prueba que faltaba **para un retiro**, no para un depósito.
+- Tests nuevos `tests/unit/wallet-t35-withdrawal-gate.test.ts` (16): candado real → 503 sin leer saldo ni armar, kill switch default false → `REAL_DISABLED`, orden de guardias en el fuente, auto-envío, saldo insuficiente, lectura caída, `NaN`, sin fila, retiro válido → 200, billetera ajena → 400, referencia única, y conciliación de retiro (`processed`/sin estado → pending, `err` → failed, `finalized` → confirmed, sin `.delete()` ni `crypto_deposits`).
+- Verificación: `tsc --noEmit` 0; eslint de los archivos tocados 0; `vitest run` de las 5 suites de dinero/billetera → **62/62** (T35 16, money-d01 12, wallet-m78-m79-m81 13, real-disabled 12, rate-limit 9).
+- Pendiente: D-02 (mover la validación al camino que firma y enviar, con libro de retiros y tope diario/mensual), DB-03, DB-06/07, KYC/AML y legal siguen abiertos. Sin push.
+
 ## T34 — Cerrar huecos del depósito USDC sin encender el barrido (2026-11-05)
 - Decimal exacto: `netTokenDeltaWithExactDecimals` en `lib/wallet/token-deltas.ts` devuelve `null` si el balance no trae `decimals` o trae otro; `UsdcDepositCandidate.decimals` es obligatorio y el indexador rechaza con `decimals_not_usdc`. Sin 6 exactos no se acredita.
 - Una firma que el RPC ya no conoce revierte el movimiento `pending` a `failed` (`disappeared` en el resumen y en el schema del cron). Sólo escribe `wallet_movements`: `crypto_deposits` no se borra ni se revierte.

@@ -1,16 +1,52 @@
 import { USDC_MINT } from "@/config/tickers";
 import { sendBuildRequestSchema, tradeBuildResponseSchema } from "@/lib/api/contracts";
 import { parseJson, assertSameOrigin, assertRealTradingEnabled, callService, handle, readOutput, requireMint, requireSupabaseUser } from "@/lib/api/handler";
+import { DomainError, type ApiErrorCode } from "@/lib/api/result";
 import { apiOperateBlock } from "@/lib/compliance/real-quote";
 import { withRateLimit } from "@/lib/security/rate-limit";
-import { getServices } from "@/lib/services";
+import { getServices, type Services } from "@/lib/services";
 import { livePrices } from "@/lib/services/prices.live";
 import { tickerByMint } from "@/lib/solana/allowlist";
 import { assertRealExecutionLocked, assertRealWithdrawalsEnabled } from "@/lib/trade/real-guards";
 import { requireSessionWalletMatch } from "@/lib/wallet/identity";
-import { assertSendWithinOperationLimit, sendNotionalUsd } from "@/lib/wallet/withdrawals";
+import {
+  assertSendWithinOperationLimit,
+  sendNotionalUsd,
+  validateAndPrepareWithdrawal,
+  type WithdrawalErrorCode,
+} from "@/lib/wallet/withdrawals";
 
 export const runtime = "nodejs";
+
+/**
+ * T35: los códigos de `validateAndPrepareWithdrawal` que el contrato de la API
+ * no conoce (`SELF_TRANSFER_NOT_ALLOWED`, `ASSET_NOT_ALLOWED`) se traducen al
+ * código existente más cercano para no romper el esquema del cliente. El
+ * mensaje del rechazo viaja tal cual lo escribió la validación.
+ */
+const WITHDRAWAL_API_CODE: Record<WithdrawalErrorCode, ApiErrorCode> = {
+  REAL_DISABLED: "REAL_DISABLED",
+  VALIDATION: "VALIDATION",
+  SELF_TRANSFER_NOT_ALLOWED: "VALIDATION",
+  ASSET_NOT_ALLOWED: "MINT_NOT_ALLOWED",
+  INSUFFICIENT_FUNDS: "INSUFFICIENT_FUNDS",
+};
+
+/**
+ * Saldo disponible del activo en la billetera de origen (unidades UI).
+ * Sin fila para ese mint el saldo es 0 (no existe el activo en la cuenta).
+ * Una lectura caída devuelve `NaN`, que `validateAndPrepareWithdrawal` rechaza
+ * como saldo ilegible: nunca se interpreta como "sin tope".
+ */
+async function availableBalanceUi(services: Services, address: string, mint: string): Promise<number> {
+  try {
+    const balances = await services.portfolio.balances(address);
+    const row = balances.find((item) => item.mint === mint);
+    return row ? row.uiAmount : 0;
+  } catch {
+    return Number.NaN;
+  }
+}
 
 /** Mints que se pueden valorar para el tope de salida (USDC o acción activa). */
 function isValuableMint(mint: string): boolean {
@@ -67,6 +103,21 @@ export function POST(req: Request) {
     const userPublicKey = session
       ? requireSessionWalletMatch(session.walletAddress, body.userPublicKey)
       : body.userPublicKey;
+    // T35: la salida pasa por `validateAndPrepareWithdrawal` ANTES de armar
+    // nada: billetera de la sesión, monto y destino. Un rechazo responde el
+    // error y no se llama a `sendBuild`. La referencia única (`withdraw:...:uuid`)
+    // se genera dentro de la preparación: dos retiros iguales no colisionan.
+    const preparation = validateAndPrepareWithdrawal({
+      destinationAddress: body.to,
+      sourceAddress: userPublicKey,
+      mint,
+      amountUi: body.amountUi,
+      availableBalanceUi: await availableBalanceUi(services, userPublicKey, mint),
+      ...(session ? { sessionWalletAddress: session.walletAddress } : {}),
+    });
+    if (!preparation.ok) {
+      throw new DomainError(WITHDRAWAL_API_CODE[preparation.code], preparation.message);
+    }
     // D-01: tope por operación, valorado en dólares. Sin precio legible la
     // salida se rechaza (no hay notional que comparar contra el tope).
     if (isValuableMint(mint)) {
