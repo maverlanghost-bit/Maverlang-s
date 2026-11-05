@@ -69,6 +69,8 @@ export async function POST(req: Request) {
     const session = await requireSession(services, req);
     // Bloqueo temporal cerrado: ninguna cuenta Supabase vincula ni reasigna.
     // Se ejecuta antes de leer el cuerpo y de llamar a cualquier servicio.
+    // T36: un nonce o una firma en el cuerpo no se leen aquí ni cambian el
+    // resultado; la prueba (`lib/wallet/linking-proof.ts`) no se verifica aún.
     assertWalletLinkingOpen();
     // Esquema estricto: cualquier `address` del cliente se rechaza con 400 y
     // jamás llega a la base. La guardada sale de la verificación en servidor.

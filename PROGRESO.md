@@ -1,5 +1,17 @@
 # PROGRESO — Maverlang
 
+## T36 — Dejar cerrada la vinculación hasta una prueba de la misma persona (2026-11-05)
+- `lib/wallet/linking-proof.ts` (nuevo): tipo `wallet_nonce_signature` (nonce + dirección + firma, texto exacto) y `walletLinkingProofMessage(nonce)`. `hasWalletLinkingProof()` devuelve siempre `false`: sin verificar la firma contra un nonce emitido en la sesión, una prueba declarada es sólo una afirmación del cliente.
+- No verifica firmas, no llama a Privy ni a Solana y no guarda secretos: el módulo no tiene imports ni `fetch`.
+- `lib/wallet/linking-policy.ts`: `walletLinkingLocked(proof?)` = identidad Supabase **sin** prueba verificada; `assertWalletLinkingOpen(proof?)` sigue lanzando `REAL_DISABLED`. La demo mock no se bloquea.
+- `app/api/me/wallet/route.ts`: sólo comentario. La guardia sigue antes de `parseJson`, así que un nonce en el cuerpo ni se lee.
+- Tests nuevos `tests/unit/wallet-linking-proof-t36.test.ts` (14): prueba bien formada → `false`, Supabase 503 con nonce/firma, con token de Privy, con JSON roto, mock 200, y orden de guardias en el fuente.
+- Mutaciones de control: quitar `assertWalletLinkingOpen()` del POST falla 4 pruebas; hacer que la política no bloquee Supabase falla 9 (3 suites).
+- Verificación: `tsc --noEmit` 0, eslint 0 (archivos tocados), 3 suites de vinculación 37/37, suite completa 145 archivos / 1406 pruebas.
+- `REAL_EXECUTION_LOCKED` sigue en `true`; sin flags, sin migraciones, sin `.env`, sin push.
+- `docs/SUPABASE.md`: la firma del nonce en la sesión es el único paso que podría levantar el bloqueo, en un cambio posterior; no está hecho.
+- Pendiente: emitir y verificar el nonce, definir su vigencia y revisar el bloqueo; D-02, DB-03, DB-06/07, KYC/AML y legal siguen abiertos.
+
 ## T35 — Validar el retiro antes de armarlo y dejarlo apagado (2026-11-05)
 - `app/api/wallet/send/build/route.ts`: tras resolver la billetera de la sesión, la salida pasa por `validateAndPrepareWithdrawal` (origen, mint, monto, destino, `sessionWalletAddress`). Si `ok:false` responde el error y **no** llama a `services.portfolio.sendBuild`.
 - Saldo leído de `services.portfolio.balances(origen)`; sin fila del mint = 0, lectura caída o `uiAmount` no finito = `NaN` → rechazo "No pudimos leer tu saldo disponible" (nunca se asume "sin tope").

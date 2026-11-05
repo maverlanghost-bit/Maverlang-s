@@ -246,6 +246,14 @@ Limitaciones que no se pueden resolver sólo con este código:
 - Para levantarlo: implementar una prueba de correspondencia Supabase↔Privy y quitar ambas llamadas a `assertWalletLinkingOpen()`. No borrar 0040 ni las validaciones del store.
 - Tests: `tests/unit/wallet-link-lockdown.test.ts` (Supabase 503 sin tocar el store, cookie demo también bloqueada, demo mock 200) y `tests/unit/wallet-deposits-linking-security.test.ts` (el servicio también falla cerrado antes de verificar o tocar la base).
 
+### Prueba que falta para levantar el bloqueo (T36)
+
+- El único paso que puede levantar el bloqueo es que el usuario firme con su billetera un nonce que el servidor muestre **dentro de su sesión Supabase**. La sesión más el access token de Privy no alcanzan: demuestran posesión simultánea, no que sea la misma persona.
+- El tipo de esa prueba ya está escrito en `lib/wallet/linking-proof.ts` (`wallet_nonce_signature`: nonce, dirección y firma, todos en texto exacto). **No hay verificación**: `hasWalletLinkingProof()` devuelve siempre `false`, no se verifica ninguna firma, no se llama a Privy ni a Solana y no se guarda ningún secreto.
+- Por eso `POST /api/me/wallet` sigue respondiendo **503 `REAL_DISABLED`** con identidad Supabase aunque el cuerpo traiga nonce, dirección y firma: la guardia corre antes de leer el cuerpo, así que el nonce ni se interpreta.
+- Emitir el nonce dentro de la sesión, verificar la firma y definir qué la invalida es un cambio posterior, con revisión propia. **No está hecho** y el bloqueo no se levanta hasta entonces.
+- Tests: `tests/unit/wallet-linking-proof-t36.test.ts`.
+
 ## RLS de billeteras, depósitos y retiros (0041) — endurecimiento local
 
 NO aplicada. Después de `0040`, pega **una sola vez**
