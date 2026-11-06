@@ -320,6 +320,23 @@ export function buildSend(body: SendBuildRequest, mockError?: string | null): Pr
   return send("POST", withMockQuery("/api/wallet/send/build", mockError), tradeBuildResponseSchema, body);
 }
 
+/**
+ * T42: submit del envío. Va por `/api/wallet/send/submit`, que reclama la
+ * reserva del libro de retiros antes de transmitir (idempotente por
+ * `requestId`). Es la ruta propia de la pantalla Enviar; `/api/trade/submit`
+ * sigue siendo el camino de compra/venta.
+ */
+export function submitSend(body: TradeSubmitRequest, mockError?: string | null): Promise<TradeSubmitResponse> {
+  return send("POST", withMockQuery("/api/wallet/send/submit", mockError), tradeSubmitResponseSchema, body);
+}
+
+/** T42: estado del envío (confirmación on-chain del libro de retiros). */
+export function getSendStatus(id: string, mockError?: string | null): Promise<Order> {
+  const query = new URLSearchParams({ id });
+  if (mockError) query.set("mockError", mockError);
+  return request(`/api/wallet/send/status?${query.toString()}`, orderSchema, { cache: "no-store" });
+}
+
 export function createOnrampSession(body: OnrampSessionRequest): Promise<OnrampSession> {
   return send("POST", "/api/onramp/session", onrampSessionSchema, body);
 }

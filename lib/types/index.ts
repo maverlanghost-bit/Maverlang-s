@@ -205,6 +205,17 @@ export interface SendBuildRequest {
   requestId?: string;
   /** Referencia del movimiento, derivada de `requestId` por el servidor. */
   reference?: string;
+  /**
+   * Usuario dueño del retiro (T42). Con sesión Supabase, el servicio live
+   * registra la reserva del libro de retiros (`wallet_withdrawals`) para este
+   * usuario antes de devolver la transacción armada.
+   */
+  userId?: string;
+  /**
+   * Notional en dólares de la salida (T42). USDC es 1:1; una acción se valora
+   * con su precio vivo. Sin él la reserva usa `amountUi`.
+   */
+  notionalUsd?: number;
 }
 
 export type OnrampProviderId = "koywe" | "onramper";

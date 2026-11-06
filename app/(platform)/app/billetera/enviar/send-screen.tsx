@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { LoadingState } from "@/components/ui/loading-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { Select } from "@/components/ui/select";
-import { ApiError, buildSend, getTradeStatus, submitTrade } from "@/lib/api/client";
+import { ApiError, buildSend, getSendStatus, submitSend } from "@/lib/api/client";
 import { useSession } from "@/lib/auth";
 import { useSignTrade } from "@/lib/auth/sign-transaction";
 import { useBalances } from "@/lib/hooks/queries";
@@ -64,7 +64,7 @@ async function pollOrder(id: string, mockError: string | null, isCurrent: () => 
   const started = Date.now();
   for (;;) {
     if (!isCurrent()) throw new DOMException("Aborted", "AbortError");
-    const order = await getTradeStatus(id, mockError);
+    const order = await getSendStatus(id, mockError);
     if (!isCurrent()) throw new DOMException("Aborted", "AbortError");
     if (order.status === "confirmed" || order.status === "failed" || order.status === "expired") return order;
     if (Date.now() - started > POLL_BUDGET_MS) throw new ApiError("UPSTREAM", "El envío no confirmó a tiempo.");
@@ -168,7 +168,10 @@ export function SendScreen() {
       const signed = await sign(built.transactionBase64);
       if (!mounted.current) return;
       setPhase("submitting");
-      const submitted = await submitTrade(
+      // T42: el envío se confirma en las rutas propias (`/api/wallet/send/*`),
+      // que pasan por el libro de retiros. En demo sin sesión esas rutas caen
+      // al motor mock, igual que antes.
+      const submitted = await submitSend(
         { requestId: built.requestId, signedTransactionBase64: signed },
         mockError,
       );

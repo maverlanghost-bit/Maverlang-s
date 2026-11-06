@@ -19,6 +19,7 @@ import {
 import { createTradeReservationStore } from "@/lib/services/trade-reservations.supabase";
 import { createTradeQuoteStore } from "@/lib/services/trade-quotes.supabase";
 import { translateSolanaError } from "@/lib/solana/tx-errors";
+import { getWithdrawalStatus, submitWithdrawal } from "@/lib/wallet/withdrawal-store";
 import { buildSwapParams, parsedOrderToTradeQuote } from "@/lib/market/jupiter-tx";
 import { fetchJupiterOrder } from "@/lib/market/jupiter-client";
 import { jupiterSwapUrl, jupiterOrderParams, parseJupiterOrder } from "@/lib/market/jupiter-order";
@@ -466,6 +467,17 @@ export function createLiveTrade(deps: LiveTradeDeps): LiveTradeService {
         throw new DomainError("VALIDATION", "Falta la transacción firmada.");
       }
       const owner = requireOwner(userId);
+      // T42: los envíos viven en el libro de retiros (`wallet_withdrawals`), no
+      // en `trade_quotes`. El `requestId` de un envío lo marca el armado
+      // (`send:...`), así que se delega con la misma idempotencia y la misma
+      // comparación mensaje-armado/mensaje-firmado, sin pasar por Jupiter.
+      if (request.requestId.startsWith("send:")) {
+        return submitWithdrawal({
+          userId: owner,
+          requestId: request.requestId,
+          signedTransactionBase64,
+        });
+      }
       const stored: StoredLiveQuote | null = await loadQuotedTrade(
         deps,
         owner,
@@ -615,6 +627,11 @@ export function createLiveTrade(deps: LiveTradeDeps): LiveTradeService {
       // se actualiza. Sin sesión (mock/dev) se mantiene la lectura directa.
       const data = userId ? await getOrderByIdForUser(id, userId) : await getOrderById(id);
       if (!data) {
+        // T42: un envío no vive en `orders` sino en `wallet_withdrawals`. Con
+        // sesión se intenta el libro (que exige dueño); sin sesión se mantiene
+        // el 404 de siempre. La lectura por `orders` va primero para no
+        // cambiar el camino de compra/venta.
+        if (userId) return getWithdrawalStatus({ userId, id });
         throw new DomainError("NOT_FOUND", "No encontramos esa orden.");
       }
 

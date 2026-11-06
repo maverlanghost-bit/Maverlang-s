@@ -36,6 +36,7 @@ import {
   type ParsedTxLike,
 } from "@/lib/wallet/deposit-sync";
 import { listOwnedUsdcTokenAccounts } from "@/lib/solana/usdc-token-accounts";
+import { getDefaultWithdrawalStore, reserveWithdrawal } from "@/lib/wallet/withdrawal-store";
 
 const USDC_DECIMALS = 6;
 const STOCK_DECIMALS = 8;
@@ -243,6 +244,32 @@ export const livePortfolio = {
       ? BigInt(Math.round(request.amountUi * 10 ** USDC_DECIMALS))
       : sharesToRaw(request.amountUi, decimals, multiplier);
 
+    // T42: la clave del libro de retiros viaja al cliente en la respuesta, así
+    // que se decide antes de armar nada y es la misma que se reserva. Con
+    // `requestId` del cliente es determinista (un reintento del armado no abre
+    // una segunda salida); sin él lleva el instante del armado.
+    const requestKey = request.requestId
+      ? `send:${request.requestId}`
+      : `send:${request.mint}:${rawAmount.toString()}:${Date.now()}`;
+
+    // Reintento del mismo armado: el libro ya tiene la transacción reservada y
+    // es la ÚNICA que el cliente puede firmar (una tx nueva tendría otro
+    // blockhash y el submit la rechazaría por integridad).
+    if (request.userId && request.requestId) {
+      const existing = await getDefaultWithdrawalStore().read(request.userId, requestKey);
+      if (
+        existing &&
+        existing.status === "reserved" &&
+        Date.parse(existing.expiresAt) > Date.now()
+      ) {
+        return {
+          requestId: existing.requestId,
+          transactionBase64: existing.builtTransactionBase64,
+          expiresAt: existing.expiresAt,
+        };
+      }
+    }
+
     // El mint, el ATA de origen y el ATA de destino se validan contra el
     // programa dueño real antes de armar la transacción.
     const { blockhash } = await connection.getLatestBlockhash("confirmed");
@@ -256,10 +283,32 @@ export const livePortfolio = {
       recentBlockhash: blockhash,
     });
 
+    const expiresAt = new Date(Date.now() + 60_000).toISOString();
+
+    // T42 (D-02): con sesión, la salida queda reservada en el libro antes de
+    // devolver la transacción. Sin reserva no hay submit: el tope por
+    // operación/día/mes y la idempotencia viven en `wallet_withdrawals`, no en
+    // la memoria del proceso.
+    if (request.userId) {
+      await reserveWithdrawal({
+        userId: request.userId,
+        requestId: requestKey,
+        reference: request.reference?.trim() || requestKey,
+        mint: request.mint,
+        symbol: tickerByMint(request.mint)?.symbol ?? (request.mint === USDC_MINT ? "USDC" : ""),
+        sourceAddress: from,
+        destinationAddress: to,
+        amountUi: request.amountUi,
+        amountUsd: request.notionalUsd ?? request.amountUi,
+        builtTransactionBase64: built.transactionBase64,
+        expiresAt,
+      });
+    }
+
     return {
-      requestId: `send:${request.mint}:${rawAmount.toString()}:${Date.now()}`,
+      requestId: requestKey,
       transactionBase64: built.transactionBase64,
-      expiresAt: new Date(Date.now() + 60_000).toISOString(),
+      expiresAt,
     };
   },
 

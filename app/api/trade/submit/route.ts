@@ -52,7 +52,12 @@ export function POST(req: Request) {
       // Reserva atómica: se consume antes de enviar. Un reintento con la
       // reserva ya consumida es idempotente (el request_id único de orders
       // impide ejecutar dos veces); una reserva liberada/vencida corta acá.
-      await assertRealSubmitReservation(session.userId, body.requestId);
+      // T42: un envío (`send:...`) no reserva cupo en `trade_reservations`:
+      // su reclamo atómico vive en el libro de retiros (`wallet_withdrawals`),
+      // así que la guardia de reservas de trading no aplica.
+      if (!body.requestId.startsWith("send:")) {
+        await assertRealSubmitReservation(session.userId, body.requestId);
+      }
     }
     if (demoAccount) {
       const demoLimited = await withRateLimit(req, "demoTrade", [session.userId]);

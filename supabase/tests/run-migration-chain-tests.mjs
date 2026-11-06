@@ -298,14 +298,14 @@ try {
   }
 
   if (failures.length === 0) {
-    await test("0001..0049 se aplican en orden, sin archivos faltantes ni duplicados", async () => {
+    await test("0001..0051 se aplican en orden, sin archivos faltantes ni duplicados", async () => {
       assert.equal(
         MIGRATION_FILES.length,
-        40,
+        42,
         "la cadena cambió: actualizar la lista esperada del arnés",
       );
       assert.match(MIGRATION_FILES[0], /^0001_/);
-      assert.match(MIGRATION_FILES.at(-1), /^0049_/);
+      assert.match(MIGRATION_FILES.at(-1), /^0051_/);
       assert.deepEqual(applied, MIGRATION_FILES);
     });
 
@@ -685,6 +685,8 @@ try {
         "trade_reservations",
         "sponsor_usage",
         "sponsor_usage_requests",
+        "wallet_link_challenges",
+        "wallet_withdrawals",
       ]) {
         const { rows } = await admin.query(
           "select relrowsecurity, relforcerowsecurity from pg_class where oid = $1::regclass",

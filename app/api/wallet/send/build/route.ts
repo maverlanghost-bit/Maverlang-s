@@ -122,10 +122,13 @@ export function POST(req: Request) {
     }
     // D-01: tope por operación, valorado en dólares. Sin precio legible la
     // salida se rechaza (no hay notional que comparar contra el tope).
+    // T42: el mismo notional viaja al servicio para que la reserva del libro
+    // (`wallet_withdrawals`) cuente dólares y no unidades del activo.
+    const notionalUsd = isValuableMint(mint)
+      ? sendNotionalUsd({ mint, amountUi: body.amountUi, priceUsd: await sendPriceUsd(mint) })
+      : null;
     if (isValuableMint(mint)) {
-      assertSendWithinOperationLimit(
-        sendNotionalUsd({ mint, amountUi: body.amountUi, priceUsd: await sendPriceUsd(mint) }),
-      );
+      assertSendWithinOperationLimit(notionalUsd);
     }
     const data = await callService(req, () =>
       services.portfolio.sendBuild({
@@ -135,6 +138,10 @@ export function POST(req: Request) {
         // T41: la referencia viaja al servicio para que el débito se registre
         // con una sola clave por operación (UNIQUE en `wallet_movements`).
         reference: preparation.preparation.reference,
+        // T42: el dueño del libro de retiros es la sesión verificada, nunca el
+        // cuerpo del request (en mock no hay sesión y no se reserva nada).
+        ...(session ? { userId: session.userId } : {}),
+        ...(notionalUsd !== null ? { notionalUsd } : {}),
       }),
     );
     return readOutput(tradeBuildResponseSchema, data);
