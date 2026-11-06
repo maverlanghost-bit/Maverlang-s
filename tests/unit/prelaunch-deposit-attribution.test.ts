@@ -229,7 +229,24 @@ const sandbox = vi.hoisted(() => {
 });
 
 vi.mock("@/lib/supabase/admin", () => ({
-  createSupabaseAdminClient: () => ({ from: (table: string) => sandbox.query(table) }),
+  createSupabaseAdminClient: () => ({
+    from: (table: string) => sandbox.query(table),
+    // El piloto interno lee el correo VERIFICADO desde Auth, no del perfil.
+    auth: {
+      admin: {
+        getUserById: async (id: string) => ({
+          data: {
+            user: {
+              id,
+              email: `${id}@maverlang.test`,
+              email_confirmed_at: "2026-01-01T00:00:00.000Z",
+            },
+          },
+          error: null,
+        }),
+      },
+    },
+  }),
 }));
 
 vi.mock("@/lib/solana/connection", () => ({
@@ -368,6 +385,8 @@ beforeEach(() => {
   vi.stubEnv("DATA_MODE", "live");
   vi.stubEnv("WALLET_DEPOSIT_SYNC", "on");
   vi.stubEnv("CRON_SECRET", "cron-test-secret");
+  // Piloto interno: los dos dueños de billetera de la prueba están en la lista.
+  vi.stubEnv("DEPOSIT_ALLOWLIST_EMAILS", "user-a@maverlang.test,user-b@maverlang.test");
   __setFlagReaderForTests(async (key) => key === "deposits_enabled");
   seedWallets([
     { userId: "user-a", address: WALLET_A },

@@ -44,6 +44,9 @@ vi.mock("@/lib/services/deposits.supabase", () => ({
   listDepositSignaturesForScan: async () => {
     throw new Error("Supabase prohibido en tests (T34)");
   },
+  readVerifiedUserEmail: async () => {
+    throw new Error("Supabase prohibido en tests (T34)");
+  },
   insertCryptoDeposit: async () => {
     throw new Error("Supabase prohibido en tests (T34)");
   },

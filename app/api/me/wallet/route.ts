@@ -86,7 +86,14 @@ export async function POST(req: Request) {
       );
     }
     await callService(req, () =>
-      syncVerifiedPrivyWallet({ userId: session.userId, accessToken, requireVerified }),
+      syncVerifiedPrivyWallet({
+        userId: session.userId,
+        accessToken,
+        requireVerified,
+        // Piloto interno: la identidad sale de Supabase Auth (correo
+        // verificado), nunca del cuerpo ni de una cabecera del cliente.
+        identity: { email: session.email, emailVerified: session.emailVerified },
+      }),
     );
     const wallets = await getUserWallets(session.userId);
     return readOutput(walletsResponseSchema, walletsPayload(wallets));

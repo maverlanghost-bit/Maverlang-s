@@ -21,7 +21,12 @@ const SESSION_WARN = "No se pudo verificar la sesión de Supabase. Se trata como
  * billetera demo para una cuenta real.
  */
 export const supabaseSessionAuth = {
-  async getSession(): Promise<{ userId: string; walletAddress: string | null } | null> {
+  async getSession(): Promise<{
+    userId: string;
+    walletAddress: string | null;
+    email: string | null;
+    emailVerified: boolean;
+  } | null> {
     try {
       const supabase = await createSupabaseServerClient();
       if (!supabase) return null;
@@ -33,7 +38,14 @@ export const supabaseSessionAuth = {
       if (mfaPendingForUser({ aal: accessTokenAal(token), factors: data.user.factors })) return null;
       const wallets = await getUserWallets(data.user.id);
       const primary = wallets.find((wallet) => wallet.isPrimary) ?? null;
-      return { userId: data.user.id, walletAddress: primary?.address ?? null };
+      const email =
+        typeof data.user.email === "string" && data.user.email.trim() !== ""
+          ? data.user.email.trim().toLowerCase()
+          : null;
+      // El correo sólo cuenta como verificado si Auth lo confirma; el piloto
+      // interno de depósitos compara contra esta marca, nunca contra el perfil.
+      const emailVerified = Boolean(data.user.email_confirmed_at ?? data.user.confirmed_at);
+      return { userId: data.user.id, walletAddress: primary?.address ?? null, email, emailVerified };
     } catch {
       warnAuthOnce(SESSION_WARN);
       return null;

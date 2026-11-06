@@ -4,6 +4,7 @@ import { createHash } from "node:crypto";
 
 import { DomainError } from "@/lib/api/result";
 import { isSupabaseAuth } from "@/lib/auth/mode";
+import { assertDepositPilotAllowed, type DepositPilotIdentity } from "@/lib/deposits/pilot";
 import { serverEnv } from "@/lib/env";
 import { isValidSolanaAddress } from "@/lib/solana/address";
 import { fetchPrivySolanaWallet, verifyPrivyAccessToken } from "@/lib/services/auth.privy";
@@ -79,6 +80,12 @@ export interface PrivyWalletVerifyParams {
   requireVerified?: boolean;
   /** Inyectable para tests; por defecto usa el `fetch` global. */
   fetchImpl?: typeof fetch;
+  /**
+   * Identidad de Supabase Auth (correo verificado). Con identidad real
+   * (`isSupabaseAuth()`) el piloto interno de depósitos la exige: sin correo
+   * verificado y en `DEPOSIT_ALLOWLIST_EMAILS` no se vincula nada.
+   */
+  identity?: DepositPilotIdentity;
   /** Overrides sólo para tests; por defecto lee `serverEnv`/`process.env`. */
   appId?: string;
   appSecret?: string;
@@ -490,6 +497,12 @@ async function persistVerifiedWallet(userId: string, wallet: VerifiedSolanaWalle
  * `verifyPrivySolanaWallet`; el cuerpo del cliente no aporta direcciones.
  */
 export async function syncVerifiedPrivyWallet(params: PrivyWalletSyncParams): Promise<StoredWallet> {
+  // Piloto interno (servidor): con identidad Supabase, vincular exige correo
+  // verificado del usuario y presente en la lista. Es una excepción acotada,
+  // no un relajamiento global de KYC; el bloqueo TOFU de abajo sigue intacto.
+  if (isSupabaseAuth()) {
+    assertDepositPilotAllowed({ email: params.identity?.email, emailVerified: params.identity?.emailVerified });
+  }
   // Defensa en profundidad: la ruta ya bloquea toda identidad Supabase, pero
   // el servicio también falla cerrado para que otro llamador futuro no pueda
   // crear la asociación TOFU saltándose el bloqueo.

@@ -42,7 +42,14 @@ const CACHE_CONTROL: Record<CacheMode, string> = {
   swr15: "public, max-age=15, s-maxage=15, stale-while-revalidate=30",
 };
 
-export type Session = { userId: string; walletAddress: string | null };
+export type Session = {
+  userId: string;
+  walletAddress: string | null;
+  /** Correo verificado de Supabase Auth (nunca lo aporta el cliente). */
+  email?: string | null;
+  /** `true` sólo si Supabase Auth confirma el correo (`email_confirmed_at`). */
+  emailVerified?: boolean;
+};
 
 export function jsonResult<T>(result: ApiResult<T>, cache: CacheMode): NextResponse {
   return NextResponse.json(result, {

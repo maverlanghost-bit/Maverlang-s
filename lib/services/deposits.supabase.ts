@@ -154,6 +154,27 @@ export async function listWalletsForDepositScan(
     .map((row) => ({ userId: row.user_id, address: row.address }));
 }
 
+/**
+ * Correo VERIFICADO del usuario según Supabase Auth (no `profiles.email`).
+ * Es la única fuente que usa el piloto interno de depósitos: `null` si no se
+ * pudo leer, si no hay correo o si Auth no lo confirma. Fail-closed.
+ *
+ * Lee con el cliente admin (service_role) porque `auth.users` no se expone por
+ * PostgREST. No registra el correo en logs.
+ */
+export async function readVerifiedUserEmail(
+  userId: string,
+): Promise<{ email: string; emailVerified: boolean } | null> {
+  if (typeof userId !== "string" || userId.trim() === "") return null;
+  const admin = createSupabaseAdminClient();
+  const { data, error } = await admin.auth.admin.getUserById(userId);
+  if (error || !data?.user) return null;
+  const raw = typeof data.user.email === "string" ? data.user.email.trim().toLowerCase() : "";
+  if (raw === "") return null;
+  const emailVerified = Boolean(data.user.email_confirmed_at ?? data.user.confirmed_at);
+  return { email: raw, emailVerified };
+}
+
 /** Lista los depósitos de un usuario (para el historial). */
 export async function listCryptoDeposits(userId: string, limit = 100): Promise<CryptoDepositRow[]> {
   const admin = createSupabaseAdminClient();

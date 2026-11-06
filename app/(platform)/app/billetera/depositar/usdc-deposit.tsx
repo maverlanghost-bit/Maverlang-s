@@ -10,7 +10,13 @@ import { useAccountMode } from "@/lib/hooks/use-account-mode";
 import { useT } from "@/lib/hooks/use-t";
 import { receivableAddress } from "@/lib/wallet/receivable-address";
 
-export function UsdcDeposit() {
+export function UsdcDeposit({
+  pilotEligible,
+  pilotConfigured,
+}: {
+  pilotEligible: boolean;
+  pilotConfigured: boolean;
+}) {
   const { t } = useT();
   const { mode } = useAccountMode();
   const session = useSession();
@@ -22,6 +28,21 @@ export function UsdcDeposit() {
   // Protección inmediata: la demo no muestra QR ni dirección, para que nadie
   // envíe fondos reales a la billetera ficticia.
   if (mode !== "real") return <DemoAddressNotice />;
+
+  // Piloto interno: la decisión la toma el servidor (correo verificado en la
+  // lista). Sin lista configurada o sin elegibilidad no se muestra dirección
+  // ni QR: el barrido tampoco acreditaría nada a esta cuenta.
+  if (!pilotConfigured || !pilotEligible) {
+    return (
+      <Card className="flex flex-col gap-3">
+        <h2 className="text-lg font-semibold tracking-tight">{t.wallet.depositPilotTitle}</h2>
+        <p className="text-sm leading-relaxed text-fg-body">{t.wallet.depositPilotBody}</p>
+        <p role="note" className="rounded-xl bg-warn-bg px-4 py-3 text-sm font-medium leading-relaxed text-fg">
+          {t.wallet.depositPilotWarn}
+        </p>
+      </Card>
+    );
+  }
 
   if (!address) {
     return (

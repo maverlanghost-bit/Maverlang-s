@@ -137,6 +137,7 @@ const DEPOSIT_SUMMARY = {
   duplicates: 0,
   rejected: 0,
   skipped: 0,
+  notAllowlisted: 0,
   errors: [] as string[],
   truncated: false,
   durationMs: 0,

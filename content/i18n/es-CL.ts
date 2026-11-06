@@ -439,6 +439,11 @@ export const esCL = {
     demoAddressWarn: "No envíes fondos reales: no hay una dirección de cobro en la demo.",
     verifiedOnly: "Billetera verificada de tu cuenta.",
     noVerifiedWallet: "No hay una billetera verificada disponible en tu cuenta.",
+    depositPilotTitle: "Piloto interno de depósitos",
+    depositPilotBody:
+      "Los depósitos en USDC están habilitados sólo para el equipo, con una lista de correos verificados que se revisa en el servidor.",
+    depositPilotWarn:
+      "Esta cuenta no está en el piloto. No envíes fondos: no se acreditarán automáticamente.",
     signFailed: "No se firmó el envío.",
     sendFailed: "El envío no se completó.",
     noAssets: "No tienes USDC ni acciones para enviar.",

@@ -51,6 +51,8 @@ import { validateAndPrepareWithdrawal } from "@/lib/wallet/withdrawals";
 
 const USER = "11111111-1111-4111-8111-111111111111";
 const ORIGIN = "11111111111111111111111111111111";
+/** Correo del piloto interno (lista en servidor) para que el barrido corra. */
+const PILOT_EMAIL = "pilot@maverlang.test";
 const DESTINATION = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
 const STOCK_MINT = "XsbEhLAtcf6HdfpFZ5xEMdqW8nfAvcsP5bdudRLJzJp";
 const SITE = "https://maverlang.test";
@@ -201,6 +203,7 @@ vi.mock("@/lib/services/deposits.supabase", () => ({
   listWalletsForDepositScan: async () => [{ userId: USER, address: ORIGIN }],
   listDepositSignaturesForScan: async (userId: string) =>
     state.cryptoDeposits.filter((row) => row.userId === userId).map((row) => row.signature),
+  readVerifiedUserEmail: async () => ({ email: PILOT_EMAIL, emailVerified: true }),
   insertCryptoDeposit: async (input: {
     userId: string;
     mint: string;
@@ -416,6 +419,7 @@ describe("A1: la MISMA firma de depósito no acredita dos veces", () => {
   beforeEach(() => {
     vi.stubEnv("DATA_MODE", "live");
     vi.stubEnv("WALLET_DEPOSIT_SYNC", "on");
+    vi.stubEnv("DEPOSIT_ALLOWLIST_EMAILS", PILOT_EMAIL);
     __setFlagReaderForTests(async (key) => key === "deposits_enabled");
     state.cryptoDeposits = [];
     state.depositInsertAttempts = 0;

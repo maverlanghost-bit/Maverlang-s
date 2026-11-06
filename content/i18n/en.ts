@@ -435,6 +435,11 @@ export const en = {
     demoAddressWarn: "Do not send real funds: there is no receiving address in the demo.",
     verifiedOnly: "Verified wallet from your account.",
     noVerifiedWallet: "No verified wallet is available in your account.",
+    depositPilotTitle: "Internal deposit pilot",
+    depositPilotBody:
+      "USDC deposits are enabled only for the team, with a list of verified emails checked on the server.",
+    depositPilotWarn:
+      "This account is not in the pilot. Do not send funds: they will not be credited automatically.",
     signFailed: "The transfer was not signed.",
     sendFailed: "The transfer did not complete.",
     noAssets: "You have no USDC or stocks to send.",

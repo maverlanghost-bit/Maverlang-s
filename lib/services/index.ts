@@ -103,7 +103,12 @@ export interface Services {
     saveFavorites(id: string, symbols: string[]): Promise<string[]>;
   };
   auth: {
-    getSession(req: Request): Promise<{ userId: string; walletAddress: string | null } | null>;
+    getSession(req: Request): Promise<{
+      userId: string;
+      walletAddress: string | null;
+      email?: string | null;
+      emailVerified?: boolean;
+    } | null>;
   };
 }
 
