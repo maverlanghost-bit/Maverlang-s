@@ -28,7 +28,19 @@ export async function loadPortfolioForAssistant(req: Request): Promise<Portfolio
     return { kind: "sign-in" };
   }
   if (!session) return { kind: "sign-in" };
-  if (isRealAccountRequest(req)) return { kind: "real-empty" };
+  if (isRealAccountRequest(req)) {
+    const dataMode = process.env.DATA_MODE?.trim() || "mock";
+    if (dataMode === "live" && session.walletAddress) {
+      try {
+        const portfolio = await services.portfolio.get(session.walletAddress);
+        return { kind: "ok", portfolio };
+      } catch {
+        console.error("ai chat portfolio");
+        return { kind: "unavailable" };
+      }
+    }
+    return { kind: "real-empty" };
+  }
   try {
     if (isUserDemoRequest(req)) {
       return { kind: "ok", portfolio: await demoSupabase.getPortfolio(session.userId) };

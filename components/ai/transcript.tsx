@@ -3,8 +3,11 @@
 import { useEffect, useRef, type ReactNode } from "react";
 
 import type { AiWidget } from "@/components/ai/contract";
+import { GrokThinkingCard } from "@/components/ai/grok-thinking-card";
+import { MarketPulseBar } from "@/components/ai/market-pulse-bar";
 import type { ChatMessage } from "@/components/ai/model";
 import { NoticeCard } from "@/components/ai/notices";
+import { RichAssistantMessage } from "@/components/ai/rich-message";
 import type { AsistenteCopy, AsistenteSuggestionId } from "@/content/i18n/extra-asistente";
 import { cn } from "@/lib/cn";
 
@@ -66,6 +69,9 @@ export function Transcript({
           <p className="mx-auto mt-3 max-w-[36ch] text-pretty text-[14px] leading-[1.65] text-fg-muted sm:mt-3.5 sm:max-w-md sm:text-[15px]">
             {copy.emptyBody}
           </p>
+          <div className="mt-5 w-full text-left sm:mt-6">
+            <MarketPulseBar onSelectPrompt={(promptText) => onSuggest?.("tesla", promptText)} />
+          </div>
           {onSuggest ? (
             <div className="mt-6 grid w-full grid-cols-1 gap-2.5 text-left sm:mt-7 sm:grid-cols-2 sm:gap-3 lg:hidden">
               {copy.suggestions.map((item) => (
@@ -131,7 +137,10 @@ export function Transcript({
                       </span>
                     </div>
                     <div className="max-w-[68ch] text-[15px] leading-[1.75] text-fg-body sm:text-[15.5px]">
-                      <p className="break-words whitespace-pre-wrap">{message.text}</p>
+                      <RichAssistantMessage
+                        text={message.text}
+                        onFollowUp={(promptText) => onSuggest?.("tesla", promptText)}
+                      />
                     </div>
                   </div>
                 )
@@ -153,39 +162,14 @@ export function Transcript({
             </li>
           ))}
           {busy ? (
-            <li className="min-w-0">
-              <Typing label={copy.typing} />
+            <li className="min-w-0 motion-safe:animate-pulse motion-reduce:animate-none">
+              <GrokThinkingCard label={copy.typing} />
             </li>
           ) : null}
         </ol>
       )}
       <div ref={endRef} className="h-px w-full" aria-hidden="true" />
     </div>
-  );
-}
-
-function Typing({ label }: { label: string }) {
-  return (
-    <p role="status" className="flex items-center gap-2.5 text-[12.5px] font-medium text-fg-muted">
-      <span className="flex size-6 shrink-0 items-center justify-center rounded-lg border border-border/60 bg-surface-1 text-fg" aria-hidden>
-        <MiniSparkleIcon />
-      </span>
-      <span className="inline-flex items-center gap-1" aria-hidden>
-        <Dot delay="0ms" />
-        <Dot delay="160ms" />
-        <Dot delay="320ms" />
-      </span>
-      <span>{label}</span>
-    </p>
-  );
-}
-
-function Dot({ delay }: { delay: string }) {
-  return (
-    <span
-      className="size-1.5 rounded-full bg-brand/70 motion-safe:animate-pulse motion-reduce:animate-none"
-      style={{ animationDelay: delay }}
-    />
   );
 }
 

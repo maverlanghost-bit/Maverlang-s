@@ -3,6 +3,7 @@
 import { useEffect, useState, type ChangeEvent, type FormEvent, type RefObject } from "react";
 import { createPortal } from "react-dom";
 
+import { ReasoningModeBar, type AiReasoningMode } from "@/components/ai/reasoning-mode-bar";
 import { IconClose } from "@/components/ui/icons";
 import type { AsistenteCopy, AsistenteSuggestionId } from "@/content/i18n/extra-asistente";
 import { cn } from "@/lib/cn";
@@ -76,6 +77,10 @@ export function Composer({
   }
 
   const dockSlot = useDockSlot();
+
+  // Modo de razonamiento del compositor de escritorio (flash por defecto).
+  const [mode, setMode] = useState<AiReasoningMode>("flash");
+  const showCount = draft.length > 1200;
 
   const pendingBlock = pendingImage ? (
     <div className="mb-2.5 flex items-center gap-2.5 rounded-2xl border border-border/70 bg-white/85 p-2 pr-2.5">
@@ -264,12 +269,23 @@ export function Composer({
           aria-hidden="true"
           className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-fg/10 to-transparent"
         />
-        <div className="flex min-w-0 items-end gap-1.5 px-2 py-2 sm:px-3">
+        <div className="overflow-hidden rounded-t-3xl border-b border-border/60 px-2.5 py-1.5">
+          <ReasoningModeBar mode={mode} onChange={setMode} />
+        </div>
+        <div className={cn("flex min-w-0 items-end gap-1.5 px-2 py-2 sm:px-3", showCount && "pb-7")}>
           {attachButton}
           {fileInput}
           {textarea}
           {sendButton}
         </div>
+        {showCount ? (
+          <p
+            aria-live="polite"
+            className="pointer-events-none absolute right-2.5 bottom-1.5 text-[11px] leading-none tabular-nums text-fg-muted sm:right-3"
+          >
+            {draft.length}
+          </p>
+        ) : null}
       </div>
 
       {chips}

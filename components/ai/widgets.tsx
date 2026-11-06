@@ -34,6 +34,25 @@ function changeLabel(value: number | null, empty: string): string {
   return value == null ? empty : formatPercent(value);
 }
 
+/** Mínimo y máximo de una serie ya filtrada por finitud; `null` si no hay trazo posible. */
+function seriesBounds(series: readonly number[]): { min: number; max: number } | null {
+  if (series.length < 2) return null;
+  let min = Number.POSITIVE_INFINITY;
+  let max = Number.NEGATIVE_INFINITY;
+  for (const value of series) {
+    if (!Number.isFinite(value)) continue;
+    if (value < min) min = value;
+    if (value > max) max = value;
+  }
+  if (!Number.isFinite(min) || !Number.isFinite(max)) return null;
+  return { min, max };
+}
+
+function clampRatio(value: number): number {
+  if (!Number.isFinite(value)) return 0;
+  return Math.min(1, Math.max(0, value));
+}
+
 export function StockWidget({
   widget,
   copy,
@@ -46,6 +65,15 @@ export function StockWidget({
   const href = detailHref(widget.ticker);
   const series = widget.points.map((point) => point.p).filter((value) => Number.isFinite(value));
   const chartLabel = `${widget.name}, ${copy.ranges[widget.range]}`;
+  const bounds = seriesBounds(series);
+  const lastPrice = series.length > 0 ? (series[series.length - 1] ?? null) : null;
+  const span = bounds ? bounds.max - bounds.min : 0;
+  const position =
+    bounds == null || lastPrice == null
+      ? 0
+      : span > 0
+        ? clampRatio((lastPrice - bounds.min) / span)
+        : 1;
 
   return (
     <article data-ai-widget="stock" className={WIDGET_CARD_CLASS}>
@@ -88,6 +116,34 @@ export function StockWidget({
       ) : (
         <p className="mt-2 text-sm text-fg-muted">{copy.noChart}</p>
       )}
+      {bounds ? (
+        <div className="mt-2">
+          <div className="relative h-1 overflow-hidden rounded-full bg-surface-2" aria-hidden>
+            <span
+              className="absolute inset-y-0 left-0 rounded-full bg-brand/60"
+              style={{ width: `${(position * 100).toFixed(1)}%` }}
+            />
+          </div>
+          <div className="mt-1 flex items-center justify-between gap-3 text-[11px] tabular-nums text-fg-muted">
+            <span className="num">
+              Mín <span className="text-fg-body">{formatUsd(bounds.min)}</span>
+            </span>
+            <span className="num">
+              Máx <span className="text-fg-body">{formatUsd(bounds.max)}</span>
+            </span>
+          </div>
+        </div>
+      ) : null}
+      {href ? (
+        <div className="mt-3 flex items-center justify-end">
+          <Link
+            href={href}
+            className="inline-flex min-h-8 items-center rounded-full border border-border/80 bg-surface-2/70 px-3 text-xs font-medium text-fg-body outline-none transition-colors duration-200 hover:border-brand/40 hover:bg-brand-soft/40 hover:text-brand focus-visible:ring-4 focus-visible:ring-fg/20"
+          >
+            Ver ficha
+          </Link>
+        </div>
+      ) : null}
     </article>
   );
 }
@@ -110,6 +166,15 @@ export function CompareWidget({
     row.ratios ? seriesPath(row.ratios, CHART_W, CHART_H, scale.min, scale.max) : null,
   );
   const hasLine = paths.some((path) => path != null);
+  const withChange = rows.filter((row) => row.change != null);
+  let best: { index: number; change: number } | null = null;
+  if (withChange.length >= 2) {
+    for (const row of withChange) {
+      if (row.change == null) continue;
+      if (best == null || row.change > best.change) best = { index: row.index, change: row.change };
+    }
+  }
+  const bestIndex = best?.index ?? -1;
   const summary = rows
     .map((row) => `${row.item.name} ${changeLabel(row.change, copy.noChange)}`)
     .join(". ");
@@ -137,39 +202,58 @@ export function CompareWidget({
             className="text-border-strong"
             strokeDasharray="3 4"
           />
-          {paths.map((path, index) =>
-            path ? (
+          {paths.map((path, index) => {
+            const highlighted = index === bestIndex;
+            return path ? (
               <path
                 key={`${rows[index]?.item.ticker ?? "serie"}-${index}`}
                 d={path}
                 fill="none"
                 stroke="currentColor"
-                strokeWidth="1.75"
+                strokeWidth={highlighted ? "2" : "1.75"}
+                strokeOpacity={highlighted ? "1" : "0.75"}
                 strokeLinecap="round"
                 strokeLinejoin="round"
                 className={LINE_CLASS[index % LINE_CLASS.length]}
               />
-            ) : null,
-          )}
+            ) : null;
+          })}
         </svg>
       ) : (
         <p className="mt-3 text-sm text-fg-muted">{copy.noChart}</p>
       )}
       <ul className="mt-3 flex flex-col gap-2">
-        {rows.map((row) => (
-          <li key={`${row.item.ticker}-${row.index}`} className="flex min-h-11 items-center gap-2 tabular-nums">
-            <span className={cn("size-2.5 shrink-0 rounded-full", DOT_CLASS[row.index % DOT_CLASS.length])} aria-hidden />
-            <span className="min-w-0 flex-1">
-              <span className="block truncate font-medium text-fg">{row.item.name}</span>
-              <span className="block truncate text-sm text-fg-muted">{row.item.ticker}</span>
-            </span>
-            {row.change == null ? (
-              <span className="text-sm tabular-nums text-fg-muted">{copy.noChange}</span>
-            ) : (
-              <ChangeBadge value={row.change} className="tabular-nums" />
-            )}
-          </li>
-        ))}
+        {rows.map((row) => {
+          const isBest = row.index === bestIndex;
+          return (
+            <li key={`${row.item.ticker}-${row.index}`} className="flex min-h-11 items-center gap-2 tabular-nums">
+              <span
+                className={cn(
+                  "size-2.5 shrink-0 rounded-full",
+                  DOT_CLASS[row.index % DOT_CLASS.length],
+                  isBest && "ring-2 ring-brand/25 ring-offset-2 ring-offset-bg-elevated",
+                )}
+                aria-hidden
+              />
+              <span className="min-w-0 flex-1">
+                <span className="block truncate font-medium text-fg">{row.item.name}</span>
+                <span className="flex min-w-0 items-center gap-1.5">
+                  <span className="block truncate text-sm text-fg-muted">{row.item.ticker}</span>
+                  {isBest ? (
+                    <span className="shrink-0 rounded-full border border-brand/30 bg-brand/10 px-1.5 py-px text-[10px] font-semibold tracking-wide text-brand">
+                      Mejor del período
+                    </span>
+                  ) : null}
+                </span>
+              </span>
+              {row.change == null ? (
+                <span className="text-sm tabular-nums text-fg-muted">{copy.noChange}</span>
+              ) : (
+                <ChangeBadge value={row.change} className="tabular-nums" />
+              )}
+            </li>
+          );
+        })}
       </ul>
     </article>
   );
@@ -201,32 +285,38 @@ export function PortfolioWidget({
           {widget.positions.map((position) => {
             const value = finiteOrNull(position.valueUsd);
             const weight = finiteOrNull(position.weightPct);
+            const pct = weight == null ? null : clampRatio(weight <= 1 ? weight : weight / 100) * 100;
             return (
-              <li
-                key={position.ticker}
-                className="flex min-h-11 items-center gap-2 border-b border-border/70 py-2 tabular-nums last:border-b-0"
-              >
-                <TickerLogo
-                  symbol={position.ticker}
-                  name={position.name}
-                  logoUrl={logoFor(position.ticker)}
-                  size={32}
-                  loading="lazy"
-                  sizes="32px"
-                />
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate font-medium text-fg">{position.name}</span>
-                  <span className="block truncate text-sm text-fg-muted">{position.ticker}</span>
-                </span>
-                <span className="shrink-0 text-right tabular-nums">
-                  <span className="sr-only">{copy.valueLabel} </span>
-                  <span className="num block text-sm font-medium tabular-nums text-fg">
-                    {value == null ? copy.noPrice : formatUsd(value)}
+              <li key={position.ticker} className="border-b border-border/70 py-2 last:border-b-0">
+                <div className="flex min-h-11 items-center gap-2 tabular-nums">
+                  <TickerLogo
+                    symbol={position.ticker}
+                    name={position.name}
+                    logoUrl={logoFor(position.ticker)}
+                    size={32}
+                    loading="lazy"
+                    sizes="32px"
+                  />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate font-medium text-fg">{position.name}</span>
+                    <span className="block truncate text-sm text-fg-muted">{position.ticker}</span>
                   </span>
-                  <span className="sr-only">{copy.weightLabel} </span>
-                  <span className="num block text-sm tabular-nums text-fg-muted">
-                    {weight == null ? copy.noChange : formatPortion(weight)}
+                  <span className="shrink-0 text-right tabular-nums">
+                    <span className="sr-only">{copy.valueLabel} </span>
+                    <span className="num block text-sm font-medium tabular-nums text-fg">
+                      {value == null ? copy.noPrice : formatUsd(value)}
+                    </span>
+                    <span className="sr-only">{copy.weightLabel} </span>
+                    <span className="num block text-sm tabular-nums text-fg-muted">
+                      {weight == null ? copy.noChange : formatPortion(weight)}
+                    </span>
                   </span>
+                </div>
+                <span aria-hidden className="mt-1 block h-1 overflow-hidden rounded-full bg-surface-2">
+                  <span
+                    className="block h-full rounded-full bg-brand transition-[width] duration-300"
+                    style={{ width: `${(pct ?? 0).toFixed(1)}%` }}
+                  />
                 </span>
               </li>
             );

@@ -1,5 +1,18 @@
 # PROGRESO — Maverlang
 
+## T47 — Rediseño Asistente IA estilo Grok, widgets pro y cartera real en IA (2026-11-06, commit local)
+- Alcance: 10 bots en paralelo (deepseek-v4.1-flash vía Hermes) sobre archivos disjuntos. Sin dependencias nuevas, sin migraciones, sin `.env`, sin push ni deploy.
+- Hallazgo crítico corregido — `lib/ai/portfolio.ts`: con `isRealAccountRequest(req)`, `DATA_MODE === "live"` y `session.walletAddress` el asistente ahora lee la cartera real (`{ kind: "ok" }`, `unavailable` si falla); en mock/dev o sin wallet sigue en `real-empty` (tests y demo intactos).
+- `components/ai/rich-message.tsx` (nuevo): parser seguro sin `dangerouslySetInnerHTML` (párrafos, viñetas `- `/`• `, subtítulos `**...**`, bloques `clave: valor`), píldoras de tickers del catálogo (`tickerBySymbol`) a `/app/accion/[ticker]`, botón Copiar (1,5 s en "Copiado") y chips de seguimiento. Cada párrafo sin ticker queda en un único nodo de texto (tests por `toContain`).
+- `components/ai/grok-thinking-card.tsx` (nuevo): tarjeta de razonamiento con pulso esmeralda y telemetría cada 1,2 s (`Consultando precios spot en Solana…`, `Verificando liquidez…`, `Sintetizando análisis…`); `role="status"` con el label y movimiento reducido vía `useSyncExternalStore`.
+- `components/ai/market-pulse-bar.tsx` (nuevo): cinta de 4 chips (`Pulso NVDAx hoy`, `S&P 500 vs Nasdaq`, `Radiografía de mi Cartera`, `Qué son los xStocks 24/7`) que disparan prompts fijos.
+- `components/ai/reasoning-mode-bar.tsx` (nuevo): `AiReasoningMode` (`flash`/`deep`/`portfolio`), selector x.ai de 3 píldoras y `applyReasoningPrefix` con `MAX_TEXT = 4000` (constante nueva: el repo no tenía límite de texto).
+- Integración: `transcript.tsx` usa `RichAssistantMessage`/`GrokThinkingCard` y monta `MarketPulseBar` bajo `emptyBody`; `composer.tsx` (sólo escritorio) agrega la barra de modo y el contador cuando `draft.length > 1200`; `widgets.tsx` suma rango Mín–Máx y "Ver ficha" (stock), badge "Mejor del período" (compare) y barra de peso por posición (portfolio).
+- `lib/ai/system-prompt.ts`: una línea nueva pidiendo estructura de analista institucional (puntos clave → contexto → datos de herramientas → riesgos); ninguna frase de seguridad tocada.
+- Tests: `tests/unit/ai-grok-enhancements.test.ts` (nuevo, 257 líneas) cubre `loadPortfolioForAssistant` (mock/live/error/sin sesión) y los 4 componentes.
+- Verificación de esta fase: `npm run typecheck` 0 errores y `npx eslint` sobre los 10 archivos 0 errores (se corrigió un `setState` síncrono dentro de un efecto en la tarjeta de razonamiento). **No se corrió `vitest` ni `next build`** por indicación expresa; la batería completa corresponde a T48.
+- Pendiente: correr `npm run test` y `npm run build` en T48; mirar `/app/asistente` a 360/768 (cinta de pulso y barra de modos dentro del compositor); decidir si `applyReasoningPrefix` se conecta al envío real (hoy sólo se exporta).
+
 ## T46 — Gráficos avanzados, mapa de calor y command palette (2026-11-06, commit local)
 - Alcance: 6 bots en paralelo (deepseek-v4.1-flash vía Hermes) sobre archivos disjuntos. Sin dependencias nuevas, sin migraciones, sin `.env`, sin push ni deploy.
 - `components/domain/svg-price-chart.tsx`: nueva prop opcional `avgCostUsd` (línea punteada esmeralda `var(--color-brand)` 4/3, opacidad 0.65, sólo fuera de `percentMode` y dentro del área visible), crosshair bidireccional (guía horizontal `2 3` además de la vertical) y punto vivo `motion-safe:animate-pulse` al final de la serie. Intactos `data-points`/`data-reference`/`data-percent`/`data-chart-style`, `role="slider"` y el orden precio inicial → área → curva.
