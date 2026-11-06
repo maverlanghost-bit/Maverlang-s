@@ -14,6 +14,7 @@ import { TickerLogo } from "@/components/domain/ticker-logo";
 import { TokenGapCard } from "@/components/domain/token-gap-card";
 import { AlertButton } from "@/components/domain/alert-button";
 import { CompanyCard } from "@/components/domain/company-card";
+import { WhatIfCalculator } from "@/components/domain/what-if-calculator";
 import { Accordion } from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -26,6 +27,7 @@ import { NotFoundView } from "@/components/ui/not-found-view";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/components/ui/toast";
 import { site } from "@/config/site";
+import { isRealAccountUiBlocked } from "@/lib/account/real-ui-gate";
 import { detailReturnPath, ingresarPath, aceptarPath, registroPath } from "@/lib/auth/paths";
 import { cn } from "@/lib/cn";
 import { formatMoney, formatMultiplier, formatReopenWhen, formatShares } from "@/lib/format";
@@ -674,7 +676,8 @@ export function DetailScreen({
   }
 
   function tradeSlot(variant: "bar" | "card") {
-    if (mode === "real") {
+    // Con el interruptor apagado, el modo real sigue mostrando el aviso de "próximamente".
+    if (isRealAccountUiBlocked(mode)) {
       if (variant === "bar") {
         return (
           <div className="fixed inset-x-0 z-20 border-t border-white/65 bg-white/82 px-4 py-3 backdrop-blur-xl backdrop-saturate-180 shadow-[0_-12px_32px_-12px_rgba(12,15,20,0.12),inset_0_1px_0_rgba(255,255,255,0.85)] min-[400px]:px-5 lg:hidden" style={{ bottom: "var(--app-tabs-height)" }}>
@@ -830,6 +833,16 @@ export function DetailScreen({
           issuer={ticker.issuer}
           categoryLabel={category}
           tradeBlock={effectiveBlock}
+        />
+
+        {/* Simulador "¿y si hubieras invertido?": se autodescarta sin historial o sin precio. */}
+        <WhatIfCalculator
+          symbol={ticker.symbol}
+          name={ticker.name}
+          points={points}
+          currentPriceUsd={quote?.priceUsd ?? null}
+          currency={currency}
+          rate={rate}
         />
 
         <CompanyCard symbol={ticker.symbol} />

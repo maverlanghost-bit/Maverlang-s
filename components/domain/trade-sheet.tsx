@@ -8,6 +8,7 @@ import { CostBreakdown } from "@/components/domain/cost-breakdown";
 import { MarketStatusPill } from "@/components/domain/market-status-pill";
 import { RealAccountEmpty } from "@/components/domain/real-account-empty";
 import { TickerLogo } from "@/components/domain/ticker-logo";
+import { TradeExecutionStepper } from "@/components/domain/trade-execution-stepper";
 import { AmountInput } from "@/components/ui/amount-input";
 import { Button } from "@/components/ui/button";
 import { ErrorState } from "@/components/ui/error-state";
@@ -19,6 +20,8 @@ import type { Messages } from "@/content/i18n/es-CL";
 import { ApiError, buildTrade, getTradeStatus, quoteTrade, submitTrade } from "@/lib/api/client";
 import { useSession } from "@/lib/auth";
 import { useSignTrade } from "@/lib/auth/sign-transaction";
+import { isRealAccountUiBlocked } from "@/lib/account/real-ui-gate";
+import { cn } from "@/lib/cn";
 import { formatMoney, formatShares } from "@/lib/format";
 import { useAccountMode } from "@/lib/hooks/use-account-mode";
 import { SPOT_MS, useAssetStatus, useFx, useMarketStatus, usePortfolio, usePrices } from "@/lib/hooks/queries";
@@ -39,8 +42,10 @@ import type { Currency, Order, Side, Ticker, TradeQuote } from "@/lib/types";
 const DEPOSIT_HREF = "/app/billetera/depositar";
 const POLL_MS = 1_000;
 const POLL_BUDGET_MS = 20_000;
+/** Vigencia nominal de una cotización en la UI; la barra se llena respecto a esto. */
+const QUOTE_VALIDITY_MS = 15_000;
 
-const BUY_CURRENCIES = ["USDC", "SHARES"] as const satisfies readonly TradeAmountCurrency[];
+const BUY_CURRENCIES = ["USDC", "CLP", "SHARES"] as const satisfies readonly TradeAmountCurrency[];
 const SELL_CURRENCIES = ["SHARES", "USDC"] as const satisfies readonly TradeAmountCurrency[];
 
 const solFormatter = new Intl.NumberFormat("es-CL", { maximumFractionDigits: 6 });
@@ -171,12 +176,27 @@ function blockCopy(
   return null;
 }
 
-function Spinner() {
+/**
+ * Barra fina de validez de la cotización: se vacía a medida que pasa el tiempo
+ * y avisa en ámbar/rojo cuando queda poco. Sólo informa, no es interactiva.
+ */
+function QuoteValidityBar({ remainingMs, language }: { remainingMs: number; language: "es-CL" | "en" }) {
+  const pct = Math.max(0, Math.min(100, (remainingMs / QUOTE_VALIDITY_MS) * 100));
+  const tone = pct < 15 ? "bg-down" : pct < 30 ? "bg-warn" : "bg-brand";
   return (
-    <svg className="size-5 shrink-0 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2" opacity="0.25" />
-      <path d="M21 12a9 9 0 0 0-9-9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-    </svg>
+    <div
+      role="progressbar"
+      aria-valuemin={0}
+      aria-valuemax={100}
+      aria-valuenow={Math.round(pct)}
+      aria-label={language === "en" ? "Quote validity" : "Validez de la cotización"}
+      className="mx-auto h-1 w-full max-w-56 overflow-hidden rounded-full bg-surface-3"
+    >
+      <div
+        className={cn(tone, "h-full rounded-full transition-[width,background-color] duration-1000 ease-linear motion-reduce:transition-none")}
+        style={{ width: `${pct}%` }}
+      />
+    </div>
   );
 }
 
@@ -203,7 +223,7 @@ function quickChipLabel(value: number, currency: TradeAmountCurrency): string {
 }
 
 function TradeFlow({ side, ticker }: { side: Side; ticker: Ticker }) {
-  const { t, currency: displayCurrency } = useT();
+  const { t, currency: displayCurrency, language } = useT();
   const session = useSession();
   const { mode } = useAccountMode();
   const sign = useSignTrade();
@@ -398,7 +418,7 @@ function TradeFlow({ side, ticker }: { side: Side; ticker: Ticker }) {
     );
   }
 
-  if (mode === "real") {
+  if (isRealAccountUiBlocked(mode)) {
     return <RealAccountEmpty />;
   }
 
@@ -427,11 +447,13 @@ function TradeFlow({ side, ticker }: { side: Side; ticker: Ticker }) {
   }
 
   if (phase === "signing" || phase === "submitting") {
+    // El stepper trae su propio role="status" aria-live="polite".
     return (
-      <div role="status" aria-live="polite" className="flex flex-col items-center gap-3 py-10 text-center">
-        <Spinner />
-        <p className="text-lg text-fg">{phase === "signing" ? t.trade.signing : t.trade.submitting}</p>
-      </div>
+      <TradeExecutionStepper
+        phase={phase}
+        signingLabel={t.trade.signing}
+        submittingLabel={t.trade.submitting}
+      />
     );
   }
 
@@ -523,7 +545,10 @@ function TradeFlow({ side, ticker }: { side: Side; ticker: Ticker }) {
             {quoteError ?? t.trade.quoting}
           </p>
         ) : (
-          <p className="text-center text-sm text-fg-muted">{fill(t.trade.expiresIn, { time: countdownLabel(remainingMs) })}</p>
+          <div className="flex flex-col items-center gap-2">
+            <p className="text-center text-sm text-fg-muted">{fill(t.trade.expiresIn, { time: countdownLabel(remainingMs) })}</p>
+            <QuoteValidityBar remainingMs={remainingMs} language={language} />
+          </div>
         )}
         {halted ? (
           <MarketStatusPill open={false} halted label={t.detail.assetHalted} />
@@ -695,7 +720,10 @@ function TradeFlow({ side, ticker }: { side: Side; ticker: Ticker }) {
         </p>
       ) : null}
       {fresh && quote ? (
-        <p className="text-center text-sm text-fg-muted">{fill(t.trade.expiresIn, { time: countdownLabel(remainingMs) })}</p>
+        <div className="flex flex-col items-center gap-2">
+          <p className="text-center text-sm text-fg-muted">{fill(t.trade.expiresIn, { time: countdownLabel(remainingMs) })}</p>
+          <QuoteValidityBar remainingMs={remainingMs} language={language} />
+        </div>
       ) : null}
       {dollarsNote ? <p className="text-center text-xs text-fg-muted">{dollarsNote}</p> : null}
       {block === "fx" || block === "price" ? (

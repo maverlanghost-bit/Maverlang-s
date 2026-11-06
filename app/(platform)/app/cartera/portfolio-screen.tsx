@@ -11,6 +11,7 @@ import { InvestmentHistory } from "@/components/domain/investment-history";
 import { SvgPriceChart } from "@/components/domain/svg-price-chart";
 import { InfoTip } from "@/components/domain/info-tip";
 import { PriceFreshness } from "@/components/domain/price-freshness";
+import { PortfolioDonut } from "@/components/domain/portfolio-donut";
 import { PositionRow } from "@/components/domain/position-row";
 import { RealAccountEmpty } from "@/components/domain/real-account-empty";
 import { ResetDemoButton } from "@/components/domain/reset-demo-button";
@@ -25,6 +26,7 @@ import { ErrorState } from "@/components/ui/error-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { Skeleton } from "@/components/ui/skeleton";
+import { isRealAccountUiBlocked, isRealAccountUiEnabled } from "@/lib/account/real-ui-gate";
 import { formatDateTime, formatMoney, formatShares, type MoneyCurrency } from "@/lib/format";
 import { useAccountMode } from "@/lib/hooks/use-account-mode";
 import { useHideBalance } from "@/lib/hooks/use-hide-balance";
@@ -456,7 +458,9 @@ export function PortfolioScreen() {
   const { t, currency, language } = useT();
   const { hidden } = useHideBalance();
   const { mode } = useAccountMode();
-  const portfolio = usePortfolio(mode === "demo");
+  // En modo real la cartera sólo se consulta si la UI real está desbloqueada;
+  // por defecto cada modo real renderiza <RealAccountEmpty />.
+  const portfolio = usePortfolio(mode === "demo" || isRealAccountUiEnabled());
   const activity = useActivity();
   const tickers = useTickers();
   const fx = useFx();
@@ -478,7 +482,10 @@ export function PortfolioScreen() {
     () => (portfolio.data?.positions ?? []).map((position) => position.symbol),
     [portfolio.data],
   );
-  const { bySymbol: assetStatusBySymbol } = useAssetStatuses(positionSymbols, mode === "demo");
+  const { bySymbol: assetStatusBySymbol } = useAssetStatuses(
+    positionSymbols,
+    mode === "demo" || isRealAccountUiEnabled(),
+  );
 
   const loaded = portfolio.data;
   const rate = fx.data?.rate;
@@ -488,7 +495,7 @@ export function PortfolioScreen() {
   const masked = hidden === true;
   const page = t.pages.portfolio;
 
-  if (mode === "real") {
+  if (isRealAccountUiBlocked(mode)) {
     return (
       <div className="flex flex-col gap-6">
         <PageHeader title={page.title} description={page.lead} />
@@ -672,6 +679,11 @@ export function PortfolioScreen() {
                     lang={language}
                   />
                 </div>
+                {slices.length > 0 ? (
+                  <div className="mt-6 border-t border-border/60 pt-6">
+                    <PortfolioDonut slices={slices} />
+                  </div>
+                ) : null}
               </Card>
             ) : null}
             <Card className="p-4 md:p-6">

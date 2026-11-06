@@ -1,5 +1,17 @@
 # PROGRESO — Maverlang
 
+## T45 — Desbloqueo UI cuenta real, compra en CLP, exportación CSV y mejoras de billetera/cartera (2026-11-06, commit local)
+- Alcance: 14 bots en paralelo (deepseek-v4.1-flash vía Hermes) sobre archivos disjuntos. Sin dependencias nuevas, sin migraciones, sin `.env`, sin push ni deploy.
+- Interruptor único: `lib/account/real-ui-gate.ts` (`isRealAccountUiEnabled` / `isRealAccountUiBlocked`). Por defecto (`NEXT_PUBLIC_REAL_ACCOUNT_ENABLED` sin definir) el modo `real` sigue mostrando `<RealAccountEmpty />`, así que los tests existentes no cambian; con `="true"` se abren cartera, billetera, detalle y hoja de compra/venta en cuenta real.
+- Pantallas: `portfolio-screen.tsx` (portafolio y estados reales cuando el interruptor está encendido), `wallet-screen.tsx` (`DemoAddressNotice` sólo en demo + `CsvExportButton` en Actividad), `detail-screen.tsx` (botones Comprar/Vender reales), `trade-sheet.tsx` (gate + stepper), `receive-screen.tsx` (`getWallets`/`primaryAddress` + `LinkWalletCard`), `send-screen.tsx` (límites y destinatarios guardados).
+- Trading: `BUY_CURRENCIES` ahora `["USDC","CLP","SHARES"]` (CLP por defecto sigue en USDC), barra fina de validez de la cotización (`15_000` ms) en `form` y `review`, y `TradeExecutionStepper` (firma → Jupiter → on-chain) con `role="status" aria-live="polite"`.
+- Billetera: `WithdrawalLimitsCard` (US$ 500 por envío/día, US$ 2.000 mes) y `SavedRecipientsBar` (`localStorage mv_saved_recipients_v1`, hasta 5 direcciones Base58, pegar y alias).
+- Componentes nuevos: `CsvExportButton` (CSV `Fecha,Tipo,Activo,Cantidad,Valor USD,Valor CLP,Estado,Tx Hash`, BOM + escape, `maverlang-cartola-YYYY-MM-DD.csv`), `WhatIfCalculator` (chips CLP/USD sobre `points[0].p`), `DividendMultiplierCard` (crudo × multiplicador) y `PortfolioDonut` (donut SVG interactivo con detalle en el centro).
+- Integración: `<PortfolioDonut slices={slices} />` quedó conectado dentro de la tarjeta de composición de Cartera, bajo `<AllocationBar />`.
+- Verificación de esta fase: sólo `git status` + revisión de imports/exports (14/14 archivos) y balance de diffs. **No se corrió `vitest`, `next build`, `eslint` ni `tsc`** por indicación expresa del usuario; toda la verificación pesada queda para el cierre final.
+- Pendiente: correr `npm run typecheck`, `npm run lint`, `npm run test` y `npm run build` en el cierre; mirar a 360/768 las pantallas tocadas con `NEXT_PUBLIC_REAL_ACCOUNT_ENABLED="true"`; `DividendMultiplierCard` aún no está montada en ninguna pantalla.
+- Próximo: cierre final de T45 con la batería completa de verificación.
+
 ## T43–T44 — Portafolio live, SOL nativo, actividad unificada, quote CLP y desbloqueo de producción (2026-11-06, commit local)
 - Alcance: ola paralela de 14 bots (DeepSeek v4.1 Flash vía Hermes) para cerrar T43 y T44 sin migraciones nuevas ni dependencias externas.
 - Portafolio y saldos reales (`app/api/portfolio/route.ts`, `app/api/wallet/balances/route.ts`, `lib/services/portfolio.live.ts`): lectura de posiciones reales con sesión verificada, cálculo de costo promedio y P&L desde órdenes ejecutadas (`orders`), saldo nativo de `SOL` en lamports (`getBalance`) expuesto en `BalancesResponse.sol` (`lamports`, `amount`, `usd`), y actividad unificada en `app/api/wallet/activity/route.ts` combinando órdenes con `listUserMovements` (`lib/services/wallet-movements.supabase.ts`).

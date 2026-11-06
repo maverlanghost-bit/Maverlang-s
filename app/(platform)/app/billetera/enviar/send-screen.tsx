@@ -12,6 +12,8 @@ import { Input } from "@/components/ui/input";
 import { LoadingState } from "@/components/ui/loading-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { Select } from "@/components/ui/select";
+import { SavedRecipientsBar } from "@/components/wallet/saved-recipients-bar";
+import { WithdrawalLimitsCard } from "@/components/wallet/withdrawal-limits-card";
 import { ApiError, buildSend, getSendStatus, submitSend } from "@/lib/api/client";
 import { useSession } from "@/lib/auth";
 import { useSignTrade } from "@/lib/auth/sign-transaction";
@@ -367,8 +369,15 @@ export function SendScreen() {
           aria-describedby={hintId}
           className="num"
         />
+        <SavedRecipientsBar
+          currentRecipient={destination}
+          onSelect={(addr) => {
+            setDestination(addr);
+          }}
+        />
         {own ? <p className="text-sm text-warn">{t.wallet.ownAddress}</p> : null}
       </div>
+      <WithdrawalLimitsCard />
       <AmountInput
         label={t.trade.amount}
         value={amountRaw}

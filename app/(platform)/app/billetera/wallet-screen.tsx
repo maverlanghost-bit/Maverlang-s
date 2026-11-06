@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState, type ReactNode } from "react";
 
 import { ActivityItem } from "@/components/domain/activity-item";
+import { CsvExportButton } from "@/components/domain/csv-export-button";
 import { DemoAddressNotice } from "@/components/domain/demo-address-notice";
 import { PriceText } from "@/components/domain/price-text";
 import { RealAccountEmpty } from "@/components/domain/real-account-empty";
@@ -15,6 +16,7 @@ import { ErrorState } from "@/components/ui/error-state";
 import { LoadingState } from "@/components/ui/loading-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { Skeleton } from "@/components/ui/skeleton";
+import { isRealAccountUiBlocked } from "@/lib/account/real-ui-gate";
 import { useSession } from "@/lib/auth";
 import { logoPathFromSymbol } from "@/lib/catalog/logos";
 import { cn } from "@/lib/cn";
@@ -150,7 +152,7 @@ export function WalletScreen() {
     return <LoadingState label={t.states.loading} />;
   }
 
-  if (mode === "real") {
+  if (isRealAccountUiBlocked(mode)) {
     return (
       <div className="flex flex-col gap-6">
         <PageHeader title={t.pages.wallet.title} description={t.wallet.lead} />
@@ -272,33 +274,38 @@ export function WalletScreen() {
       </Card>
 
       {/* Protección demo: sin dirección ni copia para evitar envíos de fondos reales. */}
-      <DemoAddressNotice />
+      {mode === "demo" ? <DemoAddressNotice /> : null}
 
       <Card>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <h2 id="actividad" className="text-lg font-semibold tracking-tight scroll-mt-24">
             {t.wallet.activity}
           </h2>
-          <div role="group" aria-label="Filtrar actividad" className="flex flex-wrap items-center gap-1.5">
-            {ACTIVITY_FILTERS.map((filter) => {
-              const active = activityFilter === filter.id;
-              return (
-                <button
-                  key={filter.id}
-                  type="button"
-                  aria-pressed={active}
-                  onClick={() => setActivityFilter(filter.id)}
-                  className={cn(
-                    "cursor-pointer rounded-full border px-3 py-1 text-xs font-medium transition duration-150",
-                    active
-                      ? "border-fg/20 bg-fg text-bg shadow-[0_1px_2px_rgba(12,15,20,0.08)]"
-                      : "border-border/70 bg-surface-1/70 text-fg-muted hover:bg-surface-2 hover:text-fg",
-                  )}
-                >
-                  {filter.label}
-                </button>
-              );
-            })}
+          <div className="flex flex-wrap items-center gap-1.5 sm:justify-end">
+            <div role="group" aria-label="Filtrar actividad" className="flex flex-wrap items-center gap-1.5">
+              {ACTIVITY_FILTERS.map((filter) => {
+                const active = activityFilter === filter.id;
+                return (
+                  <button
+                    key={filter.id}
+                    type="button"
+                    aria-pressed={active}
+                    onClick={() => setActivityFilter(filter.id)}
+                    className={cn(
+                      "cursor-pointer rounded-full border px-3 py-1 text-xs font-medium transition duration-150",
+                      active
+                        ? "border-fg/20 bg-fg text-bg shadow-[0_1px_2px_rgba(12,15,20,0.08)]"
+                        : "border-border/70 bg-surface-1/70 text-fg-muted hover:bg-surface-2 hover:text-fg",
+                    )}
+                  >
+                    {filter.label}
+                  </button>
+                );
+              })}
+            </div>
+            {filteredActivities.length > 0 ? (
+              <CsvExportButton rows={filteredActivities} currency={currency} fxRate={fxKnown ? rate : undefined} />
+            ) : null}
           </div>
         </div>
         <ActivityList
