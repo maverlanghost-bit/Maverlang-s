@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type PointerEvent } from "react";
+import { useState, useSyncExternalStore, type PointerEvent } from "react";
 
 import type { AllocationSlice } from "@/components/domain/allocation-bar";
 import { formatPortion } from "@/lib/format";
@@ -21,19 +21,22 @@ const MOTION_QUERY = "(prefers-reduced-motion: reduce)";
  * Movimiento reducido: se resuelve después de montar (el primer render, igual al
  * del servidor, asume movimiento) para no romper la hidratación.
  */
+function subscribeMotionQuery(onChange: () => void): () => void {
+  if (typeof window === "undefined" || typeof window.matchMedia !== "function") return () => {};
+  const media = window.matchMedia(MOTION_QUERY);
+  media.addEventListener("change", onChange);
+  return () => media.removeEventListener("change", onChange);
+}
+
+function readPrefersReducedMotion(): boolean {
+  if (typeof window === "undefined" || typeof window.matchMedia !== "function") return false;
+  return window.matchMedia(MOTION_QUERY).matches;
+}
+
 function usePrefersReducedMotion(): boolean {
-  const [reduced, setReduced] = useState(false);
-
-  useEffect(() => {
-    if (typeof window === "undefined" || typeof window.matchMedia !== "function") return;
-    const media = window.matchMedia(MOTION_QUERY);
-    setReduced(media.matches);
-    const onChange = (event: MediaQueryListEvent) => setReduced(event.matches);
-    media.addEventListener("change", onChange);
-    return () => media.removeEventListener("change", onChange);
-  }, []);
-
-  return reduced;
+  // Resuelve el valor real tras hidratar (el servidor asume movimiento) sin
+  // setState dentro de un efecto.
+  return useSyncExternalStore(subscribeMotionQuery, readPrefersReducedMotion, () => false);
 }
 
 /** Acepta `pct` como ratio (0-1) o como porcentaje (0-100), clampeado. */
@@ -41,6 +44,29 @@ function portion(pct: number): number {
   if (!Number.isFinite(pct)) return 0;
   const ratio = pct > 1 ? pct / 100 : pct;
   return Math.min(Math.max(ratio, 0), 1);
+}
+
+/**
+ * Reparte los arcos en orden: cada segmento arranca donde termina el anterior.
+ * Fuera del render para no reasignar un acumulador capturado por el closure.
+ */
+function buildSegments(
+  normalized: readonly (AllocationSlice & { fraction: number })[],
+  scale: number,
+  gap: number,
+) {
+  let cursor = 0;
+  return normalized.map((slice) => {
+    const fraction = slice.fraction * scale;
+    const segment = {
+      ...slice,
+      fraction,
+      start: cursor,
+      arc: Math.max(fraction - gap, 0) * CIRCUMFERENCE,
+    };
+    cursor += fraction;
+    return segment;
+  });
 }
 
 /**
@@ -66,18 +92,7 @@ export function PortfolioDonut({ slices }: { slices: readonly AllocationSlice[] 
   const scale = totalFraction > 0 ? 1 / totalFraction : 0;
   const gap = normalized.length > 1 ? GAP : 0;
 
-  let cursor = 0;
-  const segments = normalized.map((slice) => {
-    const fraction = slice.fraction * scale;
-    const segment = {
-      ...slice,
-      fraction,
-      start: cursor,
-      arc: Math.max(fraction - gap, 0) * CIRCUMFERENCE,
-    };
-    cursor += fraction;
-    return segment;
-  });
+  const segments = buildSegments(normalized, scale, gap);
 
   const active = segments.find((segment) => segment.key === activeKey) ?? null;
   const largest = segments.reduce<(typeof segments)[number] | null>(

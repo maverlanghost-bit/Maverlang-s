@@ -12,6 +12,7 @@ import { SvgPriceChart } from "@/components/domain/svg-price-chart";
 import { InfoTip } from "@/components/domain/info-tip";
 import { PriceFreshness } from "@/components/domain/price-freshness";
 import { PortfolioDonut } from "@/components/domain/portfolio-donut";
+import { DividendMultiplierCard } from "@/components/domain/dividend-multiplier-card";
 import { PositionRow } from "@/components/domain/position-row";
 import { RealAccountEmpty } from "@/components/domain/real-account-empty";
 import { ResetDemoButton } from "@/components/domain/reset-demo-button";
@@ -749,6 +750,12 @@ export function PortfolioScreen() {
                 })}
               </ul>
             </Card>
+            <DividendMultiplierCard
+              positions={loaded.positions}
+              currency={currency}
+              rate={rate}
+              masked={masked}
+            />
           </>
         )}
 

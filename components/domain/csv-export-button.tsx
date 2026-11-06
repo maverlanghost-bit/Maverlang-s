@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 
 import { Button } from "@/components/ui/button";
 import { formatShares } from "@/lib/format";
@@ -9,6 +9,9 @@ import type { Activity, ActivityKind, Currency, OrderStatus } from "@/lib/types"
 
 /** Cabecera fija: el archivo se abre en Excel y ordena la cartola por columnas. */
 const CSV_HEADER = ["Fecha", "Tipo", "Activo", "Cantidad", "Valor USD", "Valor CLP", "Estado", "Tx Hash"] as const;
+
+/** Suscripción vacía: sólo marca «hidratado», no hay store externo que escuchar. */
+const subscribeNoop = () => () => {};
 
 const KIND_LABEL: Record<ActivityKind, { es: string; en: string }> = {
   buy: { es: "Compra", en: "Buy" },
@@ -100,12 +103,10 @@ export function CsvExportButton({
   fxRate?: number;
 }) {
   const { language } = useT();
-  const [mounted, setMounted] = useState(false);
-
   // Guarda SSR: en el servidor no hay `document` ni `URL.createObjectURL`.
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  // `useSyncExternalStore` devuelve false en el servidor y true al hidratar,
+  // sin setState dentro de un efecto.
+  const mounted = useSyncExternalStore(subscribeNoop, () => true, () => false);
 
   const canExport = mounted && typeof document !== "undefined" && rows.length > 0;
   // Ayuda de hover: aclara qué representa la columna en pesos sin prometer conversión si falta el tipo de cambio.

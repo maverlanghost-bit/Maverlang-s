@@ -1,5 +1,14 @@
 # PROGRESO — Maverlang
 
+## T48 — Rediseño visual de portada y páginas de marketing (2026-11-06, commit local)
+- Alcance: 10 bots en paralelo (deepseek-v4.1-flash vía Hermes) sobre 10 archivos disjuntos. Sin dependencias nuevas, sin migraciones, sin `.env`, sin push ni deploy.
+- Portada: `hero.tsx` (fondo ambiental radial + grilla y panel de precios como terminal glassmorphic con barra "Solana Mainnet · xStocks 24/7" y pie de 3 métricas), `landing-quote-preview.tsx` (simulador de fracciones con chips US$10/50/100/500 y `toFixed(4)` sobre el precio vivo), `how-it-works.tsx` (pipeline PASO 01/02/03 con conectores en desktop), `feature-grid.tsx` (bento 4/2/2/4 con SVG de fracción, llave, recibo y flujo Chile → Solana → xStocks), `costs-section.tsx` (tarjeta de resumen 0% + tabla estilo Stripe), `security-section.tsx` (íconos por categoría y diagrama de autocustodia de 3 nodos), `final-cta.tsx` (tarjeta elevada, halos y píldoras de resumen).
+- Marketing: `/como-funciona` (píldoras de resumen y 4 notas bento con íconos), `/seguridad` (marco completo y buenas prácticas escaneables), `/ayuda` (6 guías con ícono, flecha y hover elevado; bloques de FAQ con contador).
+- Invariantes conservados: todos los `id` (`#como-funciona`, `#costos`, `#seguridad`, `#lista-de-espera`, `como-funciona-title`, `idea-title`, `costos-title`, `seguridad-title`, `cta-final-title`, `ayuda-title`, `*-page-title`), los textos, los `href` (`/app/registro`, `/acciones`, `/legal/*`, `/ayuda`), `LandingPrice`, `LandingSharesValue` y la `<table>` de costos. Comprobado por script: 0 marcas faltantes.
+- Deuda de lint saldada (preexistente de T45–T47, no de T48): `csv-export-button` y `portfolio-donut` pasan a `useSyncExternalStore`, `saved-recipients-bar` difiere el `setState` a `requestAnimationFrame` y `price-panel` unifica el memo del benchmark con dependencias estables.
+- Verificación integral única (T45–T48): `tsc --noEmit` 0 errores · `eslint` 0 errores (27 warnings previos en un test) · `vitest` 166 archivos / 1649 tests OK · cadena de migraciones 18/18 · `next build` OK. Integración final: `DividendMultiplierCard` montada en `portfolio-screen.tsx` y `applyReasoningPrefix` conectado en `composer.tsx`.
+- Pendiente: mirar `/`, `/como-funciona`, `/seguridad` y `/ayuda` a 360/768/1280 (halos, conectores y hover de guías). El diagrama de autocustodia es ilustrativo, no un esquema contractual.
+
 ## T47 — Rediseño Asistente IA estilo Grok, widgets pro y cartera real en IA (2026-11-06, commit local)
 - Alcance: 10 bots en paralelo (deepseek-v4.1-flash vía Hermes) sobre archivos disjuntos. Sin dependencias nuevas, sin migraciones, sin `.env`, sin push ni deploy.
 - Hallazgo crítico corregido — `lib/ai/portfolio.ts`: con `isRealAccountRequest(req)`, `DATA_MODE === "live"` y `session.walletAddress` el asistente ahora lee la cartera real (`{ kind: "ok" }`, `unavailable` si falla); en mock/dev o sin wallet sigue en `real-empty` (tests y demo intactos).

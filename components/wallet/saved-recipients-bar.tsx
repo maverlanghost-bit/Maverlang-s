@@ -126,8 +126,12 @@ export function SavedRecipientsBar({
   // El almacenamiento sólo existe en el navegador: se lee después de montar
   // para no romper la hidratación del servidor.
   useEffect(() => {
-    setSaved(readSaved());
-    setMounted(true);
+    // En el primer frame tras pintar: sin setState síncrono dentro del efecto.
+    const frame = requestAnimationFrame(() => {
+      setSaved(readSaved());
+      setMounted(true);
+    });
+    return () => cancelAnimationFrame(frame);
   }, []);
 
   const current = currentRecipient.trim();

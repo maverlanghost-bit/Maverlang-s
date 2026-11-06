@@ -320,29 +320,49 @@ export function PricePanel({
     }
     return list.length === 0 ? NO_OVERLAYS : list;
   }, [technical, chartReady, smaOn, studies, copy]);
-  // Serie del comparador recortada a la misma ventana que el precio, igual que
-  // hace `chartStudies` con SPYx: las dos líneas arrancan en el mismo tramo.
-  const compareSeries = useMemo(() => {
-    if (!compareEnabled) return null;
-    const rows = compareHistory.data?.points ?? NO_POINTS;
-    const window = periodBounds(points, livePoint);
-    if (!window || rows.length < 2) return null;
-    // Misma regla que `chartStudies`: no se mezcla una serie de referencia con
-    // una real en el mismo gráfico.
-    if (isReferenceHistory(compareHistory.data) !== illustrative) return null;
-    const inWindow = rows.filter(
-      (row) =>
-        Number.isFinite(row.t) && Number.isFinite(row.p) && row.p > 0 && row.t >= window.start && row.t <= window.end,
-    );
-    return inWindow.length >= 2 ? inWindow : null;
-  }, [compareEnabled, compareHistory.data, points, livePoint, illustrative]);
   const benchmark = useMemo(() => {
     if (!technical || !chartReady || !spyOn) return null;
+    // Serie del comparador recortada a la misma ventana que el precio, igual
+    // que `chartStudies` con SPYx: las dos líneas arrancan en el mismo tramo.
+    // Misma regla que `chartStudies`: no se mezcla una serie de referencia con
+    // una real en el mismo gráfico. El símbolo se normaliza adentro para no
+    // depender de un valor local (eso hace que el compilador descarte el memo).
+    const key = compareSymbol.trim();
+    const enabled =
+      key.length > 0 &&
+      key.toUpperCase() !== SPY_SYMBOL.toUpperCase() &&
+      key.toUpperCase() !== symbol.trim().toUpperCase();
+    if (enabled && isReferenceHistory(compareHistory.data) === illustrative) {
+      const rows = compareHistory.data?.points ?? NO_POINTS;
+      const bounds = periodBounds(points, livePoint);
+      if (bounds && rows.length >= 2) {
+        const inWindow = rows.filter(
+          (row) =>
+            Number.isFinite(row.t) &&
+            Number.isFinite(row.p) &&
+            row.p > 0 &&
+            row.t >= bounds.start &&
+            row.t <= bounds.end,
+        );
+        if (inWindow.length >= 2) return { points: inWindow, label: key };
+      }
+    }
     // Sin dos puntos del comparador elegido se cae a SPYx, como hasta ahora.
-    if (compareSeries) return { points: compareSeries, label: compareKey };
     if (studies.spyPoints.length < 2) return null;
     return { points: studies.spyPoints, label: copy.spyLegend };
-  }, [technical, chartReady, spyOn, compareSeries, compareKey, studies.spyPoints, copy.spyLegend]);
+  }, [
+    technical,
+    chartReady,
+    spyOn,
+    compareSymbol,
+    compareHistory.data,
+    points,
+    livePoint,
+    illustrative,
+    symbol,
+    studies.spyPoints,
+    copy.spyLegend,
+  ]);
   const showSpy = chartReady && studies.spyPoints.length >= 2;
   // Opciones del selector: nunca el ticker de la propia ficha.
   const compareOptions = COMPARE_SYMBOLS.filter((item) => item.toUpperCase() !== symbolKey.toUpperCase()).map(
