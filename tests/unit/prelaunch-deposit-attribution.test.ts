@@ -251,6 +251,7 @@ vi.mock("@/lib/supabase/admin", () => ({
 
 vi.mock("@/lib/solana/connection", () => ({
   getServerConnection: () => ({
+    getParsedTokenAccountsByOwner: async () => ({ value: [] }),
     getSignaturesForAddress: async (publicKey: { toBase58(): string }) =>
       (sandbox.chain.signatures[publicKey.toBase58()] ?? []).map((signature) => ({ signature })),
     getParsedTransactions: async (signatures: string[]) =>

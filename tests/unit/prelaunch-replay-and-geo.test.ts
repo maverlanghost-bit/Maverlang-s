@@ -190,6 +190,7 @@ vi.mock("@/lib/services", () => ({
 /** Barrido de depósitos: lectura de cadena simulada (sin RPC real). */
 vi.mock("@/lib/solana/connection", () => ({
   getServerConnection: () => ({
+    getParsedTokenAccountsByOwner: async () => ({ value: [] }),
     getSignaturesForAddress: async () =>
       state.scan.signatures.map((signature) => ({ signature })),
     getParsedTransactions: async () => state.scan.txs,

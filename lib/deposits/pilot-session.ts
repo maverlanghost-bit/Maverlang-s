@@ -1,5 +1,6 @@
 import "server-only";
 
+import { hasConfirmedEmail } from "@/lib/auth/email-verification";
 import {
   depositPilotConfigured,
   depositPilotDecision,
@@ -12,8 +13,9 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
  *
  * Se calcula en el servidor con `auth.getUser()`: el correo sale de Supabase
  * Auth (no de una cookie, no de un query param) y la verificación es
- * `email_confirmed_at`. El cliente sólo recibe un booleano; nunca la lista ni
- * el correo. Sin sesión, sin configuración o con error → no elegible.
+ * `email_confirmed_at`. `confirmed_at` NO sirve: Supabase también lo escribe
+ * al confirmar por teléfono. El cliente sólo recibe un booleano; nunca la
+ * lista ni el correo. Sin sesión, sin configuración o con error → no elegible.
  *
  * Esta lectura es informativa para la UI: la decisión que acredita dinero se
  * vuelve a tomar en el barrido y en la vinculación de billetera, siempre en
@@ -44,7 +46,7 @@ export async function readDepositPilotEligibility(): Promise<{
     }
     const decision = depositPilotDecision({
       email: data.user.email ?? null,
-      emailVerified: Boolean(data.user.email_confirmed_at ?? data.user.confirmed_at),
+      emailVerified: hasConfirmedEmail(data.user),
     });
     return { eligible: decision.allowed, allowlistConfigured: configured, decision };
   } catch {

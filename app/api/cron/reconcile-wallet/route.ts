@@ -38,6 +38,8 @@ const depositSyncResponseSchema = z.object({
   walletsScanned: z.number().int().nonnegative(),
   failedWallets: z.number().int().nonnegative(),
   signaturesChecked: z.number().int().nonnegative(),
+  tokenAccountsDiscovered: z.number().int().nonnegative(),
+  tokenAccountsSkipped: z.number().int().nonnegative(),
   detected: z.number().int().nonnegative(),
   confirmed: z.number().int().nonnegative(),
   finalized: z.number().int().nonnegative(),

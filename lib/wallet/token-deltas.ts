@@ -109,9 +109,21 @@ export function uiAmountWithExactDecimals(
 /**
  * Delta neto del `mint` indicado exigiendo el decimal exacto en CADA balance
  * del dueño que participa de la transacción (previas y posteriores, incluidas
- * las cuentas que desaparecen). Devuelve `null` si algún balance no se puede
- * leer con ese decimal: el llamador descarta el candidato en vez de inventar
- * un monto. Los balances de otros mints no bloquean el cálculo.
+ * las cuentas que desaparecen). Devuelve `null` si el monto no se puede
+ * atribuir con certeza: el llamador descarta el candidato en vez de inventar
+ * un monto.
+ *
+ * Fail-closed:
+ * - Cualquier balance del mint sin `owner` legible → `null`. No se puede
+ *   descartar que sea del usuario, así que la transacción completa se omite.
+ * - Una cuenta cuyo dueño cambió dentro de la misma transacción → `null`. Un
+ *   cambio de autoridad no es una transferencia y contarlo como entrada
+ *   regalaría el saldo completo de la cuenta.
+ * - Algún balance con un decimal distinto o ausente → `null` (USDC = 6).
+ *
+ * El neto se suma sobre TODAS las cuentas del dueño en esa firma: las salidas
+ * y las transferencias entre cuentas propias compensan a las entradas, así que
+ * no se puede inflar un depósito moviendo USDC propio.
  */
 export function netTokenDeltaWithExactDecimals(params: {
   owner: string;
@@ -121,21 +133,38 @@ export function netTokenDeltaWithExactDecimals(params: {
   post: readonly TokenBalanceLike[];
 }): number | null {
   const owner = params.owner.trim();
-  const ours = (rows: readonly TokenBalanceLike[]) =>
-    rows.filter((row) => row.owner === owner && row.mint === params.mint);
-  const pre = ours(params.pre);
-  const post = ours(params.post);
+  if (owner === "") return null;
+
+  const pre = params.pre.filter((row) => row?.mint === params.mint);
+  const post = params.post.filter((row) => row?.mint === params.mint);
+
+  // Sin dueño no hay atribución posible: ni las filas nuestras ni las ajenas
+  // se pueden clasificar. Se descarta la transacción completa.
+  for (const row of [...pre, ...post]) {
+    if (typeof row.owner !== "string" || row.owner.trim() === "") return null;
+  }
+
+  // Un cambio de dueño en la misma cuenta no es un depósito: la cuenta pudo
+  // reasignarse (SetAuthority) y el saldo completo "aparecería" como entrada.
+  const preByIndex = new Map<number, TokenBalanceLike>();
+  for (const row of pre) preByIndex.set(row.accountIndex, row);
+  for (const after of post) {
+    const before = preByIndex.get(after.accountIndex);
+    if (before && before.owner.trim() !== after.owner.trim()) return null;
+  }
 
   let delta = 0;
   for (const after of post) {
+    if (after.owner.trim() !== owner) continue;
     const afterUi = uiAmountWithExactDecimals(after, params.decimals);
     if (afterUi === null) return null;
-    const before = pre.find((row) => row.accountIndex === after.accountIndex);
+    const before = preByIndex.get(after.accountIndex);
     const beforeUi = before ? uiAmountWithExactDecimals(before, params.decimals) : 0;
     if (beforeUi === null) return null;
     delta += afterUi - beforeUi;
   }
   for (const before of pre) {
+    if (before.owner.trim() !== owner) continue;
     if (post.some((row) => row.accountIndex === before.accountIndex)) continue;
     const beforeUi = uiAmountWithExactDecimals(before, params.decimals);
     if (beforeUi === null) return null;

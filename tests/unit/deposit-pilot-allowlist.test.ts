@@ -70,6 +70,7 @@ function deps(
     now: () => new Date("2026-11-06T12:00:00.000Z"),
     countWallets: async () => 1,
     listWallets: async () => [{ userId: USER, address: WALLET }],
+    listOwnedTokenAccounts: async () => [],
     listSignatures: async () => {
       probe.signatures += 1;
       return ["sig-piloto-1"];

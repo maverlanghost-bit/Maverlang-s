@@ -1,6 +1,7 @@
 import "server-only";
 
 import { isValidSolanaAddress } from "@/lib/solana/address";
+import { listOwnedUsdcTokenAccounts } from "@/lib/solana/usdc-token-accounts";
 import type { SignatureStatusLike } from "@/lib/solana/signature-status";
 import { redactRpcSecrets } from "@/lib/solana/tx-errors";
 import { getFlag } from "@/lib/flags";
@@ -27,6 +28,11 @@ import { netTokenDeltaWithExactDecimals } from "@/lib/wallet/token-deltas";
  *   por M66). El `userId` de cada depósito es el de esa fila; jamás se toma
  *   de la cadena ni de un request. Una firma ya registrada a nombre de otro
  *   usuario no se reasigna: se rechaza (`foreign`).
+ * - Cuentas de token: además de la dirección de la billetera se descubren y
+ *   escanean TODAS sus cuentas USDC abiertas (ATA y secundarias). El monto se
+ *   atribuye por el delta NETO de los saldos pre/post de la transacción (que
+ *   dicen quién era el dueño en ese momento), no por la propiedad actual:
+ *   mover USDC entre cuentas propias o sacarlo no infla un crédito.
  * - Estados honestos: la cadena sólo puede decir `processed` (detectado),
  *   `confirmed` o `finalized`. Se persiste `detected` como
  *   `wallet_movements.pending` (sin entrar al libro `crypto_deposits`, que
@@ -45,6 +51,13 @@ import { netTokenDeltaWithExactDecimals } from "@/lib/wallet/token-deltas";
  * - Sin fondos reales: sólo LEE la cadena y escribe el registro de depósitos.
  *   No firma, no transfiere y no habilita trading ni retiros.
  *
+ * LÍMITE DE DESCUBRIMIENTO (se reporta, no se esconde): la consulta de cuentas
+ * de token por dueño sólo devuelve cuentas que EXISTEN al momento del barrido.
+ * Si una cuenta secundaria se cerró antes, sus depósitos históricos no se
+ * pueden descubrir desde la billetera (el dueño no aparece en esas
+ * transacciones), así que quedan fuera. La ATA canónica no tiene ese problema
+ * porque se recrea de forma idempotente y su dirección es determinista.
+ *
  * `DATA_MODE` distinto de `live` no toca red ni base (demo/CI). En live el
  * barrido está APAGADO por defecto y necesita DOS llaves: el flag de producto
  * `deposits_enabled` (default false, fail-closed) y el interruptor de staging
@@ -54,8 +67,25 @@ import { netTokenDeltaWithExactDecimals } from "@/lib/wallet/token-deltas";
 
 /** Máximo de billeteras por corrida (el resto rota en corridas siguientes). */
 export const DEPOSIT_SCAN_MAX_WALLETS = 50;
-/** Firmas recientes revisadas por billetera. */
+/** Firmas recientes revisadas por billetera (repartidas entre sus cuentas). */
 export const DEPOSIT_SCAN_SIGNATURES_PER_WALLET = 20;
+/**
+ * Cuentas USDC secundarias escaneadas por billetera (además de la dirección
+ * de la billetera). Una billetera normal tiene 1 (su ATA); el tope acota el
+ * costo de RPC ante una cuenta que cree muchas cuentas de token. Lo que queda
+ * fuera se reporta en `tokenAccountsSkipped`.
+ */
+export const DEPOSIT_SCAN_MAX_TOKEN_ACCOUNTS = 10;
+/**
+ * Parseo de transacciones: versión 0 (incluye direcciones cargadas por lookup
+ * tables). Sin `maxSupportedTransactionVersion: 0` el RPC no devuelve las
+ * transacciones v0 y un depósito legítimo se perdería. La confirmación de la
+ * firma se decide después con `getSignatureStatuses`.
+ */
+export const SOLANA_TX_PARSE_OPTIONS = {
+  commitment: "confirmed",
+  maxSupportedTransactionVersion: 0,
+} as const;
 /** Firmas ya registradas que se precargan por usuario (cota de lectura). */
 export const DEPOSIT_SCAN_KNOWN_SIGNATURES = 500;
 /** Tope global de firmas por corrida (presupuesto de RPC). */
@@ -103,6 +133,8 @@ export interface ParsedTxLike {
   } | null;
   transaction?: { signatures?: readonly string[] | null } | null;
   blockTime?: number | null;
+  /** Versión de la transacción (`"legacy"` o `0` en lo que acepta el RPC). */
+  version?: number | "legacy" | null;
 }
 
 /** Candidata de depósito con el estado real que reportó la cadena. */
@@ -128,6 +160,13 @@ export interface DepositSyncDeps {
   countWallets: () => Promise<number | null>;
   /** Página de billeteras verificadas. `null` = no se pudo leer. */
   listWallets: (opts: { limit: number; offset: number }) => Promise<DepositScanWallet[] | null>;
+  /**
+   * Direcciones de las cuentas de token USDC que la billetera posee HOY (ATA y
+   * secundarias). Sólo sirve para saber dónde buscar firmas; la atribución del
+   * monto sale de los saldos pre/post de cada transacción. Lanza si no se pudo
+   * descubrir: la billetera se omite (fail closed) en vez de escanear de menos.
+   */
+  listOwnedTokenAccounts: (owner: string) => Promise<readonly string[]>;
   /** Firmas recientes de la dirección (más nuevas primero). Lanza si el RPC falla. */
   listSignatures: (address: string, limit: number) => Promise<readonly string[]>;
   /** Transacciones parseadas + estado de firma (mismo orden que `signatures`). */
@@ -162,6 +201,10 @@ export interface DepositSyncSummary {
   walletsScanned: number;
   failedWallets: number;
   signaturesChecked: number;
+  /** Cuentas USDC secundarias usadas como fuente de firmas (además del dueño). */
+  tokenAccountsDiscovered: number;
+  /** Cuentas devueltas por el RPC que no se escanearon (inválidas o sobre el tope). */
+  tokenAccountsSkipped: number;
   /** Actividad nueva registrada, por estado real de la cadena. */
   detected: number;
   confirmed: number;
@@ -333,6 +376,8 @@ async function liveDeps(): Promise<DepositSyncDeps> {
   return {
     countWallets: () => depositService.countDepositScanWallets(),
     listWallets: (opts) => depositService.listWalletsForDepositScan(opts.limit, opts.offset),
+    listOwnedTokenAccounts: (owner) =>
+      listOwnedUsdcTokenAccounts(getServerConnection(), owner),
     listKnownSignatures: (userId, limit) => depositService.listDepositSignaturesForScan(userId, limit),
     verifiedEmailOf: (userId) => depositService.readVerifiedUserEmail(userId),
     listSignatures: async (address, limit) => {
@@ -342,10 +387,7 @@ async function liveDeps(): Promise<DepositSyncDeps> {
     readTransactions: async (signatures) => {
       const connection = getServerConnection();
       const [transactions, statuses] = await Promise.all([
-        connection.getParsedTransactions(signatures, {
-          commitment: "confirmed",
-          maxSupportedTransactionVersion: 0,
-        }),
+        connection.getParsedTransactions(signatures, SOLANA_TX_PARSE_OPTIONS),
         connection.getSignatureStatuses(signatures, { searchTransactionHistory: true }),
       ]);
       return {
@@ -412,6 +454,8 @@ function baseSummary(
     walletsScanned: 0,
     failedWallets: 0,
     signaturesChecked: 0,
+    tokenAccountsDiscovered: 0,
+    tokenAccountsSkipped: 0,
     detected: 0,
     confirmed: 0,
     finalized: 0,
@@ -546,9 +590,76 @@ export async function syncSolanaUsdcDeposits(injected?: DepositSyncDeps): Promis
       continue;
     }
 
+    // Cuentas de token USDC abiertas (ATA + secundarias). El dueño no firma
+    // las transferencias que entran sólo a una secundaria: consultar únicamente
+    // la dirección de la billetera perdería ese depósito. Se resuelven antes de
+    // pedir firmas y, si no se pueden validar, se omite la billetera completa
+    // (fail closed) en vez de escanear de menos y reportar un falso verde.
+    let ownedTokenAccounts: readonly string[] = [];
     try {
-      const signatures = await deps.listSignatures(address, DEPOSIT_SCAN_SIGNATURES_PER_WALLET);
-      const unique = [...new Set(signatures.map((s) => s.trim()).filter((s) => s !== ""))];
+      ownedTokenAccounts = await deps.listOwnedTokenAccounts(address);
+    } catch (error) {
+      summary.failedWallets += 1;
+      noteError(
+        `no se pudieron descubrir las cuentas USDC de ${shortAddress(address)}: ${messageOf(error)}`,
+      );
+      continue;
+    }
+
+    const scanTargets: string[] = [];
+    const seenTargets = new Set<string>();
+    const addTarget = (value: string): boolean => {
+      const target = value.trim();
+      if (target === "" || seenTargets.has(target)) return false;
+      seenTargets.add(target);
+      scanTargets.push(target);
+      return true;
+    };
+    addTarget(address);
+    let secondary = 0;
+    for (const raw of ownedTokenAccounts) {
+      if (typeof raw !== "string" || raw.trim() === "") {
+        summary.tokenAccountsSkipped += 1;
+        continue;
+      }
+      const target = raw.trim();
+      // La propia billetera ya está en la lista; repetidas no cuentan.
+      if (target === address || seenTargets.has(target)) continue;
+      if (secondary >= DEPOSIT_SCAN_MAX_TOKEN_ACCOUNTS) {
+        summary.tokenAccountsSkipped += 1;
+        summary.truncated = true;
+        continue;
+      }
+      if (!addTarget(target)) continue;
+      secondary += 1;
+      summary.tokenAccountsDiscovered += 1;
+    }
+
+    try {
+      const signatureLists: string[][] = [];
+      for (const target of scanTargets) {
+        const found = await deps.listSignatures(target, DEPOSIT_SCAN_SIGNATURES_PER_WALLET);
+        signatureLists.push(found.map((s) => s.trim()).filter((s) => s !== ""));
+      }
+      // Una misma firma puede aparecer en la billetera, en la ATA y en una
+      // secundaria (tx que toca varias cuentas del mismo dueño): se procesa
+      // UNA vez. El monto ya es el neto de todas las cuentas en esa firma.
+      //
+      // Reparto round-robin: la 1ª firma de cada cuenta entra antes que la 2ª
+      // de cualquier otra, así una billetera con muchas transacciones no
+      // esconde el depósito que sólo se ve por una cuenta secundaria.
+      const unique: string[] = [];
+      const seenSignatures = new Set<string>();
+      const longest = signatureLists.reduce((max, list) => Math.max(max, list.length), 0);
+      const perTarget = Math.min(DEPOSIT_SCAN_SIGNATURES_PER_WALLET, longest);
+      for (let i = 0; i < perTarget; i += 1) {
+        for (const list of signatureLists) {
+          const signature = list[i];
+          if (!signature || seenSignatures.has(signature)) continue;
+          seenSignatures.add(signature);
+          unique.push(signature);
+        }
+      }
       const remaining = DEPOSIT_SCAN_MAX_SIGNATURES - summary.signaturesChecked;
       const batch = unique.slice(0, Math.min(DEPOSIT_SCAN_SIGNATURES_PER_WALLET, remaining));
       if (batch.length === 0) {

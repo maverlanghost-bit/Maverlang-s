@@ -29,10 +29,13 @@ import {
   type UsdcDepositCandidate,
 } from "@/lib/wallet/deposit-indexer";
 import {
+  DEPOSIT_SCAN_MAX_TOKEN_ACCOUNTS,
   extractUsdcDepositsFromTransactions,
   isDepositLedgerEligible,
+  SOLANA_TX_PARSE_OPTIONS,
   type ParsedTxLike,
 } from "@/lib/wallet/deposit-sync";
+import { listOwnedUsdcTokenAccounts } from "@/lib/solana/usdc-token-accounts";
 
 const USDC_DECIMALS = 6;
 const STOCK_DECIMALS = 8;
@@ -272,21 +275,34 @@ export const livePortfolio = {
       throw new DomainError("VALIDATION", "La direccion de la billetera no es valida.");
     }
     const connection = getServerConnection();
-    const owner = new PublicKey(input.address);
     const alreadySeen = await listDepositSignatures(input.userId);
 
-    // Firmas recientes de la billetera (lote acotado para no barrer historia).
-    const signatures = await connection.getSignaturesForAddress(owner, { limit: 25 });
-    const fresh = signatures
-      .map((sig) => sig.signature)
-      .filter((signature) => signature.trim() !== "" && !alreadySeen.has(signature));
+    // Firmas recientes de la billetera Y de sus cuentas USDC abiertas (ATA +
+    // secundarias). El dueño no firma las transferencias que entran sólo a una
+    // secundaria; sin esto, ese depósito no se detectaría. La atribución del
+    // monto sigue saliendo del delta neto por dueño en la transacción.
+    const tokenAccounts = await listOwnedUsdcTokenAccounts(connection, input.address);
+    const targets = [...new Set([input.address, ...tokenAccounts])].slice(
+      0,
+      DEPOSIT_SCAN_MAX_TOKEN_ACCOUNTS + 1,
+    );
+    const signatureLists = await Promise.all(
+      targets.map((target) =>
+        connection.getSignaturesForAddress(new PublicKey(target), { limit: 25 }),
+      ),
+    );
+    const signatures = signatureLists.flat();
+    const fresh = [
+      ...new Set(
+        signatures
+          .map((sig) => sig.signature)
+          .filter((signature) => signature.trim() !== "" && !alreadySeen.has(signature)),
+      ),
+    ];
     if (fresh.length === 0) return [];
 
     const [parsed, statuses] = await Promise.all([
-      connection.getParsedTransactions(fresh, {
-        commitment: "confirmed",
-        maxSupportedTransactionVersion: 0,
-      }),
+      connection.getParsedTransactions(fresh, SOLANA_TX_PARSE_OPTIONS),
       connection.getSignatureStatuses(fresh, { searchTransactionHistory: true }),
     ]);
 

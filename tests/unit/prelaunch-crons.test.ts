@@ -131,6 +131,8 @@ const DEPOSIT_SUMMARY = {
   walletsScanned: 0,
   failedWallets: 0,
   signaturesChecked: 0,
+  tokenAccountsDiscovered: 0,
+  tokenAccountsSkipped: 0,
   detected: 0,
   confirmed: 0,
   finalized: 0,

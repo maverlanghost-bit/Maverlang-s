@@ -59,6 +59,8 @@ describe("supabaseSessionAuth y MFA", () => {
     await expect(supabaseSessionAuth.getSession()).resolves.toEqual({
       userId: "user-1",
       walletAddress: "wallet-1",
+      email: null,
+      emailVerified: false,
     });
   });
 
@@ -67,6 +69,8 @@ describe("supabaseSessionAuth y MFA", () => {
     await expect(supabaseSessionAuth.getSession()).resolves.toEqual({
       userId: "user-1",
       walletAddress: null,
+      email: null,
+      emailVerified: false,
     });
   });
 

@@ -1,5 +1,6 @@
 import "server-only";
 
+import { hasConfirmedEmail } from "@/lib/auth/email-verification";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
 /**
@@ -157,7 +158,10 @@ export async function listWalletsForDepositScan(
 /**
  * Correo VERIFICADO del usuario según Supabase Auth (no `profiles.email`).
  * Es la única fuente que usa el piloto interno de depósitos: `null` si no se
- * pudo leer, si no hay correo o si Auth no lo confirma. Fail-closed.
+ * pudo leer, si no hay correo o si Auth no confirma el CORREO. Fail-closed.
+ *
+ * La marca válida es `email_confirmed_at`: `confirmed_at` también se escribe
+ * cuando la cuenta se confirma por teléfono y NO prueba el correo.
  *
  * Lee con el cliente admin (service_role) porque `auth.users` no se expone por
  * PostgREST. No registra el correo en logs.
@@ -171,8 +175,7 @@ export async function readVerifiedUserEmail(
   if (error || !data?.user) return null;
   const raw = typeof data.user.email === "string" ? data.user.email.trim().toLowerCase() : "";
   if (raw === "") return null;
-  const emailVerified = Boolean(data.user.email_confirmed_at ?? data.user.confirmed_at);
-  return { email: raw, emailVerified };
+  return { email: raw, emailVerified: hasConfirmedEmail(data.user) };
 }
 
 /** Lista los depósitos de un usuario (para el historial). */

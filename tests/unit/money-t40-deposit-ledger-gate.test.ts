@@ -42,6 +42,7 @@ const state = vi.hoisted(() => ({
 
 vi.mock("@/lib/solana/connection", () => ({
   getServerConnection: () => ({
+    getParsedTokenAccountsByOwner: async () => ({ value: [] }),
     getSignaturesForAddress: async () =>
       state.signatures.map((signature) => ({ signature })),
     getParsedTransactions: async () => state.txs,
