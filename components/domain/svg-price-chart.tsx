@@ -18,11 +18,13 @@ import {
   readVolume,
   toRows,
   volumeMarks,
+  yForPrice,
   type CandleMark,
   type ChartBenchmark,
   type ChartLayerModel,
   type ChartOverlay,
   type PlottedPoint,
+  type PriceScale,
   type VolumeMark,
 } from "@/lib/market/chart-geometry";
 import type { ChartTone } from "@/lib/market/series";
@@ -84,6 +86,11 @@ export interface PriceChartProps {
   /** Barras sólo si los puntos traen `v`. No se inventa volumen. */
   showVolume?: boolean;
   volumeLabel?: string;
+  /**
+   * Costo promedio de la posición, en USD. Se dibuja como línea punteada
+   * esmeralda sólo si cae dentro del rango visible y el eje Y es precio.
+   */
+  avgCostUsd?: number | null;
 }
 
 type DrawnPoint = PlottedPoint & { usd: number };
@@ -241,6 +248,23 @@ function layerText(layer: ChartLayerModel, t: number, percentMode: boolean, asse
   return changeFromOpen(base, point.usd)?.label ?? null;
 }
 
+/**
+ * Y de la línea de costo promedio. null si el eje es porcentaje, si el valor
+ * no es un precio positivo o si queda fuera del área visible del gráfico.
+ */
+function avgCostLineY(
+  avgCostUsd: number | null | undefined,
+  scale: PriceScale,
+  percentMode: boolean,
+): number | null {
+  if (percentMode) return null;
+  if (avgCostUsd === null || avgCostUsd === undefined) return null;
+  if (!Number.isFinite(avgCostUsd) || avgCostUsd <= 0) return null;
+  const y = yForPrice(avgCostUsd, scale);
+  if (!Number.isFinite(y) || y < PAD_T || y > CHART_H - PAD_B) return null;
+  return y;
+}
+
 function DrawnChart({
   points,
   line,
@@ -255,6 +279,8 @@ function DrawnChart({
   layers,
   percentMode,
   candles,
+  scale,
+  avgCostUsd,
 }: {
   points: readonly DrawnPoint[];
   line: string;
@@ -269,6 +295,9 @@ function DrawnChart({
   layers: readonly ChartLayerModel[];
   percentMode: boolean;
   candles: readonly CandleMark[] | null;
+  /** Escala Y del modelo: la misma que usó `buildChartModel` para ubicar la serie. */
+  scale: PriceScale;
+  avgCostUsd?: number | null;
 }) {
   const svgRef = useRef<SVGSVGElement>(null);
   const plotRef = useRef(points);
@@ -311,6 +340,10 @@ function DrawnChart({
 
   const hoverPoint = hoverIndex !== null && hoverIndex < points.length ? points[hoverIndex] : undefined;
   const candleList = candles !== null && candles.length >= 2 ? candles : null;
+  const avgY = avgCostLineY(avgCostUsd, scale, percentMode);
+  const lastPoint = points.length >= 2 ? points[points.length - 1] : undefined;
+  /** Punto vivo: sólo con la serie quieta, sin hover, sin velas y sin referencia. */
+  const showLiveDot = !reference && !candleList && hoverPoint === undefined && lastPoint !== undefined;
   const hoverLeft = hoverPoint ? Math.min(85, Math.max(15, (hoverPoint.x / CHART_W) * 100)) : 0;
   const openPrice = points[0]?.usd;
   const periodMove = hoverPoint && openPrice !== undefined ? changeFromOpen(openPrice, hoverPoint.usd) : null;
@@ -467,17 +500,59 @@ function DrawnChart({
             vectorEffect="non-scaling-stroke"
           />
         ))}
-        {hoverPoint ? (
+        {avgY === null ? null : (
           <line
-            x1={hoverPoint.x}
-            x2={hoverPoint.x}
-            y1={PAD_T}
-            y2={CHART_H - PAD_B}
-            stroke={GUIDE_STROKE}
+            data-avg-cost="true"
+            x1={0}
+            x2={CHART_W}
+            y1={avgY}
+            y2={avgY}
+            stroke="var(--color-brand, #059669)"
+            strokeDasharray="4 3"
+            opacity="0.65"
             vectorEffect="non-scaling-stroke"
           />
+        )}
+        {hoverPoint ? (
+          <>
+            <line
+              x1={hoverPoint.x}
+              x2={hoverPoint.x}
+              y1={PAD_T}
+              y2={CHART_H - PAD_B}
+              stroke={GUIDE_STROKE}
+              vectorEffect="non-scaling-stroke"
+            />
+            {/* Cruz del hover: la guía vertical de siempre más su horizontal. */}
+            <line
+              x1={0}
+              x2={CHART_W}
+              y1={hoverPoint.y}
+              y2={hoverPoint.y}
+              stroke={GUIDE_STROKE}
+              strokeDasharray="2 3"
+              vectorEffect="non-scaling-stroke"
+            />
+          </>
         ) : null}
       </svg>
+      {/* Punto vivo: el último precio respira mientras nadie hace hover. */}
+      {showLiveDot && lastPoint ? (
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute size-2.5 -translate-x-1/2 -translate-y-1/2"
+          style={{
+            left: `${(lastPoint.x / CHART_W) * 100}%`,
+            top: `${(lastPoint.y / CHART_H) * 100}%`,
+          }}
+        >
+          <span
+            className="absolute -inset-1.5 rounded-full motion-safe:animate-pulse"
+            style={{ background: stroke, opacity: 0.22 }}
+          />
+          <span className="absolute inset-0 rounded-full" style={{ background: stroke }} />
+        </span>
+      ) : null}
       {hoverPoint ? (
         <>
           <span
@@ -554,6 +629,7 @@ function SvgPriceChartBase({
   chartStyle = "line",
   showVolume = false,
   volumeLabel = "",
+  avgCostUsd = null,
 }: PriceChartProps) {
   const gradRaw = useId().replace(/:/g, "");
   const gradId = `svg-price-${gradRaw}`;
@@ -610,6 +686,8 @@ function SvgPriceChartBase({
           layers={model.layers}
           percentMode={model.percentMode}
           candles={model.candles}
+          scale={model.scale}
+          avgCostUsd={avgCostUsd}
         />
       ) : quiet ? null : (
         <div className="absolute inset-0 flex flex-col items-center justify-center rounded-xl bg-neutral-50 px-4 text-center">

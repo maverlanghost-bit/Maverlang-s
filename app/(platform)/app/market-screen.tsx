@@ -6,6 +6,7 @@ import { useQueries } from "@tanstack/react-query";
 import { motion, useReducedMotion } from "framer-motion";
 
 import { FavoriteButton } from "@/components/domain/favorite-button";
+import { MarketHeatmap } from "@/components/domain/market-heatmap";
 import { MarketToday } from "@/components/domain/market-today/market-today";
 import { FloatingMarketOrb } from "@/components/domain/market-status-pill";
 import { PriceFreshness } from "@/components/domain/price-freshness";
@@ -18,6 +19,7 @@ import { indexFromKey } from "@/components/ui/keys";
 import { PageHeader } from "@/components/ui/page-header";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/cn";
+import { formatMoney } from "@/lib/format";
 import { getPrices, searchMarket, type MarketSearchItem } from "@/lib/api/client";
 import { useFavorites, useSyncFavorites } from "@/lib/hooks/use-favorites";
 import { useFx, useHistories, useMarketStatus } from "@/lib/hooks/queries";
@@ -68,6 +70,18 @@ type MarketRow = {
   /** Posición acumulada (orden Popular del servidor). */
   index: number;
 };
+
+/** Fila del mapa de calor: misma forma que el contrato de `MarketHeatmap`. */
+type HeatmapRow = {
+  symbol: string;
+  name: string;
+  priceUsd: number;
+  change24hPct: number;
+  priceFormatted: string;
+};
+
+/** Vista del mercado: lista detallada (por defecto) o mapa de calor. */
+type MarketView = "list" | "heatmap";
 
 type PricedItem = MarketRow & { quote: Quote };
 
@@ -216,6 +230,8 @@ export function MarketScreen({
     return parsed === "az" ? "popular" : parsed;
   });
   const [page, setPage] = useState(1);
+  // Vista por defecto: lista. El DOM de la lista no cambia cuando view === "list".
+  const [view, setView] = useState<MarketView>("list");
 
   // Favoritas vive en este navegador: el servidor devuelve todo y se filtra aquí.
   const serverCategory = filter === "favorites" ? "all" : filter;
@@ -391,6 +407,25 @@ export function MarketScreen({
   const loadingMore = searchQueries.some((query) => !query.data && query.isFetching);
   const moverItems = waiting || failed ? [] : priceRows(moverSource, currency, rate);
   const listRows = waiting || failed ? [] : ordered;
+  /** Filas del mapa de calor: mismas filas ordenadas/filtradas, sin inventar cifras
+      (se descarta toda fila sin cotización o sin precio formateable). */
+  const heatmapRows = useMemo(() => {
+    const out: HeatmapRow[] = [];
+    for (const entry of listRows) {
+      const quote = entry.quote;
+      if (!quote) continue;
+      const priced = priceRows([{ item: entry.item, quote, index: entry.index }], currency, rate)[0];
+      if (!priced) continue;
+      out.push({
+        symbol: entry.item.symbol,
+        name: entry.item.name,
+        priceUsd: quote.priceUsd,
+        change24hPct: Number.isFinite(quote.change24hPct) ? quote.change24hPct : 0,
+        priceFormatted: formatMoney(priced.price, priced.currency),
+      });
+    }
+    return out;
+  }, [currency, listRows, rate]);
   const failure = searchQueries.find((query) => query.error)?.error ?? firstPrices?.error;
   const failureDetail = failure instanceof Error && failure.message.trim() ? failure.message : undefined;
   const lastWithData = [...searchQueries].reverse().find((query) => query.data);
@@ -415,6 +450,11 @@ export function MarketScreen({
     { value: "popular", label: t.market.popular },
     { value: "gain", label: t.market.gain },
     { value: "loss", label: t.market.loss },
+  ];
+  // Rótulos fijos del conmutador de vista (no hay claves de i18n para esto).
+  const viewOptions: { value: MarketView; label: string }[] = [
+    { value: "list", label: "Lista" },
+    { value: "heatmap", label: "Mapa de calor" },
   ];
 
   /** Punto de estado por fila desde el catálogo (M39): sin pedir la API por fila. */
@@ -469,6 +509,30 @@ export function MarketScreen({
           deslizable que no ocupa varias filas antes de la lista; desktop:
           envuelve y alinea a la izquierda. */}
       <div className="flex min-w-0 flex-col gap-2">
+        {/* Conmutador de vista en fila propia: no altera la tira de filtros ni,
+            con "list" (por defecto), el DOM de los resultados. */}
+        <div role="group" aria-label="Vista del mercado" className="flex min-w-0 flex-wrap items-center gap-1.5">
+          {viewOptions.map((option) => {
+            const active = option.value === view;
+            return (
+              <button
+                key={option.value}
+                type="button"
+                aria-pressed={active}
+                onClick={() => setView(option.value)}
+                className={cn(
+                  // Misma píldora que las chips de filtro y orden.
+                  "inline-flex min-h-11 shrink-0 items-center justify-center rounded-full px-3.5 text-[13px] font-medium whitespace-nowrap outline-none transition-all duration-150 ease-spring focus-visible:ring-4 focus-visible:ring-fg/20 active:scale-[0.98]",
+                  active
+                    ? "bg-fg text-bg shadow-xs"
+                    : "bg-surface-1/80 text-fg-muted hover:bg-surface-2 hover:text-fg",
+                )}
+              >
+                {option.label}
+              </button>
+            );
+          })}
+        </div>
         <p id={filterSortLabelId} className="label">
           {t.market.filterSortLabel}
         </p>
@@ -531,7 +595,7 @@ export function MarketScreen({
           </div>
         </section>
       ) : null}
-      {!waiting && !failed && listRows.length > 0 ? (
+      {view === "list" && !waiting && !failed && listRows.length > 0 ? (
         <section className="order-1 flex min-w-0 flex-col gap-2 lg:order-2">
           {/* El contador queda como hermano directo del h2 y del ul:
               e2e/market.spec.ts localiza la lista con
@@ -620,6 +684,25 @@ export function MarketScreen({
             </div>
           ) : null}
         </section>
+      ) : null}
+      {/* Vista de mapa de calor: reemplaza sólo la lista; movers, skeletons y
+          errores siguen igual. Sin cotizaciones no se pinta ninguna celda. */}
+      {view === "heatmap" && !waiting && !failed && listRows.length > 0 ? (
+        // Mismo orden visual que la lista (order-1 / lg:order-2) respecto de los movers.
+        <div className="order-1 flex min-w-0 flex-col gap-2 lg:order-2">
+          {heatmapRows.length > 0 ? (
+            <MarketHeatmap rows={heatmapRows} />
+          ) : quotesFailed ? (
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="text-sm text-fg-muted">{t.market.loadError}</p>
+              <Button variant="secondary" onClick={retry}>
+                {t.states.retry}
+              </Button>
+            </div>
+          ) : (
+            <ResultsSkeleton label={t.states.loading} />
+          )}
+        </div>
       ) : null}
       {!waiting && !failed && listRows.length === 0 ? (
         filter === "favorites" ? (

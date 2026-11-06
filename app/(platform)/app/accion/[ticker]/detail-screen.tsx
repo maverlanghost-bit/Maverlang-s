@@ -817,6 +817,7 @@ export function DetailScreen({
           priceUpdatedAt={prices.dataUpdatedAt || quote?.updatedAt || null}
           priceStale={quote?.stale === true}
           underlying={ticker.underlying}
+          avgCostUsd={position?.avgCostUsd ?? null}
         />
 
         <TokenGapCard symbol={ticker.symbol} quote={quote} />

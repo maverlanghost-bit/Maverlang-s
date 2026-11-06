@@ -40,6 +40,8 @@ const EMPTY_STUDIES: ChartStudies = {
   rsi: [],
 };
 const NO_BARS = { volume: false, ohlc: false };
+/** Comparadores del modo Técnico: SPYx es el de siempre; el resto, alternativas. */
+const COMPARE_SYMBOLS = [SPY_SYMBOL, "QQQx", "AAPLx", "NVDAx", "TSLAx"] as const;
 
 function studyQueryOptions(enabled: boolean) {
   return {
@@ -201,6 +203,7 @@ export function PricePanel({
   priceUpdatedAt = null,
   priceStale = false,
   underlying = "",
+  avgCostUsd = null,
 }: {
   symbol: string;
   name: string;
@@ -216,6 +219,8 @@ export function PricePanel({
   priceStale?: boolean;
   /** Acción subyacente (AAPL). La muestra la fuente del cierre diario. */
   underlying?: string;
+  /** Costo promedio de la posición en USD, si la cartera lo conoce. */
+  avgCostUsd?: number | null;
 }) {
   const { t, language } = useT();
   const copy = graficoCopy(language);
@@ -264,6 +269,22 @@ export function PricePanel({
   const [rsiOn, setRsiOn] = useState(false);
   const [draw, setDraw] = useState<"line" | "candles">("line");
   const [volumeOn, setVolumeOn] = useState(false);
+  // Comparador del modo Técnico. SPYx por defecto; el resto se pide con el
+  // mismo rango y, si alcanza dos puntos, reemplaza a SPYx como benchmark.
+  const [compareSymbol, setCompareSymbol] = useState<string>(SPY_SYMBOL);
+  const compareKey = compareSymbol.trim();
+  const compareIsSpy = compareKey.toUpperCase() === SPY_SYMBOL.toUpperCase();
+  const compareEnabled =
+    technical &&
+    spyOn &&
+    compareKey.length > 0 &&
+    !compareIsSpy &&
+    compareKey.toUpperCase() !== symbolKey.toUpperCase();
+  const compareHistory = useQuery({
+    queryKey: ["history", compareKey, range] as const,
+    queryFn: () => getHistory(compareKey, range),
+    ...studyQueryOptions(compareEnabled),
+  });
   const chartReady = !history.isPending && !history.isError && points.length >= 2;
   const bars = useMemo(() => (chartReady ? barAvailability(points) : NO_BARS), [chartReady, points]);
   // El intervalo se recalcula adentro. Depender de `period.start` (un número
@@ -299,11 +320,35 @@ export function PricePanel({
     }
     return list.length === 0 ? NO_OVERLAYS : list;
   }, [technical, chartReady, smaOn, studies, copy]);
+  // Serie del comparador recortada a la misma ventana que el precio, igual que
+  // hace `chartStudies` con SPYx: las dos líneas arrancan en el mismo tramo.
+  const compareSeries = useMemo(() => {
+    if (!compareEnabled) return null;
+    const rows = compareHistory.data?.points ?? NO_POINTS;
+    const window = periodBounds(points, livePoint);
+    if (!window || rows.length < 2) return null;
+    // Misma regla que `chartStudies`: no se mezcla una serie de referencia con
+    // una real en el mismo gráfico.
+    if (isReferenceHistory(compareHistory.data) !== illustrative) return null;
+    const inWindow = rows.filter(
+      (row) =>
+        Number.isFinite(row.t) && Number.isFinite(row.p) && row.p > 0 && row.t >= window.start && row.t <= window.end,
+    );
+    return inWindow.length >= 2 ? inWindow : null;
+  }, [compareEnabled, compareHistory.data, points, livePoint, illustrative]);
   const benchmark = useMemo(() => {
-    if (!technical || !chartReady || !spyOn || studies.spyPoints.length < 2) return null;
+    if (!technical || !chartReady || !spyOn) return null;
+    // Sin dos puntos del comparador elegido se cae a SPYx, como hasta ahora.
+    if (compareSeries) return { points: compareSeries, label: compareKey };
+    if (studies.spyPoints.length < 2) return null;
     return { points: studies.spyPoints, label: copy.spyLegend };
-  }, [technical, chartReady, spyOn, studies.spyPoints, copy.spyLegend]);
+  }, [technical, chartReady, spyOn, compareSeries, compareKey, studies.spyPoints, copy.spyLegend]);
   const showSpy = chartReady && studies.spyPoints.length >= 2;
+  // Opciones del selector: nunca el ticker de la propia ficha.
+  const compareOptions = COMPARE_SYMBOLS.filter((item) => item.toUpperCase() !== symbolKey.toUpperCase()).map(
+    (item) => ({ value: item, label: item }),
+  );
+  const showCompare = technical && spyOn;
   const smaChoices = chartReady ? SMA_PERIODS.filter((periodKey) => studies.sma[periodKey].length >= 2) : [];
   const showRsi = chartReady && studies.rsi.length >= 2;
   const legendItems = [
@@ -315,7 +360,7 @@ export function PricePanel({
             color: illustrative ? BENCHMARK_COLOR : TONE_STROKE[tone],
             dashed: illustrative,
           },
-          { id: "benchmark", label: copy.spyLegend, color: BENCHMARK_COLOR, dashed: true },
+          { id: "benchmark", label: benchmark.label, color: BENCHMARK_COLOR, dashed: true },
         ]
       : []),
     ...overlays.map((item) => ({
@@ -512,6 +557,19 @@ export function PricePanel({
             />
           )
         ) : null}
+        {showCompare ? (
+          <div className="mb-3 flex flex-wrap items-center gap-2">
+            <span className="text-xs font-medium text-fg-muted">Comparar con</span>
+            <RangeCapsule
+              compact
+              idPrefix="compare"
+              label="Comparar con"
+              options={compareOptions}
+              value={compareSymbol}
+              onChange={setCompareSymbol}
+            />
+          </div>
+        ) : null}
         <div className="relative min-w-0 max-w-full">
           <SvgPriceChart
             points={points}
@@ -525,6 +583,7 @@ export function PricePanel({
             reference={illustrative}
             overlays={overlays}
             benchmark={benchmark}
+            avgCostUsd={avgCostUsd}
             chartStyle={technical && bars.ohlc ? draw : "line"}
             showVolume={technical && bars.volume && volumeOn}
             volumeLabel={copy.volume}

@@ -1,5 +1,17 @@
 # PROGRESO — Maverlang
 
+## T46 — Gráficos avanzados, mapa de calor y command palette (2026-11-06, commit local)
+- Alcance: 6 bots en paralelo (deepseek-v4.1-flash vía Hermes) sobre archivos disjuntos. Sin dependencias nuevas, sin migraciones, sin `.env`, sin push ni deploy.
+- `components/domain/svg-price-chart.tsx`: nueva prop opcional `avgCostUsd` (línea punteada esmeralda `var(--color-brand)` 4/3, opacidad 0.65, sólo fuera de `percentMode` y dentro del área visible), crosshair bidireccional (guía horizontal `2 3` además de la vertical) y punto vivo `motion-safe:animate-pulse` al final de la serie. Intactos `data-points`/`data-reference`/`data-percent`/`data-chart-style`, `role="slider"` y el orden precio inicial → área → curva.
+- `app/(platform)/app/accion/[ticker]/price-panel.tsx`: recibe `avgCostUsd` y la pasa al gráfico; en Técnico con `spyOn` activo agrega el selector "Comparar con" (`SPYx`, `QQQx`, `AAPLx`, `NVDAx`, `TSLAx`) con `useQuery` propia del comparador, recorte a la ventana del precio y caída a SPYx si no hay 2 puntos.
+- Integración: `detail-screen.tsx` pasa `avgCostUsd={position?.avgCostUsd ?? null}` (la cartera ya expone costo promedio; `null` = no se dibuja).
+- `components/domain/market-heatmap.tsx` (nuevo): `MarketHeatmap({ rows })` sin hooks, grilla 2/3/4 columnas, color por intensidad de `change24hPct` (ratio, tope ±3 %) con contraste AA calculado y enlaces a `/app/accion/[symbol]`; `role="list"` + `aria-label` por tarjeta.
+- `app/(platform)/app/market-screen.tsx`: toggle "Lista | Mapa de calor" (`role="group"`, default `"list"`, DOM de la lista sin cambios) y rama heatmap construida sólo con filas ya cotizadas (descarta filas sin precio; no inventa cifras).
+- `components/domain/command-palette.tsx` (nuevo): modal Ctrl+K/⌘K con `useTickers()`, filtro por símbolo/nombre/subyacente, ficha, `?operar=comprar` y atajos Cartera/Billetera/Depositar/Enviar; teclado ↑↓/Enter/Escape, `aria-activedescendant`.
+- `tests/unit/real-ui-gate-and-improvements.test.ts` (nuevo, 292 líneas): `isRealAccountUiEnabled`/`isRealAccountUiBlocked` (default bloqueado, `"true"` desbloquea), `WhatIfCalculator`, `MarketHeatmap`, `PortfolioDonut` y `CsvExportButton` con `renderToStaticMarkup` y `useT` mockeado.
+- Verificación de esta fase: sólo `git status` + revisión de exports/imports y de las convenciones de dominio (se corrigió `MarketHeatmap` a ratio 0,03 en vez de puntos porcentuales). **No se corrió `vitest`, `next build`, `eslint` ni `tsc`** por indicación expresa; la batería completa queda para T47.
+- Pendiente: correr `npm run typecheck`, `npm run lint`, `npm run test` y `npm run build` en T47; decidir si `components/domain/command-palette.tsx` reemplaza al ya montado `components/app-shell/command-palette.tsx` (hoy el nuevo no está montado) en vez de duplicar el atajo; revisar a 360/768 el heatmap y la línea de costo promedio.
+
 ## T45 — Desbloqueo UI cuenta real, compra en CLP, exportación CSV y mejoras de billetera/cartera (2026-11-06, commit local)
 - Alcance: 14 bots en paralelo (deepseek-v4.1-flash vía Hermes) sobre archivos disjuntos. Sin dependencias nuevas, sin migraciones, sin `.env`, sin push ni deploy.
 - Interruptor único: `lib/account/real-ui-gate.ts` (`isRealAccountUiEnabled` / `isRealAccountUiBlocked`). Por defecto (`NEXT_PUBLIC_REAL_ACCOUNT_ENABLED` sin definir) el modo `real` sigue mostrando `<RealAccountEmpty />`, así que los tests existentes no cambian; con `="true"` se abren cartera, billetera, detalle y hoja de compra/venta en cuenta real.
