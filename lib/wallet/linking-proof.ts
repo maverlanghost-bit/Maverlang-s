@@ -1,5 +1,5 @@
 /**
- * Prueba de posesión de billetera (paso 2 del piloto de depósitos).
+ * Prueba de posesión de billetera (parte del flujo de depósitos).
  *
  * El cliente NO elige la dirección ni el DID: el servidor los deriva del
  * token de Privy y del usuario de Supabase. El cliente sólo aporta el nonce

@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 /**
- * Paso 2 del piloto: `POST /api/me/wallet` ya no responde 503 a ciegas.
+ * Vinculación firmada: `POST /api/me/wallet` ya no responde 503 a ciegas.
  *
  * Lo que se fija aquí:
  * - Con identidad Supabase, sin nonce/firma el POST sigue cerrado

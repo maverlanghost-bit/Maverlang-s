@@ -45,7 +45,7 @@ export const supabaseSessionAuth = {
           : null;
       // El correo sólo cuenta como verificado si Auth confirma el CORREO
       // (`email_confirmed_at`). `confirmed_at` también se escribe al confirmar
-      // por teléfono, así que no habilita el piloto de depósitos.
+      // por teléfono, así que no habilita depósitos.
       const emailVerified = hasConfirmedEmail(data.user);
       return { userId: data.user.id, walletAddress: primary?.address ?? null, email, emailVerified };
     } catch {

@@ -14,13 +14,7 @@ import { useAccountMode } from "@/lib/hooks/use-account-mode";
 import { useT } from "@/lib/hooks/use-t";
 import { receivableAddress } from "@/lib/wallet/receivable-address";
 
-export function UsdcDeposit({
-  pilotEligible,
-  pilotConfigured,
-}: {
-  pilotEligible: boolean;
-  pilotConfigured: boolean;
-}) {
+export function UsdcDeposit({ depositEligible }: { depositEligible: boolean }) {
   const { t } = useT();
   const { mode } = useAccountMode();
   const session = useSession();
@@ -31,7 +25,7 @@ export function UsdcDeposit({
   const wallets = useQuery({
     queryKey: ["me", "wallets"],
     queryFn: getWallets,
-    enabled: mode === "real" && pilotConfigured && pilotEligible,
+    enabled: mode === "real" && depositEligible,
     staleTime: 0,
   });
   const address = receivableAddress(mode, wallets.data?.primaryAddress ?? null);
@@ -43,16 +37,16 @@ export function UsdcDeposit({
   // envíe fondos reales a la billetera ficticia.
   if (mode !== "real") return <DemoAddressNotice />;
 
-  // Piloto interno: la decisión la toma el servidor (correo verificado en la
-  // lista). Sin lista configurada o sin elegibilidad no se muestra dirección
-  // ni QR: el barrido tampoco acreditaría nada a esta cuenta.
-  if (!pilotConfigured || !pilotEligible) {
+  // Identidad: la decisión la toma el servidor (correo verificado en Supabase
+  // Auth, sin lista de correos). Sin elegibilidad no se muestra dirección ni
+  // QR: el barrido tampoco acreditaría nada a esta cuenta.
+  if (!depositEligible) {
     return (
       <Card className="flex flex-col gap-3">
-        <h2 className="text-lg font-semibold tracking-tight">{t.wallet.depositPilotTitle}</h2>
-        <p className="text-sm leading-relaxed text-fg-body">{t.wallet.depositPilotBody}</p>
+        <h2 className="text-lg font-semibold tracking-tight">{t.wallet.depositVerifyTitle}</h2>
+        <p className="text-sm leading-relaxed text-fg-body">{t.wallet.depositVerifyBody}</p>
         <p role="note" className="rounded-xl bg-warn-bg px-4 py-3 text-sm font-medium leading-relaxed text-fg">
-          {t.wallet.depositPilotWarn}
+          {t.wallet.depositVerifyWarn}
         </p>
       </Card>
     );

@@ -1,12 +1,14 @@
+import { generateKeyPairSync } from "node:crypto";
+
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
-  depositPilotAllows,
-  depositPilotConfigured,
-  depositPilotDecision,
+  assertDepositIdentityAllowed,
+  depositEligibilityDecision,
+  depositIdentityAllows,
   normalizeDepositEmail,
-  parseDepositAllowlist,
 } from "@/lib/deposits/pilot";
+import { issueWalletLinkChallenge, syncVerifiedPrivyWallet } from "@/lib/services/wallet.supabase";
 import { USDC_DECIMALS, USDC_MINT_SOLANA } from "@/lib/wallet/deposit-indexer";
 import {
   syncSolanaUsdcDeposits,
@@ -15,23 +17,24 @@ import {
 } from "@/lib/wallet/deposit-sync";
 
 /**
- * Piloto interno de depósitos USDC (paso 1).
+ * Depósitos USDC: identidad general (ya NO hay lista de correos).
  *
- * Lo que se prueba:
- * - La lista vive en `DEPOSIT_ALLOWLIST_EMAILS` y se compara normalizada.
- * - Falta de lista, correo ausente o correo sin verificar → denegado.
- * - El barrido NO pide firmas al RPC ni acredita nada para una billetera que
- *   no está en el piloto (no avanza ningún cursor).
- * - Quitar a un usuario de la lista corta el crédito; volver a agregarlo lo
- *   recupera con la misma firma (no se perdió el depósito).
+ * El nombre del archivo es histórico: antes probaba el piloto interno con
+ * `DEPOSIT_ALLOWLIST_EMAILS`. Hoy fija la regla vigente:
+ * - Cualquier cuenta registrada con el correo VERIFICADO en Supabase Auth
+ *   (`email_confirmed_at`) es elegible. La variable eliminada no cambia nada.
+ * - Correo ausente, mal formado, sin verificar o error de lectura → denegado
+ *   (fail closed), sin gastar RPC ni acreditar.
+ * - La vinculación de billetera conserva la prueba firmada: el correo
+ *   verificado no reemplaza el desafío ni la firma ed25519.
  *
  * Sin red, sin Supabase real y sin `.env`: las dependencias del barrido se
  * inyectan y el correo verificado lo entrega el doble de pruebas.
  */
 
 const WALLET = "11111111111111111111111111111111";
-const USER = "user-piloto-1";
-const PILOT_EMAIL = "Piloto@Maverlang.Test";
+const USER = "user-deposito-1";
+const VERIFIED_EMAIL = "Cuenta@Maverlang.Test";
 
 function usdcBalance(accountIndex: number, owner: string, uiAmount: number) {
   return {
@@ -52,7 +55,7 @@ const TX: ParsedTxLike = {
     preTokenBalances: [usdcBalance(0, WALLET, 10)],
     postTokenBalances: [usdcBalance(0, WALLET, 35)],
   },
-  transaction: { signatures: ["sig-piloto-1"] },
+  transaction: { signatures: ["sig-deposito-1"] },
   blockTime: 1_700_000_000,
 };
 
@@ -73,14 +76,14 @@ function deps(
     listOwnedTokenAccounts: async () => [],
     listSignatures: async () => {
       probe.signatures += 1;
-      return ["sig-piloto-1"];
+      return ["sig-deposito-1"];
     },
     readTransactions: async () => ({
       transactions: [TX],
       statuses: [{ confirmationStatus: "confirmed", slot: 7, confirmations: 1, err: null }],
     }),
     listKnownSignatures: async () => [],
-    verifiedEmailOf: async () => ({ email: PILOT_EMAIL, emailVerified: true }),
+    verifiedEmailOf: async () => ({ email: VERIFIED_EMAIL, emailVerified: true }),
     recordDeposit: async (input) => {
       probe.recorded.push(input.signature);
       return "recorded";
@@ -94,87 +97,106 @@ afterEach(() => {
   vi.unstubAllEnvs();
 });
 
-describe("lista del piloto: normalización y fail-closed", () => {
+describe("identidad de depósito: correo verificado, sin lista", () => {
   it("normaliza espacios y mayúsculas, y descarta entradas basura", () => {
-    expect(normalizeDepositEmail("  Piloto@Maverlang.Test ")).toBe("piloto@maverlang.test");
+    expect(normalizeDepositEmail("  Cualquiera@Dominio.CL ")).toBe("cualquiera@dominio.cl");
     expect(normalizeDepositEmail("sin-arroba")).toBeNull();
     expect(normalizeDepositEmail("a@b")).toBeNull();
     expect(normalizeDepositEmail("a@b.c,d@e.f")).toBeNull();
     expect(normalizeDepositEmail("")).toBeNull();
     expect(normalizeDepositEmail(null)).toBeNull();
-
-    const list = parseDepositAllowlist(" Uno@X.CL , basura, Dos@Y.CL,,uno@x.cl ");
-    expect([...list].sort()).toEqual(["dos@y.cl", "uno@x.cl"]);
   });
 
-  it("sin variable o con lista vacía no hay nadie habilitado", () => {
-    expect(depositPilotConfigured("")).toBe(false);
-    expect(depositPilotConfigured(" , , ")).toBe(false);
+  it("cualquier correo verificado entra aunque la variable eliminada apunte a otro", () => {
+    // La variable del piloto ya no existe en el código. Si alguien la dejara
+    // puesta en el entorno, no debe cambiar la decisión.
+    vi.stubEnv("DEPOSIT_ALLOWLIST_EMAILS", "otra@maverlang.test");
     expect(
-      depositPilotDecision({ email: "piloto@maverlang.test", emailVerified: true }, ""),
-    ).toEqual({ allowed: false, reason: "not_configured" });
+      depositEligibilityDecision({ email: "Cualquiera@Dominio.CL", emailVerified: true }),
+    ).toEqual({ allowed: true, reason: "verified" });
+
+    vi.stubEnv("DEPOSIT_ALLOWLIST_EMAILS", "");
+    expect(depositIdentityAllows({ email: "cualquiera@dominio.cl", emailVerified: true })).toBe(
+      true,
+    );
   });
 
-  it("exige correo presente, verificado y exacto en la lista", () => {
-    const raw = "piloto@maverlang.test";
-    expect(depositPilotDecision({ email: null, emailVerified: true }, raw).reason).toBe(
+  it("sin correo, correo inválido o sin verificar → denegado", () => {
+    expect(depositEligibilityDecision({ email: null, emailVerified: true })).toEqual({
+      allowed: false,
+      reason: "missing_email",
+    });
+    expect(depositEligibilityDecision({ email: "sin-arroba", emailVerified: true }).reason).toBe(
       "missing_email",
     );
+    expect(depositEligibilityDecision(null).reason).toBe("missing_email");
+    expect(depositEligibilityDecision(undefined).reason).toBe("missing_email");
+    expect(depositEligibilityDecision({ email: "x@y.cl", emailVerified: false }).reason).toBe(
+      "email_not_verified",
+    );
+    expect(depositEligibilityDecision({ email: "x@y.cl" }).reason).toBe("email_not_verified");
+    // Sólo `true` booleano cuenta: un string u otro truthy no habilita.
     expect(
-      depositPilotDecision({ email: "piloto@maverlang.test", emailVerified: false }, raw).reason,
-    ).toBe("email_not_verified");
-    expect(
-      depositPilotDecision({ email: "otro@maverlang.test", emailVerified: true }, raw).reason,
-    ).toBe("not_allowlisted");
-    expect(
-      depositPilotDecision({ email: "PILOTO@maverlang.test", emailVerified: true }, raw),
-    ).toEqual({ allowed: true, reason: "allowlisted" });
-    expect(depositPilotAllows({ email: "piloto@maverlang.test" }, raw)).toBe(false);
+      depositIdentityAllows({ email: "x@y.cl", emailVerified: "true" as unknown as boolean }),
+    ).toBe(false);
+  });
+
+  it("la guardia lanza REAL_DISABLED y deja pasar al verificado", () => {
+    expect(() =>
+      assertDepositIdentityAllowed({ email: "x@y.cl", emailVerified: true }),
+    ).not.toThrow();
+    for (const identity of [null, {}, { email: "x@y.cl", emailVerified: false }]) {
+      try {
+        assertDepositIdentityAllowed(identity as never);
+        throw new Error("debió lanzar");
+      } catch (error) {
+        expect((error as { code?: string }).code).toBe("REAL_DISABLED");
+      }
+    }
   });
 });
 
-describe("barrido: fuera del piloto no se escanea ni se acredita", () => {
-  it("un correo sin verificar se queda fuera aunque esté en la lista", async () => {
-    vi.stubEnv("DEPOSIT_ALLOWLIST_EMAILS", PILOT_EMAIL);
-    const probe: Probe = { signatures: 0, recorded: [] };
-
-    const summary = await syncSolanaUsdcDeposits(
-      deps(probe, {
-        verifiedEmailOf: async () => ({ email: PILOT_EMAIL, emailVerified: false }),
-      }),
-    );
-
-    expect(summary.notAllowlisted).toBe(1);
-    expect(summary.confirmed).toBe(0);
-    expect(probe.signatures).toBe(0);
-    expect(probe.recorded).toEqual([]);
-  });
-
-  it("una cuenta que no está en la lista no gasta RPC ni recibe crédito", async () => {
+describe("barrido: la identidad decide, sin lista de correos", () => {
+  it("un correo verificado se acredita aunque la variable eliminada apunte a otra persona", async () => {
     vi.stubEnv("DEPOSIT_ALLOWLIST_EMAILS", "otra@maverlang.test");
     const probe: Probe = { signatures: 0, recorded: [] };
 
     const summary = await syncSolanaUsdcDeposits(deps(probe));
 
-    expect(summary.notAllowlisted).toBe(1);
+    expect(summary.ineligible).toBe(0);
+    expect(summary.confirmed).toBe(1);
+    expect(probe.recorded).toEqual(["sig-deposito-1"]);
+  });
+
+  it("un correo sin verificar no gasta RPC ni recibe crédito", async () => {
+    const probe: Probe = { signatures: 0, recorded: [] };
+
+    const summary = await syncSolanaUsdcDeposits(
+      deps(probe, {
+        verifiedEmailOf: async () => ({ email: VERIFIED_EMAIL, emailVerified: false }),
+      }),
+    );
+
+    expect(summary.ineligible).toBe(1);
+    expect(summary.confirmed).toBe(0);
     expect(summary.walletsScanned).toBe(0);
     expect(probe.signatures).toBe(0);
     expect(probe.recorded).toEqual([]);
   });
 
-  it("sin la variable configurada nadie entra (fail-closed)", async () => {
-    vi.stubEnv("DEPOSIT_ALLOWLIST_EMAILS", "");
+  it("sin correo legible (null) se deniega antes de pedir firmas", async () => {
     const probe: Probe = { signatures: 0, recorded: [] };
 
-    const summary = await syncSolanaUsdcDeposits(deps(probe));
+    const summary = await syncSolanaUsdcDeposits(
+      deps(probe, { verifiedEmailOf: async () => null }),
+    );
 
-    expect(summary.notAllowlisted).toBe(1);
+    expect(summary.ineligible).toBe(1);
     expect(probe.signatures).toBe(0);
     expect(probe.recorded).toEqual([]);
   });
 
   it("si no se puede leer el correo verificado, se deniega", async () => {
-    vi.stubEnv("DEPOSIT_ALLOWLIST_EMAILS", PILOT_EMAIL);
     const probe: Probe = { signatures: 0, recorded: [] };
 
     const summary = await syncSolanaUsdcDeposits(
@@ -185,33 +207,78 @@ describe("barrido: fuera del piloto no se escanea ni se acredita", () => {
       }),
     );
 
-    expect(summary.notAllowlisted).toBe(1);
+    expect(summary.ineligible).toBe(1);
     expect(probe.signatures).toBe(0);
     expect(probe.recorded).toEqual([]);
   });
 
-  it("en la lista se acredita una sola vez y con la firma como llave", async () => {
-    vi.stubEnv("DEPOSIT_ALLOWLIST_EMAILS", PILOT_EMAIL);
+  it("verificar el correo después recupera la misma firma (no hay cursor)", async () => {
     const probe: Probe = { signatures: 0, recorded: [] };
-
-    const summary = await syncSolanaUsdcDeposits(deps(probe));
-
-    expect(summary.notAllowlisted).toBe(0);
-    expect(summary.confirmed).toBe(1);
-    expect(probe.recorded).toEqual(["sig-piloto-1"]);
-  });
-
-  it("quitar y volver a poner al usuario no pierde el depósito (no hay cursor)", async () => {
-    vi.stubEnv("DEPOSIT_ALLOWLIST_EMAILS", "");
-    const probe: Probe = { signatures: 0, recorded: [] };
-    const first = await syncSolanaUsdcDeposits(deps(probe));
-    expect(first.notAllowlisted).toBe(1);
+    const first = await syncSolanaUsdcDeposits(
+      deps(probe, {
+        verifiedEmailOf: async () => ({ email: VERIFIED_EMAIL, emailVerified: false }),
+      }),
+    );
+    expect(first.ineligible).toBe(1);
     expect(probe.recorded).toEqual([]);
 
-    // Vuelve a la lista: la MISMA firma sigue disponible y se acredita.
-    vi.stubEnv("DEPOSIT_ALLOWLIST_EMAILS", PILOT_EMAIL);
+    // Al verificar el correo, la MISMA firma sigue disponible y se acredita.
     const second = await syncSolanaUsdcDeposits(deps(probe));
     expect(second.confirmed).toBe(1);
-    expect(probe.recorded).toEqual(["sig-piloto-1"]);
+    expect(probe.recorded).toEqual(["sig-deposito-1"]);
+  });
+});
+
+describe("vinculación: el correo verificado no reemplaza la prueba firmada", () => {
+  const keys = generateKeyPairSync("ec", { namedCurve: "prime256v1" });
+  const PUBLIC_PEM = keys.publicKey.export({ type: "spki", format: "pem" }).toString();
+
+  function useSupabaseAuth(): void {
+    vi.stubEnv("AUTH_MODE", "supabase");
+    vi.stubEnv("NEXT_PUBLIC_AUTH_MODE", "supabase");
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://example.supabase.co");
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "publishable-test");
+  }
+
+  it("sin prueba firmada, syncVerifiedPrivyWallet sigue cerrado", async () => {
+    useSupabaseAuth();
+    await expect(
+      syncVerifiedPrivyWallet({
+        userId: "user-deposito-1",
+        identity: { email: VERIFIED_EMAIL, emailVerified: true },
+      }),
+    ).rejects.toMatchObject({ code: "REAL_DISABLED" });
+  });
+
+  it("un correo sin verificar no llega ni a pedir el desafío", async () => {
+    useSupabaseAuth();
+    await expect(
+      issueWalletLinkChallenge({
+        userId: "user-deposito-1",
+        accessToken: "token-de-prueba",
+        identity: { email: VERIFIED_EMAIL, emailVerified: false },
+        domain: "maverlang.cl",
+        appId: "app-test",
+        appSecret: "secret-test",
+        verificationKey: PUBLIC_PEM,
+      }),
+    ).rejects.toMatchObject({ code: "REAL_DISABLED" });
+  });
+
+  it("un correo verificado pasa la identidad y cae en la verificación ES256 (sin lista)", async () => {
+    useSupabaseAuth();
+    // Token basura: si la identidad no bloqueara, la verificación del token
+    // de Privy falla con UNAUTHORIZED. No hay red ni se emite desafío.
+    await expect(
+      issueWalletLinkChallenge({
+        userId: "user-deposito-1",
+        accessToken: "no-es-un-jwt",
+        identity: { email: VERIFIED_EMAIL, emailVerified: true },
+        domain: "maverlang.cl",
+        appId: "app-test",
+        appSecret: "secret-test",
+        verificationKey: PUBLIC_PEM,
+      }),
+    ).rejects.toMatchObject({ code: "UNAUTHORIZED" });
   });
 });

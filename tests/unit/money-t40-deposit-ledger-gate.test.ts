@@ -60,7 +60,7 @@ vi.mock("@/lib/services/deposits.supabase", () => ({
     state.cryptoDeposits
       .filter((row) => row.userId === userId)
       .map((row) => row.signature),
-  readVerifiedUserEmail: async () => ({ email: "pilot@maverlang.test", emailVerified: true }),
+  readVerifiedUserEmail: async () => ({ email: "cuenta@maverlang.test", emailVerified: true }),
   insertCryptoDeposit: async (input: {
     userId: string;
     mint: string;
@@ -144,7 +144,6 @@ function queueScan(signature: string, confirmationStatus: "processed" | "confirm
 beforeEach(() => {
   vi.stubEnv("DATA_MODE", "live");
   vi.stubEnv("WALLET_DEPOSIT_SYNC", "on");
-  vi.stubEnv("DEPOSIT_ALLOWLIST_EMAILS", "pilot@maverlang.test");
   __setFlagReaderForTests(async (key) => key === "deposits_enabled");
   state.signatures = [];
   state.txs = [];

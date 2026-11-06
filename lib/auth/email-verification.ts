@@ -6,16 +6,16 @@
  * teléfono. La única marca que prueba que el correo se confirmó es
  * `email_confirmed_at`.
  *
- * El piloto interno de depósitos acredita dinero, así que todos sus lectores
- * (sesión de la API, Server Component de la pantalla y barrido del cron) usan
- * esta función: una cuenta confirmada sólo por teléfono no entra.
+ * El depósito de USDC acredita dinero, así que todos sus lectores (sesión de
+ * la API, Server Component de la pantalla y barrido del cron) usan esta
+ * función: una cuenta confirmada sólo por teléfono no entra.
  */
 export interface EmailConfirmationLike {
   /** Marca de verificación del CORREO. `null`/ausente = no verificado. */
   email_confirmed_at?: string | null;
   /**
    * Presente en Supabase Auth, pero puede ser confirmación por teléfono u otro
-   * método: NO se usa para habilitar el piloto.
+   * método: NO se usa para habilitar depósitos.
    */
   confirmed_at?: string | null;
 }

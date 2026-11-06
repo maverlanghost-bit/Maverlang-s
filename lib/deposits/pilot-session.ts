@@ -2,58 +2,44 @@ import "server-only";
 
 import { hasConfirmedEmail } from "@/lib/auth/email-verification";
 import {
-  depositPilotConfigured,
-  depositPilotDecision,
-  type DepositPilotDecision,
+  depositEligibilityDecision,
+  type DepositEligibilityDecision,
 } from "@/lib/deposits/pilot";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 /**
- * Elegibilidad del piloto para un Server Component (la pantalla de depósito).
+ * Elegibilidad de depósitos para un Server Component (la pantalla de depósito).
  *
  * Se calcula en el servidor con `auth.getUser()`: el correo sale de Supabase
  * Auth (no de una cookie, no de un query param) y la verificación es
  * `email_confirmed_at`. `confirmed_at` NO sirve: Supabase también lo escribe
- * al confirmar por teléfono. El cliente sólo recibe un booleano; nunca la
- * lista ni el correo. Sin sesión, sin configuración o con error → no elegible.
+ * al confirmar por teléfono. No hay lista de correos: cualquier cuenta
+ * registrada con el correo verificado es elegible. El cliente sólo recibe un
+ * booleano; nunca el correo.
  *
- * Esta lectura es informativa para la UI: la decisión que acredita dinero se
- * vuelve a tomar en el barrido y en la vinculación de billetera, siempre en
- * servidor.
+ * Sin sesión o con error → no elegible. Esta lectura es informativa para la
+ * UI: la decisión que acredita dinero se vuelve a tomar en el barrido y en la
+ * vinculación de billetera, siempre en servidor.
  */
-export async function readDepositPilotEligibility(): Promise<{
+export async function readDepositEligibility(): Promise<{
   eligible: boolean;
-  allowlistConfigured: boolean;
-  decision: DepositPilotDecision;
+  decision: DepositEligibilityDecision;
 }> {
-  const configured = depositPilotConfigured();
   try {
     const supabase = await createSupabaseServerClient();
     if (!supabase) {
-      return {
-        eligible: false,
-        allowlistConfigured: configured,
-        decision: { allowed: false, reason: configured ? "missing_email" : "not_configured" },
-      };
+      return { eligible: false, decision: { allowed: false, reason: "missing_email" } };
     }
     const { data, error } = await supabase.auth.getUser();
     if (error || !data.user) {
-      return {
-        eligible: false,
-        allowlistConfigured: configured,
-        decision: { allowed: false, reason: configured ? "missing_email" : "not_configured" },
-      };
+      return { eligible: false, decision: { allowed: false, reason: "missing_email" } };
     }
-    const decision = depositPilotDecision({
+    const decision = depositEligibilityDecision({
       email: data.user.email ?? null,
       emailVerified: hasConfirmedEmail(data.user),
     });
-    return { eligible: decision.allowed, allowlistConfigured: configured, decision };
+    return { eligible: decision.allowed, decision };
   } catch {
-    return {
-      eligible: false,
-      allowlistConfigured: configured,
-      decision: { allowed: false, reason: configured ? "missing_email" : "not_configured" },
-    };
+    return { eligible: false, decision: { allowed: false, reason: "missing_email" } };
   }
 }

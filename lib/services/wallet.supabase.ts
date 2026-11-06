@@ -5,9 +5,9 @@ import { createHash } from "node:crypto";
 import { DomainError } from "@/lib/api/result";
 import { isSupabaseAuth } from "@/lib/auth/mode";
 import {
-  assertDepositPilotAllowed,
+  assertDepositIdentityAllowed,
   normalizeDepositEmail,
-  type DepositPilotIdentity,
+  type DepositIdentity,
 } from "@/lib/deposits/pilot";
 import { serverEnv } from "@/lib/env";
 import { isValidSolanaAddress } from "@/lib/solana/address";
@@ -107,10 +107,9 @@ export interface PrivyWalletVerifyParams {
   fetchImpl?: typeof fetch;
   /**
    * Identidad de Supabase Auth (correo verificado). Con identidad real
-   * (`isSupabaseAuth()`) el piloto interno de depósitos la exige: sin correo
-   * verificado y en `DEPOSIT_ALLOWLIST_EMAILS` no se vincula nada.
+   * (`isSupabaseAuth()`) se exige correo verificado: sin él no se vincula nada.
    */
-  identity?: DepositPilotIdentity;
+  identity?: DepositIdentity;
   /**
    * Desafío firmado que devolvió `/api/me/wallet/challenge`. Con identidad
    * Supabase es obligatorio: sin nonce ni firma no se vincula.
@@ -619,8 +618,8 @@ export interface WalletLinkChallengeIssued {
 }
 
 /**
- * Emite un desafío de vinculación. Sólo con identidad Supabase y piloto
- * habilitado: la identidad (usuario + correo verificado) y la billetera (DID
+ * Emite un desafío de vinculación. Sólo con identidad Supabase y correo
+ * verificado: la identidad (usuario + correo verificado) y la billetera (DID
  * de Privy) salen del servidor, nunca del cuerpo. El nonce se guarda hasheado;
  * el mensaje exacto se devuelve al cliente para que lo firme.
  */
@@ -633,7 +632,7 @@ export async function issueWalletLinkChallenge(
       "La vinculación de billetera sólo está disponible con una cuenta real.",
     );
   }
-  assertDepositPilotAllowed({
+  assertDepositIdentityAllowed({
     email: params.identity?.email,
     emailVerified: params.identity?.emailVerified,
   });
@@ -682,8 +681,9 @@ export async function issueWalletLinkChallenge(
 
 /**
  * Vincula la billetera sólo después de consumir el desafío y verificar la
- * firma ed25519. Orden: piloto → token/DID → billetera de Privy → correo →
- * consumo atómico del nonce → mensaje exacto → firma → persistencia única.
+ * firma ed25519. Orden: identidad (correo verificado) → prueba declarada →
+ * token/DID → billetera de Privy → correo → consumo atómico del nonce →
+ * mensaje exacto → firma → persistencia única.
  *
  * El consumo ocurre antes de verificar la firma: una firma inválida quema el
  * nonce (falla cerrado), y dos requests concurrentes con el mismo nonce sólo
@@ -699,7 +699,7 @@ export async function linkVerifiedPrivyWallet(
       "La vinculación de billetera sólo está disponible con una cuenta real.",
     );
   }
-  assertDepositPilotAllowed({
+  assertDepositIdentityAllowed({
     email: params.identity?.email,
     emailVerified: params.identity?.emailVerified,
   });
@@ -763,7 +763,7 @@ export async function linkVerifiedPrivyWallet(
  * `verifyPrivySolanaWallet`; el cuerpo del cliente no aporta direcciones.
  *
  * Con identidad Supabase delega en `linkVerifiedPrivyWallet`: exige desafío
- * firmado, piloto habilitado y billetera de Privy. La demo en memoria
+ * firmado, correo verificado y billetera de Privy. La demo en memoria
  * (`AUTH_MODE=mock`) conserva su billetera determinista y no usa este flujo.
  */
 export async function syncVerifiedPrivyWallet(params: PrivyWalletSyncParams): Promise<StoredWallet> {

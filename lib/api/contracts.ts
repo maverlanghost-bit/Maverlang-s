@@ -410,7 +410,7 @@ export const deletionStatusSchema = z.object({
 });
 
 /**
- * M66 + paso 2 del piloto: billeteras verificadas del usuario. `address` NO
+ * M66 + vinculación firmada: billeteras verificadas del usuario. `address` NO
  * existe aquí a propósito: la dirección guardada sale siempre de la
  * verificación en servidor contra Privy. El cliente sólo aporta el nonce que
  * le emitió `/api/me/wallet/challenge` y la firma ed25519 del mensaje exacto;

@@ -447,11 +447,11 @@ export const en = {
     linkWalletError: "We could not link the wallet. Please try again.",
     linkWalletNoPrivy:
       "Linking is unavailable in this environment because Privy is not configured. No deposit address is shown.",
-    depositPilotTitle: "Internal deposit pilot",
-    depositPilotBody:
-      "USDC deposits are enabled only for the team, with a list of verified emails checked on the server.",
-    depositPilotWarn:
-      "This account is not in the pilot. Do not send funds: they will not be credited automatically.",
+    depositVerifyTitle: "Verify your email to deposit",
+    depositVerifyBody:
+      "To deposit USDC we need the email on your account to be verified. You can confirm it from the email we sent you when you signed up.",
+    depositVerifyWarn:
+      "Until your email is verified we do not show a deposit address and funds are not credited automatically.",
     signFailed: "The transfer was not signed.",
     sendFailed: "The transfer did not complete.",
     noAssets: "You have no USDC or stocks to send.",

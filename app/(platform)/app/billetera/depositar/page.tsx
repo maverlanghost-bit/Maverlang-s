@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 
-import { readDepositPilotEligibility } from "@/lib/deposits/pilot-session";
+import { readDepositEligibility } from "@/lib/deposits/pilot-session";
 
 import { DepositScreen } from "./deposit-screen";
 
@@ -9,15 +9,10 @@ export const metadata: Metadata = {
 };
 
 /**
- * La elegibilidad del piloto se decide en el servidor (correo verificado de
- * Supabase Auth + lista del servidor). El cliente recibe sólo un booleano.
+ * La elegibilidad se decide en el servidor (correo verificado de Supabase
+ * Auth, sin lista de correos). El cliente recibe sólo un booleano.
  */
 export default async function DepositarPage() {
-  const pilot = await readDepositPilotEligibility();
-  return (
-    <DepositScreen
-      pilotEligible={pilot.eligible}
-      pilotConfigured={pilot.allowlistConfigured}
-    />
-  );
+  const eligibility = await readDepositEligibility();
+  return <DepositScreen depositEligible={eligibility.eligible} />;
 }

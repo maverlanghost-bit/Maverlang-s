@@ -3,61 +3,59 @@ import "server-only";
 import { DomainError } from "@/lib/api/result";
 
 /**
- * Piloto interno de depósitos USDC (sólo equipo).
+ * Regla de identidad para depósitos USDC (cuentas registradas).
  *
- * La lista vive SÓLO en el servidor (`DEPOSIT_ALLOWLIST_EMAILS`, separada por
- * comas). No existe una variable `NEXT_PUBLIC_*` ni un endpoint que la
- * publique: el cliente jamás recibe correos ni decide quién está dentro.
+ * El archivo conserva su ruta histórica porque antes era el piloto interno
+ * con lista de correos (`DEPOSIT_ALLOWLIST_EMAILS`). Esa lista YA NO EXISTE:
+ * no hay variable de entorno, ni lista por defecto, ni excepción de equipo.
+ * Cualquier cuenta registrada cuyo correo esté VERIFICADO en Supabase Auth
+ * (`email_confirmed_at`) es elegible.
  *
- * Regla: un depósito sólo se acredita si la identidad de Supabase tiene un
- * correo **verificado** (`email_confirmed_at`) y ese correo, normalizado
- * (trim + minúsculas), está exactamente en la lista. Falta de lista, lista
- * vacía, correo ausente, correo sin verificar, error al leer el correo o
- * formato inválido → denegado. Nunca hay excepción "por defecto".
+ * Por qué se mantiene el correo verificado como regla general: es la única
+ * marca del proveedor que acredita que la persona controla el correo de la
+ * cuenta. Un correo sin confirmar (o confirmado sólo por teléfono) no sirve
+ * como identidad para recibir dinero ni como canal de recuperación, y además
+ * se cruza con los correos del DID de Privy al vincular la billetera. Sin
+ * correo legible o sin verificación → denegado (fail-closed). Esto NO es KYC:
+ * la habilitación legal/compliance de fondos reales sigue siendo un paso
+ * aparte y no se afirma aquí.
  *
- * Esto es una excepción explícita y acotada del piloto: NO relaja KYC para el
- * resto de las cuentas ni enciende ningún flag de dinero. Los flags
- * `deposits_enabled` y `WALLET_DEPOSIT_SYNC` siguen siendo necesarios y siguen
- * apagados por defecto.
+ * Esta regla no enciende ningún flag de dinero: `deposits_enabled` y
+ * `WALLET_DEPOSIT_SYNC` siguen siendo necesarios y siguen apagados por
+ * defecto.
  */
 
-/** Nombre de la variable (sólo servidor). Nunca se expone al cliente. */
-export const DEPOSIT_ALLOWLIST_ENV = "DEPOSIT_ALLOWLIST_EMAILS";
+/** Mensaje único de denegación (no revela datos de la cuenta). */
+export const DEPOSIT_IDENTITY_DENIED_MESSAGE =
+  "Para depositar USDC necesitamos que el correo de tu cuenta esté verificado.";
 
-/** Mensaje único de denegación (no revela si el correo existe o no). */
-export const DEPOSIT_PILOT_DENIED_MESSAGE =
-  "Los depósitos USDC están en un piloto interno cerrado. Esta cuenta no está habilitada.";
-
-export type DepositPilotReason =
-  | "allowlisted"
-  | "not_configured"
+export type DepositEligibilityReason =
+  | "verified"
   | "missing_email"
-  | "email_not_verified"
-  | "not_allowlisted";
+  | "email_not_verified";
 
-export interface DepositPilotIdentity {
+export interface DepositIdentity {
   email?: string | null;
   emailVerified?: boolean | null;
 }
 
-export interface DepositPilotDecision {
+export interface DepositEligibilityDecision {
   allowed: boolean;
-  reason: DepositPilotReason;
+  reason: DepositEligibilityReason;
 }
 
 /**
  * Normaliza un correo para comparar: sin espacios al borde y en minúsculas.
- * No aplica reglas de proveedor (puntos de Gmail, subdirecciones, etc.):
- * "exacto normalizado" es trim + minúsculas sobre el correo verificado.
+ * No aplica reglas de proveedor (puntos de Gmail, subdirecciones, etc.).
  * Devuelve `null` si no tiene una forma de correo aceptable.
  */
 export function normalizeDepositEmail(value: unknown): string | null {
   if (typeof value !== "string") return null;
   const trimmed = value.trim().toLowerCase();
   if (trimmed === "") return null;
-  // Exactamente una @, sin espacios ni comas (la coma separa la lista), y un
-  // punto en el dominio. No se intenta validar RFC completa: se evita que una
-  // entrada basura de la variable pueda coincidir con algo.
+  // Exactamente una @, sin espacios ni comas, y un punto en el dominio. No se
+  // intenta validar RFC completa: sólo se evita que un dato basura pase como
+  // identidad.
   if (/\s/.test(trimmed) || trimmed.includes(",")) return null;
   if (trimmed.split("@").length !== 2) return null;
   const [local, domain] = trimmed.split("@");
@@ -67,58 +65,35 @@ export function normalizeDepositEmail(value: unknown): string | null {
 }
 
 /**
- * Lee la lista del proceso. `undefined`/vacío → conjunto vacío, que deniega a
- * todos. Las entradas inválidas se descartan (no amplían el acceso).
+ * Decide si una identidad puede depositar. Puro y fail-closed: correo ausente
+ * o mal formado, correo sin verificar o error del llamador → denegado. No hay
+ * lista de correos ni excepción "por defecto".
  */
-export function parseDepositAllowlist(raw?: string | null): Set<string> {
-  const source = raw ?? process.env[DEPOSIT_ALLOWLIST_ENV] ?? "";
-  const emails = new Set<string>();
-  for (const part of source.split(",")) {
-    const email = normalizeDepositEmail(part);
-    if (email) emails.add(email);
-  }
-  return emails;
-}
-
-/** `true` sólo si la variable existe y contiene al menos un correo válido. */
-export function depositPilotConfigured(raw?: string | null): boolean {
-  return parseDepositAllowlist(raw).size > 0;
-}
-
-/**
- * Decide si una identidad entra al piloto. Puro y fail-closed: cualquier duda
- * (sin lista, sin correo, sin verificación, error del llamador) deniega.
- */
-export function depositPilotDecision(
-  identity: DepositPilotIdentity | null | undefined,
-  raw?: string | null,
-): DepositPilotDecision {
-  const allowlist = parseDepositAllowlist(raw);
-  if (allowlist.size === 0) return { allowed: false, reason: "not_configured" };
+export function depositEligibilityDecision(
+  identity: DepositIdentity | null | undefined,
+): DepositEligibilityDecision {
   const email = normalizeDepositEmail(identity?.email);
   if (!email) return { allowed: false, reason: "missing_email" };
   if (identity?.emailVerified !== true) return { allowed: false, reason: "email_not_verified" };
-  if (!allowlist.has(email)) return { allowed: false, reason: "not_allowlisted" };
-  return { allowed: true, reason: "allowlisted" };
+  return { allowed: true, reason: "verified" };
 }
 
-/** `true` sólo con lista configurada, correo verificado y coincidencia exacta. */
-export function depositPilotAllows(
-  identity: DepositPilotIdentity | null | undefined,
-  raw?: string | null,
+/** `true` sólo con correo legible y verificado por Supabase Auth. */
+export function depositIdentityAllows(
+  identity: DepositIdentity | null | undefined,
 ): boolean {
-  return depositPilotDecision(identity, raw).allowed;
+  return depositEligibilityDecision(identity).allowed;
 }
 
 /**
  * Guardia para rutas y servicios de servidor. Lanza `REAL_DISABLED` (503) con
- * el mensaje del piloto: no distingue entre "fuera de la lista" y "sin lista".
+ * el mensaje de identidad: no distingue entre "sin correo", "correo inválido"
+ * y "correo sin verificar".
  */
-export function assertDepositPilotAllowed(
-  identity: DepositPilotIdentity | null | undefined,
-  raw?: string | null,
+export function assertDepositIdentityAllowed(
+  identity: DepositIdentity | null | undefined,
 ): void {
-  if (!depositPilotAllows(identity, raw)) {
-    throw new DomainError("REAL_DISABLED", DEPOSIT_PILOT_DENIED_MESSAGE);
+  if (!depositIdentityAllows(identity)) {
+    throw new DomainError("REAL_DISABLED", DEPOSIT_IDENTITY_DENIED_MESSAGE);
   }
 }

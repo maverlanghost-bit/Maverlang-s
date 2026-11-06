@@ -282,7 +282,7 @@ describe("producción sin Upstash: las políticas sensibles fallan cerradas", ()
       const rl = await import("@/lib/security/rate-limit");
       const { errorMessage, httpStatusFor } = await import("@/lib/api/result");
 
-      expect(SENSITIVE_RATE_LIMIT_POLICIES.length).toBe(8);
+      expect(SENSITIVE_RATE_LIMIT_POLICIES.length).toBe(9);
       expect(httpStatusFor("RATE_LIMIT_UNAVAILABLE")).toBe(503);
 
       for (const policy of SENSITIVE_RATE_LIMIT_POLICIES) {

@@ -14,7 +14,7 @@ import {
 } from "@/lib/wallet/deposit-sync";
 
 /**
- * Paso 3 del piloto de depósitos USDC: cuentas de token SECUNDARIAS.
+ * Cuentas de token SECUNDARIAS del depósito USDC.
  *
  * Lo que se prueba, con dependencias inyectadas (sin red, sin Supabase y sin
  * `.env`):
@@ -39,7 +39,7 @@ const SECONDARY = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
 const OTHER_OWNER = "9xQeWvG816bUx9EPjHmaT23yvVM2ZWbrrpZb9PusVFin";
 const OTHER_MINT = "4Nd1mBQtrMJVYVfKf2PJy9NZUZdTAsp7D4xWLs4gDB4T";
 const USER = "user-secundarias";
-const PILOT_EMAIL = "secundarias@maverlang.test";
+const VERIFIED_EMAIL = "secundarias@maverlang.test";
 
 interface Harness {
   signatures: Record<string, string[]>;
@@ -132,7 +132,7 @@ function makeDeps(
       statuses: signatures.map((signature) => harness.statuses[signature] ?? null),
     }),
     listKnownSignatures: async () => [...harness.credits.keys()],
-    verifiedEmailOf: async () => ({ email: PILOT_EMAIL, emailVerified: true }),
+    verifiedEmailOf: async () => ({ email: VERIFIED_EMAIL, emailVerified: true }),
     recordDeposit: async (input) => {
       // Espejo de `recordDeposit` real: el libro sólo recibe confirmed/finalized;
       // el movimiento se escribe una vez por firma (idempotente por reference).
@@ -154,7 +154,6 @@ function makeDeps(
 }
 
 beforeEach(() => {
-  vi.stubEnv("DEPOSIT_ALLOWLIST_EMAILS", PILOT_EMAIL);
 });
 
 afterEach(() => {

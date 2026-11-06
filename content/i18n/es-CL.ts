@@ -451,11 +451,11 @@ export const esCL = {
     linkWalletError: "No se pudo vincular la billetera. Inténtalo de nuevo.",
     linkWalletNoPrivy:
       "La vinculación no está disponible en este entorno porque falta configurar Privy. No se muestra ninguna dirección de depósito.",
-    depositPilotTitle: "Piloto interno de depósitos",
-    depositPilotBody:
-      "Los depósitos en USDC están habilitados sólo para el equipo, con una lista de correos verificados que se revisa en el servidor.",
-    depositPilotWarn:
-      "Esta cuenta no está en el piloto. No envíes fondos: no se acreditarán automáticamente.",
+    depositVerifyTitle: "Verifica tu correo para depositar",
+    depositVerifyBody:
+      "Para depositar USDC necesitamos que el correo de tu cuenta esté verificado. Puedes confirmarlo desde el correo que te enviamos al registrarte.",
+    depositVerifyWarn:
+      "Mientras tu correo no esté verificado no mostramos una dirección de depósito ni acreditamos fondos automáticamente.",
     signFailed: "No se firmó el envío.",
     sendFailed: "El envío no se completó.",
     noAssets: "No tienes USDC ni acciones para enviar.",

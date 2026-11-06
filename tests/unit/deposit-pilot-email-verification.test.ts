@@ -1,19 +1,20 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 /**
- * Regresión del piloto de depósitos: `confirmed_at` de Supabase Auth también
- * se escribe cuando la cuenta se confirma por TELÉFONO. No prueba el correo.
+ * Regresión de la identidad de depósitos: `confirmed_at` de Supabase Auth
+ * también se escribe cuando la cuenta se confirma por TELÉFONO. No prueba el
+ * correo.
  *
  * Los tres lectores que deciden elegibilidad usan la misma regla
  * (`email_confirmed_at`): la sesión de la API, el Server Component de la
  * pantalla de depósito y el barrido del cron (admin). Antes los tres hacían
  * `email_confirmed_at ?? confirmed_at`, así que una cuenta sólo-verificada-por-
- * teléfono podía entrar al piloto si su correo estaba en la lista.
+ * teléfono podía habilitar depósitos.
  *
  * Sin red, sin Supabase real y sin `.env`: se mockean los dos clientes.
  */
 
-const PILOT_EMAIL = "piloto@maverlang.test";
+const VERIFIED_EMAIL = "cuenta@maverlang.test";
 
 const state = vi.hoisted(() => {
   const header = Buffer.from(JSON.stringify({ alg: "HS256", typ: "JWT" })).toString("base64url");
@@ -56,14 +57,14 @@ vi.mock("@/lib/services/wallet.supabase", () => ({
 }));
 
 import { hasConfirmedEmail } from "@/lib/auth/email-verification";
-import { readDepositPilotEligibility } from "@/lib/deposits/pilot-session";
+import { readDepositEligibility } from "@/lib/deposits/pilot-session";
 import { supabaseSessionAuth } from "@/lib/services/auth.supabase";
 import { readVerifiedUserEmail } from "@/lib/services/deposits.supabase";
 
 function user(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return {
     id: "user-1",
-    email: PILOT_EMAIL,
+    email: VERIFIED_EMAIL,
     email_confirmed_at: null,
     confirmed_at: null,
     ...overrides,
@@ -71,7 +72,6 @@ function user(overrides: Record<string, unknown> = {}): Record<string, unknown> 
 }
 
 beforeEach(() => {
-  vi.stubEnv("DEPOSIT_ALLOWLIST_EMAILS", PILOT_EMAIL);
   state.adminUser = null;
   state.sessionUser = null;
 });
@@ -94,12 +94,12 @@ describe("hasConfirmedEmail: sólo la marca del CORREO vale", () => {
   });
 });
 
-describe("confirmación por teléfono: los tres lectores del piloto la rechazan", () => {
+describe("confirmación por teléfono: los tres lectores la rechazan", () => {
   it("barrido (admin): correo sin confirmar aunque confirmed_at exista", async () => {
     state.adminUser = user({ confirmed_at: "2026-01-01T00:00:00.000Z" });
 
     await expect(readVerifiedUserEmail("user-1")).resolves.toEqual({
-      email: PILOT_EMAIL,
+      email: VERIFIED_EMAIL,
       emailVerified: false,
     });
   });
@@ -107,9 +107,8 @@ describe("confirmación por teléfono: los tres lectores del piloto la rechazan"
   it("pantalla de depósito (Server Component): no elegible", async () => {
     state.sessionUser = user({ confirmed_at: "2026-01-01T00:00:00.000Z" });
 
-    await expect(readDepositPilotEligibility()).resolves.toMatchObject({
+    await expect(readDepositEligibility()).resolves.toMatchObject({
       eligible: false,
-      allowlistConfigured: true,
       decision: { allowed: false, reason: "email_not_verified" },
     });
   });
@@ -119,7 +118,7 @@ describe("confirmación por teléfono: los tres lectores del piloto la rechazan"
 
     await expect(supabaseSessionAuth.getSession()).resolves.toMatchObject({
       userId: "user-1",
-      email: PILOT_EMAIL,
+      email: VERIFIED_EMAIL,
       emailVerified: false,
     });
   });
@@ -129,10 +128,10 @@ describe("confirmación por teléfono: los tres lectores del piloto la rechazan"
     state.sessionUser = user();
 
     await expect(readVerifiedUserEmail("user-1")).resolves.toEqual({
-      email: PILOT_EMAIL,
+      email: VERIFIED_EMAIL,
       emailVerified: false,
     });
-    await expect(readDepositPilotEligibility()).resolves.toMatchObject({
+    await expect(readDepositEligibility()).resolves.toMatchObject({
       eligible: false,
       decision: { reason: "email_not_verified" },
     });
@@ -149,12 +148,12 @@ describe("correo sí confirmado: los tres lectores habilitan", () => {
     state.sessionUser = confirmed;
 
     await expect(readVerifiedUserEmail("user-1")).resolves.toEqual({
-      email: PILOT_EMAIL,
+      email: VERIFIED_EMAIL,
       emailVerified: true,
     });
-    await expect(readDepositPilotEligibility()).resolves.toMatchObject({
+    await expect(readDepositEligibility()).resolves.toMatchObject({
       eligible: true,
-      decision: { allowed: true, reason: "allowlisted" },
+      decision: { allowed: true, reason: "verified" },
     });
     await expect(supabaseSessionAuth.getSession()).resolves.toMatchObject({
       emailVerified: true,

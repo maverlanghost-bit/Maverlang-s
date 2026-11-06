@@ -46,7 +46,7 @@ const depositSyncResponseSchema = z.object({
   duplicates: z.number().int().nonnegative(),
   rejected: z.number().int().nonnegative(),
   skipped: z.number().int().nonnegative(),
-  notAllowlisted: z.number().int().nonnegative(),
+  ineligible: z.number().int().nonnegative(),
   errors: z.array(z.string()),
   truncated: z.boolean(),
   durationMs: z.number().int().nonnegative(),

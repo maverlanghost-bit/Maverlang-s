@@ -231,7 +231,7 @@ const sandbox = vi.hoisted(() => {
 vi.mock("@/lib/supabase/admin", () => ({
   createSupabaseAdminClient: () => ({
     from: (table: string) => sandbox.query(table),
-    // El piloto interno lee el correo VERIFICADO desde Auth, no del perfil.
+    // El barrido lee el correo VERIFICADO desde Auth, no del perfil.
     auth: {
       admin: {
         getUserById: async (id: string) => ({
@@ -386,8 +386,8 @@ beforeEach(() => {
   vi.stubEnv("DATA_MODE", "live");
   vi.stubEnv("WALLET_DEPOSIT_SYNC", "on");
   vi.stubEnv("CRON_SECRET", "cron-test-secret");
-  // Piloto interno: los dos dueños de billetera de la prueba están en la lista.
-  vi.stubEnv("DEPOSIT_ALLOWLIST_EMAILS", "user-a@maverlang.test,user-b@maverlang.test");
+  // Sin lista de correos: los dueños de billetera de la prueba tienen correo
+  // verificado en el doble de Auth.
   __setFlagReaderForTests(async (key) => key === "deposits_enabled");
   seedWallets([
     { userId: "user-a", address: WALLET_A },

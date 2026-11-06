@@ -5,11 +5,7 @@ import { listOwnedUsdcTokenAccounts } from "@/lib/solana/usdc-token-accounts";
 import type { SignatureStatusLike } from "@/lib/solana/signature-status";
 import { redactRpcSecrets } from "@/lib/solana/tx-errors";
 import { getFlag } from "@/lib/flags";
-import {
-  DEPOSIT_ALLOWLIST_ENV,
-  depositPilotConfigured,
-  depositPilotDecision,
-} from "@/lib/deposits/pilot";
+import { depositEligibilityDecision } from "@/lib/deposits/pilot";
 import {
   USDC_DECIMALS,
   USDC_MINT_SOLANA,
@@ -179,7 +175,7 @@ export interface DepositSyncDeps {
   /**
    * Correo verificado del dueño según Supabase Auth. `null` = no se pudo leer
    * (fail closed). El barrido lo consulta ANTES de gastar RPC en la billetera:
-   * fuera del piloto no se escanea ni se acredita nada.
+   * sin correo verificado no se escanea ni se acredita nada.
    */
   verifiedEmailOf: (
     userId: string,
@@ -212,8 +208,8 @@ export interface DepositSyncSummary {
   duplicates: number;
   rejected: number;
   skipped: number;
-  /** Billeteras fuera del piloto interno: no se escanean ni se acreditan. */
-  notAllowlisted: number;
+  /** Billeteras sin identidad elegible (correo verificado): no se escanean. */
+  ineligible: number;
   /** Errores redactados (máx. 5) de esta corrida. */
   errors: string[];
   truncated: boolean;
@@ -462,7 +458,7 @@ function baseSummary(
     duplicates: 0,
     rejected: 0,
     skipped: 0,
-    notAllowlisted: 0,
+    ineligible: 0,
     errors: [],
     truncated: false,
     durationMs: Date.now() - startedAt,
@@ -485,20 +481,6 @@ export async function syncSolanaUsdcDeposits(injected?: DepositSyncDeps): Promis
   if (mode === "live" && !injected) {
     if (!depositSyncEnabled()) return baseSummary("live", startedAt);
     if (!(await depositsFlagAllowsSweep())) return baseSummary("live", startedAt);
-    // Piloto interno: sin lista configurada no se barre NINGUNA billetera. Se
-    // reporta `ok:false` a propósito para que el monitor no lea un "cero
-    // depósitos" sano cuando en realidad falta configuración.
-    if (!depositPilotConfigured()) {
-      const failed = baseSummary("live", startedAt, true);
-      failed.ok = false;
-      failed.errors.push(
-        `falta ${DEPOSIT_ALLOWLIST_ENV}: el piloto interno de depósitos está cerrado.`,
-      );
-      // Sólo el nombre de la variable: nunca valores ni correos.
-      console.warn("[reconcile-wallet] depósitos: falta DEPOSIT_ALLOWLIST_EMAILS (piloto cerrado).");
-      failed.durationMs = Date.now() - startedAt;
-      return failed;
-    }
   }
 
   let deps: DepositSyncDeps;
@@ -575,18 +557,19 @@ export async function syncSolanaUsdcDeposits(injected?: DepositSyncDeps): Promis
       continue;
     }
 
-    // Piloto interno (servidor): correo verificado y en la lista. Se resuelve
-    // ANTES de pedir firmas al RPC. Fuera del piloto la billetera no se escanea
-    // ni se acredita, y no se avanza ningún cursor: si mañana la cuenta vuelve
-    // a la lista, sus firmas recientes se revisan de nuevo.
-    let pilotIdentity: { email: string; emailVerified: boolean } | null = null;
+    // Identidad (servidor): correo verificado en Supabase Auth. Se resuelve
+    // ANTES de pedir firmas al RPC. Sin correo legible o sin verificar la
+    // billetera no se escanea ni se acredita, y no se avanza ningún cursor: si
+    // la cuenta verifica el correo después, sus firmas recientes se revisan de
+    // nuevo.
+    let identity: { email: string; emailVerified: boolean } | null = null;
     try {
-      pilotIdentity = await deps.verifiedEmailOf(userId);
+      identity = await deps.verifiedEmailOf(userId);
     } catch {
-      pilotIdentity = null;
+      identity = null;
     }
-    if (!depositPilotDecision(pilotIdentity).allowed) {
-      summary.notAllowlisted += 1;
+    if (!depositEligibilityDecision(identity).allowed) {
+      summary.ineligible += 1;
       continue;
     }
 

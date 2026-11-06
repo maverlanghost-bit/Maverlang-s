@@ -1,7 +1,8 @@
 import "server-only";
 
+import type { SupabaseClient } from "@supabase/supabase-js";
+
 import { DomainError } from "@/lib/api/result";
-import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { isMissingSchemaError } from "@/lib/supabase/schema-error";
 import {
   WALLET_LINK_CHAIN,
@@ -47,7 +48,13 @@ export interface ConsumedWalletLinkChallenge {
   expiresAt: string;
 }
 
-type WalletAdmin = ReturnType<typeof createSupabaseAdminClient>;
+/**
+ * Cliente de base que recibe este módulo (lo crea el servicio con la clave de
+ * servidor). Es un parámetro, no una dependencia: así el cliente admin sigue
+ * viviendo sólo en `lib/services/*.supabase.ts` (M57) y este módulo no puede
+ * instanciar credenciales por su cuenta.
+ */
+type WalletAdmin = SupabaseClient;
 type QueryError = { code?: string; message?: string } | null;
 
 function challengeStoreError(error: QueryError): never {

@@ -157,8 +157,8 @@ export async function listWalletsForDepositScan(
 
 /**
  * Correo VERIFICADO del usuario según Supabase Auth (no `profiles.email`).
- * Es la única fuente que usa el piloto interno de depósitos: `null` si no se
- * pudo leer, si no hay correo o si Auth no confirma el CORREO. Fail-closed.
+ * Es la única fuente que usan los depósitos: `null` si no se pudo leer, si no
+ * hay correo o si Auth no confirma el CORREO. Fail-closed.
  *
  * La marca válida es `email_confirmed_at`: `confirmed_at` también se escribe
  * cuando la cuenta se confirma por teléfono y NO prueba el correo.

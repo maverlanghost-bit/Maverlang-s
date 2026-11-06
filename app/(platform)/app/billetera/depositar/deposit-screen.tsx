@@ -11,11 +11,9 @@ import { PesoDeposit } from "./peso-deposit";
 import { UsdcDeposit } from "./usdc-deposit";
 
 export function DepositScreen({
-  pilotEligible,
-  pilotConfigured,
+  depositEligible,
 }: {
-  pilotEligible: boolean;
-  pilotConfigured: boolean;
+  depositEligible: boolean;
 }) {
   const { t } = useT();
 
@@ -32,11 +30,11 @@ export function DepositScreen({
           defaultValue="usdc"
           tabs={[
             { value: "clp", label: t.wallet.depositPesos, content: <PesoDeposit /> },
-            { value: "usdc", label: t.wallet.depositUsdc, content: <UsdcDeposit pilotEligible={pilotEligible} pilotConfigured={pilotConfigured} /> },
+            { value: "usdc", label: t.wallet.depositUsdc, content: <UsdcDeposit depositEligible={depositEligible} /> },
           ]}
         />
       ) : (
-        <UsdcDeposit pilotEligible={pilotEligible} pilotConfigured={pilotConfigured} />
+        <UsdcDeposit depositEligible={depositEligible} />
       )}
     </div>
   );

@@ -107,6 +107,19 @@ export function uiAmountWithExactDecimals(
 }
 
 /**
+ * Fila con `owner` legible. Se usa SÓLO después de la validación fail-closed:
+ * si cualquier balance del mint no trae dueño, la transacción completa se
+ * descarta antes de llegar aquí.
+ */
+type OwnedBalance = TokenBalanceLike & { owner: string };
+
+function withReadableOwner(row: TokenBalanceLike): OwnedBalance | null {
+  return typeof row.owner === "string" && row.owner.trim() !== ""
+    ? (row as OwnedBalance)
+    : null;
+}
+
+/**
  * Delta neto del `mint` indicado exigiendo el decimal exacto en CADA balance
  * del dueño que participa de la transacción (previas y posteriores, incluidas
  * las cuentas que desaparecen). Devuelve `null` si el monto no se puede
@@ -135,18 +148,28 @@ export function netTokenDeltaWithExactDecimals(params: {
   const owner = params.owner.trim();
   if (owner === "") return null;
 
-  const pre = params.pre.filter((row) => row?.mint === params.mint);
-  const post = params.post.filter((row) => row?.mint === params.mint);
+  const preMint = params.pre.filter((row) => row?.mint === params.mint);
+  const postMint = params.post.filter((row) => row?.mint === params.mint);
 
   // Sin dueño no hay atribución posible: ni las filas nuestras ni las ajenas
-  // se pueden clasificar. Se descarta la transacción completa.
-  for (const row of [...pre, ...post]) {
-    if (typeof row.owner !== "string" || row.owner.trim() === "") return null;
+  // se pueden clasificar. Se descarta la transacción completa. El tipo
+  // estrechado de `pre`/`post` sólo refleja esta comprobación ya hecha.
+  const pre: OwnedBalance[] = [];
+  for (const row of preMint) {
+    const owned = withReadableOwner(row);
+    if (!owned) return null;
+    pre.push(owned);
+  }
+  const post: OwnedBalance[] = [];
+  for (const row of postMint) {
+    const owned = withReadableOwner(row);
+    if (!owned) return null;
+    post.push(owned);
   }
 
   // Un cambio de dueño en la misma cuenta no es un depósito: la cuenta pudo
   // reasignarse (SetAuthority) y el saldo completo "aparecería" como entrada.
-  const preByIndex = new Map<number, TokenBalanceLike>();
+  const preByIndex = new Map<number, OwnedBalance>();
   for (const row of pre) preByIndex.set(row.accountIndex, row);
   for (const after of post) {
     const before = preByIndex.get(after.accountIndex);

@@ -25,7 +25,7 @@ export const dynamic = "force-dynamic";
  * `Cache-Control: private, no-store`: datos por usuario, nunca cacheables.
  * La dirección no viaja en el cuerpo: la verifica el servidor contra Privy.
  *
- * Paso 2 del piloto de depósitos — vinculación con prueba de posesión:
+ * Paso 2 del flujo de depósitos — vinculación con prueba de posesión:
  * - GET sólo lee las billeteras ya vinculadas.
  * - POST exige, con identidad Supabase, el nonce emitido por
  *   `POST /api/me/wallet/challenge` y la firma ed25519 del mensaje exacto.
@@ -91,8 +91,8 @@ export async function POST(req: Request) {
         userId: session.userId,
         accessToken,
         requireVerified,
-        // Piloto interno: la identidad sale de Supabase Auth (correo
-        // verificado), nunca del cuerpo ni de una cabecera del cliente.
+        // Identidad (servidor): correo verificado en Supabase Auth. La decisión la
+        // toma el servicio, no el cuerpo ni una cabecera del cliente.
         identity: { email: session.email, emailVerified: session.emailVerified },
         proof,
         domain,

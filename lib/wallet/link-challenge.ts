@@ -7,7 +7,7 @@ import { serverEnv } from "@/lib/env";
 import { decodeBase58, isValidSolanaAddress } from "@/lib/solana/address";
 
 /**
- * Desafío de vinculación de billetera (paso 2 del piloto de depósitos).
+ * Desafío de vinculación de billetera (parte del flujo de depósitos).
  *
  * Tres identidades tienen que quedar atadas en el MISMO acto:
  *   1. la sesión de Supabase (usuario verificado por el servidor),

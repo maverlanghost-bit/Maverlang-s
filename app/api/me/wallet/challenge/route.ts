@@ -33,9 +33,10 @@ export const dynamic = "force-dynamic";
  * - propósito, cadena y vencimiento: constantes del servidor (5 minutos).
  *
  * El cuerpo va vacío: ninguna dirección, DID o dominio del cliente se usa.
- * Sin sesión, sin token de Privy, fuera del piloto o sin la migración 0050 se
- * falla cerrado. La respuesta no es la dirección de depósito: es la billetera
- * que Privy atribuye al DID, y sólo sirve para elegir la billetera que firma.
+ * Sin sesión, sin token de Privy, sin correo verificado o sin la migración
+ * 0050 se falla cerrado. La respuesta no es la dirección de depósito: es la
+ * billetera que Privy atribuye al DID, y sólo sirve para elegir la billetera
+ * que firma.
  */
 export async function POST(req: Request) {
   return handle("private", async () => {
