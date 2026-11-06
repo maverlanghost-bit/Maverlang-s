@@ -435,6 +435,18 @@ export const en = {
     demoAddressWarn: "Do not send real funds: there is no receiving address in the demo.",
     verifiedOnly: "Verified wallet from your account.",
     noVerifiedWallet: "No verified wallet is available in your account.",
+    linkWalletTitle: "Link your wallet",
+    linkWalletBody:
+      "To deposit USDC we need to verify the wallet is yours. Sign in with Privy and sign a message: no money moves and no transaction is sent.",
+    linkWalletConnect: "Sign in with Privy",
+    linkWalletCta: "Sign and link",
+    linkWalletSignTitle: "Link your wallet",
+    linkWalletSignBody:
+      "Sign this message to prove the wallet is yours. It is not a transaction and costs nothing.",
+    linkWalletDone: "Wallet linked. You can now see your deposit address.",
+    linkWalletError: "We could not link the wallet. Please try again.",
+    linkWalletNoPrivy:
+      "Linking is unavailable in this environment because Privy is not configured. No deposit address is shown.",
     depositPilotTitle: "Internal deposit pilot",
     depositPilotBody:
       "USDC deposits are enabled only for the team, with a list of verified emails checked on the server.",

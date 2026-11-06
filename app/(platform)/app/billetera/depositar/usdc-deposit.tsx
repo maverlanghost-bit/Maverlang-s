@@ -1,10 +1,14 @@
 "use client";
 
+import { useQuery } from "@tanstack/react-query";
+
 import { DemoAddressNotice } from "@/components/domain/demo-address-notice";
 import { Card } from "@/components/ui/card";
 import { CopyButton } from "@/components/ui/copy-button";
 import { LoadingState } from "@/components/ui/loading-state";
 import { QRCode } from "@/components/ui/qr-code";
+import { LinkWalletCard } from "@/components/wallet/link-wallet-card";
+import { getWallets } from "@/lib/api/client";
 import { useSession } from "@/lib/auth";
 import { useAccountMode } from "@/lib/hooks/use-account-mode";
 import { useT } from "@/lib/hooks/use-t";
@@ -20,7 +24,17 @@ export function UsdcDeposit({
   const { t } = useT();
   const { mode } = useAccountMode();
   const session = useSession();
-  const address = receivableAddress(mode, session.user?.walletAddress);
+  // La dirección de depósito sale de `public.wallets` (servidor), no de la
+  // billetera que muestra el proveedor de sesión: sólo una fila creada por la
+  // vinculación con prueba de posesión puede mostrarse como dirección de
+  // cobro. Antes de vincular no hay fila y no hay QR.
+  const wallets = useQuery({
+    queryKey: ["me", "wallets"],
+    queryFn: getWallets,
+    enabled: mode === "real" && pilotConfigured && pilotEligible,
+    staleTime: 0,
+  });
+  const address = receivableAddress(mode, wallets.data?.primaryAddress ?? null);
   const steps = [t.wallet.depositUsdcStep1, t.wallet.depositUsdcStep2, t.wallet.depositUsdcStep3];
 
   if (session.status === "loading") return <LoadingState label={t.states.loading} />;
@@ -44,13 +58,13 @@ export function UsdcDeposit({
     );
   }
 
+  if (wallets.isPending) return <LoadingState label={t.states.loading} />;
+
   if (!address) {
-    return (
-      <Card className="flex flex-col gap-3">
-        <p className="text-fg-muted">{t.wallet.noWallet}</p>
-        <p className="text-sm leading-relaxed text-fg-muted">{t.wallet.noVerifiedWallet}</p>
-      </Card>
-    );
+    // Sin billetera vinculada y verificada no hay dirección ni QR: se ofrece
+    // el flujo real (desafío + firma con Privy). No hay alternativa "confiar
+    // en la primera vez".
+    return <LinkWalletCard />;
   }
 
   return (

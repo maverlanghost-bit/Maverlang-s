@@ -1,10 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 /**
- * Bloqueo temporal (2026-11-02): con identidad Supabase, `POST /api/me/wallet`
- * no vincula ni reasigna billeteras porque la primera asociación de un DID de
- * Privy no prueba que corresponda al usuario Supabase (TOFU). La demo en
- * memoria (`AUTH_MODE=mock`) sigue funcionando.
+ * Paso 2 del piloto: `POST /api/me/wallet` ya no responde 503 a ciegas.
+ *
+ * Lo que se fija aquí:
+ * - Con identidad Supabase, sin nonce/firma el POST sigue cerrado
+ *   (`REAL_DISABLED`) y no llama al servicio de billetera.
+ * - Con nonce y firma pero sin token de Privy → 401 y no vincula.
+ * - Con nonce, firma y token, la ruta delega en el servicio (que verifica
+ *   token ES256, billetera de Privy, consumo atómico y ed25519).
+ * - La demo en memoria (`AUTH_MODE=mock`) sigue vinculando con cuerpo vacío.
  *
  * Sin red, sin `.env` y sin Supabase real: se mockean la sesión y el store.
  */
@@ -27,18 +32,21 @@ vi.mock("@/lib/services/wallet.supabase", () => ({
 import { POST as walletPOST } from "@/app/api/me/wallet/route";
 
 const SITE = "http://localhost:3000";
-const USER = "u-wallet-lockdown";
+const USER = "u-wallet-link";
+const NONCE = "a".repeat(43);
+const SIGNATURE = "1".repeat(87);
 
-function walletRequest(cookie?: string): Request {
+function walletRequest(options: { cookie?: string; body?: string; auth?: string } = {}): Request {
   const headers: Record<string, string> = {
     "content-type": "application/json",
     origin: SITE,
   };
-  if (cookie) headers.cookie = cookie;
+  if (options.cookie) headers.cookie = options.cookie;
+  if (options.auth) headers.authorization = options.auth;
   return new Request(`${SITE}/api/me/wallet`, {
     method: "POST",
     headers,
-    body: "{}",
+    body: options.body ?? "{}",
   });
 }
 
@@ -76,31 +84,69 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe("bloqueo temporal de POST /api/me/wallet", () => {
-  it("cuenta Supabase: 503 REAL_DISABLED y no llama al store", async () => {
+describe("POST /api/me/wallet con identidad Supabase", () => {
+  it("sin nonce ni firma: 503 REAL_DISABLED y no toca el store", async () => {
     useSupabaseAuth();
     const response = await walletPOST(walletRequest());
 
     expect(response.status).toBe(503);
-    const payload = await errorPayload(response);
-    expect(payload.ok).toBe(false);
-    expect(payload.error.code).toBe("REAL_DISABLED");
-    expect(payload.error.message).toMatch(/deshabilitada temporalmente/i);
-    // Ni vincular ni reasignar: el servicio de billetera no se toca.
+    expect((await errorPayload(response)).error.code).toBe("REAL_DISABLED");
     expect(mocks.syncVerifiedPrivyWallet).not.toHaveBeenCalled();
     expect(mocks.getUserWallets).not.toHaveBeenCalled();
   });
 
-  it("Supabase con cookie demo también se bloquea (no hay bypass por modo)", async () => {
+  it("con nonce y firma pero sin token de Privy: 401 y no vincula", async () => {
     useSupabaseAuth();
-    const response = await walletPOST(walletRequest("mv_account=demo"));
+    const response = await walletPOST(
+      walletRequest({ body: JSON.stringify({ nonce: NONCE, signature: SIGNATURE }) }),
+    );
 
-    expect(response.status).toBe(503);
-    expect((await errorPayload(response)).error.code).toBe("REAL_DISABLED");
+    expect(response.status).toBe(401);
+    expect((await errorPayload(response)).error.code).toBe("UNAUTHORIZED");
     expect(mocks.syncVerifiedPrivyWallet).not.toHaveBeenCalled();
   });
 
-  it("demo en memoria (AUTH_MODE=mock): el POST sigue funcionando", async () => {
+  it("con nonce, firma y token: delega en el servicio con dominio y prueba", async () => {
+    useSupabaseAuth();
+    const response = await walletPOST(
+      walletRequest({
+        body: JSON.stringify({ nonce: NONCE, signature: SIGNATURE }),
+        auth: "Bearer privy-access-token",
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(mocks.syncVerifiedPrivyWallet).toHaveBeenCalledTimes(1);
+    const params = mocks.syncVerifiedPrivyWallet.mock.calls[0]?.[0] as Record<string, unknown>;
+    expect(params).toMatchObject({
+      userId: USER,
+      requireVerified: true,
+      proof: { nonce: NONCE, signature: SIGNATURE },
+      domain: "localhost:3000",
+    });
+    expect(mocks.getUserWallets).toHaveBeenCalledWith(USER);
+  });
+
+  it("una dirección enviada por el cliente se rechaza con 400", async () => {
+    useSupabaseAuth();
+    const response = await walletPOST(
+      walletRequest({
+        body: JSON.stringify({
+          nonce: NONCE,
+          signature: SIGNATURE,
+          address: "9xQeWvG816bUx9EPjHmaT23yvVM2ZWbrrpZb9PusVFin",
+        }),
+        auth: "Bearer privy-access-token",
+      }),
+    );
+
+    expect(response.status).toBe(400);
+    expect(mocks.syncVerifiedPrivyWallet).not.toHaveBeenCalled();
+  });
+});
+
+describe("demo en memoria", () => {
+  it("AUTH_MODE=mock sigue vinculando con cuerpo vacío", async () => {
     useMockAuth();
     const response = await walletPOST(walletRequest());
 

@@ -249,15 +249,27 @@ export function privyAccessTokenOf(req: Request): string | null {
   return readCookieValue(req.headers.get("cookie"), PRIVY_SESSION_COOKIE);
 }
 
+export interface PrivyLinkedIdentity {
+  /** DID verificado del token (no del cuerpo). */
+  userId: string;
+  /** Billetera Solana que Privy atribuye a ese DID. */
+  wallet: PrivySolanaWallet | null;
+  /**
+   * Correos que Privy tiene vinculados a la cuenta. Si hay alguno y no
+   * coincide con el correo verificado de Supabase, la vinculación se rechaza
+   * (ver `lib/services/wallet.supabase.ts`).
+   */
+  emails: string[];
+}
+
 /**
- * Billetera Solana del usuario de Privy. El `userId` debe venir de un token
- * ya verificado; nunca de un campo del cliente. Devuelve `null` si la cuenta
- * no tiene billetera Solana. Falla cerrado si falta el app secret o la API
- * no responde.
+ * Identidad completa de Privy: billetera Solana y correos vinculados. El
+ * `userId` debe venir de un token ya verificado; nunca de un campo del
+ * cliente. Falla cerrado si falta el app secret o la API no responde.
  */
-export async function fetchPrivySolanaWallet(
+export async function fetchPrivyLinkedIdentity(
   params: FetchPrivyWalletParams,
-): Promise<PrivySolanaWallet | null> {
+): Promise<PrivyLinkedIdentity> {
   const userId = params.userId.trim();
   if (!userId.startsWith("did:privy:")) {
     throw new DomainError("UNAUTHORIZED", "La identidad de Privy no es válida.");
@@ -300,7 +312,59 @@ export async function fetchPrivySolanaWallet(
       "Privy devolvió una identidad distinta a la verificada en el token.",
     );
   }
-  return extractSolanaWallet(payload);
+  return {
+    userId,
+    wallet: extractSolanaWallet(payload),
+    emails: extractPrivyEmails(payload),
+  };
+}
+
+/**
+ * Correos vinculados a la cuenta de Privy. Sólo se aceptan cuentas de tipo
+ * `email` (o el campo `email` del usuario) con una dirección no vacía; se
+ * normalizan a minúsculas para comparar. No se inventan correos ni se usa el
+ * nombre de la cuenta.
+ */
+export function extractPrivyEmails(payload: unknown): string[] {
+  const record = recordOf(payload);
+  if (!record) return [];
+  const raw: unknown[] = [];
+  if (Array.isArray(record.linked_accounts)) raw.push(...record.linked_accounts);
+  if (record.email !== undefined) raw.push(record.email);
+  const emails = new Set<string>();
+  for (const item of raw) {
+    if (typeof item === "string") {
+      const value = item.trim().toLowerCase();
+      if (value.includes("@") && !value.includes(" ")) emails.add(value);
+      continue;
+    }
+    const account = recordOf(item);
+    if (!account) continue;
+    const type = typeof account.type === "string" ? account.type : "email";
+    if (type !== "email") continue;
+    const candidate =
+      typeof account.address === "string"
+        ? account.address
+        : typeof account.email === "string"
+          ? account.email
+          : "";
+    const value = candidate.trim().toLowerCase();
+    if (value !== "" && value.includes("@") && !value.includes(" ")) emails.add(value);
+  }
+  return [...emails];
+}
+
+/**
+ * Billetera Solana del usuario de Privy. El `userId` debe venir de un token
+ * ya verificado; nunca de un campo del cliente. Devuelve `null` si la cuenta
+ * no tiene billetera Solana. Falla cerrado si falta el app secret o la API
+ * no responde.
+ */
+export async function fetchPrivySolanaWallet(
+  params: FetchPrivyWalletParams,
+): Promise<PrivySolanaWallet | null> {
+  const identity = await fetchPrivyLinkedIdentity(params);
+  return identity.wallet;
 }
 
 /**

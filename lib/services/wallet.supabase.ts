@@ -4,12 +4,36 @@ import { createHash } from "node:crypto";
 
 import { DomainError } from "@/lib/api/result";
 import { isSupabaseAuth } from "@/lib/auth/mode";
-import { assertDepositPilotAllowed, type DepositPilotIdentity } from "@/lib/deposits/pilot";
+import {
+  assertDepositPilotAllowed,
+  normalizeDepositEmail,
+  type DepositPilotIdentity,
+} from "@/lib/deposits/pilot";
 import { serverEnv } from "@/lib/env";
 import { isValidSolanaAddress } from "@/lib/solana/address";
-import { fetchPrivySolanaWallet, verifyPrivyAccessToken } from "@/lib/services/auth.privy";
+import {
+  fetchPrivyLinkedIdentity,
+  fetchPrivySolanaWallet,
+  verifyPrivyAccessToken,
+} from "@/lib/services/auth.privy";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { isMissingSchemaError } from "@/lib/supabase/schema-error";
+import {
+  buildWalletLinkMessage,
+  createWalletLinkNonce,
+  verifyWalletLinkSignature,
+  walletLinkNonceHash,
+  WALLET_LINK_CHAIN,
+  WALLET_LINK_PURPOSE,
+  WALLET_LINK_TTL_MS,
+  type WalletLinkMessageInput,
+} from "@/lib/wallet/link-challenge";
+import {
+  challengeMessageInput,
+  consumeWalletLinkChallenge,
+  insertWalletLinkChallenge,
+  purgeExpiredWalletLinkChallenges,
+} from "@/lib/wallet/link-challenge-store";
 import {
   planPrivyWalletBinding,
   PRIVY_BINDING_MIGRATION,
@@ -17,6 +41,7 @@ import {
   type WalletBindingRow,
 } from "@/lib/wallet/identity";
 import { assertWalletLinkingOpen } from "@/lib/wallet/linking-policy";
+import type { WalletLinkingProof } from "@/lib/wallet/linking-proof";
 
 /**
  * M66: billeteras Solana verificadas por usuario (`public.wallets`).
@@ -86,6 +111,15 @@ export interface PrivyWalletVerifyParams {
    * verificado y en `DEPOSIT_ALLOWLIST_EMAILS` no se vincula nada.
    */
   identity?: DepositPilotIdentity;
+  /**
+   * Desafío firmado que devolvió `/api/me/wallet/challenge`. Con identidad
+   * Supabase es obligatorio: sin nonce ni firma no se vincula.
+   */
+  proof?: WalletLinkingProof | null;
+  /** Dominio atado al mensaje. Con identidad Supabase es obligatorio. */
+  domain?: string | null;
+  /** Inyectable para tests; por defecto `new Date()`. */
+  now?: Date;
   /** Overrides sólo para tests; por defecto lee `serverEnv`/`process.env`. */
   appId?: string;
   appSecret?: string;
@@ -492,21 +526,263 @@ async function persistVerifiedWallet(userId: string, wallet: VerifiedSolanaWalle
 }
 
 /**
+ * Correo de Privy vs correo verificado de Supabase.
+ *
+ * Si Privy expone al menos un correo vinculado y la cuenta Supabase tiene
+ * correo verificado, tienen que coincidir (normalizado). Si Privy no expone
+ * correo, no hay nada que comparar: la prueba sigue siendo la firma de la
+ * billetera atada al DID. Un correo distinto se rechaza: vincular una cuenta
+ * de Privy de otra persona permitiría mezclar billeteras.
+ */
+export function assertPrivyEmailConsistency(
+  privyEmails: readonly string[] | null | undefined,
+  supabaseEmail: string | null | undefined,
+): void {
+  const own = normalizeDepositEmail(supabaseEmail);
+  if (!own) return;
+  const emails = (privyEmails ?? [])
+    .map((email) => normalizeDepositEmail(email))
+    .filter((email): email is string => email !== null);
+  if (emails.length === 0) return;
+  if (!emails.includes(own)) {
+    throw new DomainError(
+      "VALIDATION",
+      "El correo de tu cuenta de Privy no coincide con el correo verificado de esta cuenta.",
+    );
+  }
+}
+
+interface VerifiedPrivyBinding {
+  privyUserId: string;
+  address: string;
+  walletClientType: "privy" | "external";
+  privyWalletId: string | null;
+  emails: string[];
+}
+
+/**
+ * Verifica el token de Privy y resuelve la billetera que ESE DID tiene en
+ * Privy. La dirección nunca sale del cuerpo del cliente.
+ */
+async function resolveVerifiedPrivyBinding(
+  params: PrivyWalletVerifyParams,
+): Promise<VerifiedPrivyBinding> {
+  const accessToken = params.accessToken?.trim() ?? "";
+  if (accessToken === "") {
+    throw new DomainError(
+      "UNAUTHORIZED",
+      "Falta el token de Privy para verificar la billetera. Inicia sesión con Privy y vuelve a intentarlo.",
+    );
+  }
+  const config = resolvePrivyConfig(params);
+  if (config === null) {
+    throw new DomainError(
+      "UPSTREAM",
+      "No se puede verificar la billetera: faltan NEXT_PUBLIC_PRIVY_APP_ID o PRIVY_APP_SECRET en el servidor.",
+    );
+  }
+  const claims = await verifyPrivyAccessToken({
+    accessToken,
+    appId: config.appId,
+    verificationKey: params.verificationKey,
+  });
+  const identity = await fetchPrivyLinkedIdentity({
+    userId: claims.userId,
+    appId: config.appId,
+    appSecret: config.appSecret,
+    fetchImpl: params.fetchImpl,
+  });
+  if (identity.wallet === null) {
+    throw new DomainError("VALIDATION", "Tu cuenta de Privy no tiene una billetera Solana verificada.");
+  }
+  if (!isValidSolanaAddress(identity.wallet.address)) {
+    throw new DomainError("VALIDATION", "La billetera Solana devuelta por Privy no es válida.");
+  }
+  return {
+    privyUserId: claims.userId,
+    address: identity.wallet.address,
+    walletClientType: identity.wallet.walletClientType,
+    privyWalletId: identity.wallet.privyWalletId,
+    emails: identity.emails,
+  };
+}
+
+export interface WalletLinkChallengeIssued {
+  nonce: string;
+  message: string;
+  address: string;
+  chain: typeof WALLET_LINK_CHAIN;
+  purpose: typeof WALLET_LINK_PURPOSE;
+  domain: string;
+  issuedAt: string;
+  expiresAt: string;
+}
+
+/**
+ * Emite un desafío de vinculación. Sólo con identidad Supabase y piloto
+ * habilitado: la identidad (usuario + correo verificado) y la billetera (DID
+ * de Privy) salen del servidor, nunca del cuerpo. El nonce se guarda hasheado;
+ * el mensaje exacto se devuelve al cliente para que lo firme.
+ */
+export async function issueWalletLinkChallenge(
+  params: PrivyWalletVerifyParams & { domain: string },
+): Promise<WalletLinkChallengeIssued> {
+  if (!isSupabaseAuth()) {
+    throw new DomainError(
+      "REAL_DISABLED",
+      "La vinculación de billetera sólo está disponible con una cuenta real.",
+    );
+  }
+  assertDepositPilotAllowed({
+    email: params.identity?.email,
+    emailVerified: params.identity?.emailVerified,
+  });
+  const binding = await resolveVerifiedPrivyBinding(params);
+  assertPrivyEmailConsistency(binding.emails, params.identity?.email);
+
+  const now = params.now ?? new Date();
+  const issuedAt = now.toISOString();
+  const expiresAt = new Date(now.getTime() + WALLET_LINK_TTL_MS).toISOString();
+  const nonce = createWalletLinkNonce();
+  const messageInput: WalletLinkMessageInput = {
+    domain: params.domain,
+    userId: params.userId,
+    privyUserId: binding.privyUserId,
+    address: binding.address,
+    nonce,
+    issuedAt,
+    expiresAt,
+  };
+  const message = buildWalletLinkMessage(messageInput);
+
+  const admin = adminWalletClient();
+  await purgeExpiredWalletLinkChallenges(admin, params.userId, now);
+  await insertWalletLinkChallenge(admin, {
+    nonceHash: walletLinkNonceHash(nonce),
+    userId: params.userId,
+    privyUserId: binding.privyUserId,
+    address: binding.address,
+    domain: messageInput.domain,
+    issuedAt,
+    expiresAt,
+    message,
+  });
+
+  return {
+    nonce,
+    message,
+    address: binding.address,
+    chain: WALLET_LINK_CHAIN,
+    purpose: WALLET_LINK_PURPOSE,
+    domain: messageInput.domain,
+    issuedAt,
+    expiresAt,
+  };
+}
+
+/**
+ * Vincula la billetera sólo después de consumir el desafío y verificar la
+ * firma ed25519. Orden: piloto → token/DID → billetera de Privy → correo →
+ * consumo atómico del nonce → mensaje exacto → firma → persistencia única.
+ *
+ * El consumo ocurre antes de verificar la firma: una firma inválida quema el
+ * nonce (falla cerrado), y dos requests concurrentes con el mismo nonce sólo
+ * pueden consumirlo una vez. Si la persistencia falla después, el usuario
+ * pide un desafío nuevo; nunca queda una vinculación a medias.
+ */
+export async function linkVerifiedPrivyWallet(
+  params: PrivyWalletVerifyParams & { proof: WalletLinkingProof; domain: string },
+): Promise<StoredWallet> {
+  if (!isSupabaseAuth()) {
+    throw new DomainError(
+      "REAL_DISABLED",
+      "La vinculación de billetera sólo está disponible con una cuenta real.",
+    );
+  }
+  assertDepositPilotAllowed({
+    email: params.identity?.email,
+    emailVerified: params.identity?.emailVerified,
+  });
+  assertWalletLinkingOpen(params.proof);
+  const binding = await resolveVerifiedPrivyBinding(params);
+  assertPrivyEmailConsistency(binding.emails, params.identity?.email);
+
+  const admin = adminWalletClient();
+  const consumed = await consumeWalletLinkChallenge(admin, {
+    nonce: params.proof.nonce,
+    userId: params.userId,
+    privyUserId: binding.privyUserId,
+    address: binding.address,
+    domain: params.domain,
+    now: params.now,
+  });
+  if (consumed === null) {
+    // Mismo mensaje para inexistente, vencido, usado o mal atado: no se filtra
+    // cuál de los cuatro falló.
+    throw new DomainError(
+      "UNAUTHORIZED",
+      "La prueba de la billetera no es válida o venció. Vuelve a intentarlo.",
+    );
+  }
+
+  const expectedMessage = buildWalletLinkMessage(
+    challengeMessageInput(consumed, {
+      domain: params.domain,
+      userId: params.userId,
+      privyUserId: binding.privyUserId,
+      address: binding.address,
+      nonce: params.proof.nonce,
+    }),
+  );
+  if (expectedMessage !== consumed.message) {
+    throw new DomainError("UNAUTHORIZED", "La prueba de la billetera no corresponde a esta cuenta.");
+  }
+  if (
+    !verifyWalletLinkSignature({
+      message: consumed.message,
+      address: binding.address,
+      signature: params.proof.signature,
+    })
+  ) {
+    throw new DomainError("UNAUTHORIZED", "La firma de la billetera no es válida.");
+  }
+
+  return persistSupabaseWallet(params.userId, {
+    address: binding.address,
+    chain: "solana",
+    walletClientType: binding.walletClientType,
+    privyWalletId: binding.privyWalletId,
+    privyUserId: binding.privyUserId,
+    source: "privy",
+  });
+}
+
+/**
  * Verifica (Privy o, sólo en demo, mock determinista) y persiste en
  * `public.wallets`. La dirección guardada sale SIEMPRE de
  * `verifyPrivySolanaWallet`; el cuerpo del cliente no aporta direcciones.
+ *
+ * Con identidad Supabase delega en `linkVerifiedPrivyWallet`: exige desafío
+ * firmado, piloto habilitado y billetera de Privy. La demo en memoria
+ * (`AUTH_MODE=mock`) conserva su billetera determinista y no usa este flujo.
  */
 export async function syncVerifiedPrivyWallet(params: PrivyWalletSyncParams): Promise<StoredWallet> {
-  // Piloto interno (servidor): con identidad Supabase, vincular exige correo
-  // verificado del usuario y presente en la lista. Es una excepción acotada,
-  // no un relajamiento global de KYC; el bloqueo TOFU de abajo sigue intacto.
   if (isSupabaseAuth()) {
-    assertDepositPilotAllowed({ email: params.identity?.email, emailVerified: params.identity?.emailVerified });
+    if (!params.proof || !params.domain) {
+      // Defensa en profundidad: la ruta ya exige ambos, pero el servicio no
+      // puede quedar abierto para un llamador futuro.
+      assertWalletLinkingOpen(params.proof);
+      throw new DomainError(
+        "VALIDATION",
+        "La vinculación exige el desafío firmado de tu billetera y su dominio.",
+      );
+    }
+    return linkVerifiedPrivyWallet({
+      ...params,
+      proof: params.proof,
+      domain: params.domain,
+    });
   }
-  // Defensa en profundidad: la ruta ya bloquea toda identidad Supabase, pero
-  // el servicio también falla cerrado para que otro llamador futuro no pueda
-  // crear la asociación TOFU saltándose el bloqueo.
-  assertWalletLinkingOpen();
   const verified = await verifyPrivySolanaWallet(params);
   return persistVerifiedWallet(params.userId, verified);
 }

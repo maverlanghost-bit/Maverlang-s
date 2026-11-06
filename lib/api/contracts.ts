@@ -410,12 +410,47 @@ export const deletionStatusSchema = z.object({
 });
 
 /**
- * M66: billeteras verificadas del usuario. `address` NO existe aquí a
- * propósito: la dirección guardada sale siempre de la verificación en
- * servidor contra Privy (`syncVerifiedPrivyWallet`); una `address` enviada
- * por el cliente es rechazada con 400 por `.strict()` y jamás persiste.
+ * M66 + paso 2 del piloto: billeteras verificadas del usuario. `address` NO
+ * existe aquí a propósito: la dirección guardada sale siempre de la
+ * verificación en servidor contra Privy. El cliente sólo aporta el nonce que
+ * le emitió `/api/me/wallet/challenge` y la firma ed25519 del mensaje exacto;
+ * cualquier `address` enviada por el cliente se rechaza con 400 por `.strict()`
+ * y jamás persiste. Con identidad Supabase ambos campos son obligatorios
+ * (la ruta lo exige); en la demo el cuerpo puede ir vacío.
  */
-export const walletSyncRequestSchema = z.object({}).strict();
+export const walletSyncRequestSchema = z
+  .object({
+    /** Nonce emitido por `POST /api/me/wallet/challenge`. */
+    nonce: z
+      .string()
+      .trim()
+      .regex(/^[A-Za-z0-9_-]{43}$/)
+      .optional(),
+    /** Firma ed25519 en base58 (64 bytes). */
+    signature: z.string().trim().min(80).max(128).optional(),
+  })
+  .strict()
+  .refine((value) => (value.nonce === undefined) === (value.signature === undefined), {
+    message: "nonce y signature van juntos",
+  });
+
+/** POST /api/me/wallet/challenge: sin cuerpo. */
+export const walletChallengeRequestSchema = z.object({}).strict();
+
+/** Desafío emitido: mensaje exacto que el cliente firma con su billetera. */
+export const walletChallengeResponseSchema = z
+  .object({
+    nonce: z.string().regex(/^[A-Za-z0-9_-]{43}$/),
+    message: z.string().min(1).max(2048),
+    /** Billetera que Privy atribuye al DID verificado (no es aún la de depósito). */
+    address: z.string().min(32),
+    chain: z.literal("solana"),
+    purpose: z.literal("wallet_link"),
+    domain: z.string().min(1).max(259),
+    issuedAt: isoTimeSchema,
+    expiresAt: isoTimeSchema,
+  })
+  .strict();
 
 export const storedWalletSchema = z.object({
   userId: z.string().min(1),
@@ -721,6 +756,10 @@ export const apiContracts = {
   "POST /api/me/deletion": { body: deletionRequestSchema, response: deletionStatusSchema },
   "GET /api/me/wallet": { response: walletsResponseSchema },
   "POST /api/me/wallet": { body: walletSyncRequestSchema, response: walletsResponseSchema },
+  "POST /api/me/wallet/challenge": {
+    body: walletChallengeRequestSchema,
+    response: walletChallengeResponseSchema,
+  },
   "GET /api/me/preferences": { response: preferencesSchema },
   "PUT /api/me/preferences": { body: preferencesSchema, response: preferencesSchema },
   "GET /api/me/favorites": { response: favoritesResponseSchema },

@@ -27,6 +27,9 @@ import {
   tradeQuoteSchema,
   tradeSubmitResponseSchema,
   userProfileSchema,
+  walletChallengeResponseSchema,
+  walletsResponseSchema,
+  walletSyncRequestSchema,
   type ConsentRequest,
   type DeletionStatus,
   type ProfileUpdate,
@@ -378,4 +381,37 @@ export function getFavorites(): Promise<string[]> {
 
 export function setFavorites(symbols: string[]): Promise<string[]> {
   return send("PUT", "/api/me/favorites", favoritesResponseSchema, { symbols });
+}
+
+/** Billeteras verificadas en el servidor (nunca la billetera demo). */
+export function getWallets(): Promise<z.infer<typeof walletsResponseSchema>> {
+  return request("/api/me/wallet", walletsResponseSchema, { cache: "no-store" });
+}
+
+/**
+ * Paso 1 de la vinculación: el servidor emite un nonce y el mensaje exacto.
+ * El token de Privy va en `Authorization` (nunca en la URL ni en el cuerpo).
+ */
+export function requestWalletLinkChallenge(
+  privyAccessToken: string,
+): Promise<z.infer<typeof walletChallengeResponseSchema>> {
+  return request("/api/me/wallet/challenge", walletChallengeResponseSchema, {
+    method: "POST",
+    body: "{}",
+    cache: "no-store",
+    headers: { authorization: `Bearer ${privyAccessToken}` },
+  });
+}
+
+/** Paso 2: envía el nonce y la firma ed25519 del mensaje. */
+export function linkWallet(
+  body: z.infer<typeof walletSyncRequestSchema>,
+  privyAccessToken: string,
+): Promise<z.infer<typeof walletsResponseSchema>> {
+  return request("/api/me/wallet", walletsResponseSchema, {
+    method: "POST",
+    body: JSON.stringify(body),
+    cache: "no-store",
+    headers: { authorization: `Bearer ${privyAccessToken}` },
+  });
 }

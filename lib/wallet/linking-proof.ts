@@ -1,71 +1,44 @@
 /**
- * Prueba de correspondencia Supabase ↔ Privy (T36).
+ * Prueba de posesión de billetera (paso 2 del piloto de depósitos).
  *
- * El bloqueo TOFU de `lib/wallet/linking-policy.ts` existe porque tener a la
- * vez una sesión Supabase y un access token de Privy sólo demuestra posesión
- * simultánea, no que ambas identidades sean la misma persona. La única prueba
- * que podría levantar ese bloqueo es distinta de las que ya existen: el usuario
- * firma con su billetera un nonce que el servidor mostró **dentro de su sesión
- * Supabase**. Así la firma queda atada a la sesión, no sólo al token de Privy.
+ * El cliente NO elige la dirección ni el DID: el servidor los deriva del
+ * token de Privy y del usuario de Supabase. El cliente sólo aporta el nonce
+ * que el servidor le emitió y la firma ed25519 del mensaje exacto.
  *
- * Este módulo define el tipo y la forma del mensaje, y nada más. La
- * verificación criptográfica **no está implementada**: `hasWalletLinkingProof`
- * devuelve siempre `false`. No se verifica ninguna firma, no se llama a Privy
- * ni a Solana y no se guarda ningún secreto. Tampoco se emite ni se persiste el
- * nonce: emitirlo y verificarlo es el cambio posterior que revisará el bloqueo.
+ * Este módulo comprueba la FORMA (nonce y firma con pinta de base58). No
+ * verifica criptografía ni consume el nonce: eso ocurre en el servidor, en
+ * `lib/wallet/link-challenge.ts` y `lib/wallet/link-challenge-store.ts`.
+ * Una prueba bien formada no habilita nada por sí sola; sólo permite intentar
+ * la verificación real.
  */
 
-/** Único tipo de prueba aceptado como candidato a levantar el bloqueo. */
-export const WALLET_LINKING_PROOF_KIND = "wallet_nonce_signature" as const;
-
-/**
- * Prueba declarada por el cliente. Todos los campos son texto exacto:
- * - `nonce`: el que el servidor mostró en la sesión Supabase (aún no se emite).
- * - `address`: billetera Solana que firmó, en base58 (distingue mayúsculas).
- * - `signature`: firma serializada en base58.
- */
 export interface WalletLinkingProof {
-  kind: typeof WALLET_LINKING_PROOF_KIND;
+  /** Nonce emitido por el servidor (base64url de 32 bytes). */
   nonce: string;
-  address: string;
+  /** Firma ed25519 del mensaje, en base58 (64 bytes → 86-88 caracteres). */
   signature: string;
 }
 
-/**
- * Mensaje exacto que el usuario firmaría. Determinista y sin marcas de tiempo:
- * el nonce ya es único y la vigencia la decidiría el emisor del nonce, no este
- * texto. Sirve para documentar el formato; nada lo firma todavía.
- */
-export function walletLinkingProofMessage(nonce: string): string {
-  return `Maverlang: vincula esta billetera a tu cuenta.\nNonce: ${nonce.trim()}`;
-}
+const NONCE_PATTERN = /^[A-Za-z0-9_-]{43}$/;
+const BASE58_SIGNATURE_PATTERN = /^[1-9A-HJ-NP-Za-km-z]{86,88}$/;
 
-/** Comprueba sólo la forma del objeto. No valida la firma ni su contenido. */
+/** Comprueba sólo la forma. No valida la firma ni su contenido. */
 export function isWellFormedWalletLinkingProof(value: unknown): value is WalletLinkingProof {
   if (typeof value !== "object" || value === null) return false;
   const candidate = value as Partial<Record<keyof WalletLinkingProof, unknown>>;
   return (
-    candidate.kind === WALLET_LINKING_PROOF_KIND &&
     typeof candidate.nonce === "string" &&
-    candidate.nonce.trim() !== "" &&
-    typeof candidate.address === "string" &&
-    candidate.address.trim() !== "" &&
+    NONCE_PATTERN.test(candidate.nonce) &&
     typeof candidate.signature === "string" &&
-    candidate.signature.trim() !== ""
+    BASE58_SIGNATURE_PATTERN.test(candidate.signature)
   );
 }
 
 /**
- * ¿Hay una prueba de correspondencia verificada?
- *
- * Siempre `false`, a propósito. Sin verificación de la firma contra el nonce
- * emitido en la sesión, un objeto bien formado es sólo una afirmación del
- * cliente: aceptarlo reabriría exactamente el TOFU que el bloqueo cierra. La
- * firma se revisará en un cambio posterior; hasta entonces esta función no
- * puede devolver `true`, ni siquiera con una prueba completa.
+ * Alias histórico: responde si la prueba está declarada con la forma
+ * correcta. NO significa "verificada": la verificación es asíncrona (consume
+ * el nonce y comprueba ed25519) y vive en el servicio de billetera.
  */
 export function hasWalletLinkingProof(proof?: unknown): boolean {
-  // La forma se puede mirar sin criptografía; su resultado no habilita nada.
-  void isWellFormedWalletLinkingProof(proof);
-  return false;
+  return isWellFormedWalletLinkingProof(proof);
 }

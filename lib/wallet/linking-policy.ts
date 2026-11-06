@@ -1,42 +1,37 @@
 import { DomainError } from "@/lib/api/result";
 import { isSupabaseAuth } from "@/lib/auth/mode";
-import { hasWalletLinkingProof } from "@/lib/wallet/linking-proof";
+import { isWellFormedWalletLinkingProof } from "@/lib/wallet/linking-proof";
 
 /**
  * Política de vinculación Supabase ↔ Privy.
  *
- * La primera asociación de un DID de Privy a una cuenta Supabase sólo
- * demuestra posesión simultánea de una sesión Supabase y un token de Privy
- * vigente; no demuestra que ambas identidades sean la misma persona (TOFU).
- * Mientras no exista una prueba verificable de correspondencia, la
- * vinculación real queda cerrada.
+ * Regla: con identidad Supabase, vincular exige una prueba declarada
+ * (`{ nonce, signature }`) y, después, la verificación real en servidor:
+ * token de Privy ES256, billetera de la API de Privy, consumo atómico del
+ * nonce y firma ed25519. Sin prueba no se intenta nada; con una prueba mal
+ * formada tampoco. Una prueba bien formada NO autoriza por sí sola: sólo abre
+ * la puerta a la verificación. No existe camino sin firma.
  *
- * T36: esa prueba ya tiene tipo (`lib/wallet/linking-proof.ts`), pero no
- * verificación. `hasWalletLinkingProof` devuelve siempre `false`, así que
- * pasar un nonce o una firma no cambia el resultado: Supabase sigue cerrado.
- *
- * La regla vive en un módulo propio y se aplica tanto en la ruta
- * (`POST /api/me/wallet`) como en el servicio que persiste la billetera, para
- * que un llamador futuro no pueda saltarse el bloqueo.
+ * La demo en memoria (`AUTH_MODE=mock`) no usa este flujo: su billetera es
+ * determinista y no representa fondos reales.
  */
 
 export const WALLET_LINKING_LOCKED_MESSAGE =
-  "La vinculación de billetera está deshabilitada temporalmente. No se vinculó ni reasignó ninguna billetera.";
+  "La vinculación de billetera exige una prueba firmada de tu billetera. No se vinculó ni reasignó ninguna billetera.";
 
 /**
- * `true` cuando hay identidad Supabase y no hay prueba verificada de que sea
- * la misma persona. Hoy equivale a `isSupabaseAuth()`: la prueba no existe.
+ * `true` cuando hay identidad Supabase y no llegó una prueba con la forma
+ * correcta. La verificación criptográfica no se hace aquí.
  */
 export function walletLinkingLocked(proof?: unknown): boolean {
   if (!isSupabaseAuth()) return false;
-  return !hasWalletLinkingProof(proof);
+  return !isWellFormedWalletLinkingProof(proof);
 }
 
 /**
- * Falla cerrado si la identidad es Supabase y no hay prueba verificada. La
- * demo en memoria sigue igual. Una prueba declarada en el cuerpo no basta:
- * sin verificación de la firma contra un nonce emitido en la sesión, es sólo
- * una afirmación del cliente.
+ * Falla cerrado si la identidad es Supabase y falta la prueba declarada. La
+ * ruta llama a esta guardia antes de tocar servicios; el servicio la repite
+ * para que un llamador futuro no pueda saltarse el requisito.
  */
 export function assertWalletLinkingOpen(proof?: unknown): void {
   if (walletLinkingLocked(proof)) {

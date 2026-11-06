@@ -13,7 +13,9 @@ import { withRateLimit } from "@/lib/security/rate-limit";
 import { getServices } from "@/lib/services";
 import { privyAccessTokenOf } from "@/lib/services/auth.privy";
 import { getUserWallets, syncVerifiedPrivyWallet, type StoredWallet } from "@/lib/services/wallet.supabase";
+import { walletLinkDomainOf } from "@/lib/wallet/link-challenge";
 import { assertWalletLinkingOpen } from "@/lib/wallet/linking-policy";
+import type { WalletLinkingProof } from "@/lib/wallet/linking-proof";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -21,26 +23,20 @@ export const dynamic = "force-dynamic";
 /**
  * M66: billeteras verificadas del usuario (§2.4). `handle("private")` emite
  * `Cache-Control: private, no-store`: datos por usuario, nunca cacheables.
- * La dirección no viaja en el cuerpo: la verifica el servidor contra Privy
- * (`syncVerifiedPrivyWallet`); el POST acepta un cuerpo vacío y nada más.
+ * La dirección no viaja en el cuerpo: la verifica el servidor contra Privy.
  *
- * Con identidad Supabase se exige además el access token de Privy (header
- * `Authorization: Bearer` o cookie `privy-token`), verificado con firma ES256.
- * Sin token, sin clave de verificación o sin app secret no se vincula nada.
- * El DID verificado se persiste en `wallets.privy_user_id` (0040): un DID no
- * se puede reasignar a otra cuenta ni una cuenta puede cambiar de DID. Si la
- * migración no está aplicada, el POST real falla cerrado y no guarda nada.
- *
- * BLOQUEO TEMPORAL (2026-11-02): con identidad Supabase el POST responde
- * 503 `REAL_DISABLED` y queda cerrado.
- * La primera asociación de un DID de Privy sólo demuestra posesión simultánea
- * de una sesión Supabase y de un token de Privy, no que ambas identidades sean
- * la misma persona (TOFU). Mientras no exista una prueba verificable de esa
- * correspondencia, este endpoint no vincula ni reasigna nada. El bloqueo cubre
- * toda identidad Supabase (incluida `mv_account=demo`), porque la fila de
- * `public.wallets` se comparte con la cuenta real y permitir la demo sería un
- * bypass trivial. La demo en memoria (`AUTH_MODE=mock`) sigue funcionando.
- * GET no cambia: sólo lee las billeteras ya vinculadas.
+ * Paso 2 del piloto de depósitos — vinculación con prueba de posesión:
+ * - GET sólo lee las billeteras ya vinculadas.
+ * - POST exige, con identidad Supabase, el nonce emitido por
+ *   `POST /api/me/wallet/challenge` y la firma ed25519 del mensaje exacto.
+ *   El servidor verifica el token ES256 de Privy, lee la billetera de la API
+ *   de Privy para el DID verificado, consume el nonce de forma atómica (un
+ *   solo uso) y comprueba la firma antes de persistir. Una sesión Supabase y
+ *   un token de Privy juntos NO bastan (TOFU): sin firma no hay vinculación.
+ * - El DID se persiste en `wallets.privy_user_id` (0040) con índice único, y
+ *   la dirección es única por cadena (0029): ni un DID ni una billetera se
+ *   reasignan a otra cuenta. El desafío vive en la migración 0050.
+ * - Si falta la migración 0050 o 0040, el POST falla cerrado y no guarda nada.
  */
 
 function walletsPayload(
@@ -67,17 +63,19 @@ export async function POST(req: Request) {
     assertSameOrigin(req);
     const services = getServices();
     const session = await requireSession(services, req);
-    // Bloqueo temporal cerrado: ninguna cuenta Supabase vincula ni reasigna.
-    // Se ejecuta antes de leer el cuerpo y de llamar a cualquier servicio.
-    // T36: un nonce o una firma en el cuerpo no se leen aquí ni cambian el
-    // resultado; la prueba (`lib/wallet/linking-proof.ts`) no se verifica aún.
-    assertWalletLinkingOpen();
     // Esquema estricto: cualquier `address` del cliente se rechaza con 400 y
-    // jamás llega a la base. La guardada sale de la verificación en servidor.
-    await parseJson(req, walletSyncRequestSchema);
-    const userLimited = await withRateLimit(req, "me", [session.userId]);
-    if (userLimited) return userLimited;
+    // jamás llega a la base. Sólo se aceptan nonce y firma.
+    const body = await parseJson(req, walletSyncRequestSchema);
+    const proof: WalletLinkingProof | undefined =
+      body.nonce !== undefined && body.signature !== undefined
+        ? { nonce: body.nonce, signature: body.signature }
+        : undefined;
     const requireVerified = isSupabaseAuth();
+    // Sin prueba declarada no se sigue: con identidad Supabase la vinculación
+    // sin firma está cerrada (REAL_DISABLED). El servicio repite la guardia.
+    if (requireVerified) assertWalletLinkingOpen(proof);
+    const userLimited = await withRateLimit(req, "walletLink", [session.userId]);
+    if (userLimited) return userLimited;
     const accessToken = privyAccessTokenOf(req);
     if (requireVerified && !accessToken) {
       throw new DomainError(
@@ -85,6 +83,9 @@ export async function POST(req: Request) {
         "Falta el token de Privy para vincular la billetera. Inicia sesión con Privy y vuelve a intentarlo.",
       );
     }
+    // Dominio atado al mensaje: el mismo que nombró el desafío. Se deriva del
+    // sitio canónico, nunca de un campo del cliente.
+    const domain = requireVerified ? walletLinkDomainOf(req) : null;
     await callService(req, () =>
       syncVerifiedPrivyWallet({
         userId: session.userId,
@@ -93,6 +94,8 @@ export async function POST(req: Request) {
         // Piloto interno: la identidad sale de Supabase Auth (correo
         // verificado), nunca del cuerpo ni de una cabecera del cliente.
         identity: { email: session.email, emailVerified: session.emailVerified },
+        proof,
+        domain,
       }),
     );
     const wallets = await getUserWallets(session.userId);

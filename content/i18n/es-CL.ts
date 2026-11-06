@@ -439,6 +439,18 @@ export const esCL = {
     demoAddressWarn: "No envíes fondos reales: no hay una dirección de cobro en la demo.",
     verifiedOnly: "Billetera verificada de tu cuenta.",
     noVerifiedWallet: "No hay una billetera verificada disponible en tu cuenta.",
+    linkWalletTitle: "Vincula tu billetera",
+    linkWalletBody:
+      "Para depositar USDC necesitamos comprobar que la billetera es tuya. Inicia sesión con Privy y firma un mensaje: no se mueve dinero ni se envía ninguna transacción.",
+    linkWalletConnect: "Iniciar sesión con Privy",
+    linkWalletCta: "Firmar y vincular",
+    linkWalletSignTitle: "Vincula tu billetera",
+    linkWalletSignBody:
+      "Firma este mensaje para demostrar que la billetera es tuya. No es una transacción y no tiene costo.",
+    linkWalletDone: "Billetera vinculada. Ya puedes ver tu dirección de depósito.",
+    linkWalletError: "No se pudo vincular la billetera. Inténtalo de nuevo.",
+    linkWalletNoPrivy:
+      "La vinculación no está disponible en este entorno porque falta configurar Privy. No se muestra ninguna dirección de depósito.",
     depositPilotTitle: "Piloto interno de depósitos",
     depositPilotBody:
       "Los depósitos en USDC están habilitados sólo para el equipo, con una lista de correos verificados que se revisa en el servidor.",
