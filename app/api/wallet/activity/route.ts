@@ -8,6 +8,7 @@ import {
   isRealAccountRequest,
   isUserDemoRequest,
 } from "@/lib/api/handler";
+import { serverEnv } from "@/lib/env";
 import { withRateLimit } from "@/lib/security/rate-limit";
 import { getServices } from "@/lib/services";
 import { demoSupabase } from "@/lib/services/demo.supabase";
@@ -21,7 +22,17 @@ export function GET(req: Request) {
     const session = await requireSession(services, req);
     const userLimited = await withRateLimit(req, "me", [session.userId]);
     if (userLimited) return userLimited;
-    if (isRealAccountRequest(req)) return readOutput(activityResponseSchema, []);
+    if (isRealAccountRequest(req)) {
+      const walletAddress = session.walletAddress;
+      // Sólo con DATA_MODE=live y wallet vinculada hay actividad real on-chain.
+      if (serverEnv.DATA_MODE === "live" && walletAddress) {
+        const data = await callService(req, () =>
+          services.portfolio.activity({ address: walletAddress, userId: session.userId }),
+        );
+        return readOutput(activityResponseSchema, data);
+      }
+      return readOutput(activityResponseSchema, []);
+    }
     if (isUserDemoRequest(req)) {
       const data = await callService(req, () => demoSupabase.getActivity(session.userId));
       return readOutput(activityResponseSchema, data);

@@ -76,7 +76,8 @@ export interface Services {
     status(id: string): Promise<Order>;
   };
   portfolio: {
-    get(address: string): Promise<Portfolio>;
+    /** T43: `userId` opcional para calcular costo medio y P&L con las órdenes. */
+    get(address: string, userId?: string): Promise<Portfolio>;
     balances(address: string): Promise<Balance[]>;
     activity(input: { address: string; userId: string }): Promise<Activity[]>;
     sendBuild(request: SendBuildRequest): Promise<TradeBuildResponse>;

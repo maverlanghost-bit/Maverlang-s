@@ -139,6 +139,10 @@ export interface TradeQuote {
   priceDeviationBps: number;
   expiresAt: string;
   route: "jupiter" | "mock";
+  /** T43: dólar observado usado cuando la compra se pidió en CLP. */
+  fx?: number;
+  /** T43: total estimado en pesos (inAmountUi × fx), redondeado a peso. */
+  estimatedTotalClp?: number;
 }
 
 export interface TradeBuildRequest {

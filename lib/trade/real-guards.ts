@@ -8,11 +8,13 @@ import "server-only";
  *
  * - Bloqueo de ejecución real (auditoría 2026-11): las reservas atómicas
  *   (0042), la revalidación de montos en build/submit y la huella de la
- *   transacción armada ya existen, pero la compuerta sigue cerrada hasta
- *   completar la verificación integral (migración aplicada, conciliación de
- *   reservas, pruebas contra Supabase real y revisión externa). TODA
- *   operación real responde 503 REAL_DISABLED, incluso con
- *   `REAL_TRADING_READY=true`. La demo no pasa por estas guardias.
+ *   transacción armada ya existen. El candado sigue cerrado por defecto y el
+ *   desbloqueo es controlado: sólo se abre con `REAL_EXECUTION_UNLOCKED=true`
+ *   en el servidor, y aun así toda operación real sigue pasando por las
+ *   compuertas de Supabase (compliance_config, system_flags, beta, límites y
+ *   reservas 0042). Sin esa variable, TODA operación real responde 503
+ *   REAL_DISABLED, incluso con `REAL_TRADING_READY=true`. La demo no pasa por
+ *   estas guardias.
  * - Motor live obligatorio: con `DATA_MODE != live` la cuenta real responde
  *   503 REAL_DISABLED (nunca se opera dinero real contra el motor mock).
  * - Coherencia de la declaración (DB-03): la versión que exige y persiste
@@ -67,24 +69,42 @@ import {
 } from "@/lib/trade/reservations";
 
 /**
- * Bloqueo explícito de la ejecución real (auditoría 2026-11).
+ * Bloqueo explícito de la ejecución real (auditoría 2026-11), con desbloqueo
+ * controlado: el default es fail-closed y sólo se abre con
+ * `REAL_EXECUTION_UNLOCKED=true` en el servidor.
  *
- * La reserva atómica de cupo (migración 0042), la revalidación de montos de
- * build, la comparación mensaje-armado/mensaje-firmado y la liberación de
- * reservas en la conciliación ya están implementadas. Aun así el bloqueo
- * sigue en `true`: falta aplicar 0042 en un entorno de pruebas, correr la
- * conciliación contra Supabase real y completar la verificación integral de
- * seguridad. El flag es una compuerta de código, no una variable de entorno.
+ * La variable por sí sola NO autoriza nada. La reserva atómica de cupo
+ * (migración 0042), la revalidación de montos de build, la comparación
+ * mensaje-armado/mensaje-firmado y la liberación de reservas en la
+ * conciliación ya están implementadas, y detrás del candado siguen corriendo
+ * las compuertas de Supabase: coherencia de `compliance_config` con
+ * `US_PERSON_DECLARATION_VERSION` (DB-03), `system_flags`
+ * (`trading_enabled` / `withdrawals_enabled`), beta cerrada, límites por
+ * orden/día/mes/global y las reservas de la 0042. Cualquier lectura caída
+ * falla cerrado con 503 REAL_DISABLED.
+ *
+ * Se lee al cargar el módulo: cambiarla exige reiniciar el proceso (o un
+ * nuevo despliegue). Ausente o distinta de "true" = candado cerrado.
  */
-export const REAL_EXECUTION_LOCKED: boolean = true;
+export const REAL_EXECUTION_LOCKED: boolean =
+  process.env.REAL_EXECUTION_UNLOCKED !== "true";
+
+/**
+ * Estado vivo del candado, releído en cada llamada. Así un desbloqueo o un
+ * rollback no dependen de volver a cargar el candado de módulo.
+ */
+export function isRealExecutionLocked(): boolean {
+  return process.env.REAL_EXECUTION_UNLOCKED !== "true" && REAL_EXECUTION_LOCKED;
+}
 
 /**
  * Corta cualquier operación real antes de leer flags, límites o tocar el
- * motor. Lanza siempre 503 REAL_DISABLED mientras `REAL_EXECUTION_LOCKED`
- * sea `true`; la demo no llama a esta función.
+ * motor. Con el candado cerrado lanza 503 REAL_DISABLED; con el desbloqueo
+ * controlado devuelve el paso para que se evalúen las compuertas de Supabase.
+ * La demo no llama a esta función.
  */
 export function assertRealExecutionLocked(): void {
-  if (!REAL_EXECUTION_LOCKED) return;
+  if (!isRealExecutionLocked()) return;
   throw new DomainError("REAL_DISABLED");
 }
 

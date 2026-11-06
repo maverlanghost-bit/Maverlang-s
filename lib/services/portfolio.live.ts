@@ -16,13 +16,17 @@ import type {
   TradeBuildResponse,
 } from "@/lib/types";
 import { getServerConnection } from "@/lib/solana/connection";
-import { classifyMint, tickerByMint } from "@/lib/solana/allowlist";
+import { classifyMint, NATIVE_SOL_MINT, tickerByMint } from "@/lib/solana/allowlist";
 import { fetchMintMultiplier, rawToShares, sharesToRaw } from "@/lib/solana/scaled-ui";
 import { USDC_MINT } from "@/config/tickers";
 import { livePrices } from "@/lib/services/prices.live";
 import { isValidSolanaAddress } from "@/lib/solana/address";
 import { DomainError } from "@/lib/api/result";
-import { listOrdersForActivity } from "@/lib/services/orders.supabase";
+import { listOrdersForActivity, type OrderRow } from "@/lib/services/orders.supabase";
+import {
+  walletMovementsStore,
+  type WalletMovementRow,
+} from "@/lib/services/wallet-movements.supabase";
 import { insertCryptoDeposit, listDepositSignatures } from "@/lib/services/deposits.supabase";
 import {
   indexSolanaUsdcDeposits,
@@ -40,6 +44,67 @@ import { getDefaultWithdrawalStore, reserveWithdrawal } from "@/lib/wallet/withd
 
 const USDC_DECIMALS = 6;
 const STOCK_DECIMALS = 8;
+const LAMPORTS_PER_SOL = 1_000_000_000;
+
+/** Redondeo a `decimals` decimales, para no arrastrar ruido de coma flotante. */
+function round(value: number, decimals: number): number {
+  const factor = 10 ** decimals;
+  return Math.round(value * factor) / factor;
+}
+
+/** Acciones y costo en USD acumulados de un ticker (base del costo medio). */
+interface CostBasis {
+  shares: number;
+  costUsd: number;
+}
+
+/**
+ * Costo medio ponderado por ticker con las órdenes confirmadas del usuario.
+ * Compra: suma acciones (`out_amount_ui`) y costo (`in_amount_ui`, USDC).
+ * Venta: baja acciones y costo de forma proporcional al promedio vigente
+ * (`in_amount_ui` = acciones vendidas), nunca bajo cero. Sin usuario o sin
+ * órdenes devuelve un mapa vacío: el P&L queda null, no inventado.
+ */
+async function readConfirmedCostBasis(userId?: string): Promise<Map<string, CostBasis>> {
+  const basis = new Map<string, CostBasis>();
+  if (!userId) return basis;
+
+  let rows: OrderRow[] = [];
+  try {
+    rows = await listOrdersForActivity(userId, 200);
+  } catch {
+    return basis;
+  }
+
+  const confirmed = rows
+    .filter((row) => row.status === "confirmed")
+    .sort((a, b) => (Date.parse(a.created_at) || 0) - (Date.parse(b.created_at) || 0));
+
+  for (const row of confirmed) {
+    const current = basis.get(row.symbol) ?? { shares: 0, costUsd: 0 };
+    if (row.side === "buy") {
+      const bought = Number(row.out_amount_ui ?? 0);
+      const cost = Number(row.in_amount_ui ?? 0);
+      if (bought > 0 && cost > 0) {
+        current.shares += bought;
+        current.costUsd += cost;
+        basis.set(row.symbol, current);
+      }
+      continue;
+    }
+    const sold = Number(row.in_amount_ui ?? 0);
+    if (sold > 0 && current.shares > 0) {
+      const avgCost = current.costUsd / current.shares;
+      const soldShares = Math.min(sold, current.shares);
+      current.shares = Math.max(0, current.shares - soldShares);
+      current.costUsd = Math.max(0, current.costUsd - avgCost * soldShares);
+      if (current.shares === 0) current.costUsd = 0;
+      basis.set(row.symbol, current);
+    }
+  }
+
+  return basis;
+}
 
 /** Una cuenta de token encontrada en la billetera, ya normalizada. */
 interface TokenHolding {
@@ -93,19 +158,27 @@ export const livePortfolio = {
    * El costo medio y P&L salen de las órdenes reales del usuario; la cadena
    * no los guarda. Sin órdenes, pnl queda null (no inventado).
    */
-  async get(address: string): Promise<Portfolio> {
+  async get(address: string, userId?: string): Promise<Portfolio> {
     if (!isValidSolanaAddress(address)) {
       throw new DomainError("VALIDATION", "La direccion de la billetera no es valida.");
     }
     const connection = getServerConnection();
     const owner = new PublicKey(address);
-    const holdings = await readHoldings(connection, owner);
+    const [holdings, costBySymbol] = await Promise.all([
+      readHoldings(connection, owner),
+      // Costo medio por ticker: sólo órdenes confirmadas, de la más vieja a la
+      // más nueva (así la venta parcial usa el promedio vigente).
+      readConfirmedCostBasis(userId),
+    ]);
 
     let cashUsdc = 0;
     const stockHoldings = holdings.filter((holding) => classifyMint(holding.mint) === "stock");
 
-    const positions = [];
+    const positions: Position[] = [];
     let positionsValue = 0;
+    let pnlTotal = 0;
+    let costTotal = 0;
+    let hasPnl = false;
     for (const holding of holdings) {
       if (holding.mint === USDC_MINT) {
         cashUsdc = Number(holding.raw) / 10 ** holding.decimals;
@@ -119,15 +192,35 @@ export const livePortfolio = {
       positionsValue += valueUsd;
       const symbol = tickerByMint(holding.mint)?.symbol;
       if (!symbol) continue;
+
+      // Costo medio de las órdenes confirmadas. Sin precio vivo (> 0) no se
+      // calcula P&L: sería una pérdida del 100% inventada por dato faltante.
+      const state = costBySymbol.get(symbol);
+      const avgCostRaw = state && state.shares > 0 ? state.costUsd / state.shares : 0;
+      const avgCost = avgCostRaw > 0 ? round(avgCostRaw, 4) : null;
+      const pnlUsd =
+        avgCost !== null && avgCost > 0 && shares > 0 && price > 0
+          ? round(valueUsd - shares * avgCost, 2)
+          : null;
+      const pnlPct =
+        avgCost !== null && avgCost > 0 && shares > 0 && price > 0
+          ? round(((price - avgCost) / avgCost) * 100, 2)
+          : null;
+      if (avgCost !== null && avgCost > 0 && shares > 0 && price > 0 && pnlUsd !== null && pnlPct !== null) {
+        pnlTotal += pnlUsd;
+        costTotal += shares * avgCost;
+        hasPnl = true;
+      }
+
       positions.push({
         symbol: symbol as Position["symbol"],
         shares,
         multiplier: holding.multiplier,
-        avgCostUsd: null,
+        avgCostUsd: avgCost !== null && avgCost > 0 && shares > 0 ? avgCost : null,
         priceUsd: price,
         valueUsd,
-        pnlUsd: null,
-        pnlPct: null,
+        pnlUsd,
+        pnlPct,
         allocationPct: 0,
       });
     }
@@ -143,8 +236,10 @@ export const livePortfolio = {
       totalUsd,
       cashUsdc,
       positions,
-      pnlUsd: null,
-      pnlPct: null,
+      // P&L de la cartera: suma de posiciones con costo conocido y, en %, sobre
+      // el costo invertido. Sin órdenes confirmadas queda null.
+      pnlUsd: hasPnl ? round(pnlTotal, 2) : null,
+      pnlPct: hasPnl && costTotal > 0 ? round((pnlTotal / costTotal) * 100, 2) : null,
       updatedAt: new Date().toISOString(),
     };
   },
@@ -159,7 +254,13 @@ export const livePortfolio = {
     }
     const connection = getServerConnection();
     const owner = new PublicKey(address);
-    const holdings = await readHoldings(connection, owner);
+    // Las cuentas de token y el saldo nativo se leen en paralelo: la cuenta
+    // nativa no es una cuenta de token. Si el RPC falla, SOL queda en 0
+    // (dato faltante) sin tumbar el resto de los saldos.
+    const [holdings, lamports] = await Promise.all([
+      readHoldings(connection, owner),
+      connection.getBalance(owner).catch(() => 0),
+    ]);
 
     const balances: Balance[] = [];
     for (const holding of holdings) {
@@ -180,20 +281,52 @@ export const livePortfolio = {
         valueUsd: price === null ? 0 : uiAmount * price,
       });
     }
+
+    // Fila nativa SOL. `valueUsd` 0 es dato faltante (el tipo Balance no admite
+    // null y acá no se inventa un precio de SOL en USD).
+    balances.push({
+      mint: NATIVE_SOL_MINT,
+      symbol: "SOL",
+      rawAmount: String(lamports),
+      uiAmount: round(lamports / LAMPORTS_PER_SOL, 9),
+      valueUsd: 0,
+    });
     return balances;
   },
 
   /**
-   * Historial real: las órdenes (compra/venta) del usuario desde `orders`.
-   * Recibe `address` (para futuras firmas on-chain de send/receive) y
-   * `userId` (las órdenes se guardan por usuario). Sin órdenes → lista vacía.
+   * Historial real: órdenes (compra/venta) del usuario más los movimientos
+   * unificados de `wallet_movements` (depósito, onramp, retiro). Se deduplica
+   * por firma contra las órdenes y se ordena del más nuevo al más viejo.
+   * Sin órdenes ni movimientos → lista vacía.
    */
   async activity(input: { address: string; userId: string }): Promise<Activity[]> {
     if (!isValidSolanaAddress(input.address)) {
       throw new DomainError("VALIDATION", "La direccion de la billetera no es valida.");
     }
-    const rows = await listOrdersForActivity(input.userId);
-    return rows.map((row) => ({
+    // Llamada tolerante al libro de movimientos: si falla o el store no expone
+    // la función, la actividad de órdenes se devuelve igual.
+    const movementsPromise = (async (): Promise<WalletMovementRow[]> => {
+      const store = walletMovementsStore as {
+        listUserWalletMovements?: (
+          i: { userId: string; limit?: number },
+        ) => Promise<WalletMovementRow[]>;
+      };
+      const listUserWalletMovements = store.listUserWalletMovements;
+      if (!listUserWalletMovements) return [];
+      try {
+        return await listUserWalletMovements({ userId: input.userId, limit: 100 });
+      } catch {
+        return [];
+      }
+    })();
+
+    const [rows, movements] = await Promise.all([
+      listOrdersForActivity(input.userId),
+      movementsPromise,
+    ]);
+
+    const orders: Activity[] = rows.map((row) => ({
       id: row.id,
       kind: row.side as Activity["kind"],
       symbol: row.symbol,
@@ -203,6 +336,30 @@ export const livePortfolio = {
       signature: row.signature,
       at: row.created_at,
     }));
+
+    // La firma de Solana es la misma para la orden y el movimiento: si ya está
+    // en las órdenes, el movimiento no se repite.
+    const orderSignatures = new Set(
+      rows.map((row) => row.signature).filter((signature): signature is string => Boolean(signature)),
+    );
+
+    const transfers: Activity[] = movements
+      .filter((movement) => !movement.signature || !orderSignatures.has(movement.signature))
+      .map((movement) => ({
+        id: movement.id,
+        kind: movement.kind as Activity["kind"],
+        symbol:
+          movement.mint === USDC_MINT ? "USDC" : (tickerByMint(movement.mint)?.symbol ?? "USDC"),
+        amountUi: movement.amountUi,
+        valueUsd: movement.mint === USDC_MINT ? movement.amountUi : null,
+        status: "confirmed" as Activity["status"],
+        signature: movement.signature,
+        at: movement.createdAt,
+      }));
+
+    return [...orders, ...transfers].sort(
+      (a, b) => (Date.parse(b.at) || 0) - (Date.parse(a.at) || 0),
+    );
   },
 
   /**

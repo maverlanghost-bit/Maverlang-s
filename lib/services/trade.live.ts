@@ -133,9 +133,10 @@ export function createLiveTrade(deps: LiveTradeDeps): LiveTradeService {
     /**
      * Cotiza en vivo contra Jupiter `/swap/v2/order` y GUARDA la cotización en
      * la reserva compartida. Compra: USDC→acción. El monto crudo de entrada se
-     * resuelve según la moneda: USDC directo; acciones y CLP necesitan el
-     * precio/spot, que se pide antes a `livePrices.list`. Devuelve un
-     * `TradeQuote` con costos y desviación.
+     * resuelve según la moneda: USDC directo; acciones necesitan el precio
+     * (`livePrices.list`) y CLP el dólar observado (`livePrices.fx`), que se
+     * convierten a USDC antes de cotizar. Devuelve un `TradeQuote` con costos y
+     * desviación; en compra por CLP agrega `fx` y `estimatedTotalClp`.
      */
     async quote(
       request: TradeQuoteRequest,
@@ -147,6 +148,19 @@ export function createLiveTrade(deps: LiveTradeDeps): LiveTradeService {
       }
       // Allowlist por lado (compra exige tradable; venta, existir con mint válido).
       const asset = await requireOperable(request.symbol, request.side);
+
+      // T43: compra en CLP. El swap con Jupiter vive en USDC, así que el dólar
+      // observado se pide una sola vez (`livePrices.fx`, con cache) y el monto
+      // se convierte acá. Sin dólar real no se cotiza: ni el monto ni el total
+      // estimado se inventan.
+      let fxRate: number | null = null;
+      if (request.side === "buy" && request.amountCurrency === "CLP") {
+        const fx = await livePrices.fx().catch(() => null);
+        if (!fx || !Number.isFinite(fx.rate) || fx.rate <= 0) {
+          throw new DomainError("UPSTREAM", "Dólar no disponible para cotizar en CLP.");
+        }
+        fxRate = fx.rate;
+      }
 
       const needsSpot =
         request.amountCurrency === "SHARES" ||
@@ -175,8 +189,9 @@ export function createLiveTrade(deps: LiveTradeDeps): LiveTradeService {
       try {
         params = buildSwapParams({
           ...baseParams,
-          amountCurrency: request.amountCurrency,
-          amount: request.amount,
+          // Con dólar resuelto, la compra en CLP entra como USDC ya convertido.
+          amountCurrency: fxRate === null ? request.amountCurrency : "USDC",
+          amount: fxRate === null ? request.amount : request.amount / fxRate,
         });
       } catch {
         // Compra por acciones: el crudo de entrada (USDC) lo resuelve el spot.
@@ -253,6 +268,14 @@ export function createLiveTrade(deps: LiveTradeDeps): LiveTradeService {
         priceDeviationBps,
         expiresInMs: QUOTE_TTL_MS,
       });
+
+      // T43: la cotización se pidió en CLP. El swap quedó en USDC, así que se
+      // devuelve el dólar usado y el total estimado en pesos (redondeado al
+      // peso). Con USDC o acciones el quote no lleva `fx`.
+      if (fxRate !== null) {
+        quote.fx = fxRate;
+        quote.estimatedTotalClp = Math.round(quote.inAmountUi * fxRate);
+      }
 
       if (buy && priceDeviationBps > priceDeviationMaxBps) {
         throw new DomainError("PRICE_DEVIATION");

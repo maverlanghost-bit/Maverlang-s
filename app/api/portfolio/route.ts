@@ -8,6 +8,7 @@ import {
   isRealAccountRequest,
   isUserDemoRequest,
 } from "@/lib/api/handler";
+import { serverEnv } from "@/lib/env";
 import { withRateLimit } from "@/lib/security/rate-limit";
 import { getServices } from "@/lib/services";
 import { demoSupabase } from "@/lib/services/demo.supabase";
@@ -22,6 +23,15 @@ export function GET(req: Request) {
     const services = getServices();
     const session = await requireSession(services, req);
     if (isRealAccountRequest(req)) {
+      // T43: la cuenta real con DATA_MODE=live lee la cartera verdadera (on-chain
+      // + órdenes del usuario para costo medio y P&L). En mock sigue vacía.
+      const walletAddress = session.walletAddress;
+      if (serverEnv.DATA_MODE === "live" && walletAddress) {
+        const live = await callService(req, () =>
+          services.portfolio.get(walletAddress, session.userId),
+        );
+        return readOutput(portfolioSchema, live);
+      }
       return readOutput(portfolioSchema, {
         address: session.userId,
         totalUsd: 0,

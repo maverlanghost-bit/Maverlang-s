@@ -480,8 +480,13 @@ describe("T38: el camino real ya no usa el Map del proceso", () => {
     expect(sql).toMatch(/coalesce\(r\.quote_payload ->> 'built', 'false'\) = 'true'/);
   });
 
-  it("el candado del dinero real sigue cerrado y ningún flag se encendió", () => {
+  it("el candado del dinero real sigue fail-closed por defecto y ningún flag se encendió", () => {
     const guards = readFileSync(path.join(ROOT, "lib", "trade", "real-guards.ts"), "utf8");
-    expect(guards).toMatch(/export const REAL_EXECUTION_LOCKED: boolean = true;/);
+    // T43: el candado dejó de ser una constante dura para volverse un
+    // desbloqueo controlado; el default sigue cerrado.
+    expect(guards).toMatch(/export const REAL_EXECUTION_LOCKED: boolean =\s*\n?\s*process\.env\.REAL_EXECUTION_UNLOCKED !== "true";/);
+    expect(guards).toMatch(/export function isRealExecutionLocked\(\): boolean/);
+    expect(guards).toMatch(/if \(!isRealExecutionLocked\(\)\) return;/);
+    expect(guards).not.toMatch(/export const REAL_EXECUTION_LOCKED: boolean = true;/);
   });
 });

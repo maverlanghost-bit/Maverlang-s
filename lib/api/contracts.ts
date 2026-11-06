@@ -242,6 +242,9 @@ export const tradeQuoteSchema = z.object({
   priceDeviationBps: z.number().int().nonnegative(),
   expiresAt: isoTimeSchema,
   route: z.enum(["jupiter", "mock"]),
+  // T43: cotización de compra pedida en CLP (dólar observado y total en pesos).
+  fx: z.number().positive().optional(),
+  estimatedTotalClp: z.number().nonnegative().optional(),
 });
 
 export const tradeBuildRequestSchema = z

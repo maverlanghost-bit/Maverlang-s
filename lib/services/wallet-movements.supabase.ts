@@ -19,7 +19,7 @@ import type {
  */
 
 /** Fila cruda de `wallet_movements` (columnas en snake_case). */
-interface WalletMovementRow {
+interface WalletMovementRecord {
   reference: string;
   user_id: string;
   kind: WalletMovementKind;
@@ -32,7 +32,25 @@ interface WalletMovementRow {
   confirmed_at: string | null;
 }
 
-function toUnified(row: WalletMovementRow): UnifiedWalletMovement {
+/**
+ * Movimiento ya mapeado a camelCase y con `id`, para el feed de la billetera
+ * del usuario. Es distinto de `WalletMovementRecord` (fila cruda interna).
+ */
+export interface WalletMovementRow {
+  id: string;
+  userId: string;
+  kind: WalletMovementKind;
+  mint: string;
+  amountUi: number;
+  reference: string;
+  status: WalletMovementStatus;
+  signature: string | null;
+  counterpartyAddress: string | null;
+  createdAt: string;
+  confirmedAt: string | null;
+}
+
+function toUnified(row: WalletMovementRecord): UnifiedWalletMovement {
   return {
     kind: row.kind,
     mint: row.mint,
@@ -54,7 +72,7 @@ export async function listPendingWalletMovements(limit: number): Promise<Pending
     .order("created_at", { ascending: true })
     .limit(limit);
   if (error || !data) return [];
-  return (data as WalletMovementRow[]).map((row) => ({
+  return (data as WalletMovementRecord[]).map((row) => ({
     reference: row.reference,
     userId: row.user_id,
     kind: row.kind,
@@ -99,7 +117,7 @@ export async function listUnifiedWalletMovements(userId: string, limit = 100): P
     .order("created_at", { ascending: false })
     .limit(limit);
   if (error || !data) return [];
-  return (data as WalletMovementRow[]).map(toUnified);
+  return (data as WalletMovementRecord[]).map(toUnified);
 }
 
 /** Resumen de la corrida en `wallet_reconciliations` (monitoreo de /admin). */
@@ -165,3 +183,49 @@ export async function upsertWalletMovement(row: {
   if (error) throw error;
   return Array.isArray(data) && data.length > 0;
 }
+
+/**
+ * Feed de movimientos de la billetera de un usuario: sólo sus filas, más
+ * recientes primero y con tope duro de 200 (default 50) para no castigar
+ * la ruta de actividad. Cualquier error de PostgREST devuelve lista vacía:
+ * el feed es informativo y no debe botar la cartera.
+ */
+export async function listUserWalletMovements(input: {
+  userId: string;
+  limit?: number;
+}): Promise<WalletMovementRow[]> {
+  const admin = createSupabaseAdminClient();
+  const limit = Math.min(Math.max(input.limit ?? 50, 1), 200);
+  const { data, error } = await admin
+    .from("wallet_movements")
+    .select(
+      "id,user_id,kind,mint,amount_ui,reference,status,signature,counterparty_address,created_at,confirmed_at",
+    )
+    .eq("user_id", input.userId)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  if (error || !data) return [];
+  return (data as Record<string, unknown>[]).map((row) => ({
+    id: String(row.id),
+    userId: String(row.user_id),
+    kind: row.kind as WalletMovementKind,
+    mint: String(row.mint),
+    amountUi: Number(row.amount_ui),
+    reference: String(row.reference),
+    status: row.status as WalletMovementStatus,
+    signature: row.signature ? String(row.signature) : null,
+    counterpartyAddress: row.counterparty_address ? String(row.counterparty_address) : null,
+    createdAt: String(row.created_at),
+    confirmedAt: row.confirmed_at ? String(row.confirmed_at) : null,
+  }));
+}
+
+/** Fachada única para inyectar los movimientos (cron, feed y actividad). */
+export const walletMovementsStore = {
+  listUserWalletMovements,
+  listUnifiedWalletMovements,
+  listPendingWalletMovements,
+  updateWalletMovementStatus,
+  upsertWalletMovement,
+  recordWalletReconciliation,
+};

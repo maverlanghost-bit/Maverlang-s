@@ -1,5 +1,14 @@
 # PROGRESO — Maverlang
 
+## T43–T44 — Portafolio live, SOL nativo, actividad unificada, quote CLP y desbloqueo de producción (2026-11-06, commit local)
+- Alcance: ola paralela de 14 bots (DeepSeek v4.1 Flash vía Hermes) para cerrar T43 y T44 sin migraciones nuevas ni dependencias externas.
+- Portafolio y saldos reales (`app/api/portfolio/route.ts`, `app/api/wallet/balances/route.ts`, `lib/services/portfolio.live.ts`): lectura de posiciones reales con sesión verificada, cálculo de costo promedio y P&L desde órdenes ejecutadas (`orders`), saldo nativo de `SOL` en lamports (`getBalance`) expuesto en `BalancesResponse.sol` (`lamports`, `amount`, `usd`), y actividad unificada en `app/api/wallet/activity/route.ts` combinando órdenes con `listUserMovements` (`lib/services/wallet-movements.supabase.ts`).
+- Cotización en CLP en modo live (`lib/services/trade.live.ts`): conversión automática `CLP -> USD` en `trade.live.quote` usando `services.fx.getUsdClp()` para compras en pesos chilenos.
+- Compuerta de producción (`lib/trade/real-guards.ts`): `isRealExecutionUnlocked()` y `REAL_EXECUTION_LOCKED` gobernados por `REAL_EXECUTION_UNLOCK="true"` + `DATA_MODE="live"` + `REAL_TRADING_READY="true"` (fail-closed en `"false"` por defecto).
+- Scripts y guía de lanzamiento: `scripts/check-production-ready.mjs`, `scripts/prepare-production-sql.mjs` (0050 + 0051) y `docs/LAUNCH-PRODUCCION-TECNICO.md`.
+- Pruebas nuevas: `live-portfolio-real-routes.test.ts`, `live-portfolio-sol-and-pnl.test.ts`, `wallet-movements-activity.test.ts`, `trade-live-clp-quote.test.ts`, `production-unlock-gate.test.ts`.
+
+
 ## T42 — D-02: libro atómico de retiros, submit y status on-chain (2026-11-06, commit local)
 - Alcance: retiro real completo (armar → reservar → firmar → reclamar → transmitir → confirmar). 7 bots en paralelo sobre archivos disjuntos; sin push, sin deploy, sin migraciones aplicadas, sin `.env`, `REAL_EXECUTION_LOCKED` intacto en `true`.
 - Migración: `supabase/migrations/0051_wallet_withdrawals.sql` (idempotente, **NO aplicada**). Tabla `wallet_withdrawals` (unique `(user_id,request_id)`, `reference` única, un solo `'reserved'` vivo por usuario), RLS forzada sin políticas, sólo `service_role`, y 4 RPC: `reserve_wallet_withdrawal` (locks global+usuario, topes US$500/500/2000 + global diario, ventanas America/Santiago, libera la reserva previa), `claim_wallet_withdrawal_submit` (reclamo atómico), `finalize_wallet_withdrawal`, `read_wallet_withdrawal` (por requestId o id).
