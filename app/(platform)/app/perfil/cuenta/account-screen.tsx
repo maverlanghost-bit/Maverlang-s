@@ -3,6 +3,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useState, type ReactNode } from "react";
 
+import { InvestorPassportCard } from "@/components/domain/investor-passport-card";
 import { Button } from "@/components/ui/button";
 import { CopyButton } from "@/components/ui/copy-button";
 import { Dialog } from "@/components/ui/dialog";
@@ -120,6 +121,12 @@ export function AccountScreen() {
 
   return (
     <SettingsFrame title={t.profile.account} description={t.profile.accountLead}>
+      <InvestorPassportCard
+        displayName={profile.displayName}
+        email={profile.email}
+        country={profile.country}
+        userId={profile.id}
+      />
       <SettingsPanel>
         <Field label={t.profile.name} hint={t.profile.nameHint}>
           <form

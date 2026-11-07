@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useEffect, useId, useRef, useState } from "react";
 
 import { CostBreakdown } from "@/components/domain/cost-breakdown";
+import { TradeImpactPreview } from "@/components/domain/trade-impact-preview";
 import { MarketStatusPill } from "@/components/domain/market-status-pill";
 import { RealAccountEmpty } from "@/components/domain/real-account-empty";
 import { TickerLogo } from "@/components/domain/ticker-logo";
@@ -473,6 +474,20 @@ function TradeFlow({ side, ticker }: { side: Side; ticker: Ticker }) {
         {result.side === "sell" ? (
           <p className="text-sm text-fg-muted">{fill(t.trade.receiveSell, { amount: shownMoney(result.outAmountUi, displayCurrency, fxRate) })}</p>
         ) : null}
+        <div className="rounded-xl border border-border/70 bg-surface-1/70 p-3 text-left text-xs tabular-nums">
+          <div className="flex items-center justify-between gap-3 border-b border-border/50 py-1 last:border-b-0">
+            <span className="text-fg-muted">Folio de operación</span>
+            <span className="font-medium text-fg">{`#MV-${result.id.slice(0, 8).toUpperCase()}`}</span>
+          </div>
+          <div className="flex items-center justify-between gap-3 border-b border-border/50 py-1 last:border-b-0">
+            <span className="text-fg-muted">Enrutamiento</span>
+            <span className="font-medium text-fg">Jupiter Spot → Solana SPL</span>
+          </div>
+          <div className="flex items-center justify-between gap-3 border-b border-border/50 py-1 last:border-b-0">
+            <span className="text-fg-muted">Comisión Maverlang</span>
+            <span className="font-medium text-fg">0% (US$0,00)</span>
+          </div>
+        </div>
         <Button asChild size="lg" className="w-full">
           <Link href="/app/cartera">{t.trade.portfolio}</Link>
         </Button>
@@ -573,6 +588,20 @@ function TradeFlow({ side, ticker }: { side: Side; ticker: Ticker }) {
           <div className="rounded-2xl border border-white/65 bg-surface-1/75 p-3.5 shadow-[0_8px_24px_-12px_rgba(12,15,20,0.08),inset_0_1px_0_rgba(255,255,255,0.85)] backdrop-blur-xl tabular-nums">
             <CostBreakdown rows={costRows(t, quote, side, displayCurrency, fxRate)} />
           </div>
+        ) : null}
+        {fresh && quote ? (
+          <TradeImpactPreview
+            side={side}
+            symbol={ticker.symbol}
+            currentShares={shares}
+            deltaShares={side === "buy" ? quote.outAmountUi : quote.inAmountUi}
+            currentValueUsd={position?.valueUsd ?? 0}
+            orderUsd={side === "buy" ? quote.inAmountUi : quote.outAmountUi}
+            totalPortfolioUsd={portfolio.data?.totalUsd ?? cashUsdc}
+            cashUsdc={cashUsdc}
+            currency={displayCurrency}
+            rate={fxRate}
+          />
         ) : null}
         {dollarsNote ? <p className="text-center text-xs text-fg-muted">{dollarsNote}</p> : null}
         {/* M83: aviso antes de confirmar. Texto borrador hasta la revisión

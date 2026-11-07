@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 
+import { MfaSettings } from "@/components/auth/mfa-settings";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
@@ -15,9 +16,8 @@ import { fill, SettingsFrame, SettingsPanel } from "../ui";
 type ExportPhase = "warn" | "mock" | "privy" | "error";
 
 /**
- * Privy 3.47 no lista sesiones activas. Tiene alta de 2FA (`useMfaEnrollment`),
- * pero no hay flujo en esta versión. En mock el SDK no se monta. Las dos filas
- * quedan en "Próximamente".
+ * Privy 3.47 no lista sesiones activas: esa fila queda en "Próximamente".
+ * El 2FA TOTP sí es real y se monta con <MfaSettings />. En mock el SDK no se monta.
  */
 export function SecurityScreen() {
   const { t } = useT();
@@ -53,6 +53,27 @@ export function SecurityScreen() {
 
   return (
     <SettingsFrame title={t.profile.security} description={t.profile.securityLead}>
+      <div className="rounded-3xl border border-border/80 bg-white p-5 shadow-xs">
+        <div className="flex items-center gap-2">
+          <span className="size-2 rounded-full bg-emerald-500" aria-hidden="true" />
+          <h2 className="text-sm font-semibold text-fg">Arquitectura de Custodia y Protección Activa</h2>
+        </div>
+        <div className="mt-3 grid gap-2.5 text-xs sm:grid-cols-3">
+          <div className="rounded-2xl border border-border/70 bg-surface-1/70 px-3 py-2.5">
+            <p className="font-medium text-fg">Billetera Autocustodiada</p>
+            <p className="mt-0.5 text-fg-muted">Privy + Solana Ed25519 · Activa</p>
+          </div>
+          <div className="rounded-2xl border border-border/70 bg-surface-1/70 px-3 py-2.5">
+            <p className="font-medium text-fg">Libro Atómico de Retiros</p>
+            <p className="mt-0.5 text-fg-muted">Límites diarios y reserva previa</p>
+          </div>
+          <div className="rounded-2xl border border-border/70 bg-surface-1/70 px-3 py-2.5">
+            <p className="font-medium text-fg">Transporte y Sesión</p>
+            <p className="mt-0.5 text-fg-muted">TLS 1.3 · Verificación de origen</p>
+          </div>
+        </div>
+      </div>
+
       <SettingsPanel label={t.profile.methods}>
         <h2 className="px-4 pt-4 text-sm text-fg-muted md:px-6">{t.profile.methods}</h2>
         {linkedLogins.length === 0 ? (
@@ -88,14 +109,9 @@ export function SecurityScreen() {
           </div>
           <Badge>{t.profile.soon}</Badge>
         </div>
-        <div className="flex min-h-11 items-center justify-between gap-3 px-4 py-3 md:px-6">
-          <div className="min-w-0">
-            <p className="text-sm text-fg">{t.profile.twoFactor}</p>
-            <p className="text-sm text-fg-muted">{t.profile.soonBody}</p>
-          </div>
-          <Badge>{t.profile.soon}</Badge>
-        </div>
       </SettingsPanel>
+
+      <MfaSettings />
 
       <Dialog open={open} onOpenChange={onOpenChange} title={t.profile.exportTitle} description={t.profile.exportWarn1}>
         <ul className="list-disc space-y-2 pl-5 text-sm leading-relaxed text-fg-body">

@@ -41,6 +41,7 @@ export function RecuperarForm() {
         <p className="mt-6 text-sm break-words leading-relaxed text-fg-body">
           Si ese correo tiene cuenta, el enlace ya va en camino. Ábrelo para elegir una contraseña nueva. Si no llega, revisa el correo no deseado.
         </p>
+        <div className="mt-4 rounded-xl border border-brand/25 bg-brand-soft/40 px-3.5 py-2.5 text-xs leading-relaxed text-fg">Enlace de un solo uso con expiración automática. Nunca compartas este enlace con terceros.</div>
         <Button asChild className="mt-6 w-full" size="lg">
           <Link href="/app/ingresar">Volver a ingresar</Link>
         </Button>
@@ -50,6 +51,11 @@ export function RecuperarForm() {
 
   return (
     <AuthFrame title="Recuperar contraseña" lead="Escribe tu correo y te enviamos un enlace para elegir una contraseña nueva.">
+      <div className="mt-4 grid grid-cols-3 gap-2 text-[11px] text-fg-muted">
+        {["1. Tu correo", "2. Enlace cifrado", "3. Nueva clave"].map((step) => (
+          <span key={step} className="rounded-xl border border-border/70 bg-surface-1/70 px-2 py-2 text-center leading-snug">{step}</span>
+        ))}
+      </div>
       <form className="mt-6" noValidate onSubmit={(event) => void submit(event)}>
         <CredentialField
           id="correo"

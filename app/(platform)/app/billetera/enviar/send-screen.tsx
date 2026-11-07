@@ -13,6 +13,7 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { Select } from "@/components/ui/select";
 import { SavedRecipientsBar } from "@/components/wallet/saved-recipients-bar";
+import { AddressVerificationBadge } from "@/components/wallet/address-verification-badge";
 import { WithdrawalLimitsCard } from "@/components/wallet/withdrawal-limits-card";
 import { ApiError, buildSend, getSendStatus, submitSend } from "@/lib/api/client";
 import { useSession } from "@/lib/auth";
@@ -369,6 +370,7 @@ export function SendScreen() {
           aria-describedby={hintId}
           className="num"
         />
+        <AddressVerificationBadge address={destination} valid={addressOk} own={own} />
         <SavedRecipientsBar
           currentRecipient={destination}
           onSelect={(addr) => {
@@ -390,6 +392,25 @@ export function SendScreen() {
         describedBy={hintId}
         invalid={over}
       />
+      {selected && max > 0 ? (
+        <div className="flex flex-wrap items-center justify-center gap-2">
+          {([
+            { pct: 0.25, label: "25%" },
+            { pct: 0.5, label: "50%" },
+            { pct: 0.75, label: "75%" },
+            { pct: 1, label: "100%" },
+          ] as const).map((preset) => (
+            <button
+              key={preset.label}
+              type="button"
+              onClick={() => setAmountRaw(String(Number((max * preset.pct).toFixed(6))))}
+              className="rounded-full border border-border/80 bg-surface-1/80 px-3 py-1 text-xs font-medium text-fg tabular-nums transition-colors hover:border-brand/40 hover:bg-brand-soft/50 hover:text-brand"
+            >
+              {preset.label}
+            </button>
+          ))}
+        </div>
+      ) : null}
       {selected ? (
         <p className="text-center text-sm text-fg-muted">
           {fill(t.wallet.available, { amount: formatAssetAmount(selected.symbol, selected.uiAmount) })}

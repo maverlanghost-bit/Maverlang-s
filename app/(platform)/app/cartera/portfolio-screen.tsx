@@ -14,6 +14,7 @@ import { PriceFreshness } from "@/components/domain/price-freshness";
 import { PortfolioDonut } from "@/components/domain/portfolio-donut";
 import { DividendMultiplierCard } from "@/components/domain/dividend-multiplier-card";
 import { PortfolioHealthCard } from "@/components/domain/portfolio-health-card";
+import { PortfolioTaxSummaryCard } from "@/components/domain/portfolio-tax-summary-card";
 import { TradeReceiptTrigger } from "@/components/domain/trade-receipt-modal";
 import { PositionRow } from "@/components/domain/position-row";
 import { RealAccountEmpty } from "@/components/domain/real-account-empty";
@@ -34,7 +35,7 @@ import { formatDateTime, formatMoney, formatShares, type MoneyCurrency } from "@
 import { useAccountMode } from "@/lib/hooks/use-account-mode";
 import { useHideBalance } from "@/lib/hooks/use-hide-balance";
 import { DEMO_INITIAL_USD } from "@/lib/services/demo.logic";
-import { useActivity, useAssetStatuses, useFx, useHistories, usePortfolio, useTickers } from "@/lib/hooks/queries";
+import { useActivity, useAssetStatuses, useFx, useHistories, useHistory, usePortfolio, useTickers } from "@/lib/hooks/queries";
 import { priceFlashDirection, type PriceFlash } from "@/lib/hooks/use-price-flash";
 import { useT } from "@/lib/hooks/use-t";
 import { logoPathFromSymbol } from "@/lib/catalog/logos";
@@ -396,6 +397,8 @@ const ValueChart = memo(function ValueChart({
   const { t, language } = useT();
   const copy = carteraCopy(language);
   const [range, setRange] = useState<Range>("1M");
+  const [compareSpy, setCompareSpy] = useState(false);
+  const spyHistory = useHistory(compareSpy ? "SPYx" : "", range);
   const symbols = useMemo(() => positions.map((position) => position.symbol), [positions]);
   const histories = useHistories(symbols, range);
   const rows = histories.map((query) => query.data?.points ?? []);
@@ -408,6 +411,17 @@ const ValueChart = memo(function ValueChart({
   // mezclada tampoco es un precio real.
   const reference =
     !pending && !failed && points.length >= 2 && histories.some((query) => isReferenceHistory(query.data));
+  const benchmark = useMemo(() => {
+    if (!compareSpy) return null;
+    const data = spyHistory.data;
+    const pts = data?.points ?? [];
+    if (pts.length < 2) return null;
+    // Misma naturaleza de dato: no se compara una cartera demo contra el índice
+    // real (ni al revés), porque el eje Y pasa a porcentaje y la mezcla mentiría.
+    if (reference !== isReferenceHistory(data)) return null;
+    return { label: "S&P 500 (SPYx)", points: pts };
+  }, [compareSpy, reference, spyHistory.data]);
+
   const rangeOptions = DETAIL_RANGES.map((value) => ({ value, label: t.detail.rangeShort[value] }));
   const period = points.length >= 2 ? periodPerformance(points) : null;
   const periodMoney = period === null ? null : moneyView(period.deltaUsd, currency, rate);
@@ -432,6 +446,18 @@ const ValueChart = memo(function ValueChart({
             <span className="label shrink-0">{copy.period}</span>
             <span className="min-w-0 truncate text-sm text-fg-muted">{t.detail.rangeCaption[range]}</span>
             <InfoTip label={`${copy.whatIsThis}. ${copy.period}`} text={copy.periodTip} align="start" />
+            <button
+              type="button"
+              aria-pressed={compareSpy}
+              onClick={() => setCompareSpy((prev) => !prev)}
+              className={`ml-auto shrink-0 rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+                compareSpy
+                  ? "border-fg bg-fg text-bg"
+                  : "border-border/80 bg-surface-1/80 text-fg-muted hover:bg-surface-2 hover:text-fg"
+              }`}
+            >
+              vs S&amp;P 500 (SPYx)
+            </button>
           </div>
           {period === null || periodMoney === null ? (
             <span className="text-sm text-fg-muted">{copy.emptyFigure}</span>
@@ -470,6 +496,7 @@ const ValueChart = memo(function ValueChart({
           emptyHint={t.detail.chartEmptyHint}
           onHover={onHover}
           reference={reference}
+          benchmark={benchmark}
         />
       )}
     </>
@@ -781,6 +808,13 @@ export function PortfolioScreen() {
               positions={loaded.positions}
               cashUsdc={loaded.cashUsdc}
               totalUsd={loaded.totalUsd}
+              masked={masked}
+            />
+            <PortfolioTaxSummaryCard
+              positions={loaded.positions}
+              activities={activity.data ?? []}
+              currency={currency}
+              rate={rate}
               masked={masked}
             />
           </>
