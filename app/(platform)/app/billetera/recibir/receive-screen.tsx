@@ -80,7 +80,37 @@ export function ReceiveScreen() {
             <Card className="flex flex-col items-center gap-5 text-center">
               {address ? (
                 <>
-                  <QRCode value={address} size={196} label={t.wallet.qrLabel} />
+                  <div className="flex w-full flex-wrap items-center justify-center gap-2 border-b border-border/60 pb-4 text-[11px]">
+                    <span className="inline-flex items-center gap-1.5 rounded-full border border-border/70 bg-surface-1/70 px-2.5 py-1 font-medium text-fg">
+                      <span className="size-1.5 rounded-full bg-up" aria-hidden="true" />
+                      <span>Red: Solana Mainnet · SPL</span>
+                    </span>
+                    <span className="inline-flex items-center gap-1.5 rounded-full border border-brand/25 bg-brand-soft/40 px-2.5 py-1 font-medium text-fg">
+                      <span className="size-1.5 rounded-full bg-brand" aria-hidden="true" />
+                      <span>Activos compatibles: USDC y xStocks</span>
+                    </span>
+                  </div>
+                  <div className="relative w-full max-w-[260px] rounded-3xl border border-border/80 bg-white p-4 shadow-xs">
+                    <span
+                      aria-hidden="true"
+                      className="pointer-events-none absolute left-4 top-4 size-3 rounded-tl-md border-l-2 border-t-2 border-brand/40"
+                    />
+                    <span
+                      aria-hidden="true"
+                      className="pointer-events-none absolute right-4 top-4 size-3 rounded-tr-md border-r-2 border-t-2 border-brand/40"
+                    />
+                    <span
+                      aria-hidden="true"
+                      className="pointer-events-none absolute bottom-4 left-4 size-3 rounded-bl-md border-b-2 border-l-2 border-brand/40"
+                    />
+                    <span
+                      aria-hidden="true"
+                      className="pointer-events-none absolute bottom-4 right-4 size-3 rounded-br-md border-b-2 border-r-2 border-brand/40"
+                    />
+                    <div className="flex items-center justify-center rounded-2xl bg-white">
+                      <QRCode value={address} size={196} label={t.wallet.qrLabel} />
+                    </div>
+                  </div>
                   <p className="num max-w-full break-all text-sm text-fg">{address}</p>
                   <p className="text-sm leading-relaxed text-fg-muted">{t.wallet.verifiedOnly}</p>
                   <div className="flex flex-wrap justify-center gap-2">

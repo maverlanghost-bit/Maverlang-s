@@ -7,6 +7,7 @@ import { motion, useReducedMotion } from "framer-motion";
 
 import { FavoriteButton } from "@/components/domain/favorite-button";
 import { MarketHeatmap } from "@/components/domain/market-heatmap";
+import { MarketIndexStrip } from "@/components/domain/market-index-strip";
 import { MarketToday } from "@/components/domain/market-today/market-today";
 import { FloatingMarketOrb } from "@/components/domain/market-status-pill";
 import { PriceFreshness } from "@/components/domain/price-freshness";
@@ -499,6 +500,7 @@ export function MarketScreen({
       animate={{ opacity: 1, scale: 1 }}
       transition={reduceMotion ? { duration: 0 } : { duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
     >
+      <MarketIndexStrip quotes={quotesBySymbol} currency={currency} rate={rate} />
       <MarketToday />
       <PageHeader title={t.pages.market.title} description={t.pages.market.lead} />
       {currency === "CLP" && !fxKnown && !fx.isPending && !waiting && !failed ? (

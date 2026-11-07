@@ -15,6 +15,7 @@ import { TokenGapCard } from "@/components/domain/token-gap-card";
 import { OnchainVerificationCard } from "@/components/domain/onchain-verification-card";
 import { AlertButton } from "@/components/domain/alert-button";
 import { CompanyCard } from "@/components/domain/company-card";
+import { PriceRangeBar } from "@/components/domain/price-range-bar";
 import { WhatIfCalculator } from "@/components/domain/what-if-calculator";
 import { Accordion } from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
@@ -522,6 +523,16 @@ function KeyStats({
           <span className="text-sm font-medium text-fg">{estadoText}</span>
         </StatCell>
       </dl>
+      {bounds && quote && Number.isFinite(quote.priceUsd) ? (
+        <PriceRangeBar
+          lowUsd={bounds.low}
+          highUsd={bounds.high}
+          currentUsd={quote.priceUsd}
+          rangeLabel={caption}
+          currency={shownCurrency}
+          rate={rate}
+        />
+      ) : null}
     </Card>
   );
 }

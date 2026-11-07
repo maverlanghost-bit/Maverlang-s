@@ -265,6 +265,26 @@ function avgCostLineY(
   return y;
 }
 
+/**
+ * Máximo y mínimo del período. Sólo tiene sentido en una serie de precio real,
+ * sin velas, sin eje porcentual y sin hover: ahí las etiquetas estorban.
+ */
+function priceExtremes(
+  points: readonly DrawnPoint[],
+  enabled: boolean,
+): { high: DrawnPoint; low: DrawnPoint } | null {
+  if (!enabled || points.length < 3) return null;
+  let high: DrawnPoint | undefined;
+  let low: DrawnPoint | undefined;
+  for (const point of points) {
+    if (!Number.isFinite(point.usd)) continue;
+    if (!high || point.usd > high.usd) high = point;
+    if (!low || point.usd < low.usd) low = point;
+  }
+  if (!high || !low || !(high.usd > low.usd)) return null;
+  return { high, low };
+}
+
 function DrawnChart({
   points,
   line,
@@ -356,6 +376,11 @@ function DrawnChart({
           return [{ id: layer.id, label: layer.label, text }];
         })
       : [];
+
+  const extremes = priceExtremes(
+    points,
+    !reference && !candleList && !percentMode && hoverPoint === undefined && points.length >= 3,
+  );
 
   const onMouseMove = (event: MouseEvent<SVGSVGElement>) => {
     if (performance.now() < ignorePointerUntil.current) return;
@@ -552,6 +577,32 @@ function DrawnChart({
           />
           <span className="absolute inset-0 rounded-full" style={{ background: stroke }} />
         </span>
+      ) : null}
+      {extremes ? (
+        <>
+          <span
+            aria-hidden="true"
+            data-chart-extreme="high"
+            className="pointer-events-none absolute -translate-x-1/2 -translate-y-full rounded-full bg-white/90 px-2 py-0.5 text-[10px] font-medium text-fg shadow-xs ring-1 ring-border/70 num"
+            style={{
+              left: `${Math.min(86, Math.max(14, (extremes.high.x / CHART_W) * 100))}%`,
+              top: `${Math.max(4, (extremes.high.y / CHART_H) * 100 - 6)}%`,
+            }}
+          >
+            Máx {formatUsd(extremes.high.usd)}
+          </span>
+          <span
+            aria-hidden="true"
+            data-chart-extreme="low"
+            className="pointer-events-none absolute -translate-x-1/2 rounded-full bg-white/90 px-2 py-0.5 text-[10px] font-medium text-fg-muted shadow-xs ring-1 ring-border/70 num"
+            style={{
+              left: `${Math.min(86, Math.max(14, (extremes.low.x / CHART_W) * 100))}%`,
+              top: `${Math.min(92, (extremes.low.y / CHART_H) * 100 + 6)}%`,
+            }}
+          >
+            Mín {formatUsd(extremes.low.usd)}
+          </span>
+        </>
       ) : null}
       {hoverPoint ? (
         <>

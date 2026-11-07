@@ -18,6 +18,7 @@ import {
   RISK_POINTS,
   UnavailableStep,
 } from "@/app/(platform)/app/onboarding/panel";
+import { PasswordStrengthMeter } from "@/components/auth/password-strength-meter";
 import { Button, buttonClasses } from "@/components/ui/button";
 import { isOperationBlocked } from "@/config/compliance";
 import { Card } from "@/components/ui/card";
@@ -70,6 +71,8 @@ const TITLES: Record<Step, string> = {
   3: "Términos y riesgos",
 };
 
+const MILESTONES = ["Cuenta", "Tus datos", "Términos"] as const;
+
 function messageFrom(error: unknown): string {
   if (isProfileMigrationMessage(error)) return PROFILE_MIGRATION_MESSAGE;
   if (error instanceof ApiError) return error.message;
@@ -106,6 +109,27 @@ function StepBar({ index, total }: { index: number; total: number }) {
       <p className="label">
         Paso {current} de {total}
       </p>
+      <ul className="mt-2 flex flex-wrap items-center gap-1.5" aria-hidden="true">
+        {MILESTONES.map((milestone, position) => {
+          const milestoneStep = position + 1;
+          const done = milestoneStep < current;
+          const active = milestoneStep === current;
+          return (
+            <li
+              key={milestone}
+              className={
+                active
+                  ? "rounded-full bg-fg px-2.5 py-1 text-[11px] font-semibold text-bg"
+                  : done
+                    ? "rounded-full border border-border/70 bg-surface-2 px-2.5 py-1 text-[11px] font-medium text-fg"
+                    : "rounded-full border border-border/60 px-2.5 py-1 text-[11px] text-fg-muted"
+              }
+            >
+              {milestoneStep}. {milestone}
+            </li>
+          );
+        })}
+      </ul>
       <div
         className="mt-2 h-2 overflow-hidden rounded-full bg-surface-3"
         role="progressbar"
@@ -128,23 +152,49 @@ function TextField({
   label,
   error,
   hint,
+  type,
   ...props
 }: { id: string; label: string; error?: string; hint?: string } & ComponentProps<"input">) {
   const errorId = `${id}-error`;
   const hintId = `${id}-hint`;
   const described = [hint ? hintId : null, error ? errorId : null].filter(Boolean).join(" ") || undefined;
+  const [visible, setVisible] = useState(false);
+  const isPassword = type === "password";
   return (
     <div className="mt-4">
       <label htmlFor={id} className="text-sm font-medium text-fg">
         {label}
       </label>
-      <Input
-        id={id}
-        className="mt-2"
-        aria-invalid={error ? true : undefined}
-        aria-describedby={described}
-        {...props}
-      />
+      {isPassword ? (
+        <div className="relative mt-2">
+          <Input
+            id={id}
+            type={visible ? "text" : "password"}
+            className="pr-20"
+            aria-invalid={error ? true : undefined}
+            aria-describedby={described}
+            {...props}
+          />
+          <button
+            type="button"
+            onClick={() => setVisible((value) => !value)}
+            aria-label={visible ? "Ocultar contraseña" : "Mostrar contraseña"}
+            aria-controls={id}
+            className="absolute top-1/2 right-2.5 -translate-y-1/2 rounded-md px-2 py-1 text-xs font-medium text-fg-muted transition-colors outline-none hover:bg-surface-2 hover:text-fg focus-visible:ring-4 focus-visible:ring-fg/20"
+          >
+            {visible ? "Ocultar" : "Mostrar"}
+          </button>
+        </div>
+      ) : (
+        <Input
+          id={id}
+          type={type}
+          className="mt-2"
+          aria-invalid={error ? true : undefined}
+          aria-describedby={described}
+          {...props}
+        />
+      )}
       {hint ? (
         <p id={hintId} className="mt-2 text-sm text-fg-muted">
           {hint}
@@ -507,6 +557,7 @@ function DemoRegistroForm({
           error={errors.password?.message}
           {...register("password")}
         />
+        <PasswordStrengthMeter password={password ?? ""} />
         <TextField
           id="registro-password-confirm"
           label="Repetir contraseña"
@@ -796,6 +847,7 @@ function RegistroForm({
               error={errors.password?.message}
               {...register("password")}
             />
+            <PasswordStrengthMeter password={password ?? ""} />
             <TextField
               id="registro-password-confirm"
               label="Confirmar contraseña"

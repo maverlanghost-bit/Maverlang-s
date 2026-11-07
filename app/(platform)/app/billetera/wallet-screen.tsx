@@ -9,6 +9,7 @@ import { DemoAddressNotice } from "@/components/domain/demo-address-notice";
 import { PriceText } from "@/components/domain/price-text";
 import { RealAccountEmpty } from "@/components/domain/real-account-empty";
 import { TickerLogo } from "@/components/domain/ticker-logo";
+import { WalletVaultHeader } from "@/components/domain/wallet-vault-header";
 import type { BadgeTone } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -147,6 +148,7 @@ export function WalletScreen() {
   const tickers = useTickers();
   const fx = useFx();
   const [activityFilter, setActivityFilter] = useState<ActivityFilter>("all");
+  const [activityQuery, setActivityQuery] = useState("");
 
   if (session.status === "loading" || balances.isPending) {
     return <LoadingState label={t.states.loading} />;
@@ -191,18 +193,31 @@ export function WalletScreen() {
   const masked = hidden === true;
 
   const allActivities = activity.data ?? [];
-  const filteredActivities =
+  const byFilter =
     activityFilter === "all"
       ? allActivities
       : activityFilter === "investments"
         ? allActivities.filter((row) => row.kind === "buy" || row.kind === "sell")
         : allActivities.filter((row) => row.kind !== "buy" && row.kind !== "sell");
+  const activityTerm = activityQuery.trim().toLowerCase();
+  const filteredActivities =
+    activityTerm.length === 0
+      ? byFilter
+      : byFilter.filter(
+          (row) =>
+            row.symbol.toLowerCase().includes(activityTerm) ||
+            row.kind.toLowerCase().includes(activityTerm) ||
+            (row.signature ?? "").toLowerCase().includes(activityTerm),
+        );
+  const buyCount = allActivities.filter((row) => row.kind === "buy").length;
+  const sellCount = allActivities.length - buyCount;
 
   return (
     <div className="flex flex-col gap-6">
       <PageHeader title={t.pages.wallet.title} description={t.wallet.lead} />
 
       <Card>
+        <WalletVaultHeader solUi={solUi} lowSol={lowSol} mode={mode} />
         <p className="label">{t.wallet.usdcLabel}</p>
         <div className="mt-2 min-w-0 max-w-full" aria-live="polite">
           {masked ? (
@@ -308,17 +323,58 @@ export function WalletScreen() {
             ) : null}
           </div>
         </div>
-        <ActivityList
-          pending={activity.isPending}
-          error={activity.isError}
-          rows={filteredActivities}
-          hidden={masked}
-          currency={currency}
-          rate={fxKnown ? rate : undefined}
-          onRetry={() => {
-            void activity.refetch();
-          }}
-        />
+        {allActivities.length > 0 ? (
+          <div className="mt-3 flex flex-col gap-2.5 rounded-2xl border border-border/70 bg-surface-1/50 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-wrap items-center gap-1.5 text-[11px] font-medium">
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-white px-2.5 py-1 text-fg">
+                <span className="size-1.5 rounded-full bg-fg-muted" aria-hidden="true" />
+                <span className="num">{allActivities.length}</span>
+                <span className="text-fg-muted">movimientos</span>
+              </span>
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-white px-2.5 py-1 text-fg">
+                <span className="size-1.5 rounded-full bg-up" aria-hidden="true" />
+                <span className="num">{buyCount}</span>
+                <span className="text-fg-muted">compras</span>
+              </span>
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-white px-2.5 py-1 text-fg">
+                <span className="size-1.5 rounded-full bg-down" aria-hidden="true" />
+                <span className="num">{sellCount}</span>
+                <span className="text-fg-muted">ventas y retiros</span>
+              </span>
+              {activityTerm.length > 0 ? (
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-brand/25 bg-brand-soft/40 px-2.5 py-1 font-semibold text-fg">
+                  <span className="num">{filteredActivities.length}</span>
+                  <span>{filteredActivities.length === 1 ? "resultado" : "resultados"}</span>
+                </span>
+              ) : null}
+            </div>
+            <input
+              type="search"
+              value={activityQuery}
+              onChange={(e) => setActivityQuery(e.target.value)}
+              placeholder="Buscar por símbolo (ej. NVDAx, USDC) o hash..."
+              aria-label="Buscar en actividad"
+              className="h-9 w-full rounded-xl border border-border/70 bg-surface-1/60 px-3 text-xs text-fg placeholder:text-fg-muted outline-none focus:border-fg/40 sm:w-64"
+            />
+          </div>
+        ) : null}
+        {activityTerm.length > 0 && filteredActivities.length === 0 ? (
+          <p role="status" className="mt-3 rounded-2xl border border-border/70 bg-surface-1/60 px-4 py-3 text-sm leading-relaxed text-fg-muted">
+            Sin resultados para «{activityQuery.trim()}». Revisa el símbolo o el hash de la transacción, o limpia el buscador para ver todo el historial.
+          </p>
+        ) : (
+          <ActivityList
+            pending={activity.isPending}
+            error={activity.isError}
+            rows={filteredActivities}
+            hidden={masked}
+            currency={currency}
+            rate={fxKnown ? rate : undefined}
+            onRetry={() => {
+              void activity.refetch();
+            }}
+          />
+        )}
       </Card>
     </div>
   );

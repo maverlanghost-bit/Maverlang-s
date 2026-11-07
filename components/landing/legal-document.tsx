@@ -42,8 +42,40 @@ function Inlines({ items }: { items: Inline[] }) {
 }
 
 export function LegalBody({ blocks }: { blocks: Block[] }) {
+  const headings = blocks.filter(
+    (block): block is Extract<Block, { type: "h2" }> => block.type === "h2",
+  );
+
   return (
     <div className="mt-10 space-y-4 break-words text-sm leading-relaxed text-fg-body sm:text-base">
+      {headings.length >= 2 ? (
+        <nav
+          aria-label="Índice del documento"
+          className="mb-8 rounded-2xl border border-border/80 bg-surface-1/70 p-4 sm:p-5"
+        >
+          <p className="text-xs font-semibold tracking-wider text-fg-muted uppercase">
+            Contenido del documento ({headings.length} secciones)
+          </p>
+          <ol className="mt-3 grid gap-2 sm:grid-cols-2">
+            {headings.map((heading, index) => (
+              <li key={heading.id}>
+                <a
+                  href={`#${heading.id}`}
+                  className="group flex min-h-11 items-center gap-2.5 rounded-xl border border-border/60 bg-white/70 px-3 py-2 text-sm text-fg-body outline-none transition-colors hover:border-fg/25 hover:bg-surface-2 hover:text-fg focus-visible:ring-4 focus-visible:ring-fg/20"
+                >
+                  <span
+                    aria-hidden="true"
+                    className="num inline-flex size-6 shrink-0 items-center justify-center rounded-md bg-surface-2 text-[11px] font-semibold text-fg-muted transition-colors group-hover:bg-white group-hover:text-fg"
+                  >
+                    {String(index + 1).padStart(2, "0")}
+                  </span>
+                  <span className="min-w-0 flex-1">{heading.text}</span>
+                </a>
+              </li>
+            ))}
+          </ol>
+        </nav>
+      ) : null}
       {blocks.map((block, index) => {
         if (block.type === "h2") {
           return (
@@ -130,18 +162,20 @@ export function LegalNav({ current }: { current: string }) {
   return (
     <nav aria-label="Documentos legales" className="mt-12 border-t border-border pt-6">
       <h2 className="text-sm font-medium text-fg">Documentos legales</h2>
-      <ul className="mt-2 divide-y divide-border">
+      <div className="mt-3 grid gap-3 sm:grid-cols-3">
         {others.map((item) => (
-          <li key={item.slug}>
-            <Link
-              href={`/legal/${item.slug}`}
-              className="flex min-h-11 items-center py-2 text-sm font-medium text-fg underline decoration-border underline-offset-4 outline-none hover:decoration-fg focus-visible:ring-4 focus-visible:ring-fg/20"
-            >
-              {item.label}
-            </Link>
-          </li>
+          <Link
+            key={item.slug}
+            href={`/legal/${item.slug}`}
+            className="group flex min-h-24 flex-col justify-between gap-3 rounded-2xl border border-border/80 bg-surface-1/60 p-4 outline-none transition-colors hover:border-fg/25 hover:bg-surface-2 focus-visible:ring-4 focus-visible:ring-fg/20"
+          >
+            <span className="text-sm font-medium text-balance text-fg">{item.label}</span>
+            <span className="inline-flex items-center gap-1 text-xs font-medium text-fg-muted transition-colors group-hover:text-fg">
+              Leer documento →
+            </span>
+          </Link>
         ))}
-      </ul>
+      </div>
     </nav>
   );
 }
