@@ -53,11 +53,7 @@ export function ChatView({
   const isEmpty = messages.length === 0 && !typing;
 
   // Móvil: el compositor vive en el dock de la barra inferior (padding inferior = --app-tabs-height).
-  // El header es local a la pantalla: retorno al mercado solo en móvil/tablet (en lg manda la sidebar).
-  // Escritorio: el panel fijo arranca donde termina la barra lateral. `--app-sidebar-width`
-  // lo publica el shell (72px colapsada / 220px expandida) y la transición acompaña el
-  // morph de la barra. El `!` gana al `left` en px que escribe useChatViewport; en móvil
-  // esa clase no aplica y el hook sigue mandando (left 0, alto del visualViewport y dock).
+  // El header es minimalista: en escritorio no repite subtítulos ni cápsulas redundantes.
   return (
     <div
       ref={panelRef}
@@ -70,68 +66,41 @@ export function ChatView({
         className="pointer-events-none absolute inset-0"
         style={{
           background:
-            "radial-gradient(120% 55% at 50% -8%, var(--color-surface-1) 0%, rgba(255,255,255,0) 62%)",
+            "radial-gradient(110% 45% at 50% -10%, var(--color-surface-1) 0%, rgba(255,255,255,0) 58%)",
         }}
       />
 
       <div className="relative mx-auto flex h-full min-h-0 w-full max-w-4xl flex-col">
+        {/* Cabecera minimalista: sin píldoras apiladas ni subtítulos repetidos */}
         <header className="relative z-10 shrink-0">
-          <div className="mx-auto w-full max-w-2xl px-4 pt-[calc(env(safe-area-inset-top,0px)+0.75rem)] pb-2.5 sm:px-6 sm:pb-3 lg:px-0 lg:pt-7 lg:pb-5">
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex min-w-0 items-center gap-2.5 sm:gap-3">
-                <Link
-                  href="/app"
-                  aria-label={backLabel}
-                  className="inline-flex size-10 shrink-0 items-center justify-center rounded-full border border-border/75 bg-white/85 text-fg-body transition hover:border-fg/25 hover:bg-white hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fg active:scale-95 motion-reduce:transition-none lg:hidden"
-                >
-                  <ArrowLeftIcon />
-                </Link>
-                <span
-                  aria-hidden="true"
-                  className="hidden size-10 shrink-0 items-center justify-center rounded-xl border border-border/70 bg-white text-fg shadow-[inset_0_1px_0_rgba(255,255,255,0.9)] sm:flex lg:size-11 lg:rounded-[14px]"
-                >
-                  <AssistantSparkIcon />
-                </span>
-                <div className="min-w-0">
-                  <div className="flex min-w-0 items-center gap-2">
-                    <h1 className="truncate text-[15px] leading-tight font-semibold tracking-tight text-fg sm:text-base lg:text-[17px]">
-                      {copy.pageTitle}
-                    </h1>
-                    <span className="hidden shrink-0 rounded-full border border-border/70 bg-surface-1/70 px-2 py-0.5 text-[10px] font-medium text-fg-muted sm:inline-flex">
-                      xStocks 24/7
-                    </span>
-                  </div>
-                  <p className="mt-0.5 hidden truncate text-xs leading-relaxed text-fg-muted sm:block lg:text-[12.5px]">
-                    {copy.lead}
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
-                {messages.length > 0 ? (
-                  <button
-                    type="button"
-                    aria-label={copy.clear}
-                    title={copy.clear}
-                    onClick={onClear}
-                    className="inline-flex size-10 shrink-0 touch-manipulation items-center justify-center rounded-full border border-border/75 bg-white/85 text-fg-body transition hover:border-fg/25 hover:bg-white hover:text-fg focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-fg/20 active:scale-95 motion-reduce:transition-none lg:hidden"
-                  >
-                    <ResetSparkleIcon />
-                  </button>
-                ) : null}
-                <span
-                  title="Sesión privada guardada sólo en tu navegador"
-                  className="inline-flex h-9 items-center gap-1.5 rounded-full border border-border/70 bg-white/70 px-2.5 text-xs font-medium text-fg-body sm:px-3"
-                >
-                  <PrivateShieldIcon />
-                  <span className="sr-only sm:not-sr-only">Privado</span>
-                </span>
-              </div>
+          <div className="mx-auto flex w-full max-w-2xl items-center justify-between gap-3 px-4 pt-[calc(env(safe-area-inset-top,0px)+0.75rem)] pb-2 sm:px-6 lg:px-0 lg:pt-5 lg:pb-3">
+            <div className="flex min-w-0 items-center gap-2.5">
+              <Link
+                href="/app"
+                aria-label={backLabel}
+                className="inline-flex size-9 shrink-0 items-center justify-center rounded-full border border-border/75 bg-white/85 text-fg-body transition hover:border-fg/25 hover:bg-white hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fg active:scale-95 motion-reduce:transition-none lg:hidden"
+              >
+                <ArrowLeftIcon />
+              </Link>
+              <h1 className="truncate text-sm font-medium tracking-tight text-fg-muted lg:text-[13px]">
+                {copy.pageTitle}
+              </h1>
             </div>
-          </div>
 
-          <div aria-hidden="true" className="mx-auto w-full max-w-2xl px-4 sm:px-6 lg:px-0">
-            <div className="h-px w-full bg-gradient-to-r from-transparent via-border to-transparent" />
+            <div className="flex shrink-0 items-center gap-2">
+              {messages.length > 0 ? (
+                <button
+                  type="button"
+                  aria-label={copy.clear}
+                  title={copy.clear}
+                  onClick={onClear}
+                  className="inline-flex h-8 shrink-0 touch-manipulation items-center gap-1.5 rounded-full border border-border/70 bg-white/85 px-3 text-xs font-medium text-fg-body transition hover:border-fg/25 hover:bg-white hover:text-fg focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-fg/20 active:scale-95 motion-reduce:transition-none"
+                >
+                  <ResetSparkleIcon />
+                  <span className="hidden sm:inline">{copy.clear}</span>
+                </button>
+              ) : null}
+            </div>
           </div>
         </header>
 
@@ -179,42 +148,9 @@ function ArrowLeftIcon() {
   );
 }
 
-function AssistantSparkIcon() {
-  return (
-    <svg viewBox="0 0 20 20" className="size-5" fill="none" aria-hidden="true">
-      <path
-        d="M10 2.75c.38 3.02 1.63 4.27 4.65 4.65-3.02.38-4.27 1.63-4.65 4.65-.38-3.02-1.63-4.27-4.65-4.65 3.02-.38 4.27-1.63 4.65-4.65Z"
-        fill="currentColor"
-        fillOpacity="0.16"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M15 13.1c.2 1.55.84 2.2 2.4 2.4-1.56.2-2.2.84-2.4 2.4-.2-1.56-.84-2.2-2.4-2.4 1.56-.2 2.2-.85 2.4-2.4Z"
-        stroke="currentColor"
-        strokeWidth="1.3"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-function PrivateShieldIcon() {
-  return (
-    <svg viewBox="0 0 16 16" className="size-3.5 text-fg-muted" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
-      <path
-        d="M8 2.25 3.25 4.2v3.55c0 3.05 2.02 5.45 4.75 6.25 2.73-.8 4.75-3.2 4.75-6.25V4.2L8 2.25Z"
-        strokeLinejoin="round"
-      />
-      <path d="m6.2 8.1 1.25 1.25 2.45-2.45" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
 function ResetSparkleIcon() {
   return (
-    <svg viewBox="0 0 16 16" className="size-4" fill="none" aria-hidden="true">
+    <svg viewBox="0 0 16 16" className="size-3.5" fill="none" aria-hidden="true">
       <path
         d="M13.25 8a5.25 5.25 0 1 1-1.45-3.63M13.25 2.75v2.1h-2.1"
         stroke="currentColor"

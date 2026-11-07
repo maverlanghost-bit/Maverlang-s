@@ -2,6 +2,7 @@
 
 import { memo, useEffect, useId, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent } from "react";
 
+import { cn } from "@/lib/cn";
 import { formatDateTime, formatUsd } from "@/lib/format";
 import {
   CHART_H,
@@ -91,6 +92,15 @@ export interface PriceChartProps {
    * esmeralda sólo si cae dentro del rango visible y el eje Y es precio.
    */
   avgCostUsd?: number | null;
+  /**
+   * Precio promedio del período seleccionado, en USD. Se dibuja como guía
+   * horizontal punteada cuando el usuario activa la vista de promedio.
+   */
+  periodAvgUsd?: number | null;
+  /** Muestra líneas guía horizontales y etiquetas de escala de precio a la derecha. */
+  showGrid?: boolean;
+  /** Clases de altura personalizadas (por defecto `"h-56 sm:h-64"`). */
+  heightClassName?: string;
 }
 
 type DrawnPoint = PlottedPoint & { usd: number };
@@ -301,6 +311,8 @@ function DrawnChart({
   candles,
   scale,
   avgCostUsd,
+  periodAvgUsd,
+  showGrid,
 }: {
   points: readonly DrawnPoint[];
   line: string;
@@ -318,6 +330,8 @@ function DrawnChart({
   /** Escala Y del modelo: la misma que usó `buildChartModel` para ubicar la serie. */
   scale: PriceScale;
   avgCostUsd?: number | null;
+  periodAvgUsd?: number | null;
+  showGrid?: boolean;
 }) {
   const svgRef = useRef<SVGSVGElement>(null);
   const plotRef = useRef(points);
@@ -361,6 +375,7 @@ function DrawnChart({
   const hoverPoint = hoverIndex !== null && hoverIndex < points.length ? points[hoverIndex] : undefined;
   const candleList = candles !== null && candles.length >= 2 ? candles : null;
   const avgY = avgCostLineY(avgCostUsd, scale, percentMode);
+  const periodAvgY = avgCostLineY(periodAvgUsd, scale, percentMode);
   const lastPoint = points.length >= 2 ? points[points.length - 1] : undefined;
   /** Punto vivo: sólo con la serie quieta, sin hover, sin velas y sin referencia. */
   const showLiveDot = !reference && !candleList && hoverPoint === undefined && lastPoint !== undefined;
@@ -381,6 +396,16 @@ function DrawnChart({
     points,
     !reference && !candleList && !percentMode && hoverPoint === undefined && points.length >= 3,
   );
+
+  // Niveles de grilla horizontal cuando showGrid está activo (25%, 50%, 75% de la altura útil)
+  const gridTicks =
+    showGrid && !percentMode && Number.isFinite(scale.hi) && Number.isFinite(scale.lo) && scale.hi > scale.lo
+      ? ([0.22, 0.5, 0.78] as const).map((ratio) => {
+          const price = scale.hi - (scale.hi - scale.lo) * ratio;
+          const y = yForPrice(price, scale);
+          return { price, y };
+        })
+      : null;
 
   const onMouseMove = (event: MouseEvent<SVGSVGElement>) => {
     if (performance.now() < ignorePointerUntil.current) return;
@@ -467,6 +492,21 @@ function DrawnChart({
             vectorEffect="non-scaling-stroke"
           />
         )}
+        {gridTicks
+          ? gridTicks.map((tick, idx) => (
+              <line
+                key={idx}
+                x1={0}
+                x2={CHART_W}
+                y1={tick.y}
+                y2={tick.y}
+                stroke="#e5e7eb"
+                strokeWidth="1"
+                strokeDasharray="2 4"
+                vectorEffect="non-scaling-stroke"
+              />
+            ))
+          : null}
         {candleList ? (
           <g data-candles={candleList.length}>
             {candleList.map((mark) => {
@@ -525,6 +565,20 @@ function DrawnChart({
             vectorEffect="non-scaling-stroke"
           />
         ))}
+        {periodAvgY === null ? null : (
+          <line
+            data-period-avg="true"
+            x1={0}
+            x2={CHART_W}
+            y1={periodAvgY}
+            y2={periodAvgY}
+            stroke="#2b7fd9"
+            strokeWidth="1.5"
+            strokeDasharray="4 4"
+            opacity="0.75"
+            vectorEffect="non-scaling-stroke"
+          />
+        )}
         {avgY === null ? null : (
           <line
             data-avg-cost="true"
@@ -561,6 +615,35 @@ function DrawnChart({
           </>
         ) : null}
       </svg>
+      {/* Escala lateral derecha de precios cuando showGrid está activo */}
+      {gridTicks && hoverPoint === undefined ? (
+        <div aria-hidden="true" className="pointer-events-none absolute inset-y-0 right-1.5 flex flex-col justify-between py-3">
+          {gridTicks.map((tick, idx) => (
+            <span
+              key={idx}
+              className="num rounded bg-white/80 px-1.5 py-0.5 text-[10px] font-medium text-fg-muted backdrop-blur-xs"
+              style={{
+                position: "absolute",
+                right: 0,
+                top: `${(tick.y / CHART_H) * 100}%`,
+                transform: "translateY(-50%)",
+              }}
+            >
+              {formatUsd(tick.price)}
+            </span>
+          ))}
+        </div>
+      ) : null}
+      {/* Etiqueta flotante del promedio del período si está activo */}
+      {periodAvgY !== null && periodAvgUsd && hoverPoint === undefined ? (
+        <span
+          aria-hidden="true"
+          className="num pointer-events-none absolute left-2 -translate-y-1/2 rounded-full bg-[#2b7fd9]/10 px-2 py-0.5 text-[10px] font-semibold text-[#2b7fd9] ring-1 ring-[#2b7fd9]/25 backdrop-blur-xs"
+          style={{ top: `${(periodAvgY / CHART_H) * 100}%` }}
+        >
+          Prom. {formatUsd(periodAvgUsd)}
+        </span>
+      ) : null}
       {/* Punto vivo: el último precio respira mientras nadie hace hover. */}
       {showLiveDot && lastPoint ? (
         <span
@@ -681,6 +764,9 @@ function SvgPriceChartBase({
   showVolume = false,
   volumeLabel = "",
   avgCostUsd = null,
+  periodAvgUsd = null,
+  showGrid = false,
+  heightClassName,
 }: PriceChartProps) {
   const gradRaw = useId().replace(/:/g, "");
   const gradId = `svg-price-${gradRaw}`;
@@ -720,7 +806,11 @@ function SvgPriceChartBase({
 
   return (
     <>
-    <div className="relative h-56 w-full touch-pan-y sm:h-64" style={{ touchAction: "pan-y" }} data-tone={tone}>
+    <div
+      className={cn("relative w-full touch-pan-y", heightClassName ?? "h-56 sm:h-64")}
+      style={{ touchAction: "pan-y" }}
+      data-tone={tone}
+    >
       {drawn && model ? (
         <DrawnChart
           key={`${model.key}:${model.percentMode ? "pct" : "px"}:${model.candles ? "candles" : "line"}:${model.layers.map((layer) => layer.id).join(".")}`}
@@ -739,6 +829,8 @@ function SvgPriceChartBase({
           candles={model.candles}
           scale={model.scale}
           avgCostUsd={avgCostUsd}
+          periodAvgUsd={periodAvgUsd}
+          showGrid={showGrid}
         />
       ) : quiet ? null : (
         <div className="absolute inset-0 flex flex-col items-center justify-center rounded-xl bg-neutral-50 px-4 text-center">

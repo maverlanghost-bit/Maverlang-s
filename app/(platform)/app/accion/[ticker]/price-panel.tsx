@@ -46,9 +46,6 @@ const COMPARE_SYMBOLS = [SPY_SYMBOL, "QQQx", "AAPLx", "NVDAx", "TSLAx"] as const
 function studyQueryOptions(enabled: boolean) {
   return {
     enabled,
-    // El parámetro es estructural: anotar `Query` (genérico por defecto) no
-    // encaja con la serie y, junto a `refetchInterval: false`, el objeto que
-    // vuelve de esta función deja de coincidir con `useQuery`.
     staleTime: (query: { state: { data: unknown } }) => historyStaleMs(query.state.data, STUDY_STALE_MS),
     gcTime: STUDY_STALE_MS,
     retry: false,
@@ -257,9 +254,6 @@ export function PricePanel({
   const period = periodBounds(points, livePoint);
   const move = rangeMove(points);
   const stats = !history.isPending && !history.isError ? rangeBounds(points) : null;
-  // Referencia si el historial es mock o no está marcado real, sea cual sea
-  // la fuente del precio actual. Sin datos cargados no hay serie que rotular.
-  // Sin línea dibujada (menos de 2 puntos) no hay serie que rotular.
   const illustrative =
     !history.isPending && !history.isError && points.length >= 2 && isReferenceHistory(history.data);
   const tone = toneOf(move);
@@ -269,6 +263,10 @@ export function PricePanel({
   const [rsiOn, setRsiOn] = useState(false);
   const [draw, setDraw] = useState<"line" | "candles">("line");
   const [volumeOn, setVolumeOn] = useState(false);
+  // Nuevas opciones visuales del gráfico (T52): modo amplio, grilla de escala y línea de promedio
+  const [expanded, setExpanded] = useState(false);
+  const [showGrid, setShowGrid] = useState(true);
+  const [showPeriodAvg, setShowPeriodAvg] = useState(false);
   // Comparador del modo Técnico. SPYx por defecto; el resto se pide con el
   // mismo rango y, si alcanza dos puntos, reemplaza a SPYx como benchmark.
   const [compareSymbol, setCompareSymbol] = useState<string>(SPY_SYMBOL);
@@ -287,8 +285,6 @@ export function PricePanel({
   });
   const chartReady = !history.isPending && !history.isError && points.length >= 2;
   const bars = useMemo(() => (chartReady ? barAvailability(points) : NO_BARS), [chartReady, points]);
-  // El intervalo se recalcula adentro. Depender de `period.start` (un número
-  // sacado de un objeto local) hace que el compilador descarte el useMemo.
   const studies = useMemo(() => {
     if (!technical) return EMPTY_STUDIES;
     return chartStudies({
@@ -322,11 +318,6 @@ export function PricePanel({
   }, [technical, chartReady, smaOn, studies, copy]);
   const benchmark = useMemo(() => {
     if (!technical || !chartReady || !spyOn) return null;
-    // Serie del comparador recortada a la misma ventana que el precio, igual
-    // que `chartStudies` con SPYx: las dos líneas arrancan en el mismo tramo.
-    // Misma regla que `chartStudies`: no se mezcla una serie de referencia con
-    // una real en el mismo gráfico. El símbolo se normaliza adentro para no
-    // depender de un valor local (eso hace que el compilador descarte el memo).
     const key = compareSymbol.trim();
     const enabled =
       key.length > 0 &&
@@ -347,7 +338,6 @@ export function PricePanel({
         if (inWindow.length >= 2) return { points: inWindow, label: key };
       }
     }
-    // Sin dos puntos del comparador elegido se cae a SPYx, como hasta ahora.
     if (studies.spyPoints.length < 2) return null;
     return { points: studies.spyPoints, label: copy.spyLegend };
   }, [
@@ -364,7 +354,6 @@ export function PricePanel({
     copy.spyLegend,
   ]);
   const showSpy = chartReady && studies.spyPoints.length >= 2;
-  // Opciones del selector: nunca el ticker de la propia ficha.
   const compareOptions = COMPARE_SYMBOLS.filter((item) => item.toUpperCase() !== symbolKey.toUpperCase()).map(
     (item) => ({ value: item, label: item }),
   );
@@ -407,10 +396,7 @@ export function PricePanel({
   const fxKnown = typeof rate === "number" && Number.isFinite(rate) && rate > 0;
   const priceCurrency = currency === "CLP" && fxKnown ? "CLP" : "USD";
   const usd = point?.usd ?? quote?.priceUsd ?? null;
-  // Con precio y sin dólar todavía, se muestra USD. El esqueleto no tapa el número.
   const shown = usd === null ? null : displayPrice(usd, priceCurrency, rate);
-  // N18: al recorrer el gráfico el precio se tiñe sólo contra el actual
-  // (rojo si el punto es menor, verde si es mayor), sin destellar por tramo.
   const currentUsd = quote?.priceUsd ?? null;
   const hoverForce: PriceFlash | undefined =
     point !== null && currentUsd !== null && Number.isFinite(currentUsd)
@@ -428,6 +414,28 @@ export function PricePanel({
       ? displayPrice(quote.marketPriceUsd, priceCurrency, rate)
       : null;
   const marketShown = marketValue === null ? null : formatMoney(marketValue, priceCurrency);
+
+  // Estadísticas del período activo (Apertura, Promedio y Variación absoluta en dinero)
+  const openUsd = points.length >= 2 && Number.isFinite(points[0]?.p) && (points[0]?.p ?? 0) > 0 ? points[0]!.p : null;
+  const periodAvgUsd = useMemo(() => {
+    if (points.length < 2) return null;
+    let sum = 0;
+    let count = 0;
+    for (const pt of points) {
+      if (Number.isFinite(pt.p) && pt.p > 0) {
+        sum += pt.p;
+        count += 1;
+      }
+    }
+    return count >= 2 ? sum / count : null;
+  }, [points]);
+  const activeEndUsd = point?.usd ?? (points.length >= 2 ? points[points.length - 1]?.p ?? null : null);
+  const deltaUsd = openUsd !== null && activeEndUsd !== null ? activeEndUsd - openUsd : null;
+  const deltaShown = deltaUsd !== null ? displayPrice(Math.abs(deltaUsd), priceCurrency, rate) : null;
+  const deltaFormatted =
+    deltaUsd !== null && deltaShown !== null
+      ? `${deltaUsd >= 0 ? "+" : "-"}${formatMoney(deltaShown, priceCurrency)}`
+      : null;
 
   const rangeOptions = DETAIL_RANGES.map((value) => ({ value, label: t.detail.rangeShort[value] }));
   const historySource = history.data?.source;
@@ -504,48 +512,155 @@ export function PricePanel({
         {history.isPending ? (
           <Skeleton className="h-6 w-16 shrink-0 rounded-full" />
         ) : pointIso ? (
-          <p className="num min-w-0 truncate text-sm text-fg-muted">
-            <span className="sr-only">{t.detail.onChart}. </span>
-            <time dateTime={pointIso}>{formatDateTime(pointIso)}</time>
-          </p>
+          <div className="flex min-w-0 items-center gap-2">
+            {deltaFormatted ? (
+              <span
+                className={cn(
+                  "num shrink-0 text-sm font-semibold tabular-nums",
+                  deltaUsd !== null && deltaUsd >= 0 ? "text-up" : "text-down",
+                )}
+              >
+                {deltaFormatted}
+              </span>
+            ) : null}
+            <p className="num min-w-0 truncate text-sm text-fg-muted">
+              <span className="sr-only">{t.detail.onChart}. </span>
+              <time dateTime={pointIso}>{formatDateTime(pointIso)}</time>
+            </p>
+          </div>
         ) : move === null ? (
           <span className="num text-sm text-fg-muted">—</span>
         ) : (
           <>
             <ChangeBadge value={move} />
+            {deltaFormatted ? (
+              <span
+                className={cn(
+                  "num shrink-0 text-sm font-medium tabular-nums",
+                  deltaUsd !== null && deltaUsd >= 0 ? "text-up" : "text-down",
+                )}
+              >
+                {deltaFormatted}
+              </span>
+            ) : null}
             <span className="min-w-0 truncate text-sm text-fg-muted">{t.detail.rangeCaption[range]}</span>
           </>
         )}
       </div>
 
-      <div className="flex w-full min-w-0 max-w-full flex-col items-start gap-2 sm:flex-row sm:items-center">
-        <div className="w-full min-w-0 sm:w-auto">
+      <div className="flex w-full min-w-0 max-w-full flex-col items-start justify-between gap-2 sm:flex-row sm: flex-wrap sm:items-center">
+        <div className="flex w-full min-w-0 flex-wrap items-center gap-2 sm:w-auto">
+          <div className="w-full min-w-0 sm:w-auto">
+            <RangeCapsule
+              compact
+              label={t.detail.rangesLabel}
+              options={rangeOptions}
+              value={range}
+              onChange={(value) => {
+                if (isDetailRange(value)) onRangeChange(value);
+              }}
+            />
+          </div>
           <RangeCapsule
-            compact
-            label={t.detail.rangesLabel}
-            options={rangeOptions}
-            value={range}
-            onChange={(value) => {
-              if (isDetailRange(value)) onRangeChange(value);
-            }}
+            className="shrink-0"
+            idPrefix="chart-mode"
+            label={copy.modeLabel}
+            options={[
+              { value: "simple", label: copy.modeSimple },
+              { value: "technical", label: copy.modeTechnical },
+            ]}
+            value={mode}
+            onChange={(value) => setMode(value === "technical" ? "technical" : "simple")}
           />
         </div>
-        <RangeCapsule
-          className="shrink-0"
-          idPrefix="chart-mode"
-          label={copy.modeLabel}
-          options={[
-            { value: "simple", label: copy.modeSimple },
-            { value: "technical", label: copy.modeTechnical },
-          ]}
-          value={mode}
-          onChange={(value) => setMode(value === "technical" ? "technical" : "simple")}
-        />
+
+        {/* Controles rápidos de visualización del gráfico: Promedio, Escala y Modo Amplio */}
+        <div className="flex flex-wrap items-center gap-1.5">
+          <button
+            type="button"
+            aria-pressed={showPeriodAvg}
+            onClick={() => setShowPeriodAvg((v) => !v)}
+            className={cn(
+              "inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-xs font-medium transition-colors outline-none focus-visible:ring-4 focus-visible:ring-fg/20",
+              showPeriodAvg
+                ? "border-[#2b7fd9]/40 bg-[#2b7fd9]/10 text-[#2b7fd9]"
+                : "border-border/70 bg-white text-fg-muted hover:bg-surface-1 hover:text-fg",
+            )}
+          >
+            <span aria-hidden="true" className="size-1.5 rounded-full bg-[#2b7fd9]" />
+            Promedio
+          </button>
+          <button
+            type="button"
+            aria-pressed={showGrid}
+            onClick={() => setShowGrid((v) => !v)}
+            className={cn(
+              "inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-xs font-medium transition-colors outline-none focus-visible:ring-4 focus-visible:ring-fg/20",
+              showGrid
+                ? "border-fg/20 bg-surface-2 text-fg"
+                : "border-border/70 bg-white text-fg-muted hover:bg-surface-1 hover:text-fg",
+            )}
+          >
+            Escala
+          </button>
+          <button
+            type="button"
+            aria-pressed={expanded}
+            onClick={() => setExpanded((v) => !v)}
+            className={cn(
+              "inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-xs font-medium transition-colors outline-none focus-visible:ring-4 focus-visible:ring-fg/20",
+              expanded
+                ? "border-fg bg-fg text-bg"
+                : "border-border/70 bg-white text-fg-muted hover:bg-surface-1 hover:text-fg",
+            )}
+          >
+            {expanded ? "Compactar" : "Expandir"}
+          </button>
+        </div>
       </div>
 
       {illustrative ? <p className="text-sm text-fg-muted">{t.detail.chartReference}</p> : null}
 
-      <div className="min-w-0 max-w-full rounded-2xl bg-white p-5 shadow-[0_1px_2px_rgba(16,24,40,0.04),0_8px_24px_rgba(16,24,40,0.08)] sm:p-7">
+      <div className="min-w-0 max-w-full rounded-3xl border border-border/70 bg-white p-5 shadow-[0_1px_2px_rgba(16,24,40,0.04),0_12px_32px_-8px_rgba(16,24,40,0.08)] sm:p-7">
+        {/* Cinta superior de métricas rápidas del período dentro de la tarjeta del gráfico */}
+        {chartReady && stats && openUsd !== null && periodAvgUsd !== null ? (() => {
+          const openShown = displayPrice(openUsd, priceCurrency, rate);
+          const avgShown = displayPrice(periodAvgUsd, priceCurrency, rate);
+          const highShown = displayPrice(stats.high, priceCurrency, rate);
+          const lowShown = displayPrice(stats.low, priceCurrency, rate);
+          const amplitudePct = stats.low > 0 ? ((stats.high - stats.low) / stats.low) * 100 : 0;
+          return (
+            <div className="mb-4 grid grid-cols-2 gap-2 border-b border-border/60 pb-3.5 sm:grid-cols-4">
+              <div>
+                <p className="text-[11px] font-medium text-fg-muted">Apertura período</p>
+                <p className="num mt-0.5 text-xs font-semibold text-fg sm:text-sm">
+                  {formatMoney(openShown ?? openUsd, openShown === null ? "USD" : priceCurrency)}
+                </p>
+              </div>
+              <div>
+                <p className="text-[11px] font-medium text-fg-muted">Promedio período</p>
+                <p className="num mt-0.5 text-xs font-semibold text-fg sm:text-sm">
+                  {formatMoney(avgShown ?? periodAvgUsd, avgShown === null ? "USD" : priceCurrency)}
+                </p>
+              </div>
+              <div>
+                <p className="text-[11px] font-medium text-fg-muted">Máx / Mín</p>
+                <p className="num mt-0.5 truncate text-xs font-semibold text-fg sm:text-sm">
+                  {formatMoney(highShown ?? stats.high, highShown === null ? "USD" : priceCurrency)}
+                  <span className="text-fg-muted"> · </span>
+                  {formatMoney(lowShown ?? stats.low, lowShown === null ? "USD" : priceCurrency)}
+                </p>
+              </div>
+              <div>
+                <p className="text-[11px] font-medium text-fg-muted">Amplitud del rango</p>
+                <p className="num mt-0.5 text-xs font-semibold text-fg sm:text-sm">
+                  {amplitudePct.toFixed(2).replace(".", ",")}%
+                </p>
+              </div>
+            </div>
+          );
+        })() : null}
+
         {technical ? (
           longHistory.isLoading ? (
             <StudiesSkeleton label={copy.studiesLoading} />
@@ -604,6 +719,13 @@ export function PricePanel({
             overlays={overlays}
             benchmark={benchmark}
             avgCostUsd={avgCostUsd}
+            periodAvgUsd={showPeriodAvg ? periodAvgUsd : null}
+            showGrid={showGrid}
+            heightClassName={
+              expanded
+                ? "h-80 sm:h-[420px] md:h-[480px] transition-[height] duration-200"
+                : "h-64 sm:h-80 md:h-[360px] transition-[height] duration-200"
+            }
             chartStyle={technical && bars.ohlc ? draw : "line"}
             showVolume={technical && bars.volume && volumeOn}
             volumeLabel={copy.volume}

@@ -341,6 +341,30 @@ describe("servicio demo por usuario en USD", () => {
     const activity = await service.getActivity(USER);
     expect(activity).toHaveLength(0);
   });
+  it("funciona entre distintas instancias serverless (quote -> build -> submit -> status sin memoria compartida)", async () => {
+    const state = freshState();
+    const s1 = createDemoUserService(fakeDeps(state));
+    const s2 = createDemoUserService(fakeDeps(state));
+    const s3 = createDemoUserService(fakeDeps(state));
+    const s4 = createDemoUserService(fakeDeps(state));
+
+    const quote = await s1.trade.quote(USER, {
+      side: "buy",
+      symbol: "AAPLx",
+      amount: 100,
+      amountCurrency: "USDC",
+    });
+    const built = await s2.trade.build(USER, { quoteId: quote.id, userPublicKey: PUBKEY });
+    const submitted = await s3.trade.submit(USER, {
+      requestId: built.requestId,
+      signedTransactionBase64: "c2lnbmVk",
+    });
+    expect(submitted.status).toBe("confirmed");
+    const status = await s4.trade.status(USER, submitted.orderId);
+    expect(status?.status).toBe("confirmed");
+    expect(status?.symbol).toBe("AAPLx");
+    expect(state.cash).toBe(9_900);
+  });
 });
 
 describe("visualización en la moneda elegida (M40)", () => {

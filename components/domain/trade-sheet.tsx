@@ -20,7 +20,7 @@ import { QUOTE_DEBOUNCE_MS } from "@/config/trade";
 import type { Messages } from "@/content/i18n/es-CL";
 import { ApiError, buildTrade, getTradeStatus, quoteTrade, submitTrade } from "@/lib/api/client";
 import { useSession } from "@/lib/auth";
-import { useSignTrade } from "@/lib/auth/sign-transaction";
+import { signDemoTransaction, useSignTrade } from "@/lib/auth/sign-transaction";
 import { isRealAccountUiBlocked } from "@/lib/account/real-ui-gate";
 import { cn } from "@/lib/cn";
 import { formatMoney, formatShares } from "@/lib/format";
@@ -379,7 +379,7 @@ function TradeFlow({ side, ticker }: { side: Side; ticker: Ticker }) {
     try {
       const built = await buildTrade({ quoteId: current.id, userPublicKey: pubkey }, mockError);
       if (!mounted.current) return;
-      const signed = await sign(built.transactionBase64);
+      const signed = mode === "demo" ? await signDemoTransaction(built.transactionBase64) : await sign(built.transactionBase64);
       if (!mounted.current) return;
       setPhase("submitting");
       const submitted = await submitTrade(

@@ -1,5 +1,7 @@
 import "server-only";
 
+import { createHmac, timingSafeEqual } from "node:crypto";
+
 import { defaultSlippageBps, feeConfig, priceDeviationMaxBps } from "@/config/fees";
 import { USDC_MINT } from "@/config/tickers";
 import { DomainError } from "@/lib/api/result";
@@ -105,6 +107,45 @@ type StoredBuild = {
   expiresAt: string;
   orderId: string | null;
 };
+
+type SignedBuildPayload = {
+  stored: StoredQuote;
+  buildExpiresAt: string;
+  nonce: string;
+};
+
+function demoHmacSecret(): string {
+  return (
+    process.env.SUPABASE_SECRET_KEY?.trim() ||
+    process.env.CRON_SECRET?.trim() ||
+    "maverlang-demo-stateless-v1"
+  );
+}
+
+function encodeSignedToken<T>(prefix: "q1" | "b1" | "o1", payload: T): string {
+  const body = Buffer.from(JSON.stringify(payload), "utf8").toString("base64url");
+  const sig = createHmac("sha256", demoHmacSecret()).update(`${prefix}.${body}`).digest("base64url");
+  return `${prefix}.${body}.${sig}`;
+}
+
+function decodeSignedToken<T>(expectedPrefix: "q1" | "b1" | "o1", token: string): T | null {
+  const parts = token.split(".");
+  if (parts.length !== 3) return null;
+  const [prefix, body, sig] = parts;
+  if (prefix !== expectedPrefix || !body || !sig) return null;
+  const expectedSig = createHmac("sha256", demoHmacSecret())
+    .update(`${prefix}.${body}`)
+    .digest("base64url");
+  const a = Buffer.from(sig);
+  const b = Buffer.from(expectedSig);
+  if (a.length !== b.length || a.length === 0 || !timingSafeEqual(a, b)) return null;
+  try {
+    const raw = Buffer.from(body, "base64url").toString("utf8");
+    return JSON.parse(raw) as T;
+  } catch {
+    return null;
+  }
+}
 
 function sqlErrorCode(error: unknown): string | null {
   if (!error || typeof error !== "object") return null;
@@ -348,7 +389,9 @@ function realDeps(): DemoDeps {
 /**
  * Servicio demo por usuario. `deps` se inyecta en tests; en producción usa
  * el admin de Supabase y los precios reales. Las cotizaciones en curso viven
- * en memoria (60 s): sólo el saldo, las posiciones y las órdenes persisten.
+ * en memoria (60 s) y además viajan firmadas con HMAC-SHA256 (`q1.`, `b1.`, `o1.`)
+ * para que `quote -> build -> submit -> status` funcione sin fallar aunque cada
+ * llamada caiga en una instancia serverless distinta de Vercel.
  */
 export function createDemoUserService(deps: DemoDeps) {
   const quotes = new Map<string, StoredQuote>();
@@ -554,7 +597,7 @@ export function createDemoUserService(deps: DemoDeps) {
 
         const heldNow = positions.find((row) => row.symbol === ticker.symbol)?.shares ?? 0;
         const opensAccount = request.side === "buy" && heldNow <= 0;
-        const quote: TradeQuote = {
+        const baseQuote: TradeQuote = {
           id: nextId("quote"),
           side: request.side,
           symbol: ticker.symbol,
@@ -573,12 +616,28 @@ export function createDemoUserService(deps: DemoDeps) {
           expiresAt: new Date(Date.now() + QUOTE_TTL_MS).toISOString(),
           route: "mock",
         };
-        quotes.set(quote.id, { quote, shares, usdc, userId, priceUsd: price, fx });
+        const signedQuoteId = encodeSignedToken<StoredQuote>("q1", {
+          quote: baseQuote,
+          shares,
+          usdc,
+          userId,
+          priceUsd: price,
+          fx,
+        });
+        const quote: TradeQuote = { ...baseQuote, id: signedQuoteId };
+        const stored: StoredQuote = { quote, shares, usdc, userId, priceUsd: price, fx };
+        quotes.set(quote.id, stored);
         return quote;
       },
 
       async build(userId: string, request: TradeBuildRequest): Promise<TradeBuildResponse> {
-        const stored = quotes.get(request.quoteId);
+        let stored = quotes.get(request.quoteId);
+        if (!stored) {
+          const decoded = decodeSignedToken<StoredQuote>("q1", request.quoteId);
+          if (decoded) {
+            stored = { ...decoded, quote: { ...decoded.quote, id: request.quoteId } };
+          }
+        }
         if (!stored || stored.userId !== userId) {
           throw new DomainError("NOT_FOUND", "No encontramos esa cotización.");
         }
@@ -586,11 +645,17 @@ export function createDemoUserService(deps: DemoDeps) {
         if (request.userPublicKey.trim().length < 32) {
           throw new DomainError("VALIDATION", "Falta la billetera.");
         }
+        const requestId = encodeSignedToken<SignedBuildPayload>("b1", {
+          stored,
+          buildExpiresAt: stored.quote.expiresAt,
+          nonce: nextId("build"),
+        });
         const response: TradeBuildResponse = {
-          requestId: nextId("build"),
+          requestId,
           transactionBase64: encodeDemoTx(`demo-tx:${request.quoteId}`),
           expiresAt: stored.quote.expiresAt,
         };
+        quotes.set(stored.quote.id, stored);
         builds.set(response.requestId, {
           requestId: response.requestId,
           quoteId: stored.quote.id,
@@ -602,23 +667,38 @@ export function createDemoUserService(deps: DemoDeps) {
       },
 
       async submit(userId: string, request: TradeSubmitRequest): Promise<TradeSubmitResponse> {
-        const build = builds.get(request.requestId);
-        if (!build || build.userId !== userId) {
+        let build = builds.get(request.requestId);
+        if (build && build.userId !== userId) {
           throw new DomainError("NOT_FOUND", "No encontramos esa orden.");
         }
-        if (build.orderId) {
-          const existing = orders.get(build.orderId);
+        if (build?.orderId) {
+          const existing = orders.get(build.orderId) ?? decodeSignedToken<Order>("o1", build.orderId);
           if (!existing) throw new DomainError("NOT_FOUND", "No encontramos esa orden.");
           return { orderId: existing.id, signature: existing.signature, status: existing.status };
         }
         if (request.signedTransactionBase64.trim() === "") {
           throw new DomainError("VALIDATION", "Falta la transacción firmada.");
         }
-        const stored = quotes.get(build.quoteId);
-        if (!stored || stored.userId !== userId) {
-          throw new DomainError("NOT_FOUND", "No encontramos esa cotización.");
+        let stored = build ? quotes.get(build.quoteId) : undefined;
+        let buildExpiresAt = build?.expiresAt ?? "";
+        if (!stored) {
+          const decodedBuild = decodeSignedToken<SignedBuildPayload>("b1", request.requestId);
+          if (decodedBuild && decodedBuild.stored.userId === userId) {
+            stored = decodedBuild.stored;
+            buildExpiresAt = decodedBuild.buildExpiresAt;
+            build = {
+              requestId: request.requestId,
+              quoteId: stored.quote.id,
+              userId,
+              expiresAt: buildExpiresAt,
+              orderId: null,
+            };
+          }
         }
-        if (expired(build.expiresAt) || expired(stored.quote.expiresAt)) throw new DomainError("QUOTE_EXPIRED");
+        if (!build || !stored || stored.userId !== userId) {
+          throw new DomainError("NOT_FOUND", "No encontramos esa orden.");
+        }
+        if (expired(buildExpiresAt) || expired(stored.quote.expiresAt)) throw new DomainError("QUOTE_EXPIRED");
         const invalid = validateDemoTradeInput({
           symbol: stored.quote.symbol,
           side: stored.quote.side,
@@ -638,7 +718,7 @@ export function createDemoUserService(deps: DemoDeps) {
             usdclp: stored.fx,
           });
         } catch (error) {
-          const failed: Order = {
+          const baseFailed: Order = {
             id: nextId("order"),
             userId,
             side: stored.quote.side,
@@ -651,13 +731,15 @@ export function createDemoUserService(deps: DemoDeps) {
             error: error instanceof DomainError ? error.message : "No se pudo ejecutar.",
             createdAt: new Date().toISOString(),
           };
+          const failedId = encodeSignedToken<Order>("o1", baseFailed);
+          const failed: Order = { ...baseFailed, id: failedId };
           orders.set(failed.id, failed);
           builds.set(build.requestId, { ...build, orderId: failed.id });
           return { orderId: failed.id, signature: null, status: "failed" };
         }
 
         const createdAt = new Date().toISOString();
-        const confirmed: Order = {
+        const baseConfirmed: Order = {
           id: nextId("order"),
           userId,
           side: stored.quote.side,
@@ -669,6 +751,8 @@ export function createDemoUserService(deps: DemoDeps) {
           signature: null,
           createdAt,
         };
+        const confirmedId = encodeSignedToken<Order>("o1", baseConfirmed);
+        const confirmed: Order = { ...baseConfirmed, id: confirmedId };
         orders.set(confirmed.id, confirmed);
         builds.set(build.requestId, { ...build, orderId: confirmed.id });
         return { orderId: confirmed.id, signature: null, status: "confirmed" };
@@ -677,6 +761,8 @@ export function createDemoUserService(deps: DemoDeps) {
       async status(userId: string, id: string): Promise<Order> {
         const existing = orders.get(id);
         if (existing && existing.userId === userId) return { ...existing };
+        const decoded = decodeSignedToken<Order>("o1", id);
+        if (decoded && decoded.userId === userId) return { ...decoded, id };
         const row = await deps.getOrder(userId, id);
         if (!row) throw new DomainError("NOT_FOUND", "No encontramos esa orden.");
         return toOrder(userId, row, feeConfig.bps);

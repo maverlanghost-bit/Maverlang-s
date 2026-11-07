@@ -55,31 +55,30 @@ export function Transcript({
         {announcement}
       </div>
       {isEmpty ? (
-        <div className="mx-auto flex min-h-full w-full max-w-2xl flex-col items-center justify-center px-1 pt-4 pb-7 text-center sm:pt-6 sm:pb-9 lg:min-h-0 lg:px-0 lg:pt-0 lg:pb-0">
-          <div aria-hidden="true" className="relative mb-6 flex items-center justify-center lg:mb-8">
-            <span className="absolute -inset-7 rounded-full bg-[radial-gradient(closest-side,#f0f0f0_0%,rgba(255,255,255,0)_76%)]" />
-            <span className="absolute inset-[-10px] rounded-[30px] border border-border/40" />
-            <span className="relative flex size-16 items-center justify-center rounded-[22px] border border-border/70 bg-white text-fg shadow-[inset_0_1px_0_rgba(255,255,255,0.9)] lg:size-20 lg:rounded-[26px]">
-              <SparkleIcon />
-            </span>
-          </div>
-          <p className="max-w-[19ch] text-balance text-[30px] leading-[1.08] font-semibold tracking-[-0.03em] text-fg sm:max-w-none sm:text-[36px] lg:max-w-[22ch] lg:text-[40px]">
+        <div className="mx-auto flex min-h-full w-full max-w-2xl flex-col items-center justify-center px-1 pt-2 pb-6 text-center sm:pt-4 sm:pb-8 lg:min-h-0 lg:px-0 lg:pt-0 lg:pb-0">
+          <span
+            aria-hidden="true"
+            className="mb-4 inline-flex size-12 items-center justify-center rounded-2xl border border-border/70 bg-white text-fg shadow-xs lg:mb-5"
+          >
+            <SparkleIcon />
+          </span>
+          <p className="max-w-[20ch] text-balance text-[28px] leading-[1.1] font-semibold tracking-[-0.03em] text-fg sm:max-w-none sm:text-[34px] lg:max-w-[24ch] lg:text-[38px]">
             {copy.emptyTitle}
           </p>
-          <p className="mx-auto mt-3 max-w-[36ch] text-pretty text-[14px] leading-[1.65] text-fg-muted sm:mt-3.5 sm:max-w-md sm:text-[15px]">
+          <p className="mx-auto mt-2.5 max-w-[40ch] text-pretty text-sm leading-relaxed text-fg-muted sm:max-w-md sm:text-[15px]">
             {copy.emptyBody}
           </p>
           <div className="mt-5 w-full text-left sm:mt-6">
             <MarketPulseBar onSelectPrompt={(promptText) => onSuggest?.("tesla", promptText)} />
           </div>
           {onSuggest ? (
-            <div className="mt-6 grid w-full grid-cols-1 gap-2.5 text-left sm:mt-7 sm:grid-cols-2 sm:gap-3 lg:hidden">
+            <div className="mt-5 grid w-full grid-cols-1 gap-2.5 text-left sm:mt-6 sm:grid-cols-2 sm:gap-3 lg:hidden">
               {copy.suggestions.map((item) => (
                 <button
                   key={item.id}
                   type="button"
                   onClick={() => onSuggest(item.id, item.text)}
-                  className="group flex min-h-[68px] items-start gap-3 rounded-2xl border border-border/70 bg-white p-3.5 text-left transition duration-200 ease-[var(--ease-inout)] hover:-translate-y-0.5 hover:border-fg/20 hover:bg-surface-1/40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand active:translate-y-0 motion-reduce:transform-none motion-reduce:transition-none sm:p-4"
+                  className="group flex min-h-[64px] items-start gap-3 rounded-2xl border border-border/70 bg-white p-3.5 text-left transition duration-200 ease-[var(--ease-inout)] hover:-translate-y-0.5 hover:border-fg/20 hover:bg-surface-1/40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand active:translate-y-0 motion-reduce:transform-none motion-reduce:transition-none sm:p-4"
                 >
                   <span
                     aria-hidden="true"
@@ -175,7 +174,7 @@ export function Transcript({
 
 function SparkleIcon() {
   return (
-    <svg viewBox="0 0 24 24" className="size-7 lg:size-8" fill="none" aria-hidden="true">
+    <svg viewBox="0 0 24 24" className="size-6" fill="none" aria-hidden="true">
       <path
         d="M12 3.25c.45 3.6 1.95 5.1 5.55 5.55-3.6.45-5.1 1.95-5.55 5.55-.45-3.6-1.95-5.1-5.55-5.55 3.6-.45 5.1-1.95 5.55-5.55Z"
         fill="currentColor"

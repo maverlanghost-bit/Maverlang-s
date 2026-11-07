@@ -134,69 +134,70 @@ export function Hero({ quotes, live }: { quotes: LandingQuote[]; live: boolean }
         </Reveal>
       </div>
 
-      <Reveal delay={400} className="mx-auto mt-12 w-full max-w-xl md:mt-16 md:max-w-2xl">
-        <div className="overflow-hidden rounded-3xl border border-border bg-bg/85 shadow-[0_1px_2px_rgba(10,10,10,0.04),0_8px_24px_-12px_rgba(10,10,10,0.12)] backdrop-blur-xl">
-          {/* Barra superior de estado, tipo terminal financiera. */}
-          <div className="flex flex-col gap-2.5 border-b border-border/70 bg-surface-1/40 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:px-5">
-            <div className="flex min-w-0 items-center gap-3">
-              <span aria-hidden="true" className="flex shrink-0 items-center gap-1.5">
-                <span className="size-2 rounded-full bg-border-strong/60 sm:size-2.5" />
-                <span className="size-2 rounded-full bg-border-strong/60 sm:size-2.5" />
-                <span className="size-2 rounded-full bg-border-strong/60 sm:size-2.5" />
-              </span>
-              <span className="inline-flex min-w-0 items-center gap-1.5 rounded-full border border-up/15 bg-up-bg px-2.5 py-1 text-[11px] leading-none font-medium text-up">
-                <span
-                  aria-hidden="true"
-                  className="size-1.5 shrink-0 rounded-full bg-up motion-safe:animate-pulse motion-reduce:animate-none"
-                />
-                <span className="truncate">Solana Mainnet · xStocks 24/7</span>
-              </span>
-            </div>
-            <div className="flex items-center justify-between gap-3 sm:justify-end">
-              <span className={cn("label shrink-0", live && "text-up")}>{live ? "En vivo" : "Ejemplo"}</span>
-              <span className="truncate text-xs text-fg-muted sm:text-[13px]">{landingNotice(live)}</span>
-            </div>
+      <Reveal delay={400} className="mx-auto mt-14 w-full max-w-2xl md:mt-16">
+        {/* Cabecera minimalista sin marco de ventana de navegador */}
+        <div className="flex flex-wrap items-center justify-between gap-2 pb-3 text-xs text-fg-muted">
+          <div className="inline-flex items-center gap-2">
+            <span
+              aria-hidden="true"
+              className="size-1.5 rounded-full bg-up motion-safe:animate-pulse motion-reduce:animate-none"
+            />
+            <span className="font-medium text-fg">Cotizaciones 24/7</span>
+            <span aria-hidden="true" className="text-border-strong">
+              ·
+            </span>
+            <span>xStocks en Solana</span>
           </div>
-
-          <ul className="flex flex-col gap-1.5 p-2 sm:p-3">
-            {heroQuotes.map((quote) => (
-              <li key={quote.symbol}>
-                <TickerRow
-                  href={quote.href}
-                  symbol={quote.symbol}
-                  name={quote.name}
-                  logoUrl={quote.logo}
-                  price={quote.priceUsd}
-                  currency="USD"
-                  change={quote.change}
-                  priceSlot={
-                    <LandingPrice
-                      symbol={quote.symbol}
-                      initial={{ priceUsd: quote.priceUsd, change: quote.change }}
-                    />
-                  }
-                />
-              </li>
-            ))}
-          </ul>
-
-          {/* Pie: mínimo, comisión y custodia. */}
-          <dl className="grid grid-cols-3 divide-x divide-border/70 border-t border-border/70 bg-surface-1/30">
-            {terminalMetrics.map((metric) => (
-              <div key={metric.label} className="min-w-0 px-3 py-3 sm:px-4">
-                <dt className="label text-[10px]">{metric.label}</dt>
-                <dd
-                  className={cn(
-                    "mt-1 text-xs leading-snug break-words text-fg sm:text-[13px]",
-                    metric.mono && "num font-medium tabular-nums",
-                  )}
-                >
-                  {metric.value}
-                </dd>
-              </div>
-            ))}
-          </dl>
+          <div className="flex items-center gap-2">
+            <span className={cn("label text-[10px]", live && "text-up")}>
+              {live ? "En vivo" : "Ejemplo"}
+            </span>
+            <span aria-hidden="true" className="text-border-strong">
+              ·
+            </span>
+            <span className="text-xs text-fg-muted">{landingNotice(live)}</span>
+          </div>
         </div>
+
+        {/* Lista limpia con divisores de 1px, sin bordes de ventana ni semáforos */}
+        <ul className="divide-y divide-border/70 border-y border-border/80">
+          {heroQuotes.map((quote) => (
+            <li key={quote.symbol} className="py-1">
+              <TickerRow
+                href={quote.href}
+                symbol={quote.symbol}
+                name={quote.name}
+                logoUrl={quote.logo}
+                price={quote.priceUsd}
+                currency="USD"
+                change={quote.change}
+                priceSlot={
+                  <LandingPrice
+                    symbol={quote.symbol}
+                    initial={{ priceUsd: quote.priceUsd, change: quote.change }}
+                  />
+                }
+              />
+            </li>
+          ))}
+        </ul>
+
+        {/* Pie minimalista: tres datos duros al pie del listado */}
+        <dl className="mt-6 grid grid-cols-3 gap-4 sm:gap-8">
+          {terminalMetrics.map((metric) => (
+            <div key={metric.label} className="min-w-0 border-l border-border pl-3 sm:pl-4">
+              <dt className="label text-[10px] text-fg-muted">{metric.label}</dt>
+              <dd
+                className={cn(
+                  "mt-1 text-sm leading-snug break-words text-fg sm:text-base",
+                  metric.mono ? "num font-semibold tabular-nums" : "font-medium",
+                )}
+              >
+                {metric.value}
+              </dd>
+            </div>
+          ))}
+        </dl>
       </Reveal>
     </section>
   );

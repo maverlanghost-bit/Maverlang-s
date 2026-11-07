@@ -179,13 +179,13 @@ export function Sidebar({
     >
       {isAiRoute ? (
         <>
-          <div className={cn("flex items-center gap-1 py-3", collapsed ? "justify-center px-0" : "justify-between px-3")}>
+          <div className="flex items-center justify-between gap-1 px-3.5 py-3">
             {collapsed ? (
               <Tooltip content={t.detail.backToMarket} side="right">
                 <Link
                   href="/app"
                   aria-label={t.detail.backToMarket}
-                  className="mx-auto flex size-11 cursor-pointer items-center justify-center rounded-xl text-fg-body outline-none transition hover:bg-surface-2 hover:text-fg focus-visible:ring-4 focus-visible:ring-fg/20"
+                  className="flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-xl text-fg-body outline-none transition hover:bg-surface-2 hover:text-fg focus-visible:ring-4 focus-visible:ring-fg/20"
                 >
                   <ArrowLeftIcon className="size-4" />
                 </Link>
@@ -194,9 +194,11 @@ export function Sidebar({
               <>
                 <Link
                   href="/app"
-                  className="group flex min-h-11 min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-lg px-2 text-[13px] font-medium text-fg-body outline-none transition duration-150 ease-spring hover:bg-fg/[0.05] hover:text-fg focus-visible:ring-4 focus-visible:ring-fg/20"
+                  className="group flex min-h-11 min-w-0 flex-1 cursor-pointer items-center rounded-xl text-[13px] font-medium text-fg-body outline-none transition duration-150 ease-spring hover:bg-fg/[0.05] hover:text-fg focus-visible:ring-4 focus-visible:ring-fg/20"
                 >
-                  <ArrowLeftIcon className="size-4 shrink-0 text-fg-muted transition duration-150 group-hover:-translate-x-0.5 group-hover:text-fg" />
+                  <span className="flex size-11 shrink-0 items-center justify-center">
+                    <ArrowLeftIcon className="size-4 shrink-0 text-fg-muted transition duration-150 group-hover:-translate-x-0.5 group-hover:text-fg" />
+                  </span>
                   <span className="min-w-0 truncate">{t.detail.backToMarket}</span>
                 </Link>
                 <button
@@ -212,7 +214,7 @@ export function Sidebar({
             )}
           </div>
 
-          <nav aria-label={t.nav.label} className={cn("flex-1 overflow-y-auto pb-2", collapsed ? "px-3.5" : "px-2.5")}>
+          <nav aria-label={t.nav.label} className="flex-1 overflow-y-auto px-3.5 pb-2">
             <ul className="flex flex-col gap-1">
               <li>
                 {collapsed ? (
@@ -221,7 +223,7 @@ export function Sidebar({
                       type="button"
                       aria-label={newChatLabel}
                       onClick={() => dispatchAiCommand({ type: "clear" })}
-                      className="mx-auto flex size-11 cursor-pointer items-center justify-center rounded-xl bg-fg text-bg shadow-xs outline-none transition hover:bg-fg/90 focus-visible:ring-4 focus-visible:ring-fg/20 active:scale-[0.98]"
+                      className="flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-xl bg-fg text-bg shadow-xs outline-none transition hover:bg-fg/90 focus-visible:ring-4 focus-visible:ring-fg/20 active:scale-[0.98]"
                     >
                       <ComposeChatIcon className="size-4" />
                     </button>
@@ -271,7 +273,7 @@ export function Sidebar({
             ) : null}
           </nav>
 
-          <div className={cn("border-t border-border/70", collapsed ? "px-3.5 py-3" : "px-3 py-3")}>
+          <div className="border-t border-border/70 px-3.5 py-3">
             <div
               ref={menuRef}
               className="relative"
@@ -328,7 +330,7 @@ export function Sidebar({
                     href="/app/perfil"
                     aria-label={loading ? t.shell.account : `${name}. ${t.shell.account}`}
                     title={loading ? t.shell.account : name}
-                    className="mx-auto flex size-11 cursor-pointer items-center justify-center rounded-xl outline-none hover:bg-surface-2 focus-visible:ring-4 focus-visible:ring-fg/20"
+                    className="flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-xl outline-none hover:bg-surface-2 focus-visible:ring-4 focus-visible:ring-fg/20"
                   >
                     <span className="flex size-11 shrink-0 items-center justify-center">
                       <Avatar alt="" fallback={name} size="md" className="size-10" />
@@ -342,7 +344,7 @@ export function Sidebar({
                   aria-expanded={menuOpen}
                   aria-label={`${name}. ${t.shell.account}`}
                   onClick={() => setMenuOpen((open) => !open)}
-                  className="flex min-h-11 w-full cursor-pointer items-center rounded-xl text-left outline-none hover:bg-surface-2 focus-visible:ring-4 focus-visible:ring-fg/20"
+                  className="flex min-h-11 w-full cursor-pointer items-center gap-1.5 rounded-xl text-left outline-none hover:bg-surface-2 focus-visible:ring-4 focus-visible:ring-fg/20"
                 >
                   <span className="flex size-11 shrink-0 items-center justify-center">
                     <Avatar alt="" fallback={name} size="md" className="size-10" />
@@ -359,13 +361,15 @@ export function Sidebar({
         </>
       ) : (
         <>
-          {/* Marca: el mismo archivo que el favicon. Mismo slot fijo que los íconos. */}
-          <div className={cn("flex items-center py-3", collapsed ? "justify-center px-0" : "justify-between px-3")}>
+          {/* Marca: padding izquierdo fijo (px-3.5 = 14px) para que el slot size-11 (44px)
+              quede clavado exactamente en el centro de los 72px colapsados (14+44+14=72)
+              y jamás se desplace de derecha a izquierda al colapsar o expandir. */}
+          <div className="flex items-center justify-between px-3.5 py-3">
             <Link
               href="/app"
               aria-label={site.name}
               title={site.name}
-              className="flex min-h-11 cursor-pointer items-center rounded-xl outline-none focus-visible:ring-4 focus-visible:ring-fg/20"
+              className="flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-xl outline-none focus-visible:ring-4 focus-visible:ring-fg/20"
             >
               <span className="flex size-11 shrink-0 items-center justify-center">
                 <BrandFavicon className="w-10" />
@@ -376,13 +380,13 @@ export function Sidebar({
                 type="button"
                 onClick={() => openCommandPalette()}
                 aria-label="Abrir paleta de comandos ⌘K"
-                className="mr-1 inline-flex cursor-pointer items-center gap-1 rounded-full border border-border/70 bg-white/80 px-2.5 py-1 text-[11px] font-medium text-fg-muted shadow-[0_1px_2px_rgba(12,15,20,0.04)] transition hover:bg-surface-2 hover:text-fg"
+                className="inline-flex shrink-0 cursor-pointer items-center gap-1 rounded-full border border-border/70 bg-white/80 px-2.5 py-1 text-[11px] font-medium text-fg-muted shadow-[0_1px_2px_rgba(12,15,20,0.04)] transition hover:bg-surface-2 hover:text-fg"
               >
                 <span>⌘K</span>
               </button>
             ) : null}
           </div>
-          <nav aria-label={t.nav.label} className={cn("flex-1", collapsed ? "px-3.5" : "px-2.5")}>
+          <nav aria-label={t.nav.label} className="flex-1 px-3.5">
             <ul className="flex flex-col gap-1">
               <li>
                 <StockSearchButton collapsed={collapsed} />
@@ -396,8 +400,8 @@ export function Sidebar({
                     aria-label={collapsed ? t.nav[item.id] : undefined}
                     aria-current={active ? "page" : undefined}
                     className={cn(
-                      "flex min-h-11 cursor-pointer items-center rounded-xl text-sm outline-none transition duration-200 ease-spring focus-visible:ring-4 focus-visible:ring-fg/20 active:scale-[0.98]",
-                      collapsed ? "mx-auto size-11 justify-center gap-0 px-0" : "w-full gap-2.5 px-1",
+                      "flex min-h-11 cursor-pointer items-center rounded-xl text-sm outline-none transition-colors duration-150 focus-visible:ring-4 focus-visible:ring-fg/20 active:scale-[0.98]",
+                      collapsed ? "size-11 justify-start gap-0 px-0" : "w-full justify-start gap-1.5 pr-2 pl-0",
                       active
                         ? "bg-fg/[0.06] font-medium text-fg shadow-[inset_0_1px_0_rgba(255,255,255,0.85),0_1px_3px_rgba(12,15,20,0.05)] ring-1 ring-border/60"
                         : "text-fg-body hover:bg-fg/[0.04] hover:text-fg",
@@ -408,7 +412,7 @@ export function Sidebar({
                     </span>
                     <span
                       className={cn(
-                        "overflow-hidden whitespace-nowrap transition-all duration-200 ease-spring",
+                        "overflow-hidden whitespace-nowrap",
                         collapsed ? "sr-only" : "truncate",
                       )}
                     >
@@ -430,7 +434,7 @@ export function Sidebar({
               })}
             </ul>
           </nav>
-          <div className={cn("border-t border-border/70", collapsed ? "px-3.5 py-3" : "px-3 py-3")}>
+          <div className="border-t border-border/70 px-3.5 py-3">
             {!collapsed ? (
               <>
                 <BalanceHeader variant="sidebar" />
@@ -495,7 +499,7 @@ export function Sidebar({
                     href="/app/perfil"
                     aria-label={loading ? t.shell.account : `${name}. ${t.shell.account}`}
                     title={loading ? t.shell.account : name}
-                    className="mx-auto flex size-11 cursor-pointer items-center justify-center rounded-xl outline-none hover:bg-surface-2 focus-visible:ring-4 focus-visible:ring-fg/20"
+                    className="flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-xl outline-none hover:bg-surface-2 focus-visible:ring-4 focus-visible:ring-fg/20"
                   >
                     <span className="flex size-11 shrink-0 items-center justify-center">
                       <Avatar alt="" fallback={name} size="md" className="size-10" />
@@ -509,7 +513,7 @@ export function Sidebar({
                   aria-expanded={menuOpen}
                   aria-label={`${name}. ${t.shell.account}`}
                   onClick={() => setMenuOpen((open) => !open)}
-                  className="flex min-h-11 w-full cursor-pointer items-center rounded-xl text-left outline-none hover:bg-surface-2 focus-visible:ring-4 focus-visible:ring-fg/20"
+                  className="flex min-h-11 w-full cursor-pointer items-center gap-1.5 rounded-xl text-left outline-none hover:bg-surface-2 focus-visible:ring-4 focus-visible:ring-fg/20"
                 >
                   <span className="flex size-11 shrink-0 items-center justify-center">
                     <Avatar alt="" fallback={name} size="md" className="size-10" />
