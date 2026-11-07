@@ -11,6 +11,7 @@ import { IconChevron } from "@/components/ui/icons";
 import { LoadingState } from "@/components/ui/loading-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { ResetDemoButton } from "@/components/domain/reset-demo-button";
+import { SecurityShieldCard } from "@/components/domain/security-shield-card";
 import { useSession } from "@/lib/auth";
 import { useAccountMode } from "@/lib/hooks/use-account-mode";
 import { useMe } from "@/lib/hooks/queries";
@@ -148,6 +149,7 @@ export function ProfileScreen({ version }: { version: string }) {
           </div>
         ) : null}
       </Card>
+      <SecurityShieldCard email={profile.email} mode={account.mode} />
       <ProfileMenu t={t} status={status} onLogout={() => void logout()} version={version} />
     </div>
   );

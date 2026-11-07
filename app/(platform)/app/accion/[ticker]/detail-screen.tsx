@@ -12,6 +12,7 @@ import { FavoriteButton } from "@/components/domain/favorite-button";
 import { RealAccountEmpty } from "@/components/domain/real-account-empty";
 import { TickerLogo } from "@/components/domain/ticker-logo";
 import { TokenGapCard } from "@/components/domain/token-gap-card";
+import { OnchainVerificationCard } from "@/components/domain/onchain-verification-card";
 import { AlertButton } from "@/components/domain/alert-button";
 import { CompanyCard } from "@/components/domain/company-card";
 import { WhatIfCalculator } from "@/components/domain/what-if-calculator";
@@ -772,7 +773,7 @@ export function DetailScreen({
             {category ? <FactChip>{category}</FactChip> : null}
             <li className="shrink-0">
               <Link
-                href="/app/asistente"
+                href={`/app/asistente?ticker=${encodeURIComponent(ticker.symbol)}&q=${encodeURIComponent(`Analiza ${ticker.name} (${ticker.symbol}): desempeño, riesgos y contexto actual`)}`}
                 className="inline-flex items-center gap-1.5 rounded-full border border-brand/30 bg-brand-soft/60 px-3 py-1 text-[12px] leading-4 font-medium whitespace-nowrap text-brand transition-all hover:border-brand/50 hover:bg-brand-soft"
               >
                 <svg className="size-3.5 shrink-0" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
@@ -848,6 +849,15 @@ export function DetailScreen({
 
         <CompanyCard symbol={ticker.symbol} />
         <StockTokenGuide />
+
+        <OnchainVerificationCard
+          symbol={ticker.symbol}
+          name={ticker.name}
+          mint={ticker.mint}
+          issuer={ticker.issuer}
+          underlying={ticker.underlying}
+          multiplier={quote?.multiplier ?? null}
+        />
 
         {access === "guest" ? null : (
           <PositionBlock

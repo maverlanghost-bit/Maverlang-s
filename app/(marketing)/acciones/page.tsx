@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { PublicCatalogGrid, type PublicCatalogItem } from "@/components/landing/public-catalog-grid";
 import { LandingSection } from "@/components/landing/section";
 import { HUB_DESCRIPTION, HUB_TITLE } from "@/lib/seo/copy";
 import { pageMetadata } from "@/lib/seo/metadata";
@@ -19,6 +20,15 @@ export default async function AccionesPage() {
     (a, b) => a.name.localeCompare(b.name, "es", { sensitivity: "base" }) || a.ticker.localeCompare(b.ticker),
   );
 
+  /** Sólo los campos del contrato compartido con la grilla pública. */
+  const catalog: readonly PublicCatalogItem[] = assets.map(({ slug, name, ticker, symbol, etf }) => ({
+    slug,
+    name,
+    ticker,
+    symbol,
+    etf,
+  }));
+
   return (
     <LandingSection titleId="acciones-title">
       <div className="max-w-2xl">
@@ -30,23 +40,49 @@ export default async function AccionesPage() {
           Fracciones de acciones tokenizadas de EE.UU., desde Chile. Cada ficha describe un token que
           sigue el precio. La demo usa saldo ficticio y se opera 24/7.
         </p>
+        <ul className="mt-6 flex flex-wrap items-center gap-2">
+          <li className="inline-flex items-center gap-1 rounded-full border border-border/80 bg-surface-1 px-3 py-1.5 text-xs leading-snug text-fg-body sm:text-sm">
+            <span className="font-mono font-medium tabular-nums text-fg">{assets.length}</span>
+            <span>activos disponibles</span>
+          </li>
+          <li className="inline-flex items-center rounded-full border border-border/80 bg-surface-1 px-3 py-1.5 text-xs leading-snug text-fg-body sm:text-sm">
+            Fracciones desde US$10
+          </li>
+          <li className="inline-flex items-center rounded-full border border-border/80 bg-surface-1 px-3 py-1.5 text-xs leading-snug text-fg-body sm:text-sm">
+            Horario 24/7 (xStocks)
+          </li>
+          <li className="inline-flex items-center rounded-full border border-border/80 bg-surface-1 px-3 py-1.5 text-xs leading-snug text-fg-body sm:text-sm">
+            Autocustodia en Solana SPL
+          </li>
+        </ul>
       </div>
       {assets.length === 0 ? (
         <p className="mt-10 text-sm text-fg-muted">El catálogo no está disponible ahora.</p>
       ) : (
-        <ul className="mt-10 grid gap-1 sm:grid-cols-2 lg:grid-cols-3">
-          {assets.map((asset) => (
-            <li key={asset.slug}>
+        <div className="mt-10">
+          <PublicCatalogGrid assets={catalog} />
+          <aside className="mt-8 rounded-3xl border border-border bg-surface-1 p-6 md:p-8">
+            <h2 className="text-base font-medium text-fg">Prueba la demo con US$10.000 ficticios</h2>
+            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-fg-body">
+              Saldo de mentira, precios reales: compra y vende fracciones sin plata de por medio. El
+              token queda en tu propia billetera, no en la nuestra.
+            </p>
+            <p className="mt-5 flex flex-wrap items-center gap-x-6 gap-y-3">
               <Link
-                href={`/acciones/${asset.slug}`}
-                className="flex min-h-11 items-baseline justify-between gap-3 rounded-lg px-2 py-2 text-sm hover:bg-surface-1"
+                href="/app/registro"
+                className="inline-flex min-h-11 items-center rounded-full bg-fg px-5 text-sm text-white transition duration-[140ms] ease-spring hover:bg-[#1f2329] focus-visible:ring-4 focus-visible:ring-fg/20 active:scale-[0.98]"
               >
-                <span className="font-medium text-fg">{asset.name}</span>
-                <span className="shrink-0 text-fg-muted">{asset.ticker}</span>
+                Crear cuenta demo
               </Link>
-            </li>
-          ))}
-        </ul>
+              <Link
+                href="/como-funciona"
+                className="inline-flex min-h-11 items-center text-sm font-medium text-fg underline decoration-border underline-offset-4 hover:decoration-fg"
+              >
+                Cómo funciona
+              </Link>
+            </p>
+          </aside>
+        </div>
       )}
     </LandingSection>
   );

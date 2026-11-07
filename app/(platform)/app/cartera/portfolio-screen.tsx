@@ -13,6 +13,8 @@ import { InfoTip } from "@/components/domain/info-tip";
 import { PriceFreshness } from "@/components/domain/price-freshness";
 import { PortfolioDonut } from "@/components/domain/portfolio-donut";
 import { DividendMultiplierCard } from "@/components/domain/dividend-multiplier-card";
+import { PortfolioHealthCard } from "@/components/domain/portfolio-health-card";
+import { TradeReceiptTrigger } from "@/components/domain/trade-receipt-modal";
 import { PositionRow } from "@/components/domain/position-row";
 import { RealAccountEmpty } from "@/components/domain/real-account-empty";
 import { ResetDemoButton } from "@/components/domain/reset-demo-button";
@@ -62,6 +64,25 @@ const STATUS_TONE: Record<OrderStatus, BadgeTone> = {
   failed: "down",
   expired: "neutral",
 };
+
+/**
+ * El comprobante sólo conoce cuatro estados. `expired` (orden que nunca se
+ * firmó) no tiene comprobante propio: se muestra como pendiente para no
+ * inventar un estado que el recibo no sabe representar.
+ */
+type ReceiptStatus = "pending" | "submitted" | "confirmed" | "failed";
+
+const RECEIPT_STATUS: Record<OrderStatus, ReceiptStatus> = {
+  pending: "pending",
+  submitted: "submitted",
+  confirmed: "confirmed",
+  failed: "failed",
+  expired: "pending",
+};
+
+function receiptStatusOf(status: OrderStatus): ReceiptStatus {
+  return RECEIPT_STATUS[status] ?? "pending";
+}
 
 function fill(template: string, values: Record<string, string>) {
   let next = template;
@@ -756,6 +777,12 @@ export function PortfolioScreen() {
               rate={rate}
               masked={masked}
             />
+            <PortfolioHealthCard
+              positions={loaded.positions}
+              cashUsdc={loaded.cashUsdc}
+              totalUsd={loaded.totalUsd}
+              masked={masked}
+            />
           </>
         )}
 
@@ -829,6 +856,22 @@ export function PortfolioScreen() {
                         explorerLabel={t.trade.explorer}
                         explorerNew={t.trade.explorerNew}
                       />
+                      <div className="flex justify-end px-2 pb-3">
+                        <TradeReceiptTrigger
+                          id={row.id}
+                          kind={row.kind === "sell" ? "sell" : "buy"}
+                          symbol={row.symbol}
+                          tickerName={name}
+                          shares={row.amountUi}
+                          usd={row.valueUsd ?? 0}
+                          at={row.at}
+                          status={receiptStatusOf(row.status)}
+                          signature={row.signature ?? undefined}
+                          currency={currency}
+                          rate={rate}
+                          masked={masked}
+                        />
+                      </div>
                     </li>
                   );
                 })}
