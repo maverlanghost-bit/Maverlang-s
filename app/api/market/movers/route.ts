@@ -25,8 +25,8 @@ export const maxDuration = 30;
 
 const FRESH_MS = 120_000;
 const STALE_MS = 30 * 60_000;
-const PAGE_SIZE = 50;
-const MAX_PAGES = 2;
+const PAGE_SIZE = 40;
+const MAX_PAGES = 1;
 
 let memo: { at: number; board: TodayBoard } | null = null;
 let pending: Promise<TodayBoard> | null = null;
@@ -86,7 +86,7 @@ async function readCloses(underlying: string): Promise<{ t: number; p: number }[
 async function boardNow(): Promise<TodayBoard> {
   const now = Date.now();
   if (memo && now - memo.at < FRESH_MS) return memo.board;
-  // Barrer las 446 fichas tarda segundos: si hay un tablero reciente se entrega al tiro y se refresca detras.
+  // Barrer el top de liquidez tarda segundos: si hay un tablero reciente se entrega al tiro y se refresca detras.
   if (memo && now - memo.at < STALE_MS) {
     if (!pending) void refresh(now).catch(() => undefined);
     return memo.board;

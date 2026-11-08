@@ -161,6 +161,7 @@ export function MarketToday() {
   const catalog = useQuery({
     queryKey: ["market-today-spotlight-catalog", "listed", 50, "liquidity"],
     queryFn: () => searchMarket({ q: "", page: 1, pageSize: 50, sort: "liquidity", scope: "listed" }),
+    enabled: board.isSuccess || board.isError,
     staleTime: 5 * 60_000,
     refetchIntervalInBackground: false,
     refetchOnWindowFocus: false,
@@ -184,23 +185,23 @@ export function MarketToday() {
   const historyQuery = useHistory(activeCard?.symbol ?? "", range);
   const dayNow = useSyncExternalStore(subscribeDayClock, dayClockSnapshot, dayClockServerSnapshot);
 
-  /** Precarga todos los rangos de las acciones destacadas para que cambiar entre 1D/1S/1M/3M/1A sea instantáneo. */
+  /** Precarga los otros rangos de la acción activa una vez que el gráfico visible terminó de cargar. */
   const queryClient = useQueryClient();
   useEffect(() => {
-    const targets = featuredPool.slice(0, 3);
-    for (const card of targets) {
-      const symbol = card.symbol.trim();
-      if (!symbol) continue;
+    const symbol = activeCard?.symbol.trim() ?? "";
+    if (!symbol || !historyQuery.isSuccess) return;
+    const timer = window.setTimeout(() => {
       for (const item of SPOTLIGHT_RANGES) {
-        if (symbol === activeCard?.symbol && item.id === range) continue;
+        if (item.id === range) continue;
         void queryClient.prefetchQuery({
           queryKey: ["history", symbol, item.id] as const,
           queryFn: () => getHistory(symbol, item.id),
           staleTime: 60_000,
         });
       }
-    }
-  }, [activeCard?.symbol, featuredPool, queryClient, range]);
+    }, 1200);
+    return () => window.clearTimeout(timer);
+  }, [activeCard?.symbol, historyQuery.isSuccess, queryClient, range]);
 
   /**
    * Serie del gráfico según el rango activo:

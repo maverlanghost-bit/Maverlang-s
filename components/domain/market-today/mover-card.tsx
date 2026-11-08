@@ -67,7 +67,7 @@ export function MoverCard({
         <span className="block truncate text-[13px] font-semibold leading-tight text-fg">{card.name}</span>
         <span className="mt-0.5 block truncate text-[11px] text-fg-muted">{card.symbol}</span>
       </span>
-      <Sparkline data={card.spark} width={52} height={20} className="hidden shrink-0 sm:block" />
+      <Sparkline data={card.spark} change={card.changePct} width={52} height={20} className="hidden shrink-0 sm:block" />
       <span aria-hidden className="shrink-0 text-right">
         <span
           className={cn(
@@ -113,7 +113,7 @@ export function SpyChip({
         />
         <span className="min-w-0 truncate text-xs font-semibold tracking-tight text-fg">{name}</span>
         <ChangeBadge value={card.changePct} />
-        <Sparkline data={card.spark} width={48} height={18} className="hidden min-[360px]:block" />
+        <Sparkline data={card.spark} change={card.changePct} width={48} height={18} className="hidden min-[360px]:block" />
       </span>
     </div>
   );

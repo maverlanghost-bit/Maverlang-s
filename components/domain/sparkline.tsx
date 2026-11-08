@@ -180,12 +180,15 @@ export function Sparkline({
   height = 32,
   label,
   className,
+  change,
 }: {
   data: number[];
   width?: number;
   height?: number;
   label?: string;
   className?: string;
+  /** Variación del día (ratio). Si viene, manda sobre la dirección de la serie. */
+  change?: number;
 }) {
   const pathRef = useRef<SVGPathElement>(null);
   // La lista arma un arreglo nuevo en cada render con los mismos números.
@@ -202,7 +205,14 @@ export function Sparkline({
 
   const shape = sparklineSmoothPath(data, width, height);
   if (!shape) return null;
-  const tone = sparklineTone(data);
+  const tone =
+    typeof change === "number" && Number.isFinite(change)
+      ? change > 0
+        ? "text-up"
+        : change < 0
+          ? "text-down"
+          : "text-fg-muted"
+      : sparklineTone(data);
 
   return (
     <svg

@@ -123,11 +123,24 @@ export function dayChange(
   return Number.isFinite(change) ? change : null;
 }
 
+/** La serie empieza y termina en el lado contrario al cambio del día. */
+function opposesDay(series: readonly { p: number }[], change: number | null): boolean {
+  if (change === null || change === 0 || series.length < 2) return false;
+  const first = series[0];
+  const last = series[series.length - 1];
+  if (!first || !last) return false;
+  return (last.p - first.p) * change < 0;
+}
+
 /**
  * Curva del sparkline. `dayChange` sigue midiendo el día (dos cierres o 24 h).
  * Con cierres diarios se dibujan hasta 24 puntos, no una recta de dos.
  * Con ticks, si la ventana de 24 h tiene menos de 6 puntos y la serie limpia
  * tiene más, se usa esa serie (también hasta 24) para que la curva no quede plana.
+ *
+ * Regla de dirección: la curva nunca puede ir al revés del cambio del día.
+ * Si la serie elegida empieza y termina en el lado contrario al de `dayChange`,
+ * se reemplaza por `dayWindow` (los dos del día), aunque eso deje dos puntos.
  */
 export function sparkLine(
   points: readonly { t: number; p: number }[],
@@ -135,11 +148,13 @@ export function sparkLine(
   daily: boolean,
 ): number[] {
   const clean = cleanPoints(points);
+  const windowed = dayWindow(points, now, daily);
+  const change = dayChange(points, now, daily);
   let series = clean.slice(-SPARK_MAX);
-  if (!daily) {
-    const windowed = dayWindow(points, now, false);
-    if (!(windowed.length < 6 && clean.length > windowed.length)) series = windowed;
+  if (!daily && windowed.length >= 2 && (windowed.length >= 6 || opposesDay(series, change))) {
+    series = windowed;
   }
+  if (windowed.length >= 2 && opposesDay(series, change)) series = windowed;
   return downsample(
     series.map((point) => round6(point.p)),
     SPARK_MAX,

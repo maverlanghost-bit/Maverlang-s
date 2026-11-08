@@ -56,15 +56,6 @@ function Reveal({
   );
 }
 
-/** Grilla decorativa de 1px que se desvanece hacia los bordes. */
-const heroGridStyle = {
-  backgroundImage:
-    "linear-gradient(to right, rgba(10,10,10,0.05) 1px, transparent 1px), linear-gradient(to bottom, rgba(10,10,10,0.05) 1px, transparent 1px)",
-  backgroundSize: "72px 72px",
-  maskImage: "radial-gradient(ellipse 85% 65% at 50% 0%, #000 5%, transparent 72%)",
-  WebkitMaskImage: "radial-gradient(ellipse 85% 65% at 50% 0%, #000 5%, transparent 72%)",
-} as const;
-
 /**
  * Precios reales en dólares cuando la fuente responde (M42); si no, la
  * muestra con "Precios ilustrativos". Sin series: el historial live no
@@ -75,7 +66,7 @@ export function Hero({ quotes, live }: { quotes: LandingQuote[]; live: boolean }
 
   return (
     <section className="relative isolate overflow-hidden px-5 pt-10 pb-16 md:pt-16 md:pb-24 lg:pt-20">
-      {/* Fondo ambiental: halo esmeralda/grafito + grilla con desvanecido. */}
+      {/* Fondo ambiental: halo radial muy sutil en la parte superior. */}
       <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10">
         <div
           className="absolute inset-x-0 -top-32 h-[560px]"
@@ -84,7 +75,6 @@ export function Hero({ quotes, live }: { quotes: LandingQuote[]; live: boolean }
               "radial-gradient(58% 62% at 50% 0%, rgba(31,138,101,0.06) 0%, rgba(31,138,101,0.02) 46%, rgba(10,10,10,0) 76%), radial-gradient(42% 48% at 82% 8%, rgba(10,10,10,0.04) 0%, rgba(10,10,10,0) 72%)",
           }}
         />
-        <div className="absolute inset-0" style={heroGridStyle} />
       </div>
 
       <div className="mx-auto flex w-full max-w-4xl flex-col items-center text-center">
@@ -135,69 +125,71 @@ export function Hero({ quotes, live }: { quotes: LandingQuote[]; live: boolean }
       </div>
 
       <Reveal delay={400} className="mx-auto mt-14 w-full max-w-2xl md:mt-16">
-        {/* Cabecera minimalista sin marco de ventana de navegador */}
-        <div className="flex flex-wrap items-center justify-between gap-2 pb-3 text-xs text-fg-muted">
-          <div className="inline-flex items-center gap-2">
-            <span
-              aria-hidden="true"
-              className="size-1.5 rounded-full bg-up motion-safe:animate-pulse motion-reduce:animate-none"
-            />
-            <span className="font-medium text-fg">Cotizaciones 24/7</span>
-            <span aria-hidden="true" className="text-border-strong">
-              ·
-            </span>
-            <span>xStocks en Solana</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className={cn("label text-[10px]", live && "text-up")}>
-              {live ? "En vivo" : "Ejemplo"}
-            </span>
-            <span aria-hidden="true" className="text-border-strong">
-              ·
-            </span>
-            <span className="text-xs text-fg-muted">{landingNotice(live)}</span>
-          </div>
-        </div>
-
-        {/* Lista limpia con divisores de 1px, sin bordes de ventana ni semáforos */}
-        <ul className="divide-y divide-border/70 border-y border-border/80">
-          {heroQuotes.map((quote) => (
-            <li key={quote.symbol} className="py-1">
-              <TickerRow
-                href={quote.href}
-                symbol={quote.symbol}
-                name={quote.name}
-                logoUrl={quote.logo}
-                price={quote.priceUsd}
-                currency="USD"
-                change={quote.change}
-                priceSlot={
-                  <LandingPrice
-                    symbol={quote.symbol}
-                    initial={{ priceUsd: quote.priceUsd, change: quote.change }}
-                  />
-                }
+        <div className="rounded-3xl border border-border/80 bg-white/95 p-5 shadow-[0_18px_50px_-24px_rgba(10,10,10,0.10)] backdrop-blur-sm sm:p-6">
+          {/* Cabecera ejecutiva sin semáforos ni barra de URL */}
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/70 pb-3.5 text-xs text-fg-muted">
+            <div className="inline-flex items-center gap-2">
+              <span
+                aria-hidden="true"
+                className="size-1.5 rounded-full bg-up motion-safe:animate-pulse motion-reduce:animate-none"
               />
-            </li>
-          ))}
-        </ul>
-
-        {/* Pie minimalista: tres datos duros al pie del listado */}
-        <dl className="mt-6 grid grid-cols-3 gap-4 sm:gap-8">
-          {terminalMetrics.map((metric) => (
-            <div key={metric.label} className="min-w-0 border-l border-border pl-3 sm:pl-4">
-              <dt className="label text-[10px] text-fg-muted">{metric.label}</dt>
-              <dd
-                className={cn(
-                  "mt-1 text-sm leading-snug break-words text-fg sm:text-base",
-                  metric.mono ? "num font-semibold tabular-nums" : "font-medium",
-                )}
-              >
-                {metric.value}
-              </dd>
+              <span className="font-medium text-fg">Cotizaciones 24/7</span>
+              <span aria-hidden="true" className="text-border-strong">
+                ·
+              </span>
+              <span>xStocks en Solana</span>
             </div>
-          ))}
-        </dl>
+            <div className="flex items-center gap-2">
+              <span className={cn("label text-[10px]", live && "text-up")}>
+                {live ? "En vivo" : "Ejemplo"}
+              </span>
+              <span aria-hidden="true" className="text-border-strong">
+                ·
+              </span>
+              <span className="text-xs text-fg-muted">{landingNotice(live)}</span>
+            </div>
+          </div>
+
+          {/* Lista limpia de cotizaciones */}
+          <ul className="mt-1 divide-y divide-border/70">
+            {heroQuotes.map((quote) => (
+              <li key={quote.symbol} className="py-1">
+                <TickerRow
+                  href={quote.href}
+                  symbol={quote.symbol}
+                  name={quote.name}
+                  logoUrl={quote.logo}
+                  price={quote.priceUsd}
+                  currency="USD"
+                  change={quote.change}
+                  priceSlot={
+                    <LandingPrice
+                      symbol={quote.symbol}
+                      initial={{ priceUsd: quote.priceUsd, change: quote.change }}
+                    />
+                  }
+                />
+              </li>
+            ))}
+          </ul>
+
+          {/* Pie de métricas clave */}
+          <dl className="mt-5 grid grid-cols-3 gap-4 border-t border-border/70 pt-4 sm:gap-8">
+            {terminalMetrics.map((metric) => (
+              <div key={metric.label} className="min-w-0">
+                <dt className="label text-[10px] text-fg-muted">{metric.label}</dt>
+                <dd
+                  className={cn(
+                    "mt-1 text-sm leading-snug break-words text-fg sm:text-base",
+                    metric.mono ? "num font-semibold tabular-nums" : "font-medium",
+                  )}
+                >
+                  {metric.value}
+                </dd>
+              </div>
+            ))}
+          </dl>
+        </div>
       </Reveal>
     </section>
   );

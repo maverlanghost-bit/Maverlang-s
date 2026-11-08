@@ -131,7 +131,7 @@ function weakestHistory(data: unknown) {
  * render no debe repetir el fetch mientras la primera respuesta sigue en vuelo.
  * El resultado conserva el orden de entrada para el mercado y la cartera.
  */
-export function useHistories(symbols: readonly string[], range: Range = "1W") {
+export function useHistories(symbols: readonly string[], range: Range = "1W", enabled = true) {
   const serialized = `${symbols.length}:${symbols.map((symbol) => symbol.trim()).join("\u0000")}`;
   const list = useMemo(() => {
     const colon = serialized.indexOf(":");
@@ -142,7 +142,7 @@ export function useHistories(symbols: readonly string[], range: Range = "1W") {
   const query = useQuery({
     queryKey: ["histories", serialized, range] as const,
     queryFn: () => getHistories(list, range),
-    enabled: list.some((symbol) => symbol.length > 0),
+    enabled: enabled && list.some((symbol) => symbol.length > 0),
     staleTime: (state) => historyStaleMs(weakestHistory(state.state.data), HISTORY_MS),
     refetchInterval: (state) => historyPollMs(weakestHistory(state.state.data)),
     refetchIntervalInBackground: false,

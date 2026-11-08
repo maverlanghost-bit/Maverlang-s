@@ -8,9 +8,10 @@ import { ILLUSTRATIVE_NOTICE, type LandingQuote } from "@/lib/mocks/landing";
 import { REVEAL_STAGGER_MS } from "@/lib/hooks/reveal-motion";
 
 /**
- * Ficha de ejemplo sin serie (M42): el historial live no es real, así
- * que cada pestaña muestra sólo precio en dólares (US$) y cambio 24 h, en
- * vivo cuando la fuente responde.
+ * Ficha de ejemplo (M42): cada pestaña sigue el precio del catálogo y su
+ * historial del período, en vivo cuando la fuente responde. La etiqueta de
+ * precios la decide `live`; el gráfico cae a una curva de referencia si el
+ * historial no trae puntos.
  */
 export function ProductMock({ quotes, live }: { quotes: LandingQuote[]; live: boolean }) {
   const first = quotes[0];
@@ -25,7 +26,7 @@ export function ProductMock({ quotes, live }: { quotes: LandingQuote[]; live: bo
         </SectionIntro>
       </Reveal>
       <Reveal delay={REVEAL_STAGGER_MS} className="mt-10 md:mt-14">
-        <Card>
+        <Card className="p-5 sm:p-7">
           {first ? (
             <Tabs
               label="Acciones de ejemplo"

@@ -141,6 +141,31 @@ describe("armado con ticks y cierres", () => {
     expect(result.spy?.symbol).toBe(SPY_SYMBOL);
     expect(result.gainers.map((row) => row.symbol)).toEqual([SPY_SYMBOL]);
   });
+
+  it("la curva no contradice el signo del día: mes de 120 a 100 y hoy 100 a 102", async () => {
+    // 23 cierres diarios bajando de 120 a 100 y el último día subiendo de 100 a 102.
+    const month = Array.from({ length: 24 }, (_, index) => ({
+      t: NOW - (23 - index) * DAY,
+      p: index === 23 ? 102 : Math.round((120 - (20 * index) / 22) * 100) / 100,
+    }));
+    const result = await loadTodayBoard({
+      listOffered: async () => [named("MESx", 10)],
+      readTicks: async () => [],
+      readCloses: async () => month,
+      now: NOW,
+      concurrency: 2,
+    });
+    expect(todayBoardSchema.safeParse(result).success).toBe(true);
+    const card = [...result.gainers, ...result.viewed].find((row) => row.symbol === "MESx");
+    expect(card).toBeDefined();
+    expect(card?.changePct).toBeGreaterThan(0);
+    expect(card?.changePct).toBeCloseTo(0.02);
+    const spark = card?.spark ?? [];
+    expect(spark.length).toBeGreaterThanOrEqual(2);
+    // El mes baja 120 -> 102, pero el día sube: la curva se acorta a los dos del día.
+    expect(spark[spark.length - 1] ?? 0).toBeGreaterThanOrEqual(spark[0] ?? 0);
+    expect(spark).toEqual([100, 102]);
+  });
 });
 
 describe("mapPool", () => {

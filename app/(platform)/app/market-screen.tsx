@@ -343,7 +343,15 @@ export function MarketScreen({
     if (!sparkKey) return [];
     return sparkKey.split("|").flatMap((part) => (part ? part.split(",") : []));
   }, [sparkKey]);
-  const histories = useHistories(sparkSymbols);
+  const firstPagePriced = priceQueries[0]?.isSuccess ?? false;
+  const [sparkReady, setSparkReady] = useState(false);
+  useEffect(() => {
+    if (sparkReady) return;
+    const delayMs = firstPagePriced ? 450 : 1200;
+    const timer = window.setTimeout(() => setSparkReady(true), delayMs);
+    return () => window.clearTimeout(timer);
+  }, [firstPagePriced, sparkReady]);
+  const histories = useHistories(sparkSymbols, "1W", sparkReady);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
