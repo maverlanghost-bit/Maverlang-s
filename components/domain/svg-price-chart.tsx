@@ -496,7 +496,8 @@ function DrawnChart({
   /** Beacon del último precio: línea, serie quieta, sin velas y sin hover. */
   const showBeacon =
     lineMode && !reference && candleList === null && hoverPoint === undefined && lastPoint !== undefined;
-  const hoverLeft = hoverPoint ? Math.min(85, Math.max(15, (hoverPoint.x / CHART_W) * 100)) : 0;
+  /** En 360px el tooltip no puede pegarse a los bordes: se mantiene al 22–78%. */
+  const hoverLeft = hoverPoint ? Math.min(78, Math.max(22, (hoverPoint.x / CHART_W) * 100)) : 0;
   const periodMove = hoverPoint && openPrice !== undefined ? changeFromOpen(openPrice, hoverPoint.usd) : null;
   const openY = openingPriceY(points);
   const rangeBand = showRangeBand ? quartileBand(points, scale) : null;
@@ -854,7 +855,7 @@ function DrawnChart({
             }}
           />
           <div
-            className="pointer-events-none absolute top-0 z-10 -translate-x-1/2 rounded-xl bg-fg px-3 py-2 text-xs text-bg shadow-float"
+            className="pointer-events-none absolute top-0 z-10 -translate-x-1/2 rounded-xl bg-fg px-3 py-2 text-xs text-bg shadow-float max-w-[215px] sm:max-w-xs"
             style={{ left: `${hoverLeft}%` }}
           >
             {reference ? <p>Referencia</p> : null}
@@ -1017,7 +1018,7 @@ function SvgPriceChartBase({
           {emptyHint ? <p className="mt-1 max-w-sm text-[13px] text-fg-muted">{emptyHint}</p> : null}
         </div>
       )}
-      {/* Pantalla completa: fuera del SVG, aparece al pasar el cursor por el gráfico. */}
+      {/* Pantalla completa: fuera del SVG. En celular se ve siempre; en escritorio, al pasar el cursor. */}
       {onToggleFullscreen && !quiet && drawn && model ? (
         <button
           type="button"
@@ -1027,7 +1028,7 @@ function SvgPriceChartBase({
           }}
           aria-label={isFullscreen ? "Salir de pantalla completa" : "Pantalla completa"}
           title={isFullscreen ? "Salir de pantalla completa (Esc)" : "Expandir a pantalla completa"}
-          className="absolute right-2.5 top-2.5 z-20 inline-flex items-center gap-1.5 rounded-full border border-border/80 bg-white/90 px-2.5 py-1.5 text-[11px] font-medium text-fg shadow-sm backdrop-blur-md transition-all duration-150 opacity-0 group-hover/chart:opacity-100 focus-visible:opacity-100 hover:bg-fg hover:text-bg hover:border-fg focus-visible:ring-2 focus-visible:ring-fg/30 outline-none"
+          className="absolute right-2.5 top-2.5 z-20 inline-flex min-h-8 min-w-8 items-center justify-center gap-1.5 rounded-full border border-border/80 bg-white/90 px-2 py-1.5 text-[11px] font-medium text-fg shadow-sm backdrop-blur-md transition-all duration-150 opacity-95 sm:px-2.5 sm:opacity-0 sm:group-hover/chart:opacity-100 focus-visible:opacity-100 hover:bg-fg hover:text-bg hover:border-fg focus-visible:ring-2 focus-visible:ring-fg/30 outline-none"
         >
           {isFullscreen ? (
             <svg

@@ -208,11 +208,11 @@ describe("chat del asistente", () => {
     expect(markup).toContain("Importar foto de mi cartera");
     expect(markup).toContain('accept="image/jpeg,image/png"');
     expect(markup).toContain('capture="environment"');
-    expect(markup).toContain("No es recomendación de inversión");
+    expect(markup).toContain(copy.adviceNotice);
     expect(markup).toContain("Escribe tu pregunta");
     expect(markup).toContain('aria-label="Adjuntar foto"');
     expect(markup).toContain('aria-label="Enviar"');
-    const disclaimerAt = markup.indexOf("No es recomendación de inversión");
+    const disclaimerAt = markup.indexOf(copy.adviceNotice);
     const inputAt = markup.indexOf("Escribe tu pregunta");
     expect(disclaimerAt).toBeGreaterThan(inputAt);
   });

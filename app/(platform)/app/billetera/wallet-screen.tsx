@@ -250,14 +250,14 @@ export function WalletScreen() {
           )}
         </div>
 
-        <div className="mt-6 grid grid-cols-1 gap-2 sm:grid-cols-3">
-          <Button asChild size="lg" className="w-full">
+        <div className="mt-5 grid grid-cols-3 gap-2">
+          <Button asChild size="lg" className="w-full px-2.5 text-xs whitespace-nowrap sm:px-4 sm:text-sm">
             <Link href={DEPOSIT_HREF}>{t.wallet.deposit}</Link>
           </Button>
-          <Button asChild variant="secondary" size="lg" className="w-full">
+          <Button asChild variant="secondary" size="lg" className="w-full px-2.5 text-xs whitespace-nowrap sm:px-4 sm:text-sm">
             <Link href={SEND_HREF}>{t.wallet.send}</Link>
           </Button>
-          <Button asChild variant="secondary" size="lg" className="w-full">
+          <Button asChild variant="secondary" size="lg" className="w-full px-2.5 text-xs whitespace-nowrap sm:px-4 sm:text-sm">
             <Link href={RECEIVE_HREF}>{t.wallet.receive}</Link>
           </Button>
         </div>
@@ -297,7 +297,7 @@ export function WalletScreen() {
             {t.wallet.activity}
           </h2>
           <div className="flex flex-wrap items-center gap-1.5 sm:justify-end">
-            <div role="group" aria-label="Filtrar actividad" className="flex flex-wrap items-center gap-1.5">
+            <div role="group" aria-label="Filtrar actividad" className="flex max-w-full flex-nowrap items-center gap-1.5 overflow-x-auto pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:flex-wrap sm:pb-0">
               {ACTIVITY_FILTERS.map((filter) => {
                 const active = activityFilter === filter.id;
                 return (
@@ -307,7 +307,7 @@ export function WalletScreen() {
                     aria-pressed={active}
                     onClick={() => setActivityFilter(filter.id)}
                     className={cn(
-                      "cursor-pointer rounded-full border px-3 py-1 text-xs font-medium transition duration-150",
+                      "shrink-0 cursor-pointer whitespace-nowrap rounded-full border px-3 py-1 text-xs font-medium transition duration-150",
                       active
                         ? "border-fg/20 bg-fg text-bg shadow-[0_1px_2px_rgba(12,15,20,0.08)]"
                         : "border-border/70 bg-surface-1/70 text-fg-muted hover:bg-surface-2 hover:text-fg",

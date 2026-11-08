@@ -8,7 +8,7 @@ const root = path.dirname(fileURLToPath(import.meta.url));
 export default defineConfig({
   test: {
     environment: "node",
-    include: ["tests/unit/**/*.test.ts"],
+    include: ["tests/unit/**/*.test.{ts,tsx}"],
     // Varios tests importan rutas de la app (compilación TS) o tocan el árbol de
     // archivos (scan-secrets): en una PC con 8 GB de RAM eso supera los 5 s por
     // defecto de vitest y marcaba timeout aunque la lógica fuera correcta.

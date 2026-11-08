@@ -247,6 +247,16 @@ export function Composer({
     return (
       <>
         <div className="mx-auto w-full max-w-2xl min-w-0 px-4 pt-1.5 pb-1 sm:px-6">
+          {/* Selector de modo también en móvil, encima de la barra del dock. */}
+          <div
+            aria-disabled={typing || undefined}
+            className={cn(
+              "mb-1.5 flex items-center justify-center overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
+              typing && "pointer-events-none opacity-60",
+            )}
+          >
+            <ReasoningModeBar mode={mode} onChange={handleModeChange} />
+          </div>
           {pendingBlock}
           {errorBlock}
           {adviceNotice}

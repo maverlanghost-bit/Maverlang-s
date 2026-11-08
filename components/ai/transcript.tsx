@@ -58,11 +58,11 @@ export function Transcript({
         <div className="mx-auto flex min-h-full w-full max-w-2xl flex-col items-center justify-center px-1 pt-2 pb-6 text-center sm:pt-4 sm:pb-8 lg:min-h-0 lg:px-0 lg:pt-0 lg:pb-0">
           <span
             aria-hidden="true"
-            className="mb-4 inline-flex size-12 items-center justify-center rounded-2xl border border-border/70 bg-white text-fg shadow-xs lg:mb-5"
+            className="mb-2.5 inline-flex size-10 items-center justify-center rounded-2xl border border-border/70 bg-white text-fg shadow-xs sm:mb-4 sm:size-12 lg:mb-5"
           >
             <SparkleIcon />
           </span>
-          <p className="max-w-[20ch] text-balance text-[28px] leading-[1.1] font-semibold tracking-[-0.03em] text-fg sm:max-w-none sm:text-[34px] lg:max-w-[24ch] lg:text-[38px]">
+          <p className="max-w-[20ch] text-balance text-2xl leading-[1.12] font-semibold tracking-[-0.03em] text-fg sm:max-w-none sm:text-[34px] lg:max-w-[24ch] lg:text-[38px]">
             {copy.emptyTitle}
           </p>
           <p className="mx-auto mt-2.5 max-w-[40ch] text-pretty text-sm leading-relaxed text-fg-muted sm:max-w-md sm:text-[15px]">
@@ -78,7 +78,7 @@ export function Transcript({
                   key={item.id}
                   type="button"
                   onClick={() => onSuggest(item.id, item.text)}
-                  className="group flex min-h-[64px] items-start gap-3 rounded-2xl border border-border/70 bg-white p-3.5 text-left transition duration-200 ease-[var(--ease-inout)] hover:-translate-y-0.5 hover:border-fg/20 hover:bg-surface-1/40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand active:translate-y-0 motion-reduce:transform-none motion-reduce:transition-none sm:p-4"
+                  className="group flex min-h-[52px] items-start gap-2.5 rounded-2xl border border-border/70 bg-white p-3 text-left transition duration-200 ease-[var(--ease-inout)] hover:-translate-y-0.5 hover:border-fg/20 hover:bg-surface-1/40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand active:translate-y-0 motion-reduce:transform-none motion-reduce:transition-none sm:min-h-[64px] sm:gap-3 sm:p-4"
                 >
                   <span
                     aria-hidden="true"

@@ -99,7 +99,7 @@ const RANGE_BASE =
   "inline-flex h-9 min-w-10 touch-manipulation items-center justify-center rounded-full border px-2.5 text-xs font-medium tabular-nums outline-none transition-colors duration-[140ms] ease-spring focus-visible:ring-4 focus-visible:ring-fg/20 motion-safe:active:scale-[0.98] motion-reduce:transition-none";
 
 const COMPARE_PILL_BASE =
-  "inline-flex touch-manipulation items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium outline-none transition-colors duration-[140ms] ease-spring focus-visible:ring-2 focus-visible:ring-fg/30 motion-safe:active:scale-[0.98] motion-reduce:transition-none";
+  "inline-flex min-h-9 shrink-0 touch-manipulation items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium outline-none transition-colors duration-[140ms] ease-spring focus-visible:ring-2 focus-visible:ring-fg/30 motion-safe:active:scale-[0.98] motion-reduce:transition-none";
 
 const CHART_HEIGHT_REST = "h-60 sm:h-72 md:h-80";
 const CHART_HEIGHT_FULLSCREEN = "h-[64vh] min-h-[420px]";
@@ -394,7 +394,7 @@ export function LandingQuotePreview({ quote }: { quote: LandingQuote }) {
     <div
       role="group"
       aria-label="Rango del gráfico"
-      className="inline-flex items-center gap-0.5 rounded-full border border-border/70 bg-bg p-0.5"
+      className="inline-flex w-full items-center justify-between gap-0.5 rounded-full border border-border/70 bg-bg p-0.5 sm:w-auto sm:justify-start"
     >
       {RANGE_OPTIONS.map((option) => {
         const active = option.value === range;
@@ -512,7 +512,7 @@ export function LandingQuotePreview({ quote }: { quote: LandingQuote }) {
   );
 
   const controlsGroup = (
-    <div role="group" aria-label="Controles del gráfico" className="flex flex-wrap items-center gap-1.5">
+    <div role="group" aria-label="Controles del gráfico" className="flex w-full min-w-0 flex-nowrap items-center gap-1.5 overflow-x-auto pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:w-auto sm:flex-wrap sm:pb-0">
       {avgButton}
       {scaleButton}
       {providerGroup}
@@ -525,9 +525,9 @@ export function LandingQuotePreview({ quote }: { quote: LandingQuote }) {
     <div
       role="group"
       aria-label="Comparar con otros activos"
-      className="mb-2 flex flex-wrap items-center gap-1.5"
+      className="mb-2 flex flex-nowrap items-center gap-1.5 overflow-x-auto pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:flex-wrap sm:pb-0"
     >
-      <span className="text-[11px] font-medium text-fg-muted">+ Comparar:</span>
+      <span className="shrink-0 text-[11px] font-medium text-fg-muted">+ Comparar:</span>
       {compareActive ? (
         <button
           type="button"
@@ -555,6 +555,49 @@ export function LandingQuotePreview({ quote }: { quote: LandingQuote }) {
       {compareOptions.map((option) => {
         const selected = comparedSymbols.includes(option.symbol);
         const atLimit = !selected && comparedSymbols.length >= QUICK_COMPARE_MAX;
+        const layerId = compareLayerId(option.symbol);
+        const focused = highlightedLayerId === layerId;
+
+        if (selected) {
+          return (
+            <div
+              key={option.symbol}
+              role="group"
+              aria-label={`${option.symbol} en la comparación`}
+              onMouseEnter={() => setHighlightedLayerId(layerId)}
+              onMouseLeave={() => setHighlightedLayerId(null)}
+              style={{ borderColor: option.color, backgroundColor: `${option.color}14` }}
+              className={cn(
+                COMPARE_PILL_BASE,
+                "border-transparent pr-1 text-fg",
+                focused && "ring-1 ring-fg/20",
+              )}
+            >
+              <button
+                type="button"
+                aria-pressed={focused}
+                aria-label={`Enfocar la curva de ${option.symbol}`}
+                onClick={() => setHighlightedLayerId(focused ? null : layerId)}
+                onFocus={() => setHighlightedLayerId(layerId)}
+                onBlur={() => setHighlightedLayerId(null)}
+                className="inline-flex min-h-6 touch-manipulation items-center gap-1.5 rounded-full px-1.5 outline-none focus-visible:ring-2 focus-visible:ring-fg/30"
+              >
+                <span aria-hidden className="size-1.5 rounded-full" style={{ backgroundColor: option.color }} />
+                {option.symbol}
+              </button>
+              <button
+                type="button"
+                title={`Quitar ${option.name}`}
+                aria-label={`Quitar ${option.name}`}
+                onClick={() => toggleCompare(option.symbol)}
+                className="inline-flex size-6 touch-manipulation items-center justify-center rounded-full text-fg-muted outline-none transition-colors hover:bg-fg/[0.06] hover:text-fg focus-visible:ring-2 focus-visible:ring-fg/30"
+              >
+                ×
+              </button>
+            </div>
+          );
+        }
+
         return (
           <button
             key={option.symbol}
@@ -564,30 +607,17 @@ export function LandingQuotePreview({ quote }: { quote: LandingQuote }) {
             title={
               atLimit
                 ? `Máximo ${QUICK_COMPARE_MAX} activos en la comparación`
-                : selected
-                  ? `Quitar ${option.name}`
-                  : `Comparar con ${option.name}`
+                : `Comparar con ${option.name}`
             }
             onClick={() => toggleCompare(option.symbol)}
-            onMouseEnter={selected ? () => setHighlightedLayerId(compareLayerId(option.symbol)) : undefined}
-            onMouseLeave={selected ? () => setHighlightedLayerId(null) : undefined}
-            onFocus={selected ? () => setHighlightedLayerId(compareLayerId(option.symbol)) : undefined}
-            onBlur={selected ? () => setHighlightedLayerId(null) : undefined}
-            style={
-              selected
-                ? { borderColor: option.color, backgroundColor: `${option.color}14` }
-                : undefined
-            }
             className={cn(
               COMPARE_PILL_BASE,
-              selected
-                ? "border-transparent text-fg"
-                : "border-border bg-bg text-fg-muted hover:border-border-strong hover:text-fg",
+              "border-border bg-bg text-fg-muted hover:border-border-strong hover:text-fg",
               atLimit && "cursor-not-allowed opacity-50",
             )}
           >
             <span aria-hidden className="size-1.5 rounded-full" style={{ backgroundColor: option.color }} />
-            {selected ? option.symbol : `+ ${option.symbol}`}
+            {`+ ${option.symbol}`}
           </button>
         );
       })}

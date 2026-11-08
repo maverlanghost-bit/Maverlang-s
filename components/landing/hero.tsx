@@ -65,7 +65,7 @@ export function Hero({ quotes, live }: { quotes: LandingQuote[]; live: boolean }
   const heroQuotes = quotes.filter((quote) => HERO_SYMBOLS.has(quote.symbol));
 
   return (
-    <section className="relative isolate overflow-hidden px-5 pt-10 pb-16 md:pt-16 md:pb-24 lg:pt-20">
+    <section className="relative isolate overflow-hidden px-4 pt-7 pb-14 sm:px-5 md:pt-16 md:pb-24 lg:pt-20">
       {/* Fondo ambiental: halo radial muy sutil en la parte superior. */}
       <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10">
         <div
@@ -82,7 +82,7 @@ export function Hero({ quotes, live }: { quotes: LandingQuote[]; live: boolean }
           <AnnouncementPill />
         </Reveal>
         <Reveal delay={160} className="mt-6 w-full">
-          <h1 className="text-4xl leading-[1.05] tracking-tight text-balance sm:text-5xl lg:text-6xl">
+          <h1 className="text-[32px] leading-[1.06] tracking-tight text-balance min-[400px]:text-4xl sm:text-5xl lg:text-6xl">
             Acciones de EE.UU. tokenizadas, en tu billetera
           </h1>
           <p className="mx-auto mt-3 max-w-2xl text-sm font-medium leading-relaxed text-balance text-fg sm:text-base">
@@ -124,8 +124,8 @@ export function Hero({ quotes, live }: { quotes: LandingQuote[]; live: boolean }
         </Reveal>
       </div>
 
-      <Reveal delay={400} className="mx-auto mt-14 w-full max-w-2xl md:mt-16">
-        <div className="rounded-3xl border border-border/80 bg-white/95 p-5 shadow-[0_18px_50px_-24px_rgba(10,10,10,0.10)] backdrop-blur-sm sm:p-6">
+      <Reveal delay={400} className="mx-auto mt-10 w-full max-w-2xl sm:mt-14 md:mt-16">
+        <div className="rounded-3xl border border-border/80 bg-white/95 p-4 shadow-[0_18px_50px_-24px_rgba(10,10,10,0.10)] backdrop-blur-sm sm:p-6">
           {/* Cabecera ejecutiva sin semáforos ni barra de URL */}
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/70 pb-3.5 text-xs text-fg-muted">
             <div className="inline-flex items-center gap-2">
@@ -174,13 +174,13 @@ export function Hero({ quotes, live }: { quotes: LandingQuote[]; live: boolean }
           </ul>
 
           {/* Pie de métricas clave */}
-          <dl className="mt-5 grid grid-cols-3 gap-4 border-t border-border/70 pt-4 sm:gap-8">
+          <dl className="mt-5 grid grid-cols-3 gap-2.5 border-t border-border/70 pt-4 sm:gap-8">
             {terminalMetrics.map((metric) => (
               <div key={metric.label} className="min-w-0">
                 <dt className="label text-[10px] text-fg-muted">{metric.label}</dt>
                 <dd
                   className={cn(
-                    "mt-1 text-sm leading-snug break-words text-fg sm:text-base",
+                    "mt-1 text-xs leading-snug break-words text-fg min-[400px]:text-sm sm:text-base",
                     metric.mono ? "num font-semibold tabular-nums" : "font-medium",
                   )}
                 >

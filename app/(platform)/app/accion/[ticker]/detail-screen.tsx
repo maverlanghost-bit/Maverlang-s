@@ -757,7 +757,7 @@ export function DetailScreen({
           <IconBack className="size-4" />
           {t.detail.backToMarket}
         </Link>
-        <header className="flex flex-col gap-3">
+        <header className="flex flex-col gap-2.5 sm:gap-3">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
             <span className="shrink-0 rounded-full border border-border/70 p-0.5">
               <TickerLogo symbol={ticker.symbol} name={ticker.name} logoUrl={ticker.logo} size={48} decorative loading="eager" sizes="64px" />
@@ -773,7 +773,7 @@ export function DetailScreen({
                 </span>
               </p>
             </div>
-            <div className="flex basis-full flex-wrap items-center gap-1 sm:basis-auto sm:justify-end">
+            <div className="flex w-full min-w-0 basis-full flex-nowrap items-center gap-1.5 overflow-x-auto pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:w-auto sm:basis-auto sm:flex-wrap sm:justify-end sm:pb-0">
               <AskAiButton ticker={ticker.symbol} />
               <AlertButton labeled symbol={ticker.symbol} name={ticker.name} priceUsd={quote?.priceUsd ?? null} />
               <FavoriteButton pressed={saved} label={favoriteLabel} onToggle={() => toggle(ticker.symbol)} />

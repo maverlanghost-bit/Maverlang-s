@@ -51,9 +51,9 @@ const SEND_HREF = "/app/billetera/enviar";
 const MARKET_HREF = "/app";
 
 const SUMMARY_GRID = "grid grid-cols-2 gap-3";
-const SUMMARY_CARD = "flex min-h-36 min-w-0 flex-col justify-between gap-2 p-3 sm:p-4 md:p-4";
-const VALUE_FIGURE = "text-lg tracking-tight whitespace-nowrap sm:text-3xl";
-const GAIN_FIGURE = "text-base tracking-tight whitespace-nowrap sm:text-xl";
+const SUMMARY_CARD = "flex min-h-28 sm:min-h-36 min-w-0 flex-col justify-between gap-1.5 p-3 sm:p-4 md:p-4";
+const VALUE_FIGURE = "text-base min-[400px]:text-lg tracking-tight truncate whitespace-nowrap sm:text-3xl";
+const GAIN_FIGURE = "text-sm min-[400px]:text-base tracking-tight truncate whitespace-nowrap sm:text-xl";
 
 const POSITION_COLORS = ["#059669", "#0ea5e9", "#8b5cf6", "#f59e0b", "#ec4899", "#14b8a6", "#10b981", "#6366f1"] as const;
 const CASH_COLOR = "#64748b";
@@ -442,7 +442,7 @@ const ValueChart = memo(function ValueChart({
       {reference ? <p className="text-sm text-fg-muted">{t.detail.chartReference}</p> : null}
       {!pending && !failed ? (
         <div className="flex flex-col gap-2">
-          <div className="flex h-11 min-w-0 items-center gap-1">
+          <div className="flex min-h-11 min-w-0 flex-wrap items-center gap-x-1 gap-y-1.5">
             <span className="label shrink-0">{copy.period}</span>
             <span className="min-w-0 truncate text-sm text-fg-muted">{t.detail.rangeCaption[range]}</span>
             <InfoTip label={`${copy.whatIsThis}. ${copy.period}`} text={copy.periodTip} align="start" />
@@ -698,14 +698,14 @@ export function PortfolioScreen() {
           />
         ) : (
           <>
-            <nav aria-label="Accesos rápidos" className="flex flex-wrap gap-2">
-              <Button asChild size="lg" className="min-h-11 whitespace-nowrap">
+            <nav aria-label="Accesos rápidos" className="grid grid-cols-3 gap-2 sm:flex sm:flex-wrap">
+              <Button asChild size="lg" className="min-h-11 whitespace-normal px-2.5 text-center text-xs sm:whitespace-nowrap sm:px-4 sm:text-sm">
                 <Link href={MARKET_HREF}>{t.portfolio.explore}</Link>
               </Button>
-              <Button asChild variant="secondary" size="lg" className="min-h-11 whitespace-nowrap">
+              <Button asChild variant="secondary" size="lg" className="min-h-11 whitespace-normal px-2.5 text-center text-xs sm:whitespace-nowrap sm:px-4 sm:text-sm">
                 <Link href={DEPOSIT_HREF}>{t.trade.deposit}</Link>
               </Button>
-              <Button asChild variant="secondary" size="lg" className="min-h-11 whitespace-nowrap">
+              <Button asChild variant="secondary" size="lg" className="min-h-11 whitespace-normal px-2.5 text-center text-xs sm:whitespace-nowrap sm:px-4 sm:text-sm">
                 <Link href={SEND_HREF}>{t.wallet.send}</Link>
               </Button>
             </nav>

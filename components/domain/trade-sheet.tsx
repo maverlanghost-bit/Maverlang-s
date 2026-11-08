@@ -614,9 +614,11 @@ function TradeFlow({ side, ticker }: { side: Side; ticker: Ticker }) {
           {t.detail.risksLink}
         </Link>
         {pubkey ? null : <p className="text-center text-sm text-down">{t.trade.noWallet}</p>}
-        <Button size="lg" className="min-h-12 w-full text-base" disabled={!canConfirm} onClick={() => void confirm()}>
-          {t.trade.confirm}
-        </Button>
+        <div className="sticky bottom-0 z-10 -mx-1 bg-bg/95 px-1 pt-2 pb-1 backdrop-blur-md">
+          <Button size="lg" className="min-h-12 w-full text-base" disabled={!canConfirm} onClick={() => void confirm()}>
+            {t.trade.confirm}
+          </Button>
+        </div>
         <Button variant="ghost" size="lg" className="min-h-12 w-full" onClick={() => setPhase("form")}>
           {t.trade.back}
         </Button>
@@ -643,7 +645,8 @@ function TradeFlow({ side, ticker }: { side: Side; ticker: Ticker }) {
         invalid={block === "min" || block === "funds"}
         chips={quickChips}
         inputClassName="min-h-14 py-2"
-        chipClassName="min-h-12 px-4 text-base"
+        chipClassName="min-h-12 shrink-0 px-4 text-base whitespace-nowrap"
+        chipsClassName="flex-nowrap justify-start overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:flex-wrap sm:justify-center sm:pb-0"
         onCurrencyChange={(next) => {
           if (next !== "CLP" && next !== "USDC" && next !== "SHARES") return;
           setAmountRaw(convertAmount(amount, currency, next, fxRate, priceUsd));
@@ -651,7 +654,7 @@ function TradeFlow({ side, ticker }: { side: Side; ticker: Ticker }) {
         }}
       />
       {side === "buy" && (currency === "CLP" || currency === "USDC") ? (
-        <div className="flex flex-wrap items-center justify-center gap-2">
+        <div className="flex flex-nowrap items-center gap-1.5 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:flex-wrap sm:justify-center sm:pb-0">
           {(currency === "CLP"
             ? ([
                 { val: 10000, label: "$10.000" },
@@ -670,7 +673,7 @@ function TradeFlow({ side, ticker }: { side: Side; ticker: Ticker }) {
               key={preset.label}
               type="button"
               onClick={() => setAmountRaw(String(preset.val))}
-              className="rounded-full border border-border/80 bg-surface-1/80 px-3 py-1 text-xs font-medium text-fg tabular-nums transition-all duration-150 hover:border-brand/40 hover:bg-brand-soft/50 hover:text-brand active:scale-95"
+              className="shrink-0 whitespace-nowrap rounded-full border border-border/80 bg-surface-1/80 px-3 py-1 text-xs font-medium text-fg tabular-nums transition-all duration-150 hover:border-brand/40 hover:bg-brand-soft/50 hover:text-brand active:scale-95"
             >
               {preset.label}
             </button>
@@ -678,7 +681,7 @@ function TradeFlow({ side, ticker }: { side: Side; ticker: Ticker }) {
         </div>
       ) : null}
       {side === "sell" && shares > 0 ? (
-        <div className="flex flex-wrap items-center justify-center gap-2">
+        <div className="flex flex-nowrap items-center gap-1.5 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:flex-wrap sm:justify-center sm:pb-0">
           {([
             { pct: 0.25, label: "25%" },
             { pct: 0.5, label: "50%" },
@@ -699,7 +702,7 @@ function TradeFlow({ side, ticker }: { side: Side; ticker: Ticker }) {
                         : shares * preset.pct;
                 setAmountRaw(String(Number(base.toFixed(6))));
               }}
-              className="rounded-full border border-border/80 bg-surface-1/80 px-3 py-1 text-xs font-medium text-fg tabular-nums transition-all duration-150 hover:border-brand/40 hover:bg-brand-soft/50 hover:text-brand active:scale-95"
+              className="shrink-0 whitespace-nowrap rounded-full border border-border/80 bg-surface-1/80 px-3 py-1 text-xs font-medium text-fg tabular-nums transition-all duration-150 hover:border-brand/40 hover:bg-brand-soft/50 hover:text-brand active:scale-95"
             >
               {preset.label}
             </button>
@@ -767,15 +770,17 @@ function TradeFlow({ side, ticker }: { side: Side; ticker: Ticker }) {
           {t.states.retry}
         </Button>
       ) : null}
-      {showDeposit ? (
-        <Button asChild size="lg" className="min-h-12 w-full text-base">
-          <Link href={DEPOSIT_HREF}>{t.trade.deposit}</Link>
-        </Button>
-      ) : (
-        <Button size="lg" className="min-h-12 w-full text-base" disabled={!canReview} onClick={() => setPhase("review")}>
-          {t.trade.review}
-        </Button>
-      )}
+      <div className="sticky bottom-0 z-10 -mx-1 bg-bg/95 px-1 pt-2 pb-1 backdrop-blur-md">
+        {showDeposit ? (
+          <Button asChild size="lg" className="min-h-12 w-full text-base">
+            <Link href={DEPOSIT_HREF}>{t.trade.deposit}</Link>
+          </Button>
+        ) : (
+          <Button size="lg" className="min-h-12 w-full text-base" disabled={!canReview} onClick={() => setPhase("review")}>
+            {t.trade.review}
+          </Button>
+        )}
+      </div>
     </div>
   );
 }

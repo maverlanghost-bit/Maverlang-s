@@ -208,7 +208,7 @@ export function ChartMultiCompare({
               role="dialog"
               aria-modal="false"
               aria-label="Agregar activos para comparar"
-              className="absolute top-full left-0 z-30 mt-1.5 max-h-[min(22rem,60vh)] w-[min(24rem,calc(100vw_-_2rem))] overflow-y-auto overscroll-contain rounded-2xl border border-border/70 bg-white p-2 shadow-float"
+              className="absolute top-full left-0 z-30 mt-1.5 max-h-[min(22rem,60vh)] w-[min(24rem,calc(100vw_-_4rem))] overflow-y-auto overscroll-contain rounded-2xl border border-border/70 bg-white p-2 shadow-float"
             >
               {groups.map((entry) => (
                 <section key={entry.group} aria-label={entry.label} className="py-1">
@@ -278,7 +278,7 @@ export function ChartMultiCompare({
 
         {hasComparisons ? (
           <p className="min-w-0 flex-1 text-[11px] leading-snug text-fg-muted">
-            Pasa el cursor sobre un activo para enfocar su curva
+            Toca o pasa el cursor sobre un activo para enfocar su curva
           </p>
         ) : null}
 
@@ -295,7 +295,11 @@ export function ChartMultiCompare({
       </div>
 
       {hasComparisons && activeItems.length > 0 ? (
-        <div role="list" aria-label="Series del gráfico" className="flex flex-wrap items-center gap-1.5">
+        <div
+          role="list"
+          aria-label="Series del gráfico"
+          className="flex max-w-full flex-nowrap items-center gap-1.5 overflow-x-auto -my-1 py-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:my-0 sm:flex-wrap sm:overflow-visible sm:py-0"
+        >
           {activeItems.map((item) => {
             const focused = highlightedId === item.id;
             const dimmed = highlightedId !== null && !focused;
@@ -310,8 +314,13 @@ export function ChartMultiCompare({
                 onMouseLeave={() => onHighlightChange(null)}
                 onFocus={() => onHighlightChange(item.id)}
                 onBlur={handlePillBlur}
+                onClick={(event) => {
+                  // En pantallas táctiles no hay hover: tocar la píldora enfoca su curva y volver a tocarla suelta el foco.
+                  if (event.target instanceof Element && event.target.closest("button")) return;
+                  onHighlightChange(highlightedId === item.id ? null : item.id);
+                }}
                 className={cn(
-                  "inline-flex max-w-full min-w-0 shrink-0 items-center gap-2 rounded-full border bg-white px-2.5 py-1.5 text-xs outline-none transition duration-150",
+                  "inline-flex max-w-full min-w-0 shrink-0 cursor-pointer items-center gap-2 rounded-full border bg-white px-2.5 py-1.5 text-xs outline-none transition duration-150",
                   "focus-visible:ring-2 focus-visible:ring-fg/30",
                   focused
                     ? "border-fg/20 ring-2 ring-fg/20 bg-white shadow-xs scale-[1.02]"

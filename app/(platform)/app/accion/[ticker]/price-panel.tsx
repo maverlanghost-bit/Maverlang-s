@@ -814,7 +814,7 @@ export function PricePanel({
         </div>
 
         {/* Controles del gráfico: motor Pro/TradingView, promedio, escala, eje y pantalla completa */}
-        <div className="flex flex-wrap items-center gap-1.5">
+        <div className="flex w-full min-w-0 flex-nowrap items-center gap-1.5 overflow-x-auto pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:w-auto sm:flex-wrap sm:pb-0">
           <RangeCapsule
             className="shrink-0"
             idPrefix="chart-provider"
@@ -858,7 +858,7 @@ export function PricePanel({
       >
         {/* Cabecera ejecutiva: sólo existe en pantalla completa y reutiliza el estado del panel */}
         {fullscreen ? (
-          <div className="flex flex-col gap-3 border-b border-border/60 pb-4">
+          <div className="flex flex-col gap-3 border-b border-border/60 pt-[max(1rem,env(safe-area-inset-top))] pb-4">
             <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3">
               <div className="min-w-0">
                 <p className="truncate text-lg font-semibold text-fg">{name}</p>
@@ -880,7 +880,7 @@ export function PricePanel({
                 Cerrar pantalla completa (Esc)
               </button>
             </div>
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex min-w-0 flex-nowrap items-center gap-2 overflow-x-auto pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:flex-wrap sm:pb-0">
               <RangeCapsule
                 compact
                 idPrefix="fullscreen-range"
@@ -898,7 +898,7 @@ export function PricePanel({
                 value={provider}
                 onChange={(value) => setProvider(value === "tradingview" ? "tradingview" : "native")}
               />
-              <div className="flex flex-wrap items-center gap-1.5">
+              <div className="flex shrink-0 items-center gap-1.5">
                 <ChartToggle tone="accent" pressed={showPeriodAvg} onClick={() => setShowPeriodAvg((v) => !v)}>
                   <span aria-hidden="true" className="size-1.5 rounded-full bg-[#2b7fd9]" />
                   Promedio
@@ -958,7 +958,7 @@ export function PricePanel({
 
         {/* Simulador de retorno con los datos reales del período activo */}
         {simulator ? (
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-2xl border border-border/60 bg-surface-1/60 px-3.5 py-2.5">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-2xl border border-border/60 bg-surface-1/60 px-3 py-2 sm:px-3.5 sm:py-2.5">
             <div className="min-w-0">
               <p className="text-[11px] font-semibold text-fg-muted">¿Cuánto tendrías hoy?</p>
               <p className="text-xs text-fg-muted">

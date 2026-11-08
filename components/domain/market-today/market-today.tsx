@@ -458,7 +458,7 @@ export function MarketToday() {
                   </div>
                 </div>
 
-                <div className="inline-flex shrink-0 items-center rounded-full bg-surface-2/90 p-0.5">
+                <div className="grid w-full grid-cols-5 gap-0.5 rounded-full bg-surface-2/90 p-0.5 sm:inline-flex sm:w-auto sm:shrink-0">
                   {SPOTLIGHT_RANGES.map((item) => {
                     const active = item.id === range;
                     return (
@@ -471,7 +471,7 @@ export function MarketToday() {
                           setRange(item.id);
                         }}
                         className={cn(
-                          "cursor-pointer rounded-full px-2.5 py-1 text-[11px] transition-all",
+                          "inline-flex min-h-8 cursor-pointer items-center justify-center rounded-full px-2.5 py-1 text-center text-[11px] transition-all",
                           active
                             ? "bg-white font-semibold text-fg shadow-2xs"
                             : "font-medium text-fg-muted hover:text-fg",
@@ -622,7 +622,7 @@ export function MarketToday() {
                     event.stopPropagation();
                     router.push(`/app/accion/${encodeURIComponent(activeCard.symbol)}`);
                   }}
-                  className="absolute top-0 right-14 z-20 inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-border/80 bg-white/90 px-2.5 py-1 text-[11px] font-medium text-fg opacity-0 shadow-sm outline-none backdrop-blur-md transition-opacity duration-150 group-hover/spotlight:opacity-100 hover:border-fg hover:bg-fg hover:text-bg focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-fg/30"
+                  className="absolute top-0 right-14 z-20 inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-border/80 bg-white/90 px-2.5 py-1 text-[11px] font-medium text-fg opacity-95 shadow-sm outline-none backdrop-blur-md transition-opacity duration-150 sm:opacity-0 sm:group-hover/spotlight:opacity-100 hover:border-fg hover:bg-fg hover:text-bg focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-fg/30"
                 >
                   <svg
                     viewBox="0 0 16 16"

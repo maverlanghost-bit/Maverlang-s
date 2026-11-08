@@ -91,6 +91,7 @@ export function AmountInput({
   chips,
   inputClassName,
   chipClassName,
+  chipsClassName,
 }: {
   label?: string;
   value: string;
@@ -112,6 +113,7 @@ export function AmountInput({
   /** Ajustes sólo visuales (móvil) del campo y los atajos, sin tocar lógica. */
   inputClassName?: string;
   chipClassName?: string;
+  chipsClassName?: string;
 }) {
   const places = placesOf(currency);
   const display = places === 0 ? groupClp(value.replace(/\D/g, "")) : decimalToDisplay(value);
@@ -179,7 +181,7 @@ export function AmountInput({
         />
         {suffix ? <span className="text-sm text-fg-muted">{suffix}</span> : null}
       </div>
-      <div className="flex flex-wrap justify-center gap-2">
+      <div className={cn("flex flex-wrap justify-center gap-2", chipsClassName)}>
         {shownChips.map((chip) => {
           const target = chip.value === "max" ? (max === undefined ? null : asRaw(max, currency)) : asRaw(chip.value, currency);
           const pressed = target !== null && value === target;

@@ -55,13 +55,13 @@ function PublicHeaderBar({ here }: { here: string }) {
             </Link>
           ))}
         </nav>
-        <div className="ml-auto flex shrink-0 items-center gap-1.5">
+        <div className="ml-auto flex shrink-0 items-center gap-1 min-[400px]:gap-1.5">
           <StockSearchButton variant="icon" />
           <CurrencySwitch compact className="mr-1 hidden min-[400px]:inline-flex" />
-          <Button asChild variant="ghost" size="sm" className="h-11 shrink-0 rounded-full px-2 text-sm whitespace-nowrap">
+          <Button asChild variant="ghost" size="sm" className="h-11 shrink-0 rounded-full px-2 text-xs whitespace-nowrap min-[400px]:px-2.5 min-[400px]:text-sm">
             <Link href={enter}>{t.guest.login}</Link>
           </Button>
-          <Button asChild size="sm" className="h-11 shrink-0 rounded-full px-2.5 text-sm whitespace-nowrap">
+          <Button asChild size="sm" className="h-11 shrink-0 rounded-full px-2 text-xs whitespace-nowrap min-[400px]:px-2.5 min-[400px]:text-sm">
             <Link href={create}>{t.guest.signup}</Link>
           </Button>
           <IconButton
