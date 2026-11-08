@@ -813,34 +813,34 @@ export function PricePanel({
           />
         </div>
 
-        {/* Controles del gráfico: motor Pro/TradingView, promedio, escala, eje y pantalla completa */}
-        <div className="flex w-full min-w-0 flex-nowrap items-center gap-1.5 overflow-x-auto pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:w-auto sm:flex-wrap sm:pb-0">
-          <RangeCapsule
-            className="shrink-0"
-            idPrefix="chart-provider"
-            label="Motor del gráfico"
-            options={PROVIDER_OPTIONS}
-            value={provider}
-            onChange={(value) => setProvider(value === "tradingview" ? "tradingview" : "native")}
-          />
-          <ChartToggle tone="accent" pressed={showPeriodAvg} onClick={() => setShowPeriodAvg((v) => !v)}>
-            <span aria-hidden="true" className="size-1.5 rounded-full bg-[#2b7fd9]" />
-            Promedio
-          </ChartToggle>
-          <ChartToggle pressed={showGrid} onClick={() => setShowGrid((v) => !v)}>
-            Escala
-          </ChartToggle>
-          <ChartToggle
-            pressed={axisMode === "percent"}
-            onClick={() => setAxisMode((v) => (v === "price" ? "percent" : "price"))}
-            label="Escala del eje: porcentaje o precio"
-          >
-            % / $
-          </ChartToggle>
-          <ChartToggle pressed={fullscreen} onClick={toggleFullscreen}>
-            {fullscreen ? "Salir de pantalla completa" : "Pantalla completa"}
-          </ChartToggle>
-        </div>
+        {/* Controles del gráfico (sólo modo técnico): motor Pro/TradingView, promedio, escala y eje.
+            La pantalla completa se abre desde el botón flotante de la esquina del gráfico. */}
+        {technical ? (
+          <div className="flex w-full min-w-0 flex-nowrap items-center gap-1.5 overflow-x-auto pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:w-auto sm:flex-wrap sm:pb-0">
+            <RangeCapsule
+              className="shrink-0"
+              idPrefix="chart-provider"
+              label="Motor del gráfico"
+              options={PROVIDER_OPTIONS}
+              value={provider}
+              onChange={(value) => setProvider(value === "tradingview" ? "tradingview" : "native")}
+            />
+            <ChartToggle tone="accent" pressed={showPeriodAvg} onClick={() => setShowPeriodAvg((v) => !v)}>
+              <span aria-hidden="true" className="size-1.5 rounded-full bg-[#2b7fd9]" />
+              Promedio
+            </ChartToggle>
+            <ChartToggle pressed={showGrid} onClick={() => setShowGrid((v) => !v)}>
+              Escala
+            </ChartToggle>
+            <ChartToggle
+              pressed={axisMode === "percent"}
+              onClick={() => setAxisMode((v) => (v === "price" ? "percent" : "price"))}
+              label="Escala del eje: porcentaje o precio"
+            >
+              % / $
+            </ChartToggle>
+          </div>
+        ) : null}
       </div>
 
       {illustrative ? <p className="text-sm text-fg-muted">{t.detail.chartReference}</p> : null}
@@ -1061,10 +1061,10 @@ export function PricePanel({
               overlays={overlays}
               benchmark={benchmark}
               avgCostUsd={avgCostUsd}
-              periodAvgUsd={showPeriodAvg ? periodAvgUsd : null}
-              showGrid={showGrid}
+              periodAvgUsd={(technical || fullscreen) && showPeriodAvg ? periodAvgUsd : null}
+              showGrid={(technical || fullscreen) && showGrid}
               showExtremes={false}
-              axisMode={axisMode}
+              axisMode={technical || fullscreen ? axisMode : "price"}
               highlightedLayerId={highlightedLayerId}
               onHighlightLayer={setHighlightedLayerId}
               onToggleFullscreen={toggleFullscreen}

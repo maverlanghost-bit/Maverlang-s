@@ -803,18 +803,6 @@ export function LandingQuotePreview({ quote }: { quote: LandingQuote }) {
               </p>
             </div>
           </div>
-          {controlsGroup}
-          {/* En móvil no hay hover: el botón de la esquina no se ve, así que
-              queda esta entrada explícita a pantalla completa. */}
-          {fullscreen ? null : (
-            <button
-              type="button"
-              onClick={() => setFullscreen(true)}
-              className={cn(CONTROL_BASE, CONTROL_OFF, "sm:hidden")}
-            >
-              Pantalla completa
-            </button>
-          )}
         </div>
 
         <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-3">

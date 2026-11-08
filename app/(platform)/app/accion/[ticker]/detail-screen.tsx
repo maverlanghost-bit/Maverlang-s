@@ -218,11 +218,23 @@ function AccountActions({
   aboveTabs,
   primary,
   secondary,
+  symbol,
+  underlying,
+  issuer,
+  quote,
+  currency,
+  rate,
 }: {
   variant: "bar" | "card";
   aboveTabs: boolean;
   primary: { href: string; label: string };
   secondary?: { href: string; label: string };
+  symbol: string;
+  underlying: string;
+  issuer: Ticker["issuer"];
+  quote: Quote | null;
+  currency: Currency;
+  rate: number | undefined;
 }) {
   const wide = variant === "card";
   const barRef = useRef<HTMLDivElement>(null);
@@ -266,7 +278,114 @@ function AccountActions({
     );
   }
 
-  return <Card className="p-5 md:p-6">{buttons}</Card>;
+  return (
+    <Card className="p-6 md:p-7">
+      <BuyPriceBox symbol={symbol} underlying={underlying} issuer={issuer} quote={quote} currency={currency} rate={rate} position={null} canSell={false} />
+      <div className="mt-5">{buttons}</div>
+    </Card>
+  );
+}
+
+function BuyPriceBox({
+  symbol,
+  underlying,
+  issuer,
+  quote,
+  currency,
+  rate,
+  position,
+  canSell,
+}: {
+  symbol: string;
+  underlying: string;
+  issuer: Ticker["issuer"];
+  quote: Quote | null;
+  currency: Currency;
+  rate: number | undefined;
+  position: Position | null;
+  canSell: boolean;
+}) {
+  const { t, language } = useT();
+  const fxKnown = typeof rate === "number" && Number.isFinite(rate) && rate > 0;
+  const shownCurrency: Currency = currency === "CLP" && fxKnown ? "CLP" : "USD";
+  const hasPrice = quote !== null && Number.isFinite(quote.priceUsd) && quote.priceUsd > 0;
+  const primaryPrice = hasPrice && quote ? shownMoney(quote.priceUsd, shownCurrency, rate) : null;
+  const secondaryPrice =
+    hasPrice && quote && fxKnown && typeof rate === "number"
+      ? shownCurrency === "CLP"
+        ? formatMoney(quote.priceUsd, "USD")
+        : formatMoney(quote.priceUsd * rate, "CLP")
+      : null;
+
+  return (
+    <div className="mt-4 rounded-2xl border border-border/70 bg-surface-1/60 p-4">
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-xs font-medium text-fg-muted">
+          {language === "en" ? `Buy price · 1 ${symbol}` : `Precio de compra · 1 ${symbol}`}
+        </p>
+        {quote && Number.isFinite(quote.change24hPct) ? <ChangeBadge value={quote.change24hPct} /> : null}
+      </div>
+      {primaryPrice ? (
+        <p className="num mt-1.5 text-2xl font-semibold tracking-tight text-fg tabular-nums">{primaryPrice}</p>
+      ) : (
+        <Skeleton className="mt-1.5 h-8 w-32" />
+      )}
+      {secondaryPrice ? (
+        <p className="num mt-0.5 text-xs text-fg-muted tabular-nums">
+          {language === "en" ? `Approx. ${secondaryPrice} per share (${underlying})` : `Equivale a ${secondaryPrice} por acción (${underlying})`}
+        </p>
+      ) : null}
+      <div className="mt-3 grid gap-2 border-t border-border/60 pt-3 text-xs">
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-fg-muted">{language === "en" ? "Order type" : "Inversión mínima"}</span>
+          <span className="font-medium text-fg">{language === "en" ? "Fractional shares" : "Desde fracciones"}</span>
+        </div>
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-fg-muted">{t.detail.issuer}</span>
+          <span className="font-medium text-fg">{issuer}</span>
+        </div>
+        {canSell && position && position.shares > 0 ? (
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-fg-muted">{language === "en" ? "Your position" : "Disponible para vender"}</span>
+            <span className="num font-semibold text-fg tabular-nums">
+              {formatShares(position.shares)} · {shownMoney(position.valueUsd, shownCurrency, rate)}
+            </span>
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+function SellHelp({ hintId }: { hintId: string }) {
+  const { t, language } = useT();
+  const [helpOpen, setHelpOpen] = useState(false);
+
+  return (
+    <div className="group/sell-help relative shrink-0" onMouseLeave={() => setHelpOpen(false)}>
+      <button
+        type="button"
+        aria-label={language === "en" ? "Why is selling disabled?" : "¿Por qué no puedo vender?"}
+        aria-expanded={helpOpen}
+        aria-describedby={hintId}
+        onClick={() => setHelpOpen((v) => !v)}
+        className="inline-flex size-10 items-center justify-center rounded-full border border-border/80 bg-surface-1 text-sm font-semibold text-fg-muted transition-colors outline-none hover:border-fg/30 hover:bg-surface-2 hover:text-fg focus-visible:ring-4 focus-visible:ring-fg/20"
+      >
+        ?
+      </button>
+      <span
+        id={hintId}
+        role="tooltip"
+        className={cn(
+          "pointer-events-none absolute right-0 bottom-full z-30 mb-2.5 w-60 rounded-2xl border border-border/80 bg-fg px-3.5 py-2.5 text-left text-xs leading-relaxed font-medium text-bg shadow-lg transition-all duration-150",
+          "translate-y-1 opacity-0 group-hover/sell-help:pointer-events-auto group-hover/sell-help:translate-y-0 group-hover/sell-help:opacity-100 group-focus-within/sell-help:pointer-events-auto group-focus-within/sell-help:translate-y-0 group-focus-within/sell-help:opacity-100",
+          helpOpen && "pointer-events-auto translate-y-0 opacity-100",
+        )}
+      >
+        {t.detail.sellDisabled}
+      </span>
+    </div>
+  );
 }
 
 function TradeActions({
@@ -276,6 +395,15 @@ function TradeActions({
   isHidden,
   onBuy,
   onSell,
+  symbol,
+  underlying,
+  issuer,
+  quote,
+  currency,
+  rate,
+  position,
+  chipText,
+  chipDot,
 }: {
   variant: "bar" | "card";
   canSell: boolean;
@@ -285,8 +413,17 @@ function TradeActions({
   isHidden: boolean;
   onBuy: () => void;
   onSell: () => void;
+  symbol: string;
+  underlying: string;
+  issuer: Ticker["issuer"];
+  quote: Quote | null;
+  currency: Currency;
+  rate: number | undefined;
+  position: Position | null;
+  chipText: string;
+  chipDot: string;
 }) {
-  const { t } = useT();
+  const { t, language } = useT();
   const hintId = variant === "bar" ? "sell-hint-bar" : "sell-hint-card";
   const blockedId = variant === "bar" ? "trade-blocked-bar" : "trade-blocked-card";
   const wide = variant === "card";
@@ -307,25 +444,55 @@ function TradeActions({
   // sigue habilitada; el resto bloquea ambos lados como siempre.
   const sellDisabled = blocked === "review" ? !canSell : blocked !== null || !canSell;
 
+  const buyButton = (
+    <Button
+      size="lg"
+      className={wide ? "min-h-12 w-full text-base font-semibold" : "h-auto min-h-11 w-full min-w-0 flex-1 whitespace-nowrap px-3 text-base md:h-auto md:px-5"}
+      disabled={buyDisabled}
+      aria-describedby={blockedReason ? blockedId : undefined}
+      onClick={() => {
+        if (!buyDisabled) onBuy();
+      }}
+    >
+      {t.detail.buy}
+    </Button>
+  );
+
+  const sellButton = (
+    <Button
+      size="lg"
+      variant="secondary"
+      className={cn(
+        "min-w-0 flex-1",
+        wide
+          ? "min-h-12 w-full text-base font-semibold"
+          : "h-auto min-h-11 whitespace-nowrap px-3 text-base md:h-auto md:px-5",
+      )}
+      disabled={sellDisabled}
+      aria-describedby={blockedReason ? blockedId : sellDisabled ? hintId : undefined}
+      onClick={() => {
+        if (!sellDisabled) onSell();
+      }}
+    >
+      {t.detail.sell}
+    </Button>
+  );
+
   const buttons = (
-    <div className={wide ? "flex flex-col gap-3" : "flex gap-2"}>
-      <Button size="lg" className={wide ? "w-full" : "h-auto min-h-11 w-full min-w-0 flex-1 whitespace-nowrap px-3 text-base md:h-auto md:px-5"} disabled={buyDisabled} aria-describedby={blockedReason ? blockedId : undefined} onClick={() => {
-          if (!buyDisabled) onBuy();
-        }}>
-        {t.detail.buy}
-      </Button>
-      <Button
-        size="lg"
-        variant="secondary"
-        className={wide ? "w-full" : "h-auto min-h-11 w-full min-w-0 flex-1 whitespace-nowrap px-3 text-base md:h-auto md:px-5"}
-        disabled={sellDisabled}
-        aria-describedby={blockedReason ? blockedId : sellDisabled ? hintId : undefined}
-        onClick={() => {
-          if (!sellDisabled) onSell();
-        }}
-      >
-        {t.detail.sell}
-      </Button>
+    <div
+      role="group"
+      aria-label={language === "en" ? "Buy or sell" : "Comprar o vender"}
+      className={wide ? "flex flex-col gap-3" : "flex gap-2"}
+    >
+      {buyButton}
+      {sellDisabled && !blockedReason ? (
+        <div className={cn("flex items-center gap-2", wide ? "w-full" : "min-w-0 flex-1")}>
+          {sellButton}
+          <SellHelp hintId={hintId} />
+        </div>
+      ) : (
+        sellButton
+      )}
     </div>
   );
 
@@ -342,29 +509,28 @@ function TradeActions({
             <p id={blockedId} className="mt-2 text-center text-xs leading-relaxed text-fg-muted">
               {blockedReason}
             </p>
-          ) : canSell ? null : (
-            <p id={hintId} className="sr-only">
-              {t.detail.sellDisabled}
-            </p>
-          )}
+          ) : null}
         </div>
       </div>
     );
   }
 
   return (
-    <Card className="p-5 md:p-6">
-      <h2 className="text-lg font-semibold tracking-tight">{t.detail.actions}</h2>
-      <div className="mt-4">{buttons}</div>
+    <Card className="p-6 md:p-7">
+      <div className="flex items-center justify-between gap-2">
+        <h2 className="text-xl font-semibold tracking-tight text-fg">{t.detail.actions}</h2>
+        <span className="inline-flex items-center gap-1.5 rounded-full border border-border/70 bg-surface-1 px-2.5 py-1 text-xs font-medium text-fg-muted">
+          <span className={cn("size-1.5 shrink-0 rounded-full", chipDot)} aria-hidden />
+          {chipText}
+        </span>
+      </div>
+      <BuyPriceBox symbol={symbol} underlying={underlying} issuer={issuer} quote={quote} currency={currency} rate={rate} position={position} canSell={canSell} />
+      <div className="mt-5">{buttons}</div>
       {blockedReason ? (
         <p id={blockedId} className="mt-3 text-sm leading-relaxed text-fg-muted">
           {blockedReason}
         </p>
-      ) : canSell ? null : (
-        <p id={hintId} className="mt-3 text-sm leading-relaxed text-fg-muted">
-          {t.detail.sellDisabled}
-        </p>
-      )}
+      ) : null}
     </Card>
   );
 }
@@ -712,6 +878,15 @@ export function DetailScreen({
           isHidden={isHidden}
           onBuy={() => openOperar("comprar")}
           onSell={() => openOperar("vender")}
+          symbol={ticker.symbol}
+          underlying={ticker.underlying}
+          issuer={ticker.issuer}
+          quote={quote}
+          currency={currency}
+          rate={rate}
+          position={position}
+          chipText={chipText}
+          chipDot={chipDot}
         />
       );
     }
@@ -721,6 +896,12 @@ export function DetailScreen({
           variant={variant}
           aboveTabs
           primary={{ href: resume, label: t.detail.finishSignup }}
+          symbol={ticker.symbol}
+          underlying={ticker.underlying}
+          issuer={ticker.issuer}
+          quote={quote}
+          currency={currency}
+          rate={rate}
         />
       );
     }
@@ -730,6 +911,12 @@ export function DetailScreen({
         aboveTabs={false}
         primary={{ href: create, label: t.detail.signupToInvest }}
         secondary={{ href: enter, label: t.detail.loginToInvest }}
+        symbol={ticker.symbol}
+        underlying={ticker.underlying}
+        issuer={ticker.issuer}
+        quote={quote}
+        currency={currency}
+        rate={rate}
       />
     );
   }
@@ -744,7 +931,7 @@ export function DetailScreen({
     <>
     <motion.div
       data-ticker={ticker.symbol}
-      className="lg:grid lg:grid-cols-[minmax(0,1fr)_17.5rem] lg:items-start lg:gap-8"
+      className="lg:grid lg:grid-cols-[minmax(0,1fr)_22rem] xl:grid-cols-[minmax(0,1fr)_24rem] lg:items-start lg:gap-8"
       initial={reduceMotion ? false : { opacity: 0, scale: 0.97 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={reduceMotion ? { duration: 0 } : { duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
