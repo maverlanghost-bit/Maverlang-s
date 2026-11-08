@@ -1,4 +1,5 @@
 import { toYahooSymbol } from "@/lib/market/yahoo-symbol";
+import type { Range } from "@/lib/types";
 
 /**
  * Variación del día de la acción subyacente.
@@ -166,4 +167,147 @@ export async function fetchUnderlyingChanges(
   const workers = Math.min(CONCURRENCY, unique.length);
   await Promise.all(Array.from({ length: workers }, () => worker()));
   return out;
+}
+
+/**
+ * Serie del gráfico del subyacente, ya en ms y USD (`{ t, p }`).
+ * Es el respaldo del histórico cuando `underlying_prices` no tiene filas
+ * recientes: la tabla se llena por cron y puede quedar días atrás.
+ * Sin caché de Next ni `server-only`: cualquiera puede llamarlo desde el server.
+ */
+export interface UnderlyingChartPoint {
+  t: number;
+  p: number;
+}
+
+interface ChartQuery {
+  /** `range` de Yahoo. */
+  range: string;
+  /** `interval` de Yahoo. */
+  interval: string;
+}
+
+/** 1D y 1W comparten `5d`: con 15m/1h Yahoo devuelve las dos últimas jornadas. */
+const CHART_QUERIES: Record<Range, ChartQuery> = {
+  "1D": { range: "5d", interval: "15m" },
+  "1W": { range: "5d", interval: "1h" },
+  "1M": { range: "1mo", interval: "1d" },
+  "3M": { range: "3mo", interval: "1d" },
+  "1Y": { range: "1y", interval: "1d" },
+  ALL: { range: "5y", interval: "1wk" },
+};
+
+/** El gráfico de 1D son dos jornadas, y nunca más de 48 barras de 15m. */
+const ONE_DAY_SESSIONS = 2;
+const ONE_DAY_POINTS = 48;
+const SERIES_TTL_MS = 60_000;
+
+interface SeriesCacheEntry {
+  at: number;
+  /** []; Yahoo no sirvió la serie (o no la tiene para ese símbolo). */
+  points: UnderlyingChartPoint[];
+}
+
+const seriesCache = new Map<string, SeriesCacheEntry>();
+const inflightSeries = new Map<string, Promise<UnderlyingChartPoint[]>>();
+
+/**
+ * Empareja `timestamp[i]` con `indicators.quote[0].close[i]`.
+ * Yahoo deja `close: null` en barras sin operación: se descartan.
+ */
+export function parseYahooChartSeries(body: unknown): UnderlyingChartPoint[] {
+  if (!isRecord(body)) return [];
+  const chart = isRecord(body.chart) ? body.chart : null;
+  const result = chart && Array.isArray(chart.result) ? chart.result[0] : null;
+  if (!isRecord(result)) return [];
+  const timestamps = Array.isArray(result.timestamp) ? result.timestamp : [];
+  const indicators = isRecord(result.indicators) ? result.indicators : null;
+  const quotes = indicators && Array.isArray(indicators.quote) ? indicators.quote : [];
+  const quote = isRecord(quotes[0]) ? quotes[0] : null;
+  const closes = quote && Array.isArray(quote.close) ? quote.close : [];
+  const points: UnderlyingChartPoint[] = [];
+  const size = Math.min(timestamps.length, closes.length);
+  for (let i = 0; i < size; i += 1) {
+    const seconds = timestamps[i];
+    const close = closes[i];
+    const t = typeof seconds === "number" ? seconds * 1000 : Number.NaN;
+    const p = typeof close === "number" ? close : Number.NaN;
+    if (!Number.isFinite(t) || t <= 0) continue;
+    if (!Number.isFinite(p) || p <= 0) continue;
+    points.push({ t, p });
+  }
+  return points;
+}
+
+/** Últimas `sessions` jornadas (fecha UTC), con tope de `limit` puntos. */
+function keepLastSessions(
+  points: readonly UnderlyingChartPoint[],
+  sessions: number,
+  limit: number,
+): UnderlyingChartPoint[] {
+  const days: string[] = [];
+  let start = 0;
+  for (let i = points.length - 1; i >= 0; i -= 1) {
+    const point = points[i];
+    if (!point) continue;
+    const day = new Date(point.t).toISOString().slice(0, 10);
+    if (days.includes(day)) continue;
+    if (days.length === sessions) {
+      start = i + 1;
+      break;
+    }
+    days.push(day);
+  }
+  const trimmed = points.slice(start);
+  return trimmed.length > limit ? trimmed.slice(trimmed.length - limit) : trimmed;
+}
+
+async function fetchChartSeries(
+  underlying: string,
+  range: Range,
+  timeoutMs: number,
+): Promise<UnderlyingChartPoint[]> {
+  const symbol = toYahooSymbol(underlying);
+  if (!YAHOO_SYMBOL.test(symbol)) return [];
+  const query = CHART_QUERIES[range];
+  const url = `${CHART_URL}/${encodeURIComponent(symbol)}?range=${query.range}&interval=${query.interval}`;
+  const response = await fetch(url, {
+    method: "GET",
+    headers: { accept: "application/json", "user-agent": "Mozilla/5.0" },
+    signal: AbortSignal.timeout(timeoutMs),
+    cache: "no-store",
+  });
+  if (!response.ok) throw new Error(`yahoo ${response.status}`);
+  const points = parseYahooChartSeries(await response.json()).sort((a, b) => a.t - b.t);
+  return range === "1D" ? keepLastSessions(points, ONE_DAY_SESSIONS, ONE_DAY_POINTS) : points;
+}
+
+/**
+ * Serie del gráfico de Yahoo para el subyacente, con un minuto de caché.
+ * Nunca lanza: si la red falla devuelve [] y el caller decide el respaldo.
+ */
+export async function fetchYahooChartSeries(
+  underlying: string,
+  range: Range,
+  options: { timeoutMs?: number } = {},
+): Promise<UnderlyingChartPoint[]> {
+  const key = `${underlying}${range}`;
+  const hit = seriesCache.get(key);
+  if (hit && Date.now() - hit.at < SERIES_TTL_MS) return hit.points;
+  const pending = inflightSeries.get(key);
+  if (pending) return pending;
+  const job = fetchChartSeries(underlying, range, options.timeoutMs ?? DEFAULT_TIMEOUT_MS)
+    .then((points) => {
+      seriesCache.set(key, { at: Date.now(), points });
+      return points;
+    })
+    .catch(() => {
+      seriesCache.set(key, { at: Date.now(), points: [] });
+      return [];
+    })
+    .finally(() => {
+      inflightSeries.delete(key);
+    });
+  inflightSeries.set(key, job);
+  return job;
 }

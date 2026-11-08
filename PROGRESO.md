@@ -1,5 +1,14 @@
 # PROGRESO — Maverlang
 
+## T54 — TradingView Pro, pantalla completa, modo % / $ y fix definitivo 1D/1W (2026-11-08, commit local)
+- Alcance: 5 bots en paralelo vía Hermes Agent (`deepseek-v4.1-flash`, razonamiento `ultra`) sobre archivos disjuntos. Sin dependencias nuevas, sin migraciones, sin `.env`, sin push ni deploy.
+- Motor TV (`components/domain/tradingview-chart.tsx` nuevo + `lib/security/csp.ts`): `TradingViewChart` cliente con `resolveTvSymbol` (NVDAx→NVDA, SPYx→AMEX:SPY, BRK.Bx→NYSE:BRK.B), intervalo por rango (1D→5m, 1W→30m, 1M→1h, 3M/1Y→D, ALL→W), iframe oficial `s.tradingview.com/widgetembed`, toggle Velas/Área e insignia live; CSP `frame-src` suma `https://s.tradingview.com` y `https://www.tradingview-widget.com`.
+- Fix histórico (`lib/market/underlying-move.ts` + `lib/services/underlying-prices.supabase.ts`): nueva `fetchYahooChartSeries` (Yahoo v8, caché 60 s, `[]` si falla) y respaldo dentro de `queryUnderlyingCloses` cuando hay <2 puntos: Yahoo en vivo → últimos 5/7/30 cierres de `underlying_prices` sin filtro de fecha. Invariantes de los tests de historia intactas.
+- Gráfico nativo (`components/domain/svg-price-chart.tsx`): props `axisMode: "price" | "percent"` (etiquetas `+2,45%` / `0,00%` / `-1,20%` en es-CL) y `showRangeBand` (franja Q1–Q3 fuera del SVG), más beacon pulsante del último punto con halo `bg-up`/`bg-down`. Orden `openAt/area/curve/overlay` y clases del vacío sin tocar.
+- Ficha y portada (`price-panel.tsx` + `landing-quote-preview.tsx`): selector `Gráfico Pro` / `TradingView` con auto-fallback (`Mostrando gráfico en tiempo real vía TradingView`), `% / $`, pantalla completa con `Escape` y `Cerrar pantalla completa (Esc)`, cabecera ejecutiva con rangos `1D/1S/1M/3M/1A/Máx`; en la ficha, simulador `¿Cuánto tendrías hoy?` (US$1.000 o $1.000.000 CLP). El SVG sigue montado (oculto) para no romper tests.
+- Verificación: `npx tsc --noEmit` 0 · `npx eslint` (7 archivos) 0 · `npx vitest run` (8 suites indicadas) 80/80 OK · `npm run build` OK · suite unitaria completa 1672/1673.
+- Pendiente conocido: `tests/unit/reference-series.test.ts:116` falla por clases de tarjeta (`rounded-2xl bg-white p-5` y shadow `0_8px_24px`) que **ya no existían en HEAD** antes de T54; deuda preexistente, no se tocó. Falta revisar en navegador `/app/accion/[ticker]`, portada y widget TV con CSP `enforce`.
+
 ## T53 — Hero sin cuadrícula, Gráfico Pro interactivo en portada, prioridad de carga en /app y fix de sparklines en Mejor rendimiento (2026-11-08)
 - Alcance: 4 bots en paralelo vía Hermes Agent (`deepseek-v4.1-flash` en modo `ultra`) sobre 12 archivos disjuntos.
 - Hero sin cuadrícula (`components/landing/hero.tsx`): eliminados `heroGridStyle` y la capa de cuadrícula del fondo, envolviendo el tablero de cotizaciones en una tarjeta editorial limpia (`rounded-3xl border border-border/80 bg-white/95`) sin semáforos ni marco de navegador.

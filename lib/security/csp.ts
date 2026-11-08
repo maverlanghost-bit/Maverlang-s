@@ -52,6 +52,8 @@ const PRIVY_FRAMES = [
   "https://verify.walletconnect.com",
   "https://verify.walletconnect.org",
   "https://challenges.cloudflare.com",
+  "https://s.tradingview.com",
+  "https://www.tradingview-widget.com",
 ];
 
 /**

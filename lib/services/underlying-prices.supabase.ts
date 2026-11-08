@@ -1,6 +1,7 @@
 import "server-only";
 import { unstable_cache } from "next/cache";
 import { shouldCacheUnderlyingPoints } from "@/lib/api/contracts";
+import { fetchYahooChartSeries } from "@/lib/market/underlying-move";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import type { PricePoint, Range } from "@/lib/types";
 
@@ -56,6 +57,23 @@ async function queryUnderlyingCloses(underlying: string, range: Range): Promise<
     } finally {
       clearTimeout(timer);
     }
+  }
+  // La tabla la llena un cron y puede quedar días atrás: sin filas en la
+  // ventana, el histórico sale del gráfico de Yahoo; si tampoco hay, de lo
+  // último guardado (aunque sea viejo), para no devolver un vacío.
+  if (points.length < 2) {
+    const yahooPts = await fetchYahooChartSeries(underlying, range, { timeoutMs: 2_000 });
+    if (yahooPts.length >= 2) return yahooPts;
+    const fallbackLimit = range === "1D" ? 5 : range === "1W" ? 7 : 30;
+    const { data, error } = await admin
+      .from("underlying_prices")
+      .select("date,close")
+      .eq("underlying", underlying)
+      .order("date", { ascending: false })
+      .limit(fallbackLimit);
+    if (error) throw error;
+    // Vienen de la más nueva a la más vieja; el gráfico las quiere al revés.
+    return toPoints((data ?? []) as { date: unknown; close: unknown }[]).reverse();
   }
   return points;
 }

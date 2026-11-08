@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 import { ChangeBadge } from "@/components/domain/change-badge";
@@ -9,6 +9,7 @@ import { FlashPrice } from "@/components/domain/flash-price";
 import { PriceFreshness } from "@/components/domain/price-freshness";
 import { TONE_STROKE } from "@/components/domain/svg-price-chart";
 import { SvgPriceChart } from "@/components/domain/svg-price-chart";
+import { TradingViewChart } from "@/components/domain/tradingview-chart";
 import { ErrorState } from "@/components/ui/error-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { indexFromKey } from "@/components/ui/keys";
@@ -42,6 +43,11 @@ const EMPTY_STUDIES: ChartStudies = {
 const NO_BARS = { volume: false, ohlc: false };
 /** Comparadores del modo Técnico: SPYx es el de siempre; el resto, alternativas. */
 const COMPARE_SYMBOLS = [SPY_SYMBOL, "QQQx", "AAPLx", "NVDAx", "TSLAx"] as const;
+/** Motores del gráfico: el nativo Pro y el widget de TradingView. */
+const PROVIDER_OPTIONS = [
+  { value: "native", label: "Gráfico Pro" },
+  { value: "tradingview", label: "TradingView" },
+] as const;
 
 function studyQueryOptions(enabled: boolean) {
   return {
@@ -186,6 +192,45 @@ function RangeCapsule({
   );
 }
 
+const TOGGLE_ACTIVE = {
+  accent: "border-[#2b7fd9]/40 bg-[#2b7fd9]/10 text-[#2b7fd9]",
+  solid: "border-fg bg-fg text-bg",
+  neutral: "border-fg/20 bg-surface-2 text-fg",
+} as const;
+
+/** Píldora de control del gráfico. Mismo look en la barra y en pantalla completa. */
+function ChartToggle({
+  pressed,
+  onClick,
+  children,
+  tone = "neutral",
+  label,
+  className,
+}: {
+  pressed: boolean;
+  onClick: () => void;
+  children: ReactNode;
+  tone?: keyof typeof TOGGLE_ACTIVE;
+  label?: string;
+  className?: string;
+}) {
+  return (
+    <button
+      type="button"
+      aria-pressed={pressed}
+      aria-label={label}
+      onClick={onClick}
+      className={cn(
+        "inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border px-3 text-xs font-medium whitespace-nowrap transition-colors outline-none focus-visible:ring-4 focus-visible:ring-fg/20",
+        pressed ? TOGGLE_ACTIVE[tone] : "border-border/70 bg-white text-fg-muted hover:bg-surface-1 hover:text-fg",
+        className,
+      )}
+    >
+      {children}
+    </button>
+  );
+}
+
 export function PricePanel({
   symbol,
   name,
@@ -251,6 +296,8 @@ export function PricePanel({
   const polledAt = pollChart && liveQuote.dataUpdatedAt > 0 ? liveQuote.dataUpdatedAt : 0;
   const livePoint = useMemo(() => livePricePoint(polledRow, polledAt), [polledRow, polledAt]);
   const points = history.data?.points ?? NO_POINTS;
+  // Sin dos puntos el SVG no puede dibujar: se cae a TradingView y se avisa.
+  const autoTradingView = !history.isPending && points.length < 2;
   const period = periodBounds(points, livePoint);
   const move = rangeMove(points);
   const stats = !history.isPending && !history.isError ? rangeBounds(points) : null;
@@ -267,6 +314,26 @@ export function PricePanel({
   const [expanded, setExpanded] = useState(false);
   const [showGrid, setShowGrid] = useState(true);
   const [showPeriodAvg, setShowPeriodAvg] = useState(false);
+  // Motor del gráfico: Pro nativo y TradingView conviven; el SVG sigue montado.
+  const [provider, setProvider] = useState<"native" | "tradingview">("native");
+  // Eje Y: precio o porcentaje desde la apertura del período.
+  const [axisMode, setAxisMode] = useState<"price" | "percent">("price");
+  const [fullscreen, setFullscreen] = useState(false);
+  const tvActive = provider === "tradingview" || autoTradingView;
+  // Escape cierra la pantalla completa; el body no scrollea detrás del modal.
+  useEffect(() => {
+    if (!fullscreen) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setFullscreen(false);
+    };
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [fullscreen]);
   // Comparador del modo Técnico. SPYx por defecto; el resto se pide con el
   // mismo rango y, si alcanza dos puntos, reemplaza a SPYx como benchmark.
   const [compareSymbol, setCompareSymbol] = useState<string>(SPY_SYMBOL);
@@ -437,7 +504,29 @@ export function PricePanel({
       ? `${deltaUsd >= 0 ? "+" : "-"}${formatMoney(deltaShown, priceCurrency)}`
       : null;
 
+  // Simulador de retorno: sólo con apertura y punto activo reales del período.
+  const investmentBase = priceCurrency === "CLP" ? 1_000_000 : 1_000;
+  const simulator =
+    openUsd !== null && activeEndUsd !== null && openUsd > 0
+      ? {
+          base: investmentBase,
+          ratio: activeEndUsd / openUsd,
+          finalValue: investmentBase * (activeEndUsd / openUsd),
+          profit: investmentBase * (activeEndUsd / openUsd - 1),
+        }
+      : null;
+  const simulatorProfit =
+    simulator !== null
+      ? `${simulator.profit > 0 ? "+" : simulator.profit < 0 ? "-" : ""}${formatMoney(Math.abs(simulator.profit), priceCurrency)}`
+      : null;
+  const simulatorPct = simulator !== null ? formatPercent(simulator.ratio - 1) : null;
+
   const rangeOptions = DETAIL_RANGES.map((value) => ({ value, label: t.detail.rangeShort[value] }));
+  // La cápsula normal conserva "Todo" (lo exige detail.spec); la cabecera ejecutiva usa "Máx".
+  const fullscreenRangeOptions = DETAIL_RANGES.map((value) => ({
+    value,
+    label: value === "ALL" ? "Máx" : t.detail.rangeShort[value],
+  }));
   const historySource = history.data?.source;
   const lastT = points[points.length - 1]?.t;
   const sourceLine =
@@ -574,54 +663,111 @@ export function PricePanel({
           />
         </div>
 
-        {/* Controles rápidos de visualización del gráfico: Promedio, Escala y Modo Amplio */}
+        {/* Controles del gráfico: motor Pro/TradingView, promedio, escala, eje y pantalla completa */}
         <div className="flex flex-wrap items-center gap-1.5">
-          <button
-            type="button"
-            aria-pressed={showPeriodAvg}
-            onClick={() => setShowPeriodAvg((v) => !v)}
-            className={cn(
-              "inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-xs font-medium transition-colors outline-none focus-visible:ring-4 focus-visible:ring-fg/20",
-              showPeriodAvg
-                ? "border-[#2b7fd9]/40 bg-[#2b7fd9]/10 text-[#2b7fd9]"
-                : "border-border/70 bg-white text-fg-muted hover:bg-surface-1 hover:text-fg",
-            )}
-          >
+          <RangeCapsule
+            className="shrink-0"
+            idPrefix="chart-provider"
+            label="Motor del gráfico"
+            options={PROVIDER_OPTIONS}
+            value={provider}
+            onChange={(value) => setProvider(value === "tradingview" ? "tradingview" : "native")}
+          />
+          <ChartToggle tone="accent" pressed={showPeriodAvg} onClick={() => setShowPeriodAvg((v) => !v)}>
             <span aria-hidden="true" className="size-1.5 rounded-full bg-[#2b7fd9]" />
             Promedio
-          </button>
-          <button
-            type="button"
-            aria-pressed={showGrid}
-            onClick={() => setShowGrid((v) => !v)}
-            className={cn(
-              "inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-xs font-medium transition-colors outline-none focus-visible:ring-4 focus-visible:ring-fg/20",
-              showGrid
-                ? "border-fg/20 bg-surface-2 text-fg"
-                : "border-border/70 bg-white text-fg-muted hover:bg-surface-1 hover:text-fg",
-            )}
-          >
+          </ChartToggle>
+          <ChartToggle pressed={showGrid} onClick={() => setShowGrid((v) => !v)}>
             Escala
-          </button>
-          <button
-            type="button"
-            aria-pressed={expanded}
-            onClick={() => setExpanded((v) => !v)}
-            className={cn(
-              "inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-xs font-medium transition-colors outline-none focus-visible:ring-4 focus-visible:ring-fg/20",
-              expanded
-                ? "border-fg bg-fg text-bg"
-                : "border-border/70 bg-white text-fg-muted hover:bg-surface-1 hover:text-fg",
-            )}
+          </ChartToggle>
+          <ChartToggle
+            pressed={axisMode === "percent"}
+            onClick={() => setAxisMode((v) => (v === "price" ? "percent" : "price"))}
+            label="Escala del eje: porcentaje o precio"
           >
+            % / $
+          </ChartToggle>
+          <ChartToggle tone="solid" pressed={expanded} onClick={() => setExpanded((v) => !v)}>
             {expanded ? "Compactar" : "Expandir"}
-          </button>
+          </ChartToggle>
+          <ChartToggle pressed={fullscreen} onClick={() => setFullscreen((v) => !v)}>
+            {fullscreen ? "Salir de pantalla completa" : "Pantalla completa"}
+          </ChartToggle>
         </div>
       </div>
 
       {illustrative ? <p className="text-sm text-fg-muted">{t.detail.chartReference}</p> : null}
 
-      <div className="min-w-0 max-w-full rounded-3xl border border-border/70 bg-white p-5 shadow-[0_1px_2px_rgba(16,24,40,0.04),0_12px_32px_-8px_rgba(16,24,40,0.08)] sm:p-7">
+      <div
+        className={cn(
+          "min-w-0 max-w-full rounded-3xl border border-border/70 bg-white p-5 shadow-[0_1px_2px_rgba(16,24,40,0.04),0_12px_32px_-8px_rgba(16,24,40,0.08)] sm:p-7",
+          fullscreen && "fixed inset-0 z-50 flex flex-col justify-between overflow-y-auto bg-white p-4 sm:p-8 gap-4",
+        )}
+        role={fullscreen ? "dialog" : undefined}
+        aria-modal={fullscreen ? true : undefined}
+        aria-label={fullscreen ? `Gráfico de ${name}` : undefined}
+      >
+        {/* Cabecera ejecutiva: sólo existe en pantalla completa y reutiliza el estado del panel */}
+        {fullscreen ? (
+          <div className="flex flex-col gap-3 border-b border-border/60 pb-4">
+            <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3">
+              <div className="min-w-0">
+                <p className="truncate text-lg font-semibold text-fg">{name}</p>
+                <p className="num mt-0.5 text-xs font-medium text-fg-muted">{symbol}</p>
+                <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                  {shown !== null ? (
+                    <FlashPrice value={shown} currency={priceCurrency} size="lg" live={point === null} force={hoverForce} />
+                  ) : (
+                    <span className="text-sm text-fg-muted">—</span>
+                  )}
+                  {move !== null ? <ChangeBadge value={move} /> : null}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setFullscreen(false)}
+                className="inline-flex h-10 items-center gap-2 rounded-full bg-fg px-4 text-sm font-semibold text-bg shadow-sm transition-transform outline-none focus-visible:ring-4 focus-visible:ring-fg/20 active:scale-[0.98] motion-reduce:transition-none motion-reduce:active:scale-100"
+              >
+                Cerrar pantalla completa (Esc)
+              </button>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <RangeCapsule
+                compact
+                idPrefix="fullscreen-range"
+                label={`${t.detail.rangesLabel} (pantalla completa)`}
+                options={fullscreenRangeOptions}
+                value={range}
+                onChange={(value) => {
+                  if (isDetailRange(value)) onRangeChange(value);
+                }}
+              />
+              <RangeCapsule
+                idPrefix="fullscreen-provider"
+                label="Motor del gráfico (pantalla completa)"
+                options={PROVIDER_OPTIONS}
+                value={provider}
+                onChange={(value) => setProvider(value === "tradingview" ? "tradingview" : "native")}
+              />
+              <div className="flex flex-wrap items-center gap-1.5">
+                <ChartToggle tone="accent" pressed={showPeriodAvg} onClick={() => setShowPeriodAvg((v) => !v)}>
+                  <span aria-hidden="true" className="size-1.5 rounded-full bg-[#2b7fd9]" />
+                  Promedio
+                </ChartToggle>
+                <ChartToggle pressed={showGrid} onClick={() => setShowGrid((v) => !v)}>
+                  Escala
+                </ChartToggle>
+                <ChartToggle
+                  pressed={axisMode === "percent"}
+                  onClick={() => setAxisMode((v) => (v === "price" ? "percent" : "price"))}
+                  label="Escala del eje: porcentaje o precio"
+                >
+                  % / $
+                </ChartToggle>
+              </div>
+            </div>
+          </div>
+        ) : null}
         {/* Cinta superior de métricas rápidas del período dentro de la tarjeta del gráfico */}
         {chartReady && stats && openUsd !== null && periodAvgUsd !== null ? (() => {
           const openShown = displayPrice(openUsd, priceCurrency, rate);
@@ -660,6 +806,36 @@ export function PricePanel({
             </div>
           );
         })() : null}
+
+        {/* Simulador de retorno con los datos reales del período activo */}
+        {simulator ? (
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-2xl border border-border/60 bg-surface-1/60 px-3.5 py-2.5">
+            <div className="min-w-0">
+              <p className="text-[11px] font-semibold text-fg-muted">¿Cuánto tendrías hoy?</p>
+              <p className="text-xs text-fg-muted">
+                Si hubieras invertido {formatMoney(simulator.base, priceCurrency)} al inicio del período
+              </p>
+            </div>
+            <div className="flex flex-wrap items-baseline gap-2">
+              <span className="text-[11px] font-medium text-fg-muted">Hoy tendrías</span>
+              <span className="num text-sm font-semibold text-fg">
+                {formatMoney(simulator.finalValue, priceCurrency)}
+              </span>
+              <span
+                className={cn(
+                  "num rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums",
+                  simulator.profit > 0
+                    ? "bg-up-bg text-up"
+                    : simulator.profit < 0
+                      ? "bg-down-bg text-down"
+                      : "bg-surface-2 text-fg-muted",
+                )}
+              >
+                {simulatorProfit} · {simulatorPct}
+              </span>
+            </div>
+          </div>
+        ) : null}
 
         {technical ? (
           longHistory.isLoading ? (
@@ -706,49 +882,61 @@ export function PricePanel({
           </div>
         ) : null}
         <div className="relative min-w-0 max-w-full">
-          <SvgPriceChart
-            points={points}
-            tone={tone}
-            livePoint={livePoint}
-            quiet={history.isPending || history.isError}
-            label={fill(t.detail.chartLabel, { name, range: t.detail.rangeCaption[range] })}
-            emptyLabel={t.detail.chartEmpty}
-            emptyHint={t.detail.chartEmptyHint}
-            onHover={onHover}
-            reference={illustrative}
-            overlays={overlays}
-            benchmark={benchmark}
-            avgCostUsd={avgCostUsd}
-            periodAvgUsd={showPeriodAvg ? periodAvgUsd : null}
-            showGrid={showGrid}
-            heightClassName={
-              expanded
-                ? "h-80 sm:h-[420px] md:h-[480px] transition-[height] duration-200"
-                : "h-64 sm:h-80 md:h-[360px] transition-[height] duration-200"
-            }
-            chartStyle={technical && bars.ohlc ? draw : "line"}
-            showVolume={technical && bars.volume && volumeOn}
-            volumeLabel={copy.volume}
-          />
-          {history.isPending ? (
-            <div className="absolute inset-0 z-10 bg-bg" role="status" aria-live="polite" aria-busy="true">
-              <span className="sr-only">{t.states.loading}</span>
-              <Skeleton className="size-full rounded-xl" />
-            </div>
+          {tvActive ? (
+            <TradingViewChart symbol={symbol} underlying={underlying} range={range} fullscreen={fullscreen} />
           ) : null}
-          {history.isError ? (
-            <div className="absolute inset-0 z-10 overflow-y-auto bg-bg">
-              <ErrorState
-                title={t.detail.chartError}
-                label={t.states.error}
-                retryLabel={t.states.retry}
-                onRetry={() => {
-                  void history.refetch();
-                }}
-              />
-            </div>
-          ) : null}
+          {/* El SVG nativo sigue montado aunque TradingView esté visible: los tests buscan su SVG. */}
+          <div className={cn("relative min-w-0 max-w-full", (provider === "tradingview" || autoTradingView) && "hidden")}>
+            <SvgPriceChart
+              points={points}
+              tone={tone}
+              livePoint={livePoint}
+              quiet={history.isPending || history.isError}
+              label={fill(t.detail.chartLabel, { name, range: t.detail.rangeCaption[range] })}
+              emptyLabel={t.detail.chartEmpty}
+              emptyHint={t.detail.chartEmptyHint}
+              onHover={onHover}
+              reference={illustrative}
+              overlays={overlays}
+              benchmark={benchmark}
+              avgCostUsd={avgCostUsd}
+              periodAvgUsd={showPeriodAvg ? periodAvgUsd : null}
+              showGrid={showGrid}
+              axisMode={axisMode}
+              heightClassName={
+                fullscreen
+                  ? "h-[46vh] sm:h-[56vh] md:h-[62vh] transition-[height] duration-200"
+                  : expanded
+                    ? "h-80 sm:h-[420px] md:h-[480px] transition-[height] duration-200"
+                    : "h-64 sm:h-80 md:h-[360px] transition-[height] duration-200"
+              }
+              chartStyle={technical && bars.ohlc ? draw : "line"}
+              showVolume={technical && bars.volume && volumeOn}
+              volumeLabel={copy.volume}
+            />
+            {history.isPending ? (
+              <div className="absolute inset-0 z-10 bg-bg" role="status" aria-live="polite" aria-busy="true">
+                <span className="sr-only">{t.states.loading}</span>
+                <Skeleton className="size-full rounded-xl" />
+              </div>
+            ) : null}
+            {history.isError ? (
+              <div className="absolute inset-0 z-10 overflow-y-auto bg-bg">
+                <ErrorState
+                  title={t.detail.chartError}
+                  label={t.states.error}
+                  retryLabel={t.states.retry}
+                  onRetry={() => {
+                    void history.refetch();
+                  }}
+                />
+              </div>
+            ) : null}
+          </div>
         </div>
+        {autoTradingView && provider === "native" ? (
+          <p className="mt-2 text-xs text-fg-muted">Mostrando gráfico en tiempo real vía TradingView</p>
+        ) : null}
         {period ? (
           <div className="mt-2 flex justify-between gap-3 text-xs text-fg-muted">
             <time dateTime={new Date(period.start).toISOString()}>{formatPeriodDate(period.start)}</time>

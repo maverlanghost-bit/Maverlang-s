@@ -99,6 +99,17 @@ export interface PriceChartProps {
   periodAvgUsd?: number | null;
   /** Muestra líneas guía horizontales y etiquetas de escala de precio a la derecha. */
   showGrid?: boolean;
+  /**
+   * `percent` rotula la escala derecha como variación contra el primer punto
+   * del período ("+2,45%", "0,00%", "-1,20%"). Si ese punto no es un precio
+   * válido, la escala cae a precio.
+   */
+  axisMode?: "price" | "percent";
+  /**
+   * Franja sutil entre el cuartil superior y el inferior de la serie, fuera
+   * del SVG. No captura el puntero ni tapa los badges de máximo y mínimo.
+   */
+  showRangeBand?: boolean;
   /** Clases de altura personalizadas (por defecto `"h-56 sm:h-64"`). */
   heightClassName?: string;
 }
@@ -295,11 +306,74 @@ function priceExtremes(
   return { high, low };
 }
 
+/** Número con dos decimales y coma chilena: 2.45 → "2,45", 1023.45 → "1.023,45". */
+function decimalCl(value: number): string {
+  return Math.abs(value).toLocaleString("es-CL", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+/**
+ * Porcentaje ya expresado en puntos porcentuales. Cero va sin signo; el resto
+ * lleva "+" o "-" explícito. Es el mismo formato del tooltip, pero sin el "+"
+ * del cero que usa `changeFromOpen`.
+ */
+function signedPercentLabel(pct: number): string {
+  if (!Number.isFinite(pct)) return "0,00%";
+  const rounded = Math.round(pct * 100) / 100;
+  if (rounded === 0) return "0,00%";
+  return `${rounded > 0 ? "+" : "-"}${decimalCl(rounded)}%`;
+}
+
+/** Variación de `price` contra `base`, en el formato de la escala derecha. */
+function percentAxisLabel(base: number, price: number): string | null {
+  if (!Number.isFinite(base) || !(base > 0) || !Number.isFinite(price)) return null;
+  const pct = ((price - base) * 100) / base;
+  if (!Number.isFinite(pct)) return null;
+  return signedPercentLabel(pct);
+}
+
+/**
+ * Franja Q1–Q3 de la serie. `points[].p` ya viene proyectado a la escala del
+ * modelo (precio o %), así que los cuartiles se ubican con `yForPrice` y se
+ * devuelven como porcentaje de la altura del viewBox.
+ */
+function quartileBand(
+  points: readonly DrawnPoint[],
+  scale: PriceScale,
+): { topPct: number; heightPct: number } | null {
+  if (points.length < 3) return null;
+  const values: number[] = [];
+  for (const point of points) {
+    if (Number.isFinite(point.p)) values.push(point.p);
+  }
+  if (values.length < 3) return null;
+  values.sort((a, b) => a - b);
+  const at = (q: number): number | null => {
+    const pos = (values.length - 1) * q;
+    const base = Math.floor(pos);
+    const rest = pos - base;
+    const low = values[base];
+    const high = values[Math.min(values.length - 1, base + 1)];
+    if (low === undefined || high === undefined) return null;
+    const value = low + (high - low) * rest;
+    return Number.isFinite(value) ? value : null;
+  };
+  const upper = at(0.75);
+  const lower = at(0.25);
+  if (upper === null || lower === null || !(upper > lower)) return null;
+  const yA = yForPrice(upper, scale);
+  const yB = yForPrice(lower, scale);
+  if (!Number.isFinite(yA) || !Number.isFinite(yB)) return null;
+  const top = Math.max(0, Math.min(96, (Math.min(yA, yB) / CHART_H) * 100));
+  const height = Math.max(2, Math.min(100 - top, (Math.abs(yB - yA) / CHART_H) * 100));
+  return { topPct: top, heightPct: height };
+}
+
 function DrawnChart({
   points,
   line,
   area,
   stroke,
+  tone,
   upColor,
   downColor,
   reference,
@@ -313,11 +387,15 @@ function DrawnChart({
   avgCostUsd,
   periodAvgUsd,
   showGrid,
+  axisMode,
+  showRangeBand,
+  lineMode,
 }: {
   points: readonly DrawnPoint[];
   line: string;
   area: string;
   stroke: string;
+  tone: ChartTone;
   upColor: string;
   downColor: string;
   reference: boolean;
@@ -332,6 +410,10 @@ function DrawnChart({
   avgCostUsd?: number | null;
   periodAvgUsd?: number | null;
   showGrid?: boolean;
+  axisMode: "price" | "percent";
+  showRangeBand: boolean;
+  /** `chartStyle === "line"`: el SVG no dibuja el punto final, lo dibuja el beacon. */
+  lineMode: boolean;
 }) {
   const svgRef = useRef<SVGSVGElement>(null);
   const plotRef = useRef(points);
@@ -377,12 +459,21 @@ function DrawnChart({
   const avgY = avgCostLineY(avgCostUsd, scale, percentMode);
   const periodAvgY = avgCostLineY(periodAvgUsd, scale, percentMode);
   const lastPoint = points.length >= 2 ? points[points.length - 1] : undefined;
-  /** Punto vivo: sólo con la serie quieta, sin hover, sin velas y sin referencia. */
-  const showLiveDot = !reference && !candleList && hoverPoint === undefined && lastPoint !== undefined;
-  const hoverLeft = hoverPoint ? Math.min(85, Math.max(15, (hoverPoint.x / CHART_W) * 100)) : 0;
   const openPrice = points[0]?.usd;
+  /** Eje en % sólo con un primer precio válido; si no, queda la escala de precio. */
+  const axisPercent =
+    axisMode === "percent" && openPrice !== undefined && Number.isFinite(openPrice) && openPrice > 0;
+  /** Beacon del último precio: línea, serie quieta, sin velas y sin hover. */
+  const showBeacon =
+    lineMode && !reference && candleList === null && hoverPoint === undefined && lastPoint !== undefined;
+  const hoverLeft = hoverPoint ? Math.min(85, Math.max(15, (hoverPoint.x / CHART_W) * 100)) : 0;
   const periodMove = hoverPoint && openPrice !== undefined ? changeFromOpen(openPrice, hoverPoint.usd) : null;
   const openY = openingPriceY(points);
+  const rangeBand = showRangeBand ? quartileBand(points, scale) : null;
+  const bandClass =
+    tone === "down" ? "bg-down/10 border-down/25" : tone === "flat" ? "bg-fg/5 border-fg/15" : "bg-up/10 border-up/25";
+  const beaconHaloClass = tone === "down" ? "bg-down/30" : tone === "flat" ? "bg-fg/25" : "bg-up/30";
+  const beaconCoreClass = tone === "down" ? "bg-down" : tone === "flat" ? "bg-fg-muted" : "bg-up";
   const hints =
     hoverPoint && openPrice !== undefined
       ? layers.flatMap((layer) => {
@@ -397,13 +488,22 @@ function DrawnChart({
     !reference && !candleList && !percentMode && hoverPoint === undefined && points.length >= 3,
   );
 
-  // Niveles de grilla horizontal cuando showGrid está activo (25%, 50%, 75% de la altura útil)
+  // Niveles de grilla horizontal cuando showGrid está activo (22%, 50% y 78% de la altura útil)
   const gridTicks =
-    showGrid && !percentMode && Number.isFinite(scale.hi) && Number.isFinite(scale.lo) && scale.hi > scale.lo
+    showGrid &&
+    (!percentMode || axisMode === "percent") &&
+    Number.isFinite(scale.hi) &&
+    Number.isFinite(scale.lo) &&
+    scale.hi > scale.lo
       ? ([0.22, 0.5, 0.78] as const).map((ratio) => {
           const price = scale.hi - (scale.hi - scale.lo) * ratio;
           const y = yForPrice(price, scale);
-          return { price, y };
+          const percentLabel = percentMode
+            ? signedPercentLabel(price)
+            : axisPercent && openPrice !== undefined
+              ? percentAxisLabel(openPrice, price)
+              : null;
+          return { price, y, label: percentLabel ?? formatUsd(price) };
         })
       : null;
 
@@ -441,6 +541,15 @@ function DrawnChart({
 
   return (
     <>
+      {/* Franja de rango Q1–Q3: va antes del SVG para quedar debajo de la curva. */}
+      {rangeBand ? (
+        <div
+          aria-hidden="true"
+          data-chart-range-band="true"
+          className={cn("pointer-events-none absolute inset-x-0 border-y border-dashed", bandClass)}
+          style={{ top: `${rangeBand.topPct}%`, height: `${rangeBand.heightPct}%` }}
+        />
+      ) : null}
       <svg
         ref={svgRef}
         viewBox={`0 0 ${CHART_W} ${CHART_H}`}
@@ -456,6 +565,7 @@ function DrawnChart({
         data-points={points.length}
         data-reference={reference ? "true" : "false"}
         data-percent={percentMode ? "true" : "false"}
+        data-axis={axisPercent ? "percent" : "price"}
         data-chart-style={candleList ? "candles" : undefined}
         className="absolute inset-0 h-full w-full touch-pan-y"
         style={{ touchAction: "pan-y" }}
@@ -629,7 +739,7 @@ function DrawnChart({
                 transform: "translateY(-50%)",
               }}
             >
-              {formatUsd(tick.price)}
+              {tick.label}
             </span>
           ))}
         </div>
@@ -644,21 +754,20 @@ function DrawnChart({
           Prom. {formatUsd(periodAvgUsd)}
         </span>
       ) : null}
-      {/* Punto vivo: el último precio respira mientras nadie hace hover. */}
-      {showLiveDot && lastPoint ? (
+      {/* Beacon del último precio: halo del tono, fuera del SVG, sólo en línea y sin hover. */}
+      {showBeacon && lastPoint ? (
         <span
           aria-hidden="true"
-          className="pointer-events-none absolute size-2.5 -translate-x-1/2 -translate-y-1/2"
+          data-chart-beacon="true"
+          className="pointer-events-none absolute z-[1] size-2 -translate-x-1/2 -translate-y-1/2"
           style={{
             left: `${(lastPoint.x / CHART_W) * 100}%`,
             top: `${(lastPoint.y / CHART_H) * 100}%`,
           }}
         >
-          <span
-            className="absolute -inset-1.5 rounded-full motion-safe:animate-pulse"
-            style={{ background: stroke, opacity: 0.22 }}
-          />
-          <span className="absolute inset-0 rounded-full" style={{ background: stroke }} />
+          <span className={cn("absolute -inset-2 rounded-full motion-safe:animate-ping", beaconHaloClass)} />
+          <span className={cn("absolute -inset-1 rounded-full opacity-60", beaconHaloClass)} />
+          <span className={cn("absolute inset-0 rounded-full ring-2 ring-white", beaconCoreClass)} />
         </span>
       ) : null}
       {extremes ? (
@@ -766,6 +875,8 @@ function SvgPriceChartBase({
   avgCostUsd = null,
   periodAvgUsd = null,
   showGrid = false,
+  axisMode = "price",
+  showRangeBand = false,
   heightClassName,
 }: PriceChartProps) {
   const gradRaw = useId().replace(/:/g, "");
@@ -818,6 +929,7 @@ function SvgPriceChartBase({
           line={model.line}
           area={model.area}
           stroke={stroke}
+          tone={tone}
           upColor={upColor}
           downColor={downColor}
           reference={reference}
@@ -831,6 +943,9 @@ function SvgPriceChartBase({
           avgCostUsd={avgCostUsd}
           periodAvgUsd={periodAvgUsd}
           showGrid={showGrid}
+          axisMode={axisMode}
+          showRangeBand={showRangeBand}
+          lineMode={chartStyle === "line"}
         />
       ) : quiet ? null : (
         <div className="absolute inset-0 flex flex-col items-center justify-center rounded-xl bg-neutral-50 px-4 text-center">

@@ -1,12 +1,14 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 
 import { ChangeBadge } from "@/components/domain/change-badge";
 import { FlashPrice } from "@/components/domain/flash-price";
 import { SvgPriceChart, type ChartPoint } from "@/components/domain/svg-price-chart";
 import { TickerLogo } from "@/components/domain/ticker-logo";
+import { TradingViewChart } from "@/components/domain/tradingview-chart";
 import { useLandingQuote } from "@/components/landing/live-landing-prices";
 import { buttonClasses } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
@@ -56,6 +58,17 @@ const RANGE_WOBBLE: Record<LandingRange, number> = {
 /** Curva de referencia determinista: siempre 28 puntos y el último es el precio mostrado. */
 const REFERENCE_POINTS = 28;
 
+/** Motores del gráfico: la vista propia y el widget embebido de TradingView. */
+const PROVIDER_OPTIONS = [
+  { value: "native", label: "Gráfico Pro" },
+  { value: "tradingview", label: "TradingView" },
+] as const;
+
+type ChartProvider = (typeof PROVIDER_OPTIONS)[number]["value"];
+
+/** Eje Y: precio en dólares o variación porcentual del período. */
+type AxisMode = "price" | "percent";
+
 const CHIP_BASE =
   "inline-flex min-h-11 touch-manipulation items-center justify-center rounded-full border px-4 text-sm font-medium tabular-nums outline-none transition-colors duration-[140ms] ease-spring focus-visible:ring-4 focus-visible:ring-fg/20 motion-safe:active:scale-[0.98] motion-reduce:transition-none";
 
@@ -70,6 +83,7 @@ const RANGE_BASE =
 
 const CHART_HEIGHT_REST = "h-60 sm:h-72 md:h-80";
 const CHART_HEIGHT_EXPANDED = "h-72 sm:h-96 md:h-[420px]";
+const CHART_HEIGHT_FULLSCREEN = "h-[58vh] min-h-[380px]";
 
 const POINT_TIME = new Intl.DateTimeFormat("es-CL", {
   day: "2-digit",
@@ -177,6 +191,38 @@ export function LandingQuotePreview({ quote }: { quote: LandingQuote }) {
   const [expanded, setExpanded] = useState(false);
   const [hover, setHover] = useState<ChartPoint | null>(null);
   const [sampleUsd, setSampleUsd] = useState(100);
+  const [provider, setProvider] = useState<ChartProvider>("native");
+  const [axisMode, setAxisMode] = useState<AxisMode>("price");
+  const [fullscreen, setFullscreen] = useState(false);
+
+  const fullscreenTriggerRef = useRef<HTMLButtonElement>(null);
+
+  const closeFullscreen = useCallback(() => {
+    setFullscreen(false);
+    fullscreenTriggerRef.current?.focus({ preventScroll: true });
+  }, []);
+
+  // `Escape` cierra la vista ampliada. El listener se retira al salir o desmontar.
+  useEffect(() => {
+    if (!fullscreen) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      closeFullscreen();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [fullscreen, closeFullscreen]);
+
+  // La página de fondo no hace scroll mientras el gráfico ocupa la pantalla.
+  useEffect(() => {
+    if (!fullscreen) return;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previous;
+    };
+  }, [fullscreen]);
 
   const history = useHistory(quote.symbol, range);
 
@@ -262,6 +308,99 @@ export function LandingQuotePreview({ quote }: { quote: LandingQuote }) {
 
   const chartLabel = `Historial de precio de ${quote.symbol} en ${RANGE_NAMES[range]}`;
 
+  const chartHeightClass = fullscreen
+    ? CHART_HEIGHT_FULLSCREEN
+    : expanded
+      ? CHART_HEIGHT_EXPANDED
+      : CHART_HEIGHT_REST;
+
+  /**
+   * La tarjeta del gráfico. En pantalla completa se monta en un portal sobre
+   * `document.body`: las animaciones de entrada de la sección dejan un
+   * `transform` en los ancestros y eso encerraría un `fixed` dentro de la
+   * tarjeta en vez de cubrir la ventana.
+   */
+  const chartCard = (
+    <div
+      className={cn(
+        "rounded-3xl border border-border/70 bg-surface-1 p-3 sm:p-4",
+        fullscreen && "fixed inset-0 z-50 overflow-y-auto bg-bg p-5 sm:p-8",
+      )}
+      role={fullscreen ? "dialog" : undefined}
+      aria-modal={fullscreen ? true : undefined}
+      aria-label={fullscreen ? `Gráfico ampliado de ${quote.symbol}` : undefined}
+    >
+      {fullscreen ? (
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <p className="text-sm font-medium text-fg">
+            {quote.symbol} <span aria-hidden>·</span> {RANGE_NAMES[range]}
+          </p>
+          <button
+            type="button"
+            autoFocus
+            onClick={closeFullscreen}
+            className={cn(CONTROL_BASE, CONTROL_OFF)}
+          >
+            Cerrar pantalla completa
+          </button>
+        </div>
+      ) : null}
+
+      <div className={cn(provider === "tradingview" && "hidden")}>
+        <SvgPriceChart
+          points={chartData}
+          tone={activeChangePct >= 0 ? "up" : "down"}
+          label={chartLabel}
+          emptyLabel="Sin datos de precio"
+          onHover={onHover}
+          heightClassName={chartHeightClass}
+          showGrid={showScale}
+          periodAvgUsd={showAvg ? stats.avg : null}
+          axisMode={axisMode}
+        />
+      </div>
+
+      {provider === "tradingview" ? (
+        <TradingViewChart
+          symbol={quote.symbol}
+          underlying={quote.underlying}
+          range={range}
+          fullscreen={fullscreen}
+        />
+      ) : null}
+
+      <dl
+        aria-label="Métricas del período"
+        className="mt-3 grid grid-cols-2 gap-x-3 gap-y-3 border-t border-border/60 pt-3 sm:grid-cols-4"
+      >
+        <div>
+          <dt className="text-[11px] font-medium text-fg-muted">Apertura período</dt>
+          <dd className="num mt-0.5 text-xs font-semibold tabular-nums text-fg sm:text-sm">
+            {stats.open === null ? "—" : formatMoney(stats.open, "USD")}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-[11px] font-medium text-fg-muted">Promedio período</dt>
+          <dd className="num mt-0.5 text-xs font-semibold tabular-nums text-fg sm:text-sm">
+            {stats.avg === null ? "—" : formatMoney(stats.avg, "USD")}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-[11px] font-medium text-fg-muted">Máx / Mín</dt>
+          <dd className="num mt-0.5 text-xs font-semibold leading-snug tabular-nums text-fg sm:text-sm">
+            {stats.high === null ? "—" : formatMoney(stats.high, "USD")}
+            <span className="text-fg-muted"> · </span>
+            {stats.low === null ? "—" : formatMoney(stats.low, "USD")}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-[11px] font-medium text-fg-muted">Amplitud del rango</dt>
+          <dd className="num mt-0.5 text-xs font-semibold tabular-nums text-fg sm:text-sm">{amplitude}</dd>
+        </div>
+      </dl>
+    </div>
+  );
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-4">
@@ -303,6 +442,58 @@ export function LandingQuotePreview({ quote }: { quote: LandingQuote }) {
               className={cn(CONTROL_BASE, expanded ? CONTROL_ON : CONTROL_OFF)}
             >
               {expanded ? "Compactar" : "Expandir"}
+            </button>
+            <div
+              role="group"
+              aria-label="Proveedor del gráfico"
+              className="inline-flex items-center gap-0.5 rounded-full border border-border/70 bg-bg p-0.5"
+            >
+              {PROVIDER_OPTIONS.map((option) => {
+                const active = provider === option.value;
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    aria-pressed={active}
+                    onClick={() => {
+                      setHover(null);
+                      setProvider(option.value);
+                    }}
+                    className={cn(
+                      RANGE_BASE,
+                      active
+                        ? "border-fg bg-fg text-bg"
+                        : "border-transparent text-fg-muted hover:border-border hover:text-fg",
+                    )}
+                  >
+                    {option.label}
+                  </button>
+                );
+              })}
+            </div>
+            <button
+              type="button"
+              aria-pressed={axisMode === "percent"}
+              aria-label={
+                axisMode === "percent"
+                  ? "Eje en porcentaje. Cambiar a dólares"
+                  : "Eje en dólares. Cambiar a porcentaje"
+              }
+              onClick={() => setAxisMode((value) => (value === "percent" ? "price" : "percent"))}
+              className={cn(CONTROL_BASE, axisMode === "percent" ? CONTROL_ON : CONTROL_OFF)}
+            >
+              <span aria-hidden>%</span>
+              <span aria-hidden className="opacity-50">/</span>
+              <span aria-hidden>$</span>
+            </button>
+            <button
+              type="button"
+              ref={fullscreenTriggerRef}
+              aria-pressed={fullscreen}
+              onClick={() => setFullscreen((value) => !value)}
+              className={cn(CONTROL_BASE, fullscreen ? CONTROL_ON : CONTROL_OFF)}
+            >
+              Pantalla completa
             </button>
           </div>
         </div>
@@ -368,48 +559,7 @@ export function LandingQuotePreview({ quote }: { quote: LandingQuote }) {
         </div>
       </div>
 
-      <div className="rounded-3xl border border-border/70 bg-surface-1 p-3 sm:p-4">
-        <SvgPriceChart
-          points={chartData}
-          tone={activeChangePct >= 0 ? "up" : "down"}
-          label={chartLabel}
-          emptyLabel="Sin datos de precio"
-          onHover={onHover}
-          heightClassName={expanded ? CHART_HEIGHT_EXPANDED : CHART_HEIGHT_REST}
-          showGrid={showScale}
-          periodAvgUsd={showAvg ? stats.avg : null}
-        />
-
-        <dl
-          aria-label="Métricas del período"
-          className="mt-3 grid grid-cols-2 gap-x-3 gap-y-3 border-t border-border/60 pt-3 sm:grid-cols-4"
-        >
-          <div>
-            <dt className="text-[11px] font-medium text-fg-muted">Apertura período</dt>
-            <dd className="num mt-0.5 text-xs font-semibold tabular-nums text-fg sm:text-sm">
-              {stats.open === null ? "—" : formatMoney(stats.open, "USD")}
-            </dd>
-          </div>
-          <div>
-            <dt className="text-[11px] font-medium text-fg-muted">Promedio período</dt>
-            <dd className="num mt-0.5 text-xs font-semibold tabular-nums text-fg sm:text-sm">
-              {stats.avg === null ? "—" : formatMoney(stats.avg, "USD")}
-            </dd>
-          </div>
-          <div>
-            <dt className="text-[11px] font-medium text-fg-muted">Máx / Mín</dt>
-            <dd className="num mt-0.5 text-xs font-semibold leading-snug tabular-nums text-fg sm:text-sm">
-              {stats.high === null ? "—" : formatMoney(stats.high, "USD")}
-              <span className="text-fg-muted"> · </span>
-              {stats.low === null ? "—" : formatMoney(stats.low, "USD")}
-            </dd>
-          </div>
-          <div>
-            <dt className="text-[11px] font-medium text-fg-muted">Amplitud del rango</dt>
-            <dd className="num mt-0.5 text-xs font-semibold tabular-nums text-fg sm:text-sm">{amplitude}</dd>
-          </div>
-        </dl>
-      </div>
+      {fullscreen ? createPortal(chartCard, document.body) : chartCard}
 
       <div className="flex flex-col gap-4 border-t border-border/70 pt-5">
         <div className="flex flex-col gap-2">
