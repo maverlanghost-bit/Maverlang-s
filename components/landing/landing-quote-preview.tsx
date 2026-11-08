@@ -14,6 +14,7 @@ import { buttonClasses } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
 import { formatMoney, formatPercent } from "@/lib/format";
 import { useHistory } from "@/lib/hooks/queries";
+import type { ChartOverlay } from "@/lib/market/chart-geometry";
 import type { LandingQuote } from "@/lib/mocks/landing";
 
 const SAMPLE_AMOUNTS = [10, 50, 100, 500] as const;
@@ -69,6 +70,22 @@ type ChartProvider = (typeof PROVIDER_OPTIONS)[number]["value"];
 /** Eje Y: precio en dólares o variación porcentual del período. */
 type AxisMode = "price" | "percent";
 
+/**
+ * Comparación rápida de la portada. El color es estable por activo para que la
+ * curva no cambie de tono al agregar o quitar otra comparación.
+ */
+const QUICK_COMPARE = [
+  { symbol: "SPYx", name: "S&P 500", color: "#2563eb" },
+  { symbol: "QQQx", name: "Nasdaq 100", color: "#7c3aed" },
+  { symbol: "NVDAx", name: "NVIDIA", color: "#d97706" },
+  { symbol: "AAPLx", name: "Apple", color: "#2563eb" },
+  { symbol: "TSLAx", name: "Tesla", color: "#7c3aed" },
+  { symbol: "GLDx", name: "Oro", color: "#d97706" },
+] as const;
+
+/** Tope de series comparadas para que el gráfico siga legible. */
+const QUICK_COMPARE_MAX = 3;
+
 const CHIP_BASE =
   "inline-flex min-h-11 touch-manipulation items-center justify-center rounded-full border px-4 text-sm font-medium tabular-nums outline-none transition-colors duration-[140ms] ease-spring focus-visible:ring-4 focus-visible:ring-fg/20 motion-safe:active:scale-[0.98] motion-reduce:transition-none";
 
@@ -81,9 +98,11 @@ const CONTROL_OFF = "border-border bg-bg text-fg-muted hover:border-border-stron
 const RANGE_BASE =
   "inline-flex h-9 min-w-10 touch-manipulation items-center justify-center rounded-full border px-2.5 text-xs font-medium tabular-nums outline-none transition-colors duration-[140ms] ease-spring focus-visible:ring-4 focus-visible:ring-fg/20 motion-safe:active:scale-[0.98] motion-reduce:transition-none";
 
+const COMPARE_PILL_BASE =
+  "inline-flex touch-manipulation items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium outline-none transition-colors duration-[140ms] ease-spring focus-visible:ring-2 focus-visible:ring-fg/30 motion-safe:active:scale-[0.98] motion-reduce:transition-none";
+
 const CHART_HEIGHT_REST = "h-60 sm:h-72 md:h-80";
-const CHART_HEIGHT_EXPANDED = "h-72 sm:h-96 md:h-[420px]";
-const CHART_HEIGHT_FULLSCREEN = "h-[58vh] min-h-[380px]";
+const CHART_HEIGHT_FULLSCREEN = "h-[64vh] min-h-[420px]";
 
 const POINT_TIME = new Intl.DateTimeFormat("es-CL", {
   day: "2-digit",
@@ -152,6 +171,19 @@ function buildReferenceCurve(
   return points;
 }
 
+/**
+ * Pendiente determinista de la curva comparada. La serie se rebasa a % sobre
+ * su primer punto, así que sólo importa la forma, no el nivel de precio.
+ */
+function compareReferenceChange(symbol: string, range: LandingRange): number {
+  const hash = fnv1a(`${symbol}:${range}:compare`);
+  return ((hash % 1801) - 800) / 10_000;
+}
+
+function compareLayerId(symbol: string): string {
+  return `compare-${symbol}`;
+}
+
 function pointTime(t: number): string {
   if (!Number.isFinite(t)) return "";
   const date = new Date(t);
@@ -186,21 +218,30 @@ export function LandingQuotePreview({ quote }: { quote: LandingQuote }) {
   });
 
   const [range, setRange] = useState<LandingRange>("1M");
-  const [showAvg, setShowAvg] = useState(true);
-  const [showScale, setShowScale] = useState(true);
-  const [expanded, setExpanded] = useState(false);
+  const [showAvg, setShowAvg] = useState(false);
+  const [showScale, setShowScale] = useState(false);
   const [hover, setHover] = useState<ChartPoint | null>(null);
   const [sampleUsd, setSampleUsd] = useState(100);
   const [provider, setProvider] = useState<ChartProvider>("native");
   const [axisMode, setAxisMode] = useState<AxisMode>("price");
   const [fullscreen, setFullscreen] = useState(false);
+  const [comparedSymbols, setComparedSymbols] = useState<string[]>([]);
+  const [highlightedLayerId, setHighlightedLayerId] = useState<string | null>(null);
 
-  const fullscreenTriggerRef = useRef<HTMLButtonElement>(null);
+  const chartCardRef = useRef<HTMLDivElement>(null);
+  const restoreFocus = useRef(false);
 
   const closeFullscreen = useCallback(() => {
+    restoreFocus.current = true;
     setFullscreen(false);
-    fullscreenTriggerRef.current?.focus({ preventScroll: true });
   }, []);
+
+  // Al salir, el foco vuelve a la tarjeta que quedó en su lugar en la página.
+  useEffect(() => {
+    if (fullscreen || !restoreFocus.current) return;
+    restoreFocus.current = false;
+    chartCardRef.current?.focus({ preventScroll: true });
+  }, [fullscreen]);
 
   // `Escape` cierra la vista ampliada. El listener se retira al salir o desmontar.
   useEffect(() => {
@@ -294,6 +335,45 @@ export function LandingQuotePreview({ quote }: { quote: LandingQuote }) {
     [lastT],
   );
 
+  /** Comparaciones disponibles, sin repetir el activo de la ficha. */
+  const compareOptions = useMemo(
+    () => QUICK_COMPARE.filter((option) => option.symbol !== quote.symbol),
+    [quote.symbol],
+  );
+
+  const compareActive = comparedSymbols.length > 0;
+
+  /**
+   * Con varias series el eje se lee en % desde la apertura: mezclar dólares de
+   * distintos activos en la misma escala no significaría nada.
+   */
+  const effectiveAxisMode: AxisMode = compareActive ? "percent" : axisMode;
+
+  const compareOverlays = useMemo<ChartOverlay[]>(() => {
+    return comparedSymbols.flatMap((symbol) => {
+      const option = QUICK_COMPARE.find((item) => item.symbol === symbol);
+      if (!option) return [];
+      return [
+        {
+          id: compareLayerId(symbol),
+          points: buildReferenceCurve(symbol, range, 100, compareReferenceChange(symbol, range)),
+          color: option.color,
+          label: symbol,
+          rebased: true,
+        },
+      ];
+    });
+  }, [comparedSymbols, range]);
+
+  const toggleCompare = useCallback((symbol: string) => {
+    setHighlightedLayerId(null);
+    setComparedSymbols((previous) => {
+      if (previous.includes(symbol)) return previous.filter((item) => item !== symbol);
+      if (previous.length >= QUICK_COMPARE_MAX) return previous;
+      return [...previous, symbol];
+    });
+  }, []);
+
   const priceValid = Number.isFinite(priceUsd) && priceUsd > 0;
   const fractions = priceValid ? (sampleUsd / priceUsd).toFixed(4) : "—";
 
@@ -308,11 +388,254 @@ export function LandingQuotePreview({ quote }: { quote: LandingQuote }) {
 
   const chartLabel = `Historial de precio de ${quote.symbol} en ${RANGE_NAMES[range]}`;
 
-  const chartHeightClass = fullscreen
-    ? CHART_HEIGHT_FULLSCREEN
-    : expanded
-      ? CHART_HEIGHT_EXPANDED
-      : CHART_HEIGHT_REST;
+  const chartHeightClass = fullscreen ? CHART_HEIGHT_FULLSCREEN : CHART_HEIGHT_REST;
+
+  const rangeGroup = (
+    <div
+      role="group"
+      aria-label="Rango del gráfico"
+      className="inline-flex items-center gap-0.5 rounded-full border border-border/70 bg-bg p-0.5"
+    >
+      {RANGE_OPTIONS.map((option) => {
+        const active = option.value === range;
+        return (
+          <button
+            key={option.value}
+            type="button"
+            aria-pressed={active}
+            onClick={() => {
+              setHover(null);
+              setRange(option.value);
+            }}
+            className={cn(
+              RANGE_BASE,
+              active
+                ? "border-fg bg-fg text-bg"
+                : "border-transparent text-fg-muted hover:border-border hover:text-fg",
+            )}
+          >
+            {option.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+
+  const providerGroup = (
+    <div
+      role="group"
+      aria-label="Proveedor del gráfico"
+      className="inline-flex items-center gap-0.5 rounded-full border border-border/70 bg-bg p-0.5"
+    >
+      {PROVIDER_OPTIONS.map((option) => {
+        const active = provider === option.value;
+        return (
+          <button
+            key={option.value}
+            type="button"
+            aria-pressed={active}
+            onClick={() => {
+              setHover(null);
+              setProvider(option.value);
+            }}
+            className={cn(
+              RANGE_BASE,
+              active
+                ? "border-fg bg-fg text-bg"
+                : "border-transparent text-fg-muted hover:border-border hover:text-fg",
+            )}
+          >
+            {option.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+
+  const avgButton = (
+    <button
+      type="button"
+      aria-pressed={showAvg}
+      onClick={() => setShowAvg((value) => !value)}
+      className={cn(CONTROL_BASE, showAvg ? CONTROL_ON : CONTROL_OFF)}
+    >
+      <span
+        aria-hidden
+        className={cn("size-1.5 rounded-full", showAvg ? "bg-[#c9dcff]" : "bg-[#2b7fd9]")}
+      />
+      Promedio
+    </button>
+  );
+
+  const scaleButton = (
+    <button
+      type="button"
+      aria-pressed={showScale}
+      onClick={() => setShowScale((value) => !value)}
+      className={cn(CONTROL_BASE, showScale ? CONTROL_ON : CONTROL_OFF)}
+    >
+      Escala
+    </button>
+  );
+
+  const axisButton = (
+    <button
+      type="button"
+      aria-pressed={effectiveAxisMode === "percent"}
+      aria-disabled={compareActive}
+      disabled={compareActive}
+      title={
+        compareActive
+          ? "La comparación se lee en porcentaje"
+          : effectiveAxisMode === "percent"
+            ? "Eje en porcentaje. Cambiar a dólares"
+            : "Eje en dólares. Cambiar a porcentaje"
+      }
+      aria-label={
+        compareActive
+          ? "Eje en porcentaje fijado por la comparación"
+          : effectiveAxisMode === "percent"
+            ? "Eje en porcentaje. Cambiar a dólares"
+            : "Eje en dólares. Cambiar a porcentaje"
+      }
+      onClick={() => setAxisMode((value) => (value === "percent" ? "price" : "percent"))}
+      className={cn(
+        CONTROL_BASE,
+        effectiveAxisMode === "percent" ? CONTROL_ON : CONTROL_OFF,
+        compareActive && "cursor-not-allowed opacity-70",
+      )}
+    >
+      <span aria-hidden>%</span>
+      <span aria-hidden className="opacity-50">/</span>
+      <span aria-hidden>$</span>
+    </button>
+  );
+
+  const controlsGroup = (
+    <div role="group" aria-label="Controles del gráfico" className="flex flex-wrap items-center gap-1.5">
+      {avgButton}
+      {scaleButton}
+      {providerGroup}
+      {axisButton}
+    </div>
+  );
+
+  /** Comparación rápida: el activo de la ficha y hasta tres series más. */
+  const compareStrip = (
+    <div
+      role="group"
+      aria-label="Comparar con otros activos"
+      className="mb-2 flex flex-wrap items-center gap-1.5"
+    >
+      <span className="text-[11px] font-medium text-fg-muted">+ Comparar:</span>
+      {compareActive ? (
+        <button
+          type="button"
+          aria-pressed={highlightedLayerId === "asset"}
+          aria-label={`Enfocar la curva de ${quote.symbol}`}
+          onMouseEnter={() => setHighlightedLayerId("asset")}
+          onMouseLeave={() => setHighlightedLayerId(null)}
+          onFocus={() => setHighlightedLayerId("asset")}
+          onBlur={() => setHighlightedLayerId(null)}
+          onClick={() => setHighlightedLayerId((value) => (value === "asset" ? null : "asset"))}
+          className={cn(
+            COMPARE_PILL_BASE,
+            highlightedLayerId === "asset"
+              ? "border-fg bg-fg text-bg"
+              : "border-border bg-bg text-fg",
+          )}
+        >
+          <span
+            aria-hidden
+            className={cn("size-1.5 rounded-full", activeChangePct >= 0 ? "bg-up" : "bg-down")}
+          />
+          {quote.symbol}
+        </button>
+      ) : null}
+      {compareOptions.map((option) => {
+        const selected = comparedSymbols.includes(option.symbol);
+        const atLimit = !selected && comparedSymbols.length >= QUICK_COMPARE_MAX;
+        return (
+          <button
+            key={option.symbol}
+            type="button"
+            aria-pressed={selected}
+            disabled={atLimit}
+            title={
+              atLimit
+                ? `Máximo ${QUICK_COMPARE_MAX} activos en la comparación`
+                : selected
+                  ? `Quitar ${option.name}`
+                  : `Comparar con ${option.name}`
+            }
+            onClick={() => toggleCompare(option.symbol)}
+            onMouseEnter={selected ? () => setHighlightedLayerId(compareLayerId(option.symbol)) : undefined}
+            onMouseLeave={selected ? () => setHighlightedLayerId(null) : undefined}
+            onFocus={selected ? () => setHighlightedLayerId(compareLayerId(option.symbol)) : undefined}
+            onBlur={selected ? () => setHighlightedLayerId(null) : undefined}
+            style={
+              selected
+                ? { borderColor: option.color, backgroundColor: `${option.color}14` }
+                : undefined
+            }
+            className={cn(
+              COMPARE_PILL_BASE,
+              selected
+                ? "border-transparent text-fg"
+                : "border-border bg-bg text-fg-muted hover:border-border-strong hover:text-fg",
+              atLimit && "cursor-not-allowed opacity-50",
+            )}
+          >
+            <span aria-hidden className="size-1.5 rounded-full" style={{ backgroundColor: option.color }} />
+            {selected ? option.symbol : `+ ${option.symbol}`}
+          </button>
+        );
+      })}
+      {compareActive ? (
+        <button
+          type="button"
+          onClick={() => {
+            setHighlightedLayerId(null);
+            setComparedSymbols([]);
+          }}
+          className="inline-flex touch-manipulation items-center rounded-full px-2 py-1 text-[11px] font-medium text-fg-muted outline-none transition-colors hover:text-fg focus-visible:ring-2 focus-visible:ring-fg/30"
+        >
+          Limpiar
+        </button>
+      ) : null}
+    </div>
+  );
+
+  const priceDisplay = (
+    <div className="min-w-0">
+      <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
+        {hover ? (
+          <span className="num px-1 text-4xl tracking-tight tabular-nums text-fg sm:text-5xl">
+            {formatMoney(hover.p, "USD")}
+          </span>
+        ) : (
+          <FlashPrice value={priceUsd} currency="USD" size="lg" />
+        )}
+        <span className="pb-1 text-xs text-fg-muted">
+          {hover ? pointTime(hover.t) : "por acción"}
+        </span>
+      </div>
+      <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1">
+        <ChangeBadge value={activeChangePct} />
+        {deltaLabel ? (
+          <span
+            className={cn(
+              "num text-sm font-medium tabular-nums",
+              deltaUsd !== null && deltaUsd >= 0 ? "text-up" : "text-down",
+            )}
+          >
+            {deltaLabel}
+          </span>
+        ) : null}
+        <span className="text-xs text-fg-muted">desde la apertura del período</span>
+      </div>
+    </div>
+  );
 
   /**
    * La tarjeta del gráfico. En pantalla completa se monta en un portal sobre
@@ -322,31 +645,58 @@ export function LandingQuotePreview({ quote }: { quote: LandingQuote }) {
    */
   const chartCard = (
     <div
+      ref={chartCardRef}
+      tabIndex={-1}
       className={cn(
-        "rounded-3xl border border-border/70 bg-surface-1 p-3 sm:p-4",
-        fullscreen && "fixed inset-0 z-50 overflow-y-auto bg-bg p-5 sm:p-8",
+        "rounded-3xl border border-border/70 bg-surface-1 p-3 outline-none sm:p-4",
+        fullscreen &&
+          "fixed inset-0 z-[100] flex h-screen w-screen flex-col justify-between overflow-y-auto rounded-none border-0 bg-bg p-5 sm:p-8",
       )}
       role={fullscreen ? "dialog" : undefined}
       aria-modal={fullscreen ? true : undefined}
       aria-label={fullscreen ? `Gráfico ampliado de ${quote.symbol}` : undefined}
     >
       {fullscreen ? (
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <p className="text-sm font-medium text-fg">
-            {quote.symbol} <span aria-hidden>·</span> {RANGE_NAMES[range]}
-          </p>
-          <button
-            type="button"
-            autoFocus
-            onClick={closeFullscreen}
-            className={cn(CONTROL_BASE, CONTROL_OFF)}
-          >
-            Cerrar pantalla completa
-          </button>
-        </div>
+        <header className="mb-3 flex flex-col gap-3 border-b border-border/60 pb-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex min-w-0 items-center gap-2.5">
+              <TickerLogo
+                symbol={quote.symbol}
+                name={quote.name}
+                logoUrl={quote.logo}
+                size={36}
+                decorative
+              />
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold text-fg">
+                  {quote.name} ({quote.symbol})
+                </p>
+                <p className="truncate text-xs text-fg-muted">
+                  {RANGE_NAMES[range]} <span aria-hidden>·</span>{" "}
+                  {effectiveAxisMode === "percent" ? "Variación %" : "Precio en US$"}
+                </p>
+              </div>
+            </div>
+            {rangeGroup}
+          </div>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            {controlsGroup}
+            <button
+              type="button"
+              autoFocus
+              onClick={closeFullscreen}
+              className={cn(CONTROL_BASE, CONTROL_OFF)}
+            >
+              Cerrar pantalla completa (Esc)
+            </button>
+          </div>
+        </header>
       ) : null}
 
-      <div className={cn(provider === "tradingview" && "hidden")}>
+      {fullscreen ? <div className="mb-3">{priceDisplay}</div> : null}
+
+      <div className={cn("relative", provider === "tradingview" && "hidden")}>
+        {compareStrip}
         <SvgPriceChart
           points={chartData}
           tone={activeChangePct >= 0 ? "up" : "down"}
@@ -355,8 +705,14 @@ export function LandingQuotePreview({ quote }: { quote: LandingQuote }) {
           onHover={onHover}
           heightClassName={chartHeightClass}
           showGrid={showScale}
-          periodAvgUsd={showAvg ? stats.avg : null}
-          axisMode={axisMode}
+          periodAvgUsd={showAvg && !compareActive ? stats.avg : null}
+          axisMode={effectiveAxisMode}
+          overlays={compareOverlays}
+          showExtremes={false}
+          highlightedLayerId={highlightedLayerId}
+          onHighlightLayer={setHighlightedLayerId}
+          onToggleFullscreen={() => setFullscreen((value) => !value)}
+          isFullscreen={fullscreen}
         />
       </div>
 
@@ -371,7 +727,10 @@ export function LandingQuotePreview({ quote }: { quote: LandingQuote }) {
 
       <dl
         aria-label="Métricas del período"
-        className="mt-3 grid grid-cols-2 gap-x-3 gap-y-3 border-t border-border/60 pt-3 sm:grid-cols-4"
+        className={cn(
+          "mt-3 grid grid-cols-2 gap-x-3 gap-y-3 border-t border-border/60 pt-3 sm:grid-cols-4",
+          fullscreen && "mt-auto pt-4",
+        )}
       >
         <div>
           <dt className="text-[11px] font-medium text-fg-muted">Apertura período</dt>
@@ -414,148 +773,23 @@ export function LandingQuotePreview({ quote }: { quote: LandingQuote }) {
               </p>
             </div>
           </div>
-          <div role="group" aria-label="Controles del gráfico" className="flex flex-wrap items-center gap-1.5">
+          {controlsGroup}
+          {/* En móvil no hay hover: el botón de la esquina no se ve, así que
+              queda esta entrada explícita a pantalla completa. */}
+          {fullscreen ? null : (
             <button
               type="button"
-              aria-pressed={showAvg}
-              onClick={() => setShowAvg((value) => !value)}
-              className={cn(CONTROL_BASE, showAvg ? CONTROL_ON : CONTROL_OFF)}
-            >
-              <span
-                aria-hidden
-                className={cn("size-1.5 rounded-full", showAvg ? "bg-[#c9dcff]" : "bg-[#2b7fd9]")}
-              />
-              Promedio
-            </button>
-            <button
-              type="button"
-              aria-pressed={showScale}
-              onClick={() => setShowScale((value) => !value)}
-              className={cn(CONTROL_BASE, showScale ? CONTROL_ON : CONTROL_OFF)}
-            >
-              Escala
-            </button>
-            <button
-              type="button"
-              aria-pressed={expanded}
-              onClick={() => setExpanded((value) => !value)}
-              className={cn(CONTROL_BASE, expanded ? CONTROL_ON : CONTROL_OFF)}
-            >
-              {expanded ? "Compactar" : "Expandir"}
-            </button>
-            <div
-              role="group"
-              aria-label="Proveedor del gráfico"
-              className="inline-flex items-center gap-0.5 rounded-full border border-border/70 bg-bg p-0.5"
-            >
-              {PROVIDER_OPTIONS.map((option) => {
-                const active = provider === option.value;
-                return (
-                  <button
-                    key={option.value}
-                    type="button"
-                    aria-pressed={active}
-                    onClick={() => {
-                      setHover(null);
-                      setProvider(option.value);
-                    }}
-                    className={cn(
-                      RANGE_BASE,
-                      active
-                        ? "border-fg bg-fg text-bg"
-                        : "border-transparent text-fg-muted hover:border-border hover:text-fg",
-                    )}
-                  >
-                    {option.label}
-                  </button>
-                );
-              })}
-            </div>
-            <button
-              type="button"
-              aria-pressed={axisMode === "percent"}
-              aria-label={
-                axisMode === "percent"
-                  ? "Eje en porcentaje. Cambiar a dólares"
-                  : "Eje en dólares. Cambiar a porcentaje"
-              }
-              onClick={() => setAxisMode((value) => (value === "percent" ? "price" : "percent"))}
-              className={cn(CONTROL_BASE, axisMode === "percent" ? CONTROL_ON : CONTROL_OFF)}
-            >
-              <span aria-hidden>%</span>
-              <span aria-hidden className="opacity-50">/</span>
-              <span aria-hidden>$</span>
-            </button>
-            <button
-              type="button"
-              ref={fullscreenTriggerRef}
-              aria-pressed={fullscreen}
-              onClick={() => setFullscreen((value) => !value)}
-              className={cn(CONTROL_BASE, fullscreen ? CONTROL_ON : CONTROL_OFF)}
+              onClick={() => setFullscreen(true)}
+              className={cn(CONTROL_BASE, CONTROL_OFF, "sm:hidden")}
             >
               Pantalla completa
             </button>
-          </div>
+          )}
         </div>
 
         <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-3">
-          <div className="min-w-0">
-            <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
-              {hover ? (
-                <span className="num px-1 text-4xl tracking-tight tabular-nums text-fg sm:text-5xl">
-                  {formatMoney(hover.p, "USD")}
-                </span>
-              ) : (
-                <FlashPrice value={priceUsd} currency="USD" size="lg" />
-              )}
-              <span className="pb-1 text-xs text-fg-muted">
-                {hover ? pointTime(hover.t) : "por acción"}
-              </span>
-            </div>
-            <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1">
-              <ChangeBadge value={activeChangePct} />
-              {deltaLabel ? (
-                <span
-                  className={cn(
-                    "num text-sm font-medium tabular-nums",
-                    deltaUsd !== null && deltaUsd >= 0 ? "text-up" : "text-down",
-                  )}
-                >
-                  {deltaLabel}
-                </span>
-              ) : null}
-              <span className="text-xs text-fg-muted">desde la apertura del período</span>
-            </div>
-          </div>
-
-          <div
-            role="group"
-            aria-label="Rango del gráfico"
-            className="inline-flex items-center gap-0.5 rounded-full border border-border/70 bg-bg p-0.5"
-          >
-            {RANGE_OPTIONS.map((option) => {
-              const active = option.value === range;
-              return (
-                <button
-                  key={option.value}
-                  type="button"
-                  aria-pressed={active}
-                  onClick={() => {
-                    setHover(null);
-                    setRange(option.value);
-                  }}
-                  className={cn(
-                    RANGE_BASE,
-                    active
-                      ? "border-fg bg-fg text-bg"
-                      : "border-transparent text-fg-muted hover:border-border hover:text-fg",
-                  )}
-                >
-                  {option.label}
-                </button>
-              );
-            })}
-          </div>
+          {priceDisplay}
+          {rangeGroup}
         </div>
       </div>
 

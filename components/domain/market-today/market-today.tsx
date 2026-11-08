@@ -503,7 +503,7 @@ export function MarketToday() {
               </div>
 
               <div
-                className="relative my-2 h-[136px] w-full cursor-crosshair select-none pr-14 sm:h-[148px]"
+                className="group/spotlight relative my-2 h-[136px] w-full cursor-crosshair select-none pr-14 sm:h-[148px]"
                 style={{ touchAction: "pan-y" }}
                 onTouchStart={(event) => event.stopPropagation()}
                 onTouchEnd={(event) => event.stopPropagation()}
@@ -511,7 +511,7 @@ export function MarketToday() {
                 {chartShape ? (
                   <div
                     key={`${activeCard.symbol}-${range}`}
-                    className="relative h-full w-full"
+                    className="relative h-full w-full select-none outline-none focus:outline-none focus-visible:outline-none"
                     role="img"
                     aria-label={`${activeCard.symbol}: ${basePct === null ? "" : formatPercent(basePct)} ${language === "en" ? activeRangeMeta.periodEn : activeRangeMeta.periodEs}`}
                     onPointerMove={(event) => scrub(event.clientX, event.currentTarget.getBoundingClientRect())}
@@ -525,7 +525,7 @@ export function MarketToday() {
                     <svg
                       viewBox={`0 0 ${CHART_W} ${CHART_H}`}
                       preserveAspectRatio="none"
-                      className="absolute inset-0 h-full w-full overflow-visible"
+                      className="absolute inset-0 h-full w-full touch-pan-y select-none overflow-visible outline-none focus:outline-none focus-visible:outline-none"
                       aria-hidden
                     >
                       <defs>
@@ -614,6 +614,30 @@ export function MarketToday() {
                     <span className="translate-y-1/2">{axisLabels.bot}</span>
                   </div>
                 ) : null}
+                <button
+                  type="button"
+                  aria-label="Abrir gráfico pro"
+                  title="Abrir gráfico pro"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    router.push(`/app/accion/${encodeURIComponent(activeCard.symbol)}`);
+                  }}
+                  className="absolute top-0 right-14 z-20 inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-border/80 bg-white/90 px-2.5 py-1 text-[11px] font-medium text-fg opacity-0 shadow-sm outline-none backdrop-blur-md transition-opacity duration-150 group-hover/spotlight:opacity-100 hover:border-fg hover:bg-fg hover:text-bg focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-fg/30"
+                >
+                  <svg
+                    viewBox="0 0 16 16"
+                    fill="none"
+                    className="size-3.5 shrink-0"
+                    stroke="currentColor"
+                    strokeWidth="1.6"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden="true"
+                  >
+                    <path d="M10 2h4v4M6 14H2v-4M14 2L9.5 6.5M2 14l4.5-4.5" />
+                  </svg>
+                  <span className="hidden sm:inline">Gráfico pro</span>
+                </button>
               </div>
 
               <div className="mt-2 flex flex-wrap items-center justify-between gap-3 border-t border-border/60 pt-3">

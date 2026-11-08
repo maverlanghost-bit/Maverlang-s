@@ -112,6 +112,24 @@ export interface PriceChartProps {
   showRangeBand?: boolean;
   /** Clases de altura personalizadas (por defecto `"h-56 sm:h-64"`). */
   heightClassName?: string;
+  /**
+   * Etiquetas flotantes de máximo y mínimo del período sobre la curva. Sólo
+   * aparecen en una serie de precio real, sin velas, sin eje % y sin hover.
+   * La ficha y la portada las apagan con `showExtremes={false}`.
+   */
+  showExtremes?: boolean;
+  /**
+   * Serie enfocada: `"asset"` para la curva principal o el `id` de una capa
+   * (`"benchmark"`, `"sma-20"`, `"compare-QQQx"`). El resto se difumina.
+   * `null` o ausente deja todas las series a plena opacidad.
+   */
+  highlightedLayerId?: string | null;
+  /** El gráfico avisa qué serie quedó enfocada al pasar el cursor por su curva. */
+  onHighlightLayer?: (id: string | null) => void;
+  /** Botón flotante de pantalla completa en la esquina superior derecha. */
+  onToggleFullscreen?: () => void;
+  /** `true` mientras el gráfico ocupa la pantalla completa: cambia ícono y rótulo. */
+  isFullscreen?: boolean;
 }
 
 type DrawnPoint = PlottedPoint & { usd: number };
@@ -264,7 +282,7 @@ function layerText(layer: ChartLayerModel, t: number, percentMode: boolean, asse
   const point = nearestPointWithin(layer.points, t);
   if (!point || !Number.isFinite(point.usd)) return null;
   if (!percentMode) return formatUsd(point.usd);
-  const base = layer.id === "benchmark" ? layer.points[0]?.usd : assetOpen;
+  const base = layer.id === "benchmark" || layer.rebased === true ? layer.points[0]?.usd : assetOpen;
   if (base === undefined) return null;
   return changeFromOpen(base, point.usd)?.label ?? null;
 }
@@ -390,6 +408,9 @@ function DrawnChart({
   axisMode,
   showRangeBand,
   lineMode,
+  showExtremes,
+  highlightedLayerId,
+  onHighlightLayer,
 }: {
   points: readonly DrawnPoint[];
   line: string;
@@ -414,6 +435,12 @@ function DrawnChart({
   showRangeBand: boolean;
   /** `chartStyle === "line"`: el SVG no dibuja el punto final, lo dibuja el beacon. */
   lineMode: boolean;
+  /** Etiquetas Máx/Mín sobre la curva. */
+  showExtremes: boolean;
+  /** Serie enfocada (`"asset"` o `layer.id`). Sin foco no se difumina nada. */
+  highlightedLayerId?: string | null;
+  /** Avisa al padre qué curva quedó enfocada al pasar el cursor por ella. */
+  onHighlightLayer?: (id: string | null) => void;
 }) {
   const svgRef = useRef<SVGSVGElement>(null);
   const plotRef = useRef(points);
@@ -455,6 +482,9 @@ function DrawnChart({
   }, []);
 
   const hoverPoint = hoverIndex !== null && hoverIndex < points.length ? points[hoverIndex] : undefined;
+  /** Foco de serie: `"asset"` o el `id` de una capa. Sin foco, nada se difumina. */
+  const hasFocus = typeof highlightedLayerId === "string" && highlightedLayerId.length > 0;
+  const assetFocused = !hasFocus || highlightedLayerId === "asset";
   const candleList = candles !== null && candles.length >= 2 ? candles : null;
   const avgY = avgCostLineY(avgCostUsd, scale, percentMode);
   const periodAvgY = avgCostLineY(periodAvgUsd, scale, percentMode);
@@ -479,13 +509,13 @@ function DrawnChart({
       ? layers.flatMap((layer) => {
           const text = layerText(layer, hoverPoint.t, percentMode, openPrice);
           if (!text || layer.label.length === 0) return [];
-          return [{ id: layer.id, label: layer.label, text }];
+          return [{ id: layer.id, label: layer.label, text, color: layer.color }];
         })
       : [];
 
   const extremes = priceExtremes(
     points,
-    !reference && !candleList && !percentMode && hoverPoint === undefined && points.length >= 3,
+    showExtremes && !reference && !candleList && !percentMode && hoverPoint === undefined && points.length >= 3,
   );
 
   // Niveles de grilla horizontal cuando showGrid está activo (22%, 50% y 78% de la altura útil)
@@ -518,6 +548,8 @@ function DrawnChart({
     if (performance.now() < ignorePointerUntil.current) return;
     if (keyboardRef.current && document.activeElement === svgRef.current) return;
     choose(null);
+    // Al salir del lienzo se suelta cualquier foco de serie.
+    onHighlightLayer?.(null);
   };
 
   const onKeyDown = (event: KeyboardEvent<SVGSVGElement>) => {
@@ -567,8 +599,8 @@ function DrawnChart({
         data-percent={percentMode ? "true" : "false"}
         data-axis={axisPercent ? "percent" : "price"}
         data-chart-style={candleList ? "candles" : undefined}
-        className="absolute inset-0 h-full w-full touch-pan-y"
-        style={{ touchAction: "pan-y" }}
+        className="absolute inset-0 h-full w-full touch-pan-y select-none outline-none focus:outline-none focus-visible:outline-none"
+        style={{ touchAction: "pan-y", outline: "none" }}
         onMouseDown={() => {
           keyboardRef.current = false;
           setLiveText("");
@@ -648,12 +680,21 @@ function DrawnChart({
           </g>
         ) : (
           <>
-            {reference || !area ? null : <path d={area} fill={`url(#${gradId})`} />}
+            {reference || !area ? null : (
+              <path
+                d={area}
+                fill={`url(#${gradId})`}
+                opacity={hasFocus && !assetFocused ? 0.12 : undefined}
+                className={hasFocus ? "transition-opacity duration-200" : undefined}
+              />
+            )}
             <path
               d={line}
               fill="none"
               stroke={stroke}
-              strokeWidth="2.25"
+              strokeWidth={hasFocus ? (assetFocused ? "3" : "2.25") : "2.25"}
+              opacity={hasFocus ? (assetFocused ? 1 : 0.18) : undefined}
+              className={hasFocus ? "transition-opacity duration-200" : undefined}
               strokeLinecap="round"
               strokeLinejoin="round"
               strokeDasharray={reference ? "4 4" : undefined}
@@ -661,20 +702,26 @@ function DrawnChart({
             />
           </>
         )}
-        {layers.map((layer) => (
-          <path
-            key={layer.id}
-            data-overlay={layer.id}
-            d={layer.line}
-            fill="none"
-            stroke={graphicInk(layer.color)}
-            strokeWidth={layer.width}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeDasharray={layer.dash}
-            vectorEffect="non-scaling-stroke"
-          />
-        ))}
+        {layers.map((layer) => {
+          const layerFocused = !hasFocus || highlightedLayerId === layer.id;
+          return (
+            <path
+              key={layer.id}
+              data-overlay={layer.id}
+              d={layer.line}
+              fill="none"
+              stroke={graphicInk(layer.color)}
+              strokeWidth={hasFocus ? (layerFocused ? 2.75 : layer.width) : layer.width}
+              opacity={hasFocus ? (layerFocused ? 1 : 0.18) : undefined}
+              className={hasFocus ? "transition-opacity duration-200" : undefined}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeDasharray={layer.dash}
+              vectorEffect="non-scaling-stroke"
+              onMouseEnter={onHighlightLayer ? () => onHighlightLayer(layer.id) : undefined}
+            />
+          );
+        })}
         {periodAvgY === null ? null : (
           <line
             data-period-avg="true"
@@ -814,12 +861,21 @@ function DrawnChart({
             <p className="opacity-70">{hoverWhen(hoverPoint.t)}</p>
             <p className="num font-medium">{formatUsd(hoverPoint.usd)}</p>
             {periodMove ? <p className="num font-medium text-bg">{periodMove.label}</p> : null}
-            {hints.map((hint) => (
-              <p key={hint.id} className="num">
-                <span className="opacity-70">{hint.label} </span>
-                {hint.text}
-              </p>
-            ))}
+            {hints.map((hint) => {
+              // Con una serie enfocada, la fila de las demás se atenúa.
+              const dim = hasFocus && highlightedLayerId !== hint.id;
+              return (
+                <p key={hint.id} className={cn("num flex items-center gap-1.5", dim && "opacity-45")}>
+                  <span
+                    aria-hidden="true"
+                    className="size-2 shrink-0 rounded-full"
+                    style={{ background: hint.color }}
+                  />
+                  <span className="opacity-70">{hint.label}</span>
+                  <span>{hint.text}</span>
+                </p>
+              );
+            })}
           </div>
         </>
       ) : null}
@@ -878,6 +934,11 @@ function SvgPriceChartBase({
   axisMode = "price",
   showRangeBand = false,
   heightClassName,
+  showExtremes = true,
+  highlightedLayerId = null,
+  onHighlightLayer,
+  onToggleFullscreen,
+  isFullscreen = false,
 }: PriceChartProps) {
   const gradRaw = useId().replace(/:/g, "");
   const gradId = `svg-price-${gradRaw}`;
@@ -918,7 +979,7 @@ function SvgPriceChartBase({
   return (
     <>
     <div
-      className={cn("relative w-full touch-pan-y", heightClassName ?? "h-56 sm:h-64")}
+      className={cn("group/chart relative w-full touch-pan-y", heightClassName ?? "h-56 sm:h-64")}
       style={{ touchAction: "pan-y" }}
       data-tone={tone}
     >
@@ -946,6 +1007,9 @@ function SvgPriceChartBase({
           axisMode={axisMode}
           showRangeBand={showRangeBand}
           lineMode={chartStyle === "line"}
+          showExtremes={showExtremes}
+          highlightedLayerId={highlightedLayerId}
+          onHighlightLayer={onHighlightLayer}
         />
       ) : quiet ? null : (
         <div className="absolute inset-0 flex flex-col items-center justify-center rounded-xl bg-neutral-50 px-4 text-center">
@@ -953,6 +1017,48 @@ function SvgPriceChartBase({
           {emptyHint ? <p className="mt-1 max-w-sm text-[13px] text-fg-muted">{emptyHint}</p> : null}
         </div>
       )}
+      {/* Pantalla completa: fuera del SVG, aparece al pasar el cursor por el gráfico. */}
+      {onToggleFullscreen && !quiet && drawn && model ? (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggleFullscreen?.();
+          }}
+          aria-label={isFullscreen ? "Salir de pantalla completa" : "Pantalla completa"}
+          title={isFullscreen ? "Salir de pantalla completa (Esc)" : "Expandir a pantalla completa"}
+          className="absolute right-2.5 top-2.5 z-20 inline-flex items-center gap-1.5 rounded-full border border-border/80 bg-white/90 px-2.5 py-1.5 text-[11px] font-medium text-fg shadow-sm backdrop-blur-md transition-all duration-150 opacity-0 group-hover/chart:opacity-100 focus-visible:opacity-100 hover:bg-fg hover:text-bg hover:border-fg focus-visible:ring-2 focus-visible:ring-fg/30 outline-none"
+        >
+          {isFullscreen ? (
+            <svg
+              viewBox="0 0 16 16"
+              fill="none"
+              className="size-3.5 shrink-0"
+              stroke="currentColor"
+              strokeWidth="1.6"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M6 2v4H2M10 2v4h4M6 14v-4H2M10 14v-4h4" />
+            </svg>
+          ) : (
+            <svg
+              viewBox="0 0 16 16"
+              fill="none"
+              className="size-3.5 shrink-0"
+              stroke="currentColor"
+              strokeWidth="1.6"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M10 2h4v4M6 14H2v-4M14 2L9.5 6.5M2 14l4.5-4.5" />
+            </svg>
+          )}
+          <span className="hidden sm:inline">{isFullscreen ? "Salir" : "Pantalla completa"}</span>
+        </button>
+      ) : null}
     </div>
     {drawn && model?.volume && model.volume.length >= 2 ? (
       <VolumeStrip marks={model.volume} label={volumeLabel} />

@@ -3,7 +3,7 @@
  * La curva es la de Reclu: cúbica monótona (tangente 0 al cambiar de signo,
  * promedio de secantes si no). El eje Y sigue en precio: la línea punteada
  * marca el primer precio del período y el % del tooltip sale de ese precio.
- * Con benchmark, el eje Y pasa a porcentaje desde el inicio de cada serie.
+ * Con benchmark o con una capa rebasada, el eje Y pasa a porcentaje.
  */
 
 import { percentFrom, positiveRows } from "@/lib/market/indicators";
@@ -196,6 +196,11 @@ export interface ChartOverlay {
   color: string;
   dash?: string;
   label: string;
+  /**
+   * Serie de comparación: se rebasa a % desde su primer precio en la ventana,
+   * como el benchmark. Además pone el eje Y en % aunque no haya benchmark.
+   */
+  rebased?: boolean;
 }
 
 export interface ChartBenchmark {
@@ -211,6 +216,11 @@ export interface ChartLayerModel {
   dash?: string;
   line: string;
   points: Array<PlottedPoint & { usd: number }>;
+  /**
+   * Capa de comparación rebasada a su propio 0 %: el tooltip debe medirla
+   * contra su primer punto, no contra la apertura del activo principal.
+   */
+  rebased?: boolean;
 }
 
 export interface ChartModel {
@@ -218,7 +228,7 @@ export interface ChartModel {
   line: string;
   scale: PriceScale;
   layers: ChartLayerModel[];
-  /** true cuando el eje Y es % desde el inicio (hay benchmark con datos). */
+  /** true cuando el eje Y es % desde el inicio (benchmark o capa rebasada). */
   percentMode: boolean;
 }
 
@@ -233,6 +243,8 @@ interface MappedPoint {
  * Sin benchmark, Y es precio e incluye las medias para que no se corten.
  * Con benchmark, Y es %: la serie y SPYx parten de su primer precio en la
  * ventana; las medias se miden contra el primer precio de la serie.
+ * Una capa con `rebased` también lleva el eje a % y se mide contra su propio
+ * primer precio, así varias series se comparan desde cero.
  */
 export function buildChartModel(
   rows: readonly ChartRow[],
@@ -252,13 +264,29 @@ export function buildChartModel(
   const spyRows = benchmark
     ? positiveRows(benchmark.points).filter((row) => row.t >= t0 && row.t <= t1)
     : [];
-  const percentMode = spyRows.length >= 2;
+  // Una serie de comparación rebasada también pone el eje en %: sin base
+  // propia no cuenta, así no fuerza el modo ni rompe el gráfico.
+  const hasRebasedOverlay = overlays.some((overlay) => {
+    if (overlay.rebased !== true) return false;
+    const source = positiveRows(overlay.points).filter((row) => row.t >= t0 && row.t <= t1);
+    const base = source[0]?.p;
+    return source.length >= 2 && base !== undefined && base > 0;
+  });
+  const percentMode = spyRows.length >= 2 || hasRebasedOverlay;
   const spyBase = spyRows[0]?.p;
 
   const preparedOverlays: { overlay: ChartOverlay; mapped: MappedPoint[] }[] = [];
   for (const overlay of overlays) {
     const source = positiveRows(overlay.points).filter((row) => row.t >= t0 && row.t <= t1);
-    const mapped = mapRows(source, (price) => (percentMode ? percentFrom(price, assetBase) : price));
+    let mapped: MappedPoint[];
+    if (overlay.rebased === true) {
+      // Comparación: su propio primer precio es 0 % y el resto se mide contra él.
+      const ovBase = source[0]?.p;
+      if (ovBase === undefined || !(ovBase > 0)) continue;
+      mapped = mapRows(source, (price) => percentFrom(price, ovBase));
+    } else {
+      mapped = mapRows(source, (price) => (percentMode ? percentFrom(price, assetBase) : price));
+    }
     if (mapped.length < 2) continue;
     preparedOverlays.push({ overlay, mapped });
   }
@@ -307,6 +335,7 @@ export function buildChartModel(
       dash: item.overlay.dash,
       line: smoothPath(layerPoints),
       points: layerPoints,
+      rebased: item.overlay.rebased === true ? true : undefined,
     };
   });
 

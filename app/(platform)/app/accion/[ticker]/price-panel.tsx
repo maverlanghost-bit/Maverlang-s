@@ -1,9 +1,16 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useQueries, useQuery } from "@tanstack/react-query";
 
 import { ChangeBadge } from "@/components/domain/change-badge";
+import {
+  ChartMultiCompare,
+  COMPARE_CATALOG,
+  COMPARE_PALETTE,
+  compareLayerId,
+  type ActiveComparisonItem,
+} from "@/components/domain/chart-multi-compare";
 import { ChartLegend, ChartStudyBar, RsiPanel, SMA_COLOR, StudiesSkeleton } from "@/components/domain/chart-overlays";
 import { FlashPrice } from "@/components/domain/flash-price";
 import { PriceFreshness } from "@/components/domain/price-freshness";
@@ -43,6 +50,8 @@ const EMPTY_STUDIES: ChartStudies = {
 const NO_BARS = { volume: false, ohlc: false };
 /** Comparadores del modo Técnico: SPYx es el de siempre; el resto, alternativas. */
 const COMPARE_SYMBOLS = [SPY_SYMBOL, "QQQx", "AAPLx", "NVDAx", "TSLAx"] as const;
+/** Comparaciones simultáneas que caben legibles en el mismo gráfico. */
+const MAX_COMPARE = 4;
 /** Motores del gráfico: el nativo Pro y el widget de TradingView. */
 const PROVIDER_OPTIONS = [
   { value: "native", label: "Gráfico Pro" },
@@ -103,6 +112,30 @@ function periodBounds(
 
 function pollsLiveChart(range: Range): boolean {
   return range === "1W" || range === "1M";
+}
+
+/** Color estable por índice de comparación; nunca repite el mismo tono seguido. */
+function compareColor(index: number): string {
+  return COMPARE_PALETTE[index % COMPARE_PALETTE.length] ?? "#2563eb";
+}
+
+/**
+ * Puntos positivos del comparado dentro de la ventana del período principal.
+ * El rebase a % lo hace `buildChartModel` (`rebased: true`), no este archivo.
+ */
+function windowPoints(
+  points: readonly PricePoint[],
+  bounds: { start: number; end: number } | null,
+): PricePoint[] {
+  if (!bounds) return [];
+  return points.filter(
+    (row) =>
+      Number.isFinite(row.t) &&
+      Number.isFinite(row.p) &&
+      row.p > 0 &&
+      row.t >= bounds.start &&
+      row.t <= bounds.end,
+  );
 }
 
 function livePricePoint(row: { priceUsd: number } | undefined, at: number): PricePoint | undefined {
@@ -310,16 +343,38 @@ export function PricePanel({
   const [rsiOn, setRsiOn] = useState(false);
   const [draw, setDraw] = useState<"line" | "candles">("line");
   const [volumeOn, setVolumeOn] = useState(false);
-  // Nuevas opciones visuales del gráfico (T52): modo amplio, grilla de escala y línea de promedio
-  const [expanded, setExpanded] = useState(false);
-  const [showGrid, setShowGrid] = useState(true);
+  // Opciones visuales del gráfico: por defecto limpio, sin grilla ni promedio.
+  const [showGrid, setShowGrid] = useState(false);
   const [showPeriodAvg, setShowPeriodAvg] = useState(false);
+  // Comparación multi-activo: símbolos elegidos y la serie enfocada (difumina el resto).
+  const [comparedSymbols, setComparedSymbols] = useState<string[]>([]);
+  const [highlightedLayerId, setHighlightedLayerId] = useState<string | null>(null);
   // Motor del gráfico: Pro nativo y TradingView conviven; el SVG sigue montado.
   const [provider, setProvider] = useState<"native" | "tradingview">("native");
   // Eje Y: precio o porcentaje desde la apertura del período.
   const [axisMode, setAxisMode] = useState<"price" | "percent">("price");
   const [fullscreen, setFullscreen] = useState(false);
+  const chartCardRef = useRef<HTMLDivElement>(null);
   const tvActive = provider === "tradingview" || autoTradingView;
+  /** Sale del modo amplio y, si el navegador tomó la tarjeta, del fullscreen nativo. */
+  const exitFullscreen = useCallback(() => {
+    setFullscreen(false);
+    if (document.fullscreenElement && typeof document.exitFullscreen === "function") {
+      document.exitFullscreen().catch(() => {});
+    }
+  }, []);
+  /** Pantalla completa real: estado propio + API nativa cuando está disponible. */
+  const toggleFullscreen = useCallback(() => {
+    if (fullscreen) {
+      exitFullscreen();
+      return;
+    }
+    setFullscreen(true);
+    const card = chartCardRef.current;
+    if (card && typeof card.requestFullscreen === "function") {
+      card.requestFullscreen().catch(() => {});
+    }
+  }, [fullscreen, exitFullscreen]);
   // Escape cierra la pantalla completa; el body no scrollea detrás del modal.
   useEffect(() => {
     if (!fullscreen) return;
@@ -334,6 +389,14 @@ export function PricePanel({
       document.body.style.overflow = previousOverflow;
     };
   }, [fullscreen]);
+  // Esc nativo del navegador suelta el elemento fullscreen: sincroniza el estado.
+  useEffect(() => {
+    const onFullscreenChange = () => {
+      if (!document.fullscreenElement) setFullscreen(false);
+    };
+    document.addEventListener("fullscreenchange", onFullscreenChange);
+    return () => document.removeEventListener("fullscreenchange", onFullscreenChange);
+  }, []);
   // Comparador del modo Técnico. SPYx por defecto; el resto se pide con el
   // mismo rango y, si alcanza dos puntos, reemplaza a SPYx como benchmark.
   const [compareSymbol, setCompareSymbol] = useState<string>(SPY_SYMBOL);
@@ -351,6 +414,14 @@ export function PricePanel({
     ...studyQueryOptions(compareEnabled),
   });
   const chartReady = !history.isPending && !history.isError && points.length >= 2;
+  // Comparados: mismo rango y misma caché que `useHistory` (["history", sym, range]).
+  const compareQueries = useQueries({
+    queries: comparedSymbols.map((compared) => ({
+      queryKey: ["history", compared, range],
+      queryFn: () => getHistory(compared, range),
+      ...studyQueryOptions(chartReady),
+    })),
+  });
   const bars = useMemo(() => (chartReady ? barAvailability(points) : NO_BARS), [chartReady, points]);
   const studies = useMemo(() => {
     if (!technical) return EMPTY_STUDIES;
@@ -368,21 +439,49 @@ export function PricePanel({
     });
   }, [technical, symbol, range, illustrative, history.data, polledRow, polledAt, spyHistory.data, longHistory.data]);
   const overlays = useMemo(() => {
-    if (!technical || !chartReady) return NO_OVERLAYS;
     const list: ChartOverlay[] = [];
-    for (const periodKey of SMA_PERIODS) {
-      if (!smaOn[periodKey]) continue;
-      const series = studies.sma[periodKey];
-      if (series.length < 2) continue;
-      list.push({
-        id: `sma-${periodKey}`,
-        points: series,
-        color: SMA_COLOR[periodKey],
-        label: periodKey === 20 ? copy.sma20 : periodKey === 50 ? copy.sma50 : copy.sma200,
+    if (technical && chartReady) {
+      for (const periodKey of SMA_PERIODS) {
+        if (!smaOn[periodKey]) continue;
+        const series = studies.sma[periodKey];
+        if (series.length < 2) continue;
+        list.push({
+          id: `sma-${periodKey}`,
+          points: series,
+          color: SMA_COLOR[periodKey],
+          label: periodKey === 20 ? copy.sma20 : periodKey === 50 ? copy.sma50 : copy.sma200,
+        });
+      }
+    }
+    // Comparados: sólo entran si su serie tiene >= 2 puntos en la ventana del período.
+    const bounds = periodBounds(points, livePoint);
+    if (bounds) {
+      comparedSymbols.forEach((compared, index) => {
+        const rows = compareQueries[index]?.data?.points;
+        if (!rows) return;
+        const inWindow = windowPoints(rows, bounds);
+        if (inWindow.length < 2) return;
+        list.push({
+          id: compareLayerId(compared),
+          points: inWindow,
+          color: compareColor(index),
+          label: compared,
+          rebased: true,
+        });
       });
     }
     return list.length === 0 ? NO_OVERLAYS : list;
-  }, [technical, chartReady, smaOn, studies, copy]);
+  }, [
+    technical,
+    chartReady,
+    smaOn,
+    studies,
+    copy,
+    points,
+    livePoint,
+    comparedSymbols,
+    compareQueries,
+  ]);
   const benchmark = useMemo(() => {
     if (!technical || !chartReady || !spyOn) return null;
     const key = compareSymbol.trim();
@@ -448,6 +547,57 @@ export function PricePanel({
   ];
   const seriesKey = `${range}:${points.length}:${points[0]?.t ?? 0}:${points[points.length - 1]?.p ?? 0}`;
   const point = hover && hover.key === seriesKey ? hover : null;
+
+  // Píldoras de comparación: la acción principal primero y cada comparado con su % del período.
+  // Sin memoización manual: las deps derivadas de props no se pueden preservar y el
+  // compilador de React ya memoiza el resultado.
+  const comparisonItems: ActiveComparisonItem[] = (() => {
+    const bounds = periodBounds(points, livePoint);
+    const items: ActiveComparisonItem[] = [
+      {
+        id: "asset",
+        symbol: symbolKey,
+        name,
+        color: TONE_STROKE[tone],
+        changePct: move,
+        removable: false,
+      },
+    ];
+    comparedSymbols.forEach((compared, index) => {
+      const query = compareQueries[index];
+      const rows = query?.data?.points;
+      const inWindow = rows ? windowPoints(rows, bounds) : [];
+      const catalog = COMPARE_CATALOG.find((option) => option.symbol === compared);
+      items.push({
+        id: compareLayerId(compared),
+        symbol: compared,
+        name: catalog?.name ?? compared,
+        color: compareColor(index),
+        changePct: inWindow.length >= 2 ? rangeMove(inWindow) : null,
+        removable: true,
+        pending: query?.isPending === true,
+      });
+    });
+    return items;
+  })();
+
+  const toggleComparedSymbol = (compared: string): void => {
+    // La acción principal ya está en el gráfico: no se compara consigo misma.
+    if (compared.trim().toUpperCase() === symbolKey.toUpperCase()) return;
+    if (comparedSymbols.includes(compared)) {
+      setComparedSymbols(comparedSymbols.filter((item) => item !== compared));
+      // El foco se suelta si el activo enfocado deja de estar en el gráfico.
+      setHighlightedLayerId((active) => (active === compareLayerId(compared) ? null : active));
+      return;
+    }
+    if (comparedSymbols.length >= MAX_COMPARE) return;
+    setComparedSymbols([...comparedSymbols, compared]);
+  };
+
+  const clearComparedSymbols = (): void => {
+    setComparedSymbols([]);
+    setHighlightedLayerId(null);
+  };
 
   const onHover = useCallback(
     (usd: number | null, timeMs?: number | null) => {
@@ -687,10 +837,7 @@ export function PricePanel({
           >
             % / $
           </ChartToggle>
-          <ChartToggle tone="solid" pressed={expanded} onClick={() => setExpanded((v) => !v)}>
-            {expanded ? "Compactar" : "Expandir"}
-          </ChartToggle>
-          <ChartToggle pressed={fullscreen} onClick={() => setFullscreen((v) => !v)}>
+          <ChartToggle pressed={fullscreen} onClick={toggleFullscreen}>
             {fullscreen ? "Salir de pantalla completa" : "Pantalla completa"}
           </ChartToggle>
         </div>
@@ -699,9 +846,11 @@ export function PricePanel({
       {illustrative ? <p className="text-sm text-fg-muted">{t.detail.chartReference}</p> : null}
 
       <div
+        ref={chartCardRef}
         className={cn(
-          "min-w-0 max-w-full rounded-3xl border border-border/70 bg-white p-5 shadow-[0_1px_2px_rgba(16,24,40,0.04),0_12px_32px_-8px_rgba(16,24,40,0.08)] sm:p-7",
-          fullscreen && "fixed inset-0 z-50 flex flex-col justify-between overflow-y-auto bg-white p-4 sm:p-8 gap-4",
+          "min-w-0 max-w-full rounded-2xl bg-white p-5 border border-border/70 shadow-[0_1px_2px_rgba(16,24,40,0.04),0_8px_24px_rgba(16,24,40,0.08)] sm:p-7",
+          fullscreen &&
+            "fixed inset-0 z-[100] flex h-screen w-screen flex-col justify-between overflow-y-auto rounded-none border-0 bg-white p-5 sm:p-8 gap-4",
         )}
         role={fullscreen ? "dialog" : undefined}
         aria-modal={fullscreen ? true : undefined}
@@ -725,7 +874,7 @@ export function PricePanel({
               </div>
               <button
                 type="button"
-                onClick={() => setFullscreen(false)}
+                onClick={toggleFullscreen}
                 className="inline-flex h-10 items-center gap-2 rounded-full bg-fg px-4 text-sm font-semibold text-bg shadow-sm transition-transform outline-none focus-visible:ring-4 focus-visible:ring-fg/20 active:scale-[0.98] motion-reduce:transition-none motion-reduce:active:scale-100"
               >
                 Cerrar pantalla completa (Esc)
@@ -881,6 +1030,18 @@ export function PricePanel({
             />
           </div>
         ) : null}
+        {tvActive ? null : (
+          <ChartMultiCompare
+            baseSymbol={symbolKey}
+            selectedSymbols={comparedSymbols}
+            onToggleSymbol={toggleComparedSymbol}
+            onClearAll={clearComparedSymbols}
+            activeItems={comparisonItems}
+            highlightedId={highlightedLayerId}
+            onHighlightChange={setHighlightedLayerId}
+            maxCompare={MAX_COMPARE}
+          />
+        )}
         <div className="relative min-w-0 max-w-full">
           {tvActive ? (
             <TradingViewChart symbol={symbol} underlying={underlying} range={range} fullscreen={fullscreen} />
@@ -902,14 +1063,13 @@ export function PricePanel({
               avgCostUsd={avgCostUsd}
               periodAvgUsd={showPeriodAvg ? periodAvgUsd : null}
               showGrid={showGrid}
+              showExtremes={false}
               axisMode={axisMode}
-              heightClassName={
-                fullscreen
-                  ? "h-[46vh] sm:h-[56vh] md:h-[62vh] transition-[height] duration-200"
-                  : expanded
-                    ? "h-80 sm:h-[420px] md:h-[480px] transition-[height] duration-200"
-                    : "h-64 sm:h-80 md:h-[360px] transition-[height] duration-200"
-              }
+              highlightedLayerId={highlightedLayerId}
+              onHighlightLayer={setHighlightedLayerId}
+              onToggleFullscreen={toggleFullscreen}
+              isFullscreen={fullscreen}
+              heightClassName={fullscreen ? "h-[58vh] sm:h-[66vh] md:h-[72vh]" : "h-64 sm:h-80 md:h-[380px]"}
               chartStyle={technical && bars.ohlc ? draw : "line"}
               showVolume={technical && bars.volume && volumeOn}
               volumeLabel={copy.volume}
@@ -956,34 +1116,6 @@ export function PricePanel({
         ) : null}
         {technical ? <p className="mt-3 text-xs text-fg-muted">{copy.disclaimer}</p> : null}
       </div>
-      {stats && stats.low > 0 && stats.high > stats.low && currentUsd !== null && Number.isFinite(currentUsd) ? (() => {
-        const spotUsd = currentUsd;
-        const pct = Math.min(100, Math.max(0, ((spotUsd - stats.low) / (stats.high - stats.low)) * 100));
-        const lowShown = displayPrice(stats.low, priceCurrency, rate);
-        const highShown = displayPrice(stats.high, priceCurrency, rate);
-        const lowLabel = formatMoney(lowShown ?? stats.low, lowShown === null ? "USD" : priceCurrency);
-        const highLabel = formatMoney(highShown ?? stats.high, highShown === null ? "USD" : priceCurrency);
-        const rangeCaption = range === "ALL" ? t.detail.rangeShort.ALL : t.detail.rangeCaption[range];
-        return (
-          <div className="rounded-2xl border border-border/70 bg-surface-1/60 px-4 py-3 backdrop-blur-md">
-            <div className="mb-2 flex items-center justify-between gap-2 text-xs text-fg-muted tabular-nums">
-              <span>
-                {fill(t.detail.rangeLow, { range: rangeCaption })}: <strong className="font-semibold text-fg">{lowLabel}</strong>
-              </span>
-              <span>
-                {fill(t.detail.rangeHigh, { range: rangeCaption })}: <strong className="font-semibold text-fg">{highLabel}</strong>
-              </span>
-            </div>
-            <div className="relative h-2 w-full rounded-full bg-gradient-to-r from-down/25 via-brand/30 to-up/40">
-              <span
-                className="absolute top-1/2 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-brand shadow-[0_0_10px_rgba(5,150,105,0.8)] transition-all duration-300"
-                style={{ left: `${pct}%` }}
-                aria-hidden="true"
-              />
-            </div>
-          </div>
-        );
-      })() : null}
       {sourceLine ? <p className="text-xs text-fg-muted">{sourceLine}</p> : null}
     </section>
   );
