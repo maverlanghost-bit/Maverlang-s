@@ -1,14 +1,12 @@
-"use client";
-
 import type * as React from "react";
 
 import { cn } from "@/lib/cn";
 
 /**
  * Accesos rápidos del estado vacío del asistente (T58 · BOT 05).
- * Une el `welcome-popup` y `prompt-suggestions` de la referencia en un solo
- * módulo sin dependencias: sólo entrega prompts, no llama a la red.
- * Todo el texto vive en el markup, así que SSR y el primer render coinciden.
+ * Clon de `welcome-popup` y `prompt-suggestions` de ai-chat-extracted en un
+ * solo módulo sin dependencias: sólo entrega prompts, no llama a la red.
+ * Los glifos son SVG locales para no depender de lucide-react.
  */
 
 export type WelcomeAction = {
@@ -22,63 +20,82 @@ export const WELCOME_ACTIONS: readonly WelcomeAction[] = [
   {
     id: "portfolio-review",
     label: "Analizar tu portafolio",
-    prompt: "Analiza mi portafolio actual: distribución, riesgo y oportunidades de mejora.",
+    prompt:
+      "Analiza mi portafolio con las cotizaciones en vivo. Dame un resumen del rendimiento, las posiciones que más suben y bajan, el riesgo actual y una recomendación concreta.",
     tone: "brand",
   },
   {
     id: "portfolio-create",
     label: "Crear un portafolio",
     prompt:
-      "Ayúdame a armar un portafolio diversificado con acciones tokenizadas según mi perfil.",
+      "Ayúdame a crear un portafolio desde cero con acciones tokenizadas. Pregúntame por mi perfil de riesgo, horizonte temporal y capital inicial, y propón una cartera concreta con porcentajes por acción, el motivo de cada posición y cómo diversificarla.",
     tone: "up",
   },
   {
     id: "market-news",
     label: "Noticias del mercado",
     prompt:
-      "¿Cuáles son los movimientos más relevantes hoy en las acciones disponibles en Maverlang?",
+      "Dame un resumen de las noticias financieras más importantes de hoy. Incluye los principales movimientos del mercado, eventos corporativos relevantes y su impacto potencial.",
     tone: "info",
   },
   {
     id: "investment-strategy",
     label: "Estrategia de inversión",
-    prompt: "Explícame cómo comparar dos acciones usando múltiplos y desempeño reciente.",
+    prompt:
+      "Ayúdame a crear una estrategia de inversión. Pregúntame sobre mi perfil de riesgo, horizonte temporal, capital disponible y objetivos. Dame un plan diversificado con porcentajes.",
     tone: "warn",
   },
 ];
 
-export type PromptSuggestion = { id: string; label: string; prompt: string };
+export type PromptSuggestion = {
+  id: string;
+  label: string;
+  description: string;
+  prompt: string;
+};
 
 export const PROMPT_SUGGESTIONS: readonly PromptSuggestion[] = [
   {
     id: "portfolio",
     label: "Mi portafolio",
-    prompt: "¿Cómo va mi portafolio hoy? Analiza concentración y riesgo.",
+    description: "Analiza el rendimiento de tus acciones",
+    prompt:
+      "Muéstrame cómo va mi portafolio hoy. Dame un resumen del rendimiento, las acciones que más subieron y bajaron, y una recomendación general.",
   },
   {
     id: "news",
     label: "Noticias del mercado",
-    prompt: "Resume las noticias más relevantes del mercado de hoy.",
+    description: "Resumen de noticias financieras",
+    prompt:
+      "Dame un resumen de las noticias financieras más importantes de hoy. Incluye los principales movimientos del mercado, eventos corporativos relevantes y su impacto potencial.",
   },
   {
     id: "technical",
     label: "Análisis técnico",
-    prompt: "Haz un análisis técnico simple de NVDAx en el último mes.",
+    description: "Analiza una acción en detalle",
+    prompt:
+      "Necesito un análisis técnico detallado. Pregúntame qué acción quiero analizar, y luego dame niveles de soporte/resistencia, tendencias, y señales de compra/venta.",
   },
   {
     id: "compare",
     label: "Comparar acciones",
-    prompt: "Compara Apple y Microsoft en valuación y desempeño reciente.",
+    description: "Compara el rendimiento de varias acciones",
+    prompt:
+      "Quiero comparar acciones. Pregúntame cuáles quiero comparar, y luego dame una tabla comparativa con métricas clave como P/E, rendimiento, dividendos y recomendación.",
   },
   {
     id: "strategy",
     label: "Estrategia de inversión",
-    prompt: "Explícame una estrategia de inversión diversificada para empezar.",
+    description: "Genera un plan de inversión personalizado",
+    prompt:
+      "Ayúdame a crear una estrategia de inversión. Pregúntame sobre mi perfil de riesgo, horizonte temporal, capital disponible y objetivos. Dame un plan diversificado con porcentajes.",
   },
   {
     id: "alerts",
     label: "Alertas de precio",
-    prompt: "¿Cómo configuro una alerta de precio para Tesla?",
+    description: "Configura alertas para tus acciones",
+    prompt:
+      "Quiero configurar alertas de precio para mis acciones. Muéstrame mis posiciones actuales y ayúdame a establecer niveles de alerta para cada una.",
   },
 ];
 
@@ -152,15 +169,6 @@ function ZapIcon({ className }: IconProps): React.ReactElement {
   );
 }
 
-function ArrowUpRightIcon({ className }: IconProps): React.ReactElement {
-  return (
-    <svg {...SVG_BASE} className={className}>
-      <path d="M6.75 17.25 17.25 6.75" />
-      <path d="M8.75 6.75h8.5v8.5" />
-    </svg>
-  );
-}
-
 function actionIcon(id: string): (props: IconProps) => React.ReactElement {
   switch (id) {
     case "portfolio-review":
@@ -176,16 +184,6 @@ function actionIcon(id: string): (props: IconProps) => React.ReactElement {
   }
 }
 
-const TONE_BUBBLE: Record<WelcomeAction["tone"], string> = {
-  brand: "bg-brand text-bg",
-  up: "bg-up-bg text-up",
-  info: "bg-info-bg text-info",
-  warn: "bg-warn-bg text-warn",
-};
-
-const CHIP_CLASS =
-  "inline-flex shrink-0 items-center gap-2 rounded-full border border-border bg-white px-4 py-2 text-xs font-medium text-fg-body transition hover:bg-surface-1 hover:text-fg focus-visible:ring-4 focus-visible:ring-fg/20 focus-visible:outline-none sm:text-sm";
-
 export function WelcomeChips({
   onSendMessage,
 }: {
@@ -196,7 +194,7 @@ export function WelcomeChips({
       role="group"
       aria-label="Acciones rápidas"
       data-welcome-chips=""
-      className="flex w-full flex-wrap items-center justify-center gap-2"
+      className="w-full max-w-2xl px-1 grid grid-cols-2 gap-2 md:flex md:flex-wrap md:items-center md:justify-center"
     >
       {WELCOME_ACTIONS.map((action) => {
         const Icon = actionIcon(action.id);
@@ -207,18 +205,22 @@ export function WelcomeChips({
             type="button"
             data-welcome-action={action.id}
             onClick={() => onSendMessage(action.prompt)}
-            className={cn(CHIP_CLASS)}
+            className={cn(
+              "flex items-center gap-1.5 text-left md:text-center",
+              "px-3 py-2.5 md:py-1.5 rounded-2xl md:rounded-full",
+              "text-[12px] font-medium leading-tight",
+              "border border-zinc-200",
+              "text-zinc-600",
+              "bg-white/80",
+              "hover:text-zinc-900",
+              "hover:bg-zinc-100",
+              "hover:border-zinc-300",
+              "transition-all duration-200 cursor-pointer active:scale-95",
+              "md:whitespace-nowrap",
+            )}
           >
-            <span
-              aria-hidden="true"
-              className={cn(
-                "flex size-6 shrink-0 items-center justify-center rounded-full",
-                TONE_BUBBLE[action.tone],
-              )}
-            >
-              <Icon className="size-3.5" />
-            </span>
-            <span className="whitespace-nowrap">{action.label}</span>
+            <Icon className="w-3.5 h-3.5 opacity-70 shrink-0" />
+            <span className="min-w-0">{action.label}</span>
           </button>
         );
       })}
@@ -232,28 +234,28 @@ export function PromptSuggestions({
   onSendMessage: (prompt: string) => void;
 }): React.ReactElement {
   return (
-    <div data-prompt-suggestions="" className="w-full">
-      <div className="flex items-center gap-1.5 px-1 pb-1.5">
-        <ZapIcon className="size-3.5 text-fg-muted" />
-        <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-fg-muted">
-          Sugerencias
-        </span>
+    <div
+      data-prompt-suggestions=""
+      className="max-w-2xl mx-auto w-full mt-4 md:mt-2 px-6 md:px-0"
+    >
+      <div className="flex items-center gap-2 mb-2 text-sm text-zinc-500">
+        <ZapIcon className="h-4 w-4" />
+        <span>Sugerencias</span>
       </div>
-      <ul className="flex list-none flex-col gap-0.5">
-        {PROMPT_SUGGESTIONS.map((suggestion) => (
-          <li key={suggestion.id}>
-            <button
-              type="button"
-              data-prompt-suggestion={suggestion.id}
-              onClick={() => onSendMessage(suggestion.prompt)}
-              className="group flex w-full items-center justify-between gap-2 rounded-xl px-2.5 py-2 text-left text-[13px] text-fg-body transition hover:bg-surface-1 hover:text-fg focus-visible:ring-4 focus-visible:ring-fg/20 focus-visible:outline-none"
-            >
-              <span className="min-w-0 truncate">{suggestion.label}</span>
-              <ArrowUpRightIcon className="size-3.5 shrink-0 opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100" />
-            </button>
-          </li>
+      <div className="max-h-46 overflow-y-auto scrollbar-hide">
+        {PROMPT_SUGGESTIONS.map((s) => (
+          <button
+            key={s.id}
+            type="button"
+            data-prompt-suggestion={s.id}
+            onClick={() => onSendMessage(s.prompt)}
+            className="w-full text-left rounded-md px-3 py-2 hover:bg-zinc-100/80 transition-colors cursor-pointer"
+          >
+            <div className="font-medium text-zinc-900 text-[14px]">{s.label}</div>
+            <div className="text-sm text-zinc-500">{s.description}</div>
+          </button>
         ))}
-      </ul>
+      </div>
     </div>
   );
 }

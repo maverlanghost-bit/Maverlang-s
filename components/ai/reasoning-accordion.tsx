@@ -77,7 +77,8 @@ export function extractThinkingSegments(rawContent: string): {
   };
 }
 
-function BrainIcon({ active }: { active: boolean }) {
+/** Cerebro de lucide, dibujado localmente para no depender de iconos externos. */
+function BrainIcon({ streaming }: { streaming: boolean }) {
   return (
     <svg
       viewBox="0 0 24 24"
@@ -88,10 +89,11 @@ function BrainIcon({ active }: { active: boolean }) {
       strokeLinejoin="round"
       aria-hidden="true"
       focusable="false"
-      className={cn(
-        "size-3.5 shrink-0",
-        active && "text-brand motion-safe:animate-pulse motion-reduce:animate-none",
-      )}
+      className={
+        streaming
+          ? "size-3.5 shrink-0 animate-pulse text-[#1890FF]"
+          : "size-3.5 shrink-0"
+      }
     >
       <path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z" />
       <path d="M12 5a3 3 0 1 1 5.997.125 4 4 0 0 1 2.526 5.77 4 4 0 0 1-.556 6.588A4 4 0 1 1 12 18Z" />
@@ -100,7 +102,7 @@ function BrainIcon({ active }: { active: boolean }) {
   );
 }
 
-function ChevronIcon({ open }: { open: boolean }) {
+function ChevronDownIcon({ open }: { open: boolean }) {
   return (
     <svg
       viewBox="0 0 24 24"
@@ -112,7 +114,7 @@ function ChevronIcon({ open }: { open: boolean }) {
       aria-hidden="true"
       focusable="false"
       className={cn(
-        "size-3.5 shrink-0 transition-transform duration-200 motion-reduce:transition-none",
+        "size-3.5 text-zinc-400 transition-transform duration-200 shrink-0",
         open ? "rotate-180" : "rotate-0",
       )}
     >
@@ -122,9 +124,9 @@ function ChevronIcon({ open }: { open: boolean }) {
 }
 
 /**
- * Acordeón compacto con el razonamiento del asistente. Colapsado muestra un
- * disparador de una línea; abierto, el texto en un panel con borde de marca.
- * Devuelve `null` si no hay razonamiento y la respuesta ya terminó.
+ * Acordeón compacto con el razonamiento del asistente. Se abre solo mientras
+ * la respuesta se está generando y se pliega al terminar; el usuario puede
+ * abrirlo o cerrarlo cuando quiera. Devuelve `null` sin razonamiento.
  */
 export function ReasoningAccordion({
   reasoning,
@@ -139,62 +141,54 @@ export function ReasoningAccordion({
   defaultOpen?: boolean;
   className?: string;
 }): ReactElement | null {
-  const [isOpen, setIsOpen] = useState(defaultOpen);
-  const panelId = useId();
-  const body = reasoning?.trim() ?? "";
+  // `null` = el usuario aún no decidió: se usa el valor derivado de las props
+  // (abierto mientras llega el stream, plegado al terminar), sin efectos.
+  const [openOverride, setOpenOverride] = useState<boolean | null>(null);
+  const panelId = useId().replace(/:/g, "");
 
-  if (!body && !isStreaming) return null;
+  const body = typeof reasoning === "string" ? reasoning.trim() : "";
+  if (body.length === 0 && !isStreaming) return null;
 
   const hasDuration =
     typeof durationSeconds === "number" &&
     Number.isFinite(durationSeconds) &&
     durationSeconds > 0;
   const seconds = hasDuration ? Math.max(1, Math.round(durationSeconds)) : 0;
-  const label = isStreaming
-    ? "Pensando..."
-    : hasDuration
-      ? `Pensó por ${seconds}s`
-      : "Razonamiento";
+  const expanded = openOverride ?? (defaultOpen || isStreaming);
 
   return (
     <div
-      className={cn("not-prose my-1.5 min-w-0", className)}
+      className={cn("not-prose w-full min-w-0", className)}
       data-ai-reasoning={isStreaming ? "streaming" : "done"}
     >
       <button
         type="button"
-        aria-expanded={isOpen}
+        aria-expanded={expanded}
         aria-controls={panelId}
-        onClick={() => setIsOpen((prev) => !prev)}
-        className={cn(
-          "inline-flex items-center gap-1.5 rounded-full px-2 py-1 text-xs font-medium text-fg-muted",
-          "transition-colors outline-none motion-reduce:transition-none",
-          "hover:bg-surface-1 hover:text-fg focus-visible:ring-4 focus-visible:ring-fg/20",
-        )}
+        onClick={() => setOpenOverride(!expanded)}
+        className="inline-flex items-center gap-1.5 text-xs font-medium text-zinc-500 hover:text-zinc-900 select-none cursor-pointer py-1 transition-colors"
       >
-        <BrainIcon active={isStreaming} />
+        <BrainIcon streaming={isStreaming} />
         {isStreaming ? (
-          <span className="bg-gradient-to-r from-fg-muted via-fg to-fg-muted bg-clip-text text-transparent motion-safe:animate-pulse motion-reduce:animate-none">
-            Pensando...
-          </span>
+          <span className="animate-pulse">Pensando...</span>
+        ) : hasDuration ? (
+          <span className="tabular-nums">Pensó por {seconds}s</span>
         ) : (
-          <span className="tabular-nums">{label}</span>
+          <span>Razonamiento</span>
         )}
-        <ChevronIcon open={isOpen} />
+        <ChevronDownIcon open={expanded} />
       </button>
 
       <div
         id={panelId}
-        hidden={!isOpen}
-        className={cn(
-          "mt-1.5 border-l-2 border-brand/30 py-1 pl-3.5 text-xs leading-relaxed text-fg-muted whitespace-pre-wrap",
-        )}
+        hidden={!expanded}
+        className="mt-1.5 pl-3 border-l-2 border-zinc-200 text-[12.5px] leading-relaxed max-h-56 overflow-y-auto scrollbar-thin whitespace-pre-wrap text-zinc-600"
       >
         {body}
         {isStreaming ? (
           <span
             aria-hidden="true"
-            className="ml-0.5 inline-block h-3 w-[2px] translate-y-[1px] bg-fg-muted/70 align-middle motion-safe:animate-pulse motion-reduce:animate-none"
+            className="ml-0.5 inline-block h-3 w-1 translate-y-px bg-zinc-400 align-middle animate-pulse"
           />
         ) : null}
       </div>

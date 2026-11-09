@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  useCallback,
   useEffect,
   useRef,
   useState,
@@ -8,53 +9,65 @@ import {
   type FormEvent,
   type RefObject,
 } from "react";
-import { createPortal } from "react-dom";
+import { AnimatePresence, motion } from "framer-motion";
 
 import { isCodeSnippet } from "@/components/ai/code-block";
 import { ModelSelector } from "@/components/ai/model-selector";
-import {
-  applyReasoningPrefix,
-  ReasoningModeBar,
-  type AiReasoningMode,
-} from "@/components/ai/reasoning-mode-bar";
-import { IconCheck, IconChevron, IconClose, IconGlobe } from "@/components/ui/icons";
 import type { AsistenteCopy, AsistenteSuggestionId } from "@/content/i18n/extra-asistente";
 import { cn } from "@/lib/cn";
 
-// Mismo valor que AI_DOCK_SLOT_ID de components/app-shell/nav.ts.
-const DOCK_SLOT_ID = "mv-ai-dock-slot";
-const MOBILE_QUERY = "(max-width: 1023px)";
+/** Frases del placeholder animado, en el mismo orden que chat-input.tsx. */
+const CHAT_INPUT_PLACEHOLDERS = [
+  "Pregúntame lo que quieras...",
+  "Analiza mi portafolio...",
+  "Analiza esta acción...",
+  "Crea una alerta de precio para...",
+  "Compara Tesla vs Apple...",
+  "¿Qué opinas sobre el mercado hoy?...",
+  "Analiza las finanzas de NVIDIA...",
+  "Explica la última decisión de tasas de interés...",
+] as const;
 
-/** Anillo de foco compartido por todos los controles del compositor. */
-const FOCUS_RING = "outline-none focus-visible:ring-4 focus-visible:ring-fg/20";
+type MenuView = "main" | "charts" | "analysis";
+type ToolCategory = "charts" | "analysis";
 
-/** Nombre legible de cada herramienta avanzada que el chat puede activar. */
-const TOOL_LABELS: Record<string, string> = {
-  chart_bar: "Gráfico de barras",
-  chart_line: "Gráfico de líneas",
-  chart_pie: "Gráfico circular",
-  chart_area: "Gráfico de área",
-  chart_radar: "Gráfico de radar",
-  fin_metrics: "Análisis fundamental",
-  stock_compare: "Comparar acciones",
-  sector_perf: "Rendimiento sectorial",
+type AdvancedTool = {
+  id: string;
+  label: string;
+  category: ToolCategory;
 };
 
-const CHART_TOOLS: readonly string[] = [
-  "chart_bar",
-  "chart_line",
-  "chart_pie",
-  "chart_area",
-  "chart_radar",
+/** Mismas herramientas avanzadas que el compositor de referencia. */
+const ADVANCED_TOOLS: readonly AdvancedTool[] = [
+  { id: "chart_bar", label: "Gráfico de Barras", category: "charts" },
+  { id: "chart_line", label: "Gráfico de Líneas", category: "charts" },
+  { id: "chart_pie", label: "Gráfico Circular", category: "charts" },
+  { id: "chart_area", label: "Gráfico de Área", category: "charts" },
+  { id: "chart_radar", label: "Gráfico de Radar", category: "charts" },
+  { id: "fin_metrics", label: "Análisis Fundamental", category: "analysis" },
+  { id: "stock_compare", label: "Comparar Acciones", category: "analysis" },
+  { id: "sector_perf", label: "Rendimiento Sectorial", category: "analysis" },
 ];
-const ANALYSIS_TOOLS: readonly string[] = ["fin_metrics", "stock_compare", "sector_perf"];
 
-function toolLabel(id: string): string {
-  return TOOL_LABELS[id] ?? id.replace(/_/g, " ");
-}
+const CHART_TOOLS = ADVANCED_TOOLS.filter((tool) => tool.category === "charts");
+const ANALYSIS_TOOLS = ADVANCED_TOOLS.filter((tool) => tool.category === "analysis");
 
-/** Vistas del popover del botón «+». */
-type MenuView = "main" | "charts" | "analysis";
+const TOOL_LABELS: Readonly<Record<string, string>> = {
+  chart_bar: "Gráfico de Barras",
+  chart_line: "Gráfico de Líneas",
+  chart_pie: "Gráfico Circular",
+  chart_area: "Gráfico de Área",
+  chart_radar: "Gráfico de Radar",
+  fin_metrics: "Análisis Fundamental",
+  stock_compare: "Comparar Acciones",
+  sector_perf: "Rendimiento Sectorial",
+};
+
+type TypewriterState = {
+  text: string;
+  isDeleting: boolean;
+  index: number;
+};
 
 /**
  * Tipos mínimos de la Web Speech API: TypeScript no la trae en lib.dom.
@@ -83,30 +96,6 @@ function speechRecognitionCtor(): SpeechRecognitionCtor | null {
   if (typeof window === "undefined") return null;
   const speech = window as SpeechWindow;
   return speech.SpeechRecognition ?? speech.webkitSpeechRecognition ?? null;
-}
-
-/** Devuelve el contenedor del dock móvil (dentro de la barra inferior) o null. */
-function useDockSlot(): HTMLElement | null {
-  const [slot, setSlot] = useState<HTMLElement | null>(null);
-  useEffect(() => {
-    const query = window.matchMedia(MOBILE_QUERY);
-    const find = () => {
-      const el = query.matches ? document.getElementById(DOCK_SLOT_ID) : null;
-      setSlot((prev) => (prev === el ? prev : el));
-      return el;
-    };
-    find();
-    query.addEventListener("change", find);
-    const observer = new MutationObserver(() => {
-      if (find()) observer.disconnect();
-    });
-    observer.observe(document.body, { childList: true, subtree: true });
-    return () => {
-      query.removeEventListener("change", find);
-      observer.disconnect();
-    };
-  }, []);
-  return slot;
 }
 
 export function Composer({
@@ -154,43 +143,108 @@ export function Composer({
   onStop?: () => void;
   variant?: "landing" | "bottom";
 }) {
+  const isLanding = variant === "landing";
   const canSend = !typing && (draft.trim().length > 0 || pendingImage != null);
   const showStop = typing && onStop != null;
-  const showCount = draft.length > 1200;
   const codePasted = isCodeSnippet(draft);
-
-  const dockSlot = useDockSlot();
-
-  // Modo de razonamiento del compositor (flash por defecto).
-  const [mode, setMode] = useState<AiReasoningMode>("flash");
 
   // La búsqueda web puede venir controlada por el coordinador o vivir aquí.
   const [localWebSearch, setLocalWebSearch] = useState(false);
   const webSearchOn = webSearchEnabled ?? localWebSearch;
+  const [deepReasoning, setDeepReasoning] = useState(false);
 
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuView, setMenuView] = useState<MenuView>("main");
   const menuRef = useRef<HTMLDivElement | null>(null);
+  const menuResetTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [favorites, setFavorites] = useState<readonly string[]>([]);
 
   const [listening, setListening] = useState(false);
-  const [speechReady, setSpeechReady] = useState(false);
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const draftRef = useRef(draft);
+
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
   // El dictado necesita el borrador más reciente sin volver a suscribir el reconocedor.
   useEffect(() => {
     draftRef.current = draft;
   }, [draft]);
 
-  // Detectar la API de voz en el siguiente frame (sin setState síncrono dentro del efecto).
+  // Montaje: habilita el typewriter y detecta la API de voz en el siguiente frame.
+  const [mounted, setMounted] = useState(false);
   useEffect(() => {
-    const frame = requestAnimationFrame(() => setSpeechReady(speechRecognitionCtor() !== null));
+    const frame = requestAnimationFrame(() => setMounted(true));
     return () => cancelAnimationFrame(frame);
   }, []);
 
-  // Al desmontar, cortar el micrófono sin disparar setState.
+  // Typewriter del placeholder: sólo en la landing, sin borrador y ya montado.
+  const [typewriter, setTypewriter] = useState<TypewriterState>({
+    text: "",
+    isDeleting: false,
+    index: 0,
+  });
+
+  useEffect(() => {
+    if (!mounted || !isLanding || draft !== "") return;
+
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const fullText = CHAT_INPUT_PLACEHOLDERS[typewriter.index % CHAT_INPUT_PLACEHOLDERS.length];
+    const typingSpeed = typewriter.isDeleting ? 30 : 60;
+    const delayBetweenWords = 2500;
+
+    if (!typewriter.isDeleting && typewriter.text === fullText) {
+      timer = setTimeout(() => {
+        setTypewriter((prev) => ({ ...prev, isDeleting: true }));
+      }, delayBetweenWords);
+    } else if (typewriter.isDeleting && typewriter.text === "") {
+      timer = setTimeout(() => {
+        setTypewriter((prev) => ({
+          text: "",
+          isDeleting: false,
+          index: (prev.index + 1) % CHAT_INPUT_PLACEHOLDERS.length,
+        }));
+      }, 0);
+    } else {
+      timer = setTimeout(() => {
+        setTypewriter((prev) => {
+          const currentFullText = CHAT_INPUT_PLACEHOLDERS[prev.index % CHAT_INPUT_PLACEHOLDERS.length];
+          const nextText = prev.isDeleting
+            ? currentFullText.substring(0, prev.text.length - 1)
+            : currentFullText.substring(0, prev.text.length + 1);
+          return { ...prev, text: nextText };
+        });
+      }, typingSpeed);
+    }
+
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
+  }, [typewriter, draft, mounted, isLanding]);
+
+  const displayedPlaceholder = listening
+    ? "Escuchando... habla ahora"
+    : draft.length > 0
+      ? ""
+      : mounted && isLanding
+        ? typewriter.text || " "
+        : copy.placeholder;
+
+  // Auto-resize del textarea hasta 256px.
+  const resizeTextarea = useCallback(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, 256)}px`;
+  }, []);
+
+  useEffect(() => {
+    resizeTextarea();
+  }, [draft, resizeTextarea]);
+
+  // Al desmontar: cortar el micrófono y cualquier timer pendiente del menú.
   useEffect(() => {
     return () => {
+      if (menuResetTimer.current) clearTimeout(menuResetTimer.current);
       const recognition = recognitionRef.current;
       if (!recognition) return;
       recognition.onresult = null;
@@ -204,18 +258,20 @@ export function Composer({
     };
   }, []);
 
-  // Popover de herramientas: cierra con click fuera y con Escape.
+  // Popover de adjuntos: cierra con click fuera y con Escape.
   useEffect(() => {
     if (!menuOpen) return;
-    const close = () => {
-      setMenuOpen(false);
-      setMenuView("main");
-    };
     const onPointerDown = (event: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) close();
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setMenuOpen(false);
+        setMenuView("main");
+      }
     };
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") close();
+      if (event.key === "Escape") {
+        setMenuOpen(false);
+        setMenuView("main");
+      }
     };
     document.addEventListener("mousedown", onPointerDown);
     document.addEventListener("keydown", onKeyDown);
@@ -229,15 +285,6 @@ export function Composer({
     event.preventDefault();
     if (!canSend) return;
     onSubmit();
-  }
-
-  function handleModeChange(nextMode: AiReasoningMode) {
-    setMode(nextMode);
-    if (nextMode === "deep" && draft.trim().length > 0) {
-      onDraft(applyReasoningPrefix(draft, "deep"));
-    } else if (nextMode === "portfolio" && draft.trim().length === 0) {
-      onDraft("Analiza mi cartera: concentración, riesgos y balance");
-    }
   }
 
   function toggleWebSearch() {
@@ -262,9 +309,24 @@ export function Composer({
     setMenuOpen(true);
   }
 
-  function uploadPhoto() {
+  function scheduleViewReset() {
+    if (menuResetTimer.current) clearTimeout(menuResetTimer.current);
+    menuResetTimer.current = setTimeout(() => setMenuView("main"), 200);
+  }
+
+  function uploadFile() {
     closeMenu();
-    fileRef.current?.click();
+    onAttach();
+  }
+
+  function pickTool(id: string) {
+    onToggleTool?.(id);
+    setMenuOpen(false);
+    scheduleViewReset();
+  }
+
+  function toggleFavorite(id: string) {
+    setFavorites((prev) => (prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]));
   }
 
   function toggleDictation() {
@@ -275,15 +337,12 @@ export function Composer({
     }
 
     const Recognition = speechRecognitionCtor();
-    if (!Recognition) {
-      setSpeechReady(false);
-      return;
-    }
+    if (!Recognition) return;
 
     try {
       const recognition = new Recognition();
       recognition.lang = "es-CL";
-      recognition.continuous = false;
+      recognition.continuous = true;
       recognition.interimResults = false;
       recognition.onresult = (event) => {
         const last = event.results[event.results.length - 1];
@@ -306,519 +365,583 @@ export function Composer({
     }
   }
 
-  const pendingBlock = pendingImage ? (
-    <div className="mb-2.5 flex items-center gap-2.5 rounded-2xl border border-border/70 bg-white/85 p-2 pr-2.5">
-      {/* La foto es un data URL del usuario: el optimizador de Next no la acepta. */}
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src={pendingImage}
-        alt=""
-        className="size-12 shrink-0 rounded-xl border border-border/60 object-cover"
-      />
-      <p className="min-w-0 flex-1 truncate text-xs font-medium text-fg-body">{copy.photoAlt}</p>
-      <button
-        type="button"
-        onClick={onRemoveImage}
-        className={cn(
-          "inline-flex min-h-9 shrink-0 touch-manipulation items-center gap-1.5 rounded-full border border-border/70 bg-white px-3 text-xs font-medium text-fg-body transition hover:border-border-strong hover:bg-surface-1 hover:text-fg active:scale-[0.98] motion-reduce:transition-none",
-          FOCUS_RING,
-        )}
-      >
-        <IconClose />
-        {copy.removePhoto}
-      </button>
-    </div>
-  ) : null;
-
-  const errorBlock = photoError ? (
-    <p
-      id="ai-composer-error"
-      role="alert"
-      className="mb-2 rounded-xl border border-down/20 bg-down-bg/80 px-3 py-2 text-xs leading-relaxed break-words text-down"
-    >
-      {photoError}
-    </p>
-  ) : null;
-
-  const fileInput = (
-    <input
-      ref={fileRef}
-      type="file"
-      accept="image/jpeg,image/png"
-      capture="environment"
-      className="sr-only"
-      tabIndex={-1}
-      aria-hidden
-      onChange={onFile}
-    />
-  );
-
-  const textarea = (
-    <>
-      <label htmlFor="ai-pregunta" className="sr-only">
-        {copy.placeholder}
-      </label>
-      <textarea
-        id="ai-pregunta"
-        value={draft}
-        rows={1}
-        enterKeyHint="send"
-        autoComplete="off"
-        placeholder={copy.placeholder}
-        disabled={typing}
-        aria-describedby={photoError ? "ai-composer-error ai-composer-note" : "ai-composer-note"}
-        onChange={(event) => onDraft(event.target.value)}
-        onKeyDown={(event) => {
-          if (event.key === "Enter" && !event.shiftKey) {
-            event.preventDefault();
-            if (canSend) onSubmit();
-          }
-        }}
-        className={cn(
-          "min-w-0 flex-1 resize-none border-0 bg-transparent text-fg outline-none placeholder:text-fg-muted focus-visible:ring-0 disabled:opacity-50",
-          dockSlot
-            ? "max-h-11 min-h-11 px-1.5 py-2.5 text-[16px] leading-5"
-            : "block max-h-40 min-h-12 px-1.5 py-2 text-[15.5px] leading-6",
-          !dockSlot && showCount && "pb-6",
-        )}
-      />
-    </>
-  );
-
-  const sendButton = (
-    <button
-      type="submit"
-      disabled={!canSend}
-      aria-label={copy.send}
-      title={copy.send}
-      className={cn(
-        "inline-flex shrink-0 touch-manipulation items-center justify-center rounded-full transition-all duration-150 active:scale-95 motion-reduce:transition-none",
-        dockSlot ? "size-11" : "size-9",
-        canSend
-          ? "cursor-pointer bg-fg text-bg hover:opacity-90"
-          : "cursor-not-allowed bg-surface-2 text-fg-muted",
-        FOCUS_RING,
-      )}
-    >
-      <ArrowUpIcon />
-    </button>
-  );
-
-  const stopButton = showStop ? (
-    <button
-      type="button"
-      onClick={onStop}
-      aria-label="Detener respuesta"
-      title="Detener respuesta"
-      className={cn(
-        "inline-flex shrink-0 touch-manipulation items-center justify-center rounded-lg bg-down text-white transition hover:opacity-90 active:scale-95 motion-reduce:transition-none",
-        dockSlot ? "size-11" : "size-9",
-        FOCUS_RING,
-      )}
-    >
-      <StopIcon />
-    </button>
-  ) : null;
-
-  const attachButton = (
-    <button
-      type="button"
-      onClick={onAttach}
-      disabled={typing}
-      aria-label={copy.attach}
-      title={copy.attach}
-      className={cn(
-        "inline-flex shrink-0 touch-manipulation cursor-pointer items-center justify-center rounded-full text-fg-muted transition hover:bg-surface-1 hover:text-fg active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 motion-reduce:transition-none",
-        dockSlot ? "size-11" : "size-9",
-        FOCUS_RING,
-      )}
-    >
-      <CameraIcon />
-    </button>
-  );
-
-  const webPill = (
-    <button
-      type="button"
-      onClick={toggleWebSearch}
-      aria-pressed={webSearchOn}
-      title="Buscar en la web"
-      className={cn(
-        "inline-flex min-h-8 shrink-0 touch-manipulation items-center gap-1.5 rounded-full border px-2.5 text-[11.5px] font-medium transition active:scale-[0.98] motion-reduce:transition-none",
-        webSearchOn
-          ? "border-fg/20 bg-surface-1 text-fg"
-          : "border-border/70 bg-white text-fg-muted hover:border-border-strong hover:bg-surface-1 hover:text-fg",
-        FOCUS_RING,
-      )}
-    >
-      <IconGlobe className="size-3.5" />
-      <span className="whitespace-nowrap">Buscar en la web</span>
-    </button>
-  );
-
-  const micButton = (
-    <button
-      type="button"
-      onClick={toggleDictation}
-      aria-pressed={listening}
-      aria-label="Dictar pregunta"
-      title={speechReady ? "Dictar pregunta" : "Dictado no disponible"}
-      disabled={!speechReady}
-      className={cn(
-        "inline-flex shrink-0 touch-manipulation items-center justify-center rounded-full transition active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 motion-reduce:transition-none",
-        dockSlot ? "size-11" : "size-8",
-        listening
-          ? "bg-down text-white hover:opacity-90"
-          : "text-fg-muted hover:bg-surface-1 hover:text-fg",
-        FOCUS_RING,
-      )}
-    >
-      {listening ? <LevelBars /> : <MicIcon />}
-    </button>
-  );
-
-  const toolPills =
-    activeTools.length > 0 ? (
-      <div className="mb-1.5 flex flex-wrap items-center gap-1.5">
-        {activeTools.map((id) => {
-          const label = toolLabel(id);
-          return (
-            <span
-              key={id}
-              className="inline-flex items-center gap-1 rounded-full border border-border/70 bg-surface-1 py-1 pr-1 pl-2.5 text-[11.5px] font-medium text-fg-body"
-            >
-              <ToolGlyph id={id} />
-              {label}
-              <button
-                type="button"
-                onClick={() => onToggleTool?.(id)}
-                aria-label={`Quitar ${label}`}
-                title={`Quitar ${label}`}
-                className={cn(
-                  "inline-flex size-5 shrink-0 items-center justify-center rounded-full text-fg-muted transition hover:bg-surface-2 hover:text-fg active:scale-95 motion-reduce:transition-none",
-                  FOCUS_RING,
-                )}
-              >
-                <IconClose className="size-3" />
-              </button>
-            </span>
-          );
-        })}
-      </div>
-    ) : null;
-
-  const codeCard = codePasted ? (
-    <div className="mb-2 overflow-hidden rounded-xl border border-border bg-surface-1/70">
-      <div className="flex items-center justify-between gap-2 border-b border-border/60 px-2.5 py-1.5">
-        <span className="text-[10px] font-semibold tracking-[0.12em] text-fg-muted uppercase">
-          PASTED
-        </span>
-        <button
-          type="button"
-          onClick={() => onDraft("")}
-          aria-label="Quitar código pegado"
-          title="Quitar código pegado"
-          className={cn(
-            "inline-flex size-6 items-center justify-center rounded-full text-fg-muted transition hover:bg-surface-2 hover:text-fg active:scale-95 motion-reduce:transition-none",
-            FOCUS_RING,
-          )}
-        >
-          <IconClose className="size-3.5" />
-        </button>
-      </div>
-      <pre className="max-h-14 overflow-hidden px-2.5 py-1.5 font-mono text-[11px] leading-[1.5] whitespace-pre text-fg-body">
-        {draft.split("\n").slice(0, 3).join("\n")}
-      </pre>
-    </div>
-  ) : null;
-
-  const toolMenu = (
-    <div ref={menuRef} className="relative shrink-0">
-      <button
-        type="button"
-        onClick={toggleMenu}
-        aria-label="Herramientas avanzadas y adjuntos"
-        title="Herramientas avanzadas y adjuntos"
-        aria-haspopup="menu"
-        aria-expanded={menuOpen}
-        className={cn(
-          "inline-flex shrink-0 touch-manipulation items-center justify-center rounded-full transition active:scale-95 motion-reduce:transition-none",
-          dockSlot ? "size-11" : "size-9",
-          menuOpen
-            ? "bg-fg text-bg hover:opacity-90"
-            : "text-fg-muted hover:bg-surface-1 hover:text-fg",
-          FOCUS_RING,
-        )}
-      >
-        <PlusIcon open={menuOpen} />
-      </button>
-
-      {menuOpen ? (
-        <div
-          role="menu"
-          aria-label="Herramientas avanzadas y adjuntos"
-          className="absolute bottom-full left-0 z-50 mb-2 w-64 rounded-2xl border border-border bg-white p-1.5 shadow-[0_18px_40px_-24px_rgba(12,15,20,0.35)]"
-        >
-          {menuView === "main" ? (
-            <>
-              <button
-                type="button"
-                role="menuitem"
-                onClick={uploadPhoto}
-                className={cn(
-                  "flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-[13px] font-medium text-fg-body transition hover:bg-surface-1 hover:text-fg motion-reduce:transition-none",
-                  FOCUS_RING,
-                )}
-              >
-                <span className="inline-flex size-6 shrink-0 items-center justify-center rounded-full bg-surface-2 text-fg-body">
-                  <PaperclipIcon />
-                </span>
-                Subir foto de cartera
-              </button>
-              <button
-                type="button"
-                role="menuitem"
-                onClick={() => setMenuView("charts")}
-                className={cn(
-                  "flex w-full items-center justify-between gap-2 rounded-xl px-2.5 py-2 text-left text-[13px] font-medium text-fg-body transition hover:bg-surface-1 hover:text-fg motion-reduce:transition-none",
-                  FOCUS_RING,
-                )}
-              >
-                <span className="flex items-center gap-2.5">
-                  <span className="inline-flex size-6 shrink-0 items-center justify-center rounded-full bg-surface-2 text-fg-body">
-                    <ChartIcon />
-                  </span>
-                  Gráficos
-                </span>
-                <IconChevron className="size-3.5 -rotate-90 text-fg-muted" />
-              </button>
-              <button
-                type="button"
-                role="menuitem"
-                onClick={() => setMenuView("analysis")}
-                className={cn(
-                  "flex w-full items-center justify-between gap-2 rounded-xl px-2.5 py-2 text-left text-[13px] font-medium text-fg-body transition hover:bg-surface-1 hover:text-fg motion-reduce:transition-none",
-                  FOCUS_RING,
-                )}
-              >
-                <span className="flex items-center gap-2.5">
-                  <span className="inline-flex size-6 shrink-0 items-center justify-center rounded-full bg-surface-2 text-fg-body">
-                    <AnalysisIcon />
-                  </span>
-                  Análisis
-                </span>
-                <IconChevron className="size-3.5 -rotate-90 text-fg-muted" />
-              </button>
-            </>
-          ) : (
-            <>
-              <button
-                type="button"
-                onClick={() => setMenuView("main")}
-                className={cn(
-                  "mb-1 flex w-full items-center gap-1 rounded-xl px-2.5 py-1.5 text-left text-[11px] font-semibold text-fg-muted transition hover:bg-surface-1 hover:text-fg motion-reduce:transition-none",
-                  FOCUS_RING,
-                )}
-              >
-                <IconChevron className="size-3.5 rotate-90" />
-                Volver
-              </button>
-              <p className="px-2.5 pt-0.5 pb-1 text-[10px] font-semibold tracking-[0.12em] text-fg-muted uppercase">
-                {menuView === "charts" ? "Gráficos" : "Análisis"}
-              </p>
-              {(menuView === "charts" ? CHART_TOOLS : ANALYSIS_TOOLS).map((id) => {
-                const label = toolLabel(id);
-                const active = activeTools.includes(id);
-                return (
-                  <button
-                    key={id}
-                    type="button"
-                    role="menuitemcheckbox"
-                    aria-checked={active}
-                    onClick={() => onToggleTool?.(id)}
-                    className={cn(
-                      "flex w-full items-center justify-between gap-2 rounded-xl px-2.5 py-2 text-left text-[13px] transition motion-reduce:transition-none",
-                      active
-                        ? "bg-surface-1 font-medium text-fg"
-                        : "text-fg-body hover:bg-surface-1 hover:text-fg",
-                      FOCUS_RING,
-                    )}
-                  >
-                    <span className="flex items-center gap-2.5">
-                      <span className="inline-flex size-6 shrink-0 items-center justify-center rounded-full bg-surface-2 text-fg-body">
-                        <ToolGlyph id={id} />
-                      </span>
-                      {label}
-                    </span>
-                    {active ? (
-                      <IconCheck className="size-3.5 text-up" />
-                    ) : (
-                      <span className="text-[10px] font-medium tracking-[0.08em] text-fg-muted uppercase">
-                        Añadir
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-            </>
-          )}
-        </div>
-      ) : null}
-    </div>
-  );
-
-  // En escritorio las sugerencias viven bajo el compositor; en móvil, la grilla
-  // del estado vacío ya las ofrece más grande, así que aquí no se repiten.
-  const chips = suggestions ? (
-    <div className="mt-3 hidden min-w-0 flex-wrap items-center justify-center gap-2 lg:flex">
-      {copy.suggestions.map((item) => (
-        <button
-          key={item.id}
-          type="button"
-          disabled={typing}
-          onClick={() => onSuggest(item.id, item.text)}
-          className={cn(
-            "min-h-9 shrink-0 touch-manipulation cursor-pointer rounded-full border border-border/75 bg-white px-3.5 text-[12.5px] font-medium text-fg-body transition hover:border-border-strong hover:bg-surface-1 hover:text-fg active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40 motion-reduce:transition-none",
-            FOCUS_RING,
-          )}
-        >
-          {item.text}
-        </button>
-      ))}
-    </div>
-  ) : null;
-
-  // Aviso permanente y único: se renderiza una sola vez en cada variante
-  // (dock móvil o compositor de escritorio), nunca junto a otro igual.
-  const adviceNotice = (
-    <p
-      id="ai-composer-note"
-      role="note"
-      data-ai-advice-notice
-      className="mx-auto max-w-[46ch] px-1 pt-2.5 text-center text-[11.5px] leading-relaxed text-balance text-fg-muted sm:text-xs"
-    >
-      {copy.adviceNotice}
-    </p>
-  );
-
-  if (dockSlot) {
-    // Móvil: el formulario vive dentro de la barra inferior (dock); foto, error y aviso quedan sobre ella.
-    return (
-      <>
-        <div className="mx-auto w-full max-w-2xl min-w-0 px-4 pt-1.5 pb-1 sm:px-6">
-          {/* Selector de modo también en móvil, encima de la barra del dock. */}
-          <div
-            aria-disabled={typing || undefined}
-            className={cn(
-              "mb-1.5 flex items-center justify-center overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
-              typing && "pointer-events-none opacity-60",
-            )}
-          >
-            <ReasoningModeBar mode={mode} onChange={handleModeChange} />
-          </div>
-          {pendingBlock}
-          {errorBlock}
-          {adviceNotice}
-        </div>
-        {createPortal(
-          <form
-            onSubmit={submit}
-            aria-busy={typing || undefined}
-            className="flex min-h-12 w-full min-w-0 items-center gap-1.5 px-1"
-          >
-            {attachButton}
-            {fileInput}
-            {textarea}
-            {sendButton}
-            {stopButton}
-          </form>,
-          dockSlot,
-        )}
-      </>
-    );
-  }
+  const openUpward = variant === "bottom";
+  const hasAttachments = pendingImage != null || codePasted;
+  const activeViewTools = menuView === "charts" ? CHART_TOOLS : ANALYSIS_TOOLS;
+  const viewIsCharts = menuView === "charts";
 
   return (
     <form
       onSubmit={submit}
       aria-busy={typing || undefined}
-      className="mx-auto w-full max-w-2xl min-w-0 px-4 pt-2 pb-3 sm:px-6 sm:pb-4 lg:px-0 lg:pb-6"
+      className="relative w-full min-w-0 max-w-full px-0 pt-0"
     >
-      {pendingBlock}
-      {errorBlock}
+      {/* Píldoras de herramientas activas, flotando sobre la caja. */}
+      {activeTools.length > 0 ? (
+        <div className="pointer-events-auto absolute bottom-full left-4 mb-2.5 flex flex-wrap gap-2">
+          <AnimatePresence initial={false}>
+            {activeTools.map((toolId) => {
+              const label = TOOL_LABELS[toolId] ?? toolId.replace(/_/g, " ");
+              return (
+                <motion.div
+                  key={toolId}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.9 }}
+                  className="flex items-center gap-2 rounded-full border border-gray-200 bg-white px-3 py-1.5 text-[11px] font-bold text-gray-800 shadow-sm"
+                >
+                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-blue-50">
+                    <ToolGlyph id={toolId} className="h-3 w-3 text-[#1890FF]" />
+                  </span>
+                  {label}
+                  <button
+                    type="button"
+                    onClick={() => onToggleTool?.(toolId)}
+                    aria-label={`Quitar ${label}`}
+                    title={`Quitar ${label}`}
+                    className="ml-1 cursor-pointer rounded-full p-0.5 text-gray-400 transition-colors hover:bg-red-50 hover:text-red-500"
+                  >
+                    <XGlyph className="h-3.5 w-3.5" />
+                  </button>
+                </motion.div>
+              );
+            })}
+          </AnimatePresence>
+        </div>
+      ) : null}
 
+      {photoError ? (
+        <p
+          id="ai-composer-error"
+          role="alert"
+          aria-live="polite"
+          className="mb-2 rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-[11.5px] leading-relaxed break-words text-red-700"
+        >
+          {photoError}
+        </p>
+      ) : null}
+
+      {/* Caja contenedora del input. */}
       <div
         className={cn(
-          "border border-[#DBDBDB] bg-white shadow-[inset_0_0_1px_0_rgba(0,0,0,0.85),0_1px_2px_0_rgba(0,0,0,0.04),0_2px_12px_0_rgba(0,0,0,0.03)] transition-all focus-within:border-fg/25",
-          variant === "landing" ? "rounded-3xl p-3" : "rounded-2xl p-2.5",
+          "relative rounded-xl border border-[#DBDBDB] bg-white p-2.5",
+          "shadow-[inset_0_0_1px_0_rgba(0,0,0,1),0_1px_2px_0_rgba(0,0,0,0.04),0_2px_12px_0_rgba(0,0,0,0.03)] transition-all duration-300 group focus-within:border-zinc-400",
+          "focus-within:shadow-[inset_0_0_1px_0_rgba(0,0,0,1),0_1px_2px_0_rgba(0,0,0,0.04),0_4px_16px_0_rgba(0,0,0,0.06)]",
+          listening && "border-red-500/50 shadow-[0_0_15px_rgba(239,68,68,0.15)]",
         )}
       >
-        {toolPills}
-        {codeCard}
+        {/* Previsualización de la foto pendiente y del código pegado. */}
+        {hasAttachments ? (
+          <div className="mb-2 flex flex-wrap gap-3 border-b border-border/20 p-3">
+            <AnimatePresence initial={false}>
+              {pendingImage ? (
+                <motion.div
+                  key="pending-image"
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.9 }}
+                  className="relative h-22 w-22 overflow-hidden rounded-2xl border border-zinc-200/80 bg-zinc-50/50 p-2 shadow-sm"
+                >
+                  <button
+                    type="button"
+                    onClick={onRemoveImage}
+                    aria-label={copy.removePhoto}
+                    title={copy.removePhoto}
+                    className="absolute top-1.5 right-1.5 z-30 flex h-5 w-5 cursor-pointer items-center justify-center rounded-full border border-white/10 bg-black/75 text-white shadow-md transition-transform hover:bg-black active:scale-90"
+                  >
+                    <XGlyph className="h-2.5 w-2.5" />
+                  </button>
+                  {/* La foto es un data URL del usuario: el optimizador de Next no la acepta. */}
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={pendingImage}
+                    alt={copy.photoAlt}
+                    className="absolute inset-0 z-10 h-full w-full rounded-xl object-cover"
+                  />
+                </motion.div>
+              ) : null}
 
-        <div className="relative flex min-w-0 items-end">
-          {textarea}
-          {showCount ? (
-            <p
-              aria-live="polite"
-              className="pointer-events-none absolute right-1.5 bottom-1 text-[11px] leading-none tabular-nums text-fg-muted"
-            >
-              {draft.length}
-            </p>
-          ) : null}
+              {codePasted ? (
+                <motion.div
+                  key="pasted-code"
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.9 }}
+                  className="relative h-22 w-22 overflow-hidden rounded-2xl border border-zinc-200/80 bg-zinc-50/50 p-2 shadow-sm"
+                >
+                  <button
+                    type="button"
+                    onClick={() => onDraft("")}
+                    aria-label="Quitar código pegado"
+                    title="Quitar código pegado"
+                    className="absolute top-1.5 right-1.5 z-30 flex h-5 w-5 cursor-pointer items-center justify-center rounded-full border border-white/10 bg-black/75 text-white shadow-md transition-transform hover:bg-black active:scale-90"
+                  >
+                    <XGlyph className="h-2.5 w-2.5" />
+                  </button>
+                  <div className="flex h-full w-full flex-col justify-between overflow-hidden p-0.5 font-mono text-[7px] leading-normal text-zinc-500 select-none">
+                    <div className="mb-1 max-w-[80%] truncate border-b border-zinc-200/60 pb-0.5 text-[9px] font-bold text-zinc-900">
+                      codigo.txt
+                    </div>
+                    <div className="mb-1 line-clamp-4 leading-tight break-all opacity-70">{draft}</div>
+                    <div className="self-start rounded-md bg-blue-500/10 px-1.5 py-0.5 text-[7px] font-black tracking-wider text-blue-500 uppercase">
+                      PASTED
+                    </div>
+                  </div>
+                </motion.div>
+              ) : null}
+            </AnimatePresence>
+          </div>
+        ) : null}
+
+        {/* Textarea con auto-resize. */}
+        <label htmlFor="ai-pregunta" className="sr-only">
+          {copy.placeholder}
+        </label>
+        <div className="relative flex items-center bg-transparent">
+          <textarea
+            ref={textareaRef}
+            id="ai-pregunta"
+            name="input"
+            value={draft}
+            rows={1}
+            enterKeyHint="send"
+            autoComplete="off"
+            placeholder={displayedPlaceholder}
+            aria-label={copy.placeholder}
+            aria-describedby={photoError ? "ai-composer-error ai-composer-note" : "ai-composer-note"}
+            onChange={(event) => onDraft(event.target.value)}
+            onInput={resizeTextarea}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" && !event.shiftKey) {
+                event.preventDefault();
+                if (canSend) onSubmit();
+              }
+            }}
+            className="min-h-12 max-h-72 w-full resize-none overflow-y-auto border-0 bg-transparent px-2 py-2 text-[15px] text-zinc-900 outline-none placeholder:text-zinc-400 focus-visible:ring-0"
+          />
         </div>
 
-        <div className="mt-1 flex flex-wrap items-center justify-between gap-1 pt-1">
-          <div className="flex min-w-0 flex-wrap items-center gap-1">
-            {toolMenu}
-            {attachButton}
-            {fileInput}
-            {webPill}
-            <ReasoningModeBar mode={mode} onChange={handleModeChange} />
-            <ModelSelector
-              variant="inline"
-              selectedModel={selectedModel}
-              onSelectModel={onSelectModel}
-            />
+        {/* Fila inferior de controles. */}
+        <div className="mt-1 flex items-center justify-between px-1">
+          <div className="flex items-center gap-2">
+            {/* Menú de adjuntos y herramientas (botón +). */}
+            <div ref={menuRef} className="relative shrink-0">
+              <button
+                type="button"
+                onClick={toggleMenu}
+                aria-label="Opciones de adjuntos"
+                aria-expanded={menuOpen}
+                className={cn(
+                  "flex h-9 w-9 cursor-pointer items-center justify-center rounded-full transition-all duration-300",
+                  menuOpen ? "bg-zinc-900 text-white shadow-md" : "text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900",
+                )}
+              >
+                <PlusGlyph className={cn("h-5 w-5 transition-transform duration-300", menuOpen && "rotate-45")} />
+              </button>
+
+              <AnimatePresence>
+                {menuOpen ? (
+                  <motion.div
+                    initial={{ opacity: 0, y: openUpward ? 10 : -10, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: openUpward ? 10 : -10, scale: 0.95 }}
+                    transition={{ type: "spring", damping: 20, stiffness: 300 }}
+                    className={cn(
+                      "absolute left-0 z-40 flex max-h-[350px] w-64 flex-col overflow-hidden rounded-2xl border border-gray-200/60 bg-white/95 p-2.5 shadow-2xl backdrop-blur-xl",
+                      openUpward ? "bottom-12" : "top-12",
+                    )}
+                  >
+                    <div className="flex-1 overflow-y-auto">
+                      {menuView === "main" ? (
+                        <motion.div
+                          key="main"
+                          initial={{ opacity: 0, x: -10 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          exit={{ opacity: 0, x: -10 }}
+                        >
+                          <div className="pt-1">
+                            <button
+                              type="button"
+                              onClick={uploadFile}
+                              className="group/btn flex w-full cursor-pointer items-center gap-3 rounded-xl px-2.5 py-2.5 text-left text-sm font-semibold text-gray-700 transition-all duration-200 hover:bg-gray-50 hover:text-zinc-900 active:scale-[0.98]"
+                            >
+                              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gray-100 text-zinc-900 transition-colors duration-200 group-hover/btn:bg-zinc-900 group-hover/btn:text-white">
+                                <PaperclipGlyph className="h-4 w-4" />
+                              </span>
+                              Subir archivo
+                            </button>
+                          </div>
+
+                          <div className="mt-1">
+                            <button
+                              type="button"
+                              onClick={() => setMenuView("charts")}
+                              className="group/btn flex w-full cursor-pointer items-center justify-between rounded-xl px-2.5 py-2.5 text-sm font-semibold text-gray-700 transition-all duration-200 hover:bg-gray-50 hover:text-zinc-900 active:scale-[0.98]"
+                            >
+                              <span className="flex items-center gap-3">
+                                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gray-100 text-zinc-900 transition-colors duration-200 group-hover/btn:bg-zinc-900 group-hover/btn:text-white">
+                                  <PieChartGlyph className="h-4 w-4" />
+                                </span>
+                                Gráficos
+                              </span>
+                              <ChevronRightGlyph className="h-4 w-4 text-gray-400 transition-transform group-hover/btn:translate-x-0.5" />
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => setMenuView("analysis")}
+                              className="group/btn mt-1 flex w-full cursor-pointer items-center justify-between rounded-xl px-2.5 py-2.5 text-sm font-semibold text-gray-700 transition-all duration-200 hover:bg-gray-50 hover:text-zinc-900 active:scale-[0.98]"
+                            >
+                              <span className="flex items-center gap-3">
+                                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gray-100 text-zinc-900 transition-colors duration-200 group-hover/btn:bg-zinc-900 group-hover/btn:text-white">
+                                  <TrendingUpGlyph className="h-4 w-4" />
+                                </span>
+                                Análisis
+                              </span>
+                              <ChevronRightGlyph className="h-4 w-4 text-gray-400 transition-transform group-hover/btn:translate-x-0.5" />
+                            </button>
+                          </div>
+                        </motion.div>
+                      ) : (
+                        <motion.div
+                          key={menuView}
+                          initial={{ opacity: 0, x: 10 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          exit={{ opacity: 0, x: 10 }}
+                        >
+                          <button
+                            type="button"
+                            onClick={() => setMenuView("main")}
+                            className="mb-2 flex cursor-pointer items-center gap-1.5 px-2.5 py-1 text-[10px] font-black text-gray-500 transition-colors hover:text-gray-900"
+                          >
+                            <ChevronRightGlyph className="h-3.5 w-3.5 rotate-180" /> Volver
+                          </button>
+                          <div
+                            className={cn(
+                              "mb-1 px-2.5 py-1 text-[9px] font-black tracking-widest uppercase opacity-80",
+                              viewIsCharts ? "text-[#1890FF]" : "text-purple-500",
+                            )}
+                          >
+                            {viewIsCharts ? "Gráficos" : "Análisis"}
+                          </div>
+                          <div className="space-y-1">
+                            {activeViewTools.map((tool) => {
+                              const isActive = activeTools.includes(tool.id);
+                              const isFavorite = favorites.includes(tool.id);
+                              return (
+                                <div
+                                  key={tool.id}
+                                  className={cn(
+                                    "group flex w-full items-center justify-between rounded-xl border border-transparent px-2 py-1.5 transition-all duration-200",
+                                    isActive &&
+                                      (viewIsCharts
+                                        ? "border-blue-100/50 bg-blue-50/50"
+                                        : "border-purple-100/50 bg-purple-50/50"),
+                                  )}
+                                >
+                                  <button
+                                    type="button"
+                                    onClick={() => pickTool(tool.id)}
+                                    className={cn(
+                                      "flex flex-1 cursor-pointer items-center gap-3 text-left text-sm font-semibold transition-colors",
+                                      isActive
+                                        ? viewIsCharts
+                                          ? "text-[#1890FF]"
+                                          : "text-purple-600"
+                                        : cn(
+                                            "text-gray-700",
+                                            viewIsCharts ? "hover:text-[#1890FF]" : "hover:text-purple-600",
+                                          ),
+                                    )}
+                                  >
+                                    <span
+                                      className={cn(
+                                        "flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-colors",
+                                        isActive
+                                          ? viewIsCharts
+                                            ? "bg-[#1890FF] text-white"
+                                            : "bg-purple-500 text-white"
+                                          : viewIsCharts
+                                            ? "bg-blue-50 text-blue-600"
+                                            : "bg-purple-50 text-purple-600",
+                                      )}
+                                    >
+                                      <ToolGlyph id={tool.id} className="h-4 w-4" />
+                                    </span>
+                                    {tool.label}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => toggleFavorite(tool.id)}
+                                    aria-label={
+                                      isFavorite
+                                        ? `Quitar ${tool.label} de favoritos`
+                                        : `Añadir ${tool.label} a favoritos`
+                                    }
+                                    aria-pressed={isFavorite}
+                                    className={cn(
+                                      "cursor-pointer p-1.5 transition-all",
+                                      isFavorite
+                                        ? "text-amber-500"
+                                        : "text-gray-300 opacity-0 group-hover:opacity-100 hover:text-amber-500 focus-visible:opacity-100",
+                                    )}
+                                  >
+                                    <StarGlyph
+                                      className={cn("h-4 w-4", isFavorite && "fill-amber-500 text-amber-500")}
+                                    />
+                                  </button>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </motion.div>
+                      )}
+                    </div>
+                  </motion.div>
+                ) : null}
+              </AnimatePresence>
+            </div>
+
+            {/* Píldoras sólo-icono: búsqueda web y razonamiento profundo. */}
+            <div className="flex items-center gap-1.5 select-none">
+              <button
+                type="button"
+                onClick={toggleWebSearch}
+                aria-pressed={webSearchOn}
+                aria-label="Buscar en la web"
+                title="Buscar en la web"
+                className={cn(
+                  "inline-flex h-7 cursor-pointer items-center justify-center rounded-full border px-3 transition-colors",
+                  webSearchOn
+                    ? "border-zinc-900 bg-zinc-900 text-white !bg-zinc-900 !text-white !border-zinc-900"
+                    : "border-zinc-200 bg-zinc-50/50 text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900",
+                )}
+              >
+                <GlobeGlyph className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setDeepReasoning((prev) => !prev)}
+                aria-pressed={deepReasoning}
+                aria-label="Razonamiento profundo"
+                title="Razonamiento profundo"
+                className={cn(
+                  "inline-flex h-7 cursor-pointer items-center justify-center rounded-full border px-3 transition-colors",
+                  deepReasoning
+                    ? "border-zinc-900 bg-zinc-900 text-white !bg-zinc-900 !text-white !border-zinc-900"
+                    : "border-zinc-200 bg-zinc-50/50 text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900",
+                )}
+              >
+                <SparklesGlyph className="h-4 w-4" />
+              </button>
+            </div>
           </div>
-          <div className="flex shrink-0 items-center gap-1">
-            {micButton}
-            {showStop ? stopButton : sendButton}
+
+          <div className="flex items-center gap-2">
+            <ModelSelector variant="inline" selectedModel={selectedModel} onSelectModel={onSelectModel} />
+
+            {showStop ? (
+              <button
+                type="button"
+                onClick={() => onStop?.()}
+                aria-label="Detener generación"
+                title="Detener generación"
+                className="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-full bg-red-500 text-white shadow-[0_0_12px_rgba(239,68,68,0.35)] transition-all hover:bg-red-600 active:scale-95"
+              >
+                <span className="h-2.5 w-2.5 rounded-[2px] bg-current" />
+              </button>
+            ) : listening || !canSend ? (
+              <>
+                <button
+                  type="button"
+                  onClick={toggleDictation}
+                  aria-pressed={listening}
+                  aria-label={listening ? "Detener grabación" : "Dictar pregunta"}
+                  title="Dictar pregunta"
+                  className={cn(
+                    "flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-full transition-all",
+                    listening
+                      ? "animate-pulse bg-red-500 text-white shadow-[0_0_12px_rgba(239,68,68,0.3)] hover:bg-red-600"
+                      : "bg-zinc-900 text-white hover:opacity-90",
+                  )}
+                >
+                  {listening ? (
+                    <span className="pointer-events-none flex h-3.5 w-5 items-center justify-center gap-[2px] select-none">
+                      {[1, 2, 3, 4, 5].map((bar) => (
+                        <motion.span
+                          key={bar}
+                          className="w-[2px] shrink-0 rounded-full bg-white"
+                          animate={{
+                            height:
+                              bar === 1 || bar === 5
+                                ? ["4px", "8px", "4px"]
+                                : bar === 2 || bar === 4
+                                  ? ["6px", "12px", "6px"]
+                                  : ["6px", "15px", "6px"],
+                          }}
+                          transition={{
+                            duration: 0.6,
+                            repeat: Infinity,
+                            repeatType: "reverse",
+                            delay: bar * 0.08,
+                            ease: "easeInOut",
+                          }}
+                        />
+                      ))}
+                    </span>
+                  ) : (
+                    <MicGlyph className="h-4.5 w-4.5" />
+                  )}
+                </button>
+                <button type="submit" aria-label={copy.send} disabled={!canSend} className="sr-only">
+                  {copy.send}
+                </button>
+              </>
+            ) : (
+              <button
+                type="submit"
+                aria-label={copy.send}
+                className="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-full bg-zinc-900 text-white transition-opacity hover:opacity-90"
+              >
+                <ArrowUpGlyph className="h-4.5 w-4.5" />
+              </button>
+            )}
           </div>
         </div>
       </div>
 
-      {chips}
-      {adviceNotice}
+      <p id="ai-composer-note" role="note" data-ai-advice-notice className="sr-only">
+        {copy.adviceNotice}
+      </p>
+
+      {/* Entradas ocultas y accesibilidad SSR. */}
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/jpeg,image/png"
+        capture="environment"
+        className="sr-only"
+        onChange={onFile}
+      />
+      <button type="button" onClick={onAttach} aria-label={copy.attach} className="sr-only" />
+      {suggestions ? (
+        <div className="sr-only" aria-hidden="true">
+          {copy.suggestions.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              tabIndex={-1}
+              disabled={typing}
+              onClick={() => onSuggest(item.id, item.text)}
+            >
+              {item.text}
+            </button>
+          ))}
+        </div>
+      ) : null}
     </form>
   );
 }
 
-function PlusIcon({ open }: { open: boolean }) {
+/* Glifos locales (sin lucide-react). */
+
+type GlyphProps = { className?: string };
+
+function PlusGlyph({ className }: GlyphProps) {
   return (
     <svg
-      viewBox="0 0 16 16"
-      className={cn(
-        "size-4 transition-transform duration-200 motion-reduce:transition-none",
-        open && "rotate-45",
-      )}
+      viewBox="0 0 24 24"
+      className={cn("h-5 w-5", className)}
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.6"
+      strokeWidth="2"
       strokeLinecap="round"
       aria-hidden="true"
       focusable="false"
     >
-      <path d="M8 3.5v9M3.5 8h9" />
+      <path d="M12 5v14M5 12h14" />
     </svg>
   );
 }
 
-function ArrowUpIcon() {
+function XGlyph({ className }: GlyphProps) {
   return (
     <svg
-      viewBox="0 0 16 16"
-      className="size-4"
+      viewBox="0 0 24 24"
+      className={cn("h-4 w-4", className)}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <path d="M6 6l12 12M18 6 6 18" />
+    </svg>
+  );
+}
+
+function ArrowUpGlyph({ className }: GlyphProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className={cn("h-4 w-4", className)}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <path d="M12 19V5M5 12l7-7 7 7" />
+    </svg>
+  );
+}
+
+function MicGlyph({ className }: GlyphProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className={cn("h-4 w-4", className)}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.9"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <rect x="9" y="2.5" width="6" height="11" rx="3" />
+      <path d="M5.5 11v.6a6.5 6.5 0 0 0 13 0V11M12 18.2v3M9 21.2h6" />
+    </svg>
+  );
+}
+
+function GlobeGlyph({ className }: GlyphProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className={cn("h-4 w-4", className)}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <circle cx="12" cy="12" r="9" />
+      <path d="M3 12h18M12 3c2.4 2.5 3.6 5.6 3.6 9s-1.2 6.5-3.6 9c-2.4-2.5-3.6-5.6-3.6-9S9.6 5.5 12 3Z" />
+    </svg>
+  );
+}
+
+function SparklesGlyph({ className }: GlyphProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className={cn("h-4 w-4", className)}
       fill="none"
       stroke="currentColor"
       strokeWidth="1.7"
@@ -827,131 +950,238 @@ function ArrowUpIcon() {
       aria-hidden="true"
       focusable="false"
     >
-      <path d="M8 12.5V3.5M4.5 6.6 8 3.2l3.5 3.4" />
+      <path d="M11 3l1.9 4.9L17.8 9.8l-4.9 1.9L11 16.6l-1.9-4.9L4.2 9.8l4.9-1.9L11 3Z" />
+      <path d="M18.5 14.5l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8.8-2.2Z" />
     </svg>
   );
 }
 
-function StopIcon() {
+function PaperclipGlyph({ className }: GlyphProps) {
   return (
     <svg
-      viewBox="0 0 16 16"
-      className="size-4"
+      viewBox="0 0 24 24"
+      className={cn("h-4 w-4", className)}
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.2"
-      aria-hidden="true"
-      focusable="false"
-    >
-      <rect x="5.25" y="5.25" width="5.5" height="5.5" rx="1.3" fill="currentColor" />
-    </svg>
-  );
-}
-
-function MicIcon() {
-  return (
-    <svg
-      viewBox="0 0 16 16"
-      className="size-4"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.5"
+      strokeWidth="1.8"
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden="true"
       focusable="false"
     >
-      <rect x="6" y="2.5" width="4" height="7" rx="2" />
-      <path d="M4 7.5v.4a4 4 0 0 0 8 0v-.4M8 11.9v1.4M6.2 13.3h3.6" />
+      <path d="M20.5 11.5 12 20a5 5 0 0 1-7.1-7.1l8.5-8.5a3.3 3.3 0 0 1 4.7 4.7l-8.5 8.5a1.7 1.7 0 0 1-2.4-2.4l7.8-7.8" />
     </svg>
   );
 }
 
-function LevelBars() {
-  return (
-    <span aria-hidden="true" className="flex items-center gap-[2px]">
-      {[0, 1, 2, 3, 4].map((bar) => (
-        <span
-          key={bar}
-          className={cn(
-            "w-[2px] rounded-full bg-current motion-safe:animate-pulse motion-reduce:animate-none",
-            bar === 0 || bar === 4 ? "h-2" : bar === 1 || bar === 3 ? "h-3" : "h-3.5",
-          )}
-          style={{ animationDelay: `${bar * 90}ms` }}
-        />
-      ))}
-    </span>
-  );
-}
-
-function CameraIcon() {
-  return (
-    <svg viewBox="0 0 16 16" className="size-4.5" fill="none" aria-hidden="true" focusable="false">
-      <path
-        d="M6 3.5h4l.8 1.3H13a1.2 1.2 0 0 1 1.2 1.2v6.3A1.2 1.2 0 0 1 13 13.5H3A1.2 1.2 0 0 1 1.8 12.3V6A1.2 1.2 0 0 1 3 4.8h2.2L6 3.5Z"
-        stroke="currentColor"
-        strokeWidth="1.4"
-        strokeLinejoin="round"
-      />
-      <circle cx="8" cy="8.6" r="2.1" stroke="currentColor" strokeWidth="1.4" />
-    </svg>
-  );
-}
-
-function PaperclipIcon() {
+function ChevronRightGlyph({ className }: GlyphProps) {
   return (
     <svg
-      viewBox="0 0 16 16"
-      className="size-3.5"
+      viewBox="0 0 24 24"
+      className={cn("h-4 w-4", className)}
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.4"
+      strokeWidth="2"
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden="true"
       focusable="false"
     >
-      <path d="M10.8 5.2 5.6 10.4a1.7 1.7 0 0 0 2.4 2.4l5.4-5.4a3 3 0 0 0-4.3-4.3L3.7 8.5a4.3 4.3 0 0 0 6.1 6.1" />
+      <path d="M9 5.5 15.5 12 9 18.5" />
     </svg>
   );
 }
 
-function ChartIcon() {
+function StarGlyph({ className }: GlyphProps) {
   return (
     <svg
-      viewBox="0 0 16 16"
-      className="size-3.5"
+      viewBox="0 0 24 24"
+      className={cn("h-4 w-4", className)}
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.5"
-      strokeLinecap="round"
+      strokeWidth="1.7"
+      strokeLinejoin="round"
       aria-hidden="true"
       focusable="false"
     >
-      <path d="M2.5 13.5h11M5 13.5v-4M8 13.5V5M11 13.5V7.5" />
+      <path d="M12 3.4l2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8L3.5 9.6l5.9-.9L12 3.4Z" />
     </svg>
   );
 }
 
-function AnalysisIcon() {
+function BarChartGlyph({ className }: GlyphProps) {
   return (
     <svg
-      viewBox="0 0 16 16"
-      className="size-3.5"
+      viewBox="0 0 24 24"
+      className={cn("h-4 w-4", className)}
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.5"
+      strokeWidth="1.9"
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden="true"
       focusable="false"
     >
-      <path d="M2.5 11.5 6 8l2.5 2.5L13.5 4.5" />
-      <path d="M10.5 4.5h3v3" />
+      <path d="M3 20.5h18M6.5 20.5V11M12 20.5V4.5M17.5 20.5v-6" />
     </svg>
   );
 }
 
-function ToolGlyph({ id }: { id: string }) {
-  return id.startsWith("chart_") ? <ChartIcon /> : <AnalysisIcon />;
+function LineChartGlyph({ className }: GlyphProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className={cn("h-4 w-4", className)}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.9"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <path d="M3 3v18h18" />
+      <path d="M6.5 15.5 11 11l3.5 3.5L20 8" />
+      <path d="M15.5 8H20v4.5" />
+    </svg>
+  );
+}
+
+function PieChartGlyph({ className }: GlyphProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className={cn("h-4 w-4", className)}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.9"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <path d="M21.2 15.9A10 10 0 1 1 8.1 2.8" />
+      <path d="M22 12A10 10 0 0 0 12 2v10h10Z" />
+    </svg>
+  );
+}
+
+function AreaChartGlyph({ className }: GlyphProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className={cn("h-4 w-4", className)}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.9"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <path d="M3 3v18h18" />
+      <path d="M6.5 15.5 11 10l3.5 3.5L20 7" />
+      <path d="M6.5 15.5V19h13.5v-8.5L20 7 14.5 13.5 11 10 6.5 15.5Z" opacity="0.25" fill="currentColor" />
+    </svg>
+  );
+}
+
+function TargetGlyph({ className }: GlyphProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className={cn("h-4 w-4", className)}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <circle cx="12" cy="12" r="9" />
+      <circle cx="12" cy="12" r="5" />
+      <circle cx="12" cy="12" r="1.2" fill="currentColor" />
+    </svg>
+  );
+}
+
+function TrendingUpGlyph({ className }: GlyphProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className={cn("h-4 w-4", className)}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.9"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <path d="M3 17l6-6 4 4 8-8" />
+      <path d="M15 7h6v6" />
+    </svg>
+  );
+}
+
+function ScaleGlyph({ className }: GlyphProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className={cn("h-4 w-4", className)}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <path d="M12 3v18M7 21h10M4 7h16" />
+      <path d="M7 7l-3 6a3 3 0 0 0 6 0L7 7ZM17 7l-3 6a3 3 0 0 0 6 0l-3-6Z" />
+    </svg>
+  );
+}
+
+function LayersGlyph({ className }: GlyphProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className={cn("h-4 w-4", className)}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <path d="M12 3 3 8l9 5 9-5-9-5Z" />
+      <path d="m3 12.5 9 5 9-5M3 17l9 5 9-5" />
+    </svg>
+  );
+}
+
+function ToolGlyph({ id, className }: { id: string; className?: string }) {
+  switch (id) {
+    case "chart_bar":
+      return <BarChartGlyph className={className} />;
+    case "chart_line":
+      return <LineChartGlyph className={className} />;
+    case "chart_pie":
+      return <PieChartGlyph className={className} />;
+    case "chart_area":
+      return <AreaChartGlyph className={className} />;
+    case "chart_radar":
+      return <TargetGlyph className={className} />;
+    case "fin_metrics":
+      return <TrendingUpGlyph className={className} />;
+    case "stock_compare":
+      return <ScaleGlyph className={className} />;
+    case "sector_perf":
+      return <LayersGlyph className={className} />;
+    default:
+      return <BarChartGlyph className={className} />;
+  }
 }

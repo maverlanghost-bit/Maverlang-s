@@ -11,7 +11,7 @@ import { cn } from "@/lib/cn";
 export function formatCitationSource(rawSource: string): {
   displayTitle: string;
   subtitle: string;
-  badge: string;
+  badge: "Web" | "Doc";
   isWeb: boolean;
   url: string | null;
 } {
@@ -119,7 +119,7 @@ function WrenchIcon({ className }: { className?: string }) {
   );
 }
 
-function ChevronDownIcon({ open }: { open: boolean }) {
+function ChevronDownIcon({ open, className }: { open: boolean; className?: string }) {
   return (
     <svg
       viewBox="0 0 24 24"
@@ -131,91 +131,227 @@ function ChevronDownIcon({ open }: { open: boolean }) {
       aria-hidden="true"
       focusable="false"
       className={cn(
-        "size-4 shrink-0 text-fg-muted transition-transform duration-200 motion-reduce:transition-none",
+        "shrink-0 text-zinc-400 transition-transform duration-200",
         open ? "rotate-180" : "rotate-0",
+        className,
       )}
-    />
+    >
+      <path d="m6 9 6 6 6-6" />
+    </svg>
+  );
+}
+
+function PlusIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      focusable="false"
+      className={className}
+    >
+      <path d="M5 12h14" />
+      <path d="M12 5v14" />
+    </svg>
+  );
+}
+
+function ExternalLinkIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      focusable="false"
+      className={className}
+    >
+      <path d="M15 3h6v6" />
+      <path d="M10 14 21 3" />
+      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+    </svg>
+  );
+}
+
+function SpinnerIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      aria-hidden="true"
+      focusable="false"
+      className={className}
+    >
+      <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+    </svg>
+  );
+}
+
+function CheckCircleIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      focusable="false"
+      className={className}
+    >
+      <circle cx="12" cy="12" r="10" />
+      <path d="m9 12 2 2 4-4" />
+    </svg>
+  );
+}
+
+function XCircleIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      focusable="false"
+      className={className}
+    >
+      <circle cx="12" cy="12" r="10" />
+      <path d="m15 9-6 6" />
+      <path d="m9 9 6 6" />
+    </svg>
+  );
+}
+
+function SourceCard({
+  source,
+  index,
+}: {
+  source: ReturnType<typeof formatCitationSource>;
+  index: number;
+}) {
+  const hostname = source.url === null ? null : hostnameOf(source.url);
+  const favicon =
+    hostname === null
+      ? null
+      : `https://www.google.com/s2/favicons?domain=${encodeURIComponent(
+          hostname.replace(/^www\./, ""),
+        )}&sz=32`;
+
+  const body = (
+    <>
+      <span className="w-[18px] h-[18px] rounded-full bg-white text-[9px] font-bold border border-zinc-200 text-zinc-500 flex shrink-0 items-center justify-center">
+        {index + 1}
+      </span>
+      <span className="w-4 h-4 rounded-md bg-white border border-zinc-200/70 flex shrink-0 items-center justify-center overflow-hidden">
+        {favicon === null ? (
+          <FileTextIcon className="h-3 w-3 text-zinc-400" />
+        ) : (
+          // Favicon remoto: `next/image` no aporta aquí y el spec pide <img>.
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={favicon}
+            alt=""
+            width={16}
+            height={16}
+            className="h-3 w-3 object-cover"
+            onError={(event) => {
+              event.currentTarget.style.display = "none";
+            }}
+          />
+        )}
+      </span>
+      <span className="flex min-w-0 flex-1 flex-col text-left">
+        <span className="truncate text-[11px] font-semibold leading-tight text-zinc-800 transition-colors group-hover:text-[#1890FF]">
+          {source.displayTitle}
+        </span>
+        <span className="mt-0.5 truncate text-[9px] text-zinc-400">{source.subtitle}</span>
+      </span>
+      <span className="shrink-0 rounded-full border border-zinc-200 bg-zinc-50 px-1.5 py-px text-[9px] font-semibold text-zinc-500">
+        {source.badge}
+      </span>
+      <ExternalLinkIcon className="h-3 w-3 shrink-0 text-zinc-300 opacity-0 transition-opacity group-hover:opacity-100" />
+    </>
+  );
+
+  const cardClass =
+    "group flex min-w-0 items-center gap-2 rounded-xl border border-zinc-200/70 bg-white p-2 shadow-2xs transition-all duration-200";
+
+  return source.url === null ? (
+    <div className={cn(cardClass, "cursor-default")} title={source.subtitle}>
+      {body}
+    </div>
+  ) : (
+    <a
+      href={source.url}
+      target="_blank"
+      rel="noreferrer noopener"
+      title={source.subtitle}
+      className={cn(cardClass, "cursor-pointer hover:border-zinc-300 hover:bg-zinc-50/80")}
+    >
+      {body}
+    </a>
   );
 }
 
 /**
- * Lista de fuentes citadas por una respuesta. Devuelve `null` sin fuentes y en
- * SSR renderiza todo el contenido (sin estado ni efectos de montaje).
+ * Lista de fuentes citadas por una respuesta. Muestra las tres primeras en
+ * grilla y permite desplegar el resto. Devuelve `null` sin fuentes.
  */
 export function SourcesList({
   sources,
 }: {
   sources: readonly string[];
 }): ReactElement | null {
+  const [showAll, setShowAll] = useState(false);
+
   if (sources.length === 0) return null;
 
+  const maxInitial = 3;
+  const visible = showAll ? sources : sources.slice(0, maxInitial);
+  const remaining = sources.length - maxInitial;
+
   return (
-    <section aria-label="Fuentes consultadas" className="not-prose my-3 min-w-0">
-      <div className="flex items-center gap-1.5 text-[11px] font-semibold tracking-[0.14em] text-fg-muted uppercase">
-        <GlobeIcon className="size-3.5 shrink-0" />
-        <h3>Fuentes</h3>
+    <section aria-label="Fuentes consultadas" className="not-prose mb-3 min-w-0 space-y-2">
+      <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-zinc-500">
+        <GlobeIcon className="w-3.5 h-3.5 shrink-0 text-[#1890FF]" />
+        <h3>Fuentes consultadas ({sources.length})</h3>
       </div>
 
-      <ul className="mt-1.5 grid gap-1.5 sm:grid-cols-2">
-        {sources.map((raw, index) => {
-          const source = formatCitationSource(raw);
-          const hostname = source.url === null ? null : hostnameOf(source.url);
-          const favicon =
-            hostname === null
-              ? null
-              : `https://www.google.com/s2/favicons?domain=${encodeURIComponent(hostname)}&sz=32`;
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+        {visible.map((raw, index) => (
+          <SourceCard key={`${raw}-${index}`} source={formatCitationSource(raw)} index={index} />
+        ))}
 
-          const body = (
-            <>
-              {favicon === null ? (
-                <FileTextIcon className="size-4 shrink-0 text-fg-muted" />
-              ) : (
-                // Favicon remoto: `next/image` no aporta aquí y el spec pide <img>.
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={favicon}
-                  alt=""
-                  width={16}
-                  height={16}
-                  className="size-4 rounded-sm"
-                />
+        {remaining > 0 ? (
+          <button
+            type="button"
+            onClick={() => setShowAll((previous) => !previous)}
+            className="flex h-9 cursor-pointer items-center justify-center gap-1.5 rounded-xl border border-dashed border-zinc-300 bg-zinc-50/50 p-2 text-[11px] font-medium text-zinc-500 transition-all hover:border-[#1890FF]/40 hover:bg-zinc-50 hover:text-zinc-800"
+          >
+            <PlusIcon
+              className={cn(
+                "h-3.5 w-3.5 shrink-0 transition-transform duration-200",
+                showAll && "rotate-45",
               )}
-              <span className="min-w-0 flex-1 truncate text-[12px] font-medium text-fg-body">
-                {source.displayTitle}
-              </span>
-              <span className="shrink-0 rounded-full border border-border px-1.5 text-[10px] font-medium text-fg-muted">
-                {source.badge}
-              </span>
-            </>
-          );
-
-          const itemClass =
-            "flex min-w-0 items-center gap-2 rounded-xl border border-border/60 bg-white px-2.5 py-2 transition-colors outline-none motion-reduce:transition-none";
-
-          return (
-            <li key={`${source.url ?? source.displayTitle}-${index}`} className="min-w-0">
-              {source.url === null ? (
-                <div className={cn(itemClass, "text-fg-body")} title={source.subtitle}>
-                  {body}
-                </div>
-              ) : (
-                <a
-                  href={source.url}
-                  target="_blank"
-                  rel="noreferrer noopener"
-                  title={source.subtitle}
-                  className={cn(
-                    itemClass,
-                    "hover:border-border-strong hover:bg-surface-1 focus-visible:ring-4 focus-visible:ring-fg/20",
-                  )}
-                >
-                  {body}
-                </a>
-              )}
-            </li>
-          );
-        })}
-      </ul>
+            />
+            <span>{showAll ? "Mostrar menos" : `+${remaining} más`}</span>
+          </button>
+        ) : null}
+      </div>
     </section>
   );
 }
@@ -229,11 +365,32 @@ const TOOL_LABELS: Record<string, string> = {
   chart: "Gráfico",
 };
 
-const STATE_BADGE: Record<ToolState, { label: string; className: string }> = {
-  running: { label: "En progreso", className: "bg-info-bg text-info" },
-  completed: { label: "Completado", className: "bg-up-bg text-up" },
-  error: { label: "Error", className: "bg-down-bg text-down" },
-};
+function StatusBadge({ state }: { state: ToolState }): ReactElement {
+  if (state === "running") {
+    return (
+      <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-blue-500/20 bg-blue-500/10 px-2 py-0.5 text-[10px] font-medium text-blue-600">
+        <SpinnerIcon className="size-3 animate-spin" />
+        <span>En progreso</span>
+      </span>
+    );
+  }
+
+  if (state === "error") {
+    return (
+      <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-red-500/20 bg-red-500/10 px-2 py-0.5 text-[10px] font-medium text-red-600">
+        <XCircleIcon className="size-3" />
+        <span>Error</span>
+      </span>
+    );
+  }
+
+  return (
+    <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-600">
+      <CheckCircleIcon className="size-3" />
+      <span>Completado</span>
+    </span>
+  );
+}
 
 function friendlyToolName(name: string): string {
   const trimmed = name.trim();
@@ -278,7 +435,6 @@ export function ToolAccordion({
   const panelId = useId().replace(/:/g, "");
   const expanded = openOverride ?? (defaultOpen || state === "error");
 
-  const badge = STATE_BADGE[state];
   const inputJson = stringifyInput(input);
   const outputText = typeof output === "string" ? output : "";
   const hasOutput = outputText.trim().length > 0;
@@ -287,52 +443,34 @@ export function ToolAccordion({
     <div
       data-ai-tool={name}
       data-ai-tool-state={state}
-      className="not-prose my-3 w-full overflow-hidden rounded-xl border border-border/60 bg-white"
+      className="not-prose my-3 w-full overflow-hidden rounded-xl border border-zinc-200/80 bg-white shadow-2xs"
     >
       <button
         type="button"
         aria-expanded={expanded}
         aria-controls={panelId}
         onClick={() => setOpenOverride(!expanded)}
-        className={cn(
-          "flex w-full items-center justify-between gap-3 px-3.5 py-2.5 text-left select-none",
-          "transition-colors outline-none motion-reduce:transition-none",
-          "hover:bg-surface-1 focus-visible:ring-4 focus-visible:ring-fg/20",
-        )}
+        className="flex w-full cursor-pointer items-center justify-between gap-3 px-3.5 py-2.5 text-left select-none transition-colors hover:bg-zinc-50"
       >
         <span className="flex min-w-0 items-center gap-2">
-          <span className="flex size-6 shrink-0 items-center justify-center rounded-md border border-border/60 bg-surface-1 text-fg-muted">
-            <WrenchIcon className="size-3.5" />
+          <span className="flex w-6 h-6 shrink-0 items-center justify-center rounded-md border border-zinc-200/70 bg-zinc-100">
+            <WrenchIcon className="size-3.5 text-zinc-500" />
           </span>
-          <span className="truncate text-xs font-semibold text-fg">
+          <span className="truncate text-xs font-semibold text-zinc-800">
             {friendlyToolName(name)}
           </span>
-          <span
-            className={cn(
-              "inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium",
-              badge.className,
-            )}
-          >
-            <span
-              aria-hidden="true"
-              className={cn(
-                "size-1.5 rounded-full bg-current",
-                state === "running" && "motion-safe:animate-pulse motion-reduce:animate-none",
-              )}
-            />
-            {badge.label}
-          </span>
+          <StatusBadge state={state} />
         </span>
-        <ChevronDownIcon open={expanded} />
+        <ChevronDownIcon open={expanded} className="size-4" />
       </button>
 
-      <div id={panelId} hidden={!expanded} className="border-t border-border/60 text-xs">
+      <div id={panelId} hidden={!expanded} className="border-t border-zinc-200/70 text-xs">
         {inputJson !== null ? (
-          <div className={cn("space-y-1.5 p-3", hasOutput && "border-b border-border/40")}>
-            <h4 className="text-[10px] font-semibold tracking-[0.12em] text-fg-muted uppercase">
+          <div className={cn("space-y-1.5 p-3", hasOutput && "border-b border-zinc-200/60")}>
+            <h4 className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">
               Parámetros
             </h4>
-            <pre className="overflow-x-auto rounded-lg border border-border/60 bg-surface-1 p-2.5 font-mono text-[11.5px] leading-relaxed text-fg-body">
+            <pre className="overflow-x-auto rounded-lg border border-zinc-200/60 bg-zinc-50 p-2.5 font-mono text-[11.5px] leading-relaxed text-zinc-700">
               {inputJson}
             </pre>
           </div>
@@ -340,17 +478,24 @@ export function ToolAccordion({
 
         {hasOutput ? (
           <div className="space-y-1.5 p-3">
-            <h4 className="text-[10px] font-semibold tracking-[0.12em] text-fg-muted uppercase">
-              Resultado
+            <h4 className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+              {state === "error" ? "Error en ejecución" : "Resultado"}
             </h4>
-            <pre className="overflow-x-auto rounded-lg border border-border/60 bg-surface-1 p-2.5 font-mono text-[11.5px] leading-relaxed whitespace-pre-wrap text-fg-body">
+            <pre
+              className={cn(
+                "overflow-x-auto whitespace-pre-wrap rounded-lg border p-2.5 font-mono text-[11.5px] leading-relaxed",
+                state === "error"
+                  ? "border-red-200 bg-red-50 text-red-700"
+                  : "border-zinc-200/60 bg-zinc-50 text-zinc-700",
+              )}
+            >
               {outputText}
             </pre>
           </div>
         ) : null}
 
         {inputJson === null && !hasOutput ? (
-          <p className="p-3 text-[11.5px] leading-relaxed text-fg-muted">
+          <p className="p-3 text-[11.5px] leading-relaxed text-zinc-500">
             Sin detalles disponibles.
           </p>
         ) : null}

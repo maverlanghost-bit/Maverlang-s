@@ -1,6 +1,14 @@
 "use client";
 
-import { useEffect, useId, useRef, useState, type ReactElement } from "react";
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type ReactElement,
+} from "react";
 
 import { cn } from "@/lib/cn";
 
@@ -17,49 +25,31 @@ const FAST_MODEL: AiModel = {
   id: "fast",
   name: "Maverlang v2.5",
   badge: "Rápido",
-  description: "Respuestas veloces para consultas de mercado y portafolio",
+  description: "Respuestas rápidas y precisas (Por defecto)",
 };
 
 const PRO_MODEL: AiModel = {
   id: "pro",
   name: "Maverlang v2.5 Pro",
   badge: "Pro",
-  description: "Razonamiento profundo multi-agente y análisis financiero detallado",
+  description: "Análisis financiero profundo y razonamiento reflexivo",
 };
 
 export const AI_MODELS: readonly AiModel[] = [FAST_MODEL, PRO_MODEL];
 
 type IconProps = { className?: string };
 
-function IconZap({ className }: IconProps) {
+function IconSparkles({ className }: IconProps) {
   return (
-    <svg viewBox="0 0 16 16" fill="none" aria-hidden="true" focusable="false" className={cn("size-3.5", className)}>
+    <svg viewBox="0 0 16 16" fill="none" aria-hidden="true" focusable="false" className={cn("size-3", className)}>
       <path
-        d="M9.3 1.7 3.6 9.2h3.8l-.7 5.1 5.7-7.5H8.5l.8-5.1Z"
-        stroke="currentColor"
-        strokeWidth="1.3"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-function IconBrain({ className }: IconProps) {
-  return (
-    <svg viewBox="0 0 16 16" fill="none" aria-hidden="true" focusable="false" className={cn("size-3.5", className)}>
-      <path
-        d="M8 2.9c-1 0-1.9.6-2.2 1.5-.9 0-1.7.8-1.7 1.7 0 .3.1.6.2.9-.5.3-.8.8-.8 1.4 0 .9.6 1.6 1.5 1.8.1.9.8 1.5 1.7 1.5.2 0 .4 0 .6-.1.4-.2.7-.5.7-.9V2.9Z"
-        stroke="currentColor"
-        strokeWidth="1.2"
-        strokeLinejoin="round"
+        d="M6.6 1.9 7.72 4.9 10.7 6.02 7.72 7.14 6.6 10.14 5.48 7.14 2.5 6.02 5.48 4.9 6.6 1.9Z"
+        fill="currentColor"
       />
       <path
-        d="M8 2.9c1 0 1.9.6 2.2 1.5.9 0 1.7.8 1.7 1.7 0 .3-.1.6-.2.9.5.3.8.8.8 1.4 0 .9-.6 1.6-1.5 1.8-.1.9-.8 1.5-1.7 1.5-.2 0-.4 0-.6-.1-.4-.2-.7-.5-.7-.9V2.9Z"
-        stroke="currentColor"
-        strokeWidth="1.2"
-        strokeLinejoin="round"
+        d="M11.9 8.9l.7 1.85 1.85.7-1.85.7-.7 1.85-.7-1.85-1.85-.7 1.85-.7.7-1.85Z"
+        fill="currentColor"
       />
-      <path d="M6.4 6.4h1.1M8.5 6.4h1.1M6.6 9.2h.9M8.5 9.2h.9" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" />
     </svg>
   );
 }
@@ -78,7 +68,7 @@ function IconChevronDown({ className }: IconProps) {
   );
 }
 
-function IconCheck({ className }: IconProps) {
+function CheckIcon({ className }: IconProps) {
   return (
     <svg viewBox="0 0 16 16" fill="none" aria-hidden="true" focusable="false" className={cn("size-4", className)}>
       <path
@@ -90,10 +80,6 @@ function IconCheck({ className }: IconProps) {
       />
     </svg>
   );
-}
-
-function ModelIcon({ id, className }: { id: AiModelId; className?: string }) {
-  return id === "pro" ? <IconBrain className={className} /> : <IconZap className={className} />;
 }
 
 /**
@@ -113,11 +99,32 @@ export function ModelSelector({
   className?: string;
 }): ReactElement {
   const [open, setOpen] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(0);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const optionRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const listboxId = useId();
 
   const selected = selectedModel === "pro" ? PRO_MODEL : FAST_MODEL;
+
+  const closeAndFocusTrigger = useCallback(() => {
+    setOpen(false);
+    triggerRef.current?.focus();
+  }, []);
+
+  const choose = useCallback(
+    (id: AiModelId) => {
+      onSelectModel?.(id);
+      closeAndFocusTrigger();
+    },
+    [closeAndFocusTrigger, onSelectModel],
+  );
+
+  const openMenu = useCallback(() => {
+    const index = AI_MODELS.findIndex((model) => model.id === selected.id);
+    setActiveIndex(index === -1 ? 0 : index);
+    setOpen(true);
+  }, [selected.id]);
 
   useEffect(() => {
     if (!open) return;
@@ -143,82 +150,119 @@ export function ModelSelector({
     };
   }, [open]);
 
-  const choose = (id: AiModelId) => {
-    onSelectModel?.(id);
-    setOpen(false);
+  useEffect(() => {
+    if (!open) return;
+    optionRefs.current[activeIndex]?.focus();
+  }, [open, activeIndex]);
+
+  const handleTriggerKeyDown = (event: ReactKeyboardEvent<HTMLButtonElement>) => {
+    if (open) return;
+    if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
+    event.preventDefault();
+    openMenu();
+  };
+
+  const handleListboxKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      event.preventDefault();
+      const delta = event.key === "ArrowDown" ? 1 : -1;
+      setActiveIndex((index) => (index + delta + AI_MODELS.length) % AI_MODELS.length);
+      return;
+    }
+
+    if (event.key === "Enter") {
+      const model = AI_MODELS[activeIndex];
+      if (!model) return;
+      event.preventDefault();
+      choose(model.id);
+    }
   };
 
   return (
-    <div ref={containerRef} className={cn("relative shrink-0", className)}>
-      <button
-        ref={triggerRef}
-        type="button"
-        aria-haspopup="listbox"
-        aria-expanded={open}
-        aria-controls={open ? listboxId : undefined}
-        aria-label="Elegir modelo"
-        onClick={() => setOpen((value) => !value)}
-        className={cn(
-          "inline-flex items-center gap-1.5 rounded-full border border-border/70 bg-white font-medium leading-none text-fg-body outline-none",
-          "transition-colors duration-150 hover:bg-surface-1 hover:text-fg motion-reduce:transition-none",
-          "focus-visible:ring-4 focus-visible:ring-fg/20",
-          variant === "inline" ? "h-7 px-2 text-[11.5px]" : "h-8 px-2.5 text-xs",
-          open && "bg-surface-1 text-fg",
-        )}
-      >
-        <ModelIcon id={selected.id} className="shrink-0" />
-        <span className="whitespace-nowrap">{selected.name}</span>
-        <IconChevronDown
-          className={cn(
-            "shrink-0 text-fg-muted transition-transform duration-200 motion-reduce:transition-none",
-            open && "rotate-180",
-          )}
-        />
-      </button>
+    <div
+      ref={containerRef}
+      className={cn("relative shrink-0", variant === "header" && "hidden md:block", className)}
+    >
+      {variant === "inline" ? (
+        <button
+          ref={triggerRef}
+          type="button"
+          aria-haspopup="listbox"
+          aria-expanded={open}
+          aria-controls={open ? listboxId : undefined}
+          aria-label="Elegir modelo"
+          onClick={() => (open ? setOpen(false) : openMenu())}
+          onKeyDown={handleTriggerKeyDown}
+          className="w-fit h-7 inline-flex items-center gap-1 bg-transparent hover:bg-zinc-100 hover:text-black px-2 rounded-lg text-xs font-normal text-black cursor-pointer shrink-0 shadow-none outline-none"
+        >
+          <span className="hidden md:inline">{selected.name}</span>
+          <span className="inline md:hidden">{selected.id === "pro" ? "v2.5 Pro" : "v2.5"}</span>
+          <IconChevronDown
+            className={cn(
+              "h-3.5 w-3.5 shrink-0 text-zinc-500 transition-transform duration-200",
+              open && "rotate-180",
+            )}
+          />
+        </button>
+      ) : (
+        <button
+          ref={triggerRef}
+          type="button"
+          aria-haspopup="listbox"
+          aria-expanded={open}
+          aria-controls={open ? listboxId : undefined}
+          aria-label="Elegir modelo"
+          onClick={() => (open ? setOpen(false) : openMenu())}
+          onKeyDown={handleTriggerKeyDown}
+          className="hidden md:inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold border border-zinc-200/80 bg-zinc-50 text-zinc-600 hover:bg-zinc-100 shrink-0 cursor-pointer"
+        >
+          <IconSparkles className="w-3 h-3 text-[#1890FF]" />
+          <span>{selected.name}</span>
+          <IconChevronDown
+            className={cn(
+              "size-3 text-zinc-400 transition-transform duration-200",
+              open && "rotate-180",
+            )}
+          />
+        </button>
+      )}
 
       {open ? (
         <div
           id={listboxId}
           role="listbox"
           aria-label="Modelos disponibles"
+          onKeyDown={handleListboxKeyDown}
           className={cn(
-            "absolute left-0 z-50 w-64 rounded-2xl border border-border bg-white p-1.5 shadow-[0_18px_40px_-24px_rgba(12,15,20,0.35)]",
-            variant === "inline" ? "bottom-full mb-1.5" : "top-full mt-1.5",
+            "absolute w-[280px] rounded-2xl border border-gray-200/60 bg-white p-1.5 shadow-xl z-50",
+            variant === "inline" ? "bottom-full right-0 mb-2" : "top-full left-0 mt-1.5",
           )}
         >
-          {AI_MODELS.map((model) => {
+          {AI_MODELS.map((model, index) => {
             const active = model.id === selected.id;
             return (
               <button
                 key={model.id}
+                ref={(node) => {
+                  optionRefs.current[index] = node;
+                }}
                 type="button"
                 role="option"
                 aria-selected={active}
+                tabIndex={-1}
                 onClick={() => choose(model.id)}
-                className={cn(
-                  "flex w-full items-start gap-2.5 rounded-xl px-2.5 py-2 text-left outline-none transition-colors duration-150",
-                  "hover:bg-surface-1 focus-visible:ring-4 focus-visible:ring-fg/15 motion-reduce:transition-none",
-                  active && "bg-surface-1",
-                )}
+                className="w-full py-2 px-3 rounded-xl flex items-center justify-between text-left hover:bg-zinc-100 transition-colors cursor-pointer outline-none focus-visible:bg-zinc-100"
               >
-                <span
-                  className={cn(
-                    "mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full",
-                    model.id === "pro" ? "bg-fg text-bg" : "bg-surface-2 text-fg-body",
-                  )}
-                >
-                  <ModelIcon id={model.id} />
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="flex items-center gap-1.5">
-                    <span className="truncate text-xs font-semibold text-fg">{model.name}</span>
-                    <span className="shrink-0 rounded-full border border-border px-1.5 py-0.5 text-[10px] font-medium leading-none text-fg-muted">
+                <div>
+                  <div className="font-bold text-xs text-zinc-900">
+                    {model.name}
+                    <span className="ml-1.5 inline-flex items-center rounded-full border border-zinc-200 px-1.5 py-0.5 text-[9px] font-medium leading-none text-zinc-500 align-middle">
                       {model.badge}
                     </span>
-                  </span>
-                  <span className="mt-0.5 block text-[11px] leading-snug text-fg-muted">{model.description}</span>
-                </span>
-                {active ? <IconCheck className="mt-1 shrink-0 text-fg" /> : null}
+                  </div>
+                  <div className="text-[10px] text-zinc-500 truncate mt-0.5">{model.description}</div>
+                </div>
+                {active ? <CheckIcon className="h-4 w-4 ml-auto text-teal-600 shrink-0" /> : null}
               </button>
             );
           })}

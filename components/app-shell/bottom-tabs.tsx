@@ -19,14 +19,15 @@ import { useT } from "@/lib/hooks/use-t";
 /**
  * Publica el alto de la barra (o del dock de IA) para la barra de compra, los toasts
  * y el padding del contenido. El ResizeObserver lo actualiza cuadro a cuadro durante el morph.
+ * En /app/asistente la barra está oculta, así que el alto se fuerza a 0px sin medir.
  */
-function useTabsHeight(ref: RefObject<HTMLElement | null>) {
+function useTabsHeight(ref: RefObject<HTMLElement | null>, assistantRoute: boolean) {
   useEffect(() => {
     const root = document.documentElement;
     const query = window.matchMedia("(min-width: 1024px)");
     const apply = () => {
       const nav = ref.current;
-      if (query.matches || !nav) {
+      if (assistantRoute || query.matches || !nav) {
         root.style.setProperty("--app-tabs-height", "0px");
         return;
       }
@@ -44,7 +45,7 @@ function useTabsHeight(ref: RefObject<HTMLElement | null>) {
       window.removeEventListener("resize", apply);
       root.style.removeProperty("--app-tabs-height");
     };
-  }, [ref]);
+  }, [ref, assistantRoute]);
 }
 
 /**
@@ -59,7 +60,7 @@ export function BottomTabs() {
     pathname === "/app/asistente" || pathname.startsWith("/app/asistente/");
   const mode = assistantRoute ? "composer" : "nav";
   const activeIndex = activeMobileTab(pathname);
-  useTabsHeight(navRef);
+  useTabsHeight(navRef, assistantRoute);
 
   return (
     <nav
@@ -69,7 +70,10 @@ export function BottomTabs() {
       data-hidden="false" /* Barra fija sin oscilaciones de nextTabBarHidden */
       data-mode={mode}
       data-assistant={assistantRoute ? "true" : "false"}
-      className="liquid-nav pointer-events-none fixed inset-x-0 bottom-0 z-30 flex justify-center px-4 pb-[calc(0.875rem+env(safe-area-inset-bottom))] md:hidden"
+      className={cn(
+        "liquid-nav pointer-events-none fixed inset-x-0 bottom-0 z-30 flex justify-center px-4 pb-[calc(0.875rem+env(safe-area-inset-bottom))] md:hidden",
+        assistantRoute && "hidden",
+      )}
     >
       <div
         className="liquid-glass backdrop-blur-xl border border-border/70"

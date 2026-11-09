@@ -143,19 +143,10 @@ export function ChatView({
       ref={panelRef}
       data-ai-chat
       className={cn(
-        "fixed z-20 flex min-h-0 flex-col overflow-hidden bg-bg lg:left-[var(--app-sidebar-width,0px)]! lg:transition-[left] lg:duration-200 lg:ease-spring lg:motion-reduce:transition-none",
+        "fixed z-20 flex min-h-0 flex-col overflow-hidden bg-white lg:left-[var(--app-sidebar-width,0px)]!",
       )}
       style={{ top: 0, right: 0, left: 0, height: "100dvh" }}
     >
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-0"
-        style={{
-          background:
-            "radial-gradient(110% 45% at 50% -10%, var(--color-surface-1) 0%, rgba(255,255,255,0) 58%)",
-        }}
-      />
-
       <AssistantNavbar
         chatTitle={chatTitle ?? copy.pageTitle}
         hasMessages={messages.length > 0}
@@ -182,7 +173,7 @@ export function ChatView({
         className="relative z-10 shrink-0"
       />
 
-      <div className="relative z-10 mx-auto flex min-h-0 w-full max-w-4xl flex-1 flex-col">
+      <div className="relative z-10 flex min-h-0 w-full flex-1 flex-col overflow-hidden">
         <Transcript
           copy={copy}
           messages={messages}
@@ -201,8 +192,8 @@ export function ChatView({
         />
 
         {!isEmpty ? (
-          <div className="relative z-10 shrink-0 bg-gradient-to-t from-bg via-bg/95 to-transparent">
-            {renderComposer("bottom")}
+          <div className="bg-gradient-to-t from-white via-white/95 to-transparent px-4 pb-4 pt-2 shrink-0">
+            <div className="max-w-3xl mx-auto w-full">{renderComposer("bottom")}</div>
           </div>
         ) : null}
       </div>

@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 
 import type { ChatMessage } from "@/components/ai/model";
 import { cn } from "@/lib/cn";
@@ -15,6 +16,13 @@ type ShareChatDialogProps = {
   singlePair?: { question: string; answer: string } | null;
 };
 
+type ShareDialogCardProps = {
+  chatTitle: string;
+  messages: readonly ChatMessage[];
+  singlePair: { question: string; answer: string } | null;
+  onClose: () => void;
+};
+
 type PreviewEntry = {
   key: string;
   role: "user" | "assistant";
@@ -22,8 +30,7 @@ type PreviewEntry = {
 };
 
 const USER_LABEL = "Tú";
-const ASSISTANT_LABEL = "Maverlang IA";
-const SHARE_PATH = "/app/asistente";
+const ASSISTANT_LABEL = "Maverlang AI";
 
 function speakerLabel(role: "user" | "assistant"): string {
   return role === "user" ? USER_LABEL : ASSISTANT_LABEL;
@@ -58,9 +65,10 @@ function buildEntries(
 }
 
 function buildPlainText(entries: readonly PreviewEntry[]): string {
-  return entries
+  const body = entries
     .map((entry) => `${speakerLabel(entry.role)}:\n${entry.text.trim()}`)
-    .join("\n\n");
+    .join("\n\n———\n\n");
+  return `${body}\n\n— Generado con Maverlang AI · Solo lectura`;
 }
 
 function buildMarkdown(title: string, entries: readonly PreviewEntry[]): string {
@@ -93,6 +101,23 @@ function CloseIcon({ className }: IconProps) {
   );
 }
 
+function MessageSquareIcon({ className }: IconProps) {
+  return (
+    <svg {...svgProps} className={cn("size-4", className)}>
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+    </svg>
+  );
+}
+
+function MessagesSquareIcon({ className }: IconProps) {
+  return (
+    <svg {...svgProps} className={cn("size-4", className)}>
+      <path d="M14 9a2 2 0 0 1-2 2H6l-4 4V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2z" />
+      <path d="M18 9h2a2 2 0 0 1 2 2v11l-4-4h-6a2 2 0 0 1-2-2v-1" />
+    </svg>
+  );
+}
+
 function CopyIcon({ className }: IconProps) {
   return (
     <svg {...svgProps} className={cn("size-4", className)}>
@@ -120,64 +145,38 @@ function DownloadIcon({ className }: IconProps) {
   );
 }
 
-function LinkIcon({ className }: IconProps) {
-  return (
-    <svg {...svgProps} className={cn("size-4", className)}>
-      <path d="M9 17H7a5 5 0 0 1 0-10h2" />
-      <path d="M15 7h2a5 5 0 0 1 0 10h-2" />
-      <path d="M8 12h8" />
-    </svg>
-  );
-}
-
-export function ShareChatDialog({
-  open,
-  onOpenChange,
-  chatTitle,
-  messages,
-  singlePair,
-}: ShareChatDialogProps) {
+function ShareDialogCard({ chatTitle, messages, singlePair, onClose }: ShareDialogCardProps) {
   const baseId = useId();
   const titleId = `${baseId}-title`;
   const previewId = `${baseId}-preview`;
+  const panelRef = useRef<HTMLDivElement | null>(null);
   const timerRef = useRef<number | null>(null);
-  const [mode, setMode] = useState<ShareMode | null>(null);
-  const [copied, setCopied] = useState<"text" | "link" | null>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onOpenChange(false);
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [open, onOpenChange]);
-
-  // Al cerrar, se limpia el estado para que la próxima apertura parta limpia.
-  useEffect(() => {
-    if (!open) return;
-    return () => {
-      setMode(null);
-      setCopied(null);
-      if (timerRef.current !== null) {
-        window.clearTimeout(timerRef.current);
-        timerRef.current = null;
-      }
-    };
-  }, [open]);
+  const [mode, setMode] = useState<ShareMode>(singlePair ? "pair" : "all");
+  const [copied, setCopied] = useState(false);
 
   const pair = singlePair ?? null;
-  const activeMode: ShareMode = pair ? (mode ?? "pair") : "all";
-  const entries = buildEntries(activeMode, messages, pair);
+  const activeMode: ShareMode = pair ? mode : "all";
+  const entries = useMemo(
+    () => buildEntries(activeMode, messages, pair),
+    [activeMode, messages, pair],
+  );
 
-  function flashCopied(kind: "text" | "link") {
-    setCopied(kind);
-    if (timerRef.current !== null) window.clearTimeout(timerRef.current);
-    timerRef.current = window.setTimeout(() => {
-      setCopied(null);
-      timerRef.current = null;
-    }, 2000);
-  }
+  // Foco inicial en el panel; al desmontarse, vuelve al elemento que abrió el diálogo.
+  useEffect(() => {
+    const previous =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const frame = window.requestAnimationFrame(() => panelRef.current?.focus());
+    return () => {
+      window.cancelAnimationFrame(frame);
+      previous?.focus();
+    };
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current !== null) window.clearTimeout(timerRef.current);
+    };
+  }, []);
 
   async function copyToClipboard(value: string): Promise<boolean> {
     if (typeof navigator === "undefined" || !navigator.clipboard) return false;
@@ -190,13 +189,13 @@ export function ShareChatDialog({
   }
 
   async function handleCopyText() {
-    if (await copyToClipboard(buildPlainText(entries))) flashCopied("text");
-  }
-
-  async function handleCopyLink() {
-    if (typeof window === "undefined") return;
-    const link = `${window.location.origin}${SHARE_PATH}`;
-    if (await copyToClipboard(link)) flashCopied("link");
+    if (!(await copyToClipboard(buildPlainText(entries)))) return;
+    setCopied(true);
+    if (timerRef.current !== null) window.clearTimeout(timerRef.current);
+    timerRef.current = window.setTimeout(() => {
+      setCopied(false);
+      timerRef.current = null;
+    }, 2000);
   }
 
   function handleDownload() {
@@ -217,131 +216,188 @@ export function ShareChatDialog({
     }
   }
 
-  if (!open) return null;
-
   return (
-    <div
-      className="fixed inset-0 z-[120] flex items-end justify-center bg-fg/35 p-0 backdrop-blur-sm sm:items-center sm:p-6"
-      onClick={() => onOpenChange(false)}
+    <motion.div
+      ref={panelRef}
+      tabIndex={-1}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby={titleId}
+      initial={{ opacity: 0, scale: 0.96, y: 8 }}
+      animate={{ opacity: 1, scale: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.96, y: 8 }}
+      transition={{ type: "spring", damping: 30, stiffness: 360 }}
+      onClick={(event) => event.stopPropagation()}
+      className="relative w-full max-w-lg overflow-hidden rounded-2xl border border-zinc-200/80 bg-white shadow-2xl outline-none"
     >
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-        className="w-full max-w-lg rounded-t-3xl border border-border bg-white p-5 shadow-float sm:rounded-3xl"
-        onClick={(event) => event.stopPropagation()}
-      >
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <h2 id={titleId} className="text-sm font-semibold text-fg">
-              Compartir conversación
-            </h2>
-            <p className="mt-0.5 truncate text-xs text-fg-muted">{chatTitle}</p>
-          </div>
+      <header className="flex items-center justify-between gap-3 border-b border-zinc-200/70 px-5 py-4">
+        <div className="min-w-0">
+          <h2 id={titleId} className="truncate font-semibold text-zinc-900">
+            Compartir conversación
+          </h2>
+          <p className="mt-0.5 truncate text-xs text-zinc-500">{chatTitle}</p>
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Cerrar"
+          title="Cerrar"
+          className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900/20"
+        >
+          <CloseIcon />
+        </button>
+      </header>
+
+      <div className="px-5 py-4">
+        <div
+          role="tablist"
+          aria-label="Qué quieres compartir"
+          className="grid grid-cols-2 gap-1 rounded-xl bg-zinc-100 p-1"
+        >
           <button
             type="button"
-            onClick={() => onOpenChange(false)}
-            aria-label="Cerrar"
-            title="Cerrar"
-            className="-mr-1 -mt-1 inline-flex size-8 shrink-0 items-center justify-center rounded-lg text-fg-muted transition hover:bg-surface-1 hover:text-fg focus-visible:ring-4 focus-visible:ring-fg/20"
+            role="tab"
+            id={`${baseId}-tab-pair`}
+            aria-selected={activeMode === "pair"}
+            aria-controls={previewId}
+            disabled={!pair}
+            onClick={() => setMode("pair")}
+            className={cn(
+              "inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-[12.5px] font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900/20",
+              activeMode === "pair"
+                ? "bg-white text-zinc-900 shadow-sm"
+                : "text-zinc-500 hover:text-zinc-800",
+              !pair && "cursor-not-allowed opacity-40 hover:text-zinc-500",
+            )}
           >
-            <CloseIcon />
+            <MessageSquareIcon className="size-3.5" />
+            Esta respuesta
+          </button>
+          <button
+            type="button"
+            role="tab"
+            id={`${baseId}-tab-all`}
+            aria-selected={activeMode === "all"}
+            aria-controls={previewId}
+            onClick={() => setMode("all")}
+            className={cn(
+              "inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-[12.5px] font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900/20",
+              activeMode === "all"
+                ? "bg-white text-zinc-900 shadow-sm"
+                : "text-zinc-500 hover:text-zinc-800",
+            )}
+          >
+            <MessagesSquareIcon className="size-3.5" />
+            Todo el chat ({messages.length})
           </button>
         </div>
 
-        {pair ? (
+        <div className="mt-4 overflow-hidden rounded-2xl border border-zinc-200/80 bg-zinc-50/70">
           <div
-            role="tablist"
-            aria-label="Qué quieres compartir"
-            className="mt-4 grid grid-cols-2 gap-1 rounded-full border border-border/70 bg-surface-1 p-1"
+            id={previewId}
+            role={pair ? "tabpanel" : undefined}
+            aria-labelledby={pair ? `${baseId}-tab-${activeMode}` : undefined}
+            className="max-h-64 space-y-3 overflow-y-auto px-4 py-4"
           >
-            <button
-              type="button"
-              role="tab"
-              id={`${baseId}-tab-pair`}
-              aria-selected={activeMode === "pair"}
-              aria-controls={previewId}
-              onClick={() => setMode("pair")}
-              className={cn(
-                "inline-flex items-center justify-center gap-1.5 rounded-full px-3 py-1.5 text-[11.5px] font-semibold transition focus-visible:ring-4 focus-visible:ring-fg/20",
-                activeMode === "pair" ? "bg-white text-fg shadow-sm" : "text-fg-muted hover:text-fg",
-              )}
-            >
-              Esta respuesta
-            </button>
-            <button
-              type="button"
-              role="tab"
-              id={`${baseId}-tab-all`}
-              aria-selected={activeMode === "all"}
-              aria-controls={previewId}
-              onClick={() => setMode("all")}
-              className={cn(
-                "inline-flex items-center justify-center gap-1.5 rounded-full px-3 py-1.5 text-[11.5px] font-semibold transition focus-visible:ring-4 focus-visible:ring-fg/20",
-                activeMode === "all" ? "bg-white text-fg shadow-sm" : "text-fg-muted hover:text-fg",
-              )}
-            >
-              Todo el chat ({messages.length})
-            </button>
+            {entries.length === 0 ? (
+              <p className="py-8 text-center text-xs text-zinc-400">
+                Sin contenido para compartir.
+              </p>
+            ) : (
+              entries.map((entry) =>
+                entry.role === "user" ? (
+                  <div key={entry.key} className="flex justify-end">
+                    <p className="max-w-[85%] whitespace-pre-wrap break-words rounded-3xl bg-zinc-100 px-4 py-2.5 text-sm leading-relaxed text-zinc-900">
+                      {entry.text}
+                    </p>
+                  </div>
+                ) : (
+                  <div key={entry.key} className="flex justify-start">
+                    <p className="max-w-[92%] whitespace-pre-wrap break-words px-1 text-sm leading-relaxed text-zinc-700">
+                      {entry.text}
+                    </p>
+                  </div>
+                ),
+              )
+            )}
           </div>
-        ) : null}
-
-        <div
-          id={previewId}
-          role={pair ? "tabpanel" : undefined}
-          aria-labelledby={pair ? `${baseId}-tab-${activeMode}` : undefined}
-          className="mt-4 max-h-64 space-y-3 overflow-y-auto rounded-2xl border border-border/70 bg-surface-1/60 p-3"
-        >
-          {entries.length === 0 ? (
-            <p className="py-6 text-center text-xs text-fg-muted">Sin contenido para compartir.</p>
-          ) : (
-            entries.map((entry) => (
-              <div key={entry.key} className="flex items-start gap-2">
-                <span
-                  className={cn(
-                    "inline-flex size-6 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold",
-                    entry.role === "user" ? "bg-surface-3 text-fg-body" : "bg-brand text-bg",
-                  )}
-                >
-                  {entry.role === "user" ? "Tú" : "M"}
-                </span>
-                <p className="min-w-0 flex-1 whitespace-pre-wrap break-words text-[12.5px] leading-relaxed text-fg-body">
-                  {entry.text}
-                </p>
-              </div>
-            ))
-          )}
+          <div className="border-t border-zinc-200/70 px-4 py-2 text-[11px] text-zinc-400">
+            Maverlang AI · Solo lectura
+          </div>
         </div>
 
         <div className="mt-4 grid grid-cols-2 gap-2">
           <button
             type="button"
             onClick={handleCopyText}
-            className="inline-flex items-center justify-center gap-1.5 rounded-full bg-fg px-3.5 py-2 text-xs font-semibold text-bg transition hover:opacity-90 focus-visible:ring-4 focus-visible:ring-fg/20"
+            className="inline-flex items-center justify-center gap-1.5 rounded-full bg-zinc-900 px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900/30"
           >
-            {copied === "text" ? <CheckIcon className="size-3.5" /> : <CopyIcon className="size-3.5" />}
-            {copied === "text" ? "¡Texto copiado!" : "Copiar texto"}
+            {copied ? <CheckIcon /> : <CopyIcon />}
+            {copied ? "Copiado" : "Copiar texto"}
           </button>
           <button
             type="button"
             onClick={handleDownload}
-            className="inline-flex items-center justify-center gap-1.5 rounded-full border border-border bg-white px-3.5 py-2 text-xs font-semibold text-fg-body transition hover:bg-surface-1 focus-visible:ring-4 focus-visible:ring-fg/20"
+            className="inline-flex items-center justify-center gap-1.5 rounded-full border border-zinc-200 px-4 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900/20"
           >
-            <DownloadIcon className="size-3.5" />
+            <DownloadIcon />
             Descargar .md
           </button>
         </div>
-
-        <button
-          type="button"
-          onClick={handleCopyLink}
-          className="mt-2 inline-flex w-full items-center justify-center gap-1.5 rounded-full border border-border bg-white px-3.5 py-2 text-xs font-semibold text-fg-body transition hover:bg-surface-1 focus-visible:ring-4 focus-visible:ring-fg/20"
-        >
-          {copied === "link" ? <CheckIcon className="size-3.5" /> : <LinkIcon className="size-3.5" />}
-          {copied === "link" ? "¡Enlace copiado!" : "Copiar enlace"}
-        </button>
       </div>
-    </div>
+    </motion.div>
+  );
+}
+
+export function ShareChatDialog({
+  open,
+  onOpenChange,
+  chatTitle,
+  messages,
+  singlePair,
+}: ShareChatDialogProps) {
+  const closeDialog = useCallback(() => onOpenChange(false), [onOpenChange]);
+
+  useEffect(() => {
+    if (!open) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") closeDialog();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [open, closeDialog]);
+
+  // Bloquea el scroll de la página mientras el diálogo está abierto.
+  useEffect(() => {
+    if (!open) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [open]);
+
+  return (
+    <AnimatePresence>
+      {open ? (
+        <motion.div
+          key="share-chat"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.18 }}
+          onClick={closeDialog}
+          className="fixed inset-0 z-[120] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm"
+        >
+          <ShareDialogCard
+            chatTitle={chatTitle}
+            messages={messages}
+            singlePair={singlePair ?? null}
+            onClose={closeDialog}
+          />
+        </motion.div>
+      ) : null}
+    </AnimatePresence>
   );
 }
 

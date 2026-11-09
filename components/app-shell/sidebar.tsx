@@ -21,7 +21,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip } from "@/components/ui/tooltip";
 import { AccountSwitch } from "@/components/app-shell/account-switch";
 import { site } from "@/config/site";
-import { asistenteText } from "@/content/i18n/extra-asistente";
 import { shouldIgnoreSidebarShortcut, shouldToggleSidebarClick } from "@/lib/app-shell/sidebar";
 import type { AccountMode } from "@/lib/account/mode";
 import { useSession } from "@/lib/auth/session-context";
@@ -78,20 +77,76 @@ function ArrowLeftIcon({ className }: { className?: string }) {
   );
 }
 
-function SidebarPanelIcon({ className }: { className?: string }) {
+function PanelLeftIcon({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" className={className} aria-hidden>
-      <rect x="2" y="2.5" width="12" height="11" rx="2" />
-      <path d="M6 2.5v11" />
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden
+    >
+      <rect x="3" y="3" width="18" height="18" rx="2" />
+      <path d="M9 3v18" />
     </svg>
   );
 }
 
-function ComposeChatIcon({ className }: { className?: string }) {
+function PanelLeftCloseIcon({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" className={className} aria-hidden>
-      <path d="M8.5 3H4a1.5 1.5 0 0 0-1.5 1.5v7A1.5 1.5 0 0 0 4 13h7a1.5 1.5 0 0 0 1.5-1.5V7.5" strokeLinecap="round" />
-      <path d="m12.3 2.3 1.4 1.4-5.2 5.2-1.8.4.4-1.8 5.2-5.2Z" strokeLinejoin="round" />
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden
+    >
+      <rect x="3" y="3" width="18" height="18" rx="2" />
+      <path d="M9 3v18" />
+      <path d="m16 15-3-3 3-3" />
+    </svg>
+  );
+}
+
+function MessageSquarePlusIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden
+    >
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h9" />
+      <path d="M18 2v6" />
+      <path d="M15 5h6" />
+    </svg>
+  );
+}
+
+function SearchIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden
+    >
+      <circle cx="11" cy="11" r="7" />
+      <path d="m20 20-3.6-3.6" />
     </svg>
   );
 }
@@ -110,7 +165,8 @@ export function Sidebar({
   const pathname = usePathname();
   const isAiRoute = pathname.startsWith("/app/asistente");
   const { t, language } = useT();
-  const newChatLabel = asistenteText(language).clear;
+  /** Mismo texto que usa NavChatsHistory para estrenar conversación. */
+  const newChatLabel = language === "en" ? "New chat" : "Nuevo chat";
   const account = useAccountLabel();
   const name = account.name;
   const loading = account.loading;
@@ -184,90 +240,130 @@ export function Sidebar({
     >
       {isAiRoute ? (
         <>
-          <div className="flex items-center justify-between gap-1 px-3.5 py-3">
-            {collapsed ? (
-              <Tooltip content={t.detail.backToMarket} side="right">
-                <Link
-                  href="/app"
-                  aria-label={t.detail.backToMarket}
-                  className="flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-xl text-fg-body outline-none transition hover:bg-surface-2 hover:text-fg focus-visible:ring-4 focus-visible:ring-fg/20"
-                >
-                  <ArrowLeftIcon className="size-4" />
-                </Link>
-              </Tooltip>
-            ) : (
-              <>
-                <Link
-                  href="/app"
-                  className="group flex min-h-11 min-w-0 flex-1 cursor-pointer items-center rounded-xl text-[13px] font-medium text-fg-body outline-none transition duration-150 ease-spring hover:bg-fg/[0.05] hover:text-fg focus-visible:ring-4 focus-visible:ring-fg/20"
-                >
-                  <span className="flex size-11 shrink-0 items-center justify-center">
-                    <ArrowLeftIcon className="size-4 shrink-0 text-fg-muted transition duration-150 group-hover:-translate-x-0.5 group-hover:text-fg" />
-                  </span>
-                  <span className="min-w-0 truncate">{t.detail.backToMarket}</span>
-                </Link>
-                <button
-                  type="button"
-                  onClick={onToggle}
-                  aria-label="Alternar barra lateral"
-                  title="Alternar barra lateral (⌘B)"
-                  className="inline-flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-lg text-fg-muted outline-none transition hover:bg-fg/[0.06] hover:text-fg focus-visible:ring-4 focus-visible:ring-fg/20"
-                >
-                  <SidebarPanelIcon className="size-4" />
-                </button>
-              </>
-            )}
+          <div className={cn("flex w-full gap-1", collapsed ? "flex-col items-center py-2" : "items-center py-2 pl-3 pr-2")}>
+            <Link
+              href="/app"
+              aria-label={t.detail.backToMarket}
+              className={cn(
+                "group flex min-w-0 cursor-pointer items-center gap-2 outline-none",
+                collapsed ? "flex-none justify-center" : "flex-1",
+              )}
+            >
+              <div className="relative flex items-center justify-center size-7 rounded-lg bg-zinc-900/5 shrink-0 overflow-hidden">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/assets/Maverlang Logo-2.png" alt="Maverlang" className="size-5 object-contain" />
+              </div>
+              {collapsed ? null : (
+                <span className="text-sm font-semibold tracking-tight text-zinc-900 truncate">Maverlang AI</span>
+              )}
+            </Link>
+            <button
+              type="button"
+              onClick={onToggle}
+              aria-label={collapsed ? t.shell.expandSidebar : t.shell.collapseSidebar}
+              title={`${collapsed ? t.shell.expandSidebar : t.shell.collapseSidebar} (Ctrl+B)`}
+              className="inline-flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-lg text-zinc-500 outline-none transition hover:bg-zinc-200/60 hover:text-zinc-900 focus-visible:ring-4 focus-visible:ring-fg/20"
+            >
+              {collapsed ? <PanelLeftIcon className="size-4" /> : <PanelLeftCloseIcon className="size-4" />}
+            </button>
           </div>
 
           <nav aria-label={t.nav.label} className="flex-1 overflow-y-auto px-3.5 pb-2">
-            <ul className="flex flex-col gap-1">
-              <li>
-                {collapsed ? (
+            {collapsed ? (
+              <ul className="flex flex-col items-center gap-1">
+                <li>
                   <Tooltip content={newChatLabel} side="right">
                     <button
                       type="button"
                       aria-label={newChatLabel}
                       onClick={() => dispatchAiCommand({ type: "clear" })}
-                      className="flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-xl bg-fg text-bg shadow-xs outline-none transition hover:bg-fg/90 focus-visible:ring-4 focus-visible:ring-fg/20 active:scale-[0.98]"
+                      className="flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-lg text-zinc-700 transition-colors hover:bg-zinc-200/60 hover:text-zinc-900"
                     >
-                      <ComposeChatIcon className="size-4" />
+                      <MessageSquarePlusIcon className="size-4" />
                     </button>
                   </Tooltip>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => dispatchAiCommand({ type: "clear" })}
-                    className="flex min-h-11 w-full cursor-pointer items-center rounded-xl bg-fg pr-3 text-left text-sm font-medium text-bg shadow-xs outline-none transition hover:bg-fg/90 focus-visible:ring-4 focus-visible:ring-fg/20 active:scale-[0.98]"
-                  >
-                    <span className="flex size-11 shrink-0 items-center justify-center">
-                      <ComposeChatIcon className="size-4" />
-                    </span>
-                    <span className="min-w-0 truncate">{newChatLabel}</span>
-                  </button>
-                )}
-              </li>
-              <li>
-                <StockSearchButton collapsed={collapsed} />
-              </li>
-            </ul>
+                </li>
+                <li>
+                  <Tooltip content={t.shell.search} side="right">
+                    <button
+                      type="button"
+                      aria-label={t.shell.search}
+                      onClick={() => {
+                        if (typeof window === "undefined") return;
+                        window.dispatchEvent(new CustomEvent(ACTION_EVENT, { detail: { type: "search" } }));
+                      }}
+                      className="flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-lg text-zinc-700 transition-colors hover:bg-zinc-200/60 hover:text-zinc-900"
+                    >
+                      <SearchIcon className="size-4" />
+                    </button>
+                  </Tooltip>
+                </li>
+                <li>
+                  <Tooltip content={t.detail.backToMarket} side="right">
+                    <Link
+                      href="/app"
+                      aria-label={t.detail.backToMarket}
+                      className="flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-lg text-zinc-500 transition-colors hover:bg-zinc-200/60 hover:text-zinc-900"
+                    >
+                      <ArrowLeftIcon className="size-4" />
+                    </Link>
+                  </Tooltip>
+                </li>
+              </ul>
+            ) : (
+              <>
+                <ul className="flex flex-col gap-1">
+                  <li>
+                    <button
+                      type="button"
+                      onClick={() => dispatchAiCommand({ type: "clear" })}
+                      className="flex h-9 w-full items-center gap-2 rounded-lg px-2.5 text-[13px] font-medium text-zinc-700 hover:bg-zinc-200/60 hover:text-zinc-900 transition-colors cursor-pointer"
+                    >
+                      <MessageSquarePlusIcon className="size-4 shrink-0" />
+                      <span className="truncate">{newChatLabel}</span>
+                    </button>
+                  </li>
+                  <li>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (typeof window === "undefined") return;
+                        window.dispatchEvent(new CustomEvent(ACTION_EVENT, { detail: { type: "search" } }));
+                      }}
+                      className="flex h-9 w-full items-center gap-2 rounded-lg px-2.5 text-[13px] font-medium text-zinc-700 hover:bg-zinc-200/60 hover:text-zinc-900 transition-colors cursor-pointer"
+                    >
+                      <SearchIcon className="size-4 shrink-0" />
+                      <span className="truncate">{t.shell.search}</span>
+                    </button>
+                  </li>
+                  <li>
+                    <Link
+                      href="/app"
+                      className="flex h-9 w-full items-center gap-2 rounded-lg px-2.5 text-[13px] text-zinc-500 hover:bg-zinc-200/60 hover:text-zinc-900 transition-colors cursor-pointer"
+                    >
+                      <ArrowLeftIcon className="size-4 shrink-0" />
+                      <span className="truncate">{t.detail.backToMarket}</span>
+                    </Link>
+                  </li>
+                </ul>
 
-            {!collapsed ? (
-              <div className="mt-4 border-t border-border/60 pt-3">
-                <NavChatsHistory
-                  chats={savedChats}
-                  activeChatId={activeChatId}
-                  onSelectChat={(chatId) => {
-                    if (typeof window === "undefined") return;
-                    window.dispatchEvent(new CustomEvent(SELECT_EVENT, { detail: { chatId } }));
-                  }}
-                  onNewChat={() => dispatchAiCommand({ type: "clear" })}
-                  onRenameChat={(chatId, title) => dispatchAiAction({ type: "rename", chatId, title })}
-                  onTogglePinChat={(chatId) => dispatchAiAction({ type: "pin", chatId })}
-                  onDeleteChat={(chatId) => dispatchAiAction({ type: "delete", chatId })}
-                  onShareChat={(chatId) => dispatchAiAction({ type: "share", chatId })}
-                />
-              </div>
-            ) : null}
+                <div className="mt-4 border-t border-border/60 pt-3">
+                  <NavChatsHistory
+                    chats={savedChats}
+                    activeChatId={activeChatId}
+                    onSelectChat={(chatId) => {
+                      if (typeof window === "undefined") return;
+                      window.dispatchEvent(new CustomEvent(SELECT_EVENT, { detail: { chatId } }));
+                    }}
+                    onNewChat={() => dispatchAiCommand({ type: "clear" })}
+                    onRenameChat={(chatId, title) => dispatchAiAction({ type: "rename", chatId, title })}
+                    onTogglePinChat={(chatId) => dispatchAiAction({ type: "pin", chatId })}
+                    onDeleteChat={(chatId) => dispatchAiAction({ type: "delete", chatId })}
+                    onShareChat={(chatId) => dispatchAiAction({ type: "share", chatId })}
+                  />
+                </div>
+              </>
+            )}
           </nav>
 
           <div className="border-t border-border/70 px-3.5 py-3">
