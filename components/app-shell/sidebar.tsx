@@ -11,6 +11,9 @@ import { CurrencySwitch } from "@/components/app-shell/currency-switch";
 import { isShellSectionActive, shellNav } from "@/components/app-shell/nav";
 import { StockSearchButton } from "@/components/app-shell/stock-search";
 import { readChatSnapshot, resolveChatScope, type ChatMessage } from "@/components/ai/model";
+import { NavChatsHistory } from "@/components/ai/nav-chats";
+import { useSavedChats } from "@/components/ai/sessions-live";
+import type { SavedChatItem } from "@/components/ai/sessions-store";
 import { BalanceHeader } from "@/components/domain/balance-header";
 import { Avatar } from "@/components/ui/avatar";
 import { IconChevron } from "@/components/ui/icons";
@@ -27,11 +30,23 @@ import { useT } from "@/lib/hooks/use-t";
 
 const WIDTH_ANIMATION = "transition-[width] duration-200 ease-spring";
 
-/** Título del historial real de la sesión (no hay conversaciones guardadas). */
-const AI_RECENT_LABEL = {
-  "es-CL": "Preguntas recientes",
-  en: "Recent questions",
-} as const;
+const SELECT_EVENT = "maverlang:ai-select-chat";
+const ACTION_EVENT = "maverlang:ai-chat-action";
+
+type SidebarChatAction =
+  | { type: "rename"; chatId: string; title: string }
+  | { type: "pin"; chatId: string }
+  | { type: "delete"; chatId: string }
+  | { type: "share"; chatId: string };
+
+/**
+ * El sidebar no escribe el historial: la pantalla del asistente es la única
+ * dueña del store. Aquí sólo se piden acciones por evento.
+ */
+function dispatchAiAction(detail: SidebarChatAction) {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(new CustomEvent(ACTION_EVENT, { detail }));
+}
 
 function dispatchAiCommand(
   detail:
@@ -43,19 +58,16 @@ function dispatchAiCommand(
   window.dispatchEvent(new CustomEvent("mv-ai-command", { detail }));
 }
 
-function readRecentUserPrompts(messages: readonly ChatMessage[]): string[] {
-  const prompts: string[] = [];
-  const seen = new Set<string>();
-  for (let i = messages.length - 1; i >= 0; i -= 1) {
-    const item = messages[i];
-    if (!item || item.role !== "user") continue;
-    const clean = item.text.trim();
-    if (!clean || seen.has(clean)) continue;
-    seen.add(clean);
-    prompts.push(clean);
-    if (prompts.length >= 5) break;
-  }
-  return prompts;
+/** Misma conversación activa que calcula la pantalla, sin duplicar el id. */
+function matchChatId(chats: readonly SavedChatItem[], messages: readonly ChatMessage[]): string | null {
+  if (messages.length === 0) return null;
+  const first = messages.find((item) => item.role === "user")?.text ?? "";
+  const match = chats.find(
+    (chat) =>
+      chat.messages.length === messages.length &&
+      (chat.messages.find((item) => item.role === "user")?.text ?? "") === first,
+  );
+  return match?.id ?? null;
 }
 
 function ArrowLeftIcon({ className }: { className?: string }) {
@@ -84,15 +96,6 @@ function ComposeChatIcon({ className }: { className?: string }) {
   );
 }
 
-function HistoryChatIcon({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" className={className} aria-hidden>
-      <circle cx="8" cy="8" r="5.5" />
-      <path d="M8 5v3.2l2.2 1.3" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
 export function Sidebar({
   collapsed,
   onToggle,
@@ -108,7 +111,6 @@ export function Sidebar({
   const isAiRoute = pathname.startsWith("/app/asistente");
   const { t, language } = useT();
   const newChatLabel = asistenteText(language).clear;
-  const recentLabel = AI_RECENT_LABEL[language];
   const account = useAccountLabel();
   const name = account.name;
   const loading = account.loading;
@@ -119,27 +121,30 @@ export function Sidebar({
   const userId = session.user?.id ?? null;
   const chatScope = useMemo(() => resolveChatScope(session.status, userId), [session.status, userId]);
   const chatScopeKey = chatScope?.key ?? null;
-  const [recent, setRecent] = useState<{ scopeKey: string | null; prompts: string[] }>({
+  const savedChats = useSavedChats(chatScopeKey);
+  const [activeChat, setActiveChat] = useState<{ scopeKey: string | null; chatId: string | null }>({
     scopeKey: chatScopeKey,
-    prompts: [],
+    chatId: null,
   });
-  /** Nunca mostrar la lista de otra identidad, ni siquiera en el frame previo al efecto. */
-  const recentPrompts = recent.scopeKey === chatScopeKey ? recent.prompts : [];
+  /** Nunca mostrar el estado de otra identidad, ni siquiera antes del efecto. */
+  const activeChatId = activeChat.scopeKey === chatScopeKey ? activeChat.chatId : null;
 
   useEffect(() => {
     if (!isAiRoute) return;
     const sync = () => {
       const messages = chatScope ? readChatSnapshot(chatScope) : [];
-      setRecent({ scopeKey: chatScopeKey, prompts: readRecentUserPrompts(messages) });
+      setActiveChat({ scopeKey: chatScopeKey, chatId: matchChatId(savedChats, messages) });
     };
     sync();
     window.addEventListener("mv-ai-chat", sync);
     window.addEventListener("storage", sync);
+    window.addEventListener("maverlang:ai-sessions-changed", sync);
     return () => {
       window.removeEventListener("mv-ai-chat", sync);
       window.removeEventListener("storage", sync);
+      window.removeEventListener("maverlang:ai-sessions-changed", sync);
     };
-  }, [chatScope, chatScopeKey, isAiRoute]);
+  }, [chatScope, chatScopeKey, isAiRoute, savedChats]);
 
   /** Clic afuera cierra el menú del perfil. */
   useEffect(() => {
@@ -246,30 +251,22 @@ export function Sidebar({
               </li>
             </ul>
 
-            {!collapsed && recentPrompts.length > 0 ? (
-              <section aria-labelledby="mv-ai-recent" className="mt-5 border-t border-border/60 pt-3">
-                <h2
-                  id="mv-ai-recent"
-                  className="px-2 pb-1.5 text-[10px] font-semibold tracking-[0.12em] text-fg-muted uppercase"
-                >
-                  {recentLabel}
-                </h2>
-                <ul className="flex flex-col gap-0.5">
-                  {recentPrompts.map((promptText) => (
-                    <li key={promptText}>
-                      <button
-                        type="button"
-                        title={promptText}
-                        onClick={() => dispatchAiCommand({ type: "prompt", id: "tesla", text: promptText })}
-                        className="group flex min-h-8 w-full cursor-pointer items-center gap-2 rounded-lg px-2 py-1 text-left text-xs leading-snug text-fg-muted outline-none transition duration-150 ease-spring hover:bg-fg/[0.05] hover:text-fg focus-visible:ring-4 focus-visible:ring-fg/20"
-                      >
-                        <HistoryChatIcon className="size-3.5 shrink-0 text-fg-muted transition group-hover:text-fg" />
-                        <span className="min-w-0 truncate">{promptText}</span>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              </section>
+            {!collapsed ? (
+              <div className="mt-4 border-t border-border/60 pt-3">
+                <NavChatsHistory
+                  chats={savedChats}
+                  activeChatId={activeChatId}
+                  onSelectChat={(chatId) => {
+                    if (typeof window === "undefined") return;
+                    window.dispatchEvent(new CustomEvent(SELECT_EVENT, { detail: { chatId } }));
+                  }}
+                  onNewChat={() => dispatchAiCommand({ type: "clear" })}
+                  onRenameChat={(chatId, title) => dispatchAiAction({ type: "rename", chatId, title })}
+                  onTogglePinChat={(chatId) => dispatchAiAction({ type: "pin", chatId })}
+                  onDeleteChat={(chatId) => dispatchAiAction({ type: "delete", chatId })}
+                  onShareChat={(chatId) => dispatchAiAction({ type: "share", chatId })}
+                />
+              </div>
             ) : null}
           </nav>
 

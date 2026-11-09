@@ -1,14 +1,23 @@
 "use client";
 
-import { useEffect, useState, type ChangeEvent, type FormEvent, type RefObject } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type FormEvent,
+  type RefObject,
+} from "react";
 import { createPortal } from "react-dom";
 
+import { isCodeSnippet } from "@/components/ai/code-block";
+import { ModelSelector } from "@/components/ai/model-selector";
 import {
   applyReasoningPrefix,
   ReasoningModeBar,
   type AiReasoningMode,
 } from "@/components/ai/reasoning-mode-bar";
-import { IconClose } from "@/components/ui/icons";
+import { IconCheck, IconChevron, IconClose, IconGlobe } from "@/components/ui/icons";
 import type { AsistenteCopy, AsistenteSuggestionId } from "@/content/i18n/extra-asistente";
 import { cn } from "@/lib/cn";
 
@@ -18,6 +27,63 @@ const MOBILE_QUERY = "(max-width: 1023px)";
 
 /** Anillo de foco compartido por todos los controles del compositor. */
 const FOCUS_RING = "outline-none focus-visible:ring-4 focus-visible:ring-fg/20";
+
+/** Nombre legible de cada herramienta avanzada que el chat puede activar. */
+const TOOL_LABELS: Record<string, string> = {
+  chart_bar: "Gráfico de barras",
+  chart_line: "Gráfico de líneas",
+  chart_pie: "Gráfico circular",
+  chart_area: "Gráfico de área",
+  chart_radar: "Gráfico de radar",
+  fin_metrics: "Análisis fundamental",
+  stock_compare: "Comparar acciones",
+  sector_perf: "Rendimiento sectorial",
+};
+
+const CHART_TOOLS: readonly string[] = [
+  "chart_bar",
+  "chart_line",
+  "chart_pie",
+  "chart_area",
+  "chart_radar",
+];
+const ANALYSIS_TOOLS: readonly string[] = ["fin_metrics", "stock_compare", "sector_perf"];
+
+function toolLabel(id: string): string {
+  return TOOL_LABELS[id] ?? id.replace(/_/g, " ");
+}
+
+/** Vistas del popover del botón «+». */
+type MenuView = "main" | "charts" | "analysis";
+
+/**
+ * Tipos mínimos de la Web Speech API: TypeScript no la trae en lib.dom.
+ * Se declaran aquí para no usar `any` en ningún punto.
+ */
+type SpeechAlternative = { transcript: string };
+type SpeechResult = { [index: number]: SpeechAlternative };
+type SpeechResultList = { length: number; [index: number]: SpeechResult };
+type SpeechRecognitionLike = {
+  lang: string;
+  continuous: boolean;
+  interimResults: boolean;
+  start: () => void;
+  stop: () => void;
+  onresult: ((event: { results: SpeechResultList }) => void) | null;
+  onerror: (() => void) | null;
+  onend: (() => void) | null;
+};
+type SpeechRecognitionCtor = new () => SpeechRecognitionLike;
+type SpeechWindow = Window & {
+  SpeechRecognition?: SpeechRecognitionCtor;
+  webkitSpeechRecognition?: SpeechRecognitionCtor;
+};
+
+function speechRecognitionCtor(): SpeechRecognitionCtor | null {
+  if (typeof window === "undefined") return null;
+  const speech = window as SpeechWindow;
+  return speech.SpeechRecognition ?? speech.webkitSpeechRecognition ?? null;
+}
 
 /** Devuelve el contenedor del dock móvil (dentro de la barra inferior) o null. */
 function useDockSlot(): HTMLElement | null {
@@ -57,6 +123,14 @@ export function Composer({
   onFile,
   onRemoveImage,
   fileRef,
+  selectedModel,
+  onSelectModel,
+  webSearchEnabled,
+  onToggleWebSearch,
+  activeTools = [],
+  onToggleTool,
+  onStop,
+  variant = "bottom",
 }: {
   copy: AsistenteCopy;
   draft: string;
@@ -71,8 +145,85 @@ export function Composer({
   onFile: (event: ChangeEvent<HTMLInputElement>) => void;
   onRemoveImage: () => void;
   fileRef: RefObject<HTMLInputElement | null>;
+  selectedModel?: "fast" | "pro";
+  onSelectModel?: (model: "fast" | "pro") => void;
+  webSearchEnabled?: boolean;
+  onToggleWebSearch?: () => void;
+  activeTools?: readonly string[];
+  onToggleTool?: (toolId: string) => void;
+  onStop?: () => void;
+  variant?: "landing" | "bottom";
 }) {
   const canSend = !typing && (draft.trim().length > 0 || pendingImage != null);
+  const showStop = typing && onStop != null;
+  const showCount = draft.length > 1200;
+  const codePasted = isCodeSnippet(draft);
+
+  const dockSlot = useDockSlot();
+
+  // Modo de razonamiento del compositor (flash por defecto).
+  const [mode, setMode] = useState<AiReasoningMode>("flash");
+
+  // La búsqueda web puede venir controlada por el coordinador o vivir aquí.
+  const [localWebSearch, setLocalWebSearch] = useState(false);
+  const webSearchOn = webSearchEnabled ?? localWebSearch;
+
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [menuView, setMenuView] = useState<MenuView>("main");
+  const menuRef = useRef<HTMLDivElement | null>(null);
+
+  const [listening, setListening] = useState(false);
+  const [speechReady, setSpeechReady] = useState(false);
+  const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
+  const draftRef = useRef(draft);
+
+  // El dictado necesita el borrador más reciente sin volver a suscribir el reconocedor.
+  useEffect(() => {
+    draftRef.current = draft;
+  }, [draft]);
+
+  // Detectar la API de voz en el siguiente frame (sin setState síncrono dentro del efecto).
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => setSpeechReady(speechRecognitionCtor() !== null));
+    return () => cancelAnimationFrame(frame);
+  }, []);
+
+  // Al desmontar, cortar el micrófono sin disparar setState.
+  useEffect(() => {
+    return () => {
+      const recognition = recognitionRef.current;
+      if (!recognition) return;
+      recognition.onresult = null;
+      recognition.onerror = null;
+      recognition.onend = null;
+      try {
+        recognition.stop();
+      } catch {
+        // Ya estaba detenido: no hay nada que hacer.
+      }
+    };
+  }, []);
+
+  // Popover de herramientas: cierra con click fuera y con Escape.
+  useEffect(() => {
+    if (!menuOpen) return;
+    const close = () => {
+      setMenuOpen(false);
+      setMenuView("main");
+    };
+    const onPointerDown = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) close();
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") close();
+    };
+    document.addEventListener("mousedown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [menuOpen]);
 
   function submit(event: FormEvent) {
     event.preventDefault();
@@ -80,18 +231,78 @@ export function Composer({
     onSubmit();
   }
 
-  const dockSlot = useDockSlot();
-
-  // Modo de razonamiento del compositor de escritorio (flash por defecto).
-  const [mode, setMode] = useState<AiReasoningMode>("flash");
-  const showCount = draft.length > 1200;
-
   function handleModeChange(nextMode: AiReasoningMode) {
     setMode(nextMode);
     if (nextMode === "deep" && draft.trim().length > 0) {
       onDraft(applyReasoningPrefix(draft, "deep"));
     } else if (nextMode === "portfolio" && draft.trim().length === 0) {
       onDraft("Analiza mi cartera: concentración, riesgos y balance");
+    }
+  }
+
+  function toggleWebSearch() {
+    if (onToggleWebSearch) {
+      onToggleWebSearch();
+      return;
+    }
+    setLocalWebSearch((prev) => !prev);
+  }
+
+  function closeMenu() {
+    setMenuOpen(false);
+    setMenuView("main");
+  }
+
+  function toggleMenu() {
+    if (menuOpen) {
+      closeMenu();
+      return;
+    }
+    setMenuView("main");
+    setMenuOpen(true);
+  }
+
+  function uploadPhoto() {
+    closeMenu();
+    fileRef.current?.click();
+  }
+
+  function toggleDictation() {
+    if (listening) {
+      recognitionRef.current?.stop();
+      setListening(false);
+      return;
+    }
+
+    const Recognition = speechRecognitionCtor();
+    if (!Recognition) {
+      setSpeechReady(false);
+      return;
+    }
+
+    try {
+      const recognition = new Recognition();
+      recognition.lang = "es-CL";
+      recognition.continuous = false;
+      recognition.interimResults = false;
+      recognition.onresult = (event) => {
+        const last = event.results[event.results.length - 1];
+        const transcript = last?.[0]?.transcript?.trim() ?? "";
+        if (!transcript) return;
+        const base = draftRef.current.trimEnd();
+        onDraft(base ? `${base} ${transcript}` : transcript);
+      };
+      recognition.onerror = () => setListening(false);
+      recognition.onend = () => {
+        recognitionRef.current = null;
+        setListening(false);
+      };
+      recognitionRef.current = recognition;
+      recognition.start();
+      setListening(true);
+    } catch {
+      recognitionRef.current = null;
+      setListening(false);
     }
   }
 
@@ -163,11 +374,13 @@ export function Composer({
             if (canSend) onSubmit();
           }
         }}
-        className={
+        className={cn(
+          "min-w-0 flex-1 resize-none border-0 bg-transparent text-fg outline-none placeholder:text-fg-muted focus-visible:ring-0 disabled:opacity-50",
           dockSlot
-            ? "max-h-11 min-h-11 min-w-0 flex-1 resize-none border-0 bg-transparent px-1.5 py-2.5 text-[16px] leading-5 text-fg outline-none placeholder:text-fg-muted focus-visible:ring-0 disabled:opacity-50"
-            : "max-h-40 min-h-11 min-w-0 flex-1 resize-none border-0 bg-transparent px-1 py-2.5 text-[15.5px] leading-6 text-fg outline-none placeholder:text-fg-muted focus-visible:ring-0 disabled:opacity-50"
-        }
+            ? "max-h-11 min-h-11 px-1.5 py-2.5 text-[16px] leading-5"
+            : "block max-h-40 min-h-12 px-1.5 py-2 text-[15.5px] leading-6",
+          !dockSlot && showCount && "pb-6",
+        )}
       />
     </>
   );
@@ -180,16 +393,32 @@ export function Composer({
       title={copy.send}
       className={cn(
         "inline-flex shrink-0 touch-manipulation items-center justify-center rounded-full transition-all duration-150 active:scale-95 motion-reduce:transition-none",
-        dockSlot ? "size-11" : "size-10",
+        dockSlot ? "size-11" : "size-9",
         canSend
           ? "cursor-pointer bg-fg text-bg hover:opacity-90"
-          : "cursor-not-allowed bg-surface-2 text-fg-subtle",
+          : "cursor-not-allowed bg-surface-2 text-fg-muted",
         FOCUS_RING,
       )}
     >
-      <SendIcon />
+      <ArrowUpIcon />
     </button>
   );
+
+  const stopButton = showStop ? (
+    <button
+      type="button"
+      onClick={onStop}
+      aria-label="Detener respuesta"
+      title="Detener respuesta"
+      className={cn(
+        "inline-flex shrink-0 touch-manipulation items-center justify-center rounded-lg bg-down text-white transition hover:opacity-90 active:scale-95 motion-reduce:transition-none",
+        dockSlot ? "size-11" : "size-9",
+        FOCUS_RING,
+      )}
+    >
+      <StopIcon />
+    </button>
+  ) : null;
 
   const attachButton = (
     <button
@@ -200,12 +429,242 @@ export function Composer({
       title={copy.attach}
       className={cn(
         "inline-flex shrink-0 touch-manipulation cursor-pointer items-center justify-center rounded-full text-fg-muted transition hover:bg-surface-1 hover:text-fg active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 motion-reduce:transition-none",
-        dockSlot ? "size-11" : "size-10",
+        dockSlot ? "size-11" : "size-9",
         FOCUS_RING,
       )}
     >
       <CameraIcon />
     </button>
+  );
+
+  const webPill = (
+    <button
+      type="button"
+      onClick={toggleWebSearch}
+      aria-pressed={webSearchOn}
+      title="Buscar en la web"
+      className={cn(
+        "inline-flex min-h-8 shrink-0 touch-manipulation items-center gap-1.5 rounded-full border px-2.5 text-[11.5px] font-medium transition active:scale-[0.98] motion-reduce:transition-none",
+        webSearchOn
+          ? "border-fg/20 bg-surface-1 text-fg"
+          : "border-border/70 bg-white text-fg-muted hover:border-border-strong hover:bg-surface-1 hover:text-fg",
+        FOCUS_RING,
+      )}
+    >
+      <IconGlobe className="size-3.5" />
+      <span className="whitespace-nowrap">Buscar en la web</span>
+    </button>
+  );
+
+  const micButton = (
+    <button
+      type="button"
+      onClick={toggleDictation}
+      aria-pressed={listening}
+      aria-label="Dictar pregunta"
+      title={speechReady ? "Dictar pregunta" : "Dictado no disponible"}
+      disabled={!speechReady}
+      className={cn(
+        "inline-flex shrink-0 touch-manipulation items-center justify-center rounded-full transition active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 motion-reduce:transition-none",
+        dockSlot ? "size-11" : "size-8",
+        listening
+          ? "bg-down text-white hover:opacity-90"
+          : "text-fg-muted hover:bg-surface-1 hover:text-fg",
+        FOCUS_RING,
+      )}
+    >
+      {listening ? <LevelBars /> : <MicIcon />}
+    </button>
+  );
+
+  const toolPills =
+    activeTools.length > 0 ? (
+      <div className="mb-1.5 flex flex-wrap items-center gap-1.5">
+        {activeTools.map((id) => {
+          const label = toolLabel(id);
+          return (
+            <span
+              key={id}
+              className="inline-flex items-center gap-1 rounded-full border border-border/70 bg-surface-1 py-1 pr-1 pl-2.5 text-[11.5px] font-medium text-fg-body"
+            >
+              <ToolGlyph id={id} />
+              {label}
+              <button
+                type="button"
+                onClick={() => onToggleTool?.(id)}
+                aria-label={`Quitar ${label}`}
+                title={`Quitar ${label}`}
+                className={cn(
+                  "inline-flex size-5 shrink-0 items-center justify-center rounded-full text-fg-muted transition hover:bg-surface-2 hover:text-fg active:scale-95 motion-reduce:transition-none",
+                  FOCUS_RING,
+                )}
+              >
+                <IconClose className="size-3" />
+              </button>
+            </span>
+          );
+        })}
+      </div>
+    ) : null;
+
+  const codeCard = codePasted ? (
+    <div className="mb-2 overflow-hidden rounded-xl border border-border bg-surface-1/70">
+      <div className="flex items-center justify-between gap-2 border-b border-border/60 px-2.5 py-1.5">
+        <span className="text-[10px] font-semibold tracking-[0.12em] text-fg-muted uppercase">
+          PASTED
+        </span>
+        <button
+          type="button"
+          onClick={() => onDraft("")}
+          aria-label="Quitar código pegado"
+          title="Quitar código pegado"
+          className={cn(
+            "inline-flex size-6 items-center justify-center rounded-full text-fg-muted transition hover:bg-surface-2 hover:text-fg active:scale-95 motion-reduce:transition-none",
+            FOCUS_RING,
+          )}
+        >
+          <IconClose className="size-3.5" />
+        </button>
+      </div>
+      <pre className="max-h-14 overflow-hidden px-2.5 py-1.5 font-mono text-[11px] leading-[1.5] whitespace-pre text-fg-body">
+        {draft.split("\n").slice(0, 3).join("\n")}
+      </pre>
+    </div>
+  ) : null;
+
+  const toolMenu = (
+    <div ref={menuRef} className="relative shrink-0">
+      <button
+        type="button"
+        onClick={toggleMenu}
+        aria-label="Herramientas avanzadas y adjuntos"
+        title="Herramientas avanzadas y adjuntos"
+        aria-haspopup="menu"
+        aria-expanded={menuOpen}
+        className={cn(
+          "inline-flex shrink-0 touch-manipulation items-center justify-center rounded-full transition active:scale-95 motion-reduce:transition-none",
+          dockSlot ? "size-11" : "size-9",
+          menuOpen
+            ? "bg-fg text-bg hover:opacity-90"
+            : "text-fg-muted hover:bg-surface-1 hover:text-fg",
+          FOCUS_RING,
+        )}
+      >
+        <PlusIcon open={menuOpen} />
+      </button>
+
+      {menuOpen ? (
+        <div
+          role="menu"
+          aria-label="Herramientas avanzadas y adjuntos"
+          className="absolute bottom-full left-0 z-50 mb-2 w-64 rounded-2xl border border-border bg-white p-1.5 shadow-[0_18px_40px_-24px_rgba(12,15,20,0.35)]"
+        >
+          {menuView === "main" ? (
+            <>
+              <button
+                type="button"
+                role="menuitem"
+                onClick={uploadPhoto}
+                className={cn(
+                  "flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-[13px] font-medium text-fg-body transition hover:bg-surface-1 hover:text-fg motion-reduce:transition-none",
+                  FOCUS_RING,
+                )}
+              >
+                <span className="inline-flex size-6 shrink-0 items-center justify-center rounded-full bg-surface-2 text-fg-body">
+                  <PaperclipIcon />
+                </span>
+                Subir foto de cartera
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => setMenuView("charts")}
+                className={cn(
+                  "flex w-full items-center justify-between gap-2 rounded-xl px-2.5 py-2 text-left text-[13px] font-medium text-fg-body transition hover:bg-surface-1 hover:text-fg motion-reduce:transition-none",
+                  FOCUS_RING,
+                )}
+              >
+                <span className="flex items-center gap-2.5">
+                  <span className="inline-flex size-6 shrink-0 items-center justify-center rounded-full bg-surface-2 text-fg-body">
+                    <ChartIcon />
+                  </span>
+                  Gráficos
+                </span>
+                <IconChevron className="size-3.5 -rotate-90 text-fg-muted" />
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => setMenuView("analysis")}
+                className={cn(
+                  "flex w-full items-center justify-between gap-2 rounded-xl px-2.5 py-2 text-left text-[13px] font-medium text-fg-body transition hover:bg-surface-1 hover:text-fg motion-reduce:transition-none",
+                  FOCUS_RING,
+                )}
+              >
+                <span className="flex items-center gap-2.5">
+                  <span className="inline-flex size-6 shrink-0 items-center justify-center rounded-full bg-surface-2 text-fg-body">
+                    <AnalysisIcon />
+                  </span>
+                  Análisis
+                </span>
+                <IconChevron className="size-3.5 -rotate-90 text-fg-muted" />
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={() => setMenuView("main")}
+                className={cn(
+                  "mb-1 flex w-full items-center gap-1 rounded-xl px-2.5 py-1.5 text-left text-[11px] font-semibold text-fg-muted transition hover:bg-surface-1 hover:text-fg motion-reduce:transition-none",
+                  FOCUS_RING,
+                )}
+              >
+                <IconChevron className="size-3.5 rotate-90" />
+                Volver
+              </button>
+              <p className="px-2.5 pt-0.5 pb-1 text-[10px] font-semibold tracking-[0.12em] text-fg-muted uppercase">
+                {menuView === "charts" ? "Gráficos" : "Análisis"}
+              </p>
+              {(menuView === "charts" ? CHART_TOOLS : ANALYSIS_TOOLS).map((id) => {
+                const label = toolLabel(id);
+                const active = activeTools.includes(id);
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    role="menuitemcheckbox"
+                    aria-checked={active}
+                    onClick={() => onToggleTool?.(id)}
+                    className={cn(
+                      "flex w-full items-center justify-between gap-2 rounded-xl px-2.5 py-2 text-left text-[13px] transition motion-reduce:transition-none",
+                      active
+                        ? "bg-surface-1 font-medium text-fg"
+                        : "text-fg-body hover:bg-surface-1 hover:text-fg",
+                      FOCUS_RING,
+                    )}
+                  >
+                    <span className="flex items-center gap-2.5">
+                      <span className="inline-flex size-6 shrink-0 items-center justify-center rounded-full bg-surface-2 text-fg-body">
+                        <ToolGlyph id={id} />
+                      </span>
+                      {label}
+                    </span>
+                    {active ? (
+                      <IconCheck className="size-3.5 text-up" />
+                    ) : (
+                      <span className="text-[10px] font-medium tracking-[0.08em] text-fg-muted uppercase">
+                        Añadir
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </>
+          )}
+        </div>
+      ) : null}
+    </div>
   );
 
   // En escritorio las sugerencias viven bajo el compositor; en móvil, la grilla
@@ -271,6 +730,7 @@ export function Composer({
             {fileInput}
             {textarea}
             {sendButton}
+            {stopButton}
           </form>,
           dockSlot,
         )}
@@ -287,28 +747,45 @@ export function Composer({
       {pendingBlock}
       {errorBlock}
 
-      <div className="relative rounded-3xl border border-border/80 bg-white shadow-[0_1px_2px_rgba(12,15,20,0.04),0_18px_40px_-28px_rgba(12,15,20,0.25)] transition-[border-color,box-shadow] duration-200 focus-within:border-fg/20 focus-within:ring-4 focus-within:ring-fg/[0.06] motion-reduce:transition-none">
-        <span
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-fg/10 to-transparent"
-        />
-        <div className="overflow-hidden rounded-t-3xl border-b border-border/60 px-2.5 py-1.5">
-          <ReasoningModeBar mode={mode} onChange={handleModeChange} />
-        </div>
-        <div className={cn("flex min-w-0 items-end gap-1.5 px-2 py-2 sm:px-3", showCount && "pb-7")}>
-          {attachButton}
-          {fileInput}
+      <div
+        className={cn(
+          "border border-[#DBDBDB] bg-white shadow-[inset_0_0_1px_0_rgba(0,0,0,0.85),0_1px_2px_0_rgba(0,0,0,0.04),0_2px_12px_0_rgba(0,0,0,0.03)] transition-all focus-within:border-fg/25",
+          variant === "landing" ? "rounded-3xl p-3" : "rounded-2xl p-2.5",
+        )}
+      >
+        {toolPills}
+        {codeCard}
+
+        <div className="relative flex min-w-0 items-end">
           {textarea}
-          {sendButton}
+          {showCount ? (
+            <p
+              aria-live="polite"
+              className="pointer-events-none absolute right-1.5 bottom-1 text-[11px] leading-none tabular-nums text-fg-muted"
+            >
+              {draft.length}
+            </p>
+          ) : null}
         </div>
-        {showCount ? (
-          <p
-            aria-live="polite"
-            className="pointer-events-none absolute right-2.5 bottom-1.5 text-[11px] leading-none tabular-nums text-fg-muted sm:right-3"
-          >
-            {draft.length}
-          </p>
-        ) : null}
+
+        <div className="mt-1 flex flex-wrap items-center justify-between gap-1 pt-1">
+          <div className="flex min-w-0 flex-wrap items-center gap-1">
+            {toolMenu}
+            {attachButton}
+            {fileInput}
+            {webPill}
+            <ReasoningModeBar mode={mode} onChange={handleModeChange} />
+            <ModelSelector
+              variant="inline"
+              selectedModel={selectedModel}
+              onSelectModel={onSelectModel}
+            />
+          </div>
+          <div className="flex shrink-0 items-center gap-1">
+            {micButton}
+            {showStop ? stopButton : sendButton}
+          </div>
+        </div>
       </div>
 
       {chips}
@@ -317,9 +794,99 @@ export function Composer({
   );
 }
 
+function PlusIcon({ open }: { open: boolean }) {
+  return (
+    <svg
+      viewBox="0 0 16 16"
+      className={cn(
+        "size-4 transition-transform duration-200 motion-reduce:transition-none",
+        open && "rotate-45",
+      )}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.6"
+      strokeLinecap="round"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <path d="M8 3.5v9M3.5 8h9" />
+    </svg>
+  );
+}
+
+function ArrowUpIcon() {
+  return (
+    <svg
+      viewBox="0 0 16 16"
+      className="size-4"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.7"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <path d="M8 12.5V3.5M4.5 6.6 8 3.2l3.5 3.4" />
+    </svg>
+  );
+}
+
+function StopIcon() {
+  return (
+    <svg
+      viewBox="0 0 16 16"
+      className="size-4"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.2"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <rect x="5.25" y="5.25" width="5.5" height="5.5" rx="1.3" fill="currentColor" />
+    </svg>
+  );
+}
+
+function MicIcon() {
+  return (
+    <svg
+      viewBox="0 0 16 16"
+      className="size-4"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <rect x="6" y="2.5" width="4" height="7" rx="2" />
+      <path d="M4 7.5v.4a4 4 0 0 0 8 0v-.4M8 11.9v1.4M6.2 13.3h3.6" />
+    </svg>
+  );
+}
+
+function LevelBars() {
+  return (
+    <span aria-hidden="true" className="flex items-center gap-[2px]">
+      {[0, 1, 2, 3, 4].map((bar) => (
+        <span
+          key={bar}
+          className={cn(
+            "w-[2px] rounded-full bg-current motion-safe:animate-pulse motion-reduce:animate-none",
+            bar === 0 || bar === 4 ? "h-2" : bar === 1 || bar === 3 ? "h-3" : "h-3.5",
+          )}
+          style={{ animationDelay: `${bar * 90}ms` }}
+        />
+      ))}
+    </span>
+  );
+}
+
 function CameraIcon() {
   return (
-    <svg viewBox="0 0 16 16" className="size-4.5" fill="none" aria-hidden>
+    <svg viewBox="0 0 16 16" className="size-4.5" fill="none" aria-hidden="true" focusable="false">
       <path
         d="M6 3.5h4l.8 1.3H13a1.2 1.2 0 0 1 1.2 1.2v6.3A1.2 1.2 0 0 1 13 13.5H3A1.2 1.2 0 0 1 1.8 12.3V6A1.2 1.2 0 0 1 3 4.8h2.2L6 3.5Z"
         stroke="currentColor"
@@ -331,16 +898,60 @@ function CameraIcon() {
   );
 }
 
-function SendIcon() {
+function PaperclipIcon() {
   return (
-    <svg viewBox="0 0 16 16" className="size-4" fill="none" aria-hidden>
-      <path
-        d="M8 12.5V3.5M4.5 6.5 8 3.2 11.5 6.5"
-        stroke="currentColor"
-        strokeWidth="1.65"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
+    <svg
+      viewBox="0 0 16 16"
+      className="size-3.5"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.4"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <path d="M10.8 5.2 5.6 10.4a1.7 1.7 0 0 0 2.4 2.4l5.4-5.4a3 3 0 0 0-4.3-4.3L3.7 8.5a4.3 4.3 0 0 0 6.1 6.1" />
     </svg>
   );
+}
+
+function ChartIcon() {
+  return (
+    <svg
+      viewBox="0 0 16 16"
+      className="size-3.5"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <path d="M2.5 13.5h11M5 13.5v-4M8 13.5V5M11 13.5V7.5" />
+    </svg>
+  );
+}
+
+function AnalysisIcon() {
+  return (
+    <svg
+      viewBox="0 0 16 16"
+      className="size-3.5"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <path d="M2.5 11.5 6 8l2.5 2.5L13.5 4.5" />
+      <path d="M10.5 4.5h3v3" />
+    </svg>
+  );
+}
+
+function ToolGlyph({ id }: { id: string }) {
+  return id.startsWith("chart_") ? <ChartIcon /> : <AnalysisIcon />;
 }

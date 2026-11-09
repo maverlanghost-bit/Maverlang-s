@@ -25,6 +25,8 @@ const eslintConfig = defineConfig([
     "test-results/**",
     "next-env.d.ts",
     "docs/**",
+    // Copia de referencia de otra app (untracked): no es código de Maverlang.
+    "ai-chat-extracted/**",
   ]),
 ]);
 

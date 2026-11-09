@@ -20,6 +20,10 @@ playwright-report/
 test-results/
 t18-check.ts
 
+# Copia de referencia de otra app (sólo lectura, fuera del build).
+ai-chat-extracted/
+tmp/
+
 .DS_Store
 *.pem
 *.tsbuildinfo
