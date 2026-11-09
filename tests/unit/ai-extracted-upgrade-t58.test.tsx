@@ -24,12 +24,7 @@ import { exportChatToMarkdown, groupSavedChatsByDate, type SavedChatItem } from 
 import { ShareChatDialog } from "@/components/ai/share-chat-dialog";
 import { SourcesList, ToolAccordion, formatCitationSource } from "@/components/ai/tool-accordion";
 import { computeStreamStep } from "@/components/ai/use-smoothed-stream";
-import {
-  PROMPT_SUGGESTIONS,
-  PromptSuggestions,
-  WELCOME_ACTIONS,
-  WelcomeChips,
-} from "@/components/ai/welcome-chips";
+import { WELCOME_ACTIONS, WelcomeChips } from "@/components/ai/welcome-chips";
 
 const ROOT = path.resolve(__dirname, "..", "..");
 /** Etiquetas de razonamiento construidas por código para no depender del markup del test. */
@@ -110,20 +105,21 @@ describe("T58 — integración de ai-chat-extracted en el asistente", () => {
     expect(empty).not.toContain("<header");
   });
 
-  it("los chips de bienvenida y las sugerencias usan los prompts de Maverlang", () => {
+  it("los chips de bienvenida usan los prompts de Maverlang", () => {
     expect(WELCOME_ACTIONS).toHaveLength(4);
-    expect(PROMPT_SUGGESTIONS).toHaveLength(6);
 
     const chips = html(createElement(WelcomeChips, { onSendMessage: () => {} }));
     for (const label of ["Analizar tu portafolio", "Crear un portafolio", "Noticias del mercado", "Estrategia de inversión"]) {
       expect(chips).toContain(label);
     }
     expect(chips).toContain('aria-label="Acciones rápidas"');
+    expect(chips).toContain("data-welcome-chips");
 
-    const suggestions = html(createElement(PromptSuggestions, { onSendMessage: () => {} }));
-    expect(suggestions).toContain("Sugerencias");
-    for (const label of ["Mi portafolio", "Noticias del mercado", "Análisis técnico", "Comparar acciones", "Estrategia de inversión", "Alertas de precio"]) {
-      expect(suggestions).toContain(label);
+    // Cada chip emite su acción y un prompt propio (el estado vacío ya no
+    // tiene el bloque «Sugerencias» que vivía bajo los chips).
+    for (const action of WELCOME_ACTIONS) {
+      expect(chips).toContain(`data-welcome-action="${action.id}"`);
+      expect(action.prompt.trim().length).toBeGreaterThan(0);
     }
   });
 

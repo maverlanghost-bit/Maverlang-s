@@ -249,13 +249,10 @@ export function Sidebar({
                 collapsed ? "flex-none justify-center" : "flex-1",
               )}
             >
-              <div className="relative flex items-center justify-center size-7 rounded-lg bg-zinc-900/5 shrink-0 overflow-hidden">
+              <div className="relative flex size-7 shrink-0 items-center justify-center">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/assets/Maverlang Logo-2.png" alt="Maverlang" className="size-5 object-contain" />
+                <img src="/assets/Maverlang Logo-2.png" alt={site.name} className="size-7 object-contain" />
               </div>
-              {collapsed ? null : (
-                <span className="text-sm font-semibold tracking-tight text-zinc-900 truncate">Maverlang AI</span>
-              )}
             </Link>
             <button
               type="button"

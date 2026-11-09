@@ -12,7 +12,7 @@ import { NoticeCard } from "@/components/ai/notices";
 import { ReasoningAccordion } from "@/components/ai/reasoning-accordion";
 import { RichAssistantMessage } from "@/components/ai/rich-message";
 import { SourcesList } from "@/components/ai/tool-accordion";
-import { PromptSuggestions, WelcomeChips } from "@/components/ai/welcome-chips";
+import { WelcomeChips } from "@/components/ai/welcome-chips";
 import type { AsistenteCopy, AsistenteSuggestionId } from "@/content/i18n/extra-asistente";
 import { cn } from "@/lib/cn";
 
@@ -192,8 +192,9 @@ function UserBubble({
     >
       <div className="relative flex flex-col items-end max-w-[85%] md:max-w-[75%]">
         {editing ? (
-          <div className="w-full min-w-[min(100%,280px)] sm:min-w-[340px] bg-white border border-zinc-200/70 rounded-3xl px-4 py-3 shadow-md">
+          <div className="w-full min-w-[min(100%,280px)] sm:min-w-[340px] bg-white border border-zinc-200/70 rounded-3xl px-4 py-3 shadow-md transition-colors focus-within:border-zinc-400">
             <textarea
+              data-bare-input=""
               value={draft}
               rows={2}
               aria-label="Editar mensaje"
@@ -381,7 +382,7 @@ export function Transcript({
               initial={{ opacity: 0, y: 10, scale: 0.98 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               transition={{ duration: 0.5, ease: "easeOut", delay: 0.1 }}
-              className="w-full max-w-3xl pb-2"
+              className="w-full max-w-3xl"
             >
               {landingComposer}
             </motion.div>
@@ -393,15 +394,6 @@ export function Transcript({
               className="w-full mt-3 flex justify-center"
             >
               <WelcomeChips onSendMessage={sendPrompt} />
-            </motion.div>
-
-            <motion.div
-              initial={{ opacity: 0, y: 14 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, ease: "easeOut", delay: 0.3 }}
-              className="w-full mt-6"
-            >
-              <PromptSuggestions onSendMessage={sendPrompt} />
             </motion.div>
           </div>
         </div>

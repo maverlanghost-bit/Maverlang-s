@@ -4,9 +4,12 @@ import { cn } from "@/lib/cn";
 
 /**
  * Accesos rápidos del estado vacío del asistente (T58 · BOT 05).
- * Clon de `welcome-popup` y `prompt-suggestions` de ai-chat-extracted en un
- * solo módulo sin dependencias: sólo entrega prompts, no llama a la red.
+ * Clon de `welcome-popup` de ai-chat-extracted en un solo módulo sin
+ * dependencias: sólo entrega prompts, no llama a la red.
  * Los glifos son SVG locales para no depender de lucide-react.
+ *
+ * T61: se retiró el bloque «Sugerencias» (`PromptSuggestions`) que vivía bajo
+ * los chips; el estado vacío usa únicamente `WelcomeChips`.
  */
 
 export type WelcomeAction = {
@@ -44,58 +47,6 @@ export const WELCOME_ACTIONS: readonly WelcomeAction[] = [
     prompt:
       "Ayúdame a crear una estrategia de inversión. Pregúntame sobre mi perfil de riesgo, horizonte temporal, capital disponible y objetivos. Dame un plan diversificado con porcentajes.",
     tone: "warn",
-  },
-];
-
-export type PromptSuggestion = {
-  id: string;
-  label: string;
-  description: string;
-  prompt: string;
-};
-
-export const PROMPT_SUGGESTIONS: readonly PromptSuggestion[] = [
-  {
-    id: "portfolio",
-    label: "Mi portafolio",
-    description: "Analiza el rendimiento de tus acciones",
-    prompt:
-      "Muéstrame cómo va mi portafolio hoy. Dame un resumen del rendimiento, las acciones que más subieron y bajaron, y una recomendación general.",
-  },
-  {
-    id: "news",
-    label: "Noticias del mercado",
-    description: "Resumen de noticias financieras",
-    prompt:
-      "Dame un resumen de las noticias financieras más importantes de hoy. Incluye los principales movimientos del mercado, eventos corporativos relevantes y su impacto potencial.",
-  },
-  {
-    id: "technical",
-    label: "Análisis técnico",
-    description: "Analiza una acción en detalle",
-    prompt:
-      "Necesito un análisis técnico detallado. Pregúntame qué acción quiero analizar, y luego dame niveles de soporte/resistencia, tendencias, y señales de compra/venta.",
-  },
-  {
-    id: "compare",
-    label: "Comparar acciones",
-    description: "Compara el rendimiento de varias acciones",
-    prompt:
-      "Quiero comparar acciones. Pregúntame cuáles quiero comparar, y luego dame una tabla comparativa con métricas clave como P/E, rendimiento, dividendos y recomendación.",
-  },
-  {
-    id: "strategy",
-    label: "Estrategia de inversión",
-    description: "Genera un plan de inversión personalizado",
-    prompt:
-      "Ayúdame a crear una estrategia de inversión. Pregúntame sobre mi perfil de riesgo, horizonte temporal, capital disponible y objetivos. Dame un plan diversificado con porcentajes.",
-  },
-  {
-    id: "alerts",
-    label: "Alertas de precio",
-    description: "Configura alertas para tus acciones",
-    prompt:
-      "Quiero configurar alertas de precio para mis acciones. Muéstrame mis posiciones actuales y ayúdame a establecer niveles de alerta para cada una.",
   },
 ];
 
@@ -161,14 +112,6 @@ function SparkIcon({ className }: IconProps): React.ReactElement {
   );
 }
 
-function ZapIcon({ className }: IconProps): React.ReactElement {
-  return (
-    <svg {...SVG_BASE} className={className}>
-      <path d="M13.4 2.5 4.9 13.4h5.9L9.4 21.5l8.7-11.2h-5.9z" />
-    </svg>
-  );
-}
-
 function actionIcon(id: string): (props: IconProps) => React.ReactElement {
   switch (id) {
     case "portfolio-review":
@@ -228,34 +171,3 @@ export function WelcomeChips({
   );
 }
 
-export function PromptSuggestions({
-  onSendMessage,
-}: {
-  onSendMessage: (prompt: string) => void;
-}): React.ReactElement {
-  return (
-    <div
-      data-prompt-suggestions=""
-      className="max-w-2xl mx-auto w-full mt-4 md:mt-2 px-6 md:px-0"
-    >
-      <div className="flex items-center gap-2 mb-2 text-sm text-zinc-500">
-        <ZapIcon className="h-4 w-4" />
-        <span>Sugerencias</span>
-      </div>
-      <div className="max-h-46 overflow-y-auto scrollbar-hide">
-        {PROMPT_SUGGESTIONS.map((s) => (
-          <button
-            key={s.id}
-            type="button"
-            data-prompt-suggestion={s.id}
-            onClick={() => onSendMessage(s.prompt)}
-            className="w-full text-left rounded-md px-3 py-2 hover:bg-zinc-100/80 transition-colors cursor-pointer"
-          >
-            <div className="font-medium text-zinc-900 text-[14px]">{s.label}</div>
-            <div className="text-sm text-zinc-500">{s.description}</div>
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}

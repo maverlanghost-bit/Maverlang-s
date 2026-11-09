@@ -531,6 +531,7 @@ export function Composer({
             ref={textareaRef}
             id="ai-pregunta"
             name="input"
+            data-bare-input=""
             value={draft}
             rows={1}
             enterKeyHint="send"

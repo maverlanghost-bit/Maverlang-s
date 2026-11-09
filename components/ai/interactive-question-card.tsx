@@ -265,6 +265,7 @@ export function InteractiveQuestionCard({
                     <input
                       id={customInputId}
                       type="text"
+                      data-bare-input=""
                       value={customText}
                       aria-label="Escribe tu respuesta"
                       placeholder="Escribe tu respuesta"

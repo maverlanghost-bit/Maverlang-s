@@ -135,6 +135,16 @@ select.outline-none:focus-visible,
   outline-offset: 2px;
 }
 
+/* T61: los campos «sin caja propia» (el foco lo dibuja el contenedor con
+   `focus-within:border-zinc-400`) no llevan outline propio; si no, C-07 les
+   pinta un contorno negro grueso por dentro de la caja. Misma especificidad
+   o mayor que C-07 y declarada después para ganar el empate. */
+textarea[data-bare-input].outline-none:focus-visible,
+input[data-bare-input].outline-none:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+
 /* C-11: la cápsula de rango vive en price-panel (fuera de este diff). 44px sin cambiar la tipografía. */
 [aria-label="Rango del gráfico"] button,
 [aria-label="Chart range"] button {

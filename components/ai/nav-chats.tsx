@@ -331,7 +331,7 @@ function ChatSearchPanel({
           Buscar en chats
         </h2>
 
-        <div className="flex items-center gap-2.5 border-b border-zinc-100 px-4">
+        <div className="flex items-center gap-2.5 border-b border-zinc-100 px-4 transition-colors focus-within:border-zinc-300">
           <Search className="h-4 w-4 shrink-0 text-zinc-400" />
           <label htmlFor={inputId} className="sr-only">
             Buscar en chats
@@ -341,6 +341,7 @@ function ChatSearchPanel({
             ref={inputRef}
             type="text"
             autoFocus
+            data-bare-input=""
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Buscar en chats"
@@ -571,6 +572,7 @@ export function NavChatsHistory({
                 <input
                   id={searchId}
                   type="text"
+                  data-bare-input=""
                   autoFocus
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
@@ -621,6 +623,7 @@ export function NavChatsHistory({
                               >
                                 <input
                                   type="text"
+                                  data-bare-input=""
                                   autoFocus
                                   value={renameDraft}
                                   onChange={(event) => setRenameDraft(event.target.value)}

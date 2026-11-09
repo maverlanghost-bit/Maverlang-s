@@ -11,6 +11,7 @@ import {
 } from "react";
 
 import { postAssistant } from "@/components/ai/api";
+import { isValidChatId, parseChatPath, replaceChatUrl } from "@/components/ai/chat-url";
 import { ChatView } from "@/components/ai/chat-view";
 import {
   buildContextDirective,
@@ -135,9 +136,12 @@ function slugify(value: string): string {
 export function AsistenteScreen({
   initialQuery,
   initialTicker,
+  initialChatId,
 }: {
   initialQuery: string;
   initialTicker: string;
+  /** Id pedido por la URL en una carga directa (`/app/asistente/c/<id>`). */
+  initialChatId?: string;
 }) {
   const { language, t } = useT();
   const copy = asistenteText(language);
@@ -209,6 +213,14 @@ export function AsistenteScreen({
   const scopeKeyRef = useRef<string | null>(scopeKey);
   /** Id de la conversación vigente, legible desde promesas en vuelo. */
   const activeIdRef = useRef<string | null>(null);
+  /** Chat pedido por la URL al montar; sólo se aplica una vez. */
+  const initialChatIdRef = useRef<string | null>(
+    initialChatId && isValidChatId(initialChatId) ? initialChatId : null,
+  );
+  /** Último id publicado en la URL: evita `replaceState` repetidos y bucles. */
+  const urlChatIdRef = useRef<string | null>(initialChatIdRef.current);
+  /** La carga directa ya se resolvió (abrió el chat o descartó el id). */
+  const initialAppliedRef = useRef(false);
 
   const remembered = active.key === scopeKey ? active.id : undefined;
   const activeChatId = remembered !== undefined ? remembered : findMatchingChatId(savedChats, messages);
@@ -252,7 +264,53 @@ export function AsistenteScreen({
     setPendingImage(null);
     setDraft("");
     setContextItems([]);
+    // Otra identidad: la conversación de la URL ya no es de este scope.
+    syncChatUrl(null);
   }, [scopeKey]);
+
+  /** Al montar, la URL manda: recupera el id aunque no llegue por props. */
+  useIsomorphicLayoutEffect(() => {
+    if (typeof window === "undefined" || initialChatIdRef.current) return;
+    const { chatId } = parseChatPath(window.location.pathname);
+    if (!chatId) return;
+    initialChatIdRef.current = chatId;
+    urlChatIdRef.current = chatId;
+  }, []);
+
+  /**
+   * Carga directa de `/app/asistente/c/<id>`: se espera a la identidad y al
+   * historial para no parpadear el estado vacío. Si el id no existe en este
+   * navegador queda un chat vacío y la URL vuelve a `/app/asistente`.
+   */
+  useIsomorphicLayoutEffect(() => {
+    if (initialAppliedRef.current) return;
+    const wanted = initialChatIdRef.current;
+    if (!wanted || scopeKey === null || session.status === "loading") return;
+    initialAppliedRef.current = true;
+    if (savedChats.some((chat) => chat.id === wanted)) selectChat(wanted);
+    else syncChatUrl(null);
+  }, [savedChats, scopeKey, session.status]);
+
+  /** Atrás/adelante: la URL decide el chat y el guardado nunca se borra. */
+  useEffect(() => {
+    const onPopState = () => {
+      const { chatId } = parseChatPath(window.location.pathname);
+      urlChatIdRef.current = chatId;
+      if (chatId === (activeIdRef.current ?? activeChatId)) return;
+      // La entrada del historial cambió: la respuesta en vuelo ya no aplica.
+      busy.current = false;
+      if (chatId) {
+        if (savedChats.some((chat) => chat.id === chatId)) {
+          selectChat(chatId);
+          return;
+        }
+        syncChatUrl(null);
+      }
+      newChat();
+    };
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  });
 
   function publish(activeScope: ChatScope | null, activeEpoch: number, next: readonly ChatMessage[]): boolean {
     if (epoch.current !== activeEpoch) return false;
@@ -262,10 +320,21 @@ export function AsistenteScreen({
     return true;
   }
 
+  /**
+   * La URL sólo es espejo del chat activo: se reescribe con `replaceState`
+   * (nunca `router.push`) para no remontar la pantalla ni cortar el stream.
+   */
+  function syncChatUrl(chatId: string | null): void {
+    if (urlChatIdRef.current === chatId) return;
+    urlChatIdRef.current = chatId;
+    replaceChatUrl(chatId);
+  }
+
   /** Guarda la conversación vigente en el historial del scope (única fuente). */
   function persistCurrent(next: readonly ChatMessage[]): void {
     if (!scopeKey || next.length === 0) return;
-    const id = activeIdRef.current ?? createId();
+    // El id se fija antes de la URL: reusa el vigente o reabre el recuperado.
+    const id = activeIdRef.current ?? activeChatId ?? createId();
     const previous = savedChats.find((chat) => chat.id === id);
     const chat: SavedChatItem = {
       id,
@@ -279,6 +348,8 @@ export function AsistenteScreen({
       activeIdRef.current = id;
       setActive({ key: scopeKey, id });
     }
+    // El id ya está fijado antes de tocar la URL: cada chat tiene la suya.
+    syncChatUrl(id);
     notifySessionsChanged();
   }
 
@@ -412,6 +483,8 @@ export function AsistenteScreen({
     setSearchOpen(false);
     setShareOpen(false);
     setSharePair(null);
+    // Clic en el historial: la URL pasa a la del chat elegido.
+    syncChatUrl(chat.id);
     emitHistory();
   }
 
@@ -427,6 +500,8 @@ export function AsistenteScreen({
     setPhotoError(null);
     setAnnouncement("");
     setFeedback({});
+    // Chat nuevo: la URL vuelve a la vista general (sin tocar el guardado).
+    syncChatUrl(null);
     emitHistory();
   }
 
@@ -456,6 +531,8 @@ export function AsistenteScreen({
       setTyping(false);
       setAnnouncement("");
       setContextItems([]);
+      // Se borró la conversación activa: la URL vuelve a `/app/asistente`.
+      syncChatUrl(null);
       emitHistory();
     }
   }

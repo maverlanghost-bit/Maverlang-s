@@ -475,11 +475,12 @@ function ContextPickerDialog({
               <input
                 ref={searchRef}
                 type="search"
+                data-bare-input=""
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
                 placeholder="Buscar acción o índice…"
                 aria-label="Buscar acción o índice"
-                className="h-10 w-full rounded-full border border-zinc-200 bg-white pr-3 pl-9 text-sm text-zinc-900 placeholder:text-zinc-400 focus:border-zinc-300 focus:ring-2 focus:ring-zinc-900/10 focus:outline-none"
+                className="h-10 w-full rounded-full border border-zinc-200 bg-white pr-3 pl-9 text-sm text-zinc-900 placeholder:text-zinc-400 focus:border-zinc-300 focus:ring-2 focus:ring-zinc-200 focus:outline-none"
               />
             </div>
             <button

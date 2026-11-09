@@ -15,13 +15,13 @@ import { cn } from "@/lib/cn";
 const COPIED_FEEDBACK_MS = 1500;
 
 /**
- * Círculo del cluster flotante. El anillo blanco separa un círculo del
- * siguiente cuando se superponen con `-ml-2`.
+ * Círculo del cluster flotante. Los círculos se separan con `gap`, sin
+ * solaparse: borde zinc sutil y sombra ligera sobre el fondo.
  */
 const CLUSTER_CIRCLE = cn(
-  "relative inline-flex size-9 shrink-0 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-700 shadow-sm ring-2 ring-white",
-  "transition hover:z-10 hover:-translate-y-px focus-visible:z-10 focus-visible:ring-2 focus-visible:ring-zinc-300 focus-visible:outline-none",
-  "disabled:cursor-default disabled:opacity-40 disabled:hover:translate-y-0 motion-reduce:transition-none",
+  "relative inline-flex size-9 shrink-0 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-700 shadow-sm",
+  "transition hover:-translate-y-px hover:bg-zinc-50 focus-visible:ring-2 focus-visible:ring-zinc-300 focus-visible:outline-none",
+  "disabled:cursor-default disabled:opacity-40 disabled:hover:translate-y-0 disabled:hover:bg-white motion-reduce:transition-none",
 );
 
 export type AssistantNavbarProps = {
@@ -47,7 +47,7 @@ export type AssistantNavbarProps = {
 };
 
 /**
- * Acciones del asistente como cluster flotante de 3 círculos sobrepuestos
+ * Acciones del asistente como cluster flotante de 3 círculos separados
  * (nuevo chat, agregar contexto y más opciones). No renderiza barra superior,
  * título ni selector de modelo: eso vive en el compositor.
  *
@@ -207,7 +207,7 @@ export function AssistantNavbar({
     <>
       {leading ? <div className="absolute left-3 top-3 z-30 flex items-center">{leading}</div> : null}
 
-      <div className={cn("absolute right-3 top-3 z-30 flex items-center pl-2", className)}>
+      <div className={cn("absolute right-3 top-3 z-30 flex items-center gap-2.5", className)}>
         <button
           type="button"
           title="Nuevo chat"
@@ -225,7 +225,7 @@ export function AssistantNavbar({
           aria-label="Agregar contexto"
           onClick={onOpenContext}
           disabled={!onOpenContext}
-          className={cn(CLUSTER_CIRCLE, "-ml-2")}
+          className={CLUSTER_CIRCLE}
         >
           <IconPlus />
 
@@ -239,7 +239,7 @@ export function AssistantNavbar({
           ) : null}
         </button>
 
-        <div ref={menuRef} className="relative -ml-2">
+        <div ref={menuRef} className="relative">
           <button
             ref={menuButtonRef}
             type="button"
@@ -271,6 +271,7 @@ export function AssistantNavbar({
                     <input
                       ref={titleInputRef}
                       type="text"
+                      data-bare-input=""
                       value={draftTitle}
                       aria-label="Título de la conversación"
                       onChange={(event) => setDraftTitle(event.target.value)}
