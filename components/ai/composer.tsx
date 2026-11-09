@@ -12,6 +12,7 @@ import {
 import { AnimatePresence, motion } from "framer-motion";
 
 import { isCodeSnippet } from "@/components/ai/code-block";
+import type { ContextItem } from "@/components/ai/context-types";
 import { ModelSelector } from "@/components/ai/model-selector";
 import type { AsistenteCopy, AsistenteSuggestionId } from "@/content/i18n/extra-asistente";
 import { cn } from "@/lib/cn";
@@ -120,6 +121,8 @@ export function Composer({
   onToggleTool,
   onStop,
   variant = "bottom",
+  contextItems = [],
+  onRemoveContext,
 }: {
   copy: AsistenteCopy;
   draft: string;
@@ -142,6 +145,8 @@ export function Composer({
   onToggleTool?: (toolId: string) => void;
   onStop?: () => void;
   variant?: "landing" | "bottom";
+  contextItems?: readonly ContextItem[];
+  onRemoveContext?: (id: string) => void;
 }) {
   const isLanding = variant === "landing";
   const canSend = !typing && (draft.trim().length > 0 || pendingImage != null);
@@ -490,6 +495,30 @@ export function Composer({
                 </motion.div>
               ) : null}
             </AnimatePresence>
+          </div>
+        ) : null}
+
+        {/* Chips de contexto del chat (sobre el textarea). */}
+        {contextItems.length > 0 ? (
+          <div className="flex flex-wrap gap-1.5 pb-2">
+            {contextItems.map((item) => (
+              <span
+                key={item.id}
+                className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-zinc-200 bg-zinc-100 px-2.5 py-1 text-xs text-zinc-800"
+              >
+                <span className="font-semibold">{item.symbol}</span>
+                <span className="max-w-28 truncate text-zinc-500">{item.name}</span>
+                <button
+                  type="button"
+                  onClick={() => onRemoveContext?.(item.id)}
+                  aria-label={`Quitar ${item.symbol} del contexto`}
+                  title={`Quitar ${item.symbol} del contexto`}
+                  className="ml-0.5 inline-flex h-4 w-4 shrink-0 cursor-pointer items-center justify-center rounded-full text-zinc-500 transition-colors hover:bg-zinc-200 hover:text-zinc-900"
+                >
+                  <XGlyph className="h-3 w-3" />
+                </button>
+              </span>
+            ))}
           </div>
         ) : null}
 

@@ -73,29 +73,41 @@ describe("T58 — integración de ai-chat-extracted en el asistente", () => {
     expect(markup).toContain('aria-label="Elegir modelo"');
   });
 
-  it("la barra del asistente muestra título, búsqueda y acciones del chat", () => {
+  it("la barra superior desaparece: el chat sólo muestra el cluster de acciones", () => {
     const withMessages = html(
       createElement(AssistantNavbar, {
         chatTitle: "Análisis de NVDAx",
         hasMessages: true,
         isPinned: true,
+        contextCount: 2,
+        onOpenContext: () => {},
         onRenameChat: () => {},
         onNewChat: () => {},
         onShareChat: () => {},
         onOpenSearch: () => {},
         onTogglePin: () => {},
         onDeleteChat: () => {},
+        onCopyAllText: () => {},
+        onExportMarkdown: () => {},
       }),
     );
-    expect(withMessages).toContain("Análisis de NVDAx");
-    expect(withMessages).toContain('title="Buscar en chats"');
-    expect(withMessages).toContain('title="Nuevo chat"');
-    expect(withMessages).toContain("Compartir conversación");
+    // El cluster flotante conserva las tres acciones del chat.
+    expect(withMessages).toContain('aria-label="Nuevo chat"');
+    expect(withMessages).toContain('aria-label="Agregar contexto"');
     expect(withMessages).toContain('aria-label="Más opciones del chat"');
+    // El título ya no se pinta arriba y no queda rastro de la barra.
+    expect(withMessages).not.toContain("Análisis de NVDAx");
+    expect(withMessages).not.toContain("<header");
+    expect(withMessages).not.toContain("border-b");
+    expect(withMessages).not.toContain("sticky");
 
     const empty = html(createElement(AssistantNavbar, { chatTitle: "Nueva conversación", hasMessages: false }));
-    expect(empty).toContain("Nueva conversación");
+    // Sin mensajes el menú sigue disponible (Buscar), pero cerrado: no se ve
+    // "Compartir conversación" ni el título de la conversación.
+    expect(empty).toContain('aria-label="Más opciones del chat"');
     expect(empty).not.toContain("Compartir conversación");
+    expect(empty).not.toContain("Nueva conversación");
+    expect(empty).not.toContain("<header");
   });
 
   it("los chips de bienvenida y las sugerencias usan los prompts de Maverlang", () => {

@@ -12,6 +12,13 @@ import {
 
 import { postAssistant } from "@/components/ai/api";
 import { ChatView } from "@/components/ai/chat-view";
+import {
+  buildContextDirective,
+  removeContextItem,
+  toggleContextItem,
+  type ContextItem,
+  type ContextSnapshot,
+} from "@/components/ai/context-types";
 import { ImagePrepError, compressImageFile } from "@/components/ai/image";
 import {
   announceAssistant,
@@ -40,8 +47,10 @@ import {
   type SavedChatItem,
 } from "@/components/ai/sessions-store";
 import { ShareChatDialog } from "@/components/ai/share-chat-dialog";
+import { tickerBySymbol } from "@/config/tickers";
 import { asistenteText, type AsistenteSuggestionId } from "@/content/i18n/extra-asistente";
 import { useSession } from "@/lib/auth/session-context";
+import { usePortfolio, usePrices } from "@/lib/hooks/queries";
 import { useT } from "@/lib/hooks/use-t";
 
 const EMPTY: ChatMessage[] = [];
@@ -154,6 +163,40 @@ export function AsistenteScreen({
   const [shareChatId, setShareChatId] = useState<string | null>(null);
   const [sharePair, setSharePair] = useState<{ question: string; answer: string } | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [contextItems, setContextItems] = useState<ContextItem[]>([]);
+
+  /** Cartera sólo se consulta cuando el contexto la necesita (evita fetch ocioso). */
+  const portfolio = usePortfolio(contextItems.length > 0);
+  const contextSymbols = useMemo(
+    () => contextItems.filter((item) => item.kind !== "portfolio").map((item) => item.symbol),
+    [contextItems],
+  );
+  const contextPrices = usePrices(contextSymbols, contextSymbols.length > 0);
+  /** Sólo cifras finitas: si falta un dato queda `null` y la directiva lo omite. */
+  const contextSnapshot = useMemo<ContextSnapshot>(() => {
+    const data = portfolio.data;
+    const totalUsd =
+      typeof data?.totalUsd === "number" && Number.isFinite(data.totalUsd) ? data.totalUsd : null;
+    const positions = (data?.positions ?? []).map((position) => {
+      const valueUsd =
+        typeof position.valueUsd === "number" && Number.isFinite(position.valueUsd)
+          ? position.valueUsd
+          : null;
+      const weightPct = totalUsd !== null && totalUsd > 0 && valueUsd !== null ? (valueUsd / totalUsd) * 100 : null;
+      return {
+        symbol: position.symbol,
+        name: tickerBySymbol(position.symbol)?.name ?? position.symbol,
+        valueUsd,
+        weightPct,
+      };
+    });
+    const prices: Record<string, number | null> = {};
+    for (const symbol of contextSymbols) {
+      const quote = contextPrices.data?.find((row) => row.symbol.toLowerCase() === symbol.toLowerCase());
+      prices[symbol] = quote && Number.isFinite(quote.priceUsd) ? quote.priceUsd : null;
+    }
+    return { totalUsd, positions, prices };
+  }, [portfolio.data, contextPrices.data, contextSymbols]);
 
   const fileRef = useRef<HTMLInputElement>(null);
   const busy = useRef(false);
@@ -208,6 +251,7 @@ export function AsistenteScreen({
     setAnnouncement("");
     setPendingImage(null);
     setDraft("");
+    setContextItems([]);
   }, [scopeKey]);
 
   function publish(activeScope: ChatScope | null, activeEpoch: number, next: readonly ChatMessage[]): boolean {
@@ -241,6 +285,9 @@ export function AsistenteScreen({
   /** Las herramientas y la búsqueda web entran como instrucción al modelo. */
   function applyDirectives(list: readonly ChatMessage[]): ChatMessage[] {
     const hints: string[] = [];
+    // El contexto adjunto va primero para que el modelo lo lea antes que el resto.
+    const contextDirective = buildContextDirective(contextItems, contextSnapshot);
+    if (contextDirective) hints.push(contextDirective);
     if (selectedModel === "pro") hints.push("Razona con profundidad antes de responder.");
     if (webSearchEnabled) hints.push("Busca en la web y cita las fuentes que uses.");
     if (activeTools.length > 0) {
@@ -357,6 +404,7 @@ export function AsistenteScreen({
     setActive({ key: scopeKey, id: chat.id });
     setTyping(false);
     setDraft("");
+    setContextItems([]);
     setPendingImage(null);
     setPhotoError(null);
     setAnnouncement("");
@@ -374,6 +422,7 @@ export function AsistenteScreen({
     activeIdRef.current = null;
     setActive({ key: scopeKey, id: null });
     setDraft("");
+    setContextItems([]);
     setPendingImage(null);
     setPhotoError(null);
     setAnnouncement("");
@@ -406,6 +455,7 @@ export function AsistenteScreen({
       setActive({ key: scopeKey, id: null });
       setTyping(false);
       setAnnouncement("");
+      setContextItems([]);
       emitHistory();
     }
   }
@@ -464,6 +514,14 @@ export function AsistenteScreen({
     setActiveTools((current) =>
       current.includes(toolId) ? current.filter((id) => id !== toolId) : [...current, toolId],
     );
+  }
+
+  function toggleContext(item: ContextItem) {
+    setContextItems((current) => toggleContextItem(current, item));
+  }
+
+  function removeContext(id: string) {
+    setContextItems((current) => removeContextItem(current, id));
   }
 
   function copyAllText() {
@@ -585,6 +643,9 @@ export function AsistenteScreen({
         onToggleWebSearch={() => setWebSearchEnabled((current) => !current)}
         activeTools={activeTools}
         onToggleTool={toggleTool}
+        contextItems={contextItems}
+        onToggleContext={toggleContext}
+        onRemoveContext={removeContext}
         onStop={stop}
         onEditMessage={(messageId, text) => void editUserMessage(messageId, text)}
         feedback={feedback}

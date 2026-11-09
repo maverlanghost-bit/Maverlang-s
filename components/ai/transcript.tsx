@@ -186,7 +186,10 @@ function UserBubble({
   }
 
   return (
-    <div className="flex justify-end group/user-msg w-full">
+    <div
+      data-user-msg-id={message.id}
+      className="flex justify-end group/user-msg w-full scroll-mt-20"
+    >
       <div className="relative flex flex-col items-end max-w-[85%] md:max-w-[75%]">
         {editing ? (
           <div className="w-full min-w-[min(100%,280px)] sm:min-w-[340px] bg-white border border-zinc-200/70 rounded-3xl px-4 py-3 shadow-md">
@@ -403,10 +406,14 @@ export function Transcript({
           </div>
         </div>
       ) : (
-        <div onScroll={handleScroll} className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto scrollbar-hide px-4 md:px-6">
+        <div
+          data-ai-scroll
+          onScroll={handleScroll}
+          className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto scrollbar-hide px-4 md:px-6"
+        >
           <ol
             aria-label={copy.transcript}
-            className="pt-8 pb-24 md:pb-8 space-y-6 max-w-3xl mx-auto w-full"
+            className="pt-14 pb-24 md:pb-8 space-y-6 max-w-3xl mx-auto w-full"
           >
             {messages.map((message, index) => {
               const extras = extrasOf(message);

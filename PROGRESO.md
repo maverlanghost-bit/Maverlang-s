@@ -1,5 +1,14 @@
 # PROGRESO — Maverlang
 
+## T60 — Chat IA sin barra superior, contexto adjunto y riel de preguntas (2026-11-09, sin commit)
+- Alcance: 10 bots en paralelo (`deepseek-v4.1-flash`) sobre archivos disjuntos + verificación del orquestador. Sin dependencias nuevas, sin migraciones, sin `.env`, sin push ni deploy; `next build` no se ejecutó.
+- Nuevos: `components/ai/context-types.ts` (`ContextItem`/`ContextSnapshot`, tope 6, toggle/remove, `buildContextDirective` puro), `context-picker.tsx` (modal «Agregar contexto»: cartera primero, pestañas Acciones/Índices, buscador con debounce 250 ms, Añadir/Añadido/Quitar, foco atrapado, Escape y portal) y `question-rail.tsx` (puntos con vista previa y scroll, helpers `getQuestionEntries`/`visibleDotWindow`).
+- `assistant-navbar.tsx`: se elimina `<header sticky border-b>` y el título visible; quedan 3 círculos flotantes («Nuevo chat», «Agregar contexto», «Más opciones») con badge `+N`, flecha atrás móvil y menú con buscar/renombrar/fijar/compartir/copiar/exportar/eliminar. Renombrar es un input inline dentro del menú.
+- `chat-view.tsx` monta picker/rail y pasa el contexto; `composer.tsx` muestra chips con `×`; `transcript.tsx` agrega `data-ai-scroll`, `data-user-msg-id` y `pt-14`; `asistente-screen.tsx` guarda `contextItems`, arma el snapshot con `usePortfolio`/`usePrices` y antepone la directiva en `applyDirectives` (sin cambiar el contrato HTTP de `/api/ai/chat`).
+- Tests: `tests/unit/ai-context-t60.test.tsx` (7 casos) y ajuste del caso de la barra en `ai-extracted-upgrade-t58`.
+- Verificación: `npx tsc --noEmit` 0 errores · `npm run lint` 0 errores (27 warnings preexistentes) · 7 suites indicadas 67/67 · suites vecinas del asistente 39/39 · picker abierto SSR con datos mock OK.
+- Pendiente: mirar `/app/asistente` a 360/768/1280 (cluster, modal, chips, riel); `next build` no se ejecutó. El paquete queda sin commit para revisión humana.
+
 ## T59 — Clon visual y funcional 1:1 de `ai-chat-extracted` en `/app/asistente` (2026-11-09, commit local)
 - Alcance: 12 bots en paralelo vía Hermes Agent (`--provider opencode-go -m deepseek-v4.1-flash --reasoning ultra`) sobre 14 archivos + assets en `public/assets/`. Sin dependencias nuevas, sin migraciones, sin `.env`, sin push.
 - Logos oficiales: copiados `/assets/maverlang-logo.png` (horizontal) y `/assets/Maverlang Logo-2.png` (isotipo) para igualar las rutas exactas de `ai-chat-extracted`.

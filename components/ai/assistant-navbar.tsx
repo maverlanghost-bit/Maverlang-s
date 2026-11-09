@@ -9,11 +9,20 @@ import {
   type ReactNode,
 } from "react";
 
-import { ModelSelector } from "@/components/ai/model-selector";
 import { cn } from "@/lib/cn";
 
 /** Cuánto dura el feedback "¡Copiado!" dentro del menú. */
 const COPIED_FEEDBACK_MS = 1500;
+
+/**
+ * Círculo del cluster flotante. El anillo blanco separa un círculo del
+ * siguiente cuando se superponen con `-ml-2`.
+ */
+const CLUSTER_CIRCLE = cn(
+  "relative inline-flex size-9 shrink-0 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-700 shadow-sm ring-2 ring-white",
+  "transition hover:z-10 hover:-translate-y-px focus-visible:z-10 focus-visible:ring-2 focus-visible:ring-zinc-300 focus-visible:outline-none",
+  "disabled:cursor-default disabled:opacity-40 disabled:hover:translate-y-0 motion-reduce:transition-none",
+);
 
 export type AssistantNavbarProps = {
   chatTitle: string;
@@ -21,6 +30,10 @@ export type AssistantNavbarProps = {
   isPinned?: boolean;
   selectedModel?: "fast" | "pro";
   onSelectModel?: (model: "fast" | "pro") => void;
+  /** Cuántos elementos de contexto hay adjuntos (badge `+N`). */
+  contextCount?: number;
+  /** Abre el selector de contexto desde el círculo «+». */
+  onOpenContext?: () => void;
   onRenameChat?: (newTitle: string) => void;
   onTogglePin?: () => void;
   onNewChat?: () => void;
@@ -34,18 +47,19 @@ export type AssistantNavbarProps = {
 };
 
 /**
- * Barra superior del asistente: título editable en línea, selector de modelo y
- * acciones de sesión (buscar, nuevo chat, compartir y menú de 3 puntos).
+ * Acciones del asistente como cluster flotante de 3 círculos sobrepuestos
+ * (nuevo chat, agregar contexto y más opciones). No renderiza barra superior,
+ * título ni selector de modelo: eso vive en el compositor.
  *
  * Todo el estado es local y sólo se activa con interacción del usuario: en SSR
- * se renderiza el título, la píldora de modelo y los botones, sin menús abiertos.
+ * se renderizan los 3 círculos, sin menú abierto.
  */
 export function AssistantNavbar({
   chatTitle,
   hasMessages,
   isPinned = false,
-  selectedModel,
-  onSelectModel,
+  contextCount = 0,
+  onOpenContext,
   onRenameChat,
   onTogglePin,
   onNewChat,
@@ -64,6 +78,7 @@ export function AssistantNavbar({
 
   const titleInputRef = useRef<HTMLInputElement | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
+  const menuPanelRef = useRef<HTMLDivElement | null>(null);
   const menuButtonRef = useRef<HTMLButtonElement | null>(null);
   const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -78,7 +93,7 @@ export function AssistantNavbar({
 
   // Foco del input de título tras montarlo (rAF para no bloquear el paint).
   useEffect(() => {
-    if (!editingTitle) return;
+    if (!menuOpen || !editingTitle) return;
     const frame = requestAnimationFrame(() => {
       const input = titleInputRef.current;
       if (!input) return;
@@ -86,7 +101,7 @@ export function AssistantNavbar({
       input.select();
     });
     return () => cancelAnimationFrame(frame);
-  }, [editingTitle]);
+  }, [menuOpen, editingTitle]);
 
   // Cierre del menú con click fuera y Escape; sólo se suscribe mientras está abierto.
   useEffect(() => {
@@ -96,11 +111,23 @@ export function AssistantNavbar({
       const container = menuRef.current;
       if (container && event.target instanceof Node && container.contains(event.target)) return;
       setMenuOpen(false);
+      setEditingTitle(false);
+      setDraftTitle("");
       setCopied(false);
     };
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
+      event.preventDefault();
+
+      // Con el renombrado abierto, el primer Escape sólo cancela la edición.
+      if (editingTitle) {
+        setEditingTitle(false);
+        setDraftTitle("");
+        menuPanelRef.current?.focus();
+        return;
+      }
+
       setMenuOpen(false);
       setCopied(false);
       menuButtonRef.current?.focus();
@@ -113,35 +140,7 @@ export function AssistantNavbar({
       document.removeEventListener("pointerdown", handlePointerDown);
       document.removeEventListener("keydown", handleKeyDown);
     };
-  }, [menuOpen]);
-
-  const startEditingTitle = () => {
-    if (!onRenameChat) return;
-    setDraftTitle(title);
-    setEditingTitle(true);
-  };
-
-  const cancelEditingTitle = () => {
-    setEditingTitle(false);
-    setDraftTitle("");
-  };
-
-  const commitTitle = () => {
-    const next = draftTitle.trim();
-    if (next.length > 0 && next !== title) onRenameChat?.(next);
-    setEditingTitle(false);
-    setDraftTitle("");
-  };
-
-  const handleTitleKeyDown = (event: ReactKeyboardEvent<HTMLInputElement>) => {
-    if (event.key === "Enter") {
-      event.preventDefault();
-      commitTitle();
-    } else if (event.key === "Escape") {
-      event.preventDefault();
-      cancelEditingTitle();
-    }
-  };
+  }, [menuOpen, editingTitle]);
 
   const clearCopiedFeedback = () => {
     setCopied(false);
@@ -153,6 +152,8 @@ export function AssistantNavbar({
 
   const closeMenu = () => {
     setMenuOpen(false);
+    setEditingTitle(false);
+    setDraftTitle("");
     clearCopiedFeedback();
   };
 
@@ -164,6 +165,31 @@ export function AssistantNavbar({
   const runAndClose = (action?: () => void) => {
     action?.();
     closeMenu();
+  };
+
+  const startEditingTitle = () => {
+    if (!onRenameChat) return;
+    setDraftTitle(title);
+    setEditingTitle(true);
+  };
+
+  const cancelEditingTitle = () => {
+    setEditingTitle(false);
+    setDraftTitle("");
+    menuPanelRef.current?.focus();
+  };
+
+  const commitTitle = () => {
+    const next = draftTitle.trim();
+    if (next.length > 0 && next !== title) onRenameChat?.(next);
+    closeMenu();
+    menuButtonRef.current?.focus();
+  };
+
+  const handleTitleKeyDown = (event: ReactKeyboardEvent<HTMLInputElement>) => {
+    if (event.key !== "Enter") return;
+    event.preventDefault();
+    commitTitle();
   };
 
   // La confirmación "¡Copiado!" vive dentro del menú: no lo cerramos al copiar.
@@ -178,181 +204,164 @@ export function AssistantNavbar({
   };
 
   return (
-    <header
-      className={cn(
-        "sticky top-0 z-40 w-full h-14 sm:h-15 border-b border-zinc-200/80 bg-white/85 backdrop-blur-md flex items-center justify-between px-3 sm:px-5 gap-2 transition-colors duration-200 select-none",
-        className,
-      )}
-    >
-      {/* ── Izquierda: leading, título editable y selector de modelo ── */}
-      <div className="flex items-center gap-2 min-w-0 max-w-[60%] sm:max-w-[70%]">
-        {leading ? <div className="flex shrink-0 items-center">{leading}</div> : null}
+    <>
+      {leading ? <div className="absolute left-3 top-3 z-30 flex items-center">{leading}</div> : null}
 
-        <div className="w-px h-5 bg-zinc-200 shrink-0 hidden sm:block" />
-
-        <div className="flex items-center gap-1.5 min-w-0">
-          {editingTitle ? (
-            <div className="flex items-center gap-1 min-w-0">
-              <input
-                ref={titleInputRef}
-                type="text"
-                value={draftTitle}
-                aria-label="Título de la conversación"
-                onChange={(event) => setDraftTitle(event.target.value)}
-                onKeyDown={handleTitleKeyDown}
-                className="h-8 px-2.5 rounded-lg border border-zinc-300 bg-white text-xs font-semibold outline-none w-40 sm:w-64 min-w-0 focus-visible:ring-2 focus-visible:ring-zinc-300"
-              />
-              <button
-                type="button"
-                aria-label="Guardar título"
-                title="Guardar título"
-                onClick={commitTitle}
-                className="p-1.5 rounded-lg text-green-600 hover:bg-green-50 outline-none transition-colors shrink-0 focus-visible:ring-2 focus-visible:ring-green-200 motion-reduce:transition-none"
-              >
-                <IconCheck className="size-4" />
-              </button>
-              <button
-                type="button"
-                aria-label="Cancelar"
-                title="Cancelar"
-                onClick={cancelEditingTitle}
-                className="p-1.5 rounded-lg text-zinc-400 hover:bg-zinc-100 outline-none transition-colors shrink-0 focus-visible:ring-2 focus-visible:ring-zinc-300 motion-reduce:transition-none"
-              >
-                <IconX className="size-4" />
-              </button>
-            </div>
-          ) : (
-            <button
-              type="button"
-              onClick={startEditingTitle}
-              disabled={!onRenameChat}
-              title={onRenameChat ? "Renombrar chat" : undefined}
-              className="group flex items-center gap-1.5 min-w-0 rounded-lg text-left outline-none transition-colors focus-visible:ring-2 focus-visible:ring-zinc-300 disabled:cursor-default motion-reduce:transition-none"
-            >
-              <span className="text-xs sm:text-sm font-bold text-zinc-900 truncate tracking-tight">{title}</span>
-              <IconPencil className="w-3.5 h-3.5 text-zinc-400 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 motion-reduce:transition-none" />
-            </button>
-          )}
-        </div>
-
-        <ModelSelector variant="header" selectedModel={selectedModel} onSelectModel={onSelectModel} className="ml-0.5 hidden shrink-0 sm:flex" />
-      </div>
-
-      {/* ── Derecha: buscar, nuevo chat, compartir y menú de 3 puntos ── */}
-      <div className="flex items-center gap-1 sm:gap-2 shrink-0">
-        <button
-          type="button"
-          title="Buscar en chats"
-          aria-label="Buscar en chats"
-          onClick={onOpenSearch}
-          disabled={!onOpenSearch}
-          className="inline-flex w-9 h-9 shrink-0 items-center justify-center rounded-xl text-zinc-700 outline-none transition-colors duration-150 hover:bg-zinc-100 focus-visible:ring-2 focus-visible:ring-zinc-300 disabled:cursor-default disabled:opacity-40 disabled:hover:bg-transparent motion-reduce:transition-none"
-        >
-          <IconSearch className="size-4.5" />
-        </button>
-
+      <div className={cn("absolute right-3 top-3 z-30 flex items-center pl-2", className)}>
         <button
           type="button"
           title="Nuevo chat"
           aria-label="Nuevo chat"
           onClick={onNewChat}
           disabled={!onNewChat}
-          className="inline-flex w-9 h-9 shrink-0 items-center justify-center rounded-xl text-zinc-700 outline-none transition-colors duration-150 hover:bg-zinc-100 focus-visible:ring-2 focus-visible:ring-zinc-300 disabled:cursor-default disabled:opacity-40 disabled:hover:bg-transparent motion-reduce:transition-none"
+          className={CLUSTER_CIRCLE}
         >
-          <IconSquarePen className="size-4.5" />
+          <IconSquarePen />
         </button>
 
-        {hasMessages ? (
-          <button
-            type="button"
-            title="Compartir conversación"
-            aria-label="Compartir conversación"
-            onClick={onShareChat}
-            disabled={!onShareChat}
-            className="inline-flex w-9 h-9 shrink-0 items-center justify-center rounded-xl text-zinc-700 outline-none transition-colors duration-150 hover:bg-zinc-100 focus-visible:ring-2 focus-visible:ring-zinc-300 disabled:cursor-default disabled:opacity-40 disabled:hover:bg-transparent motion-reduce:transition-none"
-          >
-            <IconShare className="size-4.5" />
-          </button>
-        ) : null}
+        <button
+          type="button"
+          title="Agregar contexto"
+          aria-label="Agregar contexto"
+          onClick={onOpenContext}
+          disabled={!onOpenContext}
+          className={cn(CLUSTER_CIRCLE, "-ml-2")}
+        >
+          <IconPlus />
 
-        {hasMessages ? (
-          <div ref={menuRef} className="relative">
-            <button
-              ref={menuButtonRef}
-              type="button"
-              aria-label="Más opciones del chat"
-              title="Más opciones del chat"
-              aria-haspopup="menu"
-              aria-expanded={menuOpen}
-              onClick={() => (menuOpen ? closeMenu() : openMenu())}
-              className={cn(
-                "inline-flex w-9 h-9 shrink-0 items-center justify-center rounded-xl text-zinc-700 outline-none",
-                "transition-colors duration-150 hover:bg-zinc-100 focus-visible:ring-2 focus-visible:ring-zinc-300 motion-reduce:transition-none",
-                menuOpen && "bg-zinc-100 text-zinc-900",
-              )}
+          {contextCount > 0 ? (
+            <span
+              aria-hidden="true"
+              className="absolute -right-1 -top-1 z-10 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-zinc-900 px-1 text-[10px] font-semibold leading-none text-white"
             >
-              <IconMoreHorizontal className="size-4.5" />
-            </button>
+              +{contextCount}
+            </span>
+          ) : null}
+        </button>
 
-            <AnimatePresence>
-              {menuOpen ? (
-                <motion.div
-                  role="menu"
-                  aria-label="Más opciones del chat"
-                  initial={{ opacity: 0, y: -6, scale: 0.98 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: -4, scale: 0.98 }}
-                  transition={{ duration: 0.15, ease: "easeOut" }}
-                  className="absolute right-0 top-full z-50 mt-1.5 w-56 origin-top-right rounded-2xl border border-zinc-200/80 bg-white p-1.5 shadow-2xl"
-                >
-                  <MenuItem
-                    icon={<IconPencil />}
-                    label="Renombrar chat"
-                    onClick={() => {
-                      closeMenu();
-                      startEditingTitle();
-                    }}
-                  />
+        <div ref={menuRef} className="relative -ml-2">
+          <button
+            ref={menuButtonRef}
+            type="button"
+            title="Más opciones del chat"
+            aria-label="Más opciones del chat"
+            aria-haspopup="menu"
+            aria-expanded={menuOpen}
+            onClick={() => (menuOpen ? closeMenu() : openMenu())}
+            className={cn(CLUSTER_CIRCLE, menuOpen && "bg-zinc-50 text-zinc-900")}
+          >
+            <IconMoreHorizontal />
+          </button>
 
-                  <MenuItem
-                    icon={isPinned ? <IconPinOff /> : <IconPin />}
-                    label={isPinned ? "Desfijar de favoritos" : "Fijar en favoritos"}
-                    onClick={() => runAndClose(onTogglePin)}
-                  />
+          <AnimatePresence>
+            {menuOpen ? (
+              <motion.div
+                ref={menuPanelRef}
+                role="menu"
+                aria-label="Más opciones del chat"
+                tabIndex={-1}
+                initial={{ opacity: 0, y: -6, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -4, scale: 0.98 }}
+                transition={{ duration: 0.15, ease: "easeOut" }}
+                className="absolute right-0 top-full z-50 mt-2 w-60 origin-top-right rounded-2xl border border-zinc-200/80 bg-white p-1.5 shadow-2xl outline-none"
+              >
+                {editingTitle ? (
+                  <div className="flex items-center gap-1">
+                    <input
+                      ref={titleInputRef}
+                      type="text"
+                      value={draftTitle}
+                      aria-label="Título de la conversación"
+                      onChange={(event) => setDraftTitle(event.target.value)}
+                      onKeyDown={handleTitleKeyDown}
+                      className="h-9 min-w-0 flex-1 rounded-xl border border-zinc-300 bg-white px-2.5 text-[13px] font-semibold text-zinc-900 outline-none transition focus-visible:ring-2 focus-visible:ring-zinc-300 motion-reduce:transition-none"
+                    />
+                    <button
+                      type="button"
+                      title="Guardar título"
+                      aria-label="Guardar título"
+                      onClick={commitTitle}
+                      className="inline-flex size-8 shrink-0 items-center justify-center rounded-lg text-green-600 outline-none transition hover:bg-green-50 focus-visible:ring-2 focus-visible:ring-green-200 motion-reduce:transition-none"
+                    >
+                      <IconCheck />
+                    </button>
+                    <button
+                      type="button"
+                      title="Cancelar"
+                      aria-label="Cancelar"
+                      onClick={cancelEditingTitle}
+                      className="inline-flex size-8 shrink-0 items-center justify-center rounded-lg text-zinc-400 outline-none transition hover:bg-zinc-100 focus-visible:ring-2 focus-visible:ring-zinc-300 motion-reduce:transition-none"
+                    >
+                      <IconX />
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <MenuItem
+                      icon={<IconSearch />}
+                      label="Buscar en chats"
+                      title="Buscar en chats"
+                      ariaLabel="Buscar en chats"
+                      onClick={() => runAndClose(onOpenSearch)}
+                      disabled={!onOpenSearch}
+                    />
 
-                  <MenuItem
-                    icon={<IconShare />}
-                    label="Compartir conversación"
-                    onClick={() => runAndClose(onShareChat)}
-                  />
+                    <div role="separator" className="my-1 h-px bg-zinc-100" />
 
-                  <MenuItem
-                    icon={copied ? <IconCheck /> : <IconCopy />}
-                    label={copied ? "¡Copiado!" : "Copiar texto completo"}
-                    onClick={handleCopyAll}
-                  />
+                    {/* Renombrar y fijar no dependen de que haya mensajes: el
+                        prompt sólo manda ocultar compartir/copiar/exportar/eliminar. */}
+                    <MenuItem
+                      icon={<IconPencil />}
+                      label="Renombrar chat"
+                      onClick={startEditingTitle}
+                      disabled={!onRenameChat}
+                    />
 
-                  <MenuItem
-                    icon={<IconDownload />}
-                    label="Exportar a Markdown (.md)"
-                    onClick={() => runAndClose(onExportMarkdown)}
-                  />
+                    <MenuItem
+                      icon={isPinned ? <IconPinOff /> : <IconPin />}
+                      label={isPinned ? "Desfijar de favoritos" : "Fijar en favoritos"}
+                      onClick={() => runAndClose(onTogglePin)}
+                    />
 
-                  <div role="separator" className="my-1 h-px bg-zinc-100" />
+                    {hasMessages ? (
+                      <>
+                        <MenuItem
+                          icon={<IconShare />}
+                          label="Compartir conversación"
+                          onClick={() => runAndClose(onShareChat)}
+                        />
 
-                  <MenuItem
-                    icon={<IconTrash />}
-                    label="Eliminar conversación"
-                    tone="danger"
-                    onClick={() => runAndClose(onDeleteChat)}
-                  />
-                </motion.div>
-              ) : null}
-            </AnimatePresence>
-          </div>
-        ) : null}
+                        <MenuItem
+                          icon={copied ? <IconCheck /> : <IconCopy />}
+                          label={copied ? "¡Copiado!" : "Copiar texto completo"}
+                          onClick={handleCopyAll}
+                        />
+
+                        <MenuItem
+                          icon={<IconDownload />}
+                          label="Exportar a Markdown (.md)"
+                          onClick={() => runAndClose(onExportMarkdown)}
+                        />
+
+                        <div role="separator" className="my-1 h-px bg-zinc-100" />
+
+                        <MenuItem
+                          icon={<IconTrash />}
+                          label="Eliminar conversación"
+                          tone="danger"
+                          onClick={() => runAndClose(onDeleteChat)}
+                        />
+                      </>
+                    ) : null}
+                  </>
+                )}
+              </motion.div>
+            ) : null}
+          </AnimatePresence>
+        </div>
       </div>
-    </header>
+    </>
   );
 }
 
@@ -361,21 +370,31 @@ function MenuItem({
   label,
   onClick,
   tone = "default",
+  title,
+  ariaLabel,
+  disabled = false,
 }: {
   icon: ReactNode;
   label: string;
   onClick: () => void;
   tone?: "default" | "danger";
+  title?: string;
+  ariaLabel?: string;
+  disabled?: boolean;
 }) {
   const danger = tone === "danger";
   return (
     <button
       type="button"
       role="menuitem"
+      title={title}
+      aria-label={ariaLabel}
       onClick={onClick}
+      disabled={disabled}
       className={cn(
         "w-full text-left text-[13px] rounded-lg px-2.5 py-2 flex items-center gap-2 font-medium outline-none",
         "transition-colors duration-150 motion-reduce:transition-none focus-visible:ring-2 focus-visible:ring-zinc-300",
+        "disabled:cursor-default disabled:opacity-40 disabled:hover:bg-transparent",
         danger ? "text-red-600 hover:bg-red-50" : "text-zinc-700 hover:bg-zinc-100",
       )}
     >
@@ -417,6 +436,14 @@ function IconSquarePen({ className }: { className?: string }) {
     <IconFrame className={className}>
       <path d="M8.6 3H4.9A1.9 1.9 0 0 0 3 4.9v6.2A1.9 1.9 0 0 0 4.9 13h6.2a1.9 1.9 0 0 0 1.9-1.9V7.4" />
       <path d="M11.6 2.5a1.32 1.32 0 0 1 1.9 1.9L8.4 9.5l-2.3.4.4-2.3 5.1-5.1Z" />
+    </IconFrame>
+  );
+}
+
+function IconPlus({ className }: { className?: string }) {
+  return (
+    <IconFrame className={className}>
+      <path d="M8 3.2v9.6M3.2 8h9.6" />
     </IconFrame>
   );
 }

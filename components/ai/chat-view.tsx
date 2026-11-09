@@ -1,11 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useRef, type ChangeEvent, type RefObject } from "react";
+import { useRef, useState, type ChangeEvent, type RefObject } from "react";
 
 import { AssistantNavbar } from "@/components/ai/assistant-navbar";
 import { Composer } from "@/components/ai/composer";
+import { ContextPicker } from "@/components/ai/context-picker";
+import type { ContextItem } from "@/components/ai/context-types";
 import type { ChatMessage } from "@/components/ai/model";
+import { QuestionRail } from "@/components/ai/question-rail";
 import { Transcript } from "@/components/ai/transcript";
 import { useChatViewport } from "@/components/ai/use-chat-viewport";
 import { AiWidgetStack } from "@/components/ai/widget-stack";
@@ -44,6 +47,9 @@ type ChatViewProps = {
   onExportMarkdown?: () => void;
   onDeleteChat?: () => void;
   onOpenSearch?: () => void;
+  contextItems?: readonly ContextItem[];
+  onToggleContext?: (item: ContextItem) => void;
+  onRemoveContext?: (id: string) => void;
   webSearchEnabled?: boolean;
   onToggleWebSearch?: () => void;
   activeTools?: readonly string[];
@@ -86,6 +92,9 @@ export function ChatView({
   onExportMarkdown,
   onDeleteChat,
   onOpenSearch,
+  contextItems,
+  onToggleContext,
+  onRemoveContext,
   webSearchEnabled,
   onToggleWebSearch,
   activeTools,
@@ -99,6 +108,7 @@ export function ChatView({
 }: ChatViewProps) {
   const panelRef = useRef<HTMLDivElement>(null);
   useChatViewport(panelRef);
+  const [contextOpen, setContextOpen] = useState(false);
   const isEmpty = messages.length === 0 && !typing;
 
   // Los atajos del estado vacío envían de inmediato: `onSuggest` ya resuelve
@@ -125,6 +135,8 @@ export function ChatView({
         onFile={onFile}
         onRemoveImage={onRemoveImage}
         fileRef={fileRef}
+        contextItems={contextItems}
+        onRemoveContext={onRemoveContext}
         selectedModel={selectedModel}
         onSelectModel={onSelectModel}
         webSearchEnabled={webSearchEnabled}
@@ -161,16 +173,17 @@ export function ChatView({
         onExportMarkdown={onExportMarkdown}
         onDeleteChat={onDeleteChat}
         onOpenSearch={onOpenSearch}
+        contextCount={contextItems?.length ?? 0}
+        onOpenContext={() => setContextOpen(true)}
         leading={
           <Link
             href="/app"
             aria-label={backLabel}
-            className="inline-flex size-8 shrink-0 items-center justify-center rounded-lg text-fg-muted transition hover:bg-surface-1 hover:text-fg focus-visible:ring-4 focus-visible:ring-fg/20 focus-visible:outline-none motion-reduce:transition-none lg:hidden"
+            className="inline-flex size-9 shrink-0 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-700 shadow-sm transition hover:bg-zinc-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-300 lg:hidden motion-reduce:transition-none"
           >
             <ArrowLeftIcon />
           </Link>
         }
-        className="relative z-10 shrink-0"
       />
 
       <div className="relative z-10 flex min-h-0 w-full flex-1 flex-col overflow-hidden">
@@ -191,12 +204,22 @@ export function ChatView({
           onRetryAnswer={onRetryAnswer}
         />
 
+        {/* Riel de preguntas: se posiciona en absolute respecto de este wrapper. */}
+        {messages.length > 0 ? <QuestionRail messages={messages} /> : null}
+
         {!isEmpty ? (
           <div className="bg-gradient-to-t from-white via-white/95 to-transparent px-4 pb-4 pt-2 shrink-0">
             <div className="max-w-3xl mx-auto w-full">{renderComposer("bottom")}</div>
           </div>
         ) : null}
       </div>
+
+      <ContextPicker
+        open={contextOpen}
+        onOpenChange={setContextOpen}
+        selected={contextItems ?? []}
+        onToggle={(item: ContextItem) => onToggleContext?.(item)}
+      />
     </div>
   );
 }
