@@ -10,6 +10,7 @@ import { ErrorState } from "@/components/ui/error-state";
 import { IconChevron } from "@/components/ui/icons";
 import { LoadingState } from "@/components/ui/loading-state";
 import { PageHeader } from "@/components/ui/page-header";
+import { AchievementsCard } from "@/components/domain/achievements-card";
 import { ResetDemoButton } from "@/components/domain/reset-demo-button";
 import { SecurityShieldCard } from "@/components/domain/security-shield-card";
 import { useSession } from "@/lib/auth";
@@ -150,6 +151,7 @@ export function ProfileScreen({ version }: { version: string }) {
         ) : null}
       </Card>
       <SecurityShieldCard email={profile.email} mode={account.mode} />
+      <AchievementsCard />
       <ProfileMenu t={t} status={status} onLogout={() => void logout()} version={version} />
     </div>
   );

@@ -30,7 +30,14 @@ export type AiWidget =
   | { type: "company"; ticker: string; name: string; facts: { label: string; value: string | null }[]; source: string; asOf: string | null }
   | { type: "portfolio-today"; totalUsd: number | null; cashUsdc: number | null; positions: { ticker: string; name: string; valueUsd: number | null; weightPct: number | null; changePct: number | null }[]; hhi: number | null; effectivePositions: number | null; top1Pct: number | null; top3Pct: number | null }
   | { type: "simulation"; ticker: string; name: string; priceUsd: number | null; amountUsd: number | null; units: number | null; monthlyClp: number | null; usdClp: number | null; monthlyUsd: number | null; months: number | null; totalUsd: number | null }
-  | { type: "alert-confirm"; ticker: string; name: string; direction: "above" | "below"; thresholdUsd: number; priceUsd: number | null };
+  | { type: "alert-confirm"; ticker: string; name: string; direction: "above" | "below"; thresholdUsd: number; priceUsd: number | null }
+  | {
+      type: "daily-summary";
+      asOf: string | null;
+      gainers: { ticker: string; name: string; changePct: number | null }[];
+      losers: { ticker: string; name: string; changePct: number | null }[];
+      portfolio: { totalUsd: number | null; changePct: number | null } | null;
+    };
 
 export interface AiMessage {
   id: string;

@@ -41,6 +41,8 @@ export const MAX_POINTS = 400;
 /** Tope defensivo de los widgets nuevos: el historial completo vive en `sessionStorage`. */
 const MAX_FACTS = 16;
 const MAX_POSITIONS = 60;
+/** El resumen del día trae 3 y 3; el tope sólo protege el historial. */
+const MAX_DAILY_ITEMS = 10;
 export const CHART_W = 320;
 export const CHART_H = 96;
 
@@ -185,6 +187,25 @@ const alertConfirmSchema = z.object({
   priceUsd: z.number().finite().nullable(),
 });
 
+const dailyMovementSchema = z.object({
+  ticker: z.string().trim().min(1),
+  name: z.string(),
+  changePct: z.number().finite().nullable(),
+});
+
+const dailySummarySchema = z.object({
+  type: z.literal("daily-summary"),
+  asOf: z.string().nullable(),
+  gainers: z.array(dailyMovementSchema),
+  losers: z.array(dailyMovementSchema),
+  portfolio: z
+    .object({
+      totalUsd: z.number().finite().nullable(),
+      changePct: z.number().finite().nullable(),
+    })
+    .nullable(),
+});
+
 const widgetSchema = z.union([
   stockSchema,
   compareSchema,
@@ -195,6 +216,7 @@ const widgetSchema = z.union([
   portfolioTodaySchema,
   simulationSchema,
   alertConfirmSchema,
+  dailySummarySchema,
 ]);
 
 const okSchema = z
@@ -256,6 +278,13 @@ function trimWidget(widget: z.infer<typeof widgetSchema>): AiWidget {
   }
   if (widget.type === "portfolio-today") {
     return { ...widget, positions: widget.positions.slice(0, MAX_POSITIONS) };
+  }
+  if (widget.type === "daily-summary") {
+    return {
+      ...widget,
+      gainers: widget.gainers.slice(0, MAX_DAILY_ITEMS),
+      losers: widget.losers.slice(0, MAX_DAILY_ITEMS),
+    };
   }
   return widget;
 }
@@ -597,6 +626,7 @@ export function announceAssistant(
     else if (widget.type === "import-preview") bits.push(labels.photo);
     else if (widget.type === "company" || widget.type === "simulation" || widget.type === "alert-confirm")
       bits.push(`${widget.name} (${widget.ticker})`);
+    else if (widget.type === "daily-summary") bits.push("Resumen del día");
   }
   if (bits.length === 0) return labels.ready;
   return bits.join(". ");

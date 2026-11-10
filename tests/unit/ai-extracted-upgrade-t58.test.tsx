@@ -106,7 +106,7 @@ describe("T58 — integración de ai-chat-extracted en el asistente", () => {
   });
 
   it("los chips de bienvenida usan los prompts de Maverlang", () => {
-    expect(WELCOME_ACTIONS).toHaveLength(4);
+    expect(WELCOME_ACTIONS).toHaveLength(5);
 
     const chips = html(createElement(WelcomeChips, { onSendMessage: () => {} }));
     for (const label of ["Analizar tu portafolio", "Crear un portafolio", "Noticias del mercado", "Estrategia de inversión"]) {

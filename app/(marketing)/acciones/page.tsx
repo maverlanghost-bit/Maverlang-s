@@ -2,6 +2,7 @@ import Link from "next/link";
 import { PublicCatalogGrid, type PublicCatalogItem } from "@/components/landing/public-catalog-grid";
 import { LandingSection } from "@/components/landing/section";
 import { HUB_DESCRIPTION, HUB_TITLE } from "@/lib/seo/copy";
+import { assetsInCategory, CATEGORIES, MIN_CATEGORY_SIZE } from "@/lib/seo/categories";
 import { pageMetadata } from "@/lib/seo/metadata";
 import { listPublicAssets } from "@/lib/seo/public-catalog";
 
@@ -19,6 +20,12 @@ export default async function AccionesPage() {
   const assets = [...(await listPublicAssets())].sort(
     (a, b) => a.name.localeCompare(b.name, "es", { sensitivity: "base" }) || a.ticker.localeCompare(b.ticker),
   );
+
+  /** Enlaces a las categorías publicables: mismo umbral que sus páginas. */
+  const categoryLinks = CATEGORIES.map((category) => ({
+    category,
+    count: assetsInCategory(category.slug, assets).length,
+  })).filter(({ count }) => count >= MIN_CATEGORY_SIZE);
 
   /** Sólo los campos del contrato compartido con la grilla pública. */
   const catalog: readonly PublicCatalogItem[] = assets.map(({ slug, name, ticker, symbol, etf }) => ({
@@ -56,6 +63,24 @@ export default async function AccionesPage() {
           </li>
         </ul>
       </div>
+      {categoryLinks.length > 0 ? (
+        <nav aria-label="Categorías de acciones" className="mt-8">
+          <p className="label">Explorar por categoría</p>
+          <ul className="mt-3 flex flex-wrap items-center gap-2">
+            {categoryLinks.map(({ category, count }) => (
+              <li key={category.slug}>
+                <Link
+                  href={`/categorias/${category.slug}`}
+                  className="inline-flex min-h-11 items-center gap-2 rounded-full border border-border bg-white px-4 py-1.5 text-xs font-medium text-fg-body transition duration-[140ms] ease-spring hover:border-border-strong hover:bg-surface-1 focus-visible:ring-4 focus-visible:ring-fg/20 sm:min-h-9 sm:text-sm"
+                >
+                  <span>{category.name}</span>
+                  <span className="num text-fg-muted">{count}</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      ) : null}
       {assets.length === 0 ? (
         <p className="mt-10 text-sm text-fg-muted">El catálogo no está disponible ahora.</p>
       ) : (

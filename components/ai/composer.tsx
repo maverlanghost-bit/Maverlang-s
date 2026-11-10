@@ -14,6 +14,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { isCodeSnippet } from "@/components/ai/code-block";
 import type { ContextItem } from "@/components/ai/context-types";
 import { ModelSelector } from "@/components/ai/model-selector";
+import { useVoiceInput } from "@/components/ai/use-voice-input";
 import type { AsistenteCopy, AsistenteSuggestionId } from "@/content/i18n/extra-asistente";
 import { cn } from "@/lib/cn";
 
@@ -69,35 +70,6 @@ type TypewriterState = {
   isDeleting: boolean;
   index: number;
 };
-
-/**
- * Tipos mínimos de la Web Speech API: TypeScript no la trae en lib.dom.
- * Se declaran aquí para no usar `any` en ningún punto.
- */
-type SpeechAlternative = { transcript: string };
-type SpeechResult = { [index: number]: SpeechAlternative };
-type SpeechResultList = { length: number; [index: number]: SpeechResult };
-type SpeechRecognitionLike = {
-  lang: string;
-  continuous: boolean;
-  interimResults: boolean;
-  start: () => void;
-  stop: () => void;
-  onresult: ((event: { results: SpeechResultList }) => void) | null;
-  onerror: (() => void) | null;
-  onend: (() => void) | null;
-};
-type SpeechRecognitionCtor = new () => SpeechRecognitionLike;
-type SpeechWindow = Window & {
-  SpeechRecognition?: SpeechRecognitionCtor;
-  webkitSpeechRecognition?: SpeechRecognitionCtor;
-};
-
-function speechRecognitionCtor(): SpeechRecognitionCtor | null {
-  if (typeof window === "undefined") return null;
-  const speech = window as SpeechWindow;
-  return speech.SpeechRecognition ?? speech.webkitSpeechRecognition ?? null;
-}
 
 /**
  * Teclado en pantalla: `visualViewport` lo delata. Sirve para reservar el
@@ -197,20 +169,25 @@ export function Composer({
   const menuResetTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [favorites, setFavorites] = useState<readonly string[]>([]);
 
-  const [listening, setListening] = useState(false);
-  const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
-  const draftRef = useRef(draft);
+  // Dictado por voz: cada frase se agrega al borrador, nunca se envía sola.
+  const {
+    supported: voiceSupported,
+    listening,
+    start: startVoice,
+    stop: stopVoice,
+    error: voiceError,
+  } = useVoiceInput({
+    onText: (text) => {
+      const base = draft.trimEnd();
+      onDraft(base ? `${base} ${text}` : text);
+    },
+  });
 
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   /** Reserva el `safe-area` inferior sólo con el teclado abierto (móvil). */
   const keyboardOpen = useKeyboardOpen();
 
-  // El dictado necesita el borrador más reciente sin volver a suscribir el reconocedor.
-  useEffect(() => {
-    draftRef.current = draft;
-  }, [draft]);
-
-  // Montaje: habilita el typewriter y detecta la API de voz en el siguiente frame.
+  // Montaje: habilita el typewriter del placeholder en el siguiente frame.
   const [mounted, setMounted] = useState(false);
   useEffect(() => {
     const frame = requestAnimationFrame(() => setMounted(true));
@@ -291,20 +268,10 @@ export function Composer({
     resizeTextarea();
   }, [draft, resizeTextarea]);
 
-  // Al desmontar: cortar el micrófono y cualquier timer pendiente del menú.
+  // Al desmontar: cortar cualquier timer pendiente del menú.
   useEffect(() => {
     return () => {
       if (menuResetTimer.current) clearTimeout(menuResetTimer.current);
-      const recognition = recognitionRef.current;
-      if (!recognition) return;
-      recognition.onresult = null;
-      recognition.onerror = null;
-      recognition.onend = null;
-      try {
-        recognition.stop();
-      } catch {
-        // Ya estaba detenido: no hay nada que hacer.
-      }
     };
   }, []);
 
@@ -379,42 +346,6 @@ export function Composer({
     setFavorites((prev) => (prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]));
   }
 
-  function toggleDictation() {
-    if (listening) {
-      recognitionRef.current?.stop();
-      setListening(false);
-      return;
-    }
-
-    const Recognition = speechRecognitionCtor();
-    if (!Recognition) return;
-
-    try {
-      const recognition = new Recognition();
-      recognition.lang = "es-CL";
-      recognition.continuous = true;
-      recognition.interimResults = false;
-      recognition.onresult = (event) => {
-        const last = event.results[event.results.length - 1];
-        const transcript = last?.[0]?.transcript?.trim() ?? "";
-        if (!transcript) return;
-        const base = draftRef.current.trimEnd();
-        onDraft(base ? `${base} ${transcript}` : transcript);
-      };
-      recognition.onerror = () => setListening(false);
-      recognition.onend = () => {
-        recognitionRef.current = null;
-        setListening(false);
-      };
-      recognitionRef.current = recognition;
-      recognition.start();
-      setListening(true);
-    } catch {
-      recognitionRef.current = null;
-      setListening(false);
-    }
-  }
-
   const openUpward = variant === "bottom";
   const hasAttachments = pendingImage != null || codePasted;
   const activeViewTools = menuView === "charts" ? CHART_TOOLS : ANALYSIS_TOOLS;
@@ -470,6 +401,16 @@ export function Composer({
           className="mb-2 rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-[11.5px] leading-relaxed break-words text-red-700"
         >
           {photoError}
+        </p>
+      ) : null}
+
+      {voiceError ? (
+        <p
+          id="ai-voice-error"
+          role="alert"
+          className="mb-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 text-[11.5px] leading-relaxed break-words text-amber-800"
+        >
+          {voiceError}
         </p>
       ) : null}
 
@@ -822,6 +763,50 @@ export function Composer({
           <div className="flex items-center gap-2">
             <ModelSelector variant="inline" selectedModel={selectedModel} onSelectModel={onSelectModel} />
 
+            {voiceSupported ? (
+              <button
+                type="button"
+                onClick={listening ? stopVoice : startVoice}
+                aria-pressed={listening}
+                aria-label={listening ? "Detener dictado" : "Dictar mensaje"}
+                title={listening ? "Detener dictado" : "Dictar mensaje"}
+                className={cn(
+                  "flex h-11 w-11 shrink-0 cursor-pointer touch-manipulation items-center justify-center rounded-full border transition-colors",
+                  listening
+                    ? "animate-pulse border-red-500 bg-red-500 text-white shadow-[0_0_12px_rgba(239,68,68,0.3)] hover:bg-red-600"
+                    : "border-zinc-200 bg-zinc-50/50 text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900",
+                )}
+              >
+                {listening ? (
+                  <span className="pointer-events-none flex h-3.5 w-5 items-center justify-center gap-[2px] select-none">
+                    {[1, 2, 3, 4, 5].map((bar) => (
+                      <motion.span
+                        key={bar}
+                        className="w-[2px] shrink-0 rounded-full bg-current"
+                        animate={{
+                          height:
+                            bar === 1 || bar === 5
+                              ? ["4px", "8px", "4px"]
+                              : bar === 2 || bar === 4
+                                ? ["6px", "12px", "6px"]
+                                : ["6px", "15px", "6px"],
+                        }}
+                        transition={{
+                          duration: 0.6,
+                          repeat: Infinity,
+                          repeatType: "reverse",
+                          delay: bar * 0.08,
+                          ease: "easeInOut",
+                        }}
+                      />
+                    ))}
+                  </span>
+                ) : (
+                  <MicGlyph className="h-4.5 w-4.5" />
+                )}
+              </button>
+            ) : null}
+
             {showStop ? (
               <button
                 type="button"
@@ -832,60 +817,17 @@ export function Composer({
               >
                 <span className="h-2.5 w-2.5 rounded-[2px] bg-current" />
               </button>
-            ) : listening || !canSend ? (
-              <>
-                <button
-                  type="button"
-                  onClick={toggleDictation}
-                  aria-pressed={listening}
-                  aria-label={listening ? "Detener grabación" : "Dictar pregunta"}
-                  title="Dictar pregunta"
-                  className={cn(
-                    "flex h-11 w-11 shrink-0 cursor-pointer touch-manipulation items-center justify-center rounded-full transition-all sm:h-8 sm:w-8",
-                    listening
-                      ? "animate-pulse bg-red-500 text-white shadow-[0_0_12px_rgba(239,68,68,0.3)] hover:bg-red-600"
-                      : "bg-zinc-900 text-white hover:opacity-90",
-                  )}
-                >
-                  {listening ? (
-                    <span className="pointer-events-none flex h-3.5 w-5 items-center justify-center gap-[2px] select-none">
-                      {[1, 2, 3, 4, 5].map((bar) => (
-                        <motion.span
-                          key={bar}
-                          className="w-[2px] shrink-0 rounded-full bg-white"
-                          animate={{
-                            height:
-                              bar === 1 || bar === 5
-                                ? ["4px", "8px", "4px"]
-                                : bar === 2 || bar === 4
-                                  ? ["6px", "12px", "6px"]
-                                  : ["6px", "15px", "6px"],
-                          }}
-                          transition={{
-                            duration: 0.6,
-                            repeat: Infinity,
-                            repeatType: "reverse",
-                            delay: bar * 0.08,
-                            ease: "easeInOut",
-                          }}
-                        />
-                      ))}
-                    </span>
-                  ) : (
-                    <MicGlyph className="h-4.5 w-4.5" />
-                  )}
-                </button>
-                <button type="submit" aria-label={copy.send} disabled={!canSend} className="sr-only">
-                  {copy.send}
-                </button>
-              </>
-            ) : (
+            ) : canSend ? (
               <button
                 type="submit"
                 aria-label={copy.send}
                 className="flex h-11 w-11 shrink-0 cursor-pointer touch-manipulation items-center justify-center rounded-full bg-zinc-900 text-white transition-opacity hover:opacity-90 sm:h-8 sm:w-8"
               >
                 <ArrowUpGlyph className="h-4.5 w-4.5" />
+              </button>
+            ) : (
+              <button type="submit" aria-label={copy.send} disabled className="sr-only">
+                {copy.send}
               </button>
             )}
           </div>

@@ -10,11 +10,13 @@ import { AskAiButton } from "@/components/ai/ask-ai-button";
 import { ChangeBadge } from "@/components/domain/change-badge";
 import { FavoriteButton } from "@/components/domain/favorite-button";
 import { RealAccountEmpty } from "@/components/domain/real-account-empty";
+import { ShareCardButton } from "@/components/domain/share-card-button";
 import { TickerLogo } from "@/components/domain/ticker-logo";
 import { TokenGapCard } from "@/components/domain/token-gap-card";
 import { OnchainVerificationCard } from "@/components/domain/onchain-verification-card";
 import { AlertButton } from "@/components/domain/alert-button";
 import { CompanyCard } from "@/components/domain/company-card";
+import { ExplainChartButton } from "@/components/domain/explain-chart-button";
 import { PriceRangeBar } from "@/components/domain/price-range-bar";
 import { WhatIfCalculator } from "@/components/domain/what-if-calculator";
 import { Accordion } from "@/components/ui/accordion";
@@ -61,6 +63,16 @@ function parseOperar(value: string): "comprar" | "vender" | null {
 function solscanMintUrl(mint: string) {
   return `https://solscan.io/token/${encodeURIComponent(mint)}`;
 }
+
+/** Rango del gráfico en palabras, para la pregunta precargada del asistente. */
+const RANGE_QUESTION_LABEL: Record<Range, string> = {
+  "1D": "1 día",
+  "1W": "1 semana",
+  "1M": "1 mes",
+  "3M": "3 meses",
+  "1Y": "1 año",
+  ALL: "todo el historial",
+};
 
 /** Reserva el alto real de la barra. En ≥lg queda en 0. Al salir de la página se limpia. */
 function useDetailCtaOffset(active: boolean, ref: RefObject<HTMLDivElement | null>) {
@@ -1018,6 +1030,12 @@ export function DetailScreen({
           underlying={ticker.underlying}
           avgCostUsd={position?.avgCostUsd ?? null}
         />
+
+        {/* Explicación del gráfico en el asistente y tarjeta para compartir: sin montos. */}
+        <div className="flex flex-wrap items-center gap-2">
+          <ExplainChartButton ticker={ticker.symbol} name={ticker.name} range={RANGE_QUESTION_LABEL[range]} />
+          <ShareCardButton id={ticker.symbol} name={ticker.name} pct={position?.pnlPct ?? null} />
+        </div>
 
         <TokenGapCard symbol={ticker.symbol} quote={quote} />
 

@@ -8,6 +8,7 @@ import {
   PortfolioTodayWidget,
   SimulationWidget,
 } from "@/components/ai/widgets-t1";
+import { DailySummaryWidget } from "@/components/ai/widgets-t2";
 import type { AsistenteCopy } from "@/content/i18n/extra-asistente";
 import type { AiWidget } from "@/components/ai/contract";
 
@@ -42,6 +43,8 @@ function WidgetView({ widget, copy }: { widget: AiWidget; copy: AsistenteCopy })
       return <SimulationWidget widget={widget} />;
     case "alert-confirm":
       return <AlertConfirmWidget widget={widget} />;
+    case "daily-summary":
+      return <DailySummaryWidget widget={widget} />;
     case "import-preview":
       return (
         <div data-ai-widget="import-preview">
@@ -66,6 +69,8 @@ function widgetKey(widget: AiWidget): string {
       return widget.positions.map((item) => item.ticker).join("-");
     case "portfolio-today":
       return "portfolio-today";
+    case "daily-summary":
+      return widget.asOf ?? "daily-summary";
     case "alert-confirm":
       return `${widget.ticker}-${widget.direction}-${widget.thresholdUsd}`;
     case "import-preview":
