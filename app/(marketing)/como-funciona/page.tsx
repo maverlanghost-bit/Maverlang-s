@@ -4,14 +4,15 @@ import { HowItWorks } from "@/components/landing/how-it-works";
 import { LiveLandingPrices } from "@/components/landing/live-landing-prices";
 import { LandingSection } from "@/components/landing/section";
 import { Card } from "@/components/ui/card";
-import { site } from "@/config/site";
 import { getLandingQuotes } from "@/lib/landing/live-quotes";
-import { pageMetadata } from "@/lib/seo/metadata";
+import { brandShort, pageMetadata } from "@/lib/seo/metadata";
 
 export const metadata = pageMetadata({
-  title: "Cómo funciona",
-  description: `Practica con US$10.000 ficticios, elige la acción y el token queda en tu propia billetera, sin custodia de ${site.name}.`,
+  title: `Cómo comprar acciones tokenizadas con USDC | ${brandShort()}`,
+  description:
+    "Tres pasos: elige la acción de EE.UU., revisa el precio y el desglose en dólares (US$) y recibe el token en tu propia billetera.",
   path: "/como-funciona",
+  absolute: true,
 });
 
 /** Guía dedicada: los 3 pasos con más detalle que en la portada. */

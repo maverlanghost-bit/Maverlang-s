@@ -23,7 +23,7 @@ export function BrandFavicon({ className }: { className?: string }) {
         src={favicon}
         alt=""
         fill
-        priority
+        loading="eager"
         sizes="40px"
         className="object-cover"
         style={{ objectPosition: FAVICON_FOCUS }}
@@ -35,8 +35,20 @@ export function BrandFavicon({ className }: { className?: string }) {
 /**
  * Logo ancho de Maverlang. Si el PNG aún no está en `public/brand/`,
  * muestra el nombre en texto en vez de un ícono de archivo roto.
+ *
+ * `sizes`: el logo se muestra a ~114 px de ancho (`h-5` sobre 148×26), así que se
+ * declara "128px" (el bucket real de `images.imageSizes`) para que el navegador
+ * no baje la variante de 640 px que pedía el srcset 1x/2x.
+ * `priority`: sólo el header público (elemento LCP) lo pide; el resto de las
+ * instancias se carga eager pero sin `fetchPriority` alto.
  */
-export function BrandLogoImage({ className }: { className?: string }) {
+export function BrandLogoImage({
+  className,
+  priority = false,
+}: {
+  className?: string;
+  priority?: boolean;
+}) {
   const [failed, setFailed] = useState(false);
   if (failed) {
     return <span className="truncate text-sm font-medium tracking-tight text-fg">{site.name}</span>;
@@ -47,7 +59,9 @@ export function BrandLogoImage({ className }: { className?: string }) {
       alt={site.name}
       width={148}
       height={26}
-      priority
+      sizes="128px"
+      loading="eager"
+      fetchPriority={priority ? "high" : "auto"}
       className={cn("h-5 w-auto", className)}
       onError={() => setFailed(true)}
     />

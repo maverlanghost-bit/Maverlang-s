@@ -148,7 +148,7 @@ export function SiteHeader() {
     >
       <div className="mx-auto flex h-full max-w-7xl items-center gap-2 px-5 sm:gap-3">
         <Link href="/" aria-label={site.name} className="flex min-w-0 shrink items-center rounded-full text-fg">
-          <BrandLogoImage />
+          <BrandLogoImage priority />
         </Link>
 
         <nav aria-label="Principal" className="ml-auto hidden items-center gap-4 md:flex lg:gap-6">

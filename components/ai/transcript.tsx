@@ -5,7 +5,9 @@ import { useEffect, useRef, useState, type ReactNode, type UIEvent } from "react
 
 import { CodeBlock, detectCodeLanguage } from "@/components/ai/code-block";
 import type { AiWidget } from "@/components/ai/contract";
+import { deriveFollowUps } from "@/components/ai/follow-ups";
 import { GrokThinkingCard } from "@/components/ai/grok-thinking-card";
+import { InteractiveQuestionCard } from "@/components/ai/interactive-question-card";
 import { AssistantMessageActions } from "@/components/ai/message-actions";
 import type { ChatMessage } from "@/components/ai/model";
 import { NoticeCard } from "@/components/ai/notices";
@@ -30,6 +32,8 @@ type TranscriptProps = {
   announcement: string;
   onRetry: () => void;
   onSuggest?: (id: AsistenteSuggestionId, text: string) => void;
+  /** Si llega, la última respuesta ofrece preguntas de seguimiento tocables. */
+  onFollowUp?: (text: string) => void;
   renderWidgets: (widgets: readonly AiWidget[]) => ReactNode;
   landingComposer?: ReactNode;
   onSendPrompt?: (text: string) => void;
@@ -62,6 +66,52 @@ function extrasOf(message: ChatMessage): MessageExtras {
   return message as ChatMessage & MessageExtras;
 }
 
+/**
+ * Preguntas de seguimiento de la ÚLTIMA respuesta del asistente. Se calculan
+ * sólo con lo que ya está en pantalla (widgets y último mensaje del usuario);
+ * nunca se ofrecen durante la transmisión ni sobre un aviso de error.
+ */
+type FollowUpState = {
+  index: number;
+  items: string[];
+  onSelect: (text: string) => void;
+};
+
+function buildFollowUpState(
+  messages: readonly ChatMessage[],
+  busy: boolean,
+  onFollowUp: ((text: string) => void) | undefined,
+): FollowUpState | null {
+  if (!onFollowUp || busy) return null;
+
+  let index = -1;
+  for (let cursor = messages.length - 1; cursor >= 0; cursor -= 1) {
+    const candidate = messages[cursor];
+    if (candidate?.role === "assistant") {
+      index = cursor;
+      break;
+    }
+  }
+  if (index < 0) return null;
+
+  const last = messages[index];
+  if (!last || last.notice || last.text.trim().length === 0) return null;
+
+  let lastUserText = "";
+  for (let cursor = index - 1; cursor >= 0; cursor -= 1) {
+    const candidate = messages[cursor];
+    if (candidate?.role === "user" && candidate.text.trim().length > 0) {
+      lastUserText = candidate.text;
+      break;
+    }
+  }
+
+  const items = deriveFollowUps(last.widgets ?? [], lastUserText);
+  if (items.length === 0) return null;
+
+  return { index, items, onSelect: onFollowUp };
+}
+
 /** Parte el texto del asistente en tramos de prosa y bloques ```lenguaje … ```. */
 function splitAssistantText(text: string): TextSegment[] {
   const segments: TextSegment[] = [];
@@ -89,7 +139,7 @@ function AssistantText({
   onFollowUp,
 }: {
   text: string;
-  onFollowUp: (prompt: string) => void;
+  onFollowUp?: (prompt: string) => void;
 }) {
   const segments = splitAssistantText(text);
 
@@ -305,6 +355,7 @@ export function Transcript({
   announcement,
   onRetry,
   onSuggest,
+  onFollowUp,
   renderWidgets,
   landingComposer,
   onSendPrompt,
@@ -352,6 +403,8 @@ export function Transcript({
     if (!node) return;
     node.scrollIntoView({ block: "end", behavior: prefersReducedMotion() ? "auto" : "smooth" });
   }
+
+  const followUpState = buildFollowUpState(messages, busy, onFollowUp);
 
   return (
     <div className="relative flex min-h-0 flex-1 flex-col">
@@ -465,11 +518,33 @@ export function Transcript({
                         ) : null}
 
                         <div className="text-zinc-900 leading-relaxed text-[15px]">
-                          <AssistantText text={message.text} onFollowUp={sendPrompt} />
+                          <AssistantText
+                            text={message.text}
+                            onFollowUp={followUpState?.index === index ? undefined : sendPrompt}
+                          />
                         </div>
 
                         {message.widgets && message.widgets.length > 0 ? (
                           <div className="mt-4 w-full min-w-0">{renderWidgets(message.widgets)}</div>
+                        ) : null}
+
+                        {followUpState && followUpState.index === index ? (
+                          <div className="mt-4 w-full min-w-0">
+                            <InteractiveQuestionCard
+                              key={`${message.id}:${followUpState.items.join("|")}`}
+                              variant="quick"
+                              data={{
+                                id: `seguimiento-${message.id}`,
+                                question: "¿Qué te gustaría revisar ahora?",
+                                options: followUpState.items.map((text, position) => ({
+                                  id: `seguimiento-${position + 1}`,
+                                  label: text,
+                                })),
+                                allowCustom: true,
+                              }}
+                              onSubmit={followUpState.onSelect}
+                            />
+                          </div>
                         ) : null}
 
                         <div className="mt-2.5 opacity-0 group-hover/assistant:opacity-100 focus-within:opacity-100 transition-opacity duration-200 motion-reduce:transition-none">

@@ -2,7 +2,7 @@
 
 import { useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 
 import { CostBreakdown } from "@/components/domain/cost-breakdown";
 import { TradeImpactPreview } from "@/components/domain/trade-impact-preview";
@@ -221,6 +221,20 @@ function quickChipLabel(value: number, currency: TradeAmountCurrency): string {
   if (currency === "CLP") return `$${clpChipFormat.format(value)}`;
   if (currency === "SHARES") return sharesChipFormat.format(value);
   return `US$ ${usdcChipFormat.format(value)}`;
+}
+
+/**
+ * Barra del botón principal. Queda pegada al borde inferior del sheet a todo el
+ * ancho (`sticky`), con el botón de 48 px. El espacio del área segura del iPhone
+ * lo aporta el panel del `Sheet` (paddingBottom con `env(safe-area-inset-bottom)`),
+ * así que aquí no se duplica.
+ */
+function SheetActionBar({ children }: { children: ReactNode }) {
+  return (
+    <div className="sticky bottom-0 z-10 -mx-5 mt-auto border-t border-border/60 bg-bg/95 px-5 pt-3 pb-2 backdrop-blur-md">
+      {children}
+    </div>
+  );
 }
 
 function TradeFlow({ side, ticker }: { side: Side; ticker: Ticker }) {
@@ -614,14 +628,19 @@ function TradeFlow({ side, ticker }: { side: Side; ticker: Ticker }) {
           {t.detail.risksLink}
         </Link>
         {pubkey ? null : <p className="text-center text-sm text-down">{t.trade.noWallet}</p>}
-        <div className="sticky bottom-0 z-10 -mx-1 bg-bg/95 px-1 pt-2 pb-1 backdrop-blur-md">
-          <Button size="lg" className="min-h-12 w-full text-base" disabled={!canConfirm} onClick={() => void confirm()}>
-            {t.trade.confirm}
-          </Button>
-        </div>
-        <Button variant="ghost" size="lg" className="min-h-12 w-full" onClick={() => setPhase("form")}>
+        <Button variant="ghost" size="lg" className="min-h-12 w-full touch-manipulation" onClick={() => setPhase("form")}>
           {t.trade.back}
         </Button>
+        <SheetActionBar>
+          <Button
+            size="lg"
+            className="min-h-12 w-full touch-manipulation text-base"
+            disabled={!canConfirm}
+            onClick={() => void confirm()}
+          >
+            {t.trade.confirm}
+          </Button>
+        </SheetActionBar>
       </div>
     );
   }
@@ -654,7 +673,7 @@ function TradeFlow({ side, ticker }: { side: Side; ticker: Ticker }) {
         }}
       />
       {side === "buy" && (currency === "CLP" || currency === "USDC") ? (
-        <div className="flex flex-nowrap items-center gap-1.5 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:flex-wrap sm:justify-center sm:pb-0">
+        <div className="flex flex-nowrap items-center gap-2 overflow-x-auto px-1 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:flex-wrap sm:justify-center sm:px-0 sm:pb-0">
           {(currency === "CLP"
             ? ([
                 { val: 10000, label: "$10.000" },
@@ -673,7 +692,7 @@ function TradeFlow({ side, ticker }: { side: Side; ticker: Ticker }) {
               key={preset.label}
               type="button"
               onClick={() => setAmountRaw(String(preset.val))}
-              className="shrink-0 whitespace-nowrap rounded-full border border-border/80 bg-surface-1/80 px-3 py-1 text-xs font-medium text-fg tabular-nums transition-all duration-150 hover:border-brand/40 hover:bg-brand-soft/50 hover:text-brand active:scale-95"
+              className="inline-flex min-h-11 shrink-0 touch-manipulation items-center justify-center whitespace-nowrap rounded-full border border-border/80 bg-surface-1/80 px-4 text-sm font-medium text-fg tabular-nums transition-all duration-150 hover:border-brand/40 hover:bg-brand-soft/50 hover:text-brand active:scale-95"
             >
               {preset.label}
             </button>
@@ -681,7 +700,7 @@ function TradeFlow({ side, ticker }: { side: Side; ticker: Ticker }) {
         </div>
       ) : null}
       {side === "sell" && shares > 0 ? (
-        <div className="flex flex-nowrap items-center gap-1.5 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:flex-wrap sm:justify-center sm:pb-0">
+        <div className="flex flex-nowrap items-center gap-2 overflow-x-auto px-1 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:flex-wrap sm:justify-center sm:px-0 sm:pb-0">
           {([
             { pct: 0.25, label: "25%" },
             { pct: 0.5, label: "50%" },
@@ -702,7 +721,7 @@ function TradeFlow({ side, ticker }: { side: Side; ticker: Ticker }) {
                         : shares * preset.pct;
                 setAmountRaw(String(Number(base.toFixed(6))));
               }}
-              className="shrink-0 whitespace-nowrap rounded-full border border-border/80 bg-surface-1/80 px-3 py-1 text-xs font-medium text-fg tabular-nums transition-all duration-150 hover:border-brand/40 hover:bg-brand-soft/50 hover:text-brand active:scale-95"
+              className="inline-flex min-h-11 shrink-0 touch-manipulation items-center justify-center whitespace-nowrap rounded-full border border-border/80 bg-surface-1/80 px-4 text-sm font-medium text-fg tabular-nums transition-all duration-150 hover:border-brand/40 hover:bg-brand-soft/50 hover:text-brand active:scale-95"
             >
               {preset.label}
             </button>
@@ -770,17 +789,22 @@ function TradeFlow({ side, ticker }: { side: Side; ticker: Ticker }) {
           {t.states.retry}
         </Button>
       ) : null}
-      <div className="sticky bottom-0 z-10 -mx-1 bg-bg/95 px-1 pt-2 pb-1 backdrop-blur-md">
+      <SheetActionBar>
         {showDeposit ? (
-          <Button asChild size="lg" className="min-h-12 w-full text-base">
+          <Button asChild size="lg" className="min-h-12 w-full touch-manipulation text-base">
             <Link href={DEPOSIT_HREF}>{t.trade.deposit}</Link>
           </Button>
         ) : (
-          <Button size="lg" className="min-h-12 w-full text-base" disabled={!canReview} onClick={() => setPhase("review")}>
+          <Button
+            size="lg"
+            className="min-h-12 w-full touch-manipulation text-base"
+            disabled={!canReview}
+            onClick={() => setPhase("review")}
+          >
             {t.trade.review}
           </Button>
         )}
-      </div>
+      </SheetActionBar>
     </div>
   );
 }

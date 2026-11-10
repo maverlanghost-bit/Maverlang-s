@@ -1,6 +1,13 @@
 import type { Metadata } from "next";
 import { site, siteOrigin } from "@/config/site";
 
+/**
+ * Tamaño de las imágenes sociales generadas por `app/opengraph-image.tsx` y
+ * `app/twitter-image.tsx` (ambas reexportan `shareImageSize`).
+ */
+const SHARE_IMAGE_WIDTH = 1200;
+const SHARE_IMAGE_HEIGHT = 630;
+
 /** Primera palabra de la marca. El title de la portada cabe en ~60 caracteres. */
 export function brandShort(): string {
   const first = site.name.trim().split(/\s+/)[0];
@@ -18,6 +25,10 @@ export function canonicalUrl(path: string): string {
 /**
  * Title, description, canonical, Open Graph y Twitter de una página.
  * El layout raíz no fija `og:url`: cada página pone la suya.
+ * Las imágenes sociales se declaran aquí porque el `openGraph` de cada página
+ * reemplaza al del layout: sin esto, el HTML sale sin `og:image` ni
+ * `twitter:image`. Las rutas relativas se resuelven con el `metadataBase`
+ * del layout raíz.
  */
 export function pageMetadata(input: {
   title: string;
@@ -41,11 +52,20 @@ export function pageMetadata(input: {
       siteName: site.name,
       title: socialTitle,
       description: input.description,
+      images: [
+        {
+          url: "/opengraph-image",
+          width: SHARE_IMAGE_WIDTH,
+          height: SHARE_IMAGE_HEIGHT,
+          alt: socialTitle,
+        },
+      ],
     },
     twitter: {
       card: "summary_large_image",
       title: socialTitle,
       description: input.description,
+      images: ["/twitter-image"],
     },
   };
   if (input.index === false || input.follow === false) {

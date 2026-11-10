@@ -38,6 +38,9 @@ export const MAX_TEXT = 2_000;
 export const MAX_HISTORY = 40;
 export const MAX_API_TURNS = 16;
 export const MAX_POINTS = 400;
+/** Tope defensivo de los widgets nuevos: el historial completo vive en `sessionStorage`. */
+const MAX_FACTS = 16;
+const MAX_POSITIONS = 60;
 export const CHART_W = 320;
 export const CHART_H = 96;
 
@@ -126,7 +129,73 @@ const importSchema = z.object({
   ),
 });
 
-const widgetSchema = z.union([stockSchema, compareSchema, portfolioSchema, buySchema, importSchema]);
+const companySchema = z.object({
+  type: z.literal("company"),
+  ticker: z.string().trim().min(1),
+  name: z.string(),
+  facts: z.array(
+    z.object({
+      label: z.string(),
+      value: z.string().nullable(),
+    }),
+  ),
+  source: z.string(),
+  asOf: z.string().nullable(),
+});
+
+const portfolioTodaySchema = z.object({
+  type: z.literal("portfolio-today"),
+  totalUsd: z.number().finite().nullable(),
+  cashUsdc: z.number().finite().nullable(),
+  positions: z.array(
+    z.object({
+      ticker: z.string().trim().min(1),
+      name: z.string(),
+      valueUsd: z.number().finite().nullable(),
+      weightPct: z.number().finite().nullable(),
+      changePct: z.number().finite().nullable(),
+    }),
+  ),
+  hhi: z.number().finite().nullable(),
+  effectivePositions: z.number().finite().nullable(),
+  top1Pct: z.number().finite().nullable(),
+  top3Pct: z.number().finite().nullable(),
+});
+
+const simulationSchema = z.object({
+  type: z.literal("simulation"),
+  ticker: z.string().trim().min(1),
+  name: z.string(),
+  priceUsd: z.number().finite().nullable(),
+  amountUsd: z.number().finite().nullable(),
+  units: z.number().finite().nullable(),
+  monthlyClp: z.number().finite().nullable(),
+  usdClp: z.number().finite().nullable(),
+  monthlyUsd: z.number().finite().nullable(),
+  months: z.number().finite().nullable(),
+  totalUsd: z.number().finite().nullable(),
+});
+
+const alertConfirmSchema = z.object({
+  type: z.literal("alert-confirm"),
+  ticker: z.string().trim().min(1),
+  name: z.string(),
+  direction: z.enum(["above", "below"]),
+  thresholdUsd: z.number().finite(),
+  priceUsd: z.number().finite().nullable(),
+});
+
+const widgetSchema = z.union([
+  stockSchema,
+  compareSchema,
+  portfolioSchema,
+  buySchema,
+  importSchema,
+  companySchema,
+  portfolioTodaySchema,
+  simulationSchema,
+  alertConfirmSchema,
+]);
 
 const okSchema = z
   .object({
@@ -181,6 +250,12 @@ function trimWidget(widget: z.infer<typeof widgetSchema>): AiWidget {
       ...widget,
       items: widget.items.map((item) => ({ ...item, points: item.points.slice(-MAX_POINTS) })),
     };
+  }
+  if (widget.type === "company") {
+    return { ...widget, facts: widget.facts.slice(0, MAX_FACTS) };
+  }
+  if (widget.type === "portfolio-today") {
+    return { ...widget, positions: widget.positions.slice(0, MAX_POSITIONS) };
   }
   return widget;
 }
@@ -517,9 +592,11 @@ export function announceAssistant(
   for (const widget of message.widgets ?? []) {
     if (widget.type === "stock") bits.push(`${widget.name} (${widget.ticker})`);
     else if (widget.type === "compare") bits.push(labels.compare);
-    else if (widget.type === "portfolio") bits.push(labels.portfolio);
+    else if (widget.type === "portfolio" || widget.type === "portfolio-today") bits.push(labels.portfolio);
     else if (widget.type === "buy") bits.push(`${labels.buy} ${widget.name}`);
-    else bits.push(labels.photo);
+    else if (widget.type === "import-preview") bits.push(labels.photo);
+    else if (widget.type === "company" || widget.type === "simulation" || widget.type === "alert-confirm")
+      bits.push(`${widget.name} (${widget.ticker})`);
   }
   if (bits.length === 0) return labels.ready;
   return bits.join(". ");

@@ -28,7 +28,7 @@ import { cn } from "@/lib/cn";
  */
 
 const trustChips: { label: string; Icon: ComponentType<SVGProps<SVGSVGElement>> }[] = [
-  { label: "Opera 24/7", Icon: IconClock },
+  { label: "Opera 24/7 on-chain", Icon: IconClock },
   { label: "En tu propia billetera, sin custodia", Icon: IconWallet },
   { label: "Más de 400 activos", Icon: IconChart },
 ];
@@ -121,6 +121,10 @@ export function Hero({ quotes, live }: { quotes: LandingQuote[]; live: boolean }
               </li>
             ))}
           </ul>
+          <p className="mx-auto mt-3 max-w-2xl text-[11px] leading-relaxed text-balance text-fg-muted sm:text-xs">
+            Operar on-chain es 24/7; fuera del horario de la bolsa de EE.UU. (9:30 a 16:00, hora de Nueva
+            York, lunes a viernes) hay menos liquidez y el precio puede variar más.
+          </p>
         </Reveal>
       </div>
 

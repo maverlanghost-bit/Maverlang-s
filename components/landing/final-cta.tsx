@@ -17,13 +17,13 @@ const scheduleComparison = [
   {
     market: "Bolsa tradicional de EE.UU.",
     hours: "Lun a Vie · 09:30 a 16:00 ET",
-    status: "Cierra tardes, fines de semana y feriados",
+    status: "Cierra las tardes, fines de semana y feriados",
     highlight: false,
   },
   {
     market: "Maverlang Stocks (xStocks en Solana)",
-    hours: "Lunes a Domingo · 24/7 los 365 días",
-    status: "Nunca cerramos · Liquidación directo en tu billetera",
+    hours: "Lunes a Domingo · 24/7 on-chain",
+    status: "Opera a cualquier hora · El token queda en tu billetera",
     highlight: true,
   },
 ] as const;
@@ -45,8 +45,9 @@ const waitlistPerks: { text: string; Icon: ComponentType<SVGProps<SVGSVGElement>
 
 /**
  * Cierre de la portada en formato split-screen:
- * - Izquierda: manifiesto de horario continuo ("La bolsa abre de 9:30 a 16:00.
- *   Nosotros nunca cerramos."), comparativa de horarios y CTAs de la cuenta demo.
+ * - Izquierda: manifiesto de horario ("La bolsa de EE.UU. abre de 9:30 a 16:00.
+ *   El mercado on-chain sigue abierto."), comparativa de horarios con la nota de
+ *   liquidez fuera de rueda y CTAs de la cuenta demo.
  * - Derecha: tarjeta ejecutiva independiente con el formulario de lista de espera
  *   para la cuenta Real (`#lista-de-espera`).
  */
@@ -76,21 +77,21 @@ export function FinalCTA() {
                 aria-hidden="true"
                 className="size-1.5 rounded-full bg-up motion-safe:animate-pulse motion-reduce:animate-none"
               />
-              <span>Mercado continuo · Operas 24/7</span>
+              <span>Mercado on-chain · Operas 24/7</span>
             </div>
 
             <h2
               id="cta-final-title"
               className="mt-5 text-3xl leading-[1.06] tracking-tight text-balance sm:text-5xl lg:text-[52px]"
             >
-              La bolsa abre de 9:30 a 16:00.{" "}
-              <span className="text-fg-muted">Nosotros nunca cerramos.</span>
+              La bolsa de EE.UU. abre de 9:30 a 16:00.{" "}
+              <span className="text-fg-muted">El mercado on-chain sigue abierto.</span>
             </h2>
 
             <p className="mt-4 max-w-xl text-sm leading-relaxed text-balance text-fg-body sm:text-base">
-              Mientras el mercado tradicional apaga sus pantallas cada tarde, fin de semana y feriado, tu
-              capital no tiene por qué esperar al lunes. Abre tu cuenta en 2 minutos y opera fracciones de
-              acciones de EE.UU. tokenizadas 24/7, directo en tu billetera.
+              Cuando la bolsa de EE.UU. cierra —cada tarde, fin de semana y feriado—, el mercado on-chain
+              sigue operando. Compra fracciones de acciones tokenizadas a cualquier hora, directo en tu
+              billetera.
             </p>
 
             {/* Comparativa visual de horario: Wall Street vs Maverlang 24/7 */}
@@ -125,8 +126,8 @@ export function FinalCTA() {
                 ))}
               </div>
               <p className="border-t border-border/70 bg-surface-1/50 px-4 py-2.5 text-[11px] leading-relaxed text-fg-muted sm:px-5">
-                Fuera del horario regular de la bolsa de EE.UU. el precio puede variar más según la liquidez
-                del mercado continuo.
+                Fuera del horario regular de la bolsa de EE.UU. (9:30 a 16:00, hora de Nueva York, lunes a
+                viernes) hay menos liquidez y el precio puede variar más.
               </p>
             </div>
 
@@ -183,7 +184,7 @@ export function FinalCTA() {
                 Reserva tu lugar para la cuenta Real
               </h3>
               <p className="mt-2 text-sm leading-relaxed text-fg-body">
-                Sólo tu correo. Te escribimos apenas habilitemos tu cupo para operar acciones reales 24/7.
+                Sólo tu correo. Te escribimos apenas habilitemos tu cupo de la cuenta Real.
               </p>
 
               <div className="mt-6 rounded-2xl border border-border/80 bg-surface-1/60 p-4 sm:p-5">

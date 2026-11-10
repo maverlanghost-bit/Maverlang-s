@@ -8,7 +8,13 @@ import { loadPortfolioForAssistant } from "@/lib/ai/portfolio";
 import { resolveTicker, searchTickers } from "@/lib/ai/resolve";
 import { buildSystemPrompt } from "@/lib/ai/system-prompt";
 import { AI_TOOLS, executeToolCall, type AssistantDeps } from "@/lib/ai/tools";
-import { callXai, type XaiContentPart, type XaiMessage, type XaiToolCallPayload } from "@/lib/ai/xai";
+import {
+  callXai,
+  callXaiStream,
+  type XaiContentPart,
+  type XaiMessage,
+  type XaiToolCallPayload,
+} from "@/lib/ai/xai";
 
 const copy = aiMessages.esCL;
 
@@ -38,6 +44,12 @@ function widgetKey(widget: AiWidget): string {
   if (widget.type === "compare") return `compare:${widget.range}:${widget.items.map((item) => item.ticker).join(",")}`;
   if (widget.type === "portfolio") return "portfolio";
   if (widget.type === "buy") return `buy:${widget.ticker}`;
+  if (widget.type === "company") return `company:${widget.ticker}`;
+  if (widget.type === "portfolio-today") return "portfolio-today";
+  if (widget.type === "simulation") return `simulation:${widget.ticker}`;
+  if (widget.type === "alert-confirm") {
+    return `alert-confirm:${widget.ticker}:${widget.direction}:${widget.thresholdUsd}`;
+  }
   return `import:${widget.positions.map((position) => position.ticker).join(",")}`;
 }
 
@@ -85,15 +97,28 @@ function assistantTurn(content: string, calls: readonly { id: string; name: stri
   return { role: "assistant", content: content.trim() ? content : null, tool_calls };
 }
 
+/** Opciones del motor de streaming (§1.4). Sin `onDelta` el bucle es el de siempre. */
+export interface RunChatOptions {
+  /** Recibe cada trozo nuevo de la ronda final de texto. */
+  onDelta?: (chunk: string) => void;
+  /** Sólo tests: reemplaza `callXaiStream`. */
+  stream?: typeof callXaiStream;
+}
+
 /**
  * Bucle de como máximo 4 rondas de herramientas. Los widgets salen de las
  * herramientas, no del texto del modelo. La última vuelta, si todavía pide
  * tools, se hace sin ellas para cerrar con una frase.
+ *
+ * Con `onDelta` (§1.4), la ronda final de texto va sin herramientas y se
+ * transmite con `callXaiStream`; las rondas de herramientas siguen sin
+ * streaming. El aviso se agrega al texto final, nunca a los trozos.
  */
 export async function runChat(
   input: RunChatInput,
   deps: AssistantDeps = defaultAssistantDeps(),
   complete: typeof callXai = callXai,
+  options: RunChatOptions = {},
 ): Promise<{ text: string; widgets: AiWidget[] }> {
   let viewing: { ticker: string; name: string } | undefined;
   const contextTicker = input.context?.ticker?.trim();
@@ -104,6 +129,9 @@ export async function runChat(
   const history = toHistory(buildSystemPrompt(viewing), input.messages, input.image);
   const widgets: AiWidget[] = [];
   let stockRelated = false;
+  const onDelta = options.onDelta;
+  const streamer = options.stream ?? callXaiStream;
+  let toolRounds = 0;
 
   const apply = async (calls: { id: string; name: string; arguments: string }[]) => {
     const limited = calls.slice(0, MAX_CALLS_PER_ROUND);
@@ -120,12 +148,27 @@ export async function runChat(
   };
 
   for (let round = 0; round < MAX_TOOL_ROUNDS; round += 1) {
+    // Después de las herramientas, la ronda final de texto va sin tools y se
+    // transmite (§1.4): así el cliente ve el texto mientras se genera. Las
+    // rondas de herramientas (con tools) siguen sin streaming.
+    if (typeof onDelta === "function" && toolRounds > 0) {
+      const streamed = await streamer(history, { onDelta });
+      if (streamed.content.trim() !== "") {
+        return { text: withDisclaimer(streamed.content, stockRelated), widgets };
+      }
+      // El stream no trajo texto: se cierra con una vuelta normal.
+      const closing = await complete(history, {});
+      return { text: withDisclaimer(closing.content, stockRelated), widgets };
+    }
     const completion = await complete(history, { tools: AI_TOOLS });
     if (completion.toolCalls.length === 0) {
-      return { text: withDisclaimer(completion.content, stockRelated), widgets };
+      const text = withDisclaimer(completion.content, stockRelated);
+      if (typeof onDelta === "function" && completion.content.trim() !== "") onDelta(completion.content);
+      return { text, widgets };
     }
     history.push(assistantTurn(completion.content, completion.toolCalls));
     await apply(completion.toolCalls);
+    toolRounds += 1;
   }
 
   try {

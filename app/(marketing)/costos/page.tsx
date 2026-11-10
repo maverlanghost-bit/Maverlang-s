@@ -4,12 +4,14 @@ import { CostsSection } from "@/components/landing/costs-section";
 import { LandingSection } from "@/components/landing/section";
 import { Card } from "@/components/ui/card";
 import { site } from "@/config/site";
-import { pageMetadata } from "@/lib/seo/metadata";
+import { brandShort, pageMetadata } from "@/lib/seo/metadata";
 
 export const metadata = pageMetadata({
-  title: "Costos",
-  description: `Qué pagas en ${site.name}: comisión 0% en el lanzamiento, red, diferencia de precio y proveedor, siempre antes de confirmar.`,
+  title: `Comisiones y costos de comprar acciones | ${brandShort()}`,
+  description:
+    "Comisión 0% en el lanzamiento, costo de red en Solana, diferencia de precio y proveedor de depósito: todo se muestra antes de confirmar la orden.",
   path: "/costos",
+  absolute: true,
 });
 
 /** Resumen en píldoras: los tres datos que se repiten en la página. */

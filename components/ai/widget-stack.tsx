@@ -2,6 +2,12 @@
 
 import { ImportPreview } from "@/components/ai/import/import-preview";
 import { BuyWidget, CompareWidget, PortfolioWidget, StockWidget } from "@/components/ai/widgets";
+import {
+  AlertConfirmWidget,
+  CompanyWidget,
+  PortfolioTodayWidget,
+  SimulationWidget,
+} from "@/components/ai/widgets-t1";
 import type { AsistenteCopy } from "@/content/i18n/extra-asistente";
 import type { AiWidget } from "@/components/ai/contract";
 
@@ -28,6 +34,14 @@ function WidgetView({ widget, copy }: { widget: AiWidget; copy: AsistenteCopy })
       return <PortfolioWidget widget={widget} copy={copy} />;
     case "buy":
       return <BuyWidget widget={widget} copy={copy} />;
+    case "company":
+      return <CompanyWidget widget={widget} />;
+    case "portfolio-today":
+      return <PortfolioTodayWidget widget={widget} />;
+    case "simulation":
+      return <SimulationWidget widget={widget} />;
+    case "alert-confirm":
+      return <AlertConfirmWidget widget={widget} />;
     case "import-preview":
       return (
         <div data-ai-widget="import-preview">
@@ -40,8 +54,23 @@ function WidgetView({ widget, copy }: { widget: AiWidget; copy: AsistenteCopy })
 }
 
 function widgetKey(widget: AiWidget): string {
-  if (widget.type === "stock" || widget.type === "buy") return widget.ticker;
-  if (widget.type === "compare") return widget.items.map((item) => item.ticker).join("-");
-  if (widget.type === "portfolio") return widget.positions.map((item) => item.ticker).join("-");
-  return String(widget.positions.length);
+  switch (widget.type) {
+    case "stock":
+    case "buy":
+    case "company":
+    case "simulation":
+      return widget.ticker;
+    case "compare":
+      return widget.items.map((item) => item.ticker).join("-");
+    case "portfolio":
+      return widget.positions.map((item) => item.ticker).join("-");
+    case "portfolio-today":
+      return "portfolio-today";
+    case "alert-confirm":
+      return `${widget.ticker}-${widget.direction}-${widget.thresholdUsd}`;
+    case "import-preview":
+      return String(widget.positions.length);
+    default:
+      return "widget";
+  }
 }

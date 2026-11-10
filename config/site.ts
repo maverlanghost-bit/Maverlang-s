@@ -1,7 +1,21 @@
 const brandName =
   process.env.NEXT_PUBLIC_BRAND_NAME?.trim() || "Maverlang Stocks";
-const siteUrl =
-  process.env.NEXT_PUBLIC_SITE_URL?.trim() || "http://localhost:3000";
+
+/** Dominio oficial del producto (sin www). Sólo se usa como respaldo. */
+const PRODUCTION_SITE_URL = "https://maverlang.com";
+const LOCAL_SITE_URL = "http://localhost:3000";
+
+/**
+ * Respaldo cuando `NEXT_PUBLIC_SITE_URL` falta o viene vacía: en producción
+ * apunta al dominio oficial; en desarrollo y tests, a localhost.
+ */
+function fallbackSiteUrl(): string {
+  return process.env.NODE_ENV === "production"
+    ? PRODUCTION_SITE_URL
+    : LOCAL_SITE_URL;
+}
+
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim() || fallbackSiteUrl();
 const supportEmail = process.env.NEXT_PUBLIC_SUPPORT_EMAIL?.trim() || "";
 
 export const site = {
@@ -17,7 +31,7 @@ export function siteOrigin(): string {
   try {
     return new URL(site.url).origin;
   } catch {
-    return "http://localhost:3000";
+    return fallbackSiteUrl();
   }
 }
 

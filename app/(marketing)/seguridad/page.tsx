@@ -4,12 +4,14 @@ import { SecuritySection } from "@/components/landing/security-section";
 import { LandingSection } from "@/components/landing/section";
 import { Card } from "@/components/ui/card";
 import { site } from "@/config/site";
-import { pageMetadata } from "@/lib/seo/metadata";
+import { brandShort, pageMetadata } from "@/lib/seo/metadata";
 
 export const metadata = pageMetadata({
-  title: "Seguridad",
-  description: `Tus activos en tu propia billetera, sin custodia de ${site.name}. Qué tienes, qué no, y qué riesgos existen.`,
+  title: `Autocustodia y seguridad | ${brandShort()}`,
+  description:
+    "El token queda en tu propia billetera: qué significa la autocustodia, qué derechos no incluye y qué riesgos existen al operar con acciones tokenizadas.",
   path: "/seguridad",
+  absolute: true,
 });
 
 function ShieldIcon() {

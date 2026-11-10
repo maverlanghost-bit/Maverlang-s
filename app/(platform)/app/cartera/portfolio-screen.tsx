@@ -12,6 +12,7 @@ import { SvgPriceChart } from "@/components/domain/svg-price-chart";
 import { InfoTip } from "@/components/domain/info-tip";
 import { PriceFreshness } from "@/components/domain/price-freshness";
 import { PortfolioDonut } from "@/components/domain/portfolio-donut";
+import { PortfolioValueChart, isPortfolioRange, usePortfolioValueSeries } from "@/components/domain/portfolio-value-chart";
 import { DividendMultiplierCard } from "@/components/domain/dividend-multiplier-card";
 import { PortfolioHealthCard } from "@/components/domain/portfolio-health-card";
 import { PortfolioTaxSummaryCard } from "@/components/domain/portfolio-tax-summary-card";
@@ -28,7 +29,6 @@ import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ErrorState } from "@/components/ui/error-state";
 import { PageHeader } from "@/components/ui/page-header";
-import { SegmentedControl } from "@/components/ui/segmented-control";
 import { Skeleton } from "@/components/ui/skeleton";
 import { isRealAccountUiBlocked, isRealAccountUiEnabled } from "@/lib/account/real-ui-gate";
 import { formatDateTime, formatMoney, formatShares, type MoneyCurrency } from "@/lib/format";
@@ -42,8 +42,8 @@ import { logoPathFromSymbol } from "@/lib/catalog/logos";
 import { displayPrice } from "@/lib/market/browse";
 import type { AssetStatus } from "@/lib/market/asset-status.shared";
 import { DETAIL_RANGES, isDetailRange, isReferenceHistory, rangeMove, toneOf } from "@/lib/market/series";
-import { periodPerformance, portfolioPerformance, type PortfolioPerformance, type RankedPosition } from "@/lib/portfolio/performance";
-import { balancedPortions, decodePoints, encodePoints, portfolioValueSeries, sumUsd, sumsMatch, tradeActivity } from "@/lib/portfolio/series";
+import { portfolioPerformance, type PortfolioPerformance, type RankedPosition } from "@/lib/portfolio/performance";
+import { balancedPortions, sumUsd, sumsMatch, tradeActivity } from "@/lib/portfolio/series";
 import type { Activity, Currency, OrderStatus, Position, Range, Ticker } from "@/lib/types";
 
 const DEPOSIT_HREF = "/app/billetera/depositar";
@@ -394,17 +394,14 @@ const ValueChart = memo(function ValueChart({
   rate: number | undefined;
   pendingFx: boolean;
 }) {
-  const { t, language } = useT();
-  const copy = carteraCopy(language);
+  const { t } = useT();
   const [range, setRange] = useState<Range>("1M");
   const [compareSpy, setCompareSpy] = useState(false);
   const spyHistory = useHistory(compareSpy ? "SPYx" : "", range);
   const symbols = useMemo(() => positions.map((position) => position.symbol), [positions]);
   const histories = useHistories(symbols, range);
   const rows = histories.map((query) => query.data?.points ?? []);
-  const ready = rows.length === positions.length && rows.every((row) => row.length >= 2);
-  const encoded = encodePoints(ready ? portfolioValueSeries(positions, rows, cashUsdc, totalUsd) : []);
-  const points = useMemo(() => decodePoints(encoded), [encoded]);
+  const points = usePortfolioValueSeries(positions, rows, cashUsdc, totalUsd);
   const pending = histories.some((query) => query.isPending);
   const failed = histories.some((query) => query.isError);
   // Si alguna historia usada es mock (o no está marcada real), la curva
@@ -422,84 +419,55 @@ const ValueChart = memo(function ValueChart({
     return { label: "S&P 500 (SPYx)", points: pts };
   }, [compareSpy, reference, spyHistory.data]);
 
-  const rangeOptions = DETAIL_RANGES.map((value) => ({ value, label: t.detail.rangeShort[value] }));
-  const period = points.length >= 2 ? periodPerformance(points) : null;
-  const periodMoney = period === null ? null : moneyView(period.deltaUsd, currency, rate);
+  // Sólo los cuatro rangos de la cartera: 1S, 1M, 3M y 1A. El 1D y el "Todo"
+  // siguen disponibles en la ficha de cada acción.
+  const rangeOptions = useMemo(
+    () =>
+      DETAIL_RANGES.filter((value) => isPortfolioRange(value)).map((value) => ({
+        value,
+        label: t.detail.rangeShort[value],
+      })),
+    [t],
+  );
+  const formatValue = useCallback(
+    (usd: number) => {
+      const view = moneyView(usd, currency, rate);
+      return formatMoney(view.amount, view.currency);
+    },
+    [currency, rate],
+  );
 
   return (
-    <>
-      <SegmentedControl
-        label={t.detail.rangesLabel}
-        options={rangeOptions}
-        value={range}
-        fullWidth
-        onChange={(value) => {
-          if (!isDetailRange(value)) return;
-          setRange(value);
-          onHover(null);
-        }}
+    <PortfolioValueChart
+      ranges={rangeOptions}
+      range={range}
+      onRangeChange={(value) => {
+        if (!isDetailRange(value)) return;
+        setRange(value);
+        onHover(null);
+      }}
+      points={points}
+      formatValue={formatValue}
+      pendingFx={pendingFx}
+      compare={{ active: compareSpy, onToggle: () => setCompareSpy((prev) => !prev) }}
+      pending={pending}
+      failed={failed}
+      onRetry={() => {
+        for (const query of histories) void query.refetch();
+      }}
+      referenceNote={reference ? t.detail.chartReference : null}
+    >
+      <SvgPriceChart
+        points={points}
+        tone={toneOf(rangeMove(points))}
+        label={fill(t.portfolio.chartLabel, { range: t.detail.rangeCaption[range] })}
+        emptyLabel={t.detail.chartEmpty}
+        emptyHint={t.detail.chartEmptyHint}
+        onHover={onHover}
+        reference={reference}
+        benchmark={benchmark}
       />
-      {reference ? <p className="text-sm text-fg-muted">{t.detail.chartReference}</p> : null}
-      {!pending && !failed ? (
-        <div className="flex flex-col gap-2">
-          <div className="flex min-h-11 min-w-0 flex-wrap items-center gap-x-1 gap-y-1.5">
-            <span className="label shrink-0">{copy.period}</span>
-            <span className="min-w-0 truncate text-sm text-fg-muted">{t.detail.rangeCaption[range]}</span>
-            <InfoTip label={`${copy.whatIsThis}. ${copy.period}`} text={copy.periodTip} align="start" />
-            <button
-              type="button"
-              aria-pressed={compareSpy}
-              onClick={() => setCompareSpy((prev) => !prev)}
-              className={`ml-auto shrink-0 rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
-                compareSpy
-                  ? "border-fg bg-fg text-bg"
-                  : "border-border/80 bg-surface-1/80 text-fg-muted hover:bg-surface-2 hover:text-fg"
-              }`}
-            >
-              vs S&amp;P 500 (SPYx)
-            </button>
-          </div>
-          {period === null || periodMoney === null ? (
-            <span className="text-sm text-fg-muted">{copy.emptyFigure}</span>
-          ) : pendingFx ? (
-            <Skeleton className="h-6 w-40" />
-          ) : (
-            <div className="flex flex-wrap items-center gap-2">
-              <span className={`${signClass(period.deltaUsd, "sm")} whitespace-nowrap`}>
-                {formatMoney(periodMoney.amount, periodMoney.currency)}
-              </span>
-              <ChangeBadge value={period.pct} />
-            </div>
-          )}
-        </div>
-      ) : null}
-      {pending ? (
-        <div role="status" aria-live="polite" aria-busy="true">
-          <span className="sr-only">{t.states.loading}</span>
-          <Skeleton className="h-56 w-full rounded-xl lg:h-72" />
-        </div>
-      ) : failed ? (
-        <ErrorState
-          title={t.detail.chartError}
-          label={t.states.error}
-          retryLabel={t.states.retry}
-          onRetry={() => {
-            for (const query of histories) void query.refetch();
-          }}
-        />
-      ) : (
-        <SvgPriceChart
-          points={points}
-          tone={toneOf(rangeMove(points))}
-          label={fill(t.portfolio.chartLabel, { range: t.detail.rangeCaption[range] })}
-          emptyLabel={t.detail.chartEmpty}
-          emptyHint={t.detail.chartEmptyHint}
-          onHover={onHover}
-          reference={reference}
-          benchmark={benchmark}
-        />
-      )}
-    </>
+    </PortfolioValueChart>
   );
 });
 
@@ -641,6 +609,8 @@ export function PortfolioScreen() {
     const bestName = perf.best ? (tickerBySymbol.get(perf.best.symbol)?.name ?? perf.best.symbol) : null;
     const worstName = perf.worst ? (tickerBySymbol.get(perf.worst.symbol)?.name ?? perf.worst.symbol) : null;
     const hasPositions = loaded.positions.length > 0;
+    // Sin USDC el primer paso es depositar; con saldo, explorar el mercado.
+    const hasCash = loaded.cashUsdc > 0;
 
     body = (
       <div
@@ -672,17 +642,15 @@ export function PortfolioScreen() {
         {showFxNote ? <p className="text-sm text-fg-muted">{t.detail.fxFallback}</p> : null}
 
         {hasPositions && !masked ? (
-          <div className="flex flex-col gap-3">
-            <ValueChart
-              positions={loaded.positions}
-              cashUsdc={loaded.cashUsdc}
-              totalUsd={loaded.totalUsd}
-              onHover={onHoverUsd}
-              currency={currency}
-              rate={rate}
-              pendingFx={pendingFx}
-            />
-          </div>
+          <ValueChart
+            positions={loaded.positions}
+            cashUsdc={loaded.cashUsdc}
+            totalUsd={loaded.totalUsd}
+            onHover={onHoverUsd}
+            currency={currency}
+            rate={rate}
+            pendingFx={pendingFx}
+          />
         ) : null}
 
         {loaded.positions.length === 0 ? (
@@ -691,9 +659,20 @@ export function PortfolioScreen() {
             title={t.portfolio.emptyTitle}
             description={t.portfolio.emptyBody}
             action={
-              <Button asChild size="lg" className="min-h-11 w-full whitespace-nowrap sm:w-auto">
-                <Link href={MARKET_HREF}>{t.portfolio.explore}</Link>
-              </Button>
+              /* Paso siguiente: con USDC disponible lo primero es explorar; con
+                 la billetera vacía, depositar. El otro paso queda al lado. */
+              <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+                <Button asChild size="lg" className="min-h-11 w-full whitespace-nowrap sm:w-auto">
+                  <Link href={hasCash ? MARKET_HREF : DEPOSIT_HREF}>
+                    {hasCash ? t.portfolio.explore : t.trade.deposit}
+                  </Link>
+                </Button>
+                <Button asChild variant="secondary" size="lg" className="min-h-11 w-full whitespace-nowrap sm:w-auto">
+                  <Link href={hasCash ? DEPOSIT_HREF : MARKET_HREF}>
+                    {hasCash ? t.trade.deposit : t.portfolio.explore}
+                  </Link>
+                </Button>
+              </div>
             }
           />
         ) : (

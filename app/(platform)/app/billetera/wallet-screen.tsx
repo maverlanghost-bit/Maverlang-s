@@ -13,6 +13,7 @@ import { WalletVaultHeader } from "@/components/domain/wallet-vault-header";
 import type { BadgeTone } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 import { ErrorState } from "@/components/ui/error-state";
 import { LoadingState } from "@/components/ui/loading-state";
 import { PageHeader } from "@/components/ui/page-header";
@@ -36,6 +37,46 @@ import { formatSol, solIsLow } from "@/lib/wallet/send-cost";
 const DEPOSIT_HREF = "/app/billetera/depositar";
 const SEND_HREF = "/app/billetera/enviar";
 const RECEIVE_HREF = "/app/billetera/recibir";
+const MARKET_HREF = "/app";
+
+/**
+ * Estados vacíos de la billetera (§1.9): el texto vive en el componente, no en
+ * content/i18n. Cada estado deja un paso siguiente concreto: depositar USDC o
+ * explorar acciones.
+ */
+type EmptyCopy = {
+  assetsTitle: string;
+  historyTitle: string;
+  filteredTitle: string;
+  filteredBody: string;
+  showAll: string;
+  depositUsdc: string;
+  exploreStocks: string;
+  zeroBalance: string;
+};
+
+const EMPTY_COPY: Record<"es-CL" | "en", EmptyCopy> = {
+  "es-CL": {
+    assetsTitle: "Tu billetera está vacía",
+    historyTitle: "Tu historial está vacío",
+    filteredTitle: "Sin movimientos en este filtro",
+    filteredBody: "Cambia el filtro para ver el resto de tu historial.",
+    showAll: "Ver todas",
+    depositUsdc: "Depositar USDC",
+    exploreStocks: "Explorar acciones",
+    zeroBalance: "Sin saldo todavía",
+  },
+  en: {
+    assetsTitle: "Your wallet is empty",
+    historyTitle: "Your history is empty",
+    filteredTitle: "No activity with this filter",
+    filteredBody: "Change the filter to see the rest of your history.",
+    showAll: "Show all",
+    depositUsdc: "Deposit USDC",
+    exploreStocks: "Explore stocks",
+    zeroBalance: "No balance yet",
+  },
+};
 
 type ActivityFilter = "all" | "investments" | "cash";
 
@@ -81,6 +122,21 @@ function Masked({ label, className }: { label: string; className?: string }) {
       </span>
       <span className="sr-only">{label}</span>
     </span>
+  );
+}
+
+/** Ilustración del estado vacío de la billetera (decorativa, mismo trazo del design system). */
+function WalletEmptyArt() {
+  return (
+    <svg viewBox="0 0 80 64" className="size-16 text-fg-muted" fill="none" aria-hidden>
+      <rect x="12.5" y="16.5" width="55" height="34" rx="8" stroke="currentColor" strokeWidth="1.5" />
+      <path
+        d="M44 28.5h13a3 3 0 0 1 3 3v4a3 3 0 0 1-3 3H44a3 3 0 0 1-3-3v-4a3 3 0 0 1 3-3Z"
+        stroke="currentColor"
+        strokeWidth="1.5"
+      />
+      <circle cx="47" cy="33.5" r="1.6" className="fill-brand" />
+    </svg>
   );
 }
 
@@ -139,7 +195,8 @@ function AssetRow({
 }
 
 export function WalletScreen() {
-  const { t, currency } = useT();
+  const { t, language, currency } = useT();
+  const copy = EMPTY_COPY[language];
   const session = useSession();
   const { mode } = useAccountMode();
   const { hidden } = useHideBalance();
@@ -191,6 +248,9 @@ export function WalletScreen() {
   const pendingFx = currency === "CLP" && !fxKnown && fx.isPending;
   const usdcView = moneyView(usdcUi, currency, fxKnown ? rate : undefined);
   const masked = hidden === true;
+  const hasPositions = rows.some((row) => row.symbol !== "USDC" && row.symbol !== "SOL" && row.uiAmount > 0);
+  /** Sin USDC y sin posiciones: el saldo está en cero y conviene ofrecer el depósito. */
+  const showZeroBalance = !masked && rows.length > 0 && usdcUi <= 0 && !hasPositions;
 
   const allActivities = activity.data ?? [];
   const byFilter =
@@ -232,6 +292,18 @@ export function WalletScreen() {
           ) : null}
         </div>
         <p className="mt-1 text-sm text-fg-muted">{t.wallet.usdcHint}</p>
+        {showZeroBalance ? (
+          <p role="status" className="mt-2 text-sm text-fg-muted">
+            {copy.zeroBalance}
+            {" · "}
+            <Link
+              href={DEPOSIT_HREF}
+              className="font-medium text-fg underline decoration-border underline-offset-4 hover:decoration-fg"
+            >
+              {copy.depositUsdc}
+            </Link>
+          </p>
+        ) : null}
 
         <div className="mt-6 border-t border-border/60 pt-4">
           <p className="label">{t.wallet.solLabel}</p>
@@ -266,7 +338,28 @@ export function WalletScreen() {
       <Card>
         <h2 className="text-lg font-semibold tracking-tight">{t.wallet.assets}</h2>
         {rows.length === 0 ? (
-          <p className="mt-3 text-sm text-fg-muted">{t.wallet.assetsEmpty}</p>
+          <div className="mt-4">
+            <EmptyState
+              media={<WalletEmptyArt />}
+              title={copy.assetsTitle}
+              description={t.wallet.assetsEmpty}
+              action={
+                <div className="flex w-full flex-col items-center gap-2 sm:w-auto sm:flex-row">
+                  <Button asChild size="lg" className="min-h-11 w-full whitespace-nowrap sm:w-auto">
+                    <Link href={DEPOSIT_HREF}>{copy.depositUsdc}</Link>
+                  </Button>
+                  <Button
+                    asChild
+                    variant="secondary"
+                    size="lg"
+                    className="min-h-11 w-full whitespace-nowrap sm:w-auto"
+                  >
+                    <Link href={MARKET_HREF}>{copy.exploreStocks}</Link>
+                  </Button>
+                </div>
+              }
+            />
+          </div>
         ) : (
           <ul className="mt-2 min-w-0 divide-y divide-border/60">
             {rows.map((row) => (
@@ -370,9 +463,11 @@ export function WalletScreen() {
             hidden={masked}
             currency={currency}
             rate={fxKnown ? rate : undefined}
+            hasActivity={allActivities.length > 0}
             onRetry={() => {
               void activity.refetch();
             }}
+            onShowAll={() => setActivityFilter("all")}
           />
         )}
       </Card>
@@ -427,7 +522,9 @@ function ActivityList({
   hidden,
   currency,
   rate,
+  hasActivity,
   onRetry,
+  onShowAll,
 }: {
   pending: boolean;
   error: boolean;
@@ -435,9 +532,12 @@ function ActivityList({
   hidden: boolean;
   currency: Currency;
   rate: number | undefined;
+  hasActivity: boolean;
   onRetry: () => void;
+  onShowAll: () => void;
 }) {
-  const { t } = useT();
+  const { t, language } = useT();
+  const copy = EMPTY_COPY[language];
   const [now] = useState(() => Date.now());
   if (pending) {
     return (
@@ -454,7 +554,33 @@ function ActivityList({
       </div>
     );
   }
-  if (rows.length === 0) return <p className="mt-3 text-sm text-fg-muted">{t.wallet.activityEmpty}</p>;
+  if (rows.length === 0) {
+    return (
+      <div className="mt-4">
+        {hasActivity ? (
+          <EmptyState
+            title={copy.filteredTitle}
+            description={copy.filteredBody}
+            action={
+              <Button variant="secondary" size="lg" className="min-h-11" onClick={onShowAll}>
+                {copy.showAll}
+              </Button>
+            }
+          />
+        ) : (
+          <EmptyState
+            title={copy.historyTitle}
+            description={t.wallet.activityEmpty}
+            action={
+              <Button asChild size="lg" className="min-h-11 w-full whitespace-nowrap sm:w-auto">
+                <Link href={MARKET_HREF}>{copy.exploreStocks}</Link>
+              </Button>
+            }
+          />
+        )}
+      </div>
+    );
+  }
 
   const groups = groupBySantiagoDay(rows, now, { today: t.wallet.today, yesterday: t.wallet.yesterday }, (iso) =>
     formatDay(iso, t.wallet.unknownDay),

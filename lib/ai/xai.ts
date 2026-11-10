@@ -11,6 +11,8 @@ import { aiMessages } from "@/content/i18n/extra-b";
 
 export const XAI_URL = "https://api.x.ai/v1/chat/completions";
 export const XAI_TIMEOUT_MS = 25_000;
+/** Tope del stream de la ronda final: 60 s para la llamada completa, no por trozo. */
+export const XAI_STREAM_TIMEOUT_MS = 60_000;
 export const XAI_DEFAULT_MODEL = "grok-4.3";
 
 const copy = aiMessages.esCL;
@@ -209,5 +211,122 @@ export async function callXai(messages: readonly XaiMessage[], options?: CallXai
   } finally {
     clearTimeout(timer);
     options?.signal?.removeEventListener("abort", onParentAbort);
+  }
+}
+
+export interface CallXaiStreamOptions {
+  /** Recibe cada trozo nuevo de texto según llega. */
+  onDelta?: (chunk: string) => void;
+  /** Sólo tests. En la ruta vale `XAI_STREAM_TIMEOUT_MS` (60 s). */
+  timeoutMs?: number;
+}
+
+function deltaOf(event: Record<string, unknown>): string {
+  const choices = Array.isArray(event.choices) ? event.choices : [];
+  const first = asRecord(choices[0]);
+  const delta = first ? asRecord(first.delta) : null;
+  return delta && typeof delta.content === "string" ? delta.content : "";
+}
+
+/**
+ * Una vuelta a xAI con `stream: true` y sin herramientas, para la ronda final
+ * de texto. `onDelta` recibe cada trozo nuevo y el resultado trae el texto
+ * completo. El timeout (60 s) cubre la llamada entera. Cualquier fallo es
+ * `XaiUpstreamError` con un texto fijo: nunca se copia el cuerpo del proveedor.
+ */
+export async function callXaiStream(
+  messages: readonly XaiMessage[],
+  options: CallXaiStreamOptions = {},
+): Promise<{ content: string }> {
+  const { apiKey, model } = readXaiSettings();
+  if (!apiKey) throw new XaiNotConfiguredError();
+  if (messages.length === 0) throw new XaiUpstreamError();
+
+  const timeoutMs = options.timeoutMs ?? XAI_STREAM_TIMEOUT_MS;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+  const payload: Record<string, unknown> = {
+    model,
+    messages,
+    stream: true,
+    temperature: 0.2,
+    max_tokens: 800,
+  };
+
+  try {
+    const response = await fetch(XAI_URL, {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${apiKey}`,
+        "content-type": "application/json",
+        accept: "text/event-stream",
+      },
+      body: JSON.stringify(payload),
+      signal: controller.signal,
+    });
+    if (!response.ok) {
+      await response.body?.cancel().catch(() => undefined);
+      throw new XaiUpstreamError();
+    }
+    if (!response.body) throw new XaiUpstreamError();
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    let content = "";
+
+    /** Un renglón `data: <json>` del SSE. Lo que no sea texto se descarta. */
+    const consume = (line: string): void => {
+      const trimmed = line.trim();
+      if (!trimmed.startsWith("data:")) return;
+      const raw = trimmed.slice("data:".length).trim();
+      if (raw === "" || raw === "[DONE]") return;
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(raw);
+      } catch {
+        return;
+      }
+      const event = asRecord(parsed);
+      if (!event) return;
+      if (event.error || event.type === "error") throw new XaiUpstreamError();
+      const chunk = deltaOf(event);
+      if (chunk === "") return;
+      content += chunk;
+      if (!options.onDelta) return;
+      try {
+        options.onDelta(chunk);
+      } catch {
+        // El consumidor ya no escucha; el texto se sigue acumulando.
+      }
+    };
+
+    try {
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        let index = buffer.indexOf("\n");
+        while (index >= 0) {
+          const line = buffer.slice(0, index);
+          consume(line.charCodeAt(line.length - 1) === 13 ? line.slice(0, -1) : line);
+          buffer = buffer.slice(index + 1);
+          index = buffer.indexOf("\n");
+        }
+      }
+      buffer += decoder.decode();
+      if (buffer.trim() !== "") consume(buffer);
+    } finally {
+      await reader.cancel().catch(() => undefined);
+    }
+
+    return { content };
+  } catch (error) {
+    if (error instanceof XaiNotConfiguredError || error instanceof XaiUpstreamError) throw error;
+    if (controller.signal.aborted) throw new XaiUpstreamError(copy.timeout);
+    throw new XaiUpstreamError();
+  } finally {
+    clearTimeout(timer);
   }
 }

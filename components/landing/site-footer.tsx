@@ -102,7 +102,7 @@ export function SiteFooter() {
                     {site.supportEmail}
                   </a>
                 ) : (
-                  <span className="flex min-h-11 items-center text-sm text-fg-muted">Correo de soporte por publicar.</span>
+                  <FooterLink href="/ayuda">Soporte en el centro de ayuda</FooterLink>
                 )}
               </li>
             </ul>
@@ -110,16 +110,16 @@ export function SiteFooter() {
         </div>
 
         <div className="mt-12 space-y-3 border-t border-border pt-8 text-sm leading-relaxed">
+          {/* Textos legales todavía en borrador. La marca interna [REVISIÓN ABOGADO]
+              queda en el contenido, pero no se publica en el sitio. */}
           <p className="text-fg-body">
-            El token es tuyo y está en tu billetera. No te convierte en accionista registrado ni te da derecho a voto. Invertir implica riesgos.{" "}
-            <span className="font-medium text-warn">[REVISIÓN ABOGADO]</span>
+            El token es tuyo y está en tu billetera. No te convierte en accionista registrado ni te da derecho a voto. Invertir implica riesgos.
           </p>
           {/* M83: atribución de marcas. Los logos siguen encendidos
               (NEXT_PUBLIC_COMPANY_LOGOS=on por defecto) mientras el abogado
               no decida lo contrario (docs/legal/aprobados/logos.md). */}
           <p className="text-fg-body">
-            Las marcas pertenecen a sus dueños; se usan solo para identificar el activo.{" "}
-            <span className="font-medium text-warn">[REVISIÓN ABOGADO]</span>
+            Las marcas pertenecen a sus dueños; se usan solo para identificar el activo.
           </p>
           <p className="font-medium text-fg">No disponible para personas de EE.UU.</p>
           <p className="text-fg-muted">

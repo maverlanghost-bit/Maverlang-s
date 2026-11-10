@@ -46,6 +46,31 @@ type Row = {
 };
 
 /**
+ * Estado vacío de favoritas (§1.9): explica cómo se agrega una y qué se ve
+ * después. El texto vive en el componente, no en content/i18n.
+ */
+type FavoritesEmptyCopy = { body: string; steps: string[] };
+
+const FAVORITES_EMPTY: Record<"es-CL" | "en", FavoritesEmptyCopy> = {
+  "es-CL": {
+    body: "Aquí ves el precio y el cambio del día de las acciones que sigues.",
+    steps: [
+      "Abre una acción en el mercado.",
+      "Toca la estrella para seguirla.",
+      "Vuelve aquí para ver su precio y crear un aviso.",
+    ],
+  },
+  en: {
+    body: "Here you'll see the price and daily change of the stocks you follow.",
+    steps: [
+      "Open a stock in the market.",
+      "Tap the star to follow it.",
+      "Come back here to see its price and create an alert.",
+    ],
+  },
+};
+
+/**
  * Favoritas con el mismo precio, cambio y sparkline real que el mercado.
  * El orden (cambio o nombre) es local. El aviso se crea desde cada fila.
  */
@@ -56,6 +81,7 @@ export function FavoritasScreen() {
   useSyncFavorites();
   const fx = useFx();
   const [sort, setSort] = useState<FavoriteSort>("change");
+  const emptyCopy = FAVORITES_EMPTY[language];
 
   const favoriteKey = (symbols ?? []).join("\n");
   const favoriteSymbols = useMemo(() => uniqueSymbols(favoriteKey ? favoriteKey.split("\n") : []), [favoriteKey]);
@@ -214,12 +240,28 @@ export function FavoritasScreen() {
       ) : null}
       {!pendingFavorites && !searching && !searchFailed && favoriteSymbols.length === 0 ? (
         <EmptyState
+          media={<FavoritesEmptyArt />}
           title={copy.emptyTitle}
-          description={copy.emptyBody}
+          description={emptyCopy.body}
           action={
-            <Button asChild size="lg" className="min-h-11 w-full whitespace-nowrap sm:w-auto">
-              <Link href="/app">{copy.emptyAction}</Link>
-            </Button>
+            <div className="flex w-full flex-col items-center gap-3">
+              <ol className="mx-auto flex w-full max-w-xs flex-col gap-1.5 text-left text-sm leading-relaxed text-fg-muted">
+                {emptyCopy.steps.map((step, index) => (
+                  <li key={step} className="flex items-start gap-2">
+                    <span
+                      className="mt-0.5 inline-flex size-5 shrink-0 items-center justify-center rounded-full border border-border/70 bg-surface-1 text-[11px] font-medium text-fg"
+                      aria-hidden="true"
+                    >
+                      {index + 1}
+                    </span>
+                    <span>{step}</span>
+                  </li>
+                ))}
+              </ol>
+              <Button asChild size="lg" className="min-h-11 w-full whitespace-nowrap sm:w-auto">
+                <Link href="/app">{copy.emptyAction}</Link>
+              </Button>
+            </div>
           }
         />
       ) : null}
@@ -345,6 +387,21 @@ function FavoriteRow({
         </span>
       </div>
     </div>
+  );
+}
+
+/** Ilustración del estado vacío de favoritas: una estrella con el mismo trazo del design system. */
+function FavoritesEmptyArt() {
+  return (
+    <svg viewBox="0 0 80 64" className="size-16 text-fg-muted" fill="none" aria-hidden>
+      <path
+        d="M40 12 44.1 22.3 55.2 23.1 46.7 30.2 49.4 40.9 40 35 30.6 40.9 33.3 30.2 24.8 23.1 35.9 22.3Z"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinejoin="round"
+      />
+      <circle cx="63" cy="16" r="3" className="fill-brand" />
+    </svg>
   );
 }
 

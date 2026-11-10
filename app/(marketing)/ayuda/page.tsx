@@ -4,12 +4,14 @@ import { LandingSection } from "@/components/landing/section";
 import { site } from "@/config/site";
 import { getFaq } from "@/lib/content/faq";
 import { faqPageJsonLd, JsonLd } from "@/lib/seo/jsonld";
-import { pageMetadata } from "@/lib/seo/metadata";
+import { brandShort, pageMetadata } from "@/lib/seo/metadata";
 
 export const metadata = pageMetadata({
-  title: "Ayuda",
-  description: `Centro de ayuda de ${site.name}: qué es la demo, cómo registrarte, cómo comprar y vender, dónde ver tu cartera, qué es la autocustodia y cómo recuperar tu contraseña.`,
+  title: `Preguntas frecuentes de acciones tokenizadas | ${brandShort()}`,
+  description:
+    "Respuestas sobre cómo comprar acciones tokenizadas, crear tu cuenta, operar con USDC, revisar tu cartera, la autocustodia y los costos.",
   path: "/ayuda",
+  absolute: true,
 });
 
 const GUIDES = [

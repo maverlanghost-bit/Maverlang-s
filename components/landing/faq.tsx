@@ -21,11 +21,9 @@ function FaqParts({ parts }: { parts: FaqPart[] }) {
           );
         }
         if (part.kind === "marker") {
-          return (
-            <span key={index} className="font-medium text-warn">
-              {part.value}
-            </span>
-          );
+          // Marca interna de borrador ([VERIFICAR], [REVISIÓN ABOGADO]): no se
+          // publica. El texto legal de la respuesta se mantiene completo.
+          return null;
         }
         return <span key={index}>{part.value}</span>;
       })}

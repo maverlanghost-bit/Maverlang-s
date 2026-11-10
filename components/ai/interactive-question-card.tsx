@@ -110,10 +110,13 @@ export function InteractiveQuestionCard({
   data,
   onSubmit,
   onSkip,
+  variant = "form",
 }: {
   data: InteractiveQuestionData;
   onSubmit: (answer: string) => void;
   onSkip?: () => void;
+  /** `quick`: chips de seguimiento que envían con un toque. Por defecto, formulario. */
+  variant?: "form" | "quick";
 }): ReactElement {
   const uid = useId();
   const titleId = `${uid}-title`;
@@ -138,6 +141,14 @@ export function InteractiveQuestionCard({
     onSubmit(value);
   };
 
+  const handleQuickSubmit = (value: string) => {
+    if (answer !== null) return;
+    const trimmed = value.trim();
+    if (trimmed.length === 0) return;
+    setAnswer(trimmed);
+    onSubmit(trimmed);
+  };
+
   // Tras responder la tarjeta queda como registro de la respuesta: nunca vuelve al formulario.
   if (answer !== null) {
     return (
@@ -157,6 +168,73 @@ export function InteractiveQuestionCard({
             <p className="text-xs text-zinc-500">Respondido</p>
           </div>
         </div>
+      </div>
+    );
+  }
+
+  // Modo "quick": una pregunta de seguimiento por botón; un toque la envía.
+  if (variant === "quick") {
+    const quickCanSend = trimmedCustom.length > 0;
+
+    return (
+      <div
+        data-question-id={data.id}
+        className="w-full overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm"
+      >
+        <div className="flex items-center gap-2 border-b border-zinc-200/60 px-3.5 py-2.5">
+          <HelpCircleIcon className="size-4 text-[#1890FF]" />
+          <h3 id={titleId} className="text-[13px] font-semibold leading-snug text-zinc-900">
+            {data.question}
+          </h3>
+        </div>
+
+        <div role="group" aria-labelledby={titleId} className="flex flex-col gap-1.5 px-3 py-3">
+          {data.options.map((option) => (
+            <button
+              key={option.id}
+              type="button"
+              onClick={() => handleQuickSubmit(option.label)}
+              className={cn(
+                "flex min-h-11 w-full cursor-pointer items-center justify-between gap-2 rounded-xl border border-zinc-200 px-3 py-2 text-left text-[13px] font-medium text-zinc-900 transition-colors motion-reduce:transition-none",
+                "hover:border-[#1890FF]/40 hover:bg-[#1890FF]/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900/10",
+              )}
+            >
+              <span className="min-w-0 leading-snug">{option.label}</span>
+              <ArrowRightIcon className="size-3.5 shrink-0 text-zinc-400" />
+            </button>
+          ))}
+        </div>
+
+        {allowCustom ? (
+          <div className="flex items-center gap-1.5 border-t border-zinc-200/60 bg-zinc-50/80 px-3 py-2.5">
+            <input
+              id={customInputId}
+              type="text"
+              data-bare-input=""
+              value={customText}
+              aria-label="Otra pregunta"
+              placeholder="Otra pregunta…"
+              autoComplete="off"
+              onChange={(event) => setCustomText(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  handleQuickSubmit(customText);
+                }
+              }}
+              className="min-h-11 w-full rounded-lg border border-zinc-200 bg-white px-2.5 py-1.5 text-[16px] text-zinc-900 outline-none transition-colors placeholder:text-zinc-400 focus:border-[#1890FF] focus:ring-1 focus:ring-[#1890FF]/30 sm:text-[13px] motion-reduce:transition-none"
+            />
+            <button
+              type="button"
+              onClick={() => handleQuickSubmit(customText)}
+              disabled={!quickCanSend}
+              aria-label="Enviar pregunta"
+              className="inline-flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-lg bg-zinc-900 text-white transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900/20 disabled:cursor-default disabled:opacity-40 motion-reduce:transition-none"
+            >
+              <ArrowRightIcon className="size-4" />
+            </button>
+          </div>
+        ) : null}
       </div>
     );
   }

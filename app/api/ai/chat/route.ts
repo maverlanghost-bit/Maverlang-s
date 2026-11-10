@@ -4,7 +4,7 @@ import { assertSameOrigin, parseJson } from "@/lib/api/handler";
 import { DomainError } from "@/lib/api/result";
 import { takeAiQuota } from "@/lib/ai/limit";
 import { runChat } from "@/lib/ai/run-chat";
-import { AI_MAX_BODY_BYTES, aiChatRequestSchema } from "@/lib/ai/schema";
+import { AI_MAX_BODY_BYTES, aiChatRequestSchema, type AiChatBody } from "@/lib/ai/schema";
 import type { AiChatResponse } from "@/lib/ai/types";
 import { readXaiSettings, XaiNotConfiguredError, XaiUpstreamError } from "@/lib/ai/xai";
 import { apiOperateBlock } from "@/lib/compliance/real-quote";
@@ -13,7 +13,7 @@ import { getServices } from "@/lib/services";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-/** 4 rondas de tools × 25 s, con margen para el catálogo. */
+/** 4 rondas de tools × 25 s, o 1 ronda + 60 s de stream, con margen para el catálogo. */
 export const maxDuration = 120;
 
 const copy = aiMessages.esCL;
@@ -36,9 +36,82 @@ async function subjectOf(req: Request): Promise<string> {
   return ipOfRequest(req) ?? "unknown";
 }
 
+/** `accept` con `text/event-stream` pide el protocolo SSE de §1.4. */
+function wantsStream(req: Request): boolean {
+  return (req.headers.get("accept") ?? "").toLowerCase().includes("text/event-stream");
+}
+
+type StreamError = { error: "bad_request" | "not_configured" | "upstream"; message: string };
+
+/** Mismo criterio que el `catch` de JSON, para el evento `error` del SSE. */
+function streamFailure(error: unknown): StreamError {
+  if (error instanceof DomainError) {
+    if (error.code === "FORBIDDEN_ORIGIN") return { error: "bad_request", message: copy.badOrigin };
+    if (error.code === "PAYLOAD_TOO_LARGE") return { error: "bad_request", message: copy.tooLarge };
+    if (error.code === "VALIDATION") return { error: "bad_request", message: copy.badRequest };
+    return { error: "upstream", message: copy.upstream };
+  }
+  if (error instanceof XaiNotConfiguredError) return { error: "not_configured", message: copy.notConfigured };
+  if (error instanceof XaiUpstreamError) return { error: "upstream", message: error.message };
+  return { error: "upstream", message: copy.upstream };
+}
+
+/**
+ * SSE de §1.4: `delta` por cada trozo y un único `done` (o `error`) al final.
+ * Cuando esto corre ya se validaron geo, origen, tamaño, cuerpo, clave y cupo,
+ * así que el estado es 200 y los fallos viajan como evento `error`. Nunca se
+ * copia el cuerpo del proveedor.
+ */
+function streamResponse(req: Request, body: AiChatBody): Response {
+  const encoder = new TextEncoder();
+  const events = new ReadableStream<Uint8Array>({
+    async start(controller) {
+      let open = true;
+      const send = (event: unknown): void => {
+        if (!open) return;
+        try {
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`));
+        } catch {
+          open = false;
+        }
+      };
+      try {
+        const result = await runChat(
+          { messages: body.messages, image: body.image, context: body.context, req },
+          undefined,
+          undefined,
+          { onDelta: (chunk) => send({ type: "delta", text: chunk }) },
+        );
+        send({ type: "done", ok: true, text: result.text, widgets: result.widgets });
+      } catch (error) {
+        const failure = streamFailure(error);
+        console.error(`ai chat stream ${failure.error}`);
+        send({ type: "error", error: failure.error, message: failure.message });
+      } finally {
+        open = false;
+        try {
+          controller.close();
+        } catch {
+          // El cliente ya cerró la conexión.
+        }
+      }
+    },
+  });
+  return new Response(events, {
+    status: 200,
+    headers: {
+      "content-type": "text/event-stream; charset=utf-8",
+      "cache-control": "private, no-store",
+      "x-content-type-options": "nosniff",
+      "x-accel-buffering": "no",
+    },
+  });
+}
+
 export async function POST(req: Request): Promise<Response> {
   const geo = apiOperateBlock(req);
   if (geo) return geo;
+  const stream = wantsStream(req);
   try {
     assertSameOrigin(req);
     const declared = Number(req.headers.get("content-length"));
@@ -57,6 +130,7 @@ export async function POST(req: Request): Promise<Response> {
         "X-RateLimit-Remaining": "0",
       });
     }
+    if (stream) return streamResponse(req, body);
     const result = await runChat({
       messages: body.messages,
       image: body.image,

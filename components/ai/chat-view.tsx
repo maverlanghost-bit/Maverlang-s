@@ -60,6 +60,7 @@ type ChatViewProps = {
   onFeedback?: (id: string, type: "like" | "dislike") => void;
   onShareAnswer?: (id: string) => void;
   onRetryAnswer?: () => void;
+  onFollowUp?: (text: string) => void;
 };
 
 export function ChatView({
@@ -105,6 +106,7 @@ export function ChatView({
   onFeedback,
   onShareAnswer,
   onRetryAnswer,
+  onFollowUp,
 }: ChatViewProps) {
   const panelRef = useRef<HTMLDivElement>(null);
   useChatViewport(panelRef);
@@ -202,6 +204,7 @@ export function ChatView({
           onFeedback={onFeedback}
           onShareAnswer={onShareAnswer}
           onRetryAnswer={onRetryAnswer}
+          onFollowUp={onFollowUp ?? sendPrompt}
         />
 
         {/* Riel de preguntas: se posiciona en absolute respecto de este wrapper. */}

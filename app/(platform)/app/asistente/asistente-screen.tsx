@@ -20,6 +20,7 @@ import {
   type ContextItem,
   type ContextSnapshot,
 } from "@/components/ai/context-types";
+import type { AiChatResponse } from "@/components/ai/contract";
 import { ImagePrepError, compressImageFile } from "@/components/ai/image";
 import {
   announceAssistant,
@@ -59,6 +60,8 @@ const HISTORY_EVENT = "mv-ai-chat";
 const SELECT_EVENT = "maverlang:ai-select-chat";
 const ACTION_EVENT = "maverlang:ai-chat-action";
 const MAX_TITLE = 60;
+/** Cada cuánto se repinta el texto parcial del stream (ms). */
+const STREAM_PAINT_MS = 120;
 /** En el servidor no hay pintura; en el cliente se limpia antes del primer frame. */
 const useIsomorphicLayoutEffect = typeof window === "undefined" ? useEffect : useLayoutEffect;
 
@@ -205,6 +208,8 @@ export function AsistenteScreen({
   const fileRef = useRef<HTMLInputElement>(null);
   const busy = useRef(false);
   const alive = useRef(true);
+  /** Petición en vuelo: «Detener» corta el stream (al desmontar se deja terminar). */
+  const abortRef = useRef<AbortController | null>(null);
   /** Cambia con la identidad o al cambiar de conversación: invalida respuestas tardías. */
   const epoch = useRef(0);
   const lastIdentity = useRef<string | null | undefined>(undefined);
@@ -230,6 +235,8 @@ export function AsistenteScreen({
   useEffect(() => {
     alive.current = true;
     return () => {
+      // Sin pantalla no se pinta nada, pero la respuesta en vuelo se guarda
+      // igual en el historial: no se aborta al desmontar.
       alive.current = false;
     };
   }, []);
@@ -255,6 +262,8 @@ export function AsistenteScreen({
     if (firstRealIdentity) return;
 
     epoch.current += 1;
+    abortRef.current?.abort();
+    abortRef.current = null;
     busy.current = false;
     activeIdRef.current = null;
     setActive({ key: scopeKey, id: null });
@@ -383,7 +392,58 @@ export function AsistenteScreen({
   ) {
     busy.current = true;
     setTyping(true);
-    const result = await postAssistant(path, body);
+
+    // El texto parcial se pinta como un mensaje pendiente y el `done` lo reemplaza.
+    const draftId = createId();
+    const controller = new AbortController();
+    abortRef.current = controller;
+    let partial = "";
+    let painted = "";
+    let lastPaint = 0;
+    let paintTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const stillMine = () =>
+      epoch.current === activeEpoch && scopeKeyRef.current === (activeScope?.key ?? null) && alive.current;
+
+    const paintPartial = () => {
+      paintTimer = null;
+      if (!stillMine() || partial === painted) return;
+      painted = partial;
+      const current = readChatSnapshot(activeScope);
+      const tail = current[current.length - 1];
+      const base = tail && tail.id === draftId ? current.slice(0, -1) : current;
+      const next: ChatMessage[] = [...base, { id: draftId, role: "assistant", text: partial }];
+      publish(activeScope, activeEpoch, next);
+    };
+
+    /** Llega el texto acumulado del stream: se repinta sin saturar el navegador. */
+    const onDelta = (textSoFar: string) => {
+      partial = textSoFar;
+      if (!stillMine()) return;
+      const gap = Date.now() - lastPaint;
+      if (gap >= STREAM_PAINT_MS) {
+        lastPaint = Date.now();
+        paintPartial();
+        return;
+      }
+      if (paintTimer === null) paintTimer = setTimeout(paintPartial, STREAM_PAINT_MS - gap);
+    };
+
+    let result: AiChatResponse = { ok: false, error: "upstream", message: "" };
+    try {
+      result =
+        path === "/api/ai/chat"
+          ? await postAssistant(path, body, { onDelta, signal: controller.signal })
+          : await postAssistant(path, body);
+    } catch {
+      // Red caída o petición abortada: el mismo error de siempre.
+      result = { ok: false, error: "upstream", message: "" };
+    } finally {
+      if (paintTimer !== null) clearTimeout(paintTimer);
+      paintTimer = null;
+      if (abortRef.current === controller) abortRef.current = null;
+    }
+
     // La identidad o la conversación cambió mientras esperábamos: se descarta.
     if (epoch.current !== activeEpoch || scopeKeyRef.current !== (activeScope?.key ?? null)) return;
     const labels = {
@@ -401,14 +461,16 @@ export function AsistenteScreen({
           ? copy.rateBody
           : copy.errorBody;
     const message: ChatMessage = result.ok
-      ? { id: createId(), role: "assistant", text: result.text, widgets: result.widgets }
+      ? { id: draftId, role: "assistant", text: result.text, widgets: result.widgets }
       : {
-          id: createId(),
+          id: draftId,
           role: "assistant",
           text: "",
           notice: { kind: result.error, message: result.message.trim() || fallback },
         };
-    const next = [...readChatSnapshot(activeScope), message];
+    const current = readChatSnapshot(activeScope);
+    const tail = current[current.length - 1];
+    const next = [...(tail && tail.id === draftId ? current.slice(0, -1) : current), message];
     const published = publish(activeScope, activeEpoch, next);
     busy.current = false;
     if (!alive.current) return;
@@ -461,6 +523,11 @@ export function AsistenteScreen({
       fileRef.current?.click();
       return;
     }
+    void send(text, null);
+  }
+
+  /** Pregunta sugerida por el asistente: entra como un mensaje más del usuario. */
+  function followUp(text: string) {
     void send(text, null);
   }
 
@@ -571,10 +638,14 @@ export function AsistenteScreen({
   }
 
   function stop() {
+    abortRef.current?.abort();
+    abortRef.current = null;
     epoch.current += 1;
     busy.current = false;
     setTyping(false);
     setAnnouncement("");
+    // Lo ya transmitido queda como respuesta: detener no borra el texto recibido.
+    persistCurrent(readChatSnapshot(scope));
   }
 
   function handleFeedback(messageId: string, type: Feedback) {
@@ -729,6 +800,7 @@ export function AsistenteScreen({
         onFeedback={handleFeedback}
         onShareAnswer={openShareAnswer}
         onRetryAnswer={() => void retryLastResponse()}
+        onFollowUp={followUp}
       />
 
       <ShareChatDialog

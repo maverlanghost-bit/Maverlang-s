@@ -99,6 +99,39 @@ function speechRecognitionCtor(): SpeechRecognitionCtor | null {
   return speech.SpeechRecognition ?? speech.webkitSpeechRecognition ?? null;
 }
 
+/**
+ * Teclado en pantalla: `visualViewport` lo delata. Sirve para reservar el
+ * `safe-area` inferior sólo mientras el teclado está abierto; con el teclado
+ * cerrado ese espacio ya lo reserva la barra de pestañas de la app.
+ */
+function useKeyboardOpen(): boolean {
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    const viewport = window.visualViewport;
+    if (!viewport) return;
+    let frame = 0;
+    const apply = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        const height = viewport.height > 0 ? viewport.height : window.innerHeight;
+        const inset = window.innerHeight - viewport.offsetTop - height;
+        setOpen(inset > 80);
+      });
+    };
+    apply();
+    viewport.addEventListener("resize", apply);
+    viewport.addEventListener("scroll", apply);
+    return () => {
+      cancelAnimationFrame(frame);
+      viewport.removeEventListener("resize", apply);
+      viewport.removeEventListener("scroll", apply);
+    };
+  }, []);
+
+  return open;
+}
+
 export function Composer({
   copy,
   draft,
@@ -169,6 +202,8 @@ export function Composer({
   const draftRef = useRef(draft);
 
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  /** Reserva el `safe-area` inferior sólo con el teclado abierto (móvil). */
+  const keyboardOpen = useKeyboardOpen();
 
   // El dictado necesita el borrador más reciente sin volver a suscribir el reconocedor.
   useEffect(() => {
@@ -240,6 +275,16 @@ export function Composer({
     if (!el) return;
     el.style.height = "auto";
     el.style.height = `${Math.min(el.scrollHeight, 256)}px`;
+  }, []);
+
+  /** iOS: al enfocar, deja el cuadro a la vista por encima del teclado. */
+  const keepComposerVisible = useCallback(() => {
+    if (typeof window === "undefined") return;
+    requestAnimationFrame(() => {
+      const el = textareaRef.current;
+      if (!el || typeof el.scrollIntoView !== "function") return;
+      el.scrollIntoView({ block: "nearest" });
+    });
   }, []);
 
   useEffect(() => {
@@ -376,9 +421,11 @@ export function Composer({
   const viewIsCharts = menuView === "charts";
 
   return (
+    // El teclado abierto tapa la barra de pestañas: aquí se reserva el safe-area.
     <form
       onSubmit={submit}
       aria-busy={typing || undefined}
+      style={keyboardOpen ? { paddingBottom: "env(safe-area-inset-bottom)" } : undefined}
       className="relative w-full min-w-0 max-w-full px-0 pt-0"
     >
       {/* Píldoras de herramientas activas, flotando sobre la caja. */}
@@ -404,7 +451,7 @@ export function Composer({
                     onClick={() => onToggleTool?.(toolId)}
                     aria-label={`Quitar ${label}`}
                     title={`Quitar ${label}`}
-                    className="ml-1 cursor-pointer rounded-full p-0.5 text-gray-400 transition-colors hover:bg-red-50 hover:text-red-500"
+                    className="-my-1 ml-1 cursor-pointer touch-manipulation rounded-full p-1.5 text-gray-400 transition-colors hover:bg-red-50 hover:text-red-500 sm:my-0 sm:p-0.5"
                   >
                     <XGlyph className="h-3.5 w-3.5" />
                   </button>
@@ -452,9 +499,11 @@ export function Composer({
                     onClick={onRemoveImage}
                     aria-label={copy.removePhoto}
                     title={copy.removePhoto}
-                    className="absolute top-1.5 right-1.5 z-30 flex h-5 w-5 cursor-pointer items-center justify-center rounded-full border border-white/10 bg-black/75 text-white shadow-md transition-transform hover:bg-black active:scale-90"
+                    className="absolute top-0 right-0 z-30 flex h-11 w-11 cursor-pointer touch-manipulation items-start justify-end p-1.5 text-white transition-transform active:scale-90 sm:h-8 sm:w-8 sm:p-1"
                   >
-                    <XGlyph className="h-2.5 w-2.5" />
+                    <span className="flex h-6 w-6 items-center justify-center rounded-full border border-white/10 bg-black/75 shadow-md sm:h-5 sm:w-5">
+                      <XGlyph className="h-2.5 w-2.5" />
+                    </span>
                   </button>
                   {/* La foto es un data URL del usuario: el optimizador de Next no la acepta. */}
                   {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -479,9 +528,11 @@ export function Composer({
                     onClick={() => onDraft("")}
                     aria-label="Quitar código pegado"
                     title="Quitar código pegado"
-                    className="absolute top-1.5 right-1.5 z-30 flex h-5 w-5 cursor-pointer items-center justify-center rounded-full border border-white/10 bg-black/75 text-white shadow-md transition-transform hover:bg-black active:scale-90"
+                    className="absolute top-0 right-0 z-30 flex h-11 w-11 cursor-pointer touch-manipulation items-start justify-end p-1.5 text-white transition-transform active:scale-90 sm:h-8 sm:w-8 sm:p-1"
                   >
-                    <XGlyph className="h-2.5 w-2.5" />
+                    <span className="flex h-6 w-6 items-center justify-center rounded-full border border-white/10 bg-black/75 shadow-md sm:h-5 sm:w-5">
+                      <XGlyph className="h-2.5 w-2.5" />
+                    </span>
                   </button>
                   <div className="flex h-full w-full flex-col justify-between overflow-hidden p-0.5 font-mono text-[7px] leading-normal text-zinc-500 select-none">
                     <div className="mb-1 max-w-[80%] truncate border-b border-zinc-200/60 pb-0.5 text-[9px] font-bold text-zinc-900">
@@ -513,7 +564,7 @@ export function Composer({
                   onClick={() => onRemoveContext?.(item.id)}
                   aria-label={`Quitar ${item.symbol} del contexto`}
                   title={`Quitar ${item.symbol} del contexto`}
-                  className="ml-0.5 inline-flex h-4 w-4 shrink-0 cursor-pointer items-center justify-center rounded-full text-zinc-500 transition-colors hover:bg-zinc-200 hover:text-zinc-900"
+                  className="-mr-1 ml-0.5 inline-flex h-7 w-7 shrink-0 cursor-pointer touch-manipulation items-center justify-center rounded-full text-zinc-500 transition-colors hover:bg-zinc-200 hover:text-zinc-900 sm:mr-0 sm:h-4 sm:w-4"
                 >
                   <XGlyph className="h-3 w-3" />
                 </button>
@@ -541,13 +592,14 @@ export function Composer({
             aria-describedby={photoError ? "ai-composer-error ai-composer-note" : "ai-composer-note"}
             onChange={(event) => onDraft(event.target.value)}
             onInput={resizeTextarea}
+            onFocus={keepComposerVisible}
             onKeyDown={(event) => {
               if (event.key === "Enter" && !event.shiftKey) {
                 event.preventDefault();
                 if (canSend) onSubmit();
               }
             }}
-            className="min-h-12 max-h-72 w-full resize-none overflow-y-auto border-0 bg-transparent px-2 py-2 text-[15px] text-zinc-900 outline-none placeholder:text-zinc-400 focus-visible:ring-0"
+            className="min-h-12 max-h-72 w-full resize-none overflow-y-auto border-0 bg-transparent px-2 py-2 text-[16px] text-zinc-900 outline-none placeholder:text-zinc-400 focus-visible:ring-0 sm:text-[15px]"
           />
         </div>
 
@@ -562,7 +614,7 @@ export function Composer({
                 aria-label="Opciones de adjuntos"
                 aria-expanded={menuOpen}
                 className={cn(
-                  "flex h-9 w-9 cursor-pointer items-center justify-center rounded-full transition-all duration-300",
+                  "flex h-11 w-11 shrink-0 cursor-pointer touch-manipulation items-center justify-center rounded-full transition-all duration-300 sm:h-9 sm:w-9",
                   menuOpen ? "bg-zinc-900 text-white shadow-md" : "text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900",
                 )}
               >
@@ -577,7 +629,7 @@ export function Composer({
                     exit={{ opacity: 0, y: openUpward ? 10 : -10, scale: 0.95 }}
                     transition={{ type: "spring", damping: 20, stiffness: 300 }}
                     className={cn(
-                      "absolute left-0 z-40 flex max-h-[350px] w-64 flex-col overflow-hidden rounded-2xl border border-gray-200/60 bg-white/95 p-2.5 shadow-2xl backdrop-blur-xl",
+                      "absolute left-0 z-40 flex max-h-[min(350px,55dvh)] w-[min(16rem,calc(100vw-2rem))] flex-col overflow-hidden overscroll-contain rounded-2xl border border-gray-200/60 bg-white/95 p-2.5 shadow-2xl backdrop-blur-xl",
                       openUpward ? "bottom-12" : "top-12",
                     )}
                   >
@@ -741,7 +793,7 @@ export function Composer({
                 aria-label="Buscar en la web"
                 title="Buscar en la web"
                 className={cn(
-                  "inline-flex h-7 cursor-pointer items-center justify-center rounded-full border px-3 transition-colors",
+                  "inline-flex h-11 w-11 shrink-0 cursor-pointer touch-manipulation items-center justify-center rounded-full border px-0 transition-colors sm:h-7 sm:w-auto sm:px-3",
                   webSearchOn
                     ? "border-zinc-900 bg-zinc-900 text-white !bg-zinc-900 !text-white !border-zinc-900"
                     : "border-zinc-200 bg-zinc-50/50 text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900",
@@ -756,7 +808,7 @@ export function Composer({
                 aria-label="Razonamiento profundo"
                 title="Razonamiento profundo"
                 className={cn(
-                  "inline-flex h-7 cursor-pointer items-center justify-center rounded-full border px-3 transition-colors",
+                  "inline-flex h-11 w-11 shrink-0 cursor-pointer touch-manipulation items-center justify-center rounded-full border px-0 transition-colors sm:h-7 sm:w-auto sm:px-3",
                   deepReasoning
                     ? "border-zinc-900 bg-zinc-900 text-white !bg-zinc-900 !text-white !border-zinc-900"
                     : "border-zinc-200 bg-zinc-50/50 text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900",
@@ -776,7 +828,7 @@ export function Composer({
                 onClick={() => onStop?.()}
                 aria-label="Detener generación"
                 title="Detener generación"
-                className="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-full bg-red-500 text-white shadow-[0_0_12px_rgba(239,68,68,0.35)] transition-all hover:bg-red-600 active:scale-95"
+                className="flex h-11 w-11 shrink-0 cursor-pointer touch-manipulation items-center justify-center rounded-full bg-red-500 text-white shadow-[0_0_12px_rgba(239,68,68,0.35)] transition-all hover:bg-red-600 active:scale-95 sm:h-8 sm:w-8"
               >
                 <span className="h-2.5 w-2.5 rounded-[2px] bg-current" />
               </button>
@@ -789,7 +841,7 @@ export function Composer({
                   aria-label={listening ? "Detener grabación" : "Dictar pregunta"}
                   title="Dictar pregunta"
                   className={cn(
-                    "flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-full transition-all",
+                    "flex h-11 w-11 shrink-0 cursor-pointer touch-manipulation items-center justify-center rounded-full transition-all sm:h-8 sm:w-8",
                     listening
                       ? "animate-pulse bg-red-500 text-white shadow-[0_0_12px_rgba(239,68,68,0.3)] hover:bg-red-600"
                       : "bg-zinc-900 text-white hover:opacity-90",
@@ -831,7 +883,7 @@ export function Composer({
               <button
                 type="submit"
                 aria-label={copy.send}
-                className="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-full bg-zinc-900 text-white transition-opacity hover:opacity-90"
+                className="flex h-11 w-11 shrink-0 cursor-pointer touch-manipulation items-center justify-center rounded-full bg-zinc-900 text-white transition-opacity hover:opacity-90 sm:h-8 sm:w-8"
               >
                 <ArrowUpGlyph className="h-4.5 w-4.5" />
               </button>
