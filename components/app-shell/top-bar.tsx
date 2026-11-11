@@ -12,8 +12,7 @@ import { useT } from "@/lib/hooks/use-t";
 /**
  * Cluster flotante móvil (Liquid Glass) fijo arriba a la izquierda, sobre el
  * contenido: avatar de perfil + buscador. Sin barra ancha ni título de sección.
- * El badge Demo es un punto de aviso sobre el avatar, con una píldora de texto
- * «Demo» al lado (el aria-label del avatar lo repite).
+ * El badge Demo es un punto de aviso sobre el avatar (el texto va en aria-label).
  * La moneda se cambia desde /app/perfil. En lg+ manda la sidebar.
  *
  * `hideMobileCluster` oculta el clúster (solo móvil) en rutas donde el chat de
@@ -42,23 +41,9 @@ export function TopBar({
               <Avatar alt="" fallback={account.name} size="md" className="size-8 ring-1 ring-border/80" />
             )}
             {accountMode === "demo" ? (
-              <span
-                aria-hidden
-                className="absolute top-0.5 right-0.5 size-2.5 rounded-full bg-warn ring-2 ring-bg"
-              />
+              <span aria-hidden className="absolute top-0.5 right-0.5 size-2.5 rounded-full bg-warn ring-2 ring-surface" />
             ) : null}
           </Link>
-          {/* D1: el aviso de demo también se lee. Píldora de texto junto al
-              punto; el flag, el aria-label y el aviso no cambian. El texto es
-              refuerzo visual: el aria-label del avatar ya dice «Demo». */}
-          {accountMode === "demo" ? (
-            <span
-              aria-hidden="true"
-              className="pointer-events-none inline-flex shrink-0 items-center rounded-full bg-warn-bg px-1.5 py-0.5 text-[11px] leading-none font-medium whitespace-nowrap text-warn"
-            >
-              {t.account.badge}
-            </span>
-          ) : null}
           <div className="pointer-events-auto">
             <StockSearchButton variant="chip" />
           </div>

@@ -165,8 +165,9 @@ export default async function ComoFuncionaPage() {
             Cómo comprar acciones tokenizadas
           </h1>
           <p className="mt-5 max-w-[62ch] text-lead text-fg-body">
-            Los montos de abajo son ejemplos y el saldo es ficticio. El token queda en tu propia
-            billetera: nosotros no custodiamos tus activos.
+            Practicas con US$10.000 ficticios, eliges la acción y el token queda en tu propia
+            billetera: nosotros no custodiamos tus activos. Los montos de abajo son ejemplos.
+            Cuando haya cuentas reales, el depósito y su costo se muestran en ese paso.
           </p>
           <p className="mt-6">
             <Button asChild variant="secondary">

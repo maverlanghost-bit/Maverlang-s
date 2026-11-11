@@ -13,9 +13,7 @@ import { cn } from "@/lib/cn";
 /**
  * Copy en uso:
  * H1: "Acciones de EE.UU. tokenizadas, en tu billetera"
- * Dek: "Acciones de EE.UU. desde Chile: fracciones desde US$10 y operas 24/7.
- *   Compras en dólares (US$) y el token queda en tu propia billetera —nosotros
- *   no custodiamos tus activos—."
+ * Dek (frase original, sin cambios): "Compra fracciones desde US$10. El token queda en tu propia billetera —nosotros no custodiamos tus activos—, compras en dólares (US$) y operas 24/7."
  * CTAs: "Prueba la demo gratis" (primario) → /app/registro · "Ver acciones"
  *   (secundario) → /acciones · "Cómo funciona" (enlace de texto) → /#como-funciona
  * Nota: "Practica con US$10.000 ficticios y precios reales." vive en la
@@ -88,8 +86,8 @@ export function Hero({ quotes, live }: { quotes: LandingQuote[]; live: boolean }
             Acciones de EE.UU. tokenizadas, en tu billetera
           </h1>
           <p className="mx-auto mt-5 max-w-xl text-base leading-relaxed text-balance text-fg-body">
-            Acciones de EE.UU. desde Chile: fracciones desde US${LANDING_MIN_ORDER_USD} y operas 24/7.
-            Compras en dólares (US$) y el token queda en tu propia billetera —nosotros no custodiamos tus activos—.
+            Compra fracciones desde US${LANDING_MIN_ORDER_USD}. El token queda en tu propia billetera
+            —nosotros no custodiamos tus activos—, compras en dólares (US$) y operas 24/7.
           </p>
         </Reveal>
 
