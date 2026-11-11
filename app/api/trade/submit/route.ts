@@ -14,6 +14,8 @@ import { apiOperateBlock } from "@/lib/compliance/real-quote";
 import { withRateLimit } from "@/lib/security/rate-limit";
 import { getServices } from "@/lib/services";
 import { demoSupabase } from "@/lib/services/demo.supabase";
+import { createTradeQuoteStore } from "@/lib/services/trade-quotes.supabase";
+import { assertCryptoDemoOnly } from "@/lib/trade/crypto-real-block";
 import {
   assertLiveEngineAccess,
   assertRealSubmitReservation,
@@ -56,6 +58,14 @@ export function POST(req: Request) {
       // su reclamo atómico vive en el libro de retiros (`wallet_withdrawals`),
       // así que la guardia de reservas de trading no aplica.
       if (!body.requestId.startsWith("send:")) {
+        // Criptos y staking sólo en la demo (decisión §1.1): el símbolo se
+        // reconoce por la cotización real guardada para este `requestId`. Va
+        // ANTES de consumir la reserva: una operación rechazada por política
+        // no debe gastar cupo del usuario.
+        const storedQuote = await createTradeQuoteStore()
+          .readQuote(session.userId, body.requestId)
+          .catch(() => null);
+        assertCryptoDemoOnly(storedQuote?.payload.symbol ?? "", realAccount);
         await assertRealSubmitReservation(session.userId, body.requestId);
       }
     }

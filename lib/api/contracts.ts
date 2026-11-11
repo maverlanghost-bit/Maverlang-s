@@ -2,6 +2,8 @@ import { z } from "zod";
 
 import { MAX_ORDER_USD } from "@/config/trade";
 import { API_ERROR_STATUS, DomainError, isApiErrorCode } from "@/lib/api/result";
+import { isCryptoSymbol } from "@/lib/catalog/crypto";
+import { isEarnSymbol } from "@/lib/catalog/lst";
 import { CATALOG_SYMBOL } from "@/lib/catalog/symbol";
 import { ASSET_STATUS_BATCH_MAX } from "@/lib/market/asset-status.shared";
 import type { ApiErrorCode } from "@/lib/types";
@@ -16,11 +18,13 @@ const apiErrorCodes = Object.keys(API_ERROR_STATUS) as [ApiErrorCode, ...ApiErro
 export const apiErrorCodeSchema = z.enum(apiErrorCodes);
 
 export const symbolSchema = z.string().trim().min(1);
-/** Símbolo del catálogo en la entrada: xStocks (`AAPLx`) u Ondo (`ABNBon`). */
+/** Símbolo aceptado en la entrada: xStocks (`AAPLx`), Ondo (`ABNBon`), cripto (`BTC`) o Ganar (`JitoSOL`). */
+const isCatalogCryptoOrEarnSymbol = (symbol: string) =>
+  CATALOG_SYMBOL.test(symbol) || isCryptoSymbol(symbol) || isEarnSymbol(symbol);
 export const tradableSymbolSchema = z
   .string()
   .trim()
-  .regex(CATALOG_SYMBOL, "Símbolo inválido.");
+  .refine(isCatalogCryptoOrEarnSymbol, "Símbolo inválido.");
 export const rangeSchema = z.enum(["1D", "1W", "1M", "3M", "1Y", "ALL"]);
 export const sideSchema = z.enum(["buy", "sell"]);
 export const currencySchema = z.enum(["CLP", "USD"]);
@@ -149,7 +153,7 @@ export const assetStatusBatchQuerySchema = z
         (list) => list.length <= ASSET_STATUS_BATCH_MAX,
         `Como máximo ${ASSET_STATUS_BATCH_MAX} símbolos por llamada.`,
       )
-      .refine((list) => list.every((symbol) => CATALOG_SYMBOL.test(symbol)), {
+      .refine((list) => list.every((symbol) => isCatalogCryptoOrEarnSymbol(symbol)), {
         message: "Símbolo inválido.",
       }),
   })
@@ -509,7 +513,7 @@ export const pricesQuerySchema = z
           .filter((part) => part.length > 0),
       )
       .refine((list) => list.length <= 50, "Como máximo 50 símbolos por llamada.")
-      .refine((list) => list.every((symbol) => CATALOG_SYMBOL.test(symbol)), {
+      .refine((list) => list.every((symbol) => isCatalogCryptoOrEarnSymbol(symbol)), {
         message: "Símbolo inválido.",
       }),
   })

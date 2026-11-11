@@ -15,6 +15,8 @@ import { apiOperateBlock } from "@/lib/compliance/real-quote";
 import { withRateLimit } from "@/lib/security/rate-limit";
 import { getServices } from "@/lib/services";
 import { demoSupabase } from "@/lib/services/demo.supabase";
+import { createTradeQuoteStore } from "@/lib/services/trade-quotes.supabase";
+import { assertCryptoDemoOnly } from "@/lib/trade/crypto-real-block";
 import {
   assertLiveEngineAccess,
   assertRealTradeAllowed,
@@ -64,6 +66,15 @@ export function POST(req: Request) {
       // de armar la tx y submit vuelve a comprobarlos al firmar.
       realOwnerId = userId ?? (await requireSession(services, req)).userId;
       userId = realOwnerId;
+      // Criptos y staking sólo en la demo (decisión §1.1): el símbolo vive en
+      // la cotización real guardada para este `quoteId`. Si es cripto/LST/USDY
+      // se corta ANTES de tocar límites y de pedirle la transacción a
+      // Jupiter. Si la cotización no se puede leer, no se arma nada de todos
+      // modos: la guardia de reserva de abajo falla cerrada.
+      const storedQuote = await createTradeQuoteStore()
+        .readQuote(realOwnerId, body.quoteId)
+        .catch(() => null);
+      assertCryptoDemoOnly(storedQuote?.payload.symbol ?? "", realAccount);
       await assertRealTradeAllowed(realOwnerId, null);
       // La reserva creada al cotizar debe seguir activa. Se valida ANTES de
       // pedirle la transacción a Jupiter: una reserva vencida no arma nada.

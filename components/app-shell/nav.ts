@@ -96,9 +96,13 @@ export function shellTabLabel(
   return nav[id];
 }
 
+/** Rutas que dependen de la pestaña Mercado (acciones, criptos y Ganar). */
+const MARKET_PATHS = ["/app/accion", "/app/cripto", "/app/ganar"] as const;
+
 export function isShellSectionActive(pathname: string, id: string): boolean {
   if (id === "market") {
-    return pathname === "/app" || pathname === "/app/accion" || pathname.startsWith("/app/accion/");
+    if (pathname === "/app") return true;
+    return MARKET_PATHS.some((base) => pathname === base || pathname.startsWith(`${base}/`));
   }
   const href = destinations.find((item) => item.id === id)?.href;
   if (!href) return false;
