@@ -426,13 +426,6 @@ function cryptoOrLstSymbol(symbol: string): string | null {
   return asset?.symbol ?? null;
 }
 
-/** Mint EXACTO de K1/K2. No reemplaza ni afloja `isOfficialMint`. */
-function isCryptoOrLstMint(mint: string): boolean {
-  return (
-    CRYPTO_ASSETS.some((row) => row.mint === mint) || LST_ASSETS.some((row) => row.mint === mint)
-  );
-}
-
 /**
  * Símbolo visible del catálogo (M54): `listed`, `watch` o en transición;
  * `hidden` y lo desconocido → MINT_NOT_ALLOWED. Lo usan precios e historial,
@@ -456,9 +449,8 @@ export async function requireVisibleSymbol(symbol: string): Promise<string> {
 }
 
 export function requireMint(mint: string): string {
-  if (isOfficialMint(mint)) return mint;
-  // Cripto/LST (K1/K2): sólo el mint EXACTO del catálogo. `isOfficialMint`
-  // (`config/tickers.ts`) no se toca: sigue mandando para acciones y USDC.
-  if (isCryptoOrLstMint(mint)) return mint;
-  throw new DomainError("MINT_NOT_ALLOWED");
+  // Sólo la salida de dinero real (Enviar) usa esto: cripto/LST NO se aceptan
+  // acá, el dinero real de criptos sigue bloqueado (CRIPTO_F1, decisión §1.1).
+  if (!isOfficialMint(mint)) throw new DomainError("MINT_NOT_ALLOWED");
+  return mint;
 }
