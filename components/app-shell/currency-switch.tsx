@@ -19,7 +19,7 @@ export function CurrencySwitch({ className, compact = false }: { className?: str
       role="radiogroup"
       aria-label={label}
       className={cn(
-        "inline-flex shrink-0 items-center gap-0.5 rounded-full border border-border/70 bg-surface-1/60 p-0.5 shadow-card backdrop-blur-xl",
+        "inline-flex shrink-0 items-center rounded-full border border-border-control bg-surface-1 p-0.5",
         compact && "p-[3px]",
         className,
       )}
@@ -37,11 +37,10 @@ export function CurrencySwitch({ className, compact = false }: { className?: str
               if (!active) setCurrency(option);
             }}
             className={cn(
-              "rounded-full text-xs font-medium tracking-tight transition duration-140 ease-spring active:scale-[0.98]",
-              "min-h-11",
+              "min-h-11 cursor-pointer rounded-full font-mono text-[11px] font-medium uppercase tracking-[0.06em] transition-colors duration-150",
               compact ? "px-2" : "px-2.5",
               active
-                ? "bg-bg text-fg shadow-card ring-1 ring-border/60"
+                ? "bg-bg text-fg shadow-raised ring-1 ring-border"
                 : "text-fg-muted hover:text-fg",
             )}
           >

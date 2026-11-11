@@ -38,17 +38,19 @@ function PublicHeaderBar({ here }: { here: string }) {
 
   return (
     <header className="sticky top-0 z-30 overflow-x-clip border-b border-border/70 bg-bg/85 pt-[env(safe-area-inset-top)] backdrop-blur-xl">
-      <div className="mx-auto flex h-14 max-w-6xl items-center gap-1.5 px-3 min-[400px]:px-5">
+      <div className="mx-auto flex h-16 max-w-6xl items-center gap-1 px-3 min-[400px]:px-5">
         <BrandMark compactOnMobile className="min-w-0 shrink" />
-        <nav aria-label={t.guest.nav} className="ml-3 hidden items-center gap-1 md:flex">
+        <nav aria-label={t.guest.nav} className="ml-5 hidden items-center gap-0.5 md:flex">
           {links.map((item) => (
             <Link
               key={item.href}
               href={item.href}
               aria-current={item.current ? "page" : undefined}
               className={cn(
-                "rounded-full px-3 py-1.5 text-sm font-medium whitespace-nowrap transition-colors",
-                item.current ? "text-fg hover:bg-fg/[0.04]" : "text-fg-body hover:bg-fg/[0.04] hover:text-fg",
+                "rounded-md px-3 py-2 text-sm font-medium whitespace-nowrap transition-colors",
+                item.current
+                  ? "bg-surface-1 text-fg"
+                  : "text-fg-muted hover:bg-surface-1 hover:text-fg",
               )}
             >
               {item.label}
@@ -57,11 +59,20 @@ function PublicHeaderBar({ here }: { here: string }) {
         </nav>
         <div className="ml-auto flex shrink-0 items-center gap-1 min-[400px]:gap-1.5">
           <StockSearchButton variant="icon" />
-          <CurrencySwitch compact className="mr-1 hidden min-[400px]:inline-flex" />
-          <Button asChild variant="ghost" size="sm" className="h-11 shrink-0 rounded-full px-2 text-xs whitespace-nowrap min-[400px]:px-2.5 min-[400px]:text-sm">
+          <CurrencySwitch compact className="mr-1 hidden min-[560px]:inline-flex" />
+          <Button
+            asChild
+            variant="ghost"
+            size="sm"
+            className="h-11 shrink-0 rounded-full px-1.5 text-[13px] whitespace-nowrap min-[400px]:px-2.5 min-[400px]:text-sm"
+          >
             <Link href={enter}>{t.guest.login}</Link>
           </Button>
-          <Button asChild size="sm" className="h-11 shrink-0 rounded-full px-2 text-xs whitespace-nowrap min-[400px]:px-2.5 min-[400px]:text-sm">
+          <Button
+            asChild
+            size="sm"
+            className="h-11 shrink-0 rounded-full px-2 text-[13px] whitespace-nowrap min-[400px]:px-4 min-[400px]:text-sm"
+          >
             <Link href={create}>{t.guest.signup}</Link>
           </Button>
           <IconButton
@@ -76,20 +87,23 @@ function PublicHeaderBar({ here }: { here: string }) {
         </div>
       </div>
       <Sheet open={open} onOpenChange={setOpen} title={t.guest.menu}>
-        <nav aria-label={t.guest.nav} className="flex flex-col">
+        <nav aria-label={t.guest.nav} className="flex flex-col divide-y divide-border">
           {links.map((item) => (
             <Link
               key={item.href}
               href={item.href}
               aria-current={item.current ? "page" : undefined}
-              className="flex h-12 min-h-11 items-center rounded-xl px-3 text-base text-fg transition-colors hover:bg-fg/[0.04]"
+              className={cn(
+                "flex h-12 min-h-11 items-center px-1 text-[15px] transition-colors",
+                item.current ? "font-medium text-fg" : "text-fg-body hover:text-fg",
+              )}
               onClick={() => setOpen(false)}
             >
               {item.label}
             </Link>
           ))}
         </nav>
-        <div className="mt-4 flex justify-center">
+        <div className="mt-5 flex justify-center">
           <CurrencySwitch />
         </div>
       </Sheet>

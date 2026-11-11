@@ -6,7 +6,6 @@ import { BrandFavicon } from "@/components/app-shell/brand-image";
 import { usePathname } from "next/navigation";
 
 import { useAccountLabel } from "@/components/app-shell/account-label";
-import { openCommandPalette } from "@/components/app-shell/command-palette";
 import { CurrencySwitch } from "@/components/app-shell/currency-switch";
 import { isShellSectionActive, shellNav } from "@/components/app-shell/nav";
 import { StockSearchButton } from "@/components/app-shell/stock-search";
@@ -31,6 +30,13 @@ const WIDTH_ANIMATION = "transition-[width] duration-200 ease-spring";
 
 const SELECT_EVENT = "maverlang:ai-select-chat";
 const ACTION_EVENT = "maverlang:ai-chat-action";
+
+/** Fila base del riel: 44px de alto, hover de tinta muy baja. */
+const ROW_BASE =
+  "group relative flex cursor-pointer items-center rounded-lg text-sm transition-colors duration-150";
+const ROW_EXPANDED = "min-h-11 w-full gap-2.5 pl-3 pr-2.5";
+const ROW_HOVER = "hover:bg-fg/[0.045] hover:text-fg";
+const ROW_ACTIVE = "bg-bg font-medium text-fg shadow-raised ring-1 ring-border";
 
 type SidebarChatAction =
   | { type: "rename"; chatId: string; title: string }
@@ -71,8 +77,8 @@ function matchChatId(chats: readonly SavedChatItem[], messages: readonly ChatMes
 
 function ArrowLeftIcon({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.75" className={className} aria-hidden>
-      <path d="M13 8H3m0 0 4-4M3 8l4 4" strokeLinecap="round" strokeLinejoin="round" />
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" className={className} aria-hidden>
+      <path d="M13 8H3m0 0 3.5-3.5M3 8l3.5 3.5" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
@@ -80,17 +86,17 @@ function ArrowLeftIcon({ className }: { className?: string }) {
 function PanelLeftIcon({ className }: { className?: string }) {
   return (
     <svg
-      viewBox="0 0 24 24"
+      viewBox="0 0 16 16"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.75"
+      strokeWidth="1.5"
       strokeLinecap="round"
       strokeLinejoin="round"
       className={className}
       aria-hidden
     >
-      <rect x="3" y="3" width="18" height="18" rx="2" />
-      <path d="M9 3v18" />
+      <rect x="2" y="2.75" width="12" height="10.5" rx="1.75" />
+      <path d="M6.25 3v10" />
     </svg>
   );
 }
@@ -98,18 +104,18 @@ function PanelLeftIcon({ className }: { className?: string }) {
 function PanelLeftCloseIcon({ className }: { className?: string }) {
   return (
     <svg
-      viewBox="0 0 24 24"
+      viewBox="0 0 16 16"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.75"
+      strokeWidth="1.5"
       strokeLinecap="round"
       strokeLinejoin="round"
       className={className}
       aria-hidden
     >
-      <rect x="3" y="3" width="18" height="18" rx="2" />
-      <path d="M9 3v18" />
-      <path d="m16 15-3-3 3-3" />
+      <rect x="2" y="2.75" width="12" height="10.5" rx="1.75" />
+      <path d="M6.25 3v10" />
+      <path d="M11.25 9.5 9.75 8l1.5-1.5" />
     </svg>
   );
 }
@@ -117,18 +123,17 @@ function PanelLeftCloseIcon({ className }: { className?: string }) {
 function MessageSquarePlusIcon({ className }: { className?: string }) {
   return (
     <svg
-      viewBox="0 0 24 24"
+      viewBox="0 0 16 16"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.75"
+      strokeWidth="1.5"
       strokeLinecap="round"
       strokeLinejoin="round"
       className={className}
       aria-hidden
     >
-      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h9" />
-      <path d="M18 2v6" />
-      <path d="M15 5h6" />
+      <path d="M13.5 9.2a1.6 1.6 0 0 1-1.6 1.6H5.6L3 13.2V3.9a1.6 1.6 0 0 1 1.6-1.6h5.3" />
+      <path d="M11.6 1.8v4M9.6 3.8h4" />
     </svg>
   );
 }
@@ -136,18 +141,116 @@ function MessageSquarePlusIcon({ className }: { className?: string }) {
 function SearchIcon({ className }: { className?: string }) {
   return (
     <svg
-      viewBox="0 0 24 24"
+      viewBox="0 0 16 16"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.75"
+      strokeWidth="1.5"
       strokeLinecap="round"
       strokeLinejoin="round"
       className={className}
       aria-hidden
     >
-      <circle cx="11" cy="11" r="7" />
-      <path d="m20 20-3.6-3.6" />
+      <circle cx="7.2" cy="7.2" r="4.45" />
+      <path d="m10.6 10.6 2.9 2.9" />
     </svg>
+  );
+}
+
+type AccountMenuLabels = {
+  account: string;
+  profile: string;
+  settings: string;
+  currency: string;
+  logout: string;
+};
+
+/**
+ * Menú del perfil: Perfil, Ajustes, moneda y salir.
+ * Se abre hacia arriba desde el pie del riel, alineado a su ancho.
+ */
+function AccountMenuPanel({
+  open,
+  onClose,
+  onLogout,
+  logoutDisabled,
+  labels,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onLogout: () => void;
+  logoutDisabled: boolean;
+  labels: AccountMenuLabels;
+}) {
+  if (!open) return null;
+
+  const item =
+    "flex min-h-10 w-full items-center rounded-lg px-2.5 text-left text-[13px] text-fg-body transition-colors hover:bg-surface-1 hover:text-fg";
+
+  return (
+    <div
+      role="menu"
+      aria-label={labels.account}
+      className="absolute inset-x-0 bottom-full z-40 mb-2 flex flex-col rounded-xl border border-border/70 bg-bg p-1.5 shadow-float"
+    >
+      <Link role="menuitem" href="/app/perfil" onClick={onClose} className={item}>
+        {labels.profile}
+      </Link>
+      <Link role="menuitem" href="/app/ajustes" onClick={onClose} className={item}>
+        {labels.settings}
+      </Link>
+      <div role="presentation" className="my-1 h-px bg-border" />
+      <div className="flex items-center justify-between gap-2 pl-2.5 pr-1">
+        <span className="label-xs">{labels.currency}</span>
+        <CurrencySwitch />
+      </div>
+      <div role="presentation" className="my-1 h-px bg-border" />
+      <button
+        role="menuitem"
+        type="button"
+        onClick={onLogout}
+        disabled={logoutDisabled}
+        className={cn(item, "disabled:opacity-40")}
+      >
+        {labels.logout}
+      </button>
+    </div>
+  );
+}
+
+function AccountTrigger({
+  name,
+  email,
+  label,
+  open,
+  onClick,
+}: {
+  name: string;
+  email: string | null;
+  label: string;
+  open: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      aria-haspopup="menu"
+      aria-expanded={open}
+      aria-label={label}
+      onClick={onClick}
+      className="flex min-h-11 w-full items-center gap-2.5 rounded-lg px-1.5 py-1 text-left transition-colors hover:bg-fg/[0.04]"
+    >
+      <Avatar alt="" fallback={name} size="sm" className="size-8" />
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-[13px] font-medium leading-5 text-fg">{name}</span>
+        {email ? <span className="block truncate text-[11px] leading-4 text-fg-subtle">{email}</span> : null}
+      </span>
+      <IconChevron
+        className={cn(
+          "size-3.5 shrink-0 text-fg-subtle transition-transform duration-200",
+          open && "rotate-180",
+        )}
+      />
+    </button>
   );
 }
 
@@ -184,6 +287,14 @@ export function Sidebar({
   });
   /** Nunca mostrar el estado de otra identidad, ni siquiera antes del efecto. */
   const activeChatId = activeChat.scopeKey === chatScopeKey ? activeChat.chatId : null;
+
+  const menuLabels: AccountMenuLabels = {
+    account: t.shell.account,
+    profile: t.nav.profile,
+    settings: t.nav.settings,
+    currency: t.shell.currencyLabel,
+    logout: t.profile.logout,
+  };
 
   useEffect(() => {
     if (!isAiRoute) return;
@@ -230,256 +341,164 @@ export function Sidebar({
   return (
     <aside
       className={cn(
-        "sticky top-0 z-30 hidden h-dvh shrink-0 flex-col overflow-visible border-r border-border/70 bg-surface-1/40 backdrop-blur-xl backdrop-saturate-180 lg:flex",
+        "sticky top-0 z-30 hidden h-dvh shrink-0 flex-col overflow-visible border-r border-border bg-surface-1/60 lg:flex",
         WIDTH_ANIMATION,
-        collapsed ? "w-[72px]" : "w-[220px]",
+        collapsed ? "w-[72px]" : "w-[240px]",
       )}
     >
-      {isAiRoute ? (
-        <>
-          <div className={cn("flex w-full gap-1", collapsed ? "flex-col items-center py-2" : "items-center py-2 pl-3 pr-2")}>
-            <Link
-              href="/app"
-              aria-label={t.detail.backToMarket}
-              className={cn(
-                "group flex min-w-0 cursor-pointer items-center gap-2",
-                collapsed ? "flex-none justify-center" : "flex-1",
-              )}
-            >
-              <div className="relative flex size-7 shrink-0 items-center justify-center">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/assets/Maverlang Logo-2.png" alt={site.name} className="size-7 object-contain" />
-              </div>
-            </Link>
+      {/* Marca. El slot de 44px queda centrado en los 72px del riel colapsado
+          (14 + 44 + 14 = 72), así el isotipo no se mueve al colapsar. */}
+      <div
+        className={cn(
+          "flex shrink-0 items-center px-3.5 pt-3",
+          collapsed ? "justify-center pb-1" : "justify-between pb-1.5",
+        )}
+      >
+        <Link
+          href="/app"
+          aria-label={isAiRoute ? t.detail.backToMarket : site.name}
+          title={isAiRoute ? t.detail.backToMarket : site.name}
+          className="flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-lg transition-opacity hover:opacity-70"
+        >
+          {isAiRoute ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src="/assets/Maverlang Logo-2.png" alt={site.name} className="size-7 object-contain" />
+          ) : (
+            <BrandFavicon className="w-10" />
+          )}
+        </Link>
+        {!collapsed ? (
+          <button
+            type="button"
+            onClick={onToggle}
+            aria-label={t.shell.collapseSidebar}
+            title={`${t.shell.collapseSidebar} (Ctrl+B)`}
+            className="flex size-9 cursor-pointer items-center justify-center rounded-lg text-fg-subtle transition-colors hover:bg-fg/[0.05] hover:text-fg"
+          >
+            <PanelLeftCloseIcon className="size-4" />
+          </button>
+        ) : null}
+      </div>
+      {collapsed ? (
+        <div className="flex shrink-0 justify-center pb-1.5">
+          <Tooltip content={`${t.shell.expandSidebar} (Ctrl+B)`} side="right">
             <button
               type="button"
               onClick={onToggle}
-              aria-label={collapsed ? t.shell.expandSidebar : t.shell.collapseSidebar}
-              title={`${collapsed ? t.shell.expandSidebar : t.shell.collapseSidebar} (Ctrl+B)`}
-              className="inline-flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-lg text-fg-muted transition hover:bg-surface-2 hover:text-fg"
+              aria-label={t.shell.expandSidebar}
+              className="flex size-11 cursor-pointer items-center justify-center rounded-lg text-fg-subtle transition-colors hover:bg-fg/[0.05] hover:text-fg"
             >
-              {collapsed ? <PanelLeftIcon className="size-4" /> : <PanelLeftCloseIcon className="size-4" />}
+              <PanelLeftIcon className="size-4" />
             </button>
-          </div>
+          </Tooltip>
+        </div>
+      ) : null}
 
-          <nav aria-label={t.nav.label} className="flex-1 overflow-y-auto px-3.5 pb-2">
-            {collapsed ? (
-              <ul className="flex flex-col items-center gap-1">
-                <li>
-                  <Tooltip content={newChatLabel} side="right">
-                    <button
-                      type="button"
-                      aria-label={newChatLabel}
-                      onClick={() => dispatchAiCommand({ type: "clear" })}
-                      className="flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-lg text-fg-body transition-colors hover:bg-surface-2 hover:text-fg"
-                    >
-                      <MessageSquarePlusIcon className="size-4" />
-                    </button>
-                  </Tooltip>
-                </li>
-                <li>
-                  <Tooltip content={t.shell.search} side="right">
-                    <button
-                      type="button"
-                      aria-label={t.shell.search}
-                      onClick={() => {
-                        if (typeof window === "undefined") return;
-                        window.dispatchEvent(new CustomEvent(ACTION_EVENT, { detail: { type: "search" } }));
-                      }}
-                      className="flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-lg text-fg-body transition-colors hover:bg-surface-2 hover:text-fg"
-                    >
-                      <SearchIcon className="size-4" />
-                    </button>
-                  </Tooltip>
-                </li>
-                <li>
-                  <Tooltip content={t.detail.backToMarket} side="right">
-                    <Link
-                      href="/app"
-                      aria-label={t.detail.backToMarket}
-                      className="flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-lg text-fg-muted transition-colors hover:bg-surface-2 hover:text-fg"
-                    >
-                      <ArrowLeftIcon className="size-4" />
-                    </Link>
-                  </Tooltip>
-                </li>
-              </ul>
-            ) : (
-              <>
-                <ul className="flex flex-col gap-1">
-                  <li>
-                    <button
-                      type="button"
-                      onClick={() => dispatchAiCommand({ type: "clear" })}
-                      className="flex h-9 w-full items-center gap-2 rounded-lg px-2.5 text-sm font-medium text-fg-body hover:bg-surface-2 hover:text-fg transition-colors cursor-pointer"
-                    >
-                      <MessageSquarePlusIcon className="size-4 shrink-0" />
-                      <span className="truncate">{newChatLabel}</span>
-                    </button>
-                  </li>
-                  <li>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (typeof window === "undefined") return;
-                        window.dispatchEvent(new CustomEvent(ACTION_EVENT, { detail: { type: "search" } }));
-                      }}
-                      className="flex h-9 w-full items-center gap-2 rounded-lg px-2.5 text-sm font-medium text-fg-body hover:bg-surface-2 hover:text-fg transition-colors cursor-pointer"
-                    >
-                      <SearchIcon className="size-4 shrink-0" />
-                      <span className="truncate">{t.shell.search}</span>
-                    </button>
-                  </li>
-                  <li>
-                    <Link
-                      href="/app"
-                      className="flex h-9 w-full items-center gap-2 rounded-lg px-2.5 text-sm text-fg-muted hover:bg-surface-2 hover:text-fg transition-colors cursor-pointer"
-                    >
-                      <ArrowLeftIcon className="size-4 shrink-0" />
-                      <span className="truncate">{t.detail.backToMarket}</span>
-                    </Link>
-                  </li>
-                </ul>
+      {isAiRoute ? null : (
+        <div className="shrink-0 px-3.5 pb-3">
+          <StockSearchButton collapsed={collapsed} />
+        </div>
+      )}
 
-                <div className="mt-4 border-t border-border/60 pt-3">
-                  <NavChatsHistory
-                    chats={savedChats}
-                    activeChatId={activeChatId}
-                    onSelectChat={(chatId) => {
-                      if (typeof window === "undefined") return;
-                      window.dispatchEvent(new CustomEvent(SELECT_EVENT, { detail: { chatId } }));
-                    }}
-                    onNewChat={() => dispatchAiCommand({ type: "clear" })}
-                    onRenameChat={(chatId, title) => dispatchAiAction({ type: "rename", chatId, title })}
-                    onTogglePinChat={(chatId) => dispatchAiAction({ type: "pin", chatId })}
-                    onDeleteChat={(chatId) => dispatchAiAction({ type: "delete", chatId })}
-                    onShareChat={(chatId) => dispatchAiAction({ type: "share", chatId })}
-                  />
-                </div>
-              </>
-            )}
-          </nav>
-
-          <div className="border-t border-border/70 px-3.5 py-3">
-            <div
-              ref={menuRef}
-              className="relative"
-              onKeyDown={(event) => {
-                if (event.key === "Escape") setMenuOpen(false);
-              }}
-            >
-              {menuOpen && !collapsed && !loading ? (
-                <div
-                  role="menu"
-                  aria-label={t.shell.account}
-                  className="absolute inset-x-0 bottom-full mb-2 flex flex-col gap-1 rounded-xl border border-border/70 bg-bg p-2 shadow-float"
-                >
-                  <Link
-                    role="menuitem"
-                    href="/app/perfil"
-                    onClick={() => setMenuOpen(false)}
-                    className="flex min-h-11 cursor-pointer items-center rounded-xl px-3 text-sm text-fg-body hover:bg-surface-2"
-                  >
-                    {t.nav.profile}
-                  </Link>
-                  <Link
-                    role="menuitem"
-                    href="/app/ajustes"
-                    onClick={() => setMenuOpen(false)}
-                    className="flex min-h-11 cursor-pointer items-center rounded-xl px-3 text-sm text-fg-body hover:bg-surface-2"
-                  >
-                    {t.nav.settings}
-                  </Link>
-                  <div className="flex justify-start px-3 py-2">
-                    <CurrencySwitch />
-                  </div>
+      <nav aria-label={t.nav.label} className="flex-1 overflow-y-auto px-3.5 pb-2">
+        {isAiRoute ? (
+          collapsed ? (
+            <ul className="flex flex-col items-center gap-0.5">
+              <li>
+                <Tooltip content={newChatLabel} side="right">
                   <button
-                    role="menuitem"
                     type="button"
-                    onClick={() => void account.logout()}
-                    disabled={account.status === "loading"}
-                    className="flex min-h-11 w-full cursor-pointer items-center rounded-xl px-3 text-left text-sm text-fg-body hover:bg-surface-2 disabled:opacity-40"
+                    aria-label={newChatLabel}
+                    onClick={() => dispatchAiCommand({ type: "clear" })}
+                    className={cn(ROW_BASE, ROW_HOVER, "size-11 justify-center text-fg-muted")}
                   >
-                    {t.profile.logout}
+                    <MessageSquarePlusIcon className="size-4" />
                   </button>
-                </div>
-              ) : null}
-              {loading ? (
-                <div className="flex min-h-11 items-center rounded-xl">
-                  <span className="flex size-11 shrink-0 items-center justify-center">
-                    <Skeleton className="size-10 rounded-full" />
-                  </span>
-                  {!collapsed ? <Skeleton className="h-4 w-24" /> : null}
-                </div>
-              ) : collapsed ? (
-                <Tooltip content={name || t.shell.account} side="right">
-                  <Link
-                    href="/app/perfil"
-                    aria-label={loading ? t.shell.account : `${name}. ${t.shell.account}`}
-                    title={loading ? t.shell.account : name}
-                    className="flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-xl hover:bg-surface-2"
+                </Tooltip>
+              </li>
+              <li>
+                <Tooltip content={t.shell.search} side="right">
+                  <button
+                    type="button"
+                    aria-label={t.shell.search}
+                    onClick={() => {
+                      if (typeof window === "undefined") return;
+                      window.dispatchEvent(new CustomEvent(ACTION_EVENT, { detail: { type: "search" } }));
+                    }}
+                    className={cn(ROW_BASE, ROW_HOVER, "size-11 justify-center text-fg-muted")}
                   >
-                    <span className="flex size-11 shrink-0 items-center justify-center">
-                      <Avatar alt="" fallback={name} size="md" className="size-10" />
-                    </span>
+                    <SearchIcon className="size-4" />
+                  </button>
+                </Tooltip>
+              </li>
+              <li>
+                <Tooltip content={t.detail.backToMarket} side="right">
+                  <Link
+                    href="/app"
+                    aria-label={t.detail.backToMarket}
+                    className={cn(ROW_BASE, ROW_HOVER, "size-11 justify-center text-fg-muted")}
+                  >
+                    <ArrowLeftIcon className="size-4" />
                   </Link>
                 </Tooltip>
-              ) : (
-                <button
-                  type="button"
-                  aria-haspopup="menu"
-                  aria-expanded={menuOpen}
-                  aria-label={`${name}. ${t.shell.account}`}
-                  onClick={() => setMenuOpen((open) => !open)}
-                  className="flex min-h-11 w-full cursor-pointer items-center gap-1.5 rounded-xl text-left hover:bg-surface-2"
-                >
-                  <span className="flex size-11 shrink-0 items-center justify-center">
-                    <Avatar alt="" fallback={name} size="md" className="size-10" />
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-medium text-fg">{name}</span>
-                    {account.email ? <span className="block truncate text-xs text-fg-muted">{account.email}</span> : null}
-                  </span>
-                  <IconChevron className={cn("size-4 shrink-0 text-fg-muted transition duration-200", menuOpen && "rotate-180")} />
-                </button>
-              )}
-            </div>
-          </div>
-        </>
-      ) : (
-        <>
-          {/* Marca: padding izquierdo fijo (px-3.5 = 14px) para que el slot size-11 (44px)
-              quede clavado exactamente en el centro de los 72px colapsados (14+44+14=72)
-              y jamás se desplace de derecha a izquierda al colapsar o expandir. */}
-          <div className="flex items-center justify-between px-3.5 py-3">
-            <Link
-              href="/app"
-              aria-label={site.name}
-              title={site.name}
-              className="flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-xl"
-            >
-              <span className="flex size-11 shrink-0 items-center justify-center">
-                <BrandFavicon className="w-10" />
-              </span>
-            </Link>
-            {!collapsed ? (
-              <button
-                type="button"
-                onClick={() => openCommandPalette()}
-                aria-label="Buscar en la app"
-                className="inline-flex shrink-0 cursor-pointer items-center gap-1 rounded-full border border-control bg-bg/80 px-2.5 py-1 text-xs font-medium text-fg-muted shadow-raised transition hover:bg-surface-2 hover:text-fg"
-              >
-                <SearchIcon className="size-3.5" />
-                <span>Buscar</span>
-              </button>
-            ) : null}
-          </div>
-          <nav aria-label={t.nav.label} className="flex-1 px-3.5">
-            <ul className="flex flex-col gap-1">
-              <li>
-                <StockSearchButton collapsed={collapsed} />
               </li>
-              {shellNav.filter((item) => item.id !== "profile").map((item) => {
+            </ul>
+          ) : (
+            <>
+              <ul className="flex flex-col gap-0.5">
+                <li>
+                  <button
+                    type="button"
+                    onClick={() => dispatchAiCommand({ type: "clear" })}
+                    className={cn(ROW_BASE, ROW_EXPANDED, ROW_HOVER, "text-fg-body")}
+                  >
+                    <MessageSquarePlusIcon className="size-4 shrink-0 text-fg-muted" />
+                    <span className="truncate">{newChatLabel}</span>
+                  </button>
+                </li>
+                <li>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (typeof window === "undefined") return;
+                      window.dispatchEvent(new CustomEvent(ACTION_EVENT, { detail: { type: "search" } }));
+                    }}
+                    className={cn(ROW_BASE, ROW_EXPANDED, ROW_HOVER, "text-fg-body")}
+                  >
+                    <SearchIcon className="size-4 shrink-0 text-fg-muted" />
+                    <span className="truncate">{t.shell.search}</span>
+                  </button>
+                </li>
+                <li>
+                  <Link href="/app" className={cn(ROW_BASE, ROW_EXPANDED, ROW_HOVER, "text-fg-body")}>
+                    <ArrowLeftIcon className="size-4 shrink-0 text-fg-muted" />
+                    <span className="truncate">{t.detail.backToMarket}</span>
+                  </Link>
+                </li>
+              </ul>
+
+              <div className="mt-3 border-t border-border/70 pt-2">
+                <NavChatsHistory
+                  chats={savedChats}
+                  activeChatId={activeChatId}
+                  onSelectChat={(chatId) => {
+                    if (typeof window === "undefined") return;
+                    window.dispatchEvent(new CustomEvent(SELECT_EVENT, { detail: { chatId } }));
+                  }}
+                  onNewChat={() => dispatchAiCommand({ type: "clear" })}
+                  onRenameChat={(chatId, title) => dispatchAiAction({ type: "rename", chatId, title })}
+                  onTogglePinChat={(chatId) => dispatchAiAction({ type: "pin", chatId })}
+                  onDeleteChat={(chatId) => dispatchAiAction({ type: "delete", chatId })}
+                  onShareChat={(chatId) => dispatchAiAction({ type: "share", chatId })}
+                />
+              </div>
+            </>
+          )
+        ) : (
+          <ul className="flex flex-col gap-0.5">
+            {shellNav
+              .filter((item) => item.id !== "profile")
+              .map((item) => {
                 const active = isShellSectionActive(pathname, item.id);
                 const Icon = item.icon;
                 const link = (
@@ -488,24 +507,24 @@ export function Sidebar({
                     aria-label={collapsed ? t.nav[item.id] : undefined}
                     aria-current={active ? "page" : undefined}
                     className={cn(
-                      "flex min-h-11 cursor-pointer items-center rounded-xl text-sm transition-colors duration-150 active:scale-[0.98]",
-                      collapsed ? "size-11 justify-start gap-0 px-0" : "w-full justify-start gap-1.5 pr-2 pl-0",
-                      active
-                        ? "bg-fg/[0.06] font-medium text-fg shadow-raised ring-1 ring-border/60"
-                        : "text-fg-body hover:bg-fg/[0.04] hover:text-fg",
+                      ROW_BASE,
+                      collapsed ? "size-11 justify-center" : ROW_EXPANDED,
+                      active ? ROW_ACTIVE : cn("text-fg-body", ROW_HOVER),
                     )}
                   >
-                    <span className="flex size-11 shrink-0 items-center justify-center">
-                      <Icon className="size-4" />
-                    </span>
-                    <span
+                    {active && !collapsed ? (
+                      <span
+                        aria-hidden
+                        className="absolute left-0 top-1/2 h-4 w-[2px] -translate-y-1/2 rounded-full bg-fg"
+                      />
+                    ) : null}
+                    <Icon
                       className={cn(
-                        "overflow-hidden whitespace-nowrap",
-                        collapsed ? "sr-only" : "truncate",
+                        "size-4 shrink-0 transition-colors",
+                        active ? "text-fg" : "text-fg-muted group-hover:text-fg",
                       )}
-                    >
-                      {t.nav[item.id]}
-                    </span>
+                    />
+                    <span className={cn("truncate", collapsed && "sr-only")}>{t.nav[item.id]}</span>
                   </Link>
                 );
                 return (
@@ -520,103 +539,61 @@ export function Sidebar({
                   </li>
                 );
               })}
-            </ul>
-          </nav>
-          <div className="border-t border-border/70 px-3.5 py-3">
-            {!collapsed ? (
-              <>
-                <BalanceHeader variant="sidebar" />
-                <div className="mt-2.5">
-                  <AccountSwitch mode={accountMode} onChange={onAccountChange ?? (() => {})} />
-                </div>
-              </>
-            ) : null}
-            <div
-              ref={menuRef}
-              className={cn("relative", !collapsed && "mt-2.5")}
-              onKeyDown={(event) => {
-                if (event.key === "Escape") setMenuOpen(false);
-              }}
-            >
-              {menuOpen && !collapsed && !loading ? (
-                <div
-                  role="menu"
-                  aria-label={t.shell.account}
-                  className="absolute inset-x-0 bottom-full mb-2 flex flex-col gap-1 rounded-xl border border-border/70 bg-bg p-2 shadow-float"
-                >
-                  <Link
-                    role="menuitem"
-                    href="/app/perfil"
-                    onClick={() => setMenuOpen(false)}
-                    className="flex min-h-11 cursor-pointer items-center rounded-xl px-3 text-sm text-fg-body hover:bg-surface-2"
-                  >
-                    {t.nav.profile}
-                  </Link>
-                  <Link
-                    role="menuitem"
-                    href="/app/ajustes"
-                    onClick={() => setMenuOpen(false)}
-                    className="flex min-h-11 cursor-pointer items-center rounded-xl px-3 text-sm text-fg-body hover:bg-surface-2"
-                  >
-                    {t.nav.settings}
-                  </Link>
-                  <div className="flex justify-start px-3 py-2">
-                    <CurrencySwitch />
-                  </div>
-                  <button
-                    role="menuitem"
-                    type="button"
-                    onClick={() => void account.logout()}
-                    disabled={account.status === "loading"}
-                    className="flex min-h-11 w-full cursor-pointer items-center rounded-xl px-3 text-left text-sm text-fg-body hover:bg-surface-2 disabled:opacity-40"
-                  >
-                    {t.profile.logout}
-                  </button>
-                </div>
-              ) : null}
-              {loading ? (
-                <div className="flex min-h-11 items-center rounded-xl">
-                  <span className="flex size-11 shrink-0 items-center justify-center">
-                    <Skeleton className="size-10 rounded-full" />
-                  </span>
-                  {!collapsed ? <Skeleton className="h-4 w-24" /> : null}
-                </div>
-              ) : collapsed ? (
-                <Tooltip content={name || t.shell.account} side="right">
-                  <Link
-                    href="/app/perfil"
-                    aria-label={loading ? t.shell.account : `${name}. ${t.shell.account}`}
-                    title={loading ? t.shell.account : name}
-                    className="flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-xl hover:bg-surface-2"
-                  >
-                    <span className="flex size-11 shrink-0 items-center justify-center">
-                      <Avatar alt="" fallback={name} size="md" className="size-10" />
-                    </span>
-                  </Link>
-                </Tooltip>
-              ) : (
-                <button
-                  type="button"
-                  aria-haspopup="menu"
-                  aria-expanded={menuOpen}
-                  aria-label={`${name}. ${t.shell.account}`}
-                  onClick={() => setMenuOpen((open) => !open)}
-                  className="flex min-h-11 w-full cursor-pointer items-center gap-1.5 rounded-xl text-left hover:bg-surface-2"
-                >
-                  <span className="flex size-11 shrink-0 items-center justify-center">
-                    <Avatar alt="" fallback={name} size="md" className="size-10" />
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-medium text-fg">{name}</span>
-                    {account.email ? <span className="block truncate text-xs text-fg-muted">{account.email}</span> : null}
-                  </span>
-                  <IconChevron className={cn("size-4 shrink-0 text-fg-muted transition duration-200", menuOpen && "rotate-180")} />
-                </button>
-              )}
+          </ul>
+        )}
+      </nav>
+
+      <footer className="shrink-0 border-t border-border/70 px-3.5 py-3">
+        {!isAiRoute && !collapsed ? (
+          <>
+            <BalanceHeader variant="sidebar" className="bg-bg shadow-none" />
+            <div className="mt-2">
+              <AccountSwitch mode={accountMode} onChange={onAccountChange ?? (() => {})} />
             </div>
-          </div>
-        </>
-      )}
+          </>
+        ) : null}
+
+        <div
+          ref={menuRef}
+          className={cn("relative", !isAiRoute && !collapsed && "mt-2")}
+          onKeyDown={(event) => {
+            if (event.key === "Escape") setMenuOpen(false);
+          }}
+        >
+          <AccountMenuPanel
+            open={menuOpen && !collapsed && !loading}
+            onClose={() => setMenuOpen(false)}
+            onLogout={() => void account.logout()}
+            logoutDisabled={account.status === "loading"}
+            labels={menuLabels}
+          />
+          {loading ? (
+            <div className="flex min-h-11 items-center rounded-lg px-1.5">
+              <Skeleton className="size-8 shrink-0 rounded-full" />
+              {!collapsed ? <Skeleton className="ml-2.5 h-3.5 w-24" /> : null}
+            </div>
+          ) : collapsed ? (
+            <Tooltip content={name || t.shell.account} side="right">
+              <Link
+                href="/app/perfil"
+                aria-label={loading ? t.shell.account : `${name}. ${t.shell.account}`}
+                title={loading ? t.shell.account : name}
+                className="flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-lg hover:bg-fg/[0.04]"
+              >
+                <Avatar alt="" fallback={name} size="sm" className="size-8" />
+              </Link>
+            </Tooltip>
+          ) : (
+            <AccountTrigger
+              name={name}
+              email={account.email}
+              label={`${name}. ${t.shell.account}`}
+              open={menuOpen}
+              onClick={() => setMenuOpen((open) => !open)}
+            />
+          )}
+        </div>
+      </footer>
     </aside>
   );
 }

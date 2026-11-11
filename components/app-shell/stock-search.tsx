@@ -19,6 +19,7 @@ import { createPortal } from "react-dom";
 import { ChangeBadge } from "@/components/domain/change-badge";
 import { TickerLogo } from "@/components/domain/ticker-logo";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { IconClose, IconSearch } from "@/components/ui/icons";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -166,7 +167,7 @@ export function StockSearchButton({
         className={
           variant === "chip"
             ? "liquid-glass--chip"
-            : "flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-full text-fg-body outline-none hover:bg-surface-2 focus-visible:ring-4 focus-visible:ring-fg/20"
+            : "flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-full text-fg-muted transition-colors hover:bg-fg/[0.05] hover:text-fg"
         }
       >
         <IconSearch />
@@ -184,22 +185,23 @@ export function StockSearchButton({
       aria-haspopup="dialog"
       onClick={onClick}
       className={cn(
-        "flex min-h-11 cursor-pointer items-center rounded-xl text-sm outline-none transition duration-200 ease-spring focus-visible:ring-4 focus-visible:ring-fg/20 active:scale-[0.98]",
-        collapsed ? "mx-auto size-11 justify-center gap-0 px-0" : "w-full gap-2.5 px-1",
-        api.open ? "bg-surface-2 font-medium text-fg" : "text-fg-body hover:bg-surface-2",
+        "group flex cursor-pointer items-center rounded-lg text-left transition-colors duration-150",
+        collapsed
+          ? "mx-auto size-11 justify-center text-fg-muted hover:bg-fg/[0.05] hover:text-fg"
+          : "min-h-11 w-full gap-2 border border-border-control bg-bg pl-2.5 pr-2 text-[13px] text-fg-muted hover:border-fg/40 hover:text-fg",
+        api.open && !collapsed && "border-fg/50 text-fg",
       )}
     >
-      <span className="flex size-11 shrink-0 items-center justify-center">
-        <IconSearch className="size-4" />
-      </span>
-      <span
-        className={cn(
-          "overflow-hidden whitespace-nowrap transition-all duration-200 ease-spring",
-          collapsed ? "sr-only" : "truncate",
-        )}
-      >
-        {t.shell.search}
-      </span>
+      <IconSearch className="size-4 shrink-0" />
+      <span className={cn("min-w-0 flex-1 truncate", collapsed && "sr-only")}>{t.market.searchLabel}</span>
+      {collapsed ? null : (
+        <kbd
+          aria-hidden
+          className="hidden shrink-0 rounded border border-border px-1 py-0.5 font-mono text-[10px] leading-none text-fg-subtle lg:inline"
+        >
+          /
+        </kbd>
+      )}
     </button>
   );
 
@@ -329,7 +331,7 @@ function StockSearchPanel({
       ref={panelRef}
       role="dialog"
       aria-label={t.market.searchLabel}
-      className="fixed z-40 flex flex-col overflow-hidden rounded-2xl border border-border bg-bg shadow-float"
+      className="fixed z-40 flex flex-col overflow-hidden rounded-xl border border-border bg-bg shadow-float"
       style={{ top: box.top, left: box.left, width: box.width, maxHeight: box.maxHeight }}
       onKeyDown={(event) => {
         if (event.key === "Escape") {
@@ -340,7 +342,7 @@ function StockSearchPanel({
     >
       <form
         role="search"
-        className="flex items-center gap-2 border-b border-border p-3"
+        className="flex items-center gap-2 border-b border-border p-2.5"
         onSubmit={(event) => {
           event.preventDefault();
           const row = rows[activeIndex];
@@ -350,8 +352,8 @@ function StockSearchPanel({
         <label htmlFor={inputId} className="sr-only">
           {t.market.searchLabel}
         </label>
-        <div className="relative min-w-0 flex-1">
-          <IconSearch className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-fg-muted" />
+        <div className="flex min-w-0 flex-1 items-center gap-2.5 rounded-lg border border-border-control bg-bg px-3 transition-colors duration-150 focus-within:border-fg">
+          <IconSearch className="size-4 shrink-0 text-fg-muted" />
           <Input
             ref={inputRef}
             id={inputId}
@@ -362,6 +364,7 @@ function StockSearchPanel({
             autoCorrect="off"
             spellCheck={false}
             enterKeyHint="search"
+            data-bare-input=""
             role="combobox"
             aria-expanded={needle.length > 0}
             aria-controls={listId}
@@ -377,11 +380,11 @@ function StockSearchPanel({
                 setActive((value) => (rows.length === 0 ? 0 : (value - 1 + rows.length) % rows.length));
               }
             }}
-            className={draft ? "pr-3 pl-10" : "pr-12 pl-10"}
+            className="h-10 min-w-0 flex-1 border-0 bg-transparent px-0 text-[15px] outline-none focus-visible:border-0"
           />
           {draft ? null : (
             <kbd
-              className="pointer-events-none absolute top-1/2 right-3 hidden -translate-y-1/2 rounded-xs border border-border px-1.5 font-mono text-[11px] text-fg-muted lg:inline"
+              className="pointer-events-none shrink-0 rounded border border-border px-1.5 py-0.5 font-mono text-[10px] leading-none text-fg-subtle"
               aria-hidden
             >
               /
@@ -392,46 +395,51 @@ function StockSearchPanel({
           type="button"
           aria-label={t.shell.searchClose}
           onClick={onDismiss}
-          className="flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-full text-fg-muted outline-none hover:bg-surface-2 hover:text-fg focus-visible:ring-4 focus-visible:ring-fg/20"
+          className="flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-full text-fg-muted transition-colors hover:bg-surface-2 hover:text-fg"
         >
           <IconClose />
         </button>
       </form>
-      <div className="min-h-0 flex-1 overflow-y-auto">
+
+      <div className="min-h-0 flex-1 overflow-y-auto p-1.5">
         {needle.length === 0 ? (
-          <p className="px-4 py-8 text-center text-sm text-fg-muted">{t.market.searchIdle}</p>
+          <div className="flex flex-col items-center gap-2.5 px-6 py-10 text-center">
+            <IconSearch className="size-5 text-fg-subtle" />
+            <p className="text-sm text-fg-muted">{t.market.searchIdle}</p>
+          </div>
         ) : null}
+
         {waiting ? (
-          <div className="flex flex-col gap-1 p-2" role="status" aria-live="polite" aria-busy="true">
+          <div className="flex flex-col gap-0.5" role="status" aria-live="polite" aria-busy="true">
             <span className="sr-only">{t.states.loading}</span>
             {[0, 1, 2, 3].map((key) => (
-              <div key={key} className="flex items-center gap-3 rounded-lg px-2 py-2">
-                <Skeleton className="size-9 shrink-0 rounded-full" />
+              <div key={key} className="flex min-h-12 items-center gap-3 rounded-lg px-2 py-2">
+                <Skeleton className="size-8 shrink-0 rounded-full" />
                 <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-                  <Skeleton className="h-4 w-2/3" />
+                  <Skeleton className="h-3.5 w-2/3" />
                   <Skeleton className="h-3 w-1/3" />
                 </div>
+                <Skeleton className="h-3.5 w-14" />
               </div>
             ))}
           </div>
         ) : null}
+
         {failed ? (
-          <div className="flex flex-col items-center gap-3 px-4 py-8">
+          <div className="flex flex-col items-center gap-3 px-6 py-10">
             <p className="text-center text-sm text-fg-muted">{t.market.searchError}</p>
-            <button
-              type="button"
-              onClick={() => void search.refetch()}
-              className="flex h-11 min-h-11 cursor-pointer items-center rounded-full bg-surface-2 px-4 text-sm text-fg outline-none focus-visible:ring-4 focus-visible:ring-fg/20"
-            >
+            <Button variant="secondary" size="sm" onClick={() => void search.refetch()}>
               {t.states.retry}
-            </button>
+            </Button>
           </div>
         ) : null}
+
         {!waiting && !failed && needle.length > 0 && rows.length === 0 ? (
-          <p className="px-4 py-8 text-center text-sm text-fg-muted">{t.market.suggestEmpty}</p>
+          <p className="px-6 py-10 text-center text-sm text-fg-muted">{t.market.suggestEmpty}</p>
         ) : null}
+
         {rows.length > 0 ? (
-          <ul role="listbox" id={listId} aria-label={t.market.suggestLabel} className="p-1">
+          <ul role="listbox" id={listId} aria-label={t.market.suggestLabel} className="flex flex-col gap-0.5">
             {rows.map((row, index) => {
               const selected = index === activeIndex;
               return (
@@ -444,35 +452,45 @@ function StockSearchPanel({
                     onMouseEnter={() => setActive(index)}
                     onClick={() => openSymbol(row.item.symbol)}
                     className={cn(
-                      "flex min-h-11 w-full cursor-pointer items-center gap-3 rounded-lg px-2 py-2 text-left outline-none transition duration-[140ms] ease-spring focus-visible:ring-4 focus-visible:ring-fg/20",
-                      selected ? "bg-surface-3" : "hover:bg-surface-2 focus-visible:bg-surface-3",
+                      "grid min-h-12 w-full cursor-pointer grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 rounded-lg px-2 py-2 text-left transition-colors duration-100",
+                      selected ? "bg-surface-2" : "hover:bg-surface-1",
                     )}
                   >
                     <TickerLogo
                       symbol={row.item.symbol}
                       name={row.item.name}
                       logoUrl={row.item.logoUrl}
-                      size={36}
+                      size={32}
                       decorative
                       loading="lazy"
                       sizes="40px"
                     />
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm font-medium text-fg">{row.item.name}</span>
-                      <span className="mt-0.5 flex min-w-0 items-center gap-1.5">
-                        <span className="num truncate text-xs text-fg-muted">{row.item.symbol}</span>
+                    <span className="min-w-0">
+                      <span className="flex min-w-0 items-center gap-2">
+                        <span className="truncate text-sm font-medium text-fg">{row.item.name}</span>
                         {row.item.underReview ? (
-                          <Badge tone="warn" className="shrink-0 px-1.5 py-0">
+                          <Badge tone="warn" className="shrink-0 px-1.5 py-0 text-[10px]">
                             {t.market.underReview}
                           </Badge>
                         ) : null}
                       </span>
+                      <span className="mt-0.5 flex min-w-0 items-center gap-1.5">
+                        <span className="num shrink-0 text-[11px] uppercase tracking-[0.03em] text-fg-muted">
+                          {row.item.symbol}
+                        </span>
+                        <span aria-hidden className="text-[11px] text-fg-subtle">
+                          ·
+                        </span>
+                        <span className="truncate text-[11px] text-fg-subtle">
+                          {t.market[row.item.category]}
+                        </span>
+                      </span>
                     </span>
-                    <span className="flex shrink-0 flex-col items-end gap-1">
+                    <span className="flex shrink-0 flex-col items-end gap-0.5">
                       {row.price === null ? (
-                        <Skeleton className="h-4 w-16" />
+                        <Skeleton className="h-3.5 w-16" />
                       ) : (
-                        <span className="num text-sm text-fg">{formatMoney(row.price, shown)}</span>
+                        <span className="num text-[13px] leading-5 text-fg">{formatMoney(row.price, shown)}</span>
                       )}
                       {row.change === null ? null : <ChangeBadge value={row.change} />}
                     </span>
@@ -482,8 +500,9 @@ function StockSearchPanel({
             })}
           </ul>
         ) : null}
+
         {search.data?.hasMore && rows.length > 0 ? (
-          <p className="px-4 py-3 text-center text-xs text-fg-muted">{t.market.searchMore}</p>
+          <p className="px-4 py-2.5 text-center text-[11px] text-fg-subtle">{t.market.searchMore}</p>
         ) : null}
       </div>
     </div>,

@@ -71,7 +71,7 @@ export function BottomTabs() {
       data-mode={mode}
       data-assistant={assistantRoute ? "true" : "false"}
       className={cn(
-        "liquid-nav pointer-events-none fixed inset-x-0 bottom-0 z-30 flex justify-center px-4 pb-[calc(0.875rem+env(safe-area-inset-bottom))] md:hidden",
+        "liquid-nav pointer-events-none fixed inset-x-0 bottom-0 z-30 flex justify-center px-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] min-[400px]:px-4 md:hidden",
         assistantRoute && "hidden",
       )}
     >
