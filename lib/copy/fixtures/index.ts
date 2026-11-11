@@ -9,12 +9,14 @@ import scion from "./scion-13f.json";
 import statusJson from "./status.json";
 
 /**
- * Fixtures de «Copiar carteras» (payloads de ejemplo del plan, §4).
+ * Fixtures de «Copiar carteras» en el formato FINAL v1 de Faro
+ * (`docs/FRACCION_FEED_FORMATO.md`): JSON canónico, `version_id` y
+ * `detail_sha256` reales sobre los bytes de cada archivo.
  *
  * Todo lleva `example: true`: son ilustrativos, no datos de hoy. Sólo se sirven
  * con `NODE_ENV !== "production"` o a una cuenta demo, y nunca se guardan como
- * snapshot. Los `detail_sha256` del índice son de relleno a propósito: el
- * digest se verifica únicamente en el feed remoto.
+ * snapshot. El índice NO está firmado (`fixture-sin-firma`): la firma Ed25519
+ * se verifica únicamente en el feed remoto, con la clave pública del entorno.
  */
 
 export const FIXTURE_INDEX: unknown = indexJson;

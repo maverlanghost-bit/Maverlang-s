@@ -30,144 +30,104 @@ const VERSION_ID = `v1:${"a".repeat(64)}`;
 const DETAIL_SHA = "b".repeat(64);
 const SLUG = "berkshire-hathaway-13f";
 
+function rawPositions(): Array<Record<string, unknown>> {
+  return [
+    { symbol: "AAPL", name: "Apple", weight: 50, currency: "USD", asset_class: "equity" },
+    { symbol: "KO", name: "Coca-Cola", weight: 30, currency: "USD", asset_class: "equity" },
+    { symbol: "AXP", name: "American Express", weight: 20, currency: "USD", asset_class: "equity" },
+  ];
+}
+
+/** Detalle plano `fraccion.feed.detail.v1` (formato final de Faro). */
 function rawDetail(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  const positions = (overrides.positions as unknown[] | undefined) ?? rawPositions();
   return {
-    provider: "fraccion.si",
-    legend: "tecnología de Fraccion.si",
+    schema: "fraccion.feed.detail.v1",
+    example: true,
+    slug: SLUG,
+    aliases: ["berkshire-hathaway"],
+    name: "Berkshire Hathaway",
+    manager: "Warren Buffett",
+    family: "13f",
+    source: "sec_13f",
+    country: "US",
+    as_of: "2026-09-30",
+    filed_at: "2026-11-01",
     generated_at: "2026-11-10T11:00:00.000Z",
     version_id: VERSION_ID,
-    example: true,
-    portfolio: {
-      slug: SLUG,
-      aliases: ["berkshire-hathaway"],
-      name: "Berkshire Hathaway",
-      family: "13f",
-      source: "sec_13f",
-      manager: "Warren Buffett",
-      country: "US",
-      as_of: "2026-09-30",
-      filed_at: "2026-11-01",
-      published_at: "2026-11-01",
-      lag_days: 32,
-      lag_note: "Dato de ejemplo.",
-      is_estimated: false,
-      is_complete: true,
-      is_frozen: false,
-      coverage: "full_13f",
-      verification: "official_filing",
-      license: "SEC — atribución",
-      attribution: "Fraccion.si (ejemplo)",
-      source_url: "https://www.sec.gov/",
-    },
-    positions: [
-      {
-        symbol: "AAPL",
-        name: "Apple",
-        weight: 50,
-        previous_weight: 48,
-        side: "long",
-        currency: "USD",
-        as_of: "2026-09-30",
-      },
-      {
-        symbol: "KO",
-        name: "Coca-Cola",
-        weight: 30,
-        previous_weight: null,
-        side: "long",
-        currency: "USD",
-        as_of: "2026-09-30",
-      },
-      {
-        symbol: "AXP",
-        name: "American Express",
-        weight: 20,
-        previous_weight: 22,
-        side: "long",
-        currency: "USD",
-        as_of: "2026-09-30",
-      },
-    ],
-    movements: [],
-    performance: [],
-    disclaimer: "Dato de ejemplo, no es recomendación.",
+    coverage: "full_13f",
+    is_frozen: false,
+    is_complete: true,
+    copyable_hint: "lagged_disclosure",
+    lag_note: "Dato de ejemplo.",
+    license: "SEC — atribución",
+    attribution: "Fraccion.si (ejemplo)",
+    source_url: "https://www.sec.gov/",
+    position_count: positions.length,
     ...overrides,
+    positions,
   };
 }
 
 function withPortfolio(patch: Record<string, unknown>): Record<string, unknown> {
-  const raw = rawDetail();
-  return { ...raw, portfolio: { ...(raw.portfolio as Record<string, unknown>), ...patch } };
+  return rawDetail(patch);
 }
 
+/** Índice `fraccion.feed.index.v1`: sin top10 ni manager, con aliases como mapa. */
 function rawIndex(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return {
-    provider: "fraccion.si",
-    legend: "tecnología de Fraccion.si",
+    schema: "fraccion.feed.index.v1",
     generated_at: "2026-11-10T11:00:00.000Z",
-    status: "ok",
-    schema_version: 1,
-    signature: { alg: "Ed25519", key_id: "test-key", sig: "firma-de-prueba" },
+    key_id: "test-key",
+    families: ["13f", "etf"],
+    portfolio_count: 3,
+    aliases: { "berkshire-hathaway": SLUG },
+    signature: { alg: "ed25519", key_id: "test-key", sig: "firma-de-prueba" },
     portfolios: [
       {
         slug: SLUG,
         aliases: ["berkshire-hathaway"],
         name: "Berkshire Hathaway",
         family: "13f",
-        source: "sec_13f",
-        manager: "Warren Buffett",
-        country: "US",
         as_of: "2026-09-30",
         filed_at: "2026-11-01",
-        generated_at: "2026-11-10T11:00:00.000Z",
         version_id: VERSION_ID,
         coverage: "full_13f",
         is_frozen: false,
-        is_estimated: false,
         is_complete: true,
-        copyable_hint: "copy",
+        copyable_hint: "lagged_disclosure",
         detail_path: `portfolios/${SLUG}.json`,
         detail_sha256: DETAIL_SHA,
-        positions_count: 3,
-        top10: [{ symbol: "AAPL", name: "Apple", weight: 50 }],
       },
       {
         slug: "arkk",
         aliases: [],
         name: "ARK Innovation ETF",
         family: "etf",
-        source: "issuer_etf",
-        manager: "ARK Invest",
-        country: "US",
         as_of: "2026-11-07",
         filed_at: null,
         version_id: VERSION_ID,
         coverage: "issuer_etf",
         is_frozen: false,
-        is_estimated: false,
         is_complete: true,
         copyable_hint: "informational",
         detail_path: "portfolios/arkk.json",
         detail_sha256: DETAIL_SHA,
-        positions_count: 40,
-        top10: [],
       },
       {
         slug: "pelosi-tracker",
         aliases: [],
         name: "Pelosi tracker",
         family: "political_us",
-        source: "sec_form4",
-        manager: "—",
-        country: "US",
         as_of: "2026-11-01",
+        filed_at: null,
         version_id: VERSION_ID,
         coverage: "editorial_model",
-        copyable_hint: "copy",
+        is_frozen: false,
+        is_complete: true,
+        copyable_hint: "lagged_disclosure",
         detail_path: "portfolios/pelosi-tracker.json",
         detail_sha256: DETAIL_SHA,
-        positions_count: 4,
-        top10: [],
       },
     ],
     ...overrides,
@@ -202,7 +162,7 @@ describe("signature: Ed25519 del índice", () => {
   function signedIndex(): Record<string, unknown> {
     const base = rawIndex();
     const sig = edSign(null, canonicalIndexPayload(base), privateKey).toString("base64");
-    return { ...base, signature: { alg: "Ed25519", key_id: "test-key", sig } };
+    return { ...base, signature: { alg: "ed25519", key_id: "test-key", sig } };
   }
 
   it("acepta la firma válida con clave PEM y con 32 bytes base64", () => {
@@ -213,7 +173,7 @@ describe("signature: Ed25519 del índice", () => {
 
   it("rechaza un índice alterado después de firmar", () => {
     const index = signedIndex();
-    const tampered = { ...index, status: "parcial" };
+    const tampered = { ...index, portfolio_count: 99 };
     expect(verifyFeedIndexSignature(tampered, pem)).toEqual({ ok: false, reason: "bad_signature" });
   });
 
@@ -266,10 +226,11 @@ describe("schema: detalle del portafolio", () => {
     expect(portfolio.positions[0]).toMatchObject({
       symbol: "AAPL",
       weight: 50,
-      previousWeight: 48,
+      previousWeight: null,
       side: "long",
       currency: "USD",
     });
+    expect(portfolio.movements).toEqual([]);
     expect(portfolio.example).toBe(true);
   });
 
@@ -285,45 +246,13 @@ describe("schema: detalle del portafolio", () => {
     expect(parseFeedDetail(rawDetail(), SLUG, { rejectExample: false }).example).toBe(true);
   });
 
-  it("descarta las posiciones short y deja sólo las largas", () => {
-    const raw = rawDetail();
-    raw.positions = [
-      ...(raw.positions as unknown[]),
-      { symbol: "INV", name: "Corto de ejemplo", weight: 0, previous_weight: null, side: "short" },
-    ];
-    const portfolio = parseFeedDetail(raw, SLUG);
-    expect(portfolio.positions.map((position) => position.symbol)).toEqual(["AAPL", "KO", "AXP"]);
-  });
-
-  it("descarta los movimientos con verification pending", () => {
-    const raw = rawDetail();
-    raw.movements = [
-      {
-        type: "weight_change",
-        symbol: "AAPL",
-        tx_date: null,
-        published_at: "2026-11-01",
-        lag_days: 32,
-        weight_from: 48,
-        weight_to: 50,
-        source_url: null,
-        verification: "pending",
-      },
-      {
-        type: "weight_change",
-        symbol: "KO",
-        tx_date: null,
-        published_at: "2026-11-01",
-        lag_days: 32,
-        weight_from: 28,
-        weight_to: 30,
-        source_url: null,
-        verification: "human_reviewed",
-      },
-    ];
-    const portfolio = parseFeedDetail(raw, SLUG);
-    expect(portfolio.movements).toHaveLength(1);
-    expect(portfolio.movements[0].symbol).toBe("KO");
+  it("v1 no trae performance: un detalle con performance se rechaza", () => {
+    try {
+      parseFeedDetail(rawDetail({ performance: [] }), SLUG);
+      throw new Error("debía rechazar performance");
+    } catch (error) {
+      expect((error as FeedPayloadError).reason).toBe("invalid_payload");
+    }
   });
 
   it("un portafolio con verification pending no entra", () => {
@@ -349,11 +278,12 @@ describe("schema: detalle del portafolio", () => {
   });
 
   it("rechaza pesos que no suman 99,5–100,5", () => {
-    const raw = rawDetail();
-    raw.positions = [
-      { symbol: "AAPL", name: "Apple", weight: 40, previous_weight: null, side: "long" },
-      { symbol: "KO", name: "Coca-Cola", weight: 22, previous_weight: null, side: "long" },
-    ];
+    const raw = rawDetail({
+      positions: [
+        { symbol: "AAPL", name: "Apple", weight: 40, currency: "USD" },
+        { symbol: "KO", name: "Coca-Cola", weight: 22, currency: "USD" },
+      ],
+    });
     try {
       parseFeedDetail(raw, SLUG);
       throw new Error("debía rechazar los pesos");
@@ -367,16 +297,13 @@ describe("schema: detalle del portafolio", () => {
       symbol: `T${index}`,
       name: `Empresa ${index}`,
       weight: 1,
-      previous_weight: null,
-      side: "long",
+      currency: "USD",
     }));
     const top50 = rawDetail({
-      portfolio: {
-        ...(rawDetail().portfolio as Record<string, unknown>),
-        coverage: "top50_of_full_book",
-        is_complete: false,
-        lag_note: "Top 50 del libro completo.",
-      },
+      coverage: "top50_of_full_book",
+      is_complete: false,
+      copyable_hint: "informational",
+      lag_note: "Top 50 del libro completo.",
       positions,
     });
 
@@ -386,11 +313,8 @@ describe("schema: detalle del portafolio", () => {
     expect(parsed.portfolio.isComplete).toBe(false);
 
     const complete = rawDetail({
-      portfolio: {
-        ...(rawDetail().portfolio as Record<string, unknown>),
-        coverage: "top50_of_full_book",
-        is_complete: true,
-      },
+      coverage: "top50_of_full_book",
+      is_complete: true,
       positions,
     });
     try {
@@ -401,17 +325,13 @@ describe("schema: detalle del portafolio", () => {
     }
 
     const tooMany = rawDetail({
-      portfolio: {
-        ...(rawDetail().portfolio as Record<string, unknown>),
-        coverage: "top50_of_full_book",
-        is_complete: false,
-      },
+      coverage: "top50_of_full_book",
+      is_complete: false,
       positions: Array.from({ length: 51 }, (_, index) => ({
         symbol: `T${index}`,
         name: `Empresa ${index}`,
         weight: 1,
-        previous_weight: null,
-        side: "long",
+        currency: "USD",
       })),
     });
     try {
@@ -433,9 +353,9 @@ describe("schema: detalle del portafolio", () => {
 });
 
 describe("schema: índice del feed", () => {
-  it("normaliza metadatos, top10 y el sha256 del detalle", () => {
+  it("normaliza metadatos, aliases y el sha256 del detalle", () => {
     const parsed = parseFeedIndex(rawIndex());
-    expect(parsed.status).toBe("ok");
+    expect(parsed.status).toBeNull(); // v1: el status viene de status.json
     expect(parsed.example).toBe(false);
     expect(parsed.entries).toHaveLength(2);
     const berkshire = parsed.entries.find((entry) => entry.slug === SLUG);
@@ -445,10 +365,12 @@ describe("schema: índice del feed", () => {
       versionId: VERSION_ID,
       detailPath: `portfolios/${SLUG}.json`,
       detailSha256: DETAIL_SHA,
-      positionsCount: 3,
+      positionsCount: null,
       copyableHint: "copy",
     });
-    expect(berkshire?.top10).toEqual([{ symbol: "AAPL", name: "Apple", weight: 50 }]);
+    expect(berkshire?.top10).toEqual([]);
+    expect(parsed.keyId).toBe("test-key");
+    expect(parsed.aliases).toEqual({ "berkshire-hathaway": SLUG });
   });
 
   it("descarta familias excluidas y marca las congeladas como informativas", () => {

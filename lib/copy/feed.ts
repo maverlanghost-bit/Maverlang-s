@@ -52,6 +52,14 @@ type FeedIndexSnapshot = {
   entries: CopyIndexEntry[];
   generatedAt: string;
   status: "ok" | "parcial" | null;
+  /** Alias → canónico declarados en `index.aliases` (contrato v1 de Faro). */
+  aliases: Record<string, string>;
+};
+
+export type CopyIndexResult = {
+  entries: CopyIndexEntry[];
+  health: FeedHealth;
+  aliases: Record<string, string>;
 };
 
 type RemoteIndexResult = {
@@ -234,11 +242,17 @@ async function persistSnapshot(
   }
 }
 
-async function loadRemoteStatus(): Promise<"ok" | "parcial" | null> {
+/**
+ * Estado del pipeline (`status.json` v1). Solo cuenta si describe ESTE índice
+ * (`index_sha256` = sha256 de los bytes exactos de `index.json`) y la misma
+ * clave; si no, se ignora y manda la frescura por `generated_at`.
+ */
+async function loadRemoteStatus(indexSha256: string, keyId: string): Promise<"ok" | "parcial" | null> {
   try {
     // Auxiliar: un solo intento para no sumar 3 s extra al índice.
     const bytes = await fetchFeedBytes("status.json", FEED_STATUS_MAX_BYTES, 1);
     const parsed = parseFeedStatus(parseJsonBytes(bytes, "status.json"));
+    if (parsed.indexSha256 !== indexSha256 || parsed.keyId !== keyId) return null;
     return parsed.status;
   } catch {
     return null;
@@ -265,12 +279,13 @@ async function loadRemoteIndex(): Promise<RemoteIndexResult> {
   }
 
   const parsed = parseFeedIndex(raw, { rejectExample: isProduction() });
-  const pipelineStatus = await loadRemoteStatus();
   const sha256 = sha256Hex(bytes);
+  const pipelineStatus = await loadRemoteStatus(sha256, parsed.keyId);
   const snapshot: FeedIndexSnapshot = {
     entries: parsed.entries,
     generatedAt: parsed.generatedAt,
     status: pipelineStatus ?? parsed.status,
+    aliases: parsed.aliases,
   };
   // Sólo corre cuando el caché de Next falla o vence: no es una escritura por request.
   await persistSnapshot(INDEX_SNAPSHOT_KEY, raw, snapshot.generatedAt, sha256);
@@ -383,21 +398,23 @@ function withFailure(
   snapshot: FeedIndexSnapshot,
   source: FeedSource,
   failure: FeedFailure | null,
-): { entries: CopyIndexEntry[]; health: FeedHealth } {
+): CopyIndexResult {
   const health = computeFeedHealth({
     generatedAt: snapshot.generatedAt,
     status: snapshot.status,
     source,
   });
-  if (failure === "invalid") return { entries: snapshot.entries, health: { ...health, state: "invalid" } };
-  return { entries: snapshot.entries, health };
+  if (failure === "invalid") {
+    return { entries: snapshot.entries, health: { ...health, state: "invalid" }, aliases: snapshot.aliases };
+  }
+  return { entries: snapshot.entries, health, aliases: snapshot.aliases };
 }
 
 function fixturesAllowed(options?: CopyFeedOptions): boolean {
   return !isProduction() || options?.allowFixtures === true;
 }
 
-function fixtureResult(): { entries: CopyIndexEntry[]; health: FeedHealth } {
+function fixtureResult(): CopyIndexResult {
   try {
     const parsed = parseFeedIndex(FIXTURE_INDEX);
     let status: "ok" | "parcial" | null = parsed.status;
@@ -408,6 +425,7 @@ function fixtureResult(): { entries: CopyIndexEntry[]; health: FeedHealth } {
     }
     return {
       entries: parsed.entries,
+      aliases: parsed.aliases,
       health: {
         // Los fixtures son de ejemplo y no envejecen: la franja de la UI avisa
         // que son datos de ejemplo, no que el feed esté atrasado.
@@ -418,7 +436,7 @@ function fixtureResult(): { entries: CopyIndexEntry[]; health: FeedHealth } {
       },
     };
   } catch {
-    return { entries: [], health: { state: "none", generatedAt: null, status: null, source: "none" } };
+    return { entries: [], health: { state: "none", generatedAt: null, status: null, source: "none" }, aliases: {} };
   }
 }
 
@@ -427,7 +445,12 @@ function readSnapshotIndex(): Promise<FeedIndexSnapshot | null> {
     if (!row) return null;
     try {
       const parsed = parseFeedIndex(row.payload, { rejectExample: isProduction() });
-      return { entries: parsed.entries, generatedAt: parsed.generatedAt, status: parsed.status };
+      return {
+        entries: parsed.entries,
+        generatedAt: parsed.generatedAt,
+        status: parsed.status,
+        aliases: parsed.aliases,
+      };
     } catch {
       return null;
     }
@@ -460,9 +483,7 @@ function readFixturePortfolio(entry: CopyIndexEntry): CopyPortfolio | null {
  * Índice del feed con su estado de frescura. Nunca lanza: ante un fallo sirve
  * la última copia buena (memoria o snapshot) y, si no hay, «sin feed».
  */
-export async function getCopyIndex(
-  options: CopyFeedOptions = {},
-): Promise<{ entries: CopyIndexEntry[]; health: FeedHealth }> {
+export async function getCopyIndex(options: CopyFeedOptions = {}): Promise<CopyIndexResult> {
   const base = feedBaseUrl();
   let failure: FeedFailure | null = null;
 
@@ -479,6 +500,7 @@ export async function getCopyIndex(
         nextFeedAttemptAt = 0;
         return {
           entries: result.snapshot.entries,
+          aliases: result.snapshot.aliases,
           health: computeFeedHealth({
             generatedAt: result.snapshot.generatedAt,
             status: result.snapshot.status,
@@ -511,6 +533,7 @@ export async function getCopyIndex(
   return {
     entries: [],
     health: { state: failure === "invalid" ? "invalid" : "none", generatedAt: null, status: null, source: "none" },
+    aliases: {},
   };
 }
 
@@ -522,11 +545,15 @@ export async function getCopyPortfolio(
   slug: string,
   options: CopyFeedOptions = {},
 ): Promise<CopyPortfolio | null> {
-  const canonical = canonicalSlug(slug);
-  if (!canonical) return null;
-
-  const { entries, health } = await getCopyIndex(options);
+  const { entries, health, aliases } = await getCopyIndex(options);
   if (health.state === "none") return null;
+
+  // Primero el mapa del índice (fuente de verdad D40), luego la lista fija.
+  const requested = slug.trim().toLowerCase();
+  const canonical =
+    (Object.prototype.hasOwnProperty.call(aliases, requested) ? aliases[requested] : undefined) ??
+    (entries.some((item) => item.slug === requested) ? requested : canonicalSlug(requested));
+  if (!canonical) return null;
 
   const entry = entries.find((item) => item.slug === canonical);
   if (!entry) return null;

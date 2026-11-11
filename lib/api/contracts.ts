@@ -738,13 +738,16 @@ export const revalidateBodySchema = z.preprocess(
       tag: z.literal("fraccion-feed").optional(),
       source: z.literal("fraccion.si").optional(),
       generated_at: z.string().trim().min(1).max(64).optional(),
-      status: z.enum(["ok", "parcial"]).optional(),
+      /** Contrato v1 de Faro (`fraccion.feed.ping.v1`): ok | partial | empty. */
+      status: z.enum(["ok", "partial", "empty"]).optional(),
       index_sha256: z
         .string()
         .trim()
         .regex(/^[0-9a-fA-F]{64}$/, "Hash inválido.")
         .optional(),
-      key_id: z.string().trim().min(1).max(64).optional(),
+      key_id: z.string().trim().min(1).max(120).optional(),
+      /** Solo pings de ejemplo de Fraccion; uno real no lo trae. */
+      example: z.boolean().optional(),
     })
     .strict(),
 );

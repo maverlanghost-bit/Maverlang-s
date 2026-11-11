@@ -134,7 +134,7 @@ export default async function CopiarPage({
   try {
     index = await getCopyIndex();
   } catch {
-    index = { entries: [], health: NO_FEED };
+    index = { entries: [], health: NO_FEED, aliases: {} };
   }
   const { entries, health } = index;
 

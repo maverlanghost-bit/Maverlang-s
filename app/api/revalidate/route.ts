@@ -10,8 +10,8 @@ import { PRICES_TAG } from "@/lib/services/underlying-prices.supabase";
 export const runtime = "nodejs";
 
 /**
- * Etiqueta de la caché del feed de Fraccion.si (§1.8): la misma constante que
- * usa `lib/copy/feed.ts` en `unstable_cache(..., { tags: [COPY_FEED_TAG] })`.
+ * Etiqueta de la caché del feed de Fraccion.si (§1.8). La usan `lib/copy/feed.ts`
+ * (`cacheTag("fraccion-feed")`) y este ping para invalidarla.
  */
 const FEED_TAG = COPY_FEED_TAG;
 
@@ -69,7 +69,26 @@ export async function POST(req: Request) {
     }
     // Exenta de Origin (la llama el export de Fraccion). parseJson acepta cuerpo vacío.
     assertSameOrigin(req);
-    await parseJson(req, revalidateBodySchema);
+    const ping = await parseJson(req, revalidateBodySchema);
+    // Contrato v1 (docs/FRACCION_FEED_FORMATO.md): el ping trae los seis campos.
+    if (
+      ping.source !== "fraccion.si" ||
+      !ping.generated_at ||
+      !ping.status ||
+      !ping.index_sha256 ||
+      !ping.key_id
+    ) {
+      return Response.json({ ok: false, error: "Ping del feed incompleto." }, { status: 400 });
+    }
+    if (ping.example === true && process.env.NODE_ENV === "production") {
+      return Response.json({ ok: false, error: "Ping de ejemplo." }, { status: 400 });
+    }
+    // Si Maverlang fija el key_id esperado, un ping de otra clave no invalida nada.
+    const expectedKeyId = process.env.FRACCION_FEED_ED25519_KEY_ID?.trim() ?? "";
+    if (expectedKeyId && ping.key_id !== expectedKeyId) {
+      return Response.json({ ok: false, error: "Clave del feed desconocida." }, { status: 409 });
+    }
+    // El ping solo avisa: el índice se vuelve a bajar y a verificar con la firma.
     revalidateTag(FEED_TAG, "max");
     return Response.json({ ok: true, tags: [FEED_TAG] });
   }
