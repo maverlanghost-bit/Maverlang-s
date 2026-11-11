@@ -42,11 +42,12 @@ export function MarketSectionChips({
             href={section.href}
             aria-current={current ? "page" : undefined}
             className={cn(
-              // Misma píldora que los chips del mercado: táctil y con foco visible.
-              "inline-flex min-h-11 shrink-0 items-center justify-center rounded-full px-3.5 text-[13px] font-medium whitespace-nowrap outline-none transition-all duration-150 ease-spring focus-visible:ring-4 focus-visible:ring-fg/20 active:scale-[0.98]",
+              // Misma píldora que los chips del mercado; el contorno inactivo
+              // usa `border-control` (3,74:1) para no parecer deshabilitado.
+              "inline-flex min-h-11 shrink-0 items-center justify-center rounded-full border px-3.5 text-[13px] font-medium whitespace-nowrap transition-colors duration-150 ease-spring active:scale-[0.98]",
               current
-                ? "bg-fg text-bg shadow-xs"
-                : "bg-surface-1/80 text-fg-muted hover:bg-surface-2 hover:text-fg",
+                ? "border-fg bg-fg text-bg shadow-xs"
+                : "border-border-control bg-bg text-fg hover:bg-surface-1",
             )}
           >
             {section.label}

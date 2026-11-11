@@ -85,7 +85,7 @@ export function FinalCTA() {
               className="mt-5 text-3xl leading-[1.06] tracking-tight text-balance sm:text-5xl lg:text-[52px]"
             >
               La bolsa de EE.UU. abre de 9:30 a 16:00.{" "}
-              <span className="text-fg-muted">El mercado on-chain sigue abierto.</span>
+              <span className="text-fg-body">El mercado on-chain sigue abierto.</span>
             </h2>
 
             <p className="mt-4 max-w-xl text-sm leading-relaxed text-balance text-fg-body sm:text-base">
@@ -125,7 +125,7 @@ export function FinalCTA() {
                   </div>
                 ))}
               </div>
-              <p className="border-t border-border/70 bg-surface-1/50 px-4 py-2.5 text-[11px] leading-relaxed text-fg-muted sm:px-5">
+              <p className="border-t border-border/70 bg-surface-1/50 px-4 py-2.5 text-xs leading-relaxed text-fg-muted sm:px-5">
                 Fuera del horario regular de la bolsa de EE.UU. (9:30 a 16:00, hora de Nueva York, lunes a
                 viernes) hay menos liquidez y el precio puede variar más.
               </p>
@@ -173,7 +173,7 @@ export function FinalCTA() {
                 <span className="inline-flex items-center justify-center rounded-2xl border border-border bg-surface-1 p-2">
                   <BrandMarkImage className="size-7" />
                 </span>
-                <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface-1 px-3 py-1 text-[11px] font-medium text-fg-body">
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface-1 px-3 py-1 text-xs font-medium text-fg-body">
                   <span aria-hidden="true" className="size-1.5 rounded-full bg-fg" />
                   Acceso prioritario · Cuenta Real
                 </span>
@@ -188,7 +188,7 @@ export function FinalCTA() {
               </p>
 
               <div className="mt-6 rounded-2xl border border-border/80 bg-surface-1/60 p-4 sm:p-5">
-                <WaitlistForm source="landing" />
+                <WaitlistForm source="landing" submitVariant="secondary" />
               </div>
 
               <ul className="mt-5 space-y-2.5 border-t border-border/70 pt-5">

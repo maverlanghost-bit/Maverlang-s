@@ -328,7 +328,7 @@ export function MixCart({
                   setAmountRaw(cleanAmount(event.target.value));
                   resetPlan();
                 }}
-                className="min-h-14 w-full min-w-0 bg-transparent font-mono text-2xl text-fg tabular-nums outline-none placeholder:text-fg-subtle"
+                className="min-h-14 w-full min-w-0 bg-transparent font-mono text-2xl text-fg tabular-nums outline-none placeholder:text-fg-muted"
               />
             </div>
             <div className="flex flex-wrap gap-2">

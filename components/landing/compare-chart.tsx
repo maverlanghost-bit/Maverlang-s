@@ -218,9 +218,8 @@ export function CompareChart({
       ) : null}
 
       {state === "empty" ? (
-        <p className="mt-6 rounded-2xl border border-dashed border-border px-4 py-6 text-sm leading-relaxed text-fg-muted">
-          El gráfico no está disponible ahora: necesita la serie pública de precios de ambos activos. El resto de la
-          página sigue igual.
+        <p className="mt-6 rounded-2xl border border-dashed border-border-strong bg-bg px-4 py-6 text-sm leading-relaxed text-fg-body">
+          El gráfico no está disponible ahora. El resto de la página sigue igual.
         </p>
       ) : null}
 
@@ -247,9 +246,8 @@ export function CompareChart({
                   <text
                     x={PAD_X}
                     y={tick.y - 4}
-                    className="num text-fg-subtle"
+                    className="num text-xs text-fg-muted"
                     fill="currentColor"
-                    fontSize={11}
                   >
                     {indexFormat.format(tick.value)}
                   </text>
@@ -270,9 +268,8 @@ export function CompareChart({
                   x={WIDTH - PAD_X}
                   y={geometry.hundredY - 4}
                   textAnchor="end"
-                  className="num text-fg-muted"
+                  className="num text-xs text-fg-muted"
                   fill="currentColor"
-                  fontSize={11}
                 >
                   100
                 </text>
@@ -302,7 +299,7 @@ export function CompareChart({
             <circle cx={geometry.rightEnd.x} cy={geometry.rightEnd.y} r={3} className="text-info" fill="currentColor" />
           </svg>
 
-          <div aria-hidden className="mt-1 flex justify-between text-[11px] text-fg-subtle">
+          <div aria-hidden className="mt-1 flex justify-between text-xs text-fg-muted">
             <span>Inicio del rango</span>
             <span>Último precio</span>
           </div>
@@ -326,7 +323,7 @@ export function CompareChart({
             </li>
           </ul>
 
-          <p className="mt-3 text-[11px] leading-relaxed text-fg-muted">
+          <p className="mt-3 text-xs leading-relaxed text-fg-muted">
             Series públicas de precios, base 100 al primer punto del rango. Las dos series pueden tener horarios
             distintos.
           </p>
@@ -389,7 +386,7 @@ export function ShareCompareButton({
       <button
         type="button"
         onClick={() => void share()}
-        className="inline-flex min-h-11 items-center gap-2 rounded-full border border-border bg-bg px-4 text-sm font-medium text-fg transition duration-[140ms] ease-spring hover:border-border-strong hover:bg-surface-2 focus-visible:ring-4 focus-visible:ring-fg/20 focus-visible:outline-none active:scale-[0.98]"
+        className="inline-flex min-h-11 items-center gap-2 rounded-full border border-border-control bg-bg px-4 text-sm font-medium text-fg transition duration-[140ms] ease-spring hover:bg-surface-2 active:scale-[0.98]"
       >
         <svg
           aria-hidden

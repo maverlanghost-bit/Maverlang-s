@@ -103,24 +103,23 @@ export function MarketHeatmap({ rows }: { rows: readonly MarketHeatmapRow[] }) {
             href={stockPath(row.symbol)}
             role="listitem"
             aria-label={`${row.symbol}, ${row.name}: ${variacion}, ${row.priceFormatted}`}
-            style={{
-              ...tono,
-              // Anillo de foco con el acento de marca.
-              outlineColor: "var(--color-brand, #059669)",
-            }}
+            style={tono}
             className={cn(
               "group flex min-h-24 min-w-0 flex-col justify-between gap-2 rounded-xl border p-3",
               "transition-[background-color,border-color,transform,box-shadow] duration-200",
               "ease-spring hover:-translate-y-0.5",
               "hover:shadow-[0_10px_24px_-14px_rgba(12,15,20,0.28)]",
-              "focus-visible:outline-2 focus-visible:outline-offset-2",
               "active:translate-y-0 motion-reduce:transition-none",
               "motion-reduce:hover:translate-y-0",
             )}
           >
             <span className="min-w-0">
-              <span className="block truncate font-semibold tracking-tight">{row.symbol}</span>
-              <span className="block truncate text-xs">{row.name}</span>
+              <span className="block truncate font-mono text-sm font-semibold tracking-tight" title={row.symbol}>
+                {row.symbol}
+              </span>
+              <span className="line-clamp-2 text-xs leading-tight" title={row.name}>
+                {row.name}
+              </span>
             </span>
             <span className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5">
               <span className="font-mono text-sm font-medium tabular-nums">{variacion}</span>

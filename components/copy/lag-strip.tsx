@@ -40,7 +40,7 @@ export function LagStrip({
   return (
     <div className={cn("flex flex-col gap-1 text-xs leading-relaxed text-fg-muted", className)}>
       <p>{parts.join(" · ")}</p>
-      {lagNote ? <p className="text-[11px] text-fg-subtle">{lagNote}</p> : null}
+      {lagNote ? <p className="text-xs leading-relaxed text-fg-muted">{lagNote}</p> : null}
     </div>
   );
 }

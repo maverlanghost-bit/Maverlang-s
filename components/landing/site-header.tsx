@@ -160,7 +160,8 @@ export function SiteHeader() {
         </nav>
 
         <div className="ml-auto flex shrink-0 items-center gap-2 md:ml-4">
-          <Button asChild size="md" className="min-h-11 px-4">
+          {/* D1: el header no lleva `primary`; el único negro de la vista es el CTA del hero. */}
+          <Button asChild variant="ghost" size="md" className="min-h-11 px-4">
             <Link href="/app/ingresar">Entrar</Link>
           </Button>
           <IconButton

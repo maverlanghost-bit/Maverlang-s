@@ -87,19 +87,19 @@ const QUICK_COMPARE = [
 const QUICK_COMPARE_MAX = 3;
 
 const CHIP_BASE =
-  "inline-flex min-h-11 touch-manipulation items-center justify-center rounded-full border px-4 text-sm font-medium tabular-nums outline-none transition-colors duration-[140ms] ease-spring focus-visible:ring-4 focus-visible:ring-fg/20 motion-safe:active:scale-[0.98] motion-reduce:transition-none";
+  "inline-flex min-h-11 touch-manipulation items-center justify-center rounded-full border px-4 text-sm font-medium tabular-nums transition-colors duration-[140ms] ease-spring motion-safe:active:scale-[0.98] motion-reduce:transition-none";
 
 const CONTROL_BASE =
-  "inline-flex h-9 touch-manipulation items-center gap-1.5 rounded-full border px-3 text-xs font-medium outline-none transition-colors duration-[140ms] ease-spring focus-visible:ring-4 focus-visible:ring-fg/20 motion-safe:active:scale-[0.98] motion-reduce:transition-none";
+  "inline-flex min-h-11 touch-manipulation items-center gap-1.5 rounded-full border px-3 text-xs font-medium transition-colors duration-[140ms] ease-spring sm:min-h-9 motion-safe:active:scale-[0.98] motion-reduce:transition-none";
 
 const CONTROL_ON = "border-fg bg-fg text-bg";
-const CONTROL_OFF = "border-border bg-bg text-fg-muted hover:border-border-strong hover:text-fg";
+const CONTROL_OFF = "border-border-control bg-bg text-fg-muted hover:border-fg hover:text-fg";
 
 const RANGE_BASE =
-  "inline-flex h-9 min-w-10 touch-manipulation items-center justify-center rounded-full border px-2.5 text-xs font-medium tabular-nums outline-none transition-colors duration-[140ms] ease-spring focus-visible:ring-4 focus-visible:ring-fg/20 motion-safe:active:scale-[0.98] motion-reduce:transition-none";
+  "inline-flex min-h-11 min-w-10 touch-manipulation items-center justify-center rounded-full border px-2.5 text-xs font-medium tabular-nums transition-colors duration-[140ms] ease-spring sm:min-h-9 motion-safe:active:scale-[0.98] motion-reduce:transition-none";
 
 const COMPARE_PILL_BASE =
-  "inline-flex min-h-9 shrink-0 touch-manipulation items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium outline-none transition-colors duration-[140ms] ease-spring focus-visible:ring-2 focus-visible:ring-fg/30 motion-safe:active:scale-[0.98] motion-reduce:transition-none";
+  "inline-flex min-h-11 shrink-0 touch-manipulation items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors duration-[140ms] ease-spring sm:min-h-9 motion-safe:active:scale-[0.98] motion-reduce:transition-none";
 
 const CHART_HEIGHT_REST = "h-60 sm:h-72 md:h-80";
 const CHART_HEIGHT_FULLSCREEN = "h-[64vh] min-h-[420px]";
@@ -527,7 +527,7 @@ export function LandingQuotePreview({ quote }: { quote: LandingQuote }) {
       aria-label="Comparar con otros activos"
       className="mb-2 flex flex-nowrap items-center gap-1.5 overflow-x-auto pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:flex-wrap sm:pb-0"
     >
-      <span className="shrink-0 text-[11px] font-medium text-fg-muted">+ Comparar:</span>
+      <span className="shrink-0 text-xs font-medium text-fg-muted">+ Comparar:</span>
       {compareActive ? (
         <button
           type="button"
@@ -570,7 +570,7 @@ export function LandingQuotePreview({ quote }: { quote: LandingQuote }) {
               className={cn(
                 COMPARE_PILL_BASE,
                 "border-transparent pr-1 text-fg",
-                focused && "ring-1 ring-fg/20",
+                focused && "ring-1 ring-fg",
               )}
             >
               <button
@@ -580,7 +580,7 @@ export function LandingQuotePreview({ quote }: { quote: LandingQuote }) {
                 onClick={() => setHighlightedLayerId(focused ? null : layerId)}
                 onFocus={() => setHighlightedLayerId(layerId)}
                 onBlur={() => setHighlightedLayerId(null)}
-                className="inline-flex min-h-6 touch-manipulation items-center gap-1.5 rounded-full px-1.5 outline-none focus-visible:ring-2 focus-visible:ring-fg/30"
+                className="inline-flex min-h-6 touch-manipulation items-center gap-1.5 rounded-full px-1.5"
               >
                 <span aria-hidden className="size-1.5 rounded-full" style={{ backgroundColor: option.color }} />
                 {option.symbol}
@@ -590,7 +590,7 @@ export function LandingQuotePreview({ quote }: { quote: LandingQuote }) {
                 title={`Quitar ${option.name}`}
                 aria-label={`Quitar ${option.name}`}
                 onClick={() => toggleCompare(option.symbol)}
-                className="inline-flex size-6 touch-manipulation items-center justify-center rounded-full text-fg-muted outline-none transition-colors hover:bg-fg/[0.06] hover:text-fg focus-visible:ring-2 focus-visible:ring-fg/30"
+                className="inline-flex size-7 touch-manipulation items-center justify-center rounded-full text-fg-muted transition-colors hover:bg-fg/[0.06] hover:text-fg"
               >
                 ×
               </button>
@@ -628,7 +628,7 @@ export function LandingQuotePreview({ quote }: { quote: LandingQuote }) {
             setHighlightedLayerId(null);
             setComparedSymbols([]);
           }}
-          className="inline-flex touch-manipulation items-center rounded-full px-2 py-1 text-[11px] font-medium text-fg-muted outline-none transition-colors hover:text-fg focus-visible:ring-2 focus-visible:ring-fg/30"
+          className="inline-flex touch-manipulation items-center rounded-full px-2 py-1 text-xs font-medium text-fg-muted transition-colors hover:text-fg"
         >
           Limpiar
         </button>
@@ -709,8 +709,8 @@ export function LandingQuotePreview({ quote }: { quote: LandingQuote }) {
             </div>
             {rangeGroup}
           </div>
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            {controlsGroup}
+          <div className="flex flex-wrap items-center justify-end gap-2 sm:justify-between">
+            <div className="hidden w-full sm:block sm:w-auto">{controlsGroup}</div>
             <button
               type="button"
               autoFocus
@@ -720,6 +720,16 @@ export function LandingQuotePreview({ quote }: { quote: LandingQuote }) {
               Cerrar pantalla completa (Esc)
             </button>
           </div>
+          {/* <sm: los controles del gráfico viven en un desplegable; no se pierde ninguno. */}
+          <details className="w-full sm:hidden">
+            <summary className="flex min-h-11 w-fit cursor-pointer items-center gap-1.5 text-sm font-medium text-fg">
+              Opciones del gráfico
+              <span aria-hidden className="text-fg-muted">
+                ▾
+              </span>
+            </summary>
+            <div className="mt-2">{controlsGroup}</div>
+          </details>
         </header>
       ) : null}
 
@@ -763,19 +773,19 @@ export function LandingQuotePreview({ quote }: { quote: LandingQuote }) {
         )}
       >
         <div>
-          <dt className="text-[11px] font-medium text-fg-muted">Apertura período</dt>
+          <dt className="text-xs font-medium text-fg-muted">Apertura período</dt>
           <dd className="num mt-0.5 text-xs font-semibold tabular-nums text-fg sm:text-sm">
             {stats.open === null ? "—" : formatMoney(stats.open, "USD")}
           </dd>
         </div>
         <div>
-          <dt className="text-[11px] font-medium text-fg-muted">Promedio período</dt>
+          <dt className="text-xs font-medium text-fg-muted">Promedio período</dt>
           <dd className="num mt-0.5 text-xs font-semibold tabular-nums text-fg sm:text-sm">
             {stats.avg === null ? "—" : formatMoney(stats.avg, "USD")}
           </dd>
         </div>
         <div>
-          <dt className="text-[11px] font-medium text-fg-muted">Máx / Mín</dt>
+          <dt className="text-xs font-medium text-fg-muted">Máx / Mín</dt>
           <dd className="num mt-0.5 text-xs font-semibold leading-snug tabular-nums text-fg sm:text-sm">
             {stats.high === null ? "—" : formatMoney(stats.high, "USD")}
             <span className="text-fg-muted"> · </span>
@@ -783,7 +793,7 @@ export function LandingQuotePreview({ quote }: { quote: LandingQuote }) {
           </dd>
         </div>
         <div>
-          <dt className="text-[11px] font-medium text-fg-muted">Amplitud del rango</dt>
+          <dt className="text-xs font-medium text-fg-muted">Amplitud del rango</dt>
           <dd className="num mt-0.5 text-xs font-semibold tabular-nums text-fg sm:text-sm">{amplitude}</dd>
         </div>
       </dl>
@@ -877,7 +887,7 @@ export function LandingQuotePreview({ quote }: { quote: LandingQuote }) {
         </span>
         <Link
           href={quote.href}
-          className="inline-flex min-h-11 items-center rounded-full border border-border bg-bg px-4 text-sm font-medium text-fg outline-none transition-colors duration-[140ms] ease-spring hover:border-border-strong focus-visible:ring-4 focus-visible:ring-fg/20 motion-reduce:transition-none"
+          className="inline-flex min-h-11 items-center rounded-full border border-border-control bg-bg px-4 text-sm font-medium text-fg transition-colors duration-[140ms] ease-spring hover:bg-surface-2 motion-reduce:transition-none"
         >
           Ver ficha completa de {quote.symbol} →
         </Link>

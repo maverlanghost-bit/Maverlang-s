@@ -152,7 +152,7 @@ export default async function CopyPositionsPage({
             {showPositions ? `${total} posiciones` : "Composición bloqueada"}
           </Badge>
         </div>
-        <h1 className="text-2xl font-semibold tracking-tight text-balance sm:text-3xl">
+        <h1 className="text-3xl font-semibold tracking-tight text-balance sm:text-4xl">
           Posiciones de {meta.name}
         </h1>
         <p className="text-sm text-fg-muted">

@@ -1,10 +1,9 @@
-import type { ComponentType, ReactNode, SVGProps } from "react";
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { AnnouncementPill } from "@/components/landing/announcement-pill";
-import { LandingPrice } from "@/components/landing/live-landing-prices";
+import { LandingLiveBadge, LandingPrice } from "@/components/landing/live-landing-prices";
 import { TickerRow } from "@/components/domain/ticker-row";
 import { Button } from "@/components/ui/button";
-import { IconChart, IconClock, IconWallet } from "@/components/ui/icons";
 import { esCL } from "@/content/i18n/es-CL";
 import { landingNotice } from "@/lib/landing/live-quotes";
 import { LANDING_MIN_ORDER_USD } from "@/lib/market/asset-status.shared";
@@ -14,24 +13,20 @@ import { cn } from "@/lib/cn";
 /**
  * Copy en uso:
  * H1: "Acciones de EE.UU. tokenizadas, en tu billetera"
- * Línea bajo el H1: "Comprar acciones de EE.UU. desde Chile."
- * Subtítulo: "Compra fracciones desde US$10. El token queda en tu propia billetera —nosotros no custodiamos tus activos—, compras en dólares (US$) y operas 24/7."
- * CTAs: "Prueba la demo gratis" → /app/registro · "Ver acciones" → /acciones · "Cómo funciona" → #como-funciona
+ * Dek: "Acciones de EE.UU. desde Chile: fracciones desde US$10 y operas 24/7.
+ *   Compras en dólares (US$) y el token queda en tu propia billetera —nosotros
+ *   no custodiamos tus activos—."
+ * CTAs: "Prueba la demo gratis" (primario) → /app/registro · "Ver acciones"
+ *   (secundario) → /acciones · "Cómo funciona" (enlace de texto) → /#como-funciona
+ * Nota: "Practica con US$10.000 ficticios y precios reales." vive en la
+ *   cabecera de la tarjeta de cotizaciones; el aviso de horario, al pie de la
+ *   cinta de precios. Se reubicaron: no se borró ninguno.
  *
  * ALTERNATIVA:
  * H1: "El token es tuyo, en tu propia billetera"
- * Subtítulo: "Fracciones de acciones de EE.UU. desde US$10, comprando en dólares (US$). Operas 24/7."
- *
  * ALTERNATIVA:
  * H1: "Fracciones de EE.UU. en Solana, comprando en dólares"
- * Subtítulo: "Tokenizadas, desde US$10, en tu billetera. Operas 24/7, sin cuenta en una corredora de EE.UU."
  */
-
-const trustChips: { label: string; Icon: ComponentType<SVGProps<SVGSVGElement>> }[] = [
-  { label: "Opera 24/7 on-chain", Icon: IconClock },
-  { label: "En tu propia billetera, sin custodia", Icon: IconWallet },
-  { label: "Más de 400 activos", Icon: IconChart },
-];
 
 /** Pie de la terminal: tres datos duros, sin adornos. */
 const terminalMetrics: { label: string; value: string; mono?: boolean }[] = [
@@ -60,9 +55,15 @@ function Reveal({
  * Precios reales en dólares cuando la fuente responde (M42); si no, la
  * muestra con "Precios ilustrativos". Sin series: el historial live no
  * es real. Sólo los números son cliente (`<LandingPrice>`).
+ *
+ * Un H1 + un dek de 16 px: el resto del microtexto (nota de práctica y aviso
+ * de horario) se movió a donde se lee, no se eliminó.
  */
 export function Hero({ quotes, live }: { quotes: LandingQuote[]; live: boolean }) {
-  const heroQuotes = quotes.filter((quote) => HERO_SYMBOLS.has(quote.symbol));
+  const heroFiltered = quotes.filter((quote) => HERO_SYMBOLS.has(quote.symbol));
+  // Si el catálogo llega sin los símbolos de la portada, se muestran los
+  // primeros cuatro: mejor una tarjeta con datos reales que una vacía.
+  const heroQuotes = (heroFiltered.length > 0 ? heroFiltered : quotes).slice(0, 4);
 
   return (
     <section className="relative isolate overflow-hidden px-4 pt-7 pb-14 sm:px-5 md:pt-16 md:pb-24 lg:pt-20">
@@ -81,21 +82,18 @@ export function Hero({ quotes, live }: { quotes: LandingQuote[]; live: boolean }
         <Reveal delay={80} className="w-full">
           <AnnouncementPill />
         </Reveal>
+
         <Reveal delay={160} className="mt-6 w-full">
           <h1 className="text-[32px] leading-[1.06] tracking-tight text-balance min-[400px]:text-4xl sm:text-5xl lg:text-6xl">
             Acciones de EE.UU. tokenizadas, en tu billetera
           </h1>
-          <p className="mx-auto mt-3 max-w-2xl text-sm font-medium leading-relaxed text-balance text-fg sm:text-base">
-            Comprar acciones de EE.UU. desde Chile.
+          <p className="mx-auto mt-5 max-w-xl text-base leading-relaxed text-balance text-fg-body">
+            Acciones de EE.UU. desde Chile: fracciones desde US${LANDING_MIN_ORDER_USD} y operas 24/7.
+            Compras en dólares (US$) y el token queda en tu propia billetera —nosotros no custodiamos tus activos—.
           </p>
         </Reveal>
-        <Reveal delay={240} className="mt-4 w-full">
-          <p className="mx-auto max-w-2xl text-sm leading-relaxed text-balance text-fg-body sm:text-base">
-            Compra fracciones desde US${LANDING_MIN_ORDER_USD}. El token queda en tu propia billetera
-            —nosotros no custodiamos tus activos—, compras en dólares (US$) y operas 24/7.
-          </p>
-        </Reveal>
-        <Reveal delay={320} className="mt-8 w-full">
+
+        <Reveal delay={240} className="mt-8 w-full">
           <div className="flex w-full flex-col items-stretch gap-3 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center sm:justify-center">
             <Button asChild size="md" className="min-h-11 w-full sm:w-auto">
               <Link href="/app/registro">Prueba la demo gratis</Link>
@@ -103,55 +101,34 @@ export function Hero({ quotes, live }: { quotes: LandingQuote[]; live: boolean }
             <Button asChild variant="secondary" size="md" className="min-h-11 w-full sm:w-auto">
               <Link href="/acciones">{esCL.guest.seeStocks}</Link>
             </Button>
-            <Button asChild variant="ghost" size="md" className="min-h-11 w-full sm:w-auto">
-              <Link href="/#como-funciona">Cómo funciona</Link>
-            </Button>
+            <Link
+              href="/#como-funciona"
+              className="inline-flex min-h-11 items-center justify-center text-sm font-medium text-fg underline decoration-border underline-offset-4 hover:decoration-fg sm:ml-1"
+            >
+              Cómo funciona
+            </Link>
           </div>
-          <p className="mt-3 text-xs leading-relaxed text-fg-muted">
-            Practica con US$10.000 ficticios y precios reales.
-          </p>
-          <ul className="mx-auto mt-6 flex max-w-2xl flex-wrap items-center justify-center gap-2">
-            {trustChips.map((chip) => (
-              <li
-                key={chip.label}
-                className="inline-flex items-center gap-1.5 rounded-full border border-border/80 bg-bg/70 px-3 py-1.5 text-xs leading-snug text-fg-body backdrop-blur-sm sm:text-sm"
-              >
-                <chip.Icon className="size-3.5 shrink-0 text-fg-muted" />
-                {chip.label}
-              </li>
-            ))}
-          </ul>
-          <p className="mx-auto mt-3 max-w-2xl text-[11px] leading-relaxed text-balance text-fg-muted sm:text-xs">
-            Operar on-chain es 24/7; fuera del horario de la bolsa de EE.UU. (9:30 a 16:00, hora de Nueva
-            York, lunes a viernes) hay menos liquidez y el precio puede variar más.
-          </p>
         </Reveal>
       </div>
 
-      <Reveal delay={400} className="mx-auto mt-10 w-full max-w-2xl sm:mt-14 md:mt-16">
-        <div className="rounded-3xl border border-border/80 bg-white/95 p-4 shadow-[0_18px_50px_-24px_rgba(10,10,10,0.10)] backdrop-blur-sm sm:p-6">
-          {/* Cabecera ejecutiva sin semáforos ni barra de URL */}
-          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/70 pb-3.5 text-xs text-fg-muted">
-            <div className="inline-flex items-center gap-2">
-              <span
-                aria-hidden="true"
-                className="size-1.5 rounded-full bg-up motion-safe:animate-pulse motion-reduce:animate-none"
-              />
-              <span className="font-medium text-fg">Cotizaciones 24/7</span>
-              <span aria-hidden="true" className="text-border-strong">
-                ·
-              </span>
-              <span>xStocks en Solana</span>
+      <Reveal delay={320} className="mx-auto mt-10 w-full max-w-2xl sm:mt-14 md:mt-16">
+        <div className="rounded-3xl border border-border bg-bg p-4 shadow-[0_18px_50px_-24px_rgba(10,10,10,0.10)] sm:p-6">
+          {/* Cabecera: origen de las cotizaciones y la nota de práctica. */}
+          <div className="border-b border-border pb-3.5">
+            <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5">
+              <p className="inline-flex flex-wrap items-center gap-x-2 text-xs text-fg-muted">
+                <span className="font-medium text-fg">Cotizaciones 24/7</span>
+                <span aria-hidden="true" className="text-fg-muted">
+                  ·
+                </span>
+                <span>xStocks en Solana</span>
+              </p>
+              <LandingLiveBadge live={live} />
             </div>
-            <div className="flex items-center gap-2">
-              <span className={cn("label text-[10px]", live && "text-up")}>
-                {live ? "En vivo" : "Ejemplo"}
-              </span>
-              <span aria-hidden="true" className="text-border-strong">
-                ·
-              </span>
-              <span className="text-xs text-fg-muted">{landingNotice(live)}</span>
-            </div>
+            <p className="mt-1.5 text-xs leading-relaxed text-fg-muted">
+              Practica con US$10.000 ficticios y precios reales.{" "}
+              {live ? "Precios en dólares (US$)." : `${landingNotice(false)}.`}
+            </p>
           </div>
 
           {/* Lista limpia de cotizaciones */}
@@ -178,10 +155,10 @@ export function Hero({ quotes, live }: { quotes: LandingQuote[]; live: boolean }
           </ul>
 
           {/* Pie de métricas clave */}
-          <dl className="mt-5 grid grid-cols-3 gap-2.5 border-t border-border/70 pt-4 sm:gap-8">
+          <dl className="mt-5 grid grid-cols-3 gap-2.5 border-t border-border pt-4 sm:gap-8">
             {terminalMetrics.map((metric) => (
               <div key={metric.label} className="min-w-0">
-                <dt className="label text-[10px] text-fg-muted">{metric.label}</dt>
+                <dt className="label text-xs">{metric.label}</dt>
                 <dd
                   className={cn(
                     "mt-1 text-xs leading-snug break-words text-fg min-[400px]:text-sm sm:text-base",

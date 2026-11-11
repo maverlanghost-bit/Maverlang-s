@@ -76,7 +76,7 @@ function StatusPill({
   const dotClass = tone === "up" ? "bg-up" : "bg-fg-muted";
   return (
     <span
-      className={`inline-flex min-h-6 items-center gap-1.5 rounded-full border px-2.5 text-[11px] leading-5 font-medium ${toneClass}`}
+      className={`inline-flex min-h-6 items-center gap-1.5 rounded-full border px-2.5 text-xs leading-5 font-medium ${toneClass}`}
     >
       <span aria-hidden className={`size-1.5 shrink-0 rounded-full ${dotClass}`} />
       {children}
@@ -86,7 +86,7 @@ function StatusPill({
 
 function DepositMock() {
   return (
-    <div className="rounded-2xl border border-border bg-surface-1 p-4 shadow-[0_1px_2px_rgba(10,10,10,0.03)]">
+    <div className="rounded-2xl border border-border bg-bg p-4 shadow-[0_1px_2px_rgba(10,10,10,0.03)]">
       <p className="label">Ejemplo de saldo demo</p>
       <PriceText value={10000} currency="USD" size="md" className="mt-2 block" />
       <p className="mt-1.5 text-sm text-fg-muted">US$10.000 ficticios · precios reales</p>
@@ -99,7 +99,7 @@ function DepositMock() {
 
 function PickMock({ quote, live }: { quote: LandingQuote; live: boolean }) {
   return (
-    <div className="rounded-2xl border border-border bg-surface-1 p-2 shadow-[0_1px_2px_rgba(10,10,10,0.03)]">
+    <div className="rounded-2xl border border-border bg-bg p-4 shadow-[0_1px_2px_rgba(10,10,10,0.03)]">
       <TickerRow
         href={quote.href}
         symbol={quote.symbol}
@@ -115,12 +115,12 @@ function PickMock({ quote, live }: { quote: LandingQuote; live: boolean }) {
           />
         }
       />
-      <p className="mt-2 px-2 text-xs text-fg-muted">{landingNotice(live)}</p>
-      <div className="mt-2 flex flex-wrap items-center justify-between gap-2 border-t border-border px-2 pt-2.5 pb-1">
+      <p className="mt-3 text-xs leading-relaxed text-fg-muted">{landingNotice(live)}</p>
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-border pt-3">
         <StatusPill tone={live ? "up" : "neutral"}>
           {live ? "Cotización en vivo" : "Cotización de referencia"}
         </StatusPill>
-        <span aria-hidden className="num text-[11px] tracking-[0.08em] text-fg-muted uppercase">
+        <span aria-hidden className="num text-xs tracking-[0.06em] text-fg-muted uppercase">
           {quote.symbol}
         </span>
       </div>
@@ -130,7 +130,7 @@ function PickMock({ quote, live }: { quote: LandingQuote; live: boolean }) {
 
 function OwnedMock({ quote }: { quote: LandingQuote }) {
   return (
-    <div className="rounded-2xl border border-border bg-surface-1 p-4 shadow-[0_1px_2px_rgba(10,10,10,0.03)]">
+    <div className="rounded-2xl border border-border bg-bg p-4 shadow-[0_1px_2px_rgba(10,10,10,0.03)]">
       <div className="flex items-center gap-3">
         <TickerLogo symbol={quote.symbol} name={quote.name} logoUrl={quote.logo} size={40} decorative loading="lazy" sizes="40px" />
         <span className="min-w-0 flex-1">
@@ -152,7 +152,16 @@ function OwnedMock({ quote }: { quote: LandingQuote }) {
  * queda en neutro ("cuando haya cuentas reales"), sin afirmar pesos como
  * método activo.
  */
-export function HowItWorks({ quotes, live }: { quotes: LandingQuote[]; live: boolean }) {
+export function HowItWorks({
+  quotes,
+  live,
+  showIntro = true,
+}: {
+  quotes: LandingQuote[];
+  live: boolean;
+  /** En /como-funciona el titular de la página ya presenta la sección. */
+  showIntro?: boolean;
+}) {
   const sampleQuote = quotes.find((quote) => quote.symbol === "AAPLx") ?? quotes[0];
 
   const steps: {
@@ -191,38 +200,45 @@ export function HowItWorks({ quotes, live }: { quotes: LandingQuote[]; live: boo
 
   return (
     <LandingSection id="como-funciona" titleId="como-funciona-title">
-      <Reveal>
-        <SectionIntro id="como-funciona-title" title="Tres pasos, en dólares (US$)">
-          Practicas con US$10.000 ficticios, eliges la acción y el token queda en tu propia billetera, sin custodia de nuestra parte. Los montos de abajo son ejemplos. Cuando haya cuentas reales, el depósito y su costo se muestran en ese paso.
-        </SectionIntro>
-      </Reveal>
+      {showIntro ? (
+        <Reveal>
+          <SectionIntro id="como-funciona-title" title="Tres pasos, en dólares (US$)">
+            Practicas con US$10.000 ficticios, eliges la acción y el token queda en tu propia billetera, sin custodia de nuestra parte. Los montos de abajo son ejemplos. Cuando haya cuentas reales, el depósito y su costo se muestran en ese paso.
+          </SectionIntro>
+        </Reveal>
+      ) : (
+        <h2 id="como-funciona-title" className="sr-only">
+          Tres pasos, en dólares (US$)
+        </h2>
+      )}
       <ol className="mt-10 grid list-none gap-4 md:mt-14 md:grid-cols-3">
         {steps.map((step, index) => (
           <li key={step.title} className="relative h-full">
             <Reveal delay={(index + 1) * REVEAL_STAGGER_MS} className="h-full">
-              <article className="flex h-full flex-col rounded-3xl border border-border bg-bg p-5 shadow-[0_1px_2px_rgba(10,10,10,0.04)] md:p-6">
-                <header className="border-b border-border pb-5">
-                  <div className="flex items-start justify-between gap-3">
+              <article className="flex h-full flex-col rounded-3xl bg-surface-1 p-5 shadow-card md:p-6">
+                <header className="border-b border-border pb-4">
+                  <div className="flex items-center justify-between gap-3">
                     <p
                       aria-hidden
-                      className="num text-[2rem] leading-none font-medium tracking-tight text-fg"
+                      className="num text-lg leading-none font-medium tracking-tight text-fg-muted"
                     >
                       {step.number}
                     </p>
                     <span
                       aria-hidden
-                      className="grid size-10 shrink-0 place-items-center rounded-2xl border border-border bg-surface-1 text-fg"
+                      className="grid size-10 shrink-0 place-items-center rounded-2xl border border-border bg-bg text-fg"
                     >
                       {step.icon}
                     </span>
                   </div>
-                  <p className="label mt-4">{step.label}</p>
+                  <p className="label mt-3 tracking-[0.06em] text-fg-body">{step.label}</p>
                 </header>
 
-                <h3 className="mt-5 text-base leading-relaxed">{step.title}</h3>
+                <h3 className="mt-4 text-base leading-relaxed">{step.title}</h3>
                 <p className="mt-2 text-sm leading-relaxed text-fg-body">{step.body}</p>
 
-                <div className="mt-auto pt-5">{step.mock}</div>
+                {/* Slot fijo: los mocks arrancan a la misma altura en las tres tarjetas. */}
+                <div className="mt-5 min-h-[7.5rem]">{step.mock}</div>
               </article>
             </Reveal>
             {index < steps.length - 1 ? (

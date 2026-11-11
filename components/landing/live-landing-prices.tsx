@@ -32,6 +32,8 @@ export interface LandingInitial {
 interface LandingLiveState {
   initialBySymbol: ReadonlyMap<string, LandingInitial>;
   liveBySymbol: ReadonlyMap<string, Quote>;
+  /** true cuando el último refetch falló: el número visible es el último conocido. */
+  stale: boolean;
 }
 
 const LandingLiveContext = createContext<LandingLiveState | null>(null);
@@ -68,8 +70,11 @@ export function LiveLandingPrices({
         initial.map((quote) => [quote.symbol, { priceUsd: quote.priceUsd, change: quote.change }]),
       ),
       liveBySymbol: new Map((query.data ?? []).map((quote) => [quote.symbol, quote])),
+      // El refetch que falla deja el último precio bueno en pantalla: se
+      // avisa como «último precio conocido» en vez de «en vivo».
+      stale: live && (query.isError || query.isRefetchError),
     }),
-    [initial, query.data],
+    [initial, query.data, live, query.isError, query.isRefetchError],
   );
   return <LandingLiveContext.Provider value={value}>{children}</LandingLiveContext.Provider>;
 }
@@ -88,6 +93,44 @@ export function useLandingQuote(symbol: string, initial?: LandingInitial): { pri
   }
   const fallback = initial ?? state.initialBySymbol.get(symbol);
   return { priceUsd: fallback?.priceUsd ?? 0, change: fallback?.change ?? 0 };
+}
+
+/**
+ * Estado del origen de los precios para la etiqueta de la portada. Fuera del
+ * provider devuelve `stale: false` (la etiqueta es presentacional; el dato
+ * sigue saliendo de `useLandingQuote`, que sí exige el provider).
+ */
+export function useLandingStatus(): { stale: boolean } {
+  const state = useContext(LandingLiveContext);
+  return { stale: state?.stale ?? false };
+}
+
+/**
+ * Etiqueta del origen de las cotizaciones. Sin `live` es una muestra; si el
+ * último refetch falló, el número en pantalla es el último bueno y se avisa
+ * con punto `warn` en vez de verde: nunca se dice «en vivo» sobre un dato
+ * viejo.
+ */
+export function LandingLiveBadge({ live }: { live: boolean }) {
+  const { stale } = useLandingStatus();
+  const state = !live ? "sample" : stale ? "stale" : "live";
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-1.5 text-xs font-medium",
+        state === "stale" ? "text-warn" : state === "live" ? "text-up" : "text-fg-muted",
+      )}
+    >
+      <span
+        aria-hidden
+        className={cn(
+          "size-1.5 shrink-0 rounded-full",
+          state === "stale" ? "bg-warn" : state === "live" ? "bg-up" : "bg-fg-muted",
+        )}
+      />
+      {state === "stale" ? "Último precio conocido" : state === "live" ? "En vivo" : "Ejemplo"}
+    </span>
+  );
 }
 
 /**

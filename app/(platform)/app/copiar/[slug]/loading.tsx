@@ -21,7 +21,7 @@ export default function CopyPortfolioLoading() {
       <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_19rem]">
         <div className="flex min-w-0 flex-col gap-6">
           <Skeleton className="h-56 w-full rounded-2xl" />
-          <div className="flex flex-col gap-3 rounded-2xl border border-border/70 bg-surface-1 p-5 md:p-6">
+          <div className="flex flex-col gap-3 rounded-2xl bg-surface-1 p-5 shadow-card md:p-6">
             <Skeleton className="h-5 w-40" />
             {Array.from({ length: 6 }, (_, index) => (
               <Skeleton key={index} className="h-9 w-full" />

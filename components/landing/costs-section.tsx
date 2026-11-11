@@ -4,6 +4,7 @@ import { Reveal } from "@/components/landing/reveal";
 import { Card } from "@/components/ui/card";
 import { site } from "@/config/site";
 import { REVEAL_STAGGER_MS } from "@/lib/hooks/reveal-motion";
+import { cn } from "@/lib/cn";
 
 const rows: { concept: string; detail: string }[] = [
   {
@@ -32,15 +33,31 @@ const rows: { concept: string; detail: string }[] = [
 
 const badges: string[] = ["Desglose previo a firmar", "Red Solana ultrarrápida"];
 
-export function CostsSection() {
+/** Degradado corto: avisa que la tabla sigue sin tapar la primera letra. */
+const EDGE_MASK = "[mask-image:linear-gradient(90deg,transparent,#000_2%,#000_98%,transparent)]";
+
+const INTRO_TITLE = "Lo que pagas, antes de confirmar";
+
+/**
+ * Costos de la compra. `showIntro={false}` lo usa /costos, que ya trae ese
+ * texto como titular de página: no se repite a la vista, pero el ancla de la
+ * sección (`#costos-title`) se conserva para el `aria-labelledby`.
+ */
+export function CostsSection({ showIntro = true }: { showIntro?: boolean }) {
   return (
     <LandingSection id="costos" titleId="costos-title">
-      <Reveal>
-        <SectionIntro id="costos-title" title="Lo que pagas, antes de confirmar">
-          La comisión de lanzamiento es 0%. El resto depende del mercado, la red y el proveedor. Si hay
-          que crear la cuenta del activo, ese costo también aparece en el desglose.
-        </SectionIntro>
-      </Reveal>
+      {showIntro ? (
+        <Reveal>
+          <SectionIntro id="costos-title" title={INTRO_TITLE}>
+            La comisión de lanzamiento es 0%. El resto depende del mercado, la red y el proveedor. Si hay
+            que crear la cuenta del activo, ese costo también aparece en el desglose.
+          </SectionIntro>
+        </Reveal>
+      ) : (
+        <h2 id="costos-title" className="sr-only">
+          {INTRO_TITLE}
+        </h2>
+      )}
       <div className="mt-10 grid gap-4 md:mt-14 lg:grid-cols-5 lg:gap-6">
         <Reveal delay={REVEAL_STAGGER_MS} className="lg:col-span-2">
           <Card className="flex h-full flex-col gap-8 rounded-3xl p-6 md:p-8">
@@ -80,15 +97,27 @@ export function CostsSection() {
               <p className="label">Desglose de costos</p>
               <p className="text-xs text-fg-muted">Se muestra antes de confirmar</p>
             </div>
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[32rem] text-left text-sm">
+
+            {/* <sm: un bloque por concepto. La tabla de 512px no cabe en 390px. */}
+            <dl aria-label="Desglose de costos" className="divide-y divide-border sm:hidden">
+              {rows.map((row) => (
+                <div key={row.concept} className="px-5 py-4">
+                  <dt className="text-sm font-medium leading-relaxed text-fg">{row.concept}</dt>
+                  <dd className="mt-1 text-sm leading-relaxed text-fg-body">{row.detail}</dd>
+                </div>
+              ))}
+            </dl>
+
+            {/* ≥sm: la tabla de siempre, con scroll y degradado si no cabe. */}
+            <div className={cn("hidden overflow-x-auto sm:block", EDGE_MASK)}>
+              <table className="w-full text-left text-sm md:min-w-[32rem]">
                 <caption className="sr-only">Costos de {site.name}</caption>
                 <thead>
                   <tr className="border-b border-border">
-                    <th scope="col" className="label px-5 py-3 font-medium md:px-7">
+                    <th scope="col" className="label px-5 py-3 md:px-7">
                       Concepto
                     </th>
-                    <th scope="col" className="label px-5 py-3 font-medium md:px-7">
+                    <th scope="col" className="label px-5 py-3 md:px-7">
                       Qué pagas
                     </th>
                   </tr>
@@ -105,7 +134,7 @@ export function CostsSection() {
                       >
                         {row.concept}
                       </th>
-                      <td className="px-5 py-4 align-top leading-relaxed text-fg-muted md:px-7 md:py-5">
+                      <td className="px-5 py-4 align-top leading-relaxed text-fg-body md:px-7 md:py-5">
                         {row.detail}
                       </td>
                     </tr>

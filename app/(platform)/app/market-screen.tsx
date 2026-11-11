@@ -123,19 +123,25 @@ function moversOfPriced(rows: readonly PricedItem[], limit = 3): PricedItem[] {
     .slice(0, limit);
 }
 
+/**
+ * Píldora de criterio. El inactivo lleva contorno `border-control` (3,74:1):
+ * antes era un relleno gris a 1,06:1 y parecía deshabilitado.
+ */
+const chipClass =
+  "inline-flex min-h-11 shrink-0 scroll-mx-5 items-center justify-center rounded-full border px-3.5 text-[13px] font-medium whitespace-nowrap transition-colors duration-150 ease-spring active:scale-[0.98]";
+const chipActiveClass = "border-fg bg-fg text-bg shadow-xs";
+const chipIdleClass = "border-border-control bg-bg text-fg hover:bg-surface-1";
+
 function ChipGroup<T extends string>({
-  labelId,
+  ariaLabel,
   value,
   options,
   onChange,
-  bare = false,
 }: {
-  labelId: string;
+  ariaLabel: string;
   value: T;
   options: readonly { value: T; label: string }[];
   onChange: (value: T) => void;
-  /** N19: sin scroll propio, para vivir dentro de una tira combinada. */
-  bare?: boolean;
 }) {
   const baseId = useId();
 
@@ -152,8 +158,8 @@ function ChipGroup<T extends string>({
   return (
     <div
       role="radiogroup"
-      aria-labelledby={labelId}
-      className={bare ? "flex shrink-0 items-center gap-2 py-1" : "flex min-w-0 gap-2 overflow-x-auto p-1"}
+      aria-label={ariaLabel}
+      className="-mx-5 flex min-w-0 items-center gap-2 overflow-x-auto scroll-px-5 px-5 pb-0.5 [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 [&::-webkit-scrollbar]:hidden"
       onKeyDown={(event) => {
         if (indexFromKey(event.key, 0, options.length) === null) return;
         event.preventDefault();
@@ -171,14 +177,7 @@ function ChipGroup<T extends string>({
             aria-checked={selected}
             tabIndex={selected ? 0 : -1}
             onClick={() => onChange(option.value)}
-            className={cn(
-              // Píldora broker pro (x.ai/bot light): compacta, táctil, con el
-              // rango activo en negativo de alto contraste.
-              "inline-flex min-h-11 shrink-0 items-center justify-center rounded-full px-3.5 text-[13px] font-medium whitespace-nowrap outline-none transition-all duration-150 ease-spring focus-visible:ring-4 focus-visible:ring-fg/20 active:scale-[0.98]",
-              selected
-                ? "bg-fg text-bg shadow-xs"
-                : "bg-surface-1/80 text-fg-muted hover:bg-surface-2 hover:text-fg",
-            )}
+            className={cn(chipClass, selected ? chipActiveClass : chipIdleClass)}
           >
             {option.label}
           </button>
@@ -201,7 +200,7 @@ function ResultsSkeleton({ label }: { label: string }) {
       </div>
       <div className="flex flex-col gap-2" aria-hidden>
         {["a", "b", "c", "d", "e", "f"].map((key) => (
-          <div key={key} className="min-h-14 w-full rounded-2xl bg-surface-2" />
+          <div key={key} className="min-h-16 w-full rounded-2xl bg-surface-2" />
         ))}
       </div>
     </div>
@@ -220,7 +219,7 @@ export function MarketScreen({
   const pathname = usePathname();
   const filtersLabelId = useId();
   const sortLabelId = useId();
-  const filterSortLabelId = useId();
+  const filtersPanelId = useId();
   const moversTitleId = useId();
 
   const [filter, setFilter] = useState<MarketFilter>(() => parseFilter(initialFilter));
@@ -232,6 +231,8 @@ export function MarketScreen({
   const [page, setPage] = useState(1);
   // Vista por defecto: lista. El DOM de la lista no cambia cuando view === "list".
   const [view, setView] = useState<MarketView>("list");
+  // En <sm las categorías viven detrás de «Filtros · X ▾»; desde sm se ven siempre.
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   // Favoritas vive en este navegador: el servidor devuelve todo y se filtra aquí.
   const serverCategory = filter === "favorites" ? "all" : filter;
@@ -464,6 +465,18 @@ export function MarketScreen({
     { value: "list", label: "Lista" },
     { value: "heatmap", label: "Mapa de calor" },
   ];
+  const activeFilterLabel = filterOptions.find((option) => option.value === filter)?.label ?? t.market.all;
+  const filtersTitle = language === "en" ? "Category" : "Categoría";
+  const currencyNote = (() => {
+    if (currency !== "CLP") return language === "en" ? "Prices in US$" : "Precios en US$";
+    if (fx.isPending) return language === "en" ? "Prices in CLP" : "Precios en CLP";
+    if (fxKnown && typeof rate === "number") {
+      const ref = formatMoney(rate, "CLP");
+      return language === "en" ? `Prices in CLP · ref. dollar ${ref}` : `Precios en CLP · dólar ref. ${ref}`;
+    }
+    return language === "en" ? "US$ · no exchange rate" : "US$ · sin tipo de cambio";
+  })();
+  const loadMoreLabel = language === "en" ? `Load ${PAGE_SIZE} more` : `Cargar ${PAGE_SIZE} más`;
 
   /** Punto de estado por fila desde el catálogo (M39): sin pedir la API por fila. */
   function dotFor(item: MarketSearchItem): { kind: "open" | "closed" | "halted"; label: string } | null {
@@ -499,6 +512,7 @@ export function MarketScreen({
 
   const emptyTitle = `${t.market.emptyFor} «${t.market[filter]}»`;
   const reduceMotion = useReducedMotion();
+  const loadedPct = total > 0 ? Math.min(100, Math.round((listRows.length / total) * 100)) : 0;
 
   return (
     <motion.div
@@ -507,19 +521,13 @@ export function MarketScreen({
       animate={{ opacity: 1, scale: 1 }}
       transition={reduceMotion ? { duration: 0 } : { duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
     >
-      <MarketToday />
       <PageHeader title={t.pages.market.title} description={t.pages.market.lead} />
-      {currency === "CLP" && !fxKnown && !fx.isPending && !waiting && !failed ? (
-        <p className="text-sm text-fg-muted">{t.detail.fxFallback}</p>
-      ) : null}
+      <MarketToday />
 
-      {/* N19: ordenar + filtrar en una sola tira. Móvil: tira horizontal
-          deslizable que no ocupa varias filas antes de la lista; desktop:
-          envuelve y alinea a la izquierda. */}
-      <div className="flex min-w-0 flex-col gap-2">
-        {/* Conmutador de vista en fila propia: no altera la tira de filtros ni,
-            con "list" (por defecto), el DOM de los resultados. */}
-        <div role="group" aria-label="Vista del mercado" className="flex min-w-0 flex-wrap items-center gap-1.5">
+      {/* Ordenar y categoría: dos grupos con rótulo visible. En móvil las
+          categorías quedan detrás de «Filtros · X ▾» para no empujar la lista. */}
+      <div className="flex min-w-0 flex-col gap-3">
+        <div role="group" aria-label="Vista del mercado" className="flex min-w-0 flex-wrap items-center gap-2">
           {viewOptions.map((option) => {
             const active = option.value === view;
             return (
@@ -528,33 +536,46 @@ export function MarketScreen({
                 type="button"
                 aria-pressed={active}
                 onClick={() => setView(option.value)}
-                className={cn(
-                  // Misma píldora que las chips de filtro y orden.
-                  "inline-flex min-h-11 shrink-0 items-center justify-center rounded-full px-3.5 text-[13px] font-medium whitespace-nowrap outline-none transition-all duration-150 ease-spring focus-visible:ring-4 focus-visible:ring-fg/20 active:scale-[0.98]",
-                  active
-                    ? "bg-fg text-bg shadow-xs"
-                    : "bg-surface-1/80 text-fg-muted hover:bg-surface-2 hover:text-fg",
-                )}
+                className={cn(chipClass, active ? chipActiveClass : chipIdleClass)}
               >
                 {option.label}
               </button>
             );
           })}
         </div>
-        <p id={filterSortLabelId} className="label">
-          {t.market.filterSortLabel}
-        </p>
-        <div className="-mx-5 flex items-center gap-1.5 overflow-x-auto rounded-2xl border border-border/70 bg-white/75 px-3.5 py-2.5 shadow-[0_4px_16px_-8px_rgba(12,15,20,0.05)] backdrop-blur-md [scrollbar-width:none] max-sm:[mask-image:linear-gradient(to_right,black_calc(100%-2rem),transparent)] sm:mx-0 sm:flex-wrap [&::-webkit-scrollbar]:hidden">
-          <ChipGroup bare labelId={sortLabelId} value={sort} options={sortOptions} onChange={onSortChange} />
-          <span aria-hidden className="h-6 w-px shrink-0 bg-border/70" />
-          <ChipGroup bare labelId={filtersLabelId} value={filter} options={filterOptions} onChange={onFilterChange} />
+
+        <div className="flex min-w-0 flex-col gap-3 sm:grid sm:grid-cols-[auto_minmax(0,1fr)] sm:gap-x-8">
+          <div className="flex min-w-0 flex-col gap-1.5">
+            <p id={sortLabelId} className="text-xs font-medium text-fg-muted">
+              {t.market.sortLabel}
+            </p>
+            <ChipGroup ariaLabel={t.market.sortLabel} value={sort} options={sortOptions} onChange={onSortChange} />
+          </div>
+
+          <div className="flex min-w-0 flex-col gap-1.5">
+            <div className="flex min-w-0 items-center justify-between gap-2">
+              <p id={filtersLabelId} className="text-xs font-medium text-fg-muted">
+                {filtersTitle}
+              </p>
+              <button
+                type="button"
+                aria-expanded={filtersOpen}
+                aria-controls={filtersPanelId}
+                onClick={() => setFiltersOpen((value) => !value)}
+                className="inline-flex min-h-11 items-center gap-1 rounded-full border border-border-control bg-bg px-3 text-xs font-medium text-fg transition-colors hover:bg-surface-1 sm:hidden"
+              >
+                {`${language === "en" ? "Filters" : "Filtros"} · ${activeFilterLabel}`}
+                <span aria-hidden>{filtersOpen ? "▴" : "▾"}</span>
+              </button>
+            </div>
+            <div id={filtersPanelId} className={cn(filtersOpen ? "block" : "hidden", "sm:block")}>
+              <ChipGroup ariaLabel={t.market.filtersLabel} value={filter} options={filterOptions} onChange={onFilterChange} />
+            </div>
+          </div>
         </div>
-        <p id={sortLabelId} className="sr-only">
-          {t.market.sortLabel}
-        </p>
-        <p id={filtersLabelId} className="sr-only">
-          {t.market.filtersLabel}
-        </p>
+        {currency === "CLP" && !fxKnown && !fx.isPending && !waiting && !failed ? (
+          <p className="text-xs leading-relaxed text-fg-muted">{t.detail.fxFallback}</p>
+        ) : null}
       </div>
 
       {waiting ? <ResultsSkeleton label={t.states.loading} /> : null}
@@ -605,16 +626,39 @@ export function MarketScreen({
       ) : null}
       {view === "list" && !waiting && !failed && listRows.length > 0 ? (
         <section className="order-1 flex min-w-0 flex-col gap-2 lg:order-2">
-          {/* El contador queda como hermano directo del h2 y del ul:
-              e2e/market.spec.ts localiza la lista con
-              `heading "Acciones" + following-sibling::ul`. */}
-          <h2 className="text-base font-semibold tracking-tight text-fg">{t.market.list}</h2>
-          {total > 0 ? (
-            <p className="num text-sm font-medium tabular-nums text-fg-muted">
-              {t.market.stockCount.replace("{total}", String(total))}
+          {/* El h2 y el ul son hermanos directos: e2e/market.spec.ts localiza
+              la lista con `heading "Acciones" + following-sibling::ul`. */}
+          <h2 className="text-lg font-semibold tracking-tight text-fg">{t.market.list}</h2>
+          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-xs text-fg-muted">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+              {total > 0 ? (
+                <>
+                  <span
+                    className="num font-medium tabular-nums"
+                    aria-live="polite"
+                    title={t.market.stockCount.replace("{total}", String(total))}
+                  >
+                    {t.market.showingOf.replace("{shown}", String(listRows.length)).replace("{total}", String(total))}
+                    {language === "en"
+                      ? total === 1
+                        ? " stock"
+                        : " stocks"
+                      : total === 1
+                        ? " acción"
+                        : " acciones"}
+                  </span>
+                  <span aria-hidden>·</span>
+                </>
+              ) : null}
+              <PriceFreshness at={freshestAt} stale={anyStale} />
+            </div>
+            <p
+              className="inline-flex items-center rounded-full bg-surface-2 px-2.5 py-1 font-medium text-fg-muted"
+              title={currency === "CLP" && !fxKnown ? t.detail.fxFallback : undefined}
+            >
+              {currencyNote}
             </p>
-          ) : null}
-          <PriceFreshness at={freshestAt} stale={anyStale} delayedOnly />
+          </div>
           {quotesFailed ? (
             <div className="flex flex-wrap items-center gap-2">
               <p className="text-sm text-fg-muted">{t.market.loadError}</p>
@@ -623,7 +667,13 @@ export function MarketScreen({
               </Button>
             </div>
           ) : null}
-          <ul className="flex min-w-0 flex-col divide-y divide-border/50 rounded-3xl border border-border/80 bg-white/90 p-2 shadow-[0_10px_30px_-16px_rgba(12,15,20,0.07)]">
+          <div
+            aria-hidden
+            className="hidden items-center justify-end gap-2 rounded-t-2xl bg-bg/95 px-4 py-2 text-xs font-medium text-fg-muted backdrop-blur sm:sticky sm:top-0 sm:z-10 sm:flex"
+          >
+            <span>Precio / Var. 24 h</span>
+          </div>
+          <ul className="flex min-w-0 flex-col divide-y divide-border/50 rounded-3xl bg-bg p-2 shadow-card">
             {listRows.map((entry) => {
               const shownPrice = entry.quote
                 ? priceRows([{ item: entry.item, quote: entry.quote, index: entry.index }], currency, rate)[0]
@@ -639,7 +689,6 @@ export function MarketScreen({
                   currency={shownPrice?.currency ?? "USD"}
                   change={entry.quote?.change24hPct ?? 0}
                   sparkline={sparkBySymbol.get(entry.item.symbol)}
-                  sparklineClassName="block"
                   lowLiquidityLabel={entry.item.lowLiquidity ? t.market.lowLiquidity : null}
                   reviewLabel={entry.item.underReview ? t.market.underReview : null}
                   reviewHint={entry.item.underReview ? t.market.underReviewHint : null}
@@ -664,11 +713,6 @@ export function MarketScreen({
               );
             })}
           </ul>
-          {total > 0 ? (
-            <p className="text-sm text-fg-muted" aria-live="polite">
-              {t.market.showingOf.replace("{shown}", String(listRows.length)).replace("{total}", String(total))}
-            </p>
-          ) : null}
           {pageFailed ? (
             <div className="flex flex-wrap items-center gap-2">
               <p className="text-sm text-fg-muted">{t.market.loadError}</p>
@@ -678,15 +722,21 @@ export function MarketScreen({
             </div>
           ) : null}
           {hasMore && !pageFailed ? (
-            <div>
+            <div className="pt-1">
               <Button variant="secondary" onClick={() => setPage((value) => value + 1)} disabled={loadingMore}>
-                {t.market.loadMore}
+                {loadMoreLabel}
               </Button>
+              <div aria-hidden className="mt-2 h-1 w-full overflow-hidden rounded-full bg-surface-3">
+                <div className="h-full rounded-full bg-fg" style={{ width: `${loadedPct}%` }} />
+              </div>
+              <span className="sr-only">
+                {t.market.showingOf.replace("{shown}", String(listRows.length)).replace("{total}", String(total))}
+              </span>
               {loadingMore ? (
                 <div role="status" aria-live="polite" aria-busy="true" className="mt-2 flex flex-col gap-2">
                   <span className="sr-only">{t.states.loading}</span>
-                  <Skeleton className="min-h-14 w-full rounded-2xl" />
-                  <Skeleton className="min-h-14 w-full rounded-2xl" />
+                  <Skeleton className="min-h-16 w-full rounded-2xl" />
+                  <Skeleton className="min-h-16 w-full rounded-2xl" />
                 </div>
               ) : null}
             </div>
@@ -730,6 +780,8 @@ export function MarketScreen({
       {status.data ? (
         <FloatingMarketOrb session={status.data.session} nextChange={status.data.nextChange} language={language} />
       ) : null}
+      {/* La píldora flotante del horario no debe tapar la última fila en móvil. */}
+      <div aria-hidden className="h-16 lg:hidden" />
     </motion.div>
   );
 }

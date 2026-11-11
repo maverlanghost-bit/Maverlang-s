@@ -1,7 +1,7 @@
 import Link from "next/link";
 
-import { FraccionSeal } from "@/components/copy/fraccion-seal";
 import { buttonClasses } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { COPY_LEGAL_PENDING_LABEL } from "@/content/copy-legal";
 import { COPY_PLANS, TRIAL_DAYS } from "@/lib/billing/plans";
 import { cn } from "@/lib/cn";
@@ -65,11 +65,14 @@ export function Paywall({
         La vista previa usa datos inventados de ejemplo; no es la composición de esta cartera.
       </p>
 
-      <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-2">
-        <Link href="/app/copiar/planes" className={buttonClasses({ variant: "primary", size: "md" })}>
-          Ver planes
-        </Link>
-        <p className="font-mono text-sm tabular-nums text-fg-body">
+      <div className="mt-5 flex flex-col gap-2">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+          <Link href="/app/copiar/planes" className={buttonClasses({ variant: "primary", size: "md" })}>
+            Ver planes
+          </Link>
+          <Badge tone="neutral">{TRIAL_DAYS} días gratis</Badge>
+        </div>
+        <p className="font-mono text-base font-medium tabular-nums text-fg">
           {formatClp(COPY_PLANS.monthly.clp)} al mes · {formatClp(COPY_PLANS.annual.clp)} al año
         </p>
       </div>
@@ -77,10 +80,7 @@ export function Paywall({
         {TRIAL_DAYS} días de prueba gratis, una vez por usuario.
       </p>
 
-      <p className="mt-4 text-xs text-fg-subtle">{COPY_LEGAL_PENDING_LABEL}</p>
-      <div className="mt-3">
-        <FraccionSeal />
-      </div>
+      <p className="mt-4 text-xs leading-relaxed text-fg-muted">{COPY_LEGAL_PENDING_LABEL}</p>
     </section>
   );
 }

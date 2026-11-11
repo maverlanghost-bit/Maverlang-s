@@ -46,7 +46,7 @@ export function Tooltip({
               ? "top-1/2 left-full z-50 ml-3 -translate-y-1/2 whitespace-nowrap rounded-xl border border-white/15 bg-fg px-3 py-1.5 text-xs font-medium leading-none text-white shadow-[0_10px_28px_-6px_rgba(12,15,20,0.35)] pointer-events-none"
               : side === "top"
                 ? "bottom-full left-0 z-30 mb-2 w-max max-w-[min(16rem,calc(100vw-2.5rem))] rounded-md bg-fg px-2.5 py-1.5 text-xs leading-relaxed text-white shadow-float pointer-events-none"
-                : "top-full left-0 z-30 mt-2 w-max max-w-[min(16rem,calc(100vw-2.5rem))] rounded-md bg-fg px-2.5 py-1.5 text-xs leading-relaxed text-white shadow-float",
+                : "top-full left-0 z-30 mt-2 w-max max-w-[min(16rem,calc(100vw-2.5rem))] rounded-md bg-fg px-2.5 py-1.5 text-xs leading-relaxed text-white shadow-float pointer-events-none",
           )}
         >
           {content}

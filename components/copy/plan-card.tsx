@@ -170,6 +170,7 @@ function noticeClass(tone: Notice["tone"]): string {
 function PlanCard({
   plan,
   billingEnabled,
+  billingSoon,
   trialUsed,
   current,
   pending,
@@ -177,6 +178,8 @@ function PlanCard({
 }: {
   plan: BillingPlanId;
   billingEnabled: boolean;
+  /** Motivo por el que el cobro está apagado; se muestra junto al botón. */
+  billingSoon: string;
   trialUsed: boolean;
   current: boolean;
   pending: boolean;
@@ -201,10 +204,15 @@ function PlanCard({
         {plan === "annual" ? <Badge tone="brand">Mejor precio</Badge> : null}
       </div>
 
-      <p className="flex flex-wrap items-baseline gap-1">
-        <span className="text-3xl font-semibold tracking-tight">{formatClp(definition.amountClp)}</span>
-        <span className="text-sm text-fg-muted">/ {period}</span>
-      </p>
+      <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+        <p className="flex flex-wrap items-baseline gap-1">
+          <span className="num text-3xl font-semibold tracking-tight tabular-nums">
+            {formatClp(definition.amountClp)}
+          </span>
+          <span className="text-sm text-fg-muted">/ {period}</span>
+        </p>
+        {trialUsed ? null : <Badge tone="neutral">7 días gratis</Badge>}
+      </div>
 
       <ul className="flex flex-col gap-1.5 text-sm text-fg-body">
         <li>· Composición completa y movimientos de cada cartera.</li>
@@ -224,6 +232,9 @@ function PlanCard({
         >
           {current ? "Tu plan actual" : trialUsed ? `Suscribirme: ${definition.label}` : "Empezar los 7 días gratis"}
         </Button>
+        {!billingEnabled && !current ? (
+          <p className="text-xs leading-relaxed text-fg-muted">{billingSoon}</p>
+        ) : null}
       </div>
     </Card>
   );
@@ -384,6 +395,7 @@ export function PlansPanel({ billingEnabled, billingSoon, returned = false }: Pl
             key={plan}
             plan={plan}
             billingEnabled={enabled}
+            billingSoon={billingSoon}
             trialUsed={trialUsed}
             current={currentPlan === plan}
             pending={pendingPlan === plan}
@@ -444,7 +456,7 @@ export function PlansPanel({ billingEnabled, billingSoon, returned = false }: Pl
                 <p className="text-fg-muted">
                   Se renueva el {isoDate(subscription.currentPeriodEnd)}. Puedes cancelar cuando quieras.
                 </p>
-                <p className="text-[13px] text-fg-subtle">
+                <p className="text-xs text-fg-muted">
                   Se renueva sola hasta que la canceles; puedes hacerlo cuando quieras.
                 </p>
               </>
@@ -482,7 +494,7 @@ export function PlansPanel({ billingEnabled, billingSoon, returned = false }: Pl
                 >
                   Cancelar suscripción
                 </Button>
-                <p className="text-[13px] text-fg-subtle">Se cancela en un clic, sin llamadas ni formularios.</p>
+                <p className="text-xs text-fg-muted">Se cancela en un clic, sin llamadas ni formularios.</p>
               </div>
             ) : null}
           </div>

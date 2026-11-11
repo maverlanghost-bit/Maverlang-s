@@ -52,49 +52,74 @@ export function PositionsTable({
 
   return (
     <div className={cn("flex flex-col", className)}>
-      <p className="flex flex-wrap items-center gap-x-3 pb-1 font-mono text-[11px] uppercase tracking-[0.08em] text-fg-muted">
-        <span className="min-w-0 flex-1">Posición</span>
-        <span>Original</span>
-        {showMaverlang ? <span>En Maverlang</span> : null}
+      {/* Cabecera de columnas sólo desde sm: en móvil cada cifra lleva su
+          etiqueta inline y nada se corta a 360 px. */}
+      <p
+        className={cn(
+          "hidden items-center gap-x-3 pb-1 text-xs font-medium text-fg-muted sm:grid",
+          showMaverlang
+            ? "sm:grid-cols-[minmax(0,1fr)_4rem_5rem_auto]"
+            : "sm:grid-cols-[minmax(0,1fr)_4rem_auto]",
+        )}
+      >
+        <span>Posición</span>
+        <span className="text-right">Original</span>
+        {showMaverlang ? <span className="text-right">En Maverlang</span> : null}
+        <span className="text-right">Estado</span>
       </p>
-      <ul aria-label="Posiciones de la cartera" className="flex flex-col">
+      <ul aria-label="Posiciones de la cartera" className="flex flex-col divide-y divide-border/60">
         {rows.map((row, index) => (
-          <li
-            key={`${row.symbol}-${index}`}
-            className="flex flex-wrap items-center gap-x-3 gap-y-1.5 border-t border-border/70 py-2.5"
-          >
-            <div className="flex min-w-0 flex-1 flex-col">
-              <span className="truncate font-mono text-sm text-fg">{row.symbol}</span>
-              {row.name ? (
-                <span className="truncate text-xs text-fg-muted">{row.name}</span>
+          <li key={`${row.symbol}-${index}`} className="py-3">
+            <div
+              className={cn(
+                "grid grid-cols-2 items-baseline gap-x-3 gap-y-2 sm:items-center",
+                showMaverlang
+                  ? "sm:grid-cols-[minmax(0,1fr)_4rem_5rem_auto]"
+                  : "sm:grid-cols-[minmax(0,1fr)_4rem_auto]",
+              )}
+            >
+              <div className="col-span-2 flex min-w-0 flex-col sm:col-span-1">
+                <span className="truncate font-mono text-sm text-fg" title={row.symbol}>
+                  {row.symbol}
+                </span>
+                {row.name ? <span className="truncate text-xs text-fg-muted">{row.name}</span> : null}
+              </div>
+
+              <span className="flex items-baseline justify-between gap-2 sm:block sm:text-right">
+                <span className="text-xs text-fg-muted sm:hidden">Original</span>
+                <span className="font-mono text-sm tabular-nums text-fg-body">{weight(row.weightOriginal)}</span>
+              </span>
+
+              {showMaverlang ? (
+                <span
+                  className="flex items-baseline justify-between gap-2 sm:block sm:text-right"
+                  title="Peso en la mezcla de Maverlang"
+                >
+                  <span className="text-xs text-fg-muted sm:hidden">En Maverlang</span>
+                  <span
+                    className={cn(
+                      "font-mono text-sm tabular-nums",
+                      row.status === "available" ? "text-fg-body" : "text-fg-muted",
+                    )}
+                  >
+                    {row.status === "available" ? weight(row.weightMaverlang) : "—"}
+                  </span>
+                </span>
+              ) : null}
+
+              <Badge
+                tone={statusTone[row.status]}
+                className="col-span-2 w-fit justify-self-start sm:col-span-1 sm:justify-self-end"
+              >
+                {row.status === "available" && row.tradableSymbol
+                  ? `Comprable · ${row.tradableSymbol}`
+                  : statusLabel[row.status]}
+              </Badge>
+
+              {row.status !== "available" && row.reason ? (
+                <p className="col-span-2 text-xs leading-relaxed text-fg-muted">{row.reason}</p>
               ) : null}
             </div>
-
-            <span className="font-mono text-sm tabular-nums text-fg-body">
-              {weight(row.weightOriginal)}
-            </span>
-
-            {showMaverlang ? (
-              <span
-                className={cn(
-                  "font-mono text-xs tabular-nums",
-                  row.status === "available" ? "text-fg-body" : "text-fg-subtle",
-                )}
-                title="Peso en la mezcla de Maverlang"
-              >
-                {row.status === "available" ? weight(row.weightMaverlang) : "—"}
-              </span>
-            ) : null}
-
-            <Badge tone={statusTone[row.status]} className="shrink-0">
-              {row.status === "available" && row.tradableSymbol
-                ? `Comprable · ${row.tradableSymbol}`
-                : statusLabel[row.status]}
-            </Badge>
-
-            {row.status !== "available" && row.reason ? (
-              <p className="w-full text-xs leading-relaxed text-fg-muted">{row.reason}</p>
-            ) : null}
           </li>
         ))}
       </ul>

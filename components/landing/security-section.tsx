@@ -197,28 +197,38 @@ function CustodyDiagram() {
           </Fragment>
         ))}
       </div>
-      <figcaption className="mt-6 grid gap-4 border-t border-border pt-5 sm:grid-cols-3">
-        {legend.map((item) => (
-          <div key={item.term} className="flex gap-3">
-            <span aria-hidden="true" className="mt-1.5 size-1.5 shrink-0 rounded-full bg-fg" />
-            <p className="text-xs leading-relaxed text-fg-body">
-              <span className="font-medium text-fg">{item.term}</span> {item.text}
-            </p>
-          </div>
+      <figcaption className="mt-6 border-t border-border pt-4 text-xs leading-relaxed text-fg-muted">
+        {legend.map((item, index) => (
+          <span key={item.term}>
+            {index > 0 ? <span aria-hidden="true"> · </span> : null}
+            <span className="font-medium text-fg-body">{item.term}</span> {item.text}
+          </span>
         ))}
       </figcaption>
     </figure>
   );
 }
 
-export function SecuritySection() {
+const INTRO_TITLE = "Qué tienes y qué no";
+
+/**
+ * `showIntro={false}` lo usa /seguridad, que ya trae ese texto como titular de
+ * página: el ancla de la sección se conserva para el `aria-labelledby`.
+ */
+export function SecuritySection({ showIntro = true }: { showIntro?: boolean }) {
   return (
     <LandingSection id="seguridad" titleId="seguridad-title">
-      <Reveal>
-        <SectionIntro id="seguridad-title" title="Qué tienes y qué no">
-          {site.name} no es una corredora de EE.UU. El token es tuyo y queda en tu billetera. Sigue el precio de la acción.
-        </SectionIntro>
-      </Reveal>
+      {showIntro ? (
+        <Reveal>
+          <SectionIntro id="seguridad-title" title={INTRO_TITLE}>
+            {site.name} no es una corredora de EE.UU. El token es tuyo y queda en tu billetera. Sigue el precio de la acción.
+          </SectionIntro>
+        </Reveal>
+      ) : (
+        <h2 id="seguridad-title" className="sr-only">
+          {INTRO_TITLE}
+        </h2>
+      )}
       <div className="mt-10 grid gap-4 md:mt-14 md:grid-cols-3">
         {points.map((point, index) => (
           <Reveal key={point.title} delay={(index + 1) * REVEAL_STAGGER_MS} className="h-full">

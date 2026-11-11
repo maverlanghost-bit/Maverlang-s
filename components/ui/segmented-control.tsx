@@ -67,7 +67,7 @@ export function SegmentedControl({
               fullWidth && "min-w-0 flex-1 px-1 sm:px-3",
               compact && "whitespace-nowrap px-1 text-[13px] sm:px-1",
               selected
-                ? "bg-bg text-fg shadow-card ring-1 ring-border/60"
+                ? "bg-bg text-fg shadow-raised ring-1 ring-border/60"
                 : "text-fg-muted hover:text-fg",
             )}
           >

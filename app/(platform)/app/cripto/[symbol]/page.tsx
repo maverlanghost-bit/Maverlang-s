@@ -91,7 +91,7 @@ function Monogram({ symbol }: { symbol: string }) {
   return (
     <span
       aria-hidden
-      className="flex size-12 shrink-0 items-center justify-center rounded-full border border-border/70 bg-surface-2 text-sm font-semibold tracking-tight text-fg-body"
+      className="flex size-12 shrink-0 items-center justify-center rounded-full bg-surface-2 text-sm font-semibold tracking-tight text-fg-body"
     >
       {(letters.slice(0, 3) || "?").toUpperCase()}
     </span>
@@ -135,13 +135,12 @@ export default async function CriptoFichaPage({ params }: { params: Promise<{ sy
   const isUsdy = asset.symbol === "USDY";
   const backHref = isLst ? "/app/ganar" : "/app/cripto";
   const backLabel = isLst ? "Volver a Ganar" : "Volver a Cripto";
-  const sealTone = asset.seal === "VERDE" ? "up" : "warn";
 
   return (
     <div className="flex min-w-0 max-w-full flex-col gap-6">
       <Link
         href={backHref}
-        className="-ml-2 flex min-h-9 w-fit items-center gap-1.5 rounded-full bg-surface-1 px-3 py-1.5 text-xs font-medium text-fg-muted outline-none transition-colors duration-150 hover:bg-surface-2 hover:text-fg focus-visible:ring-4 focus-visible:ring-fg/20"
+        className="-ml-2 flex min-h-11 w-fit items-center gap-1.5 rounded-full bg-surface-1 px-3 py-1.5 text-xs font-medium text-fg-muted transition-colors duration-150 hover:bg-surface-2 hover:text-fg"
       >
         <IconBack className="size-4" />
         {backLabel}
@@ -151,7 +150,7 @@ export default async function CriptoFichaPage({ params }: { params: Promise<{ sy
         <div className="flex flex-wrap items-center gap-3">
           <Monogram symbol={asset.symbol} />
           <div className="min-w-0 flex-1 basis-48">
-            <h1 className="max-w-full text-2xl break-words text-balance">{asset.name}</h1>
+            <h1 className="max-w-full text-3xl break-words text-balance sm:text-4xl">{asset.name}</h1>
             <p className="mt-1 max-w-full break-words text-sm text-fg-muted">
               <span className="num font-medium text-fg">{asset.symbol}</span>
               <span aria-hidden> · </span>
@@ -160,11 +159,25 @@ export default async function CriptoFichaPage({ params }: { params: Promise<{ sy
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          {asset.seal ? <Badge tone={sealTone}>Sello {asset.seal}</Badge> : <Badge>Ganar</Badge>}
+          {asset.seal ? (
+            asset.seal === "AMARILLO" ? (
+              <span className="inline-flex items-center gap-1 rounded-full bg-warn-bg px-2.5 py-0.5 text-xs leading-none font-medium text-warn">
+                <span aria-hidden="true" className="size-1.5 shrink-0 rounded-full bg-warn" />
+                Sello AMARILLO
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1 rounded-full border border-border bg-bg px-2.5 py-0.5 text-xs leading-none font-medium text-fg-muted">
+                <span aria-hidden="true" className="size-1.5 shrink-0 rounded-full bg-fg-muted" />
+                Sello VERDE
+              </span>
+            )
+          ) : (
+            <Badge>Ganar</Badge>
+          )}
           <Badge>{GROUP_LABEL[asset.group]}</Badge>
           <Badge>Solana</Badge>
         </div>
-        <p className="text-xs leading-relaxed text-fg-muted">
+        <p className="text-sm leading-relaxed text-fg-muted">
           {asset.seal === "VERDE"
             ? `Sello VERDE: el tope por orden es ${formatMoney(asset.maxOrderUsd, "USD")}.`
             : asset.seal === "AMARILLO"
@@ -189,9 +202,9 @@ export default async function CriptoFichaPage({ params }: { params: Promise<{ sy
 
       <section
         aria-labelledby="historial-precio"
-        className="rounded-2xl border border-dashed border-border-strong/70 bg-surface-1/60 p-5"
+        className="rounded-2xl border border-dashed border-border-strong bg-surface-1 p-5"
       >
-        <h2 id="historial-precio" className="text-sm font-medium text-fg">
+        <h2 id="historial-precio" className="text-base font-medium text-fg">
           Historial de precio
         </h2>
         <p className="mt-1 text-sm leading-relaxed text-fg-body">
@@ -200,11 +213,11 @@ export default async function CriptoFichaPage({ params }: { params: Promise<{ sy
         </p>
       </section>
 
-      <section aria-labelledby="datos-token" className="rounded-2xl border border-border/70 bg-surface-1 p-5">
-        <h2 id="datos-token" className="text-sm font-medium text-fg">
+      <section aria-labelledby="datos-token" className="rounded-2xl bg-surface-1 p-5 shadow-card">
+        <h2 id="datos-token" className="text-base font-medium text-fg">
           Datos del token
         </h2>
-        <dl className="mt-2 divide-y divide-border/60">
+        <dl className="mt-2 divide-y divide-border">
           <Row label="Red">Solana</Row>
           <Row label="Versión y origen">{asset.originLabel}</Row>
           <Row label="Mint">
@@ -223,9 +236,9 @@ export default async function CriptoFichaPage({ params }: { params: Promise<{ sy
 
       <section
         aria-labelledby="avisos-cripto"
-        className="flex flex-col gap-2 border-t border-border/70 pt-4 text-xs leading-relaxed text-fg-body"
+        className="flex flex-col gap-2 border-t border-border pt-5 text-sm leading-relaxed text-fg-body"
       >
-        <h2 id="avisos-cripto" className="text-sm font-medium text-fg">
+        <h2 id="avisos-cripto" className="text-base font-medium text-fg">
           Avisos
         </h2>
         <p>{NON_CUSTODY_LINE}</p>

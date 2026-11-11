@@ -21,7 +21,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip } from "@/components/ui/tooltip";
 import { AccountSwitch } from "@/components/app-shell/account-switch";
 import { site } from "@/config/site";
-import { shouldIgnoreSidebarShortcut, shouldToggleSidebarClick } from "@/lib/app-shell/sidebar";
+import { shouldIgnoreSidebarShortcut } from "@/lib/app-shell/sidebar";
 import type { AccountMode } from "@/lib/account/mode";
 import { useSession } from "@/lib/auth/session-context";
 import { cn } from "@/lib/cn";
@@ -229,13 +229,10 @@ export function Sidebar({
 
   return (
     <aside
-      onClick={(event) => {
-        if (shouldToggleSidebarClick(event.target as Element | null)) onToggle();
-      }}
       className={cn(
         "sticky top-0 z-30 hidden h-dvh shrink-0 flex-col overflow-visible border-r border-border/70 bg-surface-1/40 backdrop-blur-xl backdrop-saturate-180 lg:flex",
         WIDTH_ANIMATION,
-        collapsed ? "w-[72px] cursor-e-resize" : "w-[220px] cursor-w-resize",
+        collapsed ? "w-[72px]" : "w-[220px]",
       )}
     >
       {isAiRoute ? (
@@ -245,7 +242,7 @@ export function Sidebar({
               href="/app"
               aria-label={t.detail.backToMarket}
               className={cn(
-                "group flex min-w-0 cursor-pointer items-center gap-2 outline-none",
+                "group flex min-w-0 cursor-pointer items-center gap-2",
                 collapsed ? "flex-none justify-center" : "flex-1",
               )}
             >
@@ -259,7 +256,7 @@ export function Sidebar({
               onClick={onToggle}
               aria-label={collapsed ? t.shell.expandSidebar : t.shell.collapseSidebar}
               title={`${collapsed ? t.shell.expandSidebar : t.shell.collapseSidebar} (Ctrl+B)`}
-              className="inline-flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-lg text-zinc-500 outline-none transition hover:bg-zinc-200/60 hover:text-zinc-900 focus-visible:ring-4 focus-visible:ring-fg/20"
+              className="inline-flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-lg text-fg-muted transition hover:bg-surface-2 hover:text-fg"
             >
               {collapsed ? <PanelLeftIcon className="size-4" /> : <PanelLeftCloseIcon className="size-4" />}
             </button>
@@ -274,7 +271,7 @@ export function Sidebar({
                       type="button"
                       aria-label={newChatLabel}
                       onClick={() => dispatchAiCommand({ type: "clear" })}
-                      className="flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-lg text-zinc-700 transition-colors hover:bg-zinc-200/60 hover:text-zinc-900"
+                      className="flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-lg text-fg-body transition-colors hover:bg-surface-2 hover:text-fg"
                     >
                       <MessageSquarePlusIcon className="size-4" />
                     </button>
@@ -289,7 +286,7 @@ export function Sidebar({
                         if (typeof window === "undefined") return;
                         window.dispatchEvent(new CustomEvent(ACTION_EVENT, { detail: { type: "search" } }));
                       }}
-                      className="flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-lg text-zinc-700 transition-colors hover:bg-zinc-200/60 hover:text-zinc-900"
+                      className="flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-lg text-fg-body transition-colors hover:bg-surface-2 hover:text-fg"
                     >
                       <SearchIcon className="size-4" />
                     </button>
@@ -300,7 +297,7 @@ export function Sidebar({
                     <Link
                       href="/app"
                       aria-label={t.detail.backToMarket}
-                      className="flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-lg text-zinc-500 transition-colors hover:bg-zinc-200/60 hover:text-zinc-900"
+                      className="flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-lg text-fg-muted transition-colors hover:bg-surface-2 hover:text-fg"
                     >
                       <ArrowLeftIcon className="size-4" />
                     </Link>
@@ -314,7 +311,7 @@ export function Sidebar({
                     <button
                       type="button"
                       onClick={() => dispatchAiCommand({ type: "clear" })}
-                      className="flex h-9 w-full items-center gap-2 rounded-lg px-2.5 text-[13px] font-medium text-zinc-700 hover:bg-zinc-200/60 hover:text-zinc-900 transition-colors cursor-pointer"
+                      className="flex h-9 w-full items-center gap-2 rounded-lg px-2.5 text-sm font-medium text-fg-body hover:bg-surface-2 hover:text-fg transition-colors cursor-pointer"
                     >
                       <MessageSquarePlusIcon className="size-4 shrink-0" />
                       <span className="truncate">{newChatLabel}</span>
@@ -327,7 +324,7 @@ export function Sidebar({
                         if (typeof window === "undefined") return;
                         window.dispatchEvent(new CustomEvent(ACTION_EVENT, { detail: { type: "search" } }));
                       }}
-                      className="flex h-9 w-full items-center gap-2 rounded-lg px-2.5 text-[13px] font-medium text-zinc-700 hover:bg-zinc-200/60 hover:text-zinc-900 transition-colors cursor-pointer"
+                      className="flex h-9 w-full items-center gap-2 rounded-lg px-2.5 text-sm font-medium text-fg-body hover:bg-surface-2 hover:text-fg transition-colors cursor-pointer"
                     >
                       <SearchIcon className="size-4 shrink-0" />
                       <span className="truncate">{t.shell.search}</span>
@@ -336,7 +333,7 @@ export function Sidebar({
                   <li>
                     <Link
                       href="/app"
-                      className="flex h-9 w-full items-center gap-2 rounded-lg px-2.5 text-[13px] text-zinc-500 hover:bg-zinc-200/60 hover:text-zinc-900 transition-colors cursor-pointer"
+                      className="flex h-9 w-full items-center gap-2 rounded-lg px-2.5 text-sm text-fg-muted hover:bg-surface-2 hover:text-fg transition-colors cursor-pointer"
                     >
                       <ArrowLeftIcon className="size-4 shrink-0" />
                       <span className="truncate">{t.detail.backToMarket}</span>
@@ -381,7 +378,7 @@ export function Sidebar({
                     role="menuitem"
                     href="/app/perfil"
                     onClick={() => setMenuOpen(false)}
-                    className="flex min-h-11 cursor-pointer items-center rounded-xl px-3 text-sm text-fg-body outline-none hover:bg-surface-2 focus-visible:ring-4 focus-visible:ring-fg/20"
+                    className="flex min-h-11 cursor-pointer items-center rounded-xl px-3 text-sm text-fg-body hover:bg-surface-2"
                   >
                     {t.nav.profile}
                   </Link>
@@ -389,7 +386,7 @@ export function Sidebar({
                     role="menuitem"
                     href="/app/ajustes"
                     onClick={() => setMenuOpen(false)}
-                    className="flex min-h-11 cursor-pointer items-center rounded-xl px-3 text-sm text-fg-body outline-none hover:bg-surface-2 focus-visible:ring-4 focus-visible:ring-fg/20"
+                    className="flex min-h-11 cursor-pointer items-center rounded-xl px-3 text-sm text-fg-body hover:bg-surface-2"
                   >
                     {t.nav.settings}
                   </Link>
@@ -401,7 +398,7 @@ export function Sidebar({
                     type="button"
                     onClick={() => void account.logout()}
                     disabled={account.status === "loading"}
-                    className="flex min-h-11 w-full cursor-pointer items-center rounded-xl px-3 text-left text-sm text-fg-body outline-none hover:bg-surface-2 focus-visible:ring-4 focus-visible:ring-fg/20 disabled:opacity-40"
+                    className="flex min-h-11 w-full cursor-pointer items-center rounded-xl px-3 text-left text-sm text-fg-body hover:bg-surface-2 disabled:opacity-40"
                   >
                     {t.profile.logout}
                   </button>
@@ -420,7 +417,7 @@ export function Sidebar({
                     href="/app/perfil"
                     aria-label={loading ? t.shell.account : `${name}. ${t.shell.account}`}
                     title={loading ? t.shell.account : name}
-                    className="flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-xl outline-none hover:bg-surface-2 focus-visible:ring-4 focus-visible:ring-fg/20"
+                    className="flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-xl hover:bg-surface-2"
                   >
                     <span className="flex size-11 shrink-0 items-center justify-center">
                       <Avatar alt="" fallback={name} size="md" className="size-10" />
@@ -434,7 +431,7 @@ export function Sidebar({
                   aria-expanded={menuOpen}
                   aria-label={`${name}. ${t.shell.account}`}
                   onClick={() => setMenuOpen((open) => !open)}
-                  className="flex min-h-11 w-full cursor-pointer items-center gap-1.5 rounded-xl text-left outline-none hover:bg-surface-2 focus-visible:ring-4 focus-visible:ring-fg/20"
+                  className="flex min-h-11 w-full cursor-pointer items-center gap-1.5 rounded-xl text-left hover:bg-surface-2"
                 >
                   <span className="flex size-11 shrink-0 items-center justify-center">
                     <Avatar alt="" fallback={name} size="md" className="size-10" />
@@ -459,7 +456,7 @@ export function Sidebar({
               href="/app"
               aria-label={site.name}
               title={site.name}
-              className="flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-xl outline-none focus-visible:ring-4 focus-visible:ring-fg/20"
+              className="flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-xl"
             >
               <span className="flex size-11 shrink-0 items-center justify-center">
                 <BrandFavicon className="w-10" />
@@ -469,10 +466,11 @@ export function Sidebar({
               <button
                 type="button"
                 onClick={() => openCommandPalette()}
-                aria-label="Abrir paleta de comandos ⌘K"
-                className="inline-flex shrink-0 cursor-pointer items-center gap-1 rounded-full border border-border/70 bg-white/80 px-2.5 py-1 text-[11px] font-medium text-fg-muted shadow-[0_1px_2px_rgba(12,15,20,0.04)] transition hover:bg-surface-2 hover:text-fg"
+                aria-label="Buscar en la app"
+                className="inline-flex shrink-0 cursor-pointer items-center gap-1 rounded-full border border-control bg-bg/80 px-2.5 py-1 text-xs font-medium text-fg-muted shadow-raised transition hover:bg-surface-2 hover:text-fg"
               >
-                <span>⌘K</span>
+                <SearchIcon className="size-3.5" />
+                <span>Buscar</span>
               </button>
             ) : null}
           </div>
@@ -490,10 +488,10 @@ export function Sidebar({
                     aria-label={collapsed ? t.nav[item.id] : undefined}
                     aria-current={active ? "page" : undefined}
                     className={cn(
-                      "flex min-h-11 cursor-pointer items-center rounded-xl text-sm outline-none transition-colors duration-150 focus-visible:ring-4 focus-visible:ring-fg/20 active:scale-[0.98]",
+                      "flex min-h-11 cursor-pointer items-center rounded-xl text-sm transition-colors duration-150 active:scale-[0.98]",
                       collapsed ? "size-11 justify-start gap-0 px-0" : "w-full justify-start gap-1.5 pr-2 pl-0",
                       active
-                        ? "bg-fg/[0.06] font-medium text-fg shadow-[inset_0_1px_0_rgba(255,255,255,0.85),0_1px_3px_rgba(12,15,20,0.05)] ring-1 ring-border/60"
+                        ? "bg-fg/[0.06] font-medium text-fg shadow-raised ring-1 ring-border/60"
                         : "text-fg-body hover:bg-fg/[0.04] hover:text-fg",
                     )}
                   >
@@ -550,7 +548,7 @@ export function Sidebar({
                     role="menuitem"
                     href="/app/perfil"
                     onClick={() => setMenuOpen(false)}
-                    className="flex min-h-11 cursor-pointer items-center rounded-xl px-3 text-sm text-fg-body outline-none hover:bg-surface-2 focus-visible:ring-4 focus-visible:ring-fg/20"
+                    className="flex min-h-11 cursor-pointer items-center rounded-xl px-3 text-sm text-fg-body hover:bg-surface-2"
                   >
                     {t.nav.profile}
                   </Link>
@@ -558,7 +556,7 @@ export function Sidebar({
                     role="menuitem"
                     href="/app/ajustes"
                     onClick={() => setMenuOpen(false)}
-                    className="flex min-h-11 cursor-pointer items-center rounded-xl px-3 text-sm text-fg-body outline-none hover:bg-surface-2 focus-visible:ring-4 focus-visible:ring-fg/20"
+                    className="flex min-h-11 cursor-pointer items-center rounded-xl px-3 text-sm text-fg-body hover:bg-surface-2"
                   >
                     {t.nav.settings}
                   </Link>
@@ -570,7 +568,7 @@ export function Sidebar({
                     type="button"
                     onClick={() => void account.logout()}
                     disabled={account.status === "loading"}
-                    className="flex min-h-11 w-full cursor-pointer items-center rounded-xl px-3 text-left text-sm text-fg-body outline-none hover:bg-surface-2 focus-visible:ring-4 focus-visible:ring-fg/20 disabled:opacity-40"
+                    className="flex min-h-11 w-full cursor-pointer items-center rounded-xl px-3 text-left text-sm text-fg-body hover:bg-surface-2 disabled:opacity-40"
                   >
                     {t.profile.logout}
                   </button>
@@ -589,7 +587,7 @@ export function Sidebar({
                     href="/app/perfil"
                     aria-label={loading ? t.shell.account : `${name}. ${t.shell.account}`}
                     title={loading ? t.shell.account : name}
-                    className="flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-xl outline-none hover:bg-surface-2 focus-visible:ring-4 focus-visible:ring-fg/20"
+                    className="flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-xl hover:bg-surface-2"
                   >
                     <span className="flex size-11 shrink-0 items-center justify-center">
                       <Avatar alt="" fallback={name} size="md" className="size-10" />
@@ -603,7 +601,7 @@ export function Sidebar({
                   aria-expanded={menuOpen}
                   aria-label={`${name}. ${t.shell.account}`}
                   onClick={() => setMenuOpen((open) => !open)}
-                  className="flex min-h-11 w-full cursor-pointer items-center gap-1.5 rounded-xl text-left outline-none hover:bg-surface-2 focus-visible:ring-4 focus-visible:ring-fg/20"
+                  className="flex min-h-11 w-full cursor-pointer items-center gap-1.5 rounded-xl text-left hover:bg-surface-2"
                 >
                   <span className="flex size-11 shrink-0 items-center justify-center">
                     <Avatar alt="" fallback={name} size="md" className="size-10" />

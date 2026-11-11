@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { TickerLogo } from "@/components/domain/ticker-logo";
 import { LandingSection } from "@/components/landing/section";
+import { buttonClasses } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
 import { logoPathFromSymbol } from "@/lib/catalog/logos";
 import { COMPARE_PAIRS, comparePath, sectorFor } from "@/lib/seo/categories";
 import { breadcrumbJsonLd, itemListJsonLd, JsonLd } from "@/lib/seo/jsonld";
@@ -71,12 +73,13 @@ function PairCard({ a, b }: { a: PublicAsset; b: PublicAsset }) {
     <Link
       href={comparePath(a, b)}
       aria-label={`Comparar ${a.name} con ${b.name}`}
-      className="group flex h-full flex-col gap-4 rounded-3xl border border-border bg-surface-1 p-5 transition hover:border-fg/25 hover:bg-surface-2 focus-visible:ring-4 focus-visible:ring-fg/20 focus-visible:outline-none sm:p-6"
+      className="group flex h-full flex-col gap-4 rounded-3xl bg-bg p-5 shadow-card transition hover:bg-surface-1 sm:p-6"
     >
       <div className="flex flex-col gap-2">
         <AssetRow asset={a} />
-        <p aria-hidden className="label pl-[52px] leading-none">
-          vs
+        <p aria-hidden className="grid grid-cols-[40px_1fr] items-center gap-3">
+          <span className="text-center font-mono text-xs font-medium leading-none text-fg-muted">vs</span>
+          <span className="h-px bg-border" />
         </p>
         <AssetRow asset={b} />
       </div>
@@ -95,7 +98,7 @@ export default async function CompararPage() {
   const pairs = validPairs(assets);
 
   return (
-    <LandingSection titleId="comparar-title">
+    <LandingSection titleId="comparar-title" density="compact">
       <JsonLd
         data={breadcrumbJsonLd([
           { name: "Inicio", path: "/" },
@@ -120,7 +123,7 @@ export default async function CompararPage() {
         <h1 id="comparar-title" className="mt-3 text-3xl sm:text-4xl">
           Comparar acciones tokenizadas
         </h1>
-        <p className="mt-4 text-sm leading-relaxed text-fg-body sm:text-base">
+        <p className="mt-4 max-w-[62ch] text-base leading-relaxed text-fg-body">
           Dos activos lado a lado: datos de la empresa según la SEC, precio del token y rendimiento relativo del
           último mes. Comparar no es recomendar.
         </p>
@@ -130,7 +133,17 @@ export default async function CompararPage() {
       </div>
 
       {pairs.length === 0 ? (
-        <p className="mt-10 text-sm text-fg-muted">Las comparaciones no están disponibles ahora.</p>
+        <div className="mt-10">
+          <EmptyState
+            title="Las comparaciones no están disponibles ahora."
+            description="Las fichas de los pares todavía no están publicadas. Mientras tanto puedes revisar el catálogo completo."
+            action={
+              <Link href="/acciones" className={buttonClasses({ variant: "secondary" })}>
+                Ver el catálogo completo
+              </Link>
+            }
+          />
+        </div>
       ) : (
         <ul className="mt-10 grid gap-4 sm:grid-cols-2">
           {pairs.map(({ a, b }) => (

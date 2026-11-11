@@ -103,7 +103,7 @@ export default async function MezclaPage({
       <article className="flex flex-col gap-6 pb-6">
         <Link
           href={`/app/copiar/${encodeURIComponent(canonical)}`}
-          className="inline-flex min-h-11 w-fit items-center text-sm font-medium text-fg-muted underline underline-offset-4 outline-none hover:text-fg focus-visible:ring-4 focus-visible:ring-fg/20"
+          className="inline-flex min-h-11 w-fit items-center text-sm font-medium text-fg-muted underline underline-offset-4 hover:text-fg"
         >
           ← Volver a {meta.name}
         </Link>
@@ -146,7 +146,7 @@ export default async function MezclaPage({
       <div className="flex flex-col gap-2">
         <Link
           href={`/app/copiar/${encodeURIComponent(canonical)}`}
-          className="inline-flex min-h-11 w-fit items-center text-sm font-medium text-fg-muted underline underline-offset-4 outline-none hover:text-fg focus-visible:ring-4 focus-visible:ring-fg/20"
+          className="inline-flex min-h-11 w-fit items-center text-sm font-medium text-fg-muted underline underline-offset-4 hover:text-fg"
         >
           ← Volver a {meta.name}
         </Link>
@@ -179,7 +179,7 @@ export default async function MezclaPage({
       <div className="flex flex-col gap-3 border-t border-border pt-4">
         <FraccionSeal />
         <p className="text-xs leading-relaxed text-fg-muted">{COPY_DISCLAIMER}</p>
-        <p className="text-xs leading-relaxed text-fg-subtle">{COPY_LEGAL_PENDING_LABEL}</p>
+        <p className="text-xs leading-relaxed text-fg-muted">{COPY_LEGAL_PENDING_LABEL}</p>
       </div>
     </article>
   );

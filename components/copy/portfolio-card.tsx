@@ -6,7 +6,6 @@ import { formatFeedDate, type LagChip } from "@/lib/copy/lag";
 import { type CopyCoverage, type CopyFamily, isCopyableFamily } from "@/lib/copy/types";
 
 import { COPY_FAMILY_LABELS } from "./family-tabs";
-import { FraccionSeal } from "./fraccion-seal";
 
 /** Metadatos mínimos que muestra la tarjeta (vienen del índice firmado). */
 export type PortfolioCardData = {
@@ -50,10 +49,10 @@ export function PortfolioCard({
   const top50 = portfolio.coverage === "top50_of_full_book";
 
   return (
-    <article className="group flex flex-col overflow-hidden rounded-2xl border border-border/70 bg-surface-1 transition-colors duration-150 hover:bg-surface-2">
+    <article className="group flex flex-col overflow-hidden rounded-2xl bg-surface-1 shadow-card transition-colors duration-150 hover:bg-surface-2">
       <Link
         href={`/app/copiar/${portfolio.slug}`}
-        className="flex flex-1 flex-col gap-3 p-5 outline-none focus-visible:ring-4 focus-visible:ring-inset focus-visible:ring-fg/20"
+        className="flex flex-1 flex-col gap-3 p-5"
       >
         <div className="flex flex-wrap items-center gap-1.5">
           <Badge tone="neutral">{COPY_FAMILY_LABELS[portfolio.family]}</Badge>
@@ -78,7 +77,7 @@ export function PortfolioCard({
 
         <div className="mt-auto flex flex-col gap-1.5 pt-1">
           <div className="flex items-baseline justify-between gap-2">
-            <span className="font-mono text-[11px] uppercase tracking-[0.08em] text-fg-muted">
+            <span className="text-xs font-medium text-fg-muted">
               Cobertura
             </span>
             <span className={cn("font-mono text-sm tabular-nums", coverageClass)}>
@@ -88,7 +87,7 @@ export function PortfolioCard({
           <div aria-hidden className="h-1.5 overflow-hidden rounded-full bg-surface-3">
             <div className={cn("h-full rounded-full", barClass)} style={{ width: `${pct ?? 0}%` }} />
           </div>
-          <p className="text-[11px] leading-relaxed text-fg-subtle">
+          <p className="text-xs leading-relaxed text-fg-muted">
             {pct === null
               ? "Cobertura no disponible"
               : `Replicas el ${pct} % del portafolio original`}
@@ -100,9 +99,6 @@ export function PortfolioCard({
           <span aria-hidden>→</span>
         </span>
       </Link>
-      <div className="flex items-center justify-end border-t border-border/70 px-5 py-2">
-        <FraccionSeal />
-      </div>
     </article>
   );
 }

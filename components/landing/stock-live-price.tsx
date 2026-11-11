@@ -26,6 +26,18 @@ type LiveQuote = {
 
 type LiveStatus = "loading" | "ready" | "error";
 
+/**
+ * Alto reservado por tamaño. El bloque de precio (carga, error y dato) ocupa
+ * siempre lo mismo: el panel y el hero no saltan cuando llega la cotización.
+ */
+const sizeFrame = {
+  sm: "min-h-5",
+  md: "min-h-7",
+  lg: "min-h-12",
+} as const;
+
+export type StockLivePriceSize = keyof typeof sizeFrame;
+
 /** Cotización de `symbol` dentro de la respuesta de `/api/prices`. */
 function pickQuote(
   quotes: readonly { symbol: string; priceUsd: number; change24hPct: number }[],
@@ -40,7 +52,16 @@ function pickQuote(
   };
 }
 
-export function StockLivePrice({ symbol, className }: { symbol: string; className?: string }) {
+export function StockLivePrice({
+  symbol,
+  size = "md",
+  className,
+}: {
+  symbol: string;
+  /** `lg` para la ficha (hero y panel): 36 px en móvil, 48 px desde sm. */
+  size?: StockLivePriceSize;
+  className?: string;
+}) {
   const [quote, setQuote] = useState<LiveQuote | null>(null);
   const [status, setStatus] = useState<LiveStatus>("loading");
 
@@ -102,16 +123,34 @@ export function StockLivePrice({ symbol, className }: { symbol: string; classNam
 
   if (status === "ready" && quote) {
     return (
-      <div className={cn("flex flex-wrap items-baseline gap-x-3 gap-y-1", className)}>
-        <PriceText value={quote.priceUsd} currency="USD" size="md" live />
-        {quote.change !== null ? <ChangeBadge value={quote.change} /> : null}
+      <div className={cn("flex flex-wrap items-baseline gap-x-3 gap-y-1", sizeFrame[size], className)}>
+        <PriceText value={quote.priceUsd} currency="USD" size={size} live />
+        {/* Con el precio grande el badge sube un paso para no quedar diminuto al lado. */}
+        {quote.change !== null ? (
+          <ChangeBadge value={quote.change} className={size === "lg" ? "text-sm" : undefined} />
+        ) : null}
+      </div>
+    );
+  }
+
+  if (status === "loading") {
+    return (
+      <div aria-live="polite" className={cn("flex items-center", sizeFrame[size], className)}>
+        <span
+          aria-hidden
+          className={cn(
+            "block rounded-lg bg-surface-2 motion-safe:animate-pulse",
+            size === "lg" ? "h-8 w-40" : "h-5 w-24",
+          )}
+        />
+        <span className="sr-only">Cargando precio…</span>
       </div>
     );
   }
 
   return (
-    <p aria-live="polite" className={cn("text-sm text-fg-muted", className)}>
-      {status === "error" ? "Precio no disponible" : "Cargando precio…"}
-    </p>
+    <div aria-live="polite" className={cn("flex items-center", sizeFrame[size], className)}>
+      <p className="text-sm text-fg-muted">Precio no disponible</p>
+    </div>
   );
 }

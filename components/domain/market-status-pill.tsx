@@ -164,12 +164,13 @@ export function FloatingMarketOrb({
         aria-expanded={shown}
         aria-controls={shown ? panelId : undefined}
         aria-label={toggleLabel}
+        title={short}
         onClick={() => setShown((value) => !value)}
-        className="order-2 inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-full border border-border/80 bg-bg/85 px-3.5 py-2 text-sm font-medium text-fg shadow-[0_10px_30px_rgba(0,0,0,0.12),inset_0_1px_0_rgba(255,255,255,0.85)] outline-none backdrop-blur-xl transition-all duration-200 ease-spring hover:scale-[1.02] focus-visible:ring-4 focus-visible:ring-fg/20 active:scale-[0.97]"
+        className="order-2 inline-flex size-11 cursor-pointer items-center justify-center gap-2 rounded-full border border-border-control bg-bg/85 p-0 text-sm font-medium text-fg shadow-[0_10px_30px_rgba(0,0,0,0.12),inset_0_1px_0_rgba(255,255,255,0.85)] backdrop-blur-xl transition-colors duration-200 ease-spring hover:bg-surface-1 active:scale-[0.97] sm:size-auto sm:min-h-11 sm:px-3.5 sm:py-2"
       >
         {open ? <SunIcon className="size-4 text-amber-500" glow /> : <MoonIcon className="size-4 text-info" />}
-        <span>{short}</span>
-        {open ? <LiveDot /> : <TwilightDot />}
+        <span className="hidden sm:inline">{short}</span>
+        <span className="hidden sm:inline-flex">{open ? <LiveDot /> : <TwilightDot />}</span>
       </button>
       {shown ? (
         <div
@@ -178,7 +179,7 @@ export function FloatingMarketOrb({
           role="dialog"
           tabIndex={-1}
           aria-labelledby={titleId}
-          className="order-1 mb-2.5 w-72 max-w-[calc(100vw-2rem)] rounded-2xl border border-border/80 bg-bg/95 p-4 shadow-[0_20px_50px_rgba(0,0,0,0.16),inset_0_1px_0_rgba(255,255,255,0.9)] backdrop-blur-xl outline-none motion-safe:animate-pop-in focus-visible:ring-4 focus-visible:ring-fg/20 sm:w-80"
+          className="order-1 mb-2.5 w-72 max-w-[calc(100vw-2rem)] rounded-2xl bg-bg/95 p-4 shadow-[0_20px_50px_rgba(0,0,0,0.16),inset_0_1px_0_rgba(255,255,255,0.9)] ring-1 ring-border backdrop-blur-xl motion-safe:animate-pop-in sm:w-80"
         >
           <div className="flex items-start gap-3">
             <span
@@ -203,7 +204,7 @@ export function FloatingMarketOrb({
                 buttonRef.current?.focus();
               }}
               aria-label={copy.dismiss}
-              className="flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-full text-fg-muted outline-none transition duration-150 ease-spring hover:bg-surface-2 hover:text-fg focus-visible:ring-4 focus-visible:ring-fg/20"
+              className="flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-full text-fg-muted transition-colors duration-150 ease-spring hover:bg-surface-2 hover:text-fg sm:size-8"
             >
               <CloseIcon />
             </button>

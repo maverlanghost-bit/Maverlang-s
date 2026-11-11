@@ -20,7 +20,7 @@ export function LegalNote({
 }) {
   if (!cta && !disclaimer) {
     return (
-      <p className={cn("text-[11px] leading-relaxed text-fg-subtle", className)}>
+      <p className={cn("text-xs leading-relaxed text-fg-muted", className)}>
         {COPY_LEGAL_PENDING_LABEL}
       </p>
     );
@@ -36,7 +36,7 @@ export function LegalNote({
     >
       {cta ? <p className="text-fg-body">{COPY_CTA_NOTE}</p> : null}
       {disclaimer ? <p>{COPY_DISCLAIMER}</p> : null}
-      <p className="text-[11px] text-fg-subtle">{COPY_LEGAL_PENDING_LABEL}</p>
+      <p className="text-xs text-fg-muted">{COPY_LEGAL_PENDING_LABEL}</p>
     </aside>
   );
 }

@@ -7,8 +7,11 @@ import { useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } fro
 import { MoverCard, SpyChip } from "@/components/domain/market-today/mover-card";
 import { TodaySkeleton } from "@/components/domain/market-today/skeleton";
 import { buildFeaturedPool } from "@/components/domain/market-today/spotlight";
+import { ChangeBadge } from "@/components/domain/change-badge";
+import { PriceText } from "@/components/domain/price-text";
 import { sparklineSmoothPath } from "@/components/domain/sparkline";
 import { TickerLogo } from "@/components/domain/ticker-logo";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { indexFromKey } from "@/components/ui/keys";
 import { hoyCopy } from "@/content/i18n/extra-hoy";
@@ -299,11 +302,17 @@ export function MarketToday() {
     return basePct;
   }, [basePct, hoverPoint, series]);
 
+  /**
+   * Precio grande de la destacada: el último punto real de la serie (o el
+   * punto bajo el cursor). Sin serie no se pinta una cifra inventada.
+   */
+  const lastPoint = series.length > 0 ? series[series.length - 1] : undefined;
+  const shownPriceUsd = hoverPoint?.p ?? lastPoint?.p ?? null;
+
   const chartValues = useMemo(() => series.map((pt) => pt.p), [series]);
   const chartShape = useMemo(() => sparklineSmoothPath(chartValues, CHART_W, CHART_H), [chartValues]);
   const isPositive = (basePct ?? 0) >= 0;
   const strokeColor = isPositive ? "#059669" : "#e11d48";
-  const hoverPositive = (displayPct ?? 0) >= 0;
 
   /** Eje derecho real: máximo, medio y mínimo de la serie respecto del primer punto. */
   const axisLabels = useMemo(() => {
@@ -400,7 +409,7 @@ export function MarketToday() {
       {board.isError && !board.data ? (
         <div role="alert" className="flex min-h-[148px] flex-col items-start justify-center gap-3">
           <p className="text-sm text-fg">{copy.error}</p>
-          <Button variant="secondary" size="lg" onClick={() => void board.refetch()}>
+          <Button size="lg" onClick={() => void board.refetch()}>
             {copy.retry}
           </Button>
         </div>
@@ -410,7 +419,7 @@ export function MarketToday() {
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-12 lg:items-stretch">
           {activeCard ? (
             <div
-              className="flex flex-col justify-between rounded-3xl border border-border/80 bg-white p-4 shadow-[0_12px_36px_-16px_rgba(12,15,20,0.08)] sm:p-5 lg:col-span-8"
+              className="flex flex-col justify-between rounded-3xl bg-surface-1 p-4 shadow-card sm:p-5 lg:col-span-8"
               onTouchStart={(event) => {
                 touchStartX.current = event.touches[0]?.clientX ?? null;
               }}
@@ -435,7 +444,7 @@ export function MarketToday() {
                     event.preventDefault();
                     router.push(`/app/accion/${encodeURIComponent(activeCard.symbol)}`);
                   }}
-                  className="flex min-w-0 cursor-pointer items-center gap-3 rounded-xl outline-none focus-visible:ring-4 focus-visible:ring-fg/20"
+                  className="flex min-w-0 cursor-pointer items-center gap-3 rounded-xl"
                 >
                   <TickerLogo
                     symbol={activeCard.symbol}
@@ -450,15 +459,18 @@ export function MarketToday() {
                     <p className="truncate text-base font-bold tracking-tight text-fg sm:text-[17px]">
                       {activeCard.name} ({activeCard.symbol})
                     </p>
-                    <p className="truncate text-xs text-fg-muted">
-                      {language === "en"
-                        ? `Tokenized stock · Solana 24/7 · #${safeSlideIndex + 1} featured`
-                        : `Acción tokenizada · Solana 24/7 · Destacada #${safeSlideIndex + 1}`}
-                    </p>
+                    <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                      <p className="truncate text-xs text-fg-muted">
+                        {language === "en" ? "Tokenized stock · Solana 24/7" : "Acción tokenizada · Solana 24/7"}
+                      </p>
+                      <Badge tone="neutral" className="font-mono">
+                        {language === "en" ? `Featured #${safeSlideIndex + 1}` : `Destacada #${safeSlideIndex + 1}`}
+                      </Badge>
+                    </div>
                   </div>
                 </div>
 
-                <div className="grid w-full grid-cols-5 gap-0.5 rounded-full bg-surface-2/90 p-0.5 sm:inline-flex sm:w-auto sm:shrink-0">
+                <div className="grid w-full grid-cols-5 gap-0.5 rounded-full bg-bg p-0.5 sm:inline-flex sm:w-auto sm:shrink-0">
                   {SPOTLIGHT_RANGES.map((item) => {
                     const active = item.id === range;
                     return (
@@ -471,9 +483,9 @@ export function MarketToday() {
                           setRange(item.id);
                         }}
                         className={cn(
-                          "inline-flex min-h-8 cursor-pointer items-center justify-center rounded-full px-2.5 py-1 text-center text-[11px] transition-all",
+                          "inline-flex min-h-11 cursor-pointer items-center justify-center rounded-full px-2.5 text-center text-xs transition-colors",
                           active
-                            ? "bg-white font-semibold text-fg shadow-2xs"
+                            ? "bg-fg font-semibold text-bg shadow-xs"
                             : "font-medium text-fg-muted hover:text-fg",
                         )}
                       >
@@ -484,26 +496,31 @@ export function MarketToday() {
                 </div>
               </div>
 
-              <div className="mt-2.5 flex items-baseline gap-2">
-                <span
-                  className={cn(
-                    "num text-2xl font-bold tracking-tight tabular-nums transition-colors sm:text-[28px]",
-                    hoverPositive ? "text-up" : "text-down",
-                  )}
-                >
-                  {displayPct === null ? "—" : formatPercent(displayPct)}
-                </span>
-                <span className="text-xs font-medium text-fg-muted">
-                  {hoverPoint
-                    ? `${usdFormatter.format(hoverPoint.p)}${hoverPoint.t !== null ? ` · ${dateFormatter.format(new Date(hoverPoint.t))}` : ""}`
-                    : language === "en"
-                      ? activeRangeMeta.periodEn
-                      : activeRangeMeta.periodEs}
+              <div className="mt-3 flex flex-wrap items-end gap-x-3 gap-y-1.5">
+                {shownPriceUsd !== null ? (
+                  <PriceText
+                    value={shownPriceUsd}
+                    currency="USD"
+                    size="sm"
+                    className="text-[28px] leading-none font-semibold tracking-tight sm:text-[32px]"
+                  />
+                ) : (
+                  <span className="num text-[28px] leading-none font-semibold text-fg sm:text-[32px]">—</span>
+                )}
+                <span className="flex flex-wrap items-center gap-x-2 gap-y-1 pb-0.5">
+                  {displayPct !== null ? <ChangeBadge value={displayPct} /> : null}
+                  <span className="text-xs font-medium text-fg-muted">
+                    {hoverPoint
+                      ? `${usdFormatter.format(hoverPoint.p)}${hoverPoint.t !== null ? ` · ${dateFormatter.format(new Date(hoverPoint.t))}` : ""}`
+                      : language === "en"
+                        ? activeRangeMeta.periodEn
+                        : activeRangeMeta.periodEs}
+                  </span>
                 </span>
               </div>
 
               <div
-                className="group/spotlight relative my-2 h-[136px] w-full cursor-crosshair select-none pr-14 sm:h-[148px]"
+                className="group/spotlight relative my-2 h-28 w-full cursor-crosshair select-none pr-14 sm:h-36"
                 style={{ touchAction: "pan-y" }}
                 onTouchStart={(event) => event.stopPropagation()}
                 onTouchEnd={(event) => event.stopPropagation()}
@@ -511,7 +528,7 @@ export function MarketToday() {
                 {chartShape ? (
                   <div
                     key={`${activeCard.symbol}-${range}`}
-                    className="relative h-full w-full select-none outline-none focus:outline-none focus-visible:outline-none"
+                    className="relative h-full w-full select-none"
                     role="img"
                     aria-label={`${activeCard.symbol}: ${basePct === null ? "" : formatPercent(basePct)} ${language === "en" ? activeRangeMeta.periodEn : activeRangeMeta.periodEs}`}
                     onPointerMove={(event) => scrub(event.clientX, event.currentTarget.getBoundingClientRect())}
@@ -590,7 +607,7 @@ export function MarketToday() {
                       />
                     )}
                     {historyQuery.isFetching && !hasHistory ? (
-                      <span className="pointer-events-none absolute top-1 left-1 text-[10px] text-fg-muted">
+                      <span className="pointer-events-none absolute top-1 left-1 text-[11px] text-fg-muted">
                         {copy.loading}
                       </span>
                     ) : null}
@@ -607,7 +624,7 @@ export function MarketToday() {
                 {axisLabels ? (
                   <div
                     aria-hidden
-                    className="pointer-events-none absolute inset-y-0 right-0 flex w-14 flex-col justify-between text-right text-[10px] font-medium text-fg-muted tabular-nums"
+                    className="pointer-events-none absolute inset-y-0 right-0 flex w-14 flex-col justify-between text-right text-[11px] font-medium text-fg-muted tabular-nums"
                   >
                     <span className="-translate-y-1/2">{axisLabels.top}</span>
                     <span>{axisLabels.mid}</span>
@@ -622,7 +639,7 @@ export function MarketToday() {
                     event.stopPropagation();
                     router.push(`/app/accion/${encodeURIComponent(activeCard.symbol)}`);
                   }}
-                  className="absolute top-0 right-14 z-20 inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-border/80 bg-white/90 px-2.5 py-1 text-[11px] font-medium text-fg opacity-95 shadow-sm outline-none backdrop-blur-md transition-opacity duration-150 sm:opacity-0 sm:group-hover/spotlight:opacity-100 hover:border-fg hover:bg-fg hover:text-bg focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-fg/30"
+                  className="absolute top-0 right-14 z-20 inline-flex size-11 cursor-pointer items-center justify-center gap-1.5 rounded-full border border-border-control bg-bg/90 p-0 text-xs font-medium text-fg shadow-xs backdrop-blur-md transition-colors duration-150 hover:bg-surface-2 sm:size-auto sm:h-8 sm:px-2.5 sm:opacity-0 sm:group-hover/spotlight:opacity-100"
                 >
                   <svg
                     viewBox="0 0 16 16"
@@ -640,14 +657,18 @@ export function MarketToday() {
                 </button>
               </div>
 
-              <div className="mt-2 flex flex-wrap items-center justify-between gap-3 border-t border-border/60 pt-3">
+              <div className="mt-3 flex flex-wrap items-center justify-between gap-3 border-t border-border/60 pt-3">
                 <div className="flex items-center gap-2">
-                  <button
-                    type="button"
+                  <Button size="md" onClick={() => router.push(`/app/accion/${encodeURIComponent(activeCard.symbol)}`)}>
+                    {language === "en" ? "View stock" : "Ver acción"}
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    size="md"
+                    aria-pressed={isFollowed}
                     onClick={() => toggleFavorite(activeCard.symbol)}
-                    className="inline-flex min-h-9 cursor-pointer items-center justify-center gap-1.5 rounded-full bg-fg px-5 py-1.5 text-xs font-semibold text-bg shadow-xs transition hover:bg-fg/90 active:scale-[0.98]"
                   >
-                    <span>{isFollowed ? "✓" : "+"}</span>
+                    <span aria-hidden>{isFollowed ? "✓" : "+"}</span>
                     <span>
                       {isFollowed
                         ? language === "en"
@@ -657,14 +678,7 @@ export function MarketToday() {
                           ? "Follow"
                           : "Seguir"}
                     </span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => router.push(`/app/accion/${encodeURIComponent(activeCard.symbol)}`)}
-                    className="inline-flex min-h-9 cursor-pointer items-center justify-center rounded-full border border-border bg-white px-4 py-1.5 text-xs font-semibold text-fg transition hover:bg-surface-2 active:scale-[0.98]"
-                  >
-                    {language === "en" ? "Open" : "Ver"}
-                  </button>
+                  </Button>
                 </div>
 
                 {featuredPool.length > 1 ? (
@@ -675,14 +689,20 @@ export function MarketToday() {
                           key={item.symbol}
                           type="button"
                           aria-label={`${idx + 1}: ${item.name}`}
+                          aria-current={safeSlideIndex === idx ? "true" : undefined}
                           onClick={() => setSlideIndex(idx)}
-                          className={cn(
-                            "cursor-pointer rounded-full transition-all",
-                            safeSlideIndex === idx
-                              ? "h-1.5 w-5 bg-fg"
-                              : "h-1.5 w-1.5 bg-border hover:bg-fg-muted",
-                          )}
-                        />
+                          className="flex size-8 cursor-pointer items-center justify-center rounded-full transition-colors"
+                        >
+                          <span
+                            aria-hidden
+                            className={cn(
+                              "block rounded-full transition-all",
+                              safeSlideIndex === idx
+                                ? "h-1.5 w-5 bg-fg"
+                                : "h-1.5 w-1.5 bg-border hover:bg-fg-muted",
+                            )}
+                          />
+                        </button>
                       ))}
                     </div>
                     <div className="flex items-center gap-1">
@@ -690,7 +710,7 @@ export function MarketToday() {
                         type="button"
                         aria-label={language === "en" ? "Previous stock" : "Acción anterior"}
                         onClick={() => stepSlide(-1)}
-                        className="inline-flex size-8 cursor-pointer items-center justify-center rounded-full border border-border bg-white text-xs font-semibold text-fg transition hover:bg-surface-2 active:scale-[0.96]"
+                        className="inline-flex size-11 cursor-pointer items-center justify-center rounded-full border border-border-control bg-bg text-sm font-semibold text-fg transition-colors hover:bg-surface-1 active:scale-[0.96] sm:size-9"
                       >
                         ‹
                       </button>
@@ -698,7 +718,7 @@ export function MarketToday() {
                         type="button"
                         aria-label={language === "en" ? "Next stock" : "Siguiente acción"}
                         onClick={() => stepSlide(1)}
-                        className="inline-flex size-8 cursor-pointer items-center justify-center rounded-full border border-border bg-white text-xs font-semibold text-fg transition hover:bg-surface-2 active:scale-[0.96]"
+                        className="inline-flex size-11 cursor-pointer items-center justify-center rounded-full border border-border-control bg-bg text-sm font-semibold text-fg transition-colors hover:bg-surface-1 active:scale-[0.96] sm:size-9"
                       >
                         ›
                       </button>
@@ -711,13 +731,13 @@ export function MarketToday() {
 
           <div
             className={cn(
-              "flex flex-col justify-between rounded-3xl border border-border/80 bg-white p-4 shadow-[0_12px_36px_-16px_rgba(12,15,20,0.08)] sm:p-5",
+              "flex flex-col justify-between rounded-3xl bg-surface-1 p-4 shadow-card sm:p-5",
               activeCard ? "lg:col-span-4" : "lg:col-span-12",
             )}
           >
             <div>
               <div className="flex items-center justify-between gap-2">
-                <span className="text-[15px] font-bold tracking-tight text-fg">
+                <span className="text-base font-semibold tracking-tight text-fg">
                   {language === "en" ? "Top movers" : "Mejor rendimiento"}
                 </span>
                 <span className="text-xs font-medium text-fg-muted">
@@ -729,7 +749,7 @@ export function MarketToday() {
                 role="tablist"
                 aria-label={copy.lists}
                 aria-orientation="horizontal"
-                className="mt-2.5 grid grid-cols-3 gap-1 rounded-full bg-surface-2/85 p-1"
+                className="mt-3 grid grid-cols-3 gap-1 rounded-full bg-bg p-1"
                 onKeyDown={(event) => {
                   if (indexFromKey(event.key, 0, options.length) === null) return;
                   event.preventDefault();
@@ -749,9 +769,9 @@ export function MarketToday() {
                       tabIndex={selected ? 0 : -1}
                       onClick={() => setPicked(option.id)}
                       className={cn(
-                        "inline-flex min-h-8 cursor-pointer items-center justify-center rounded-full px-2 text-xs font-semibold whitespace-nowrap outline-none transition-all focus-visible:ring-4 focus-visible:ring-fg/20",
+                        "inline-flex min-h-11 cursor-pointer items-center justify-center rounded-full px-2 text-xs font-semibold whitespace-nowrap transition-colors",
                         selected
-                          ? "bg-fg text-bg shadow-2xs"
+                          ? "bg-fg text-bg shadow-xs"
                           : "text-fg-muted hover:text-fg",
                       )}
                     >
@@ -785,7 +805,7 @@ export function MarketToday() {
             <button
               type="button"
               onClick={cycleList}
-              className="mt-3 w-full cursor-pointer rounded-full bg-surface-2/80 py-2 text-center text-xs font-semibold text-fg transition hover:bg-surface-3"
+              className="mt-3 min-h-11 w-full cursor-pointer rounded-full bg-bg text-center text-xs font-semibold text-fg transition-colors hover:bg-surface-2"
             >
               {language === "en" ? "Switch ranking view" : "Cambiar vista del ranking"}
             </button>

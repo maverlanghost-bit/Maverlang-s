@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { LandingSection } from "@/components/landing/section";
+import { buttonClasses } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
 import {
   assetsInCategory,
   CATEGORIES,
@@ -36,7 +38,7 @@ function CategoryCard({ category, count }: { category: CatalogCategory; count: n
   return (
     <Link
       href={`/categorias/${category.slug}`}
-      className="group flex min-h-24 flex-col justify-between gap-4 rounded-2xl border border-border/80 bg-white p-5 transition hover:-translate-y-0.5 hover:border-fg/25 hover:shadow-md focus-visible:ring-4 focus-visible:ring-fg/20 focus-visible:outline-none"
+      className="group flex min-h-24 flex-col justify-between gap-4 rounded-2xl bg-bg p-5 shadow-card transition hover:bg-surface-1"
     >
       <div>
         <p className="label">{kindLabel(category)}</p>
@@ -68,7 +70,7 @@ export default async function CategoriasPage() {
   const lists = published.filter(({ category }) => category.kind === "lista");
 
   return (
-    <LandingSection titleId="categorias-title">
+    <LandingSection titleId="categorias-title" density="compact">
       <JsonLd
         data={breadcrumbJsonLd([
           { name: "Inicio", path: "/" },
@@ -105,7 +107,7 @@ export default async function CategoriasPage() {
         <h1 id="categorias-title" className="mt-3 text-3xl sm:text-4xl">
           Categorías de acciones
         </h1>
-        <p className="mt-4 text-sm leading-relaxed text-fg-body sm:text-base">
+        <p className="mt-4 max-w-[62ch] text-base leading-relaxed text-fg-body">
           Los sectores salen de la clasificación SIC que la SEC registra para cada empresa; las
           selecciones agrupan activos por tema o por un dato publicado en la SEC. Cada categoría
           enlaza a las fichas públicas y no es una recomendación de inversión.
@@ -113,12 +115,22 @@ export default async function CategoriasPage() {
       </header>
 
       {published.length === 0 ? (
-        <p className="mt-10 text-sm text-fg-muted">Las categorías no están disponibles ahora.</p>
+        <div className="mt-10">
+          <EmptyState
+            title="Las categorías no están disponibles ahora."
+            description="No pudimos cargar los sectores ni las selecciones. Recarga la página en unos minutos."
+            action={
+              <Link href="/acciones" className={buttonClasses({ variant: "secondary" })}>
+                Ver el catálogo completo
+              </Link>
+            }
+          />
+        </div>
       ) : (
         <>
           {sectors.length > 0 ? (
             <section aria-labelledby="categorias-sectores" className="mt-12">
-              <h2 id="categorias-sectores" className="text-xl sm:text-2xl">
+              <h2 id="categorias-sectores" className="text-2xl sm:text-3xl">
                 Sectores
               </h2>
               <ul className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -133,7 +145,7 @@ export default async function CategoriasPage() {
 
           {lists.length > 0 ? (
             <section aria-labelledby="categorias-selecciones" className="mt-12">
-              <h2 id="categorias-selecciones" className="text-xl sm:text-2xl">
+              <h2 id="categorias-selecciones" className="text-2xl sm:text-3xl">
                 Selecciones
               </h2>
               <p className="mt-2 max-w-2xl text-sm leading-relaxed text-fg-muted">

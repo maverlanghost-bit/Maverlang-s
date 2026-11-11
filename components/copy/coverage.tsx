@@ -59,7 +59,7 @@ export function Coverage({
       <div className="flex items-baseline justify-between gap-3">
         <h2
           id="cobertura-titulo"
-          className="font-mono text-[11px] uppercase tracking-[0.08em] text-fg-muted"
+          className="text-xs font-medium text-fg-muted"
         >
           Cobertura
         </h2>

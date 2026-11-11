@@ -24,7 +24,7 @@ export default function CopiarLoading() {
         {["a", "b", "c", "d", "e", "f"].map((key) => (
           <div
             key={key}
-            className="flex flex-col gap-3 rounded-2xl border border-border/70 bg-surface-1 p-5"
+            className="flex flex-col gap-3 rounded-2xl bg-surface-1 p-5 shadow-card"
           >
             <Skeleton className="h-5 w-24 rounded-full" />
             <Skeleton className="h-5 w-3/4" />

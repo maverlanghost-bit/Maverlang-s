@@ -1,5 +1,7 @@
 import Link from "next/link";
+import { IconChevron } from "@/components/ui/icons";
 import type { Block, Inline } from "@/lib/content/legal";
+import { cn } from "@/lib/cn";
 
 const linkClass =
   "font-medium text-fg underline decoration-border underline-offset-4 hover:decoration-fg";
@@ -41,111 +43,170 @@ function Inlines({ items }: { items: Inline[] }) {
   );
 }
 
-export function LegalBody({ blocks }: { blocks: Block[] }) {
-  const headings = blocks.filter(
-    (block): block is Extract<Block, { type: "h2" }> => block.type === "h2",
+type Heading = Extract<Block, { type: "h2" }>;
+
+/**
+ * Índice del documento: la misma fila (44 px, número mono, subrayado al pasar)
+ * que usa el índice de `/guias/[slug]`. Se pinta dos veces porque el `<details>`
+ * de móvil no puede abrirse por CSS desde `sm`: uno se oculta bajo `sm` y el
+ * otro desde `sm`, y sólo uno queda en el árbol de accesibilidad.
+ */
+function IndexLinks({ headings, className }: { headings: Heading[]; className?: string }) {
+  return (
+    <ol className={cn("mt-2 space-y-0.5 text-sm", className)}>
+      {headings.map((heading, index) => (
+        <li key={heading.id}>
+          <a
+            href={`#${heading.id}`}
+            className="flex min-h-11 items-start gap-2.5 py-1.5 leading-snug text-fg-body underline decoration-transparent underline-offset-4 transition-colors duration-150 hover:text-fg hover:decoration-fg motion-reduce:transition-none"
+          >
+            <span aria-hidden="true" className="mt-px font-mono text-xs tabular-nums text-fg-muted">
+              {String(index + 1).padStart(2, "0")}
+            </span>
+            <span className="min-w-0">{heading.text}</span>
+          </a>
+        </li>
+      ))}
+    </ol>
   );
+}
+
+export function LegalBody({ blocks }: { blocks: Block[] }) {
+  const headings = blocks.filter((block): block is Heading => block.type === "h2");
+  /* Con una o dos secciones el índice es más ruido que ayuda. */
+  const withIndex = headings.length >= 3;
 
   return (
-    <div className="mt-10 space-y-4 break-words text-sm leading-relaxed text-fg-body sm:text-base">
-      {headings.length >= 2 ? (
-        <nav
-          aria-label="Índice del documento"
-          className="mb-8 rounded-2xl border border-border/80 bg-surface-1/70 p-4 sm:p-5"
-        >
-          <p className="text-xs font-semibold tracking-wider text-fg-muted uppercase">
-            Contenido del documento ({headings.length} secciones)
-          </p>
-          <ol className="mt-3 grid gap-2 sm:grid-cols-2">
-            {headings.map((heading, index) => (
-              <li key={heading.id}>
-                <a
-                  href={`#${heading.id}`}
-                  className="group flex min-h-11 items-center gap-2.5 rounded-xl border border-border/60 bg-white/70 px-3 py-2 text-sm text-fg-body outline-none transition-colors hover:border-fg/25 hover:bg-surface-2 hover:text-fg focus-visible:ring-4 focus-visible:ring-fg/20"
-                >
-                  <span
-                    aria-hidden="true"
-                    className="num inline-flex size-6 shrink-0 items-center justify-center rounded-md bg-surface-2 text-[11px] font-semibold text-fg-muted transition-colors group-hover:bg-white group-hover:text-fg"
-                  >
-                    {String(index + 1).padStart(2, "0")}
-                  </span>
-                  <span className="min-w-0 flex-1">{heading.text}</span>
-                </a>
-              </li>
-            ))}
-          </ol>
-        </nav>
+    <div className={cn("mt-8", withIndex && "lg:grid lg:grid-cols-[minmax(0,1fr)_15rem] lg:items-start lg:gap-12")}>
+      {withIndex ? (
+        <aside className="mb-8 lg:order-2 lg:sticky lg:top-24 lg:mb-0">
+          {/* <sm: plegado, 44 px de summary, mismo indicador que /ayuda y /guias. */}
+          <details className="group rounded-3xl bg-surface-1 px-4 pb-1 shadow-card sm:hidden">
+            <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-4 py-2 text-sm font-medium text-fg [&::-webkit-details-marker]:hidden">
+              <span className="min-w-0">
+                En este documento
+                <span className="text-fg-muted"> · {headings.length} secciones</span>
+              </span>
+              <IconChevron className="disclosure-chevron size-4 shrink-0 text-fg-muted transition-transform duration-200 motion-reduce:transition-none" />
+            </summary>
+            <nav aria-label="Índice del documento" className="pb-2">
+              <IndexLinks headings={headings} />
+            </nav>
+          </details>
+          {/* ≥sm: visible y, en lg, fijo junto al texto. */}
+          <nav
+            aria-label="Índice del documento"
+            className="hidden rounded-3xl bg-surface-1 p-5 shadow-card sm:block"
+          >
+            <p className="eyebrow">En este documento</p>
+            <IndexLinks
+              headings={headings}
+              className="sm:grid sm:grid-cols-2 sm:gap-x-6 sm:gap-y-0 lg:block lg:space-y-0.5"
+            />
+          </nav>
+        </aside>
       ) : null}
-      {blocks.map((block, index) => {
-        if (block.type === "h2") {
-          return (
-            <h2 key={block.id} id={block.id} className="scroll-mt-24 pt-6 text-xl">
-              {block.text}
-            </h2>
-          );
-        }
-        if (block.type === "h3") {
-          return (
-            <h3 key={block.id} id={block.id} className="scroll-mt-24 pt-2 text-base">
-              {block.text}
-            </h3>
-          );
-        }
-        if (block.type === "ul") {
-          return (
-            <ul key={index} className="list-disc space-y-2 pl-5">
-              {block.items.map((item, itemIndex) => (
-                <li key={itemIndex}>
-                  <Inlines items={item} />
-                </li>
-              ))}
-            </ul>
-          );
-        }
-        if (block.type === "table") {
-          return (
-            <div key={index} className="overflow-x-auto rounded-xl border border-border">
-              <table className="w-full text-left text-sm">
-                <thead>
-                  <tr className="border-b border-border text-fg-muted">
-                    {block.headers.map((cell, cellIndex) => (
-                      <th key={cellIndex} scope="col" className="px-4 py-3 font-medium">
-                        <Inlines items={cell} />
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {block.rows.map((row, rowIndex) => (
-                    <tr key={rowIndex} className="border-b border-border last:border-b-0">
-                      {row.map((cell, cellIndex) =>
-                        cellIndex === 0 ? (
+
+      <div className="min-w-0 max-w-[68ch] space-y-5 text-[1.0625rem] leading-7 text-fg-body">
+        {blocks.map((block, index) => {
+          if (block.type === "h2") {
+            return (
+              <h2 key={block.id} id={block.id} className="scroll-mt-24 pt-6 text-xl sm:text-2xl">
+                {block.text}
+              </h2>
+            );
+          }
+          if (block.type === "h3") {
+            return (
+              <h3 key={block.id} id={block.id} className="scroll-mt-24 pt-2 text-lg">
+                {block.text}
+              </h3>
+            );
+          }
+          if (block.type === "ul") {
+            return (
+              <ul key={index} className="list-disc space-y-2 pl-5">
+                {block.items.map((item, itemIndex) => (
+                  <li key={itemIndex}>
+                    <Inlines items={item} />
+                  </li>
+                ))}
+              </ul>
+            );
+          }
+          if (block.type === "table") {
+            return (
+              <figure key={index} className="min-w-0 py-1">
+                {/* <sm: una fila por concepto; la tabla de 544 px no cabe en 390 px. */}
+                <dl className="divide-y divide-border rounded-2xl border border-border bg-bg sm:hidden">
+                  {block.rows.map((row, rowIndex) => {
+                    const [leading, ...rest] = row;
+                    return (
+                      <div key={rowIndex} className="px-4 py-3.5">
+                        <dt className="text-sm leading-relaxed font-medium text-fg">
+                          {leading ? <Inlines items={leading} /> : null}
+                        </dt>
+                        {rest.map((cell, cellIndex) => (
+                          <dd key={cellIndex} className="mt-1 text-sm leading-relaxed text-fg-body">
+                            <Inlines items={cell} />
+                          </dd>
+                        ))}
+                      </div>
+                    );
+                  })}
+                </dl>
+                {/* ≥sm: la tabla completa, con scroll y un fundido que avisa que sigue. */}
+                <div className="hidden overflow-x-auto rounded-2xl border border-border bg-bg sm:block sm:[mask-image:linear-gradient(90deg,transparent,#000_1.5%,#000_96%,transparent)]">
+                  <table className="w-full min-w-[34rem] text-left text-sm">
+                    <thead>
+                      <tr className="border-b border-border">
+                        {block.headers.map((cell, cellIndex) => (
                           <th
                             key={cellIndex}
-                            scope="row"
-                            className="w-[46%] px-4 py-3 align-top font-medium text-fg md:w-2/5"
+                            scope="col"
+                            className="px-4 py-3 text-xs font-medium text-fg-muted"
                           >
                             <Inlines items={cell} />
                           </th>
-                        ) : (
-                          <td key={cellIndex} className="px-4 py-3 align-top text-fg-body">
-                            <Inlines items={cell} />
-                          </td>
-                        ),
-                      )}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {block.rows.map((row, rowIndex) => (
+                        <tr
+                          key={rowIndex}
+                          className="border-b border-border last:border-b-0"
+                        >
+                          {row.map((cell, cellIndex) =>
+                            cellIndex === 0 ? (
+                              <th
+                                key={cellIndex}
+                                scope="row"
+                                className="w-2/5 px-4 py-3 align-top font-medium text-fg"
+                              >
+                                <Inlines items={cell} />
+                              </th>
+                            ) : (
+                              <td key={cellIndex} className="px-4 py-3 align-top text-fg-body">
+                                <Inlines items={cell} />
+                              </td>
+                            ),
+                          )}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </figure>
+            );
+          }
+          return (
+            <p key={index} className="text-pretty">
+              <Inlines items={block.inlines} />
+            </p>
           );
-        }
-        return (
-          <p key={index} className="text-pretty">
-            <Inlines items={block.inlines} />
-          </p>
-        );
-      })}
+        })}
+      </div>
     </div>
   );
 }
@@ -160,14 +221,14 @@ const LEGAL_NAV: { slug: string; label: string }[] = [
 export function LegalNav({ current }: { current: string }) {
   const others = LEGAL_NAV.filter((item) => item.slug !== current);
   return (
-    <nav aria-label="Documentos legales" className="mt-12 border-t border-border pt-6">
-      <h2 className="text-sm font-medium text-fg">Documentos legales</h2>
-      <div className="mt-3 grid gap-3 sm:grid-cols-3">
+    <nav aria-label="Documentos legales" className="mt-12 max-w-5xl border-t border-border pt-6">
+      <h2 className="text-base font-medium text-fg">Documentos legales</h2>
+      <div className="mt-4 grid gap-3 sm:grid-cols-3">
         {others.map((item) => (
           <Link
             key={item.slug}
             href={`/legal/${item.slug}`}
-            className="group flex min-h-24 flex-col justify-between gap-3 rounded-2xl border border-border/80 bg-surface-1/60 p-4 outline-none transition-colors hover:border-fg/25 hover:bg-surface-2 focus-visible:ring-4 focus-visible:ring-fg/20"
+            className="group flex min-h-24 flex-col justify-between gap-3 rounded-2xl bg-surface-1 p-4 shadow-card transition-colors hover:bg-surface-2"
           >
             <span className="text-sm font-medium text-balance text-fg">{item.label}</span>
             <span className="inline-flex items-center gap-1 text-xs font-medium text-fg-muted transition-colors group-hover:text-fg">

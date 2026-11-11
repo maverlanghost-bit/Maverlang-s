@@ -5,20 +5,23 @@ export type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";
 export type ButtonSize = "sm" | "md" | "lg";
 
 export const buttonVariantClass: Record<ButtonVariant, string> = {
+  /* D1: un solo botón negro por vista. */
   primary: "bg-fg text-white hover:bg-[#1f2329]",
-  secondary: "bg-surface-3 text-fg hover:bg-[#d6d6d6]",
-  ghost: "bg-transparent text-fg hover:bg-surface-2",
-  danger: "bg-down text-white hover:bg-[#a82446]",
+  /* D1: contorno de control (3,74:1) en vez de relleno gris que parecía deshabilitado. */
+  secondary: "border border-control bg-bg text-fg hover:bg-surface-1",
+  ghost: "bg-transparent text-fg-muted hover:bg-surface-2 hover:text-fg",
+  danger: "bg-down text-white hover:bg-[#a81a1a]",
 };
 
 const sizeClass: Record<ButtonSize, string> = {
-  sm: "h-9 gap-1.5 px-3 text-sm",
+  /* D1: 44px táctiles en móvil; 36px sólo con puntero (sm+). */
+  sm: "h-11 gap-1.5 px-3 text-sm sm:h-9",
   md: "h-11 gap-2 px-4 text-sm md:px-6",
   lg: "h-11 gap-2 px-5 text-base md:h-12 md:px-7",
 };
 
 export const buttonBase =
-  "inline-flex items-center justify-center rounded-full font-normal transition duration-[140ms] ease-spring active:scale-[0.98] disabled:pointer-events-none disabled:opacity-40";
+  "inline-flex items-center justify-center rounded-full font-medium transition duration-[140ms] ease-spring active:scale-[0.98] disabled:pointer-events-none disabled:opacity-40";
 
 export function buttonClasses({
   variant = "primary",

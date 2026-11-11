@@ -1,11 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, permanentRedirect } from "next/navigation";
-import { TickerLogo } from "@/components/domain/ticker-logo";
 import { LandingSection } from "@/components/landing/section";
-import { logoPathFromSymbol } from "@/lib/catalog/logos";
+import { PublicAssetCard } from "@/components/landing/public-asset-card";
 import { COMPANY_SNAPSHOT_DATE, companyProfile } from "@/lib/seo/company-profile";
-import { assetsInCategory, CATEGORIES, MIN_CATEGORY_SIZE } from "@/lib/seo/categories";
+import { assetsInCategory, CATEGORIES, MIN_CATEGORY_SIZE, sectorFor } from "@/lib/seo/categories";
 import { breadcrumbJsonLd, itemListJsonLd, JsonLd } from "@/lib/seo/jsonld";
 import { brandShort, pageMetadata } from "@/lib/seo/metadata";
 import { listPublicAssets, type PublicAsset } from "@/lib/seo/public-catalog";
@@ -124,7 +123,7 @@ export default async function CategoriaPage({ params }: { params: Promise<{ slug
     .filter(Boolean);
 
   return (
-    <LandingSection titleId="categoria-title">
+    <LandingSection titleId="categoria-title" density="compact">
       <JsonLd
         data={breadcrumbJsonLd([
           { name: "Inicio", path: "/" },
@@ -171,12 +170,12 @@ export default async function CategoriaPage({ params }: { params: Promise<{ slug
         <h1 id="categoria-title" className="mt-3 text-3xl sm:text-4xl">
           {category.name}
         </h1>
-        <div className="mt-4 space-y-3 text-sm leading-relaxed text-fg-body sm:text-base">
+        <div className="mt-4 max-w-[62ch] space-y-3 text-base leading-relaxed text-fg-body">
           {introParagraphs.map((paragraph) => (
             <p key={paragraph}>{paragraph}</p>
           ))}
         </div>
-        <p className="mt-5 inline-flex items-center gap-1.5 rounded-full border border-border/80 bg-surface-1 px-3 py-1.5 text-xs leading-snug text-fg-body sm:text-sm">
+        <p className="mt-5 inline-flex items-center gap-1.5 rounded-full bg-surface-1 px-3 py-1.5 text-xs leading-snug text-fg-body sm:text-sm">
           <span className="num font-medium text-fg">{rows.length}</span>
           <span>{rows.length === 1 ? "activo con ficha pública" : "activos con ficha pública"}</span>
         </p>
@@ -191,7 +190,7 @@ export default async function CategoriaPage({ params }: { params: Promise<{ slug
       </header>
 
       <section aria-labelledby="categoria-activos" className="mt-12">
-        <h2 id="categoria-activos" className="text-xl sm:text-2xl">
+        <h2 id="categoria-activos" className="text-2xl sm:text-3xl">
           Activos en {category.name}
         </h2>
         <p className="mt-2 text-sm leading-relaxed text-fg-muted">
@@ -200,51 +199,34 @@ export default async function CategoriaPage({ params }: { params: Promise<{ slug
 
         <ul className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {rows.map(({ asset, dividend, sourceUrl }) => (
-            <li key={asset.slug}>
-              <Link
-                href={`/acciones/${asset.slug}`}
-                className="group flex min-h-24 flex-col justify-between gap-3 rounded-2xl border border-border/80 bg-white p-4 shadow-[0_1px_2px_rgba(12,15,20,0.03)] transition hover:-translate-y-0.5 hover:border-fg/25 hover:shadow-md focus-visible:ring-4 focus-visible:ring-fg/20 focus-visible:outline-none"
-              >
-                <div className="flex items-center gap-3">
-                  <TickerLogo
-                    symbol={asset.symbol}
-                    name={asset.name}
-                    logoUrl={logoPathFromSymbol(asset.symbol)}
-                    size={40}
-                    decorative
-                    loading="lazy"
-                    sizes="40px"
-                  />
-                  <span className="min-w-0 flex-1 truncate font-medium text-fg">{asset.name}</span>
-                  <span className="shrink-0 font-mono text-xs text-fg-muted">{asset.ticker}</span>
-                </div>
+            <li key={asset.slug} className="flex flex-col gap-2">
+              <PublicAssetCard
+                asset={{
+                  slug: asset.slug,
+                  name: asset.name,
+                  ticker: asset.ticker,
+                  symbol: asset.symbol,
+                  etf: asset.etf,
+                  // En una página de sector el subtítulo repetiría el título.
+                  sector: category.kind === "sector" ? null : (sectorFor(asset)?.name ?? null),
+                }}
+                variant="card"
+              />
 
-                {dividend !== null ? (
-                  <p className="text-xs leading-snug text-fg-body">
-                    Dividendos por acción (12 meses, SEC):{" "}
-                    <span className="num font-medium text-fg">{usdPerShare(dividend)}</span>
-                  </p>
-                ) : null}
+              {dividend !== null ? (
+                <p className="px-1 text-xs leading-snug text-fg-body">
+                  Dividendos por acción (12 meses, SEC):{" "}
+                  <span className="num font-medium text-fg">{usdPerShare(dividend)}</span>
+                </p>
+              ) : null}
 
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="rounded-full bg-surface-1 px-2.5 py-0.5 font-mono text-[11px] font-medium text-fg-body">
-                    {asset.symbol}
-                  </span>
-                  <span className="rounded-full border border-border/70 px-2.5 py-0.5 text-[11px] text-fg-muted">
-                    {asset.etf ? "ETF EE.UU." : "Acción EE.UU."}
-                  </span>
-                  <span className="ml-auto text-xs font-medium text-brand transition-transform group-hover:translate-x-0.5">
-                    Ver ficha →
-                  </span>
-                </div>
-              </Link>
               {dividend !== null && sourceUrl ? (
                 <a
                   href={sourceUrl}
                   target="_blank"
                   rel="nofollow noopener"
                   aria-label={`Fuente: SEC EDGAR, datos de ${asset.name}`}
-                  className="mt-1.5 inline-flex min-h-6 items-center text-[11px] text-fg-muted underline decoration-border underline-offset-4 hover:decoration-fg"
+                  className="inline-flex min-h-11 items-center px-1 text-xs font-medium text-fg-muted underline decoration-border underline-offset-4 hover:text-fg hover:decoration-fg"
                 >
                   Fuente: SEC EDGAR
                 </a>
@@ -254,7 +236,7 @@ export default async function CategoriaPage({ params }: { params: Promise<{ slug
         </ul>
 
         {category.slug === DIVIDENDS_SLUG ? (
-          <p className="mt-6 max-w-2xl text-[11px] leading-relaxed text-fg-muted">
+          <p className="mt-6 max-w-2xl text-xs leading-relaxed text-fg-muted">
             Dividendos por acción de los últimos 12 meses según SEC EDGAR, datos al{" "}
             {longDate(COMPANY_SNAPSHOT_DATE)}. Es un dato histórico, no una proyección.
           </p>

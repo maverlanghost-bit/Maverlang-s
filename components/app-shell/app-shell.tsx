@@ -119,7 +119,7 @@ function ShellFrame({
           <Sidebar collapsed={collapsed} onToggle={toggleSidebar} accountMode={account.mode} onAccountChange={account.select} />
           <div className="flex min-h-dvh min-w-0 flex-col">
             <TopBar accountMode={account.mode} hideMobileCluster={assistantRoute} />
-            <div className={cn("mx-auto flex w-full max-w-6xl flex-1 flex-col px-4 pb-[var(--app-tabs-height)] sm:px-5 lg:px-8 lg:pb-0 lg:pt-8", assistantRoute ? "pt-0" : "pt-[calc(env(safe-area-inset-top)+4.25rem)]")}>
+            <div className={cn("mx-auto flex w-full max-w-6xl flex-1 flex-col px-5 pb-[var(--app-tabs-height)] lg:px-8 lg:pb-0 lg:pt-8", assistantRoute ? "pt-0" : "pt-[calc(env(safe-area-inset-top)+4.25rem)]")}>
               <main id="contenido" tabIndex={-1} className="flex-1 scroll-mt-16 outline-none">
                 {children}
               </main>
@@ -154,7 +154,7 @@ function PublicFrame({ children }: { children: ReactNode }) {
       </a>
       <StockSearchRoot>
         <PublicHeader />
-        <div className="mx-auto flex min-h-[calc(100dvh-3.5rem)] w-full max-w-6xl flex-col px-4 pt-4 sm:px-5 sm:pt-6 lg:px-8 lg:pt-8">
+        <div className="mx-auto flex min-h-[calc(100dvh-3.5rem)] w-full max-w-6xl flex-col px-5 pt-4 sm:pt-6 lg:px-8 lg:pt-8">
           <main id="contenido" tabIndex={-1} className="flex-1 scroll-mt-16 outline-none">
             {children}
           </main>

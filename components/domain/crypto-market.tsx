@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { z } from "zod";
 
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ErrorState } from "@/components/ui/error-state";
@@ -124,8 +123,8 @@ function usablePrices(quotes: readonly Quote[] | undefined): Map<string, number>
 }
 
 /**
- * Tonos neutros: el color del sello (verde/ámbar) es la única señal semántica
- * de la fila, así que el monograma no compite con ella.
+ * Tonos neutros: el sello ya no usa el verde de «sube», así que el monograma
+ * sigue siendo el único bloque de color de la fila.
  */
 const MONOGRAM_TONES = ["bg-surface-2", "bg-surface-3"] as const;
 
@@ -150,7 +149,7 @@ function CryptoMonogram({ symbol }: { symbol: string }) {
     <span
       aria-hidden
       className={cn(
-        "grid size-9 shrink-0 place-items-center rounded-full border border-border font-mono text-[11px] leading-none font-medium text-fg select-none",
+        "grid size-9 shrink-0 place-items-center rounded-full border border-border font-mono text-xs leading-none font-medium text-fg select-none",
         monogramTone(symbol),
       )}
     >
@@ -159,8 +158,27 @@ function CryptoMonogram({ symbol }: { symbol: string }) {
   );
 }
 
-const chipClass =
-  "inline-flex min-h-11 shrink-0 items-center justify-center rounded-full bg-surface-1/80 px-3.5 text-[13px] font-medium whitespace-nowrap text-fg-muted outline-none transition-all duration-150 ease-spring hover:bg-surface-2 hover:text-fg focus-visible:ring-4 focus-visible:ring-fg/20 active:scale-[0.98]";
+/**
+ * Sello del catálogo. Neutro por defecto: el color queda reservado para el
+ * precio (sube/baja) y el ámbar sólo marca el tope más estricto (AMARILLO).
+ */
+function SealChip({ seal }: { seal: CryptoAsset["seal"] }) {
+  const warning = seal === "AMARILLO";
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs leading-none font-medium whitespace-nowrap",
+        warning ? "bg-warn-bg text-warn" : "border border-border bg-bg text-fg-muted",
+      )}
+    >
+      <span
+        aria-hidden="true"
+        className={cn("size-1.5 shrink-0 rounded-full", warning ? "bg-warn" : "bg-fg-muted")}
+      />
+      Sello {seal}
+    </span>
+  );
+}
 
 function CryptoRow({
   asset,
@@ -175,16 +193,19 @@ function CryptoRow({
     <li>
       <Link
         href={`/app/cripto/${encodeURIComponent(asset.symbol)}`}
-        className="flex min-h-16 items-center gap-3 rounded-2xl px-2 py-2 transition-colors duration-150 hover:bg-surface-1/80 focus-visible:ring-4 focus-visible:ring-fg/20 focus-visible:outline-none sm:px-3"
+        className="flex min-h-16 items-center gap-3 rounded-2xl px-2 py-2.5 transition-colors duration-150 hover:bg-surface-2/70 sm:px-3"
       >
         <CryptoMonogram symbol={asset.symbol} />
         <span className="min-w-0 flex-1">
           <span className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1">
             <span className="truncate font-semibold tracking-tight text-fg">{asset.symbol}</span>
-            <Badge tone={asset.seal === "VERDE" ? "up" : "warn"}>Sello {asset.seal}</Badge>
+            <SealChip seal={asset.seal} />
           </span>
-          <span className="block truncate text-sm text-fg-body">{asset.name}</span>
-          <span className="block truncate text-xs text-fg-muted" title={asset.originLabel}>
+          {/* En móvil la fila se queda en dos líneas; el origen se ve en la ficha. */}
+          <span className="mt-0.5 block truncate text-sm text-fg-body" title={asset.name}>
+            {asset.name}
+          </span>
+          <span className="mt-0.5 hidden truncate text-xs text-fg-muted sm:block" title={asset.originLabel}>
             {asset.originLabel}
           </span>
         </span>
@@ -223,12 +244,12 @@ function AssetGroup({
   return (
     <section id={id} aria-labelledby={`${id}-title`} className="flex min-w-0 scroll-mt-24 flex-col gap-2">
       <div>
-        <h2 id={`${id}-title`} className="text-lg font-semibold tracking-tight text-fg">
+        <h2 id={`${id}-title`} className="text-lg font-medium tracking-tight text-fg">
           {title}
         </h2>
         <p className="mt-1 text-sm text-fg-muted">{note}</p>
       </div>
-      <ul className="flex min-w-0 flex-col divide-y divide-border/50 rounded-3xl border border-border/80 bg-white/90 p-2 shadow-[0_10px_30px_-16px_rgba(12,15,20,0.07)]">
+      <ul className="flex min-w-0 flex-col divide-y divide-border rounded-3xl bg-surface-1 p-2 shadow-card">
         {assets.map((asset) => (
           <CryptoRow
             key={asset.symbol}
@@ -248,7 +269,7 @@ function ListSkeleton() {
       <span className="sr-only">Cargando la lista de criptos</span>
       <div aria-hidden className="flex flex-col gap-2">
         <Skeleton className="h-6 w-32" />
-        <div className="flex flex-col gap-1.5 rounded-3xl border border-border/70 p-2">
+        <div className="flex flex-col gap-1.5 rounded-3xl bg-surface-1 p-2 shadow-card">
           {["a", "b", "c", "d", "e", "f"].map((key) => (
             <div key={key} className="flex min-h-16 items-center gap-3 px-2">
               <Skeleton className="size-9 shrink-0 rounded-full" />
@@ -265,16 +286,14 @@ function ListSkeleton() {
   );
 }
 
-/** Avisos comunes de K3, visibles también mientras la lista carga. */
-function LegalNotes() {
+/** Avisos que no caben arriba: al pie, en el mismo cuerpo que la prosa. */
+function BridgedNotice() {
   return (
     <section
       aria-label="Avisos legales"
-      className="flex flex-col gap-2 rounded-2xl border border-border/70 bg-surface-1/70 p-4 text-xs leading-relaxed text-fg-muted"
+      className="border-t border-border pt-4 text-sm leading-relaxed text-fg-body"
     >
-      <p className="text-sm font-medium text-fg-body">{NON_CUSTODY_LINE}</p>
       <p>{BRIDGED_TOKEN_NOTICE}</p>
-      <p>{LEGAL_REVIEW_NOTICE}</p>
     </section>
   );
 }
@@ -312,20 +331,19 @@ export function CryptoMarket() {
   }
 
   return (
-    <div className="flex min-w-0 flex-col gap-6">
+    <div className="flex min-w-0 flex-col gap-5">
       <PageHeader
         title="Cripto"
         description="Cripto, dólares y oro tokenizados que viven en Solana. Precio de mercado en vivo; si falta la cotización, verás «Sin precio»."
       />
 
-      <nav aria-label="Grupos de cripto" className="flex min-w-0 flex-wrap items-center gap-2">
-        <a href="#grupo-cripto" className={chipClass}>
-          Cripto
-        </a>
-        <a href="#grupo-dolares-oro" className={chipClass}>
-          Dólares y oro
-        </a>
-      </nav>
+      {/* Los dos avisos que no se pueden perder de vista; el resto queda al pie. */}
+      <div className="rounded-2xl bg-surface-1 px-4 py-3 text-sm leading-relaxed text-fg-body">
+        <p>{NON_CUSTODY_LINE}</p>
+        <p className="mt-1">{LEGAL_REVIEW_NOTICE}</p>
+      </div>
+
+      <p className="text-sm font-medium text-fg-body">Tokens de Solana · no son acciones xStocks</p>
 
       {listQuery.isPending ? <ListSkeleton /> : null}
 
@@ -353,7 +371,23 @@ export function CryptoMarket() {
 
       {!listQuery.isPending && !failed && assets.length > 0 ? (
         <>
-          <p className="text-xs leading-relaxed text-fg-muted">
+          <nav aria-label="Secciones de cripto" className="flex flex-wrap items-center gap-x-5">
+            <span className="eyebrow">En esta página</span>
+            <a
+              href="#grupo-cripto"
+              className="inline-flex min-h-11 items-center text-sm font-medium text-fg-body underline decoration-border underline-offset-4 transition-colors hover:text-fg hover:decoration-fg motion-reduce:transition-none"
+            >
+              Cripto
+            </a>
+            <a
+              href="#grupo-dolares-oro"
+              className="inline-flex min-h-11 items-center text-sm font-medium text-fg-body underline decoration-border underline-offset-4 transition-colors hover:text-fg hover:decoration-fg motion-reduce:transition-none"
+            >
+              Dólares y oro
+            </a>
+          </nav>
+
+          <p className="text-sm leading-relaxed text-fg-muted">
             Sello VERDE: tope estándar por orden. Sello AMARILLO: tope propio del token, indicado en cada fila.
           </p>
 
@@ -362,7 +396,7 @@ export function CryptoMarket() {
               <p className="text-sm text-fg-muted">
                 No pudimos actualizar los precios. Las filas sin cotización muestran «Sin precio».
               </p>
-              <Button variant="secondary" onClick={retry}>
+              <Button variant="secondary" size="sm" onClick={retry}>
                 Reintentar
               </Button>
             </div>
@@ -392,7 +426,7 @@ export function CryptoMarket() {
         </>
       ) : null}
 
-      <LegalNotes />
+      <BridgedNotice />
     </div>
   );
 }

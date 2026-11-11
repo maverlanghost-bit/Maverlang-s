@@ -32,7 +32,7 @@ export function FamilyTabs({
   return (
     <nav
       aria-label="Familias de carteras"
-      className="-mx-1 flex min-w-0 items-center gap-2 overflow-x-auto px-1 py-1 [scrollbar-width:none]"
+      className="-mx-1 flex min-w-0 items-center gap-2 overflow-x-auto scroll-px-4 px-1 py-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
     >
       {items.map((item) => {
         const current = item.value === active;
@@ -42,17 +42,17 @@ export function FamilyTabs({
             href={item.href}
             aria-current={current ? "true" : undefined}
             className={cn(
-              "inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full px-3.5 text-[13px] font-medium whitespace-nowrap outline-none transition-all duration-150 ease-spring focus-visible:ring-4 focus-visible:ring-fg/20 active:scale-[0.98]",
+              "inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full border px-3.5 text-[13px] font-medium whitespace-nowrap transition-colors duration-150 ease-spring active:scale-[0.98]",
               current
-                ? "bg-fg text-bg shadow-xs"
-                : "bg-surface-1/80 text-fg-muted hover:bg-surface-2 hover:text-fg",
+                ? "border-fg bg-fg text-bg shadow-xs"
+                : "border-border-control bg-bg text-fg hover:bg-surface-1",
             )}
           >
             {item.label}
             <span
               className={cn(
                 "font-mono text-[11px] tabular-nums",
-                current ? "text-bg/70" : "text-fg-subtle",
+                current ? "text-bg/70" : "text-fg-muted",
               )}
             >
               {item.count}

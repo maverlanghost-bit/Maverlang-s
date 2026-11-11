@@ -56,17 +56,22 @@ function TickerRowBase({
         ? "bg-down"
         : "bg-warn";
   return (
-    <div className="flex min-h-14 items-center rounded-2xl border border-border/70 transition-colors duration-150 hover:bg-surface-1/80 active:bg-surface-2/60">
+    <div className="flex min-h-16 items-center rounded-2xl transition-colors duration-150 hover:bg-surface-1/80 active:bg-surface-2/60">
       <Link
         href={href}
-        className="flex min-h-14 min-w-0 flex-1 items-center gap-2 rounded-2xl px-2 py-1 sm:gap-3 sm:px-3"
+        className="flex min-h-16 min-w-0 flex-1 items-center gap-2 rounded-2xl px-2 py-2 sm:gap-3 sm:px-3"
       >
         <TickerLogo symbol={symbol} name={name} logoUrl={logoUrl} size={36} decorative loading="lazy" sizes="40px" />
         <span className="min-w-0 flex-1">
-          <span className="flex min-w-0 items-center gap-1.5 font-semibold tracking-tight text-fg">
-            <span className="truncate">{symbol}</span>
+          <span className="flex min-w-0 items-center gap-1.5">
+            <span className="truncate font-mono text-[13px] font-semibold tracking-tight text-fg" title={symbol}>
+              {symbol}
+            </span>
             {statusDot ? (
-              <span className="inline-flex shrink-0 items-center gap-1 text-xs font-medium">
+              <span
+                className="inline-flex shrink-0 items-center gap-1 text-xs font-medium sm:hidden"
+                title={statusDot.label}
+              >
                 <span
                   aria-hidden
                   className={`size-2 shrink-0 ${
@@ -77,17 +82,32 @@ function TickerRowBase({
                         : "rounded-sm"
                   } ${dotClass}`}
                 />
-                {statusDot.label}
+                <span className="sr-only">{statusDot.label}</span>
               </span>
             ) : null}
           </span>
-          <span className="block truncate text-sm text-fg-muted">
+          <span className="line-clamp-2 text-sm leading-tight text-fg-muted" title={name}>
             {name}
             {lowLiquidityLabel ? <span> · {lowLiquidityLabel}</span> : null}
           </span>
+          {statusDot ? (
+            <span className="mt-1 hidden w-fit shrink-0 items-center gap-1 rounded-full border border-border bg-bg px-2 py-0.5 text-[11px] leading-4 font-medium text-fg-muted sm:inline-flex">
+              <span
+                aria-hidden
+                className={`size-1.5 shrink-0 ${
+                  statusDot.kind === "open"
+                    ? "rounded-full"
+                    : statusDot.kind === "halted"
+                      ? "rotate-45"
+                      : "rounded-sm"
+                } ${dotClass}`}
+              />
+              {statusDot.label}
+            </span>
+          ) : null}
           {reviewLabel ? (
             <span
-              className="mt-1 inline-flex w-fit items-center rounded-full border border-border/70 bg-surface-2/60 px-2 py-0.5 text-xs leading-4 font-medium text-fg-muted"
+              className="mt-1 inline-flex w-fit items-center rounded-full border border-border bg-surface-1 px-2 py-0.5 text-xs leading-4 font-medium text-fg-muted"
               title={reviewHint ?? undefined}
             >
               {reviewLabel}
@@ -97,7 +117,12 @@ function TickerRowBase({
         {sparkline ? <Sparkline data={sparkline} change={change} width={88} height={32} className={sparklineClassName} /> : null}
         {priceSlot ?? (
           <span className="flex shrink-0 flex-col items-end gap-0.5 text-right font-medium tabular-nums">
-            <FlashPrice value={price} currency={currency} size="sm" />
+            <span className="flex items-baseline gap-1">
+              <FlashPrice value={price} currency={currency} size="sm" className="-mr-1" />
+              {currency === "CLP" ? (
+                <span className="text-[11px] leading-none font-medium text-fg-muted">CLP</span>
+              ) : null}
+            </span>
             <ChangeBadge value={change} />
           </span>
         )}

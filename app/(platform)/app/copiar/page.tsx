@@ -87,7 +87,7 @@ function CatalogHeader() {
     <header className="flex flex-col gap-3">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="min-w-0">
-          <h1 className="text-2xl font-semibold tracking-tight text-balance sm:text-3xl">
+          <h1 className="text-3xl font-semibold tracking-tight text-balance sm:text-4xl">
             Copiar carteras
           </h1>
           <p className="mt-2 max-w-2xl text-sm leading-relaxed text-fg-muted">
@@ -245,51 +245,57 @@ export default async function CopiarPage({
                 name="q"
                 defaultValue={q}
                 maxLength={80}
+                enterKeyHint="search"
                 placeholder="Buscar por cartera o gestor"
                 aria-label="Buscar carteras"
-                className="h-11 w-full rounded-full border border-border-strong bg-surface-1 pl-9 pr-3 text-sm text-fg placeholder:text-fg-subtle focus-visible:border-fg focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-fg/20"
+                className="h-11 w-full rounded-full border border-border-control bg-surface-1 pl-9 pr-3 text-sm text-fg placeholder:text-fg-muted focus-visible:border-fg"
               />
             </div>
             {activeFamily !== "all" ? (
               <input type="hidden" name="familia" value={activeFamily} />
             ) : null}
             {order !== "cobertura" ? <input type="hidden" name="orden" value={order} /> : null}
+            {/* Desde sm se envía con Enter: sobra el botón. */}
             <button
               type="submit"
               className={buttonClasses({
                 variant: "secondary",
                 size: "md",
-                className: "shrink-0",
+                className: "shrink-0 sm:hidden",
               })}
             >
               Buscar
             </button>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="font-mono text-[11px] uppercase tracking-[0.08em] text-fg-muted">
-              Orden
-            </span>
-            {ORDERS.map((option) => {
-              const current = order === option.value;
-              return (
-                <Link
-                  key={option.value}
-                  href={catalogHref({ q, family: activeFamily, order: option.value })}
-                  aria-current={current ? "true" : undefined}
-                  title={option.title}
-                  className={cn(
-                    "inline-flex min-h-11 items-center rounded-full px-3.5 text-[13px] font-medium outline-none transition-colors duration-150 focus-visible:ring-4 focus-visible:ring-fg/20",
-                    current
-                      ? "bg-surface-3 text-fg"
-                      : "text-fg-muted hover:bg-surface-2 hover:text-fg",
-                  )}
-                >
-                  {option.label}
-                </Link>
-              );
-            })}
-          </div>
+          <details className="group relative shrink-0">
+            <summary className="inline-flex min-h-11 cursor-pointer list-none items-center gap-1 rounded-full border border-border-control bg-bg px-3.5 text-[13px] font-medium text-fg transition-colors hover:bg-surface-1 [&::-webkit-details-marker]:hidden">
+              Orden: {ORDERS.find((option) => option.value === order)?.label ?? "Cobertura"}
+              <span aria-hidden>▾</span>
+            </summary>
+            <ul className="absolute top-full right-0 z-20 mt-1 w-44 rounded-xl bg-bg p-1 shadow-[0_16px_40px_rgba(12,15,20,0.16)] ring-1 ring-border">
+              {ORDERS.map((option) => {
+                const current = order === option.value;
+                return (
+                  <li key={option.value}>
+                    <Link
+                      href={catalogHref({ q, family: activeFamily, order: option.value })}
+                      aria-current={current ? "true" : undefined}
+                      title={option.title}
+                      className={cn(
+                        "flex min-h-11 items-center rounded-lg px-3 text-[13px] transition-colors",
+                        current
+                          ? "bg-surface-1 font-medium text-fg"
+                          : "text-fg-muted hover:bg-surface-1 hover:text-fg",
+                      )}
+                    >
+                      {option.label}
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          </details>
         </form>
 
         <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-fg-muted">
@@ -323,7 +329,10 @@ export default async function CopiarPage({
         )}
       </section>
 
-      <LegalNote cta disclaimer />
+      <div className="flex flex-col gap-3">
+        <FraccionSeal />
+        <LegalNote cta disclaimer />
+      </div>
     </div>
   );
 }

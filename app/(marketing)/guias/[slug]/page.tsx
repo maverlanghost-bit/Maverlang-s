@@ -3,6 +3,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { GuideReadMarker } from "@/components/domain/guide-read-marker";
 import { LandingSection } from "@/components/landing/section";
+import { Button } from "@/components/ui/button";
+import { DisclosureList, type DisclosureItem } from "@/components/ui/disclosure-list";
 import { guideBySlug, visibleGuides, type Guide } from "@/lib/content/guias";
 import { articleJsonLd, breadcrumbJsonLd, JsonLd, simpleFaqJsonLd } from "@/lib/seo/jsonld";
 import { pageMetadata } from "@/lib/seo/metadata";
@@ -63,13 +65,19 @@ export async function generateMetadata({
 }
 
 const chipClass =
-  "inline-flex items-center rounded-full border border-border bg-bg px-2.5 py-1 text-[11px] leading-none font-medium text-fg-muted";
-
-const primaryCtaClass =
-  "inline-flex min-h-11 items-center rounded-full bg-fg px-5 text-sm text-white transition duration-[140ms] ease-spring hover:bg-[#1f2329] focus-visible:ring-4 focus-visible:ring-fg/20 active:scale-[0.98]";
+  "inline-flex items-center rounded-full border border-border bg-surface-1 px-2.5 py-1 text-xs leading-none font-medium text-fg-muted";
 
 const secondaryLinkClass =
   "inline-flex min-h-11 items-center text-sm font-medium text-fg underline decoration-border underline-offset-4 hover:decoration-fg";
+
+/** La FAQ de la guía usa el mismo `<details>` sin JS que /ayuda. */
+function faqItems(faq: NonNullable<Guide["faq"]>): DisclosureItem[] {
+  return faq.map((entry) => ({
+    id: entry.question,
+    title: entry.question,
+    content: <p>{entry.answer}</p>,
+  }));
+}
 
 export default async function GuiaPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
@@ -96,7 +104,7 @@ export default async function GuiaPage({ params }: { params: Promise<{ slug: str
   const sources = guide.sources ?? [];
 
   return (
-    <LandingSection titleId="guia-title">
+    <LandingSection titleId="guia-title" density="compact">
       <JsonLd data={breadcrumbJsonLd(crumbs)} />
       <JsonLd
         data={articleJsonLd({
@@ -139,7 +147,7 @@ export default async function GuiaPage({ params }: { params: Promise<{ slug: str
           <h1 id="guia-title" className="mt-2 text-3xl sm:text-4xl">
             {guide.h1}
           </h1>
-          <p className="mt-4 text-sm leading-relaxed text-fg-body sm:text-base">{guide.description}</p>
+          <p className="mt-4 max-w-[62ch] text-lead text-fg-body">{guide.description}</p>
           <ul className="mt-5 flex flex-wrap items-center gap-2">
             <li>
               <span className={chipClass}>{guide.readingMinutes} min de lectura</span>
@@ -157,9 +165,9 @@ export default async function GuiaPage({ params }: { params: Promise<{ slug: str
           <aside className="mb-8 lg:order-2 lg:sticky lg:top-24 lg:mb-0">
             <nav
               aria-label="En esta guía"
-              className="rounded-3xl border border-border bg-surface-1 p-5 sm:p-6"
+              className="rounded-3xl bg-surface-1 p-5 shadow-card sm:p-6"
             >
-              <p className="label">En esta guía</p>
+              <p className="eyebrow">En esta guía</p>
               <ol className="mt-2 space-y-0.5 text-sm">
                 {sections.map((section, index) => (
                   <li key={section.id}>
@@ -167,7 +175,7 @@ export default async function GuiaPage({ params }: { params: Promise<{ slug: str
                       href={`#${section.id}`}
                       className="flex min-h-11 items-start gap-2 py-1.5 leading-snug text-fg-body underline decoration-transparent underline-offset-4 transition-colors duration-150 hover:text-fg hover:decoration-fg motion-reduce:transition-none"
                     >
-                      <span aria-hidden="true" className="font-mono text-[11px] tabular-nums text-fg-muted">
+                      <span aria-hidden="true" className="font-mono text-xs tabular-nums text-fg-muted">
                         {String(index + 1).padStart(2, "0")}
                       </span>
                       <span>{section.heading}</span>
@@ -180,7 +188,7 @@ export default async function GuiaPage({ params }: { params: Promise<{ slug: str
                       href="#guia-faq"
                       className="flex min-h-11 items-center gap-2 py-1.5 leading-snug text-fg-body underline decoration-transparent underline-offset-4 transition-colors duration-150 hover:text-fg hover:decoration-fg motion-reduce:transition-none"
                     >
-                      <span aria-hidden="true" className="font-mono text-[11px] tabular-nums text-fg-muted">
+                      <span aria-hidden="true" className="font-mono text-xs tabular-nums text-fg-muted">
                         ?
                       </span>
                       <span>Preguntas frecuentes</span>
@@ -193,7 +201,7 @@ export default async function GuiaPage({ params }: { params: Promise<{ slug: str
                       href="#guia-fuentes"
                       className="flex min-h-11 items-center gap-2 py-1.5 leading-snug text-fg-body underline decoration-transparent underline-offset-4 transition-colors duration-150 hover:text-fg hover:decoration-fg motion-reduce:transition-none"
                     >
-                      <span aria-hidden="true" className="font-mono text-[11px] tabular-nums text-fg-muted">
+                      <span aria-hidden="true" className="font-mono text-xs tabular-nums text-fg-muted">
                         §
                       </span>
                       <span>Fuentes</span>
@@ -215,7 +223,7 @@ export default async function GuiaPage({ params }: { params: Promise<{ slug: str
                   <h2 id={section.id} className="text-xl sm:text-2xl">
                     {section.heading}
                   </h2>
-                  <div className="mt-3 space-y-4 text-sm leading-relaxed text-fg-body sm:text-base">
+                  <div className="mt-3 space-y-5 text-[1.0625rem] leading-7 text-fg-body">
                     {section.paragraphs.map((paragraph, index) => (
                       <p key={index}>{paragraph}</p>
                     ))}
@@ -232,30 +240,11 @@ export default async function GuiaPage({ params }: { params: Promise<{ slug: str
             </div>
 
             {faq.length > 0 ? (
-              <section
-                id="guia-faq"
-                aria-labelledby="guia-faq-title"
-                className="mt-10 scroll-mt-24 rounded-3xl border border-border bg-surface-1 p-6 sm:p-8"
-              >
+              <section id="guia-faq" aria-labelledby="guia-faq-title" className="mt-10 scroll-mt-24">
                 <h2 id="guia-faq-title" className="text-xl sm:text-2xl">
                   Preguntas frecuentes
                 </h2>
-                <div className="mt-3 divide-y divide-border">
-                  {faq.map((entry) => (
-                    <details key={entry.question} className="group py-3">
-                      <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-4 text-sm leading-snug font-medium text-fg sm:text-base [&::-webkit-details-marker]:hidden">
-                        <span>{entry.question}</span>
-                        <span
-                          aria-hidden="true"
-                          className="grid size-7 shrink-0 place-items-center rounded-full border border-border bg-bg font-mono text-sm text-fg-muted transition-transform duration-150 group-open:rotate-45 motion-reduce:transition-none"
-                        >
-                          +
-                        </span>
-                      </summary>
-                      <p className="mt-2 text-sm leading-relaxed text-fg-body">{entry.answer}</p>
-                    </details>
-                  ))}
-                </div>
+                <DisclosureList items={faqItems(faq)} className="mt-4" />
               </section>
             ) : null}
 
@@ -291,11 +280,11 @@ export default async function GuiaPage({ params }: { params: Promise<{ slug: str
                     <li key={item.slug} className="h-full">
                       <Link
                         href={`/guias/${item.slug}`}
-                        className="group flex h-full min-h-11 flex-col rounded-2xl border border-border bg-bg p-5 transition-colors duration-150 hover:border-border-strong hover:bg-surface-1 motion-reduce:transition-none"
+                        className="group flex h-full min-h-11 flex-col rounded-2xl bg-surface-1 p-5 shadow-card transition-colors duration-150 hover:bg-surface-2 motion-reduce:transition-none"
                       >
                         <span className="text-base leading-snug font-medium text-fg">{item.title}</span>
                         <span className="mt-2 block text-sm leading-relaxed text-fg-body">{item.description}</span>
-                        <span className="mt-auto pt-3 text-[11px] leading-none font-medium text-fg-muted">
+                        <span className="mt-auto pt-3 text-xs leading-none font-medium text-fg-muted">
                           {item.readingMinutes} min de lectura
                         </span>
                       </Link>
@@ -305,7 +294,7 @@ export default async function GuiaPage({ params }: { params: Promise<{ slug: str
               </section>
             ) : null}
 
-            <aside className="mt-10 rounded-3xl border border-border bg-surface-1 p-6 md:p-8">
+            <aside className="mt-10 rounded-3xl bg-surface-1 p-6 shadow-card md:p-8">
               <h2 className="text-base font-medium text-fg">Del texto al catálogo</h2>
               <p className="mt-2 text-sm leading-relaxed text-fg-body">
                 Cada ficha muestra el precio del token, los datos de la empresa tomados de la SEC y los riesgos
@@ -313,9 +302,9 @@ export default async function GuiaPage({ params }: { params: Promise<{ slug: str
                 financiera ni una recomendación de compra o venta.
               </p>
               <p className="mt-5 flex flex-wrap items-center gap-x-6 gap-y-3">
-                <Link href="/acciones" className={primaryCtaClass}>
-                  Ver acciones
-                </Link>
+                <Button asChild>
+                  <Link href="/acciones">Ver acciones</Link>
+                </Button>
                 <Link href="/guias" className={secondaryLinkClass}>
                   Todas las guías
                 </Link>

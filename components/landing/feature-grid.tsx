@@ -53,7 +53,7 @@ function FractionVisual() {
           <p className="label">Ejemplo</p>
           <p className="num mt-1 text-xl leading-none text-fg sm:text-2xl">
             {EXAMPLE_SHARES}
-            <span className="ml-1 font-sans text-[11px] font-normal tracking-normal text-fg-muted sm:text-xs">
+            <span className="ml-1 font-sans text-xs font-normal tracking-normal text-fg-muted">
               acciones
             </span>
           </p>
@@ -63,7 +63,7 @@ function FractionVisual() {
       <div>
         <div className="flex items-baseline justify-between gap-2">
           <p className="label">Fracción de 1 acción</p>
-          <p className="num text-[11px] leading-none text-fg">{EXAMPLE_SHARE_FRACTION}</p>
+          <p className="num text-xs leading-none text-fg">{EXAMPLE_SHARE_FRACTION}</p>
         </div>
         <svg
           viewBox="0 0 100 8"
@@ -79,13 +79,13 @@ function FractionVisual() {
             <rect x="74.85" width="0.3" height="8" />
           </g>
         </svg>
-        <div className="mt-2 flex items-center justify-between text-[11px] leading-none text-fg-muted">
+        <div className="mt-2 flex items-center justify-between text-xs leading-none text-fg-muted">
           <span className="num">0</span>
           <span className="num">1 acción</span>
         </div>
       </div>
 
-      <p className="text-[11px] leading-relaxed text-fg-muted">
+      <p className="text-xs leading-relaxed text-fg-muted">
         Ejemplo, no una cotización: la cantidad de acciones cambia con el precio al confirmar.
       </p>
     </div>
@@ -188,7 +188,7 @@ function ReceiptVisual() {
             <circle cx="16" cy="16" r="12.5" strokeDasharray="2.5 3" />
             <path d="M10.5 16.5 14.5 20.5 21.5 11.5" />
           </svg>
-          <p className="text-[11px] leading-relaxed text-fg-muted">
+          <p className="text-xs leading-relaxed text-fg-muted">
             El total final aparece antes de firmar, no después.
           </p>
         </div>
@@ -202,7 +202,7 @@ function FlowVisual() {
     <div className="flex h-full flex-col justify-center gap-4">
       <div className="flex items-center justify-between gap-3">
         <p className="label">Ruta de la orden</p>
-        <span className="num rounded-md border border-border px-1.5 py-0.5 text-[10px] leading-none text-fg-muted">
+        <span className="num rounded-md border border-border px-1.5 py-0.5 text-xs leading-none text-fg-muted">
           24/7
         </span>
       </div>
@@ -240,7 +240,7 @@ function FlowVisual() {
         </g>
       </svg>
 
-      <p className="text-[11px] leading-relaxed text-fg-muted">
+      <p className="text-xs leading-relaxed text-fg-muted">
         Directo: sin corredora de EE.UU. y sin intermediarios tradicionales.
       </p>
     </div>
@@ -297,10 +297,8 @@ export function FeatureGrid() {
             >
               <Card
                 className={cn(
-                  "flex h-full flex-col rounded-3xl p-0 shadow-none md:p-0",
-                  inverted
-                    ? "border-fg bg-fg text-bg"
-                    : "border-border bg-surface-1 hover:border-border-strong",
+                  "flex h-full flex-col rounded-3xl p-0 md:p-0",
+                  inverted ? "border border-fg bg-fg text-bg shadow-none" : undefined,
                 )}
               >
                 <div className="flex h-full flex-col p-5 sm:p-6">
@@ -315,7 +313,7 @@ export function FeatureGrid() {
                     </span>
                     <span
                       className={cn(
-                        "num text-[11px] leading-none tracking-[0.08em]",
+                        "num text-xs leading-none tracking-[0.06em]",
                         inverted ? "text-bg/50" : "text-fg-muted",
                       )}
                     >

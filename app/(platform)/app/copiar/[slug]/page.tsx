@@ -246,9 +246,7 @@ export default async function CopyPortfolioPage({
               <h2 id="grafico-titulo" className="text-base font-medium text-fg">
                 Evolución estimada
               </h2>
-              <span className="font-mono text-[11px] uppercase tracking-[0.08em] text-fg-muted">
-                Último año
-              </span>
+              <span className="text-xs font-medium text-fg-muted">Último año</span>
             </div>
             <Suspense
               fallback={
@@ -314,7 +312,10 @@ export default async function CopyPortfolioPage({
             </section>
           ) : null}
 
-          <LegalNote />
+          <div className="flex flex-col gap-2">
+            <FraccionSeal />
+            <LegalNote />
+          </div>
         </div>
 
         <aside className="flex flex-col gap-4 lg:sticky lg:top-6">
@@ -330,7 +331,7 @@ export default async function CopyPortfolioPage({
           >
             <h2
               id="cta-titulo"
-              className="font-mono text-[11px] uppercase tracking-[0.08em] text-fg-muted"
+              className="text-base font-semibold tracking-tight text-fg"
             >
               Copiar esta cartera
             </h2>
@@ -368,7 +369,7 @@ export default async function CopyPortfolioPage({
             )}
 
             <p className="text-xs leading-relaxed text-fg-muted">{COPY_CTA_NOTE}</p>
-            <p className="text-xs leading-relaxed text-fg-subtle">
+            <p className="text-xs leading-relaxed text-fg-muted">
               {meta.isEstimated ? "Composición estimada por Fraccion.si. " : ""}
               Compra y venta sujetas a disponibilidad y topes de tu cuenta.
             </p>

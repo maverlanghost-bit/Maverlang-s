@@ -2,7 +2,7 @@
 
 import { useId, useState } from "react";
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
+import { Button, type ButtonVariant } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/cn";
 import { WAITLIST_SUCCESS_MESSAGE } from "@/lib/waitlist/message";
@@ -13,13 +13,18 @@ export type WaitlistSource = "landing" | "cuenta_real";
  * Lista de espera de la cuenta Real (M45). Correo + checkbox obligatorio +
  * campo trampa oculto (`website`): si viene lleno, el servidor responde 200
  * sin guardar. En éxito muestra siempre "¡Listo! Te avisaremos.".
+ *
+ * `submitVariant` permite que la portada deje un solo botón primario (el de
+ * la demo) sin cambiar el comportamiento del formulario.
  */
 export function WaitlistForm({
   source,
   className,
+  submitVariant = "primary",
 }: {
   source: WaitlistSource;
   className?: string;
+  submitVariant?: ButtonVariant;
 }) {
   const uid = useId();
   const emailId = `${uid}-waitlist-email`;
@@ -93,7 +98,7 @@ export function WaitlistForm({
         role="status"
         aria-live="polite"
         className={cn(
-          "animate-fade-in rounded-2xl border border-border bg-surface-1 px-5 py-6 text-center",
+          "motion-safe:animate-fade-in rounded-2xl border border-border bg-surface-1 px-5 py-6 text-center",
           className,
         )}
       >
@@ -182,7 +187,7 @@ export function WaitlistForm({
           {error}
         </p>
       ) : null}
-      <Button type="submit" loading={busy} className="mt-3 w-full min-h-11">
+      <Button type="submit" variant={submitVariant} loading={busy} className="mt-3 w-full min-h-11">
         {busy ? "Enviando…" : "Avísame"}
       </Button>
     </form>

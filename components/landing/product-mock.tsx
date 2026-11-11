@@ -27,16 +27,20 @@ export function ProductMock({ quotes, live }: { quotes: LandingQuote[]; live: bo
       </Reveal>
       <Reveal delay={REVEAL_STAGGER_MS} className="mt-10 md:mt-14">
         <Card className="p-5 sm:p-7">
+          {/* El tablist de `Tabs` es un carrusel: sin barra visible y con
+              degradado en los bordes para que se note que hay más activos. */}
           {first ? (
-            <Tabs
-              label="Acciones de ejemplo"
-              defaultValue={first.symbol}
-              tabs={quotes.map((quote) => ({
-                value: quote.symbol,
-                label: quote.underlying,
-                content: <LandingQuotePreview quote={quote} />,
-              }))}
-            />
+            <div className="[&_[role=tablist]]:no-scrollbar [&_[role=tablist]]:[mask-image:linear-gradient(90deg,transparent,#000_2%,#000_98%,transparent)]">
+              <Tabs
+                label="Acciones de ejemplo"
+                defaultValue={first.symbol}
+                tabs={quotes.map((quote) => ({
+                  value: quote.symbol,
+                  label: quote.underlying,
+                  content: <LandingQuotePreview quote={quote} />,
+                }))}
+              />
+            </div>
           ) : (
             <p className="text-sm text-fg-muted">No hay acciones de ejemplo.</p>
           )}

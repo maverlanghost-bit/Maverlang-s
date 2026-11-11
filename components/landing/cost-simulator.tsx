@@ -22,6 +22,12 @@ function formatUsdFee(value: number, decimals: number): string {
   return `US$${value.toFixed(decimals).replace(".", ",")}`;
 }
 
+/** Porcentaje es-CL: dos decimales y coma («100,00»). */
+const PERCENT_FORMAT = new Intl.NumberFormat("es-CL", {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
+
 /**
  * Simulador de costos de una compra: comisión de plataforma, red Solana y
  * apertura de la cuenta del token. Ilustrativo: no incluye spread ni la
@@ -37,7 +43,7 @@ export function CostSimulator() {
     const capitalPct = ((amountUsd - totalFeesUsd) / amountUsd) * 100;
     return {
       tokenAccountUsd,
-      capitalPct: capitalPct.toFixed(2),
+      capitalPct: PERCENT_FORMAT.format(capitalPct),
     };
   }, [amountUsd, firstTime]);
 
@@ -55,10 +61,10 @@ export function CostSimulator() {
                 aria-pressed={selected}
                 onClick={() => setAmountUsd(amount)}
                 className={cn(
-                  "num min-h-11 rounded-full border px-4 text-sm font-medium transition-colors duration-150 focus-visible:ring-4 focus-visible:ring-fg/20 focus-visible:outline-none",
+                  "num min-h-11 rounded-full border px-4 text-sm font-medium transition-colors duration-150",
                   selected
-                    ? "border-fg/25 bg-surface-3 text-fg"
-                    : "border-border bg-white text-fg-muted hover:border-border-strong hover:text-fg",
+                    ? "border-fg bg-surface-3 text-fg"
+                    : "border-border-control bg-bg text-fg-muted hover:border-fg hover:text-fg",
                 )}
               >
                 {formatAmount(amount)}
@@ -73,8 +79,8 @@ export function CostSimulator() {
         aria-pressed={firstTime}
         onClick={() => setFirstTime((previous) => !previous)}
         className={cn(
-          "flex min-h-14 w-full items-center justify-between gap-4 rounded-2xl border bg-white px-4 py-3 text-left transition-colors duration-150 focus-visible:ring-4 focus-visible:ring-fg/20 focus-visible:outline-none",
-          firstTime ? "border-fg/25" : "border-border hover:border-border-strong",
+          "flex min-h-14 w-full items-center justify-between gap-4 rounded-2xl border bg-bg px-4 py-3 text-left transition-colors duration-150",
+          firstTime ? "border-fg" : "border-border-control hover:border-fg",
         )}
       >
         <span className="flex min-w-0 flex-col gap-0.5">
@@ -99,7 +105,7 @@ export function CostSimulator() {
         </span>
       </button>
 
-      <div className="rounded-3xl border border-border bg-white p-6 shadow-sm">
+      <div className="rounded-3xl border border-border bg-bg p-6 shadow-sm">
         <p className="label">Recibo estimado</p>
 
         <dl className="mt-4 flex flex-col">
@@ -111,11 +117,11 @@ export function CostSimulator() {
           <div className="flex items-baseline justify-between gap-4 border-b border-border py-3">
             <dt className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-1 text-sm text-fg-muted">
               <span>Comisión {site.name}</span>
-              <span className="text-xs text-fg-subtle">(0% en lanzamiento)</span>
+              <span className="text-xs text-fg-muted">(0% en lanzamiento)</span>
             </dt>
             <dd className="flex shrink-0 items-center gap-2">
               <span className="num text-sm font-medium text-fg">{formatUsdFee(0, 2)}</span>
-              <span className="rounded-full bg-up-bg px-2 py-0.5 text-[11px] font-semibold text-up">0%</span>
+              <span className="rounded-full bg-up-bg px-2 py-0.5 text-xs font-semibold text-up">0%</span>
             </dd>
           </div>
 
@@ -127,7 +133,7 @@ export function CostSimulator() {
           <div className="flex items-baseline justify-between gap-4 border-b border-border py-3">
             <dt className="flex min-w-0 flex-col gap-0.5 text-sm text-fg-muted">
               <span>Apertura de la cuenta del token</span>
-              <span className="text-xs text-fg-subtle">Sólo la primera vez</span>
+              <span className="text-xs text-fg-muted">Sólo la primera vez</span>
             </dt>
             <dd className="num shrink-0 text-sm font-medium text-fg">
               {firstTime ? formatUsdFee(costs.tokenAccountUsd, 2) : "US$0,00 (ya abierta)"}
@@ -137,7 +143,7 @@ export function CostSimulator() {
           <div className="flex items-baseline justify-between gap-4 pt-4">
             <dt className="text-sm font-medium text-fg">Capital efectivo estimado en el activo</dt>
             <dd aria-live="polite" className="num text-lg font-semibold text-fg">
-              {costs.capitalPct}%
+              {costs.capitalPct} %
             </dd>
           </div>
         </dl>

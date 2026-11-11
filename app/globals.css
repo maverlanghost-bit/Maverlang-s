@@ -9,15 +9,21 @@
   --color-bg: #ffffff;
   --color-fg: #0a0a0a;
   --color-fg-body: #1f1f1f;
-  /* M85 (WCAG AA): #7d8188 daba 3,9:1. Este gris pasa 4,5:1 con margen sobre
-     blanco, surface-1/2/3 y los fondos up/down/warn/info (mínimo ~4,7:1). */
-  --color-fg-muted: #66696e;
-  --color-fg-subtle: #8a8a8a;
+  /* D1 (WCAG AA): dos grises de texto. `fg-muted` da 6,5:1 en blanco para
+     cuerpo secundario; `fg-subtle` da 4,56:1 para notas y placeholders.
+     #8a8a8a (3,45:1) queda sólo para `disabled` y decoración. */
+  --color-fg-muted: #5b5e63;
+  --color-fg-subtle: #73767b;
   --color-surface-1: #f6f6f6;
   --color-surface-2: #f0f0f0;
   --color-surface-3: #e6e6e6;
   --color-border: #e6e6e6;
   --color-border-strong: #c4c4c4;
+  /* D1: 3,74:1 en blanco (WCAG 1.4.11). Único gris admitido para el contorno
+     de un control (secundario, chip, buscador, input). Se declara dos veces
+     para que `border-control` y `border-border-control` sean válidas. */
+  --color-control: #848484;
+  --color-border-control: #848484;
   /* Mismo matiz, un paso más oscuro, para llegar a 4,5:1 en precios chicos y en el badge. */
   --color-up: #0f7a32;
   --color-up-bg: #e8f5ef;
@@ -25,9 +31,15 @@
   --color-down-bg: #fbecef;
   --color-warn: #99651a;
   --color-warn-bg: #fdf5e6;
-  --color-info: #2b7fd9;
+  --color-info: #1762b8;
   --color-info-bg: #eaf3fd;
   --color-brand: #0a0a0a;
+
+  /* D1: escala de texto de producto. `text-body` para cuerpo de app,
+     `text-lead` para entradillas y prosa (con su interlínea). */
+  --text-body: 0.9375rem;
+  --text-lead: 1.0625rem;
+  --text-lead--line-height: 1.55;
 
   --radius-xs: 0.25rem;
   --radius-md: 0.75rem;
@@ -38,6 +50,10 @@
   /* Sombra hairline estilo x.ai light: elevación de 1px + borde que se dibuja
      solo. Para cards, píldoras de segmented y superficies sobre track gris. */
   --shadow-card: 0 0 0 1px #e6e6e6;
+  /* D1: hairline explícito para quien no quiere la sombra de card,
+     y elevación de 1px para píldoras y menús. */
+  --shadow-hairline: 0 0 0 1px #e6e6e6;
+  --shadow-raised: 0 1px 3px rgb(12 15 20 / 0.05);
 
   --ease-spring: cubic-bezier(0.25, 1, 0.5, 1);
   --ease-inout: cubic-bezier(0.4, 0, 0.2, 1);
@@ -90,13 +106,27 @@
     --app-detail-cta: 0px;
   }
   body { @apply overflow-x-clip bg-bg font-sans text-fg-body; }
-  h1, h2, h3 { @apply text-fg font-display font-medium tracking-tight; }
+  h1, h2, h3 { @apply text-fg font-display font-medium tracking-tight; text-wrap: balance; }
   .num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
-  .label { @apply font-mono text-[11px] uppercase tracking-[0.08em] text-fg-muted; }
+  /* D1: rótulo de dato. Mono 12px con tracking corto: es el texto más
+     repetido del producto y tiene que leerse a 390px. */
+  .label { @apply font-mono text-xs uppercase tracking-[0.045em] font-medium text-fg-muted; }
+  /* D1: encabezado de columna o de sección en sans, caja baja
+     (footer, ayuda, índices y tablas de contenido). */
+  .eyebrow { @apply text-[13px] font-medium text-fg-muted; }
+  /* D1: rótulo mono de 11px. Sólo tablas densas y tablas de datos. */
+  .label-xs { @apply font-mono text-[11px] uppercase tracking-[0.045em] font-medium text-fg-muted; }
   :focus-visible { outline: 2px solid #0a0a0a; outline-offset: 2px; }
   ::selection { background: #0a0a0a; color: #fff; }
   @media (prefers-reduced-motion: reduce) {
-    *, *::before, *::after { animation-duration: 1ms !important; transition-duration: 1ms !important; }
+    *, *::before, *::after {
+      animation-duration: 1ms !important;
+      /* D1: una animación infinita (skeleton, marquee) con 1ms de duración
+         parpadearía 1000 veces por segundo. Se queda en el primer cuadro. */
+      animation-iteration-count: 1 !important;
+      transition-duration: 1ms !important;
+      scroll-behavior: auto !important;
+    }
     .ticker-marquee-motion { display: none !important; }
     .ticker-marquee-static { display: flex !important; }
   }
@@ -125,12 +155,22 @@
 }
 
 /* C-07: `outline-none` vive en la capa de utilidades y tapa el anillo de @layer base.
-   Esta regla queda fuera de capa para que el foco de teclado sea 2px #0a0a0a (incluye la cápsula de rango). */
+   Esta regla queda fuera de capa para que el foco de teclado sea 2px #0a0a0a (incluye la cápsula de rango).
+   D1: se suma `a[href]` — los enlaces del sidebar y del header también anulaban el foco. */
 button.outline-none:focus-visible,
+a[href].outline-none:focus-visible,
 input.outline-none:focus-visible,
 textarea.outline-none:focus-visible,
 select.outline-none:focus-visible,
 [role="tab"].outline-none:focus-visible {
+  outline: 2px solid #0a0a0a;
+  outline-offset: 2px;
+}
+
+/* D1: foco único y reutilizable para piezas que no son button/a/input
+   nativos (div con tabindex, summary, etc.). Fuera de capa para que ninguna
+   utilidad `outline-none` lo tape. */
+.focus-ring:focus-visible {
   outline: 2px solid #0a0a0a;
   outline-offset: 2px;
 }
@@ -159,6 +199,11 @@ footer nav a {
   text-decoration-line: underline;
   text-decoration-color: #0a0a0a;
   text-underline-offset: 0.25em;
+}
+
+/* D1: en `DisclosureList` el chevron gira cuando el <details> está abierto. */
+details[open] > summary .disclosure-chevron {
+  transform: rotate(180deg);
 }
 
 .reveal-wait {

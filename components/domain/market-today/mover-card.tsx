@@ -11,7 +11,7 @@ import { formatPercent } from "@/lib/format";
 import type { MoverCard as MoverCardData } from "@/lib/market/movers";
 
 export const moverCardClass =
-  "flex w-full items-center gap-2.5 rounded-xl px-2 py-2.5 outline-none transition-colors duration-150 hover:bg-surface-1/90 focus-visible:ring-4 focus-visible:ring-fg/20 active:bg-surface-2/60 motion-reduce:transition-none";
+  "flex min-h-16 w-full items-center gap-2.5 rounded-xl px-2 py-2.5 transition-colors duration-150 hover:bg-surface-1/90 active:bg-surface-2/60 motion-reduce:transition-none";
 
 function stockPath(symbol: string): string {
   return `/app/accion/${encodeURIComponent(symbol)}`;
@@ -64,8 +64,12 @@ export function MoverCard({
         sizes="28px"
       />
       <span aria-hidden className="min-w-0 flex-1">
-        <span className="block truncate text-[13px] font-semibold leading-tight text-fg">{card.name}</span>
-        <span className="mt-0.5 block truncate text-[11px] text-fg-muted">{card.symbol}</span>
+        <span className="block truncate font-mono text-[13px] font-semibold leading-tight text-fg" title={card.symbol}>
+          {card.symbol}
+        </span>
+        <span className="line-clamp-2 text-xs leading-tight text-fg-muted" title={card.name}>
+          {card.name}
+        </span>
       </span>
       <Sparkline data={card.spark} change={card.changePct} width={52} height={20} className="hidden shrink-0 sm:block" />
       <span aria-hidden className="shrink-0 text-right">
@@ -98,7 +102,7 @@ export function SpyChip({
       role="link"
       tabIndex={0}
       aria-label={label}
-      className="inline-flex min-h-9 max-w-full cursor-pointer items-center gap-2 rounded-full border border-border/80 bg-white/90 py-1 pr-2.5 pl-1.5 shadow-2xs outline-none transition hover:border-brand/35 hover:bg-white focus-visible:ring-4 focus-visible:ring-fg/20 motion-reduce:transition-none"
+      className="inline-flex min-h-11 max-w-full cursor-pointer items-center gap-2 rounded-full border border-border-control bg-bg py-1 pr-2.5 pl-1.5 shadow-xs transition-colors hover:bg-surface-1 motion-reduce:transition-none"
       {...open}
     >
       <span aria-hidden className="inline-flex min-w-0 items-center gap-2">

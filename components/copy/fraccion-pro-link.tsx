@@ -138,7 +138,7 @@ export function FraccionProLink({ disabled = false }: { disabled?: boolean }) {
           disabled={disabled || pending || linked}
           aria-describedby={`${fieldId}-help`}
           placeholder="Pega aquí el comprobante que te entregó Fraccion.si"
-          className="min-h-24 w-full resize-y rounded-md border border-[#767676] bg-surface-2 px-3 py-2 font-mono text-xs leading-relaxed text-fg transition duration-[140ms] ease-spring placeholder:font-sans placeholder:text-fg-subtle focus-visible:border-fg focus-visible:outline-none disabled:opacity-40"
+          className="min-h-24 w-full resize-y rounded-md border border-border-control bg-surface-2 px-3 py-2 font-mono text-xs leading-relaxed text-fg transition duration-[140ms] ease-spring placeholder:font-sans placeholder:text-fg-muted focus-visible:border-fg disabled:opacity-40"
         />
         <p id={`${fieldId}-help`} className="text-[13px] leading-relaxed text-fg-muted">
           Se compara un hash del correo de tu cuenta con el del comprobante: tu correo no se envía ni se guarda
@@ -157,7 +157,7 @@ export function FraccionProLink({ disabled = false }: { disabled?: boolean }) {
         >
           {linked ? "Fraccion Pro vinculado" : "Vincular comprobante"}
         </Button>
-        <p className="text-[13px] leading-relaxed text-fg-subtle">
+        <p className="text-xs leading-relaxed text-fg-muted">
           Si el comprobante venció, pide uno nuevo en Fraccion.si.
         </p>
       </div>

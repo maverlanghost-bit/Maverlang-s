@@ -6,8 +6,14 @@ import { site } from "@/config/site";
 import { getFaq, type FaqEntry, type FaqPart } from "@/lib/content/faq";
 import { REVEAL_STAGGER_MS } from "@/lib/hooks/reveal-motion";
 
+// Enlace dentro de una respuesta: va en línea con la prosa (un `inline-flex`
+// de 44 px abriría la línea del párrafo).
 const linkClass =
-  "inline-flex min-h-11 items-center font-medium text-fg underline decoration-border underline-offset-4 hover:decoration-fg";
+  "font-medium text-fg underline decoration-border underline-offset-4 hover:decoration-fg";
+
+// Enlace suelto fuera de la prosa: sí necesita 44 px táctiles.
+const actionLinkClass =
+  "inline-flex min-h-11 items-center text-sm font-medium text-fg underline decoration-border underline-offset-4 hover:decoration-fg";
 
 function FaqParts({ parts }: { parts: FaqPart[] }) {
   return (
@@ -60,7 +66,7 @@ export function FaqSection() {
       <Reveal delay={REVEAL_STAGGER_MS} className="mt-10 max-w-3xl md:mt-14">
         <Accordion items={items} />
         <p className="mt-6">
-          <Link href="/ayuda" className={linkClass}>
+          <Link href="/ayuda" className={actionLinkClass}>
             Ver todas las preguntas
           </Link>
         </p>
