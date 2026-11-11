@@ -165,17 +165,14 @@ export function PortfolioDonut({ slices }: { slices: readonly AllocationSlice[] 
           })}
         </svg>
 
-        <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center px-12 text-center">
-          <p
-            className="w-full truncate text-[10px] font-semibold tracking-[0.08em] text-fg-muted uppercase"
-            aria-hidden="true"
-          >
+        <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center px-10 text-center">
+          <p className="label w-full truncate" aria-hidden="true">
             {eyebrow}
           </p>
-          <p className="num mt-0.5 text-lg font-semibold tabular-nums text-fg" aria-hidden="true">
+          <p className="num mt-1 text-2xl leading-none font-medium tracking-tight tabular-nums text-fg" aria-hidden="true">
             {main}
           </p>
-          <p className="num w-full truncate text-[11px] tabular-nums text-fg-muted" aria-hidden="true">
+          <p className="num mt-1 w-full truncate text-xs tabular-nums text-fg-muted" aria-hidden="true">
             {sub}
           </p>
         </div>

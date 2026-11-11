@@ -23,6 +23,11 @@ export type AllocationItem = {
 
 const CASH_COLOR = "#64748b";
 
+/**
+ * Reparto de la cartera: una barra segmentada y, debajo, la leyenda con peso y
+ * valor por activo. Vive dentro de la tarjeta de distribución, así que no
+ * dibuja cáscara propia (sin borde ni sombra: evita el borde doble).
+ */
 export function AllocationBar({
   label,
   slices,
@@ -71,27 +76,12 @@ export function AllocationBar({
 
   const ariaHeading = label ?? (lang === "en" ? "Portfolio allocation" : "Distribución de tu cartera");
   const summary = normalizedSlices.map((slice) => `${slice.label} ${formatPortion(slice.pct)}`).join(", ");
-  const activeSlice = normalizedSlices.find((slice) => slice.key === activeKey) ?? normalizedSlices[0];
+  const activeSlice = normalizedSlices.find((slice) => slice.key === activeKey) ?? null;
 
   return (
-    <div className="rounded-2xl border border-border/80 bg-bg-elevated/90 p-4 shadow-[0_10px_30px_-16px_rgba(12,15,20,0.08)]">
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <p className="text-xs font-semibold tracking-wider text-fg-muted uppercase">
-          {lang === "en" ? "Portfolio allocation" : "Distribución de tu cartera"}
-        </p>
-        {activeSlice ? (
-          <p className="text-[12px] font-medium tabular-nums text-fg-muted">
-            <span className="font-semibold text-fg">{activeSlice.label}</span>
-            {" · "}
-            <span>{formatPortion(activeSlice.pct)}</span>
-            {" · "}
-            <span className="text-fg">{activeSlice.valueLabel}</span>
-          </p>
-        ) : null}
-      </div>
-
+    <div className="flex min-w-0 flex-col gap-2">
       <div
-        className="flex h-3.5 w-full gap-0.5 overflow-hidden rounded-full bg-surface-3 p-0.5"
+        className="flex h-2.5 w-full gap-[3px] overflow-hidden rounded-full bg-surface-3"
         role="img"
         aria-label={`${ariaHeading}: ${summary}`}
       >
@@ -109,8 +99,8 @@ export function AllocationBar({
               onMouseLeave={() => setActiveKey(null)}
               onClick={() => setActiveKey((prev) => (prev === slice.key ? null : slice.key))}
               className={cn(
-                "h-full min-w-1 first:rounded-l-full last:rounded-r-full transition-all duration-200 hover:opacity-95",
-                isDimmed ? "opacity-45" : "opacity-100",
+                "h-full min-w-1 transition-opacity duration-200 first:rounded-l-full last:rounded-r-full",
+                isDimmed ? "opacity-40" : "opacity-100",
               )}
               style={{
                 flexGrow: Math.max(pctWidth, 2),
@@ -122,31 +112,34 @@ export function AllocationBar({
         })}
       </div>
 
-      <ul className="flex flex-wrap gap-1.5 pt-3">
-        {normalizedSlices.map((slice) => {
-          const isActive = activeKey === slice.key;
+      <ul className="-mx-1.5 flex flex-col">
+        {normalizedSlices.map((slice, index) => {
+          const isActive = activeSlice?.key === slice.key;
           return (
-            <li key={slice.key}>
+            <li key={slice.key} className={cn("border-border/70", index > 0 && "border-t")}>
               <button
                 type="button"
+                aria-pressed={isActive}
                 onMouseEnter={() => setActiveKey(slice.key)}
                 onMouseLeave={() => setActiveKey(null)}
                 onClick={() => setActiveKey((prev) => (prev === slice.key ? null : slice.key))}
                 className={cn(
-                  "inline-flex min-h-9 items-center gap-2 rounded-full border px-3 py-1 text-xs transition-all duration-200 outline-none focus-visible:ring-4 focus-visible:ring-fg/20",
-                  isActive
-                    ? "border-brand/50 bg-brand-soft/60 text-fg shadow-xs"
-                    : "border-border/75 bg-bg/80 text-fg hover:border-border-strong hover:bg-surface-2/70",
+                  "flex min-h-11 w-full items-center gap-2.5 rounded-lg px-1.5 text-left transition-colors duration-150 sm:min-h-9",
+                  isActive ? "bg-surface-2/80" : "hover:bg-surface-2/60",
                 )}
               >
                 <span
-                  className="size-2.5 shrink-0 rounded-full"
+                  className="size-2 shrink-0 rounded-full"
                   style={{ backgroundColor: slice.color }}
                   aria-hidden="true"
                 />
-                <span className="max-w-36 truncate font-medium text-fg">{slice.label}</span>
-                <span className="num font-semibold tabular-nums text-fg-muted">{formatPortion(slice.pct)}</span>
-                <span className="num tabular-nums text-fg">{slice.valueLabel}</span>
+                <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-fg">{slice.label}</span>
+                <span className="num w-12 shrink-0 text-right text-[13px] tabular-nums text-fg-muted">
+                  {formatPortion(slice.pct)}
+                </span>
+                <span className="num w-[6.25rem] shrink-0 truncate text-right text-[13px] tabular-nums text-fg sm:w-28">
+                  {slice.valueLabel}
+                </span>
               </button>
             </li>
           );

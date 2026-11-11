@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Badge, type BadgeTone } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { cn } from "@/lib/cn";
 import { formatUsd } from "@/lib/format";
 import type { Position } from "@/lib/types";
 
@@ -56,14 +57,20 @@ export function PortfolioHealthCard({
 
   const assistantHref = `/app/asistente?q=${encodeURIComponent(ASSISTANT_PROMPT)}`;
 
+  const stats = [
+    { label: "Activos distintos", value: String(positions.length) },
+    { label: "Mayor posición", value: `${topPosition.symbol} (${masked ? MASK : `${topWeightPct}%`})` },
+    { label: "Caja disponible", value: masked ? MASK : `${cashPct}%` },
+  ];
+
   return (
-    <Card className="p-5 md:p-6">
-      <div className="flex items-start justify-between gap-3">
+    <Card className="p-4 shadow-card sm:p-6">
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
-          <h2 className="text-base font-semibold tracking-tight text-balance text-fg">
+          <h2 className="text-lg font-semibold tracking-tight text-balance text-fg">
             Salud y diversificación de cartera
           </h2>
-          <p className="mt-1 text-sm leading-relaxed text-fg-body">
+          <p className="mt-1 max-w-prose text-xs leading-relaxed text-fg-muted">
             Cómo se reparte tu cartera hoy entre acciones tokenizadas y USDC disponible. Se calcula sólo con tus
             posiciones actuales: no es una proyección ni una recomendación de inversión.
           </p>
@@ -73,42 +80,43 @@ export function PortfolioHealthCard({
         </Badge>
       </div>
 
-      <div className="mt-4">
-        <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 text-xs">
-          <span className="font-medium text-fg">Invertido {investedPct}%</span>
-          <span className="num text-fg-muted">
-            Liquidez USDC {cashPct}%
-            {masked ? null : ` · ${formatUsd(cashUsdc)}`}
-          </span>
+      <div className="mt-5">
+        <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+          <p className="text-[13px] text-fg-muted">
+            Invertido <span className="num font-medium text-fg">{investedPct}%</span>
+          </p>
+          <p className="text-[13px] text-fg-muted">
+            Liquidez USDC{" "}
+            <span className="num font-medium text-fg">
+              {cashPct}%{masked ? "" : ` · ${formatUsd(cashUsdc)}`}
+            </span>
+          </p>
         </div>
         <div
           role="img"
           aria-label={`Reparto de tu cartera: invertido ${investedPct}%, liquidez en USDC ${cashPct}%`}
-          className="mt-2 flex h-3 w-full overflow-hidden rounded-full bg-surface-3"
+          className="mt-2.5 flex h-2 w-full overflow-hidden rounded-full bg-surface-3"
         >
           <span aria-hidden="true" className="h-full bg-fg" style={{ width: `${investedWidth}%` }} />
           <span aria-hidden="true" className="h-full bg-info" style={{ width: `${cashWidth}%` }} />
         </div>
       </div>
 
-      <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-3">
-        <p className="rounded-xl border border-border/70 bg-surface-2/60 px-3 py-2.5 text-xs leading-relaxed text-fg-muted">
-          Activos distintos:{" "}
-          <span className="num font-semibold text-fg">{positions.length}</span>
-        </p>
-        <p className="rounded-xl border border-border/70 bg-surface-2/60 px-3 py-2.5 text-xs leading-relaxed text-fg-muted">
-          Mayor posición:{" "}
-          <span className="num font-semibold text-fg">
-            {topPosition.symbol} ({masked ? MASK : `${topWeightPct}%`})
-          </span>
-        </p>
-        <p className="rounded-xl border border-border/70 bg-surface-2/60 px-3 py-2.5 text-xs leading-relaxed text-fg-muted">
-          Caja disponible:{" "}
-          <span className="num font-semibold text-fg">{masked ? MASK : `${cashPct}%`}</span>
-        </p>
-      </div>
+      <dl className="mt-5 grid grid-cols-1 gap-y-3 border-t border-border pt-4 sm:grid-cols-3 sm:gap-y-0">
+        {stats.map((stat, index) => (
+          <div
+            key={stat.label}
+            className={cn("min-w-0 sm:pr-5", index > 0 && "sm:border-l sm:border-border sm:pl-5")}
+          >
+            <dt className="label">{stat.label}</dt>
+            <dd className="num mt-1.5 truncate text-[15px] font-medium tracking-tight text-fg">
+              {stat.value}
+            </dd>
+          </div>
+        ))}
+      </dl>
 
-      <div className="mt-4">
+      <div className="mt-5">
         <Button asChild variant="secondary" size="sm">
           <Link href={assistantHref}>Evaluar mi cartera con IA →</Link>
         </Button>

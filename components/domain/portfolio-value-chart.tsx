@@ -4,10 +4,12 @@ import { useMemo, type ReactNode } from "react";
 
 import { ChangeBadge } from "@/components/domain/change-badge";
 import { InfoTip } from "@/components/domain/info-tip";
+import { Card } from "@/components/ui/card";
 import { ErrorState } from "@/components/ui/error-state";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { Skeleton } from "@/components/ui/skeleton";
 import { carteraCopy } from "@/content/i18n/extra-cartera";
+import { cn } from "@/lib/cn";
 import { useT } from "@/lib/hooks/use-t";
 import { periodPerformance } from "@/lib/portfolio/performance";
 import { decodePoints, encodePoints, portfolioValueSeries } from "@/lib/portfolio/series";
@@ -109,63 +111,93 @@ export function PortfolioValueChart({
   const options = ranges.map((option) => ({ value: option.value, label: option.label }));
 
   return (
-    <div className="flex flex-col gap-3" data-range={range}>
-      <SegmentedControl
-        label={t.detail.rangesLabel}
-        options={options}
-        value={range}
-        fullWidth
-        onChange={onRangeChange}
-      />
-      {referenceNote ? <p className="text-sm text-fg-muted">{referenceNote}</p> : null}
-      {!pending && !failed ? (
-        <div className="flex flex-col gap-2">
-          <div className="flex min-h-11 min-w-0 flex-wrap items-center gap-x-1 gap-y-1.5">
-            <span className="label shrink-0">{copy.period}</span>
-            <span className="min-w-0 truncate text-sm text-fg-muted">{t.detail.rangeCaption[range]}</span>
-            <InfoTip label={`${copy.whatIsThis}. ${copy.period}`} text={copy.periodTip} align="start" />
-            <button
-              type="button"
-              aria-pressed={compare.active}
-              onClick={compare.onToggle}
-              className={`ml-auto shrink-0 rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
-                compare.active
-                  ? "border-fg bg-fg text-bg"
-                  : "border-border/80 bg-surface-1/80 text-fg-muted hover:bg-surface-2 hover:text-fg"
-              }`}
-            >
-              vs S&amp;P 500 (SPYx)
-            </button>
-          </div>
-          {period === null ? (
-            <span className="text-sm text-fg-muted">{copy.emptyFigure}</span>
-          ) : pendingFx ? (
-            <Skeleton className="h-6 w-40" />
-          ) : (
-            <div className="flex flex-wrap items-center gap-2">
-              <span className={`num text-sm whitespace-nowrap ${amountTone(period.deltaUsd)}`}>
-                {formatValue(period.deltaUsd)}
+    <Card className="p-4 shadow-card sm:p-6" data-range={range}>
+      <div className="flex flex-col gap-5">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
+          <div className="min-w-0">
+            <div className="flex items-center gap-1.5">
+              <p className="label shrink-0">{copy.period}</p>
+              <span aria-hidden className="text-xs text-fg-subtle">
+                ·
               </span>
-              <ChangeBadge value={period.pct} />
+              <p className="min-w-0 truncate text-xs text-fg-muted">{t.detail.rangeCaption[range]}</p>
+              <InfoTip label={`${copy.whatIsThis}. ${copy.period}`} text={copy.periodTip} align="start" />
             </div>
-          )}
+
+            <div className="mt-2 flex min-h-8 flex-wrap items-center gap-2">
+              {pending ? (
+                <Skeleton className="h-7 w-36" />
+              ) : period === null ? (
+                <span className="text-sm text-fg-muted">{copy.emptyFigure}</span>
+              ) : pendingFx ? (
+                <Skeleton className="h-7 w-36" />
+              ) : (
+                <>
+                  <span
+                    className={cn(
+                      "num text-xl font-medium tracking-tight whitespace-nowrap sm:text-2xl",
+                      amountTone(period.deltaUsd),
+                    )}
+                  >
+                    {formatValue(period.deltaUsd)}
+                  </span>
+                  <ChangeBadge value={period.pct} />
+                </>
+              )}
+            </div>
+          </div>
+
+          <div className="w-full shrink-0 sm:w-56">
+            <SegmentedControl
+              label={t.detail.rangesLabel}
+              options={options}
+              value={range}
+              fullWidth
+              onChange={onRangeChange}
+            />
+          </div>
         </div>
-      ) : null}
-      {pending ? (
-        <div role="status" aria-live="polite" aria-busy="true">
-          <span className="sr-only">{t.states.loading}</span>
-          <Skeleton className="h-56 w-full rounded-xl lg:h-72" />
+
+        {referenceNote ? (
+          <p className="-mt-1 text-xs leading-relaxed text-fg-subtle">{referenceNote}</p>
+        ) : null}
+
+        {pending ? (
+          <div role="status" aria-live="polite" aria-busy="true">
+            <span className="sr-only">{t.states.loading}</span>
+            <Skeleton className="h-56 w-full rounded-2xl lg:h-72" />
+          </div>
+        ) : failed ? (
+          <ErrorState
+            title={t.detail.chartError}
+            label={t.states.error}
+            retryLabel={t.states.retry}
+            onRetry={onRetry}
+          />
+        ) : (
+          children
+        )}
+
+        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border pt-3">
+          <button
+            type="button"
+            aria-pressed={compare.active}
+            onClick={compare.onToggle}
+            className={cn(
+              "inline-flex min-h-9 items-center gap-1.5 rounded-full border px-3 text-xs font-medium transition-colors duration-150 sm:min-h-8",
+              compare.active
+                ? "border-fg bg-fg text-bg"
+                : "border-control text-fg-muted hover:bg-surface-2 hover:text-fg",
+            )}
+          >
+            <span
+              aria-hidden
+              className={cn("size-1.5 rounded-full transition-colors", compare.active ? "bg-bg" : "bg-control")}
+            />
+            vs S&amp;P 500 (SPYx)
+          </button>
         </div>
-      ) : failed ? (
-        <ErrorState
-          title={t.detail.chartError}
-          label={t.states.error}
-          retryLabel={t.states.retry}
-          onRetry={onRetry}
-        />
-      ) : (
-        children
-      )}
-    </div>
+      </div>
+    </Card>
   );
 }

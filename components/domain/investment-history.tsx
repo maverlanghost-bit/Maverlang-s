@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 
 import { TickerLogo } from "@/components/domain/ticker-logo";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { logoPathFromSymbol } from "@/lib/catalog/logos";
@@ -159,14 +160,14 @@ export function InvestmentHistory({
   return (
     <section
       aria-label={isEn ? "Investment history" : "Historial de inversiones"}
-      className="rounded-2xl border border-border/80 bg-bg-elevated/95 p-4 shadow-[0_12px_34px_-16px_rgba(12,15,20,0.08)] md:p-6"
+      className="rounded-3xl bg-surface-1 p-4 shadow-card sm:p-6 md:p-8"
     >
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
+        <div className="min-w-0">
           <h2 className="text-lg font-semibold tracking-tight text-fg">
             {isEn ? "Investment history" : "Historial de inversiones"}
           </h2>
-          <p className="text-xs text-fg-muted">
+          <p className="mt-0.5 text-xs text-fg-muted">
             {isEn
               ? "Record of your stock purchases, sales, and wallet movements."
               : "Registro detallado de tus compras, ventas y movimientos de saldo."}
@@ -176,7 +177,7 @@ export function InvestmentHistory({
         <div
           role="tablist"
           aria-label={isEn ? "Filter operations" : "Filtrar operaciones"}
-          className="inline-flex flex-wrap items-center gap-1 self-start rounded-full border border-border/80 bg-surface-2/80 p-1 backdrop-blur-md sm:self-auto"
+          className="inline-flex flex-wrap items-center gap-1 self-start rounded-full bg-surface-2 p-1 sm:self-auto"
         >
           {filters.map((tab) => {
             const active = filter === tab.id;
@@ -188,10 +189,8 @@ export function InvestmentHistory({
                 aria-selected={active}
                 onClick={() => setFilter(tab.id)}
                 className={cn(
-                  "min-h-8 rounded-full px-3 py-1 text-xs font-medium transition-all duration-150 outline-none focus-visible:ring-4 focus-visible:ring-fg/20",
-                  active
-                    ? "bg-bg-elevated text-fg shadow-xs"
-                    : "text-fg-muted hover:text-fg",
+                  "min-h-9 rounded-full px-3 text-xs font-medium transition-colors duration-150 outline-none focus-visible:ring-4 focus-visible:ring-fg/20 sm:min-h-8",
+                  active ? "bg-bg text-fg shadow-raised" : "text-fg-muted hover:text-fg",
                 )}
               >
                 {tab.label}
@@ -201,32 +200,35 @@ export function InvestmentHistory({
         </div>
       </div>
 
-      <div className="mt-4 grid grid-cols-3 gap-2.5 rounded-xl border border-border/70 bg-surface-2/55 p-3 tabular-nums">
-        <div className="min-w-0">
-          <p className="truncate text-[11px] font-medium text-fg-muted">
-            {isEn ? "Total trades" : "Total operaciones"}
-          </p>
-          <p className="mt-0.5 text-sm font-semibold text-fg sm:text-base">{tradesCount}</p>
-        </div>
-        <div className="min-w-0">
-          <p className="truncate text-[11px] font-medium text-fg-muted">
-            {isEn ? "Invested volume" : "Volumen en compras"}
-          </p>
-          <p className="mt-0.5 truncate text-sm font-semibold text-fg sm:text-base">
-            {masked
+      <dl className="mt-4 grid grid-cols-1 border-y border-border sm:grid-cols-3">
+        {[
+          {
+            label: isEn ? "Total trades" : "Total operaciones",
+            value: String(tradesCount),
+          },
+          {
+            label: isEn ? "Invested volume" : "Volumen en compras",
+            value: masked
               ? "••••••"
               : displayCurrency === "CLP" && typeof fxRate === "number" && fxRate > 0
                 ? formatClpValue(buyVolumeUsd * fxRate)
-                : formatUsdValue(buyVolumeUsd)}
-          </p>
-        </div>
-        <div className="min-w-0">
-          <p className="truncate text-[11px] font-medium text-fg-muted">
-            {isEn ? "Last activity" : "Última operación"}
-          </p>
-          <p className="mt-0.5 truncate text-sm font-semibold text-fg sm:text-base">{latestAt}</p>
-        </div>
-      </div>
+                : formatUsdValue(buyVolumeUsd),
+          },
+          { label: isEn ? "Last activity" : "Última operación", value: latestAt },
+        ].map((stat, index) => (
+          <div
+            key={stat.label}
+            className={cn(
+              "flex items-baseline justify-between gap-3 border-b border-border/70 py-2.5 last:border-b-0",
+              "sm:block sm:border-b-0 sm:border-l sm:border-border sm:px-4 sm:py-3",
+              index === 0 && "sm:border-l-0 sm:pl-0",
+            )}
+          >
+            <dt className="text-xs whitespace-nowrap text-fg-muted">{stat.label}</dt>
+            <dd className="num min-w-0 truncate text-[15px] font-medium tracking-tight text-fg">{stat.value}</dd>
+          </div>
+        ))}
+      </dl>
 
       <div className="mt-4">
         {loading ? (
@@ -235,7 +237,7 @@ export function InvestmentHistory({
             <Skeleton className="h-16 w-full rounded-xl" />
           </div>
         ) : filteredItems.length === 0 ? (
-          <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border/80 bg-surface-1/60 px-4 py-8 text-center">
+          <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-bg/60 px-4 py-8 text-center">
             <p className="text-sm font-medium text-fg">
               {isEn
                 ? "You have no recorded investments in this filter yet."
@@ -246,7 +248,7 @@ export function InvestmentHistory({
                 ? "Start buying fractions of tokenized U.S. stocks from $1,000 CLP."
                 : "Compra fracciones de acciones de EE. UU. y sigue cada orden aquí."}
             </p>
-            <Button asChild size="sm" className="mt-3 min-h-9 rounded-full px-4">
+            <Button asChild variant="secondary" size="sm" className="mt-3">
               <Link href="/app">{isEn ? "Explore stocks" : "Explorar acciones"}</Link>
             </Button>
           </div>
@@ -262,14 +264,14 @@ export function InvestmentHistory({
               const secondary = formatSecondary(item);
               const confirmed = item.status === "confirmed";
 
-              const badgeConfig =
+              const kindBadge =
                 item.kind === "buy"
-                  ? { label: isEn ? "Buy" : "Compra", cls: "bg-up-bg text-up border-up/25" }
+                  ? { label: isEn ? "Buy" : "Compra", tone: "up" as const }
                   : item.kind === "sell"
-                    ? { label: isEn ? "Sell" : "Venta", cls: "bg-down-bg text-down border-down/25" }
+                    ? { label: isEn ? "Sell" : "Venta", tone: "down" as const }
                     : item.kind === "deposit" || item.kind === "onramp" || item.kind === "receive"
-                      ? { label: isEn ? "Deposit" : "Depósito", cls: "bg-brand-soft/75 text-brand border-brand/25" }
-                      : { label: isEn ? "Transfer" : "Envío", cls: "bg-surface-2 text-fg-muted border-border" };
+                      ? { label: isEn ? "Deposit" : "Depósito", tone: "neutral" as const }
+                      : { label: isEn ? "Transfer" : "Envío", tone: "neutral" as const };
 
               return (
                 <li
@@ -289,7 +291,7 @@ export function InvestmentHistory({
                     ) : (
                       <span
                         aria-hidden="true"
-                        className="inline-flex size-9.5 shrink-0 items-center justify-center rounded-full border border-brand/25 bg-brand-soft/60 text-xs font-bold text-brand"
+                        className="inline-flex size-9.5 shrink-0 items-center justify-center rounded-full bg-surface-2 text-xs font-semibold text-fg-muted"
                       >
                         $
                       </span>
@@ -297,15 +299,8 @@ export function InvestmentHistory({
 
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-1.5">
-                        <span
-                          className={cn(
-                            "inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold",
-                            badgeConfig.cls,
-                          )}
-                        >
-                          {badgeConfig.label}
-                        </span>
-                        <span className="truncate text-sm font-semibold text-fg">
+                        <Badge tone={kindBadge.tone}>{kindBadge.label}</Badge>
+                        <span className="truncate text-sm font-medium tracking-tight text-fg">
                           {ticker?.name ?? item.symbol}
                         </span>
                       </div>
@@ -316,10 +311,10 @@ export function InvestmentHistory({
                     </div>
                   </div>
 
-                  <div className="shrink-0 text-right tabular-nums">
-                    <p className="text-sm font-semibold text-fg">{formatPrimary(item)}</p>
-                    {secondary ? <p className="text-xs text-fg-muted">{secondary}</p> : null}
-                    <div className="mt-0.5 inline-flex items-center justify-end gap-1.5 text-[11px] text-fg-muted">
+                  <div className="shrink-0 text-right">
+                    <p className="num text-[15px] font-medium tracking-tight text-fg">{formatPrimary(item)}</p>
+                    {secondary ? <p className="num mt-0.5 text-xs text-fg-muted">{secondary}</p> : null}
+                    <div className="mt-1 inline-flex items-center justify-end gap-1.5 text-xs text-fg-muted">
                       <span
                         aria-hidden="true"
                         className={cn(
@@ -345,7 +340,7 @@ export function InvestmentHistory({
                           href={`https://solscan.io/tx/${encodeURIComponent(sig)}`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="font-medium text-brand underline-offset-2 hover:underline"
+                          className="font-medium text-fg-muted underline-offset-2 hover:text-fg hover:underline"
                         >
                           Solscan
                         </a>

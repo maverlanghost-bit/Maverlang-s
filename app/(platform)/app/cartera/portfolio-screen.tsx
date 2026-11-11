@@ -17,7 +17,7 @@ import { DividendMultiplierCard } from "@/components/domain/dividend-multiplier-
 import { PortfolioHealthCard } from "@/components/domain/portfolio-health-card";
 import { PortfolioTaxSummaryCard } from "@/components/domain/portfolio-tax-summary-card";
 import { TradeReceiptTrigger } from "@/components/domain/trade-receipt-modal";
-import { PositionRow } from "@/components/domain/position-row";
+import { PositionRow, POSITION_ACTION_WIDTH, POSITION_ROW_GRID } from "@/components/domain/position-row";
 import { RealAccountEmpty } from "@/components/domain/real-account-empty";
 import { ResetDemoButton } from "@/components/domain/reset-demo-button";
 import { carteraCopy, type CarteraExtra } from "@/content/i18n/extra-cartera";
@@ -31,6 +31,7 @@ import { ErrorState } from "@/components/ui/error-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { Skeleton } from "@/components/ui/skeleton";
 import { isRealAccountUiBlocked, isRealAccountUiEnabled } from "@/lib/account/real-ui-gate";
+import { cn } from "@/lib/cn";
 import { formatDateTime, formatMoney, formatShares, type MoneyCurrency } from "@/lib/format";
 import { useAccountMode } from "@/lib/hooks/use-account-mode";
 import { useHideBalance } from "@/lib/hooks/use-hide-balance";
@@ -43,7 +44,7 @@ import { positionMeta } from "@/lib/catalog/position-meta";
 import { displayPrice } from "@/lib/market/browse";
 import type { AssetStatus } from "@/lib/market/asset-status.shared";
 import { DETAIL_RANGES, isDetailRange, isReferenceHistory, rangeMove, toneOf } from "@/lib/market/series";
-import { portfolioPerformance, type PortfolioPerformance, type RankedPosition } from "@/lib/portfolio/performance";
+import { portfolioPerformance, type PortfolioPerformance } from "@/lib/portfolio/performance";
 import { balancedPortions, sumUsd, sumsMatch, tradeActivity } from "@/lib/portfolio/series";
 import type { Activity, Currency, OrderStatus, Position, Range, Ticker } from "@/lib/types";
 
@@ -51,13 +52,11 @@ const DEPOSIT_HREF = "/app/billetera/depositar";
 const SEND_HREF = "/app/billetera/enviar";
 const MARKET_HREF = "/app";
 
-const SUMMARY_GRID = "grid grid-cols-2 gap-3";
-const SUMMARY_CARD = "flex min-h-28 sm:min-h-36 min-w-0 flex-col justify-between gap-1.5 p-3 sm:p-4 md:p-4";
-const VALUE_FIGURE = "text-base min-[400px]:text-lg tracking-tight truncate whitespace-nowrap sm:text-3xl";
-const GAIN_FIGURE = "text-sm min-[400px]:text-base tracking-tight truncate whitespace-nowrap sm:text-xl";
-
 const POSITION_COLORS = ["#059669", "#0ea5e9", "#8b5cf6", "#f59e0b", "#ec4899", "#14b8a6", "#10b981", "#6366f1"] as const;
 const CASH_COLOR = "#64748b";
+
+/** Cáscara de las tarjetas de esta vista: una sola hairline (shadow-card). */
+const CARD_PAD = "p-4 shadow-card sm:p-6";
 
 const STATUS_TONE: Record<OrderStatus, BadgeTone> = {
   pending: "warn",
@@ -127,10 +126,14 @@ function PositionSafetyNote({ status }: { status: AssetStatus | undefined }) {
     status?.safetyStatus === "hidden" ? "hidden" : status?.underReview ? "review" : null;
   if (notice === null) return null;
   if (notice === "hidden") {
-    return <p className="px-2 pb-2 text-sm leading-relaxed text-fg-muted">{t.portfolio.hiddenNotice}</p>;
+    return (
+      <p className="pb-2 pl-12 text-[13px] leading-relaxed text-fg-muted sm:pl-[3.25rem]">
+        {t.portfolio.hiddenNotice}
+      </p>
+    );
   }
   return (
-    <p className="px-2 pb-2">
+    <p className="pb-2 pl-12 sm:pl-[3.25rem]">
       <Badge tone="warn">{t.market.underReview}</Badge>
     </p>
   );
@@ -210,58 +213,11 @@ function MoneyLine({
   return <span className={signClass(usd, size)}>{formatMoney(view.amount, view.currency)}</span>;
 }
 
-function FigureSlot({
-  pendingFx,
-  masked,
-  hiddenLabel,
-  className,
-  children,
-}: {
-  pendingFx: boolean;
-  masked: boolean;
-  hiddenLabel: string;
-  className: string;
-  children: ReactNode;
-}) {
-  if (masked) return <Masked label={hiddenLabel} className={className} />;
-  if (pendingFx) return <Skeleton className="h-8 w-full max-w-40 sm:h-10" />;
-  return children;
-}
-
-function RankLine({
-  label,
-  rank,
-  name,
-  masked,
-  hiddenLabel,
-  empty,
-}: {
-  label: string;
-  rank: RankedPosition | null;
-  name: string | null;
-  masked: boolean;
-  hiddenLabel: string;
-  empty: string;
-}) {
-  return (
-    <div className="min-w-0">
-      <p className="label">{label}</p>
-      {!rank || !name ? (
-        <p className="mt-1 truncate text-sm text-fg-muted">{empty}</p>
-      ) : (
-        <div className="mt-1 flex min-w-0 items-center justify-between gap-2">
-          <span className="min-w-0 truncate text-sm font-medium text-fg">{name}</span>
-          {masked ? <Masked label={hiddenLabel} className="shrink-0 text-sm" /> : <ChangeBadge value={rank.pnlPct} className="shrink-0" />}
-        </div>
-      )}
-    </div>
-  );
-}
-
 function SummaryCards({
   copy,
   perf,
   shownUsd,
+  cashUsdc,
   hoverActive,
   hoverForce,
   currency,
@@ -277,6 +233,7 @@ function SummaryCards({
   copy: CarteraExtra;
   perf: PortfolioPerformance;
   shownUsd: number;
+  cashUsdc: number;
   hoverActive: boolean;
   hoverForce: PriceFlash | undefined;
   currency: Currency;
@@ -289,92 +246,126 @@ function SummaryCards({
   onChart: string;
   summaryTip: string;
 }) {
+  const { t } = useT();
   const shown = moneyView(shownUsd, currency, rate);
   const gain = perf.gainUsd === null ? null : moneyView(perf.gainUsd, currency, rate);
   const invested = perf.investedUsd === null ? null : moneyView(perf.investedUsd, currency, rate);
+  const cash = moneyView(cashUsdc, currency, rate);
   const sameRank = perf.best !== null && perf.worst !== null && perf.best.symbol === perf.worst.symbol;
 
   return (
-    <section aria-label={copy.summaryLabel} className="flex flex-col gap-3">
-      <div className="flex h-11 items-center justify-between gap-2">
-        <h2 className="min-w-0 truncate text-lg font-semibold tracking-tight">{copy.summaryLabel}</h2>
-        <InfoTip label={`${copy.whatIsThis}. ${copy.summaryLabel}`} text={summaryTip} />
+    <section aria-label={copy.summaryLabel} className="flex flex-col">
+      <div className="flex items-center gap-1.5">
+        <h2 className="label">{copy.currentValue}</h2>
+        <InfoTip label={`${copy.whatIsThis}. ${copy.summaryLabel}`} text={summaryTip} align="start" />
       </div>
-      <div className={SUMMARY_GRID}>
-        <Card className={SUMMARY_CARD}>
-          <p className="label">{copy.currentValue}</p>
-          <div className="flex min-w-0 flex-col gap-1">
-            <FigureSlot pendingFx={pendingFx} masked={masked} hiddenLabel={hiddenLabel} className={VALUE_FIGURE}>
-              <span className="block min-w-0 font-medium">
-                <FlashPrice
-                  value={shown.amount}
-                  currency={shown.currency}
-                  size="sm"
-                  live={!hoverActive}
-                  force={hoverForce}
-                  className={VALUE_FIGURE}
-                />
-              </span>
-            </FigureSlot>
-            <p className="h-4 truncate text-xs text-fg-muted">{hoverActive && !masked ? onChart : ""}</p>
-          </div>
-        </Card>
-        <Card className={SUMMARY_CARD}>
-          <p className="label">{copy.totalGain}</p>
-          <div className="flex min-w-0 flex-col items-start gap-1">
+
+      <div className="mt-3 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between sm:gap-10">
+        <div className="min-w-0">
+          {masked ? (
+            <Masked label={hiddenLabel} className="num block text-[2.5rem] tracking-[0.14em] sm:text-[3.25rem]" />
+          ) : pendingFx ? (
+            <Skeleton className="h-12 w-64 max-w-full sm:h-14" />
+          ) : (
+            <span className="-ml-1 block">
+              <FlashPrice
+                value={shown.amount}
+                currency={shown.currency}
+                size="lg"
+                live={!hoverActive}
+                force={hoverForce}
+                className="block text-[2.5rem] leading-none font-medium tracking-tight sm:text-[3.25rem]"
+              />
+            </span>
+          )}
+          <p className="mt-2 h-4 text-xs text-fg-subtle">{hoverActive && !masked ? onChart : ""}</p>
+        </div>
+
+        <div className="flex flex-col gap-1 sm:items-end sm:text-right">
+          <h2 className="label">{copy.totalGain}</h2>
+          <div className="flex flex-wrap items-center gap-2">
             {gain === null ? (
               <span className="text-sm text-fg-muted">{copy.emptyFigure}</span>
+            ) : masked ? (
+              <Masked label={hiddenLabel} className="num text-lg" />
+            ) : pendingFx ? (
+              <Skeleton className="h-6 w-28" />
             ) : (
-              <FigureSlot pendingFx={pendingFx} masked={masked} hiddenLabel={hiddenLabel} className={GAIN_FIGURE}>
-                <FlashPrice value={gain.amount} currency={gain.currency} size="sm" colorBySign className={GAIN_FIGURE} />
-              </FigureSlot>
+              <FlashPrice
+                value={gain.amount}
+                currency={gain.currency}
+                size="sm"
+                colorBySign
+                className="text-lg font-medium tracking-tight sm:text-xl"
+              />
             )}
             {perf.gainPct === null || masked ? null : <ChangeBadge value={perf.gainPct} />}
           </div>
-        </Card>
-        <Card className={SUMMARY_CARD}>
-          <p className="label">{copy.invested}</p>
-          {invested === null ? (
-            <span className="text-sm text-fg-muted">{copy.emptyFigure}</span>
-          ) : (
-            <FigureSlot pendingFx={pendingFx} masked={masked} hiddenLabel={hiddenLabel} className="text-sm">
-              <span className="num text-sm font-medium whitespace-nowrap tabular-nums text-fg">
-                {formatMoney(invested.amount, invested.currency)}
-              </span>
-            </FigureSlot>
-          )}
-        </Card>
-        <Card className={SUMMARY_CARD}>
-          {perf.best === null && perf.worst === null ? (
-            <>
-              <p className="label">{copy.best}</p>
-              <span className="text-sm text-fg-muted">{copy.emptyFigure}</span>
-            </>
-          ) : (
-            <div className="flex min-w-0 flex-col gap-3">
-              <RankLine
-                label={copy.best}
-                rank={perf.best}
-                name={bestName}
-                masked={masked}
-                hiddenLabel={hiddenLabel}
-                empty={copy.emptyFigure}
-              />
-              {sameRank ? null : (
-                <RankLine
-                  label={copy.worst}
-                  rank={perf.worst}
-                  name={worstName}
-                  masked={masked}
-                  hiddenLabel={hiddenLabel}
-                  empty={copy.emptyFigure}
-                />
-              )}
-            </div>
-          )}
-        </Card>
+        </div>
       </div>
-      <p className="text-xs leading-relaxed text-fg-muted">{copy.disclaimer}</p>
+
+      <dl className="mt-7 grid grid-cols-2 gap-x-4 gap-y-5 border-t border-border pt-5 sm:grid-cols-4 sm:gap-y-0">
+        <div className="min-w-0 sm:pr-4">
+          <dt className="label min-h-8 sm:min-h-0">{copy.invested}</dt>
+          <dd className="num mt-1.5 truncate text-[15px] font-medium tracking-tight text-fg">
+            {invested === null
+              ? copy.emptyFigure
+              : masked
+                ? "••••"
+                : pendingFx
+                  ? "…"
+                  : formatMoney(invested.amount, invested.currency)}
+          </dd>
+        </div>
+
+        <div className="min-w-0 sm:border-l sm:border-border sm:px-4">
+          <dt className="label min-h-8 sm:min-h-0">{t.portfolio.available}</dt>
+          <dd className="num mt-1.5 truncate text-[15px] font-medium tracking-tight text-fg">
+            {masked ? "••••" : pendingFx ? "…" : formatMoney(cash.amount, cash.currency)}
+          </dd>
+          <p className="mt-0.5 truncate text-xs text-fg-subtle">{t.portfolio.availableNote}</p>
+        </div>
+
+        <div className="min-w-0 sm:border-l sm:border-border sm:px-4">
+          <dt className="label min-h-8 sm:min-h-0">{copy.best}</dt>
+          <dd className="mt-1.5 flex min-w-0 items-center gap-2">
+            {perf.best === null || !bestName ? (
+              <span className="text-[13px] text-fg-muted">{copy.emptyFigure}</span>
+            ) : (
+              <>
+                <span className="min-w-0 truncate text-[13px] font-medium text-fg">{bestName}</span>
+                {masked ? (
+                  <Masked label={hiddenLabel} className="shrink-0 text-[13px]" />
+                ) : (
+                  <ChangeBadge value={perf.best.pnlPct} size="sm" className="shrink-0" />
+                )}
+              </>
+            )}
+          </dd>
+        </div>
+
+        {sameRank ? null : (
+          <div className="min-w-0 sm:border-l sm:border-border sm:px-4">
+            <dt className="label min-h-8 sm:min-h-0">{copy.worst}</dt>
+            <dd className="mt-1.5 flex min-w-0 items-center gap-2">
+              {perf.worst === null || !worstName ? (
+                <span className="text-[13px] text-fg-muted">{copy.emptyFigure}</span>
+              ) : (
+                <>
+                  <span className="min-w-0 truncate text-[13px] font-medium text-fg">{worstName}</span>
+                  {masked ? (
+                    <Masked label={hiddenLabel} className="shrink-0 text-[13px]" />
+                  ) : (
+                    <ChangeBadge value={perf.worst.pnlPct} size="sm" className="shrink-0" />
+                  )}
+                </>
+              )}
+            </dd>
+          </div>
+        )}
+      </dl>
+
+      <p className="mt-5 text-xs leading-relaxed text-fg-subtle">{copy.disclaimer}</p>
     </section>
   );
 }
@@ -533,27 +524,26 @@ export function PortfolioScreen() {
   let body: ReactNode;
   if (portfolio.isPending) {
     body = (
-      <div role="status" aria-live="polite" aria-busy="true" className="flex flex-col gap-8">
+      <div role="status" aria-live="polite" aria-busy="true" className="flex flex-col gap-8 sm:gap-10">
         <span className="sr-only">{t.states.loading}</span>
-        <div className="flex flex-col gap-3">
-          <Skeleton className="h-11 w-40" />
-          <div className={SUMMARY_GRID}>
-            {["valor", "ganancia", "invertido", "puestos"].map((key) => (
-              <Skeleton key={key} className="h-36 w-full rounded-2xl" />
+        <div className="flex flex-col">
+          <Skeleton className="h-3 w-24" />
+          <Skeleton className="mt-4 h-11 w-64 max-w-full sm:h-14" />
+          <div className="mt-7 grid grid-cols-2 gap-x-4 gap-y-5 border-t border-border pt-5 sm:grid-cols-4">
+            {["invertido", "disponible", "mejor", "peor"].map((key) => (
+              <div key={key} className="flex flex-col gap-2">
+                <Skeleton className="h-3 w-20" />
+                <Skeleton className="h-4 w-24 max-w-full" />
+              </div>
             ))}
           </div>
-          <Skeleton className="h-4 w-56 max-w-full" />
         </div>
-        <div className="flex flex-col gap-3">
-          <Skeleton className="h-11 w-full rounded-full" />
-          <Skeleton className="h-11 w-48 max-w-full" />
-          <Skeleton className="h-6 w-40" />
-          <Skeleton className="h-56 w-full rounded-xl lg:h-72" />
+        <div className="flex flex-col gap-2">
+          <Skeleton className="h-11 w-full rounded-full sm:w-48" />
+          <Skeleton className="h-3 w-32" />
         </div>
-        <Skeleton className="h-11 w-full max-w-lg" />
-        <Skeleton className="h-64 w-full rounded-2xl" />
-        <Skeleton className="h-48 w-full rounded-2xl sm:h-36" />
-        <Skeleton className="h-24 w-full rounded-2xl" />
+        <Skeleton className="h-72 w-full rounded-3xl sm:h-80" />
+        <Skeleton className="h-64 w-full rounded-3xl" />
       </div>
     );
   } else if (portfolio.isError || !loaded) {
@@ -611,7 +601,6 @@ export function PortfolioScreen() {
       }));
 
     const orders = tradeActivity(activity.data ?? []);
-    const cashView = moneyView(loaded.cashUsdc, currency, rate);
     const copy = carteraCopy(language);
     const ui = carteraUi(language);
     const perf = portfolioPerformance(loaded.positions, { pnlUsd: loaded.pnlUsd, pnlPct: loaded.pnlPct });
@@ -623,31 +612,50 @@ export function PortfolioScreen() {
 
     body = (
       <div
-        className="flex flex-col gap-8"
+        className="flex flex-col gap-8 sm:gap-10"
         data-total={loaded.totalUsd}
         data-cash={loaded.cashUsdc}
         data-positions={positionSum}
         data-reconciled={sumsMatch(positionSum + loaded.cashUsdc, loaded.totalUsd) ? "1" : "0"}
       >
         {hasPositions ? (
-          <SummaryCards
-            copy={copy}
-            perf={perf}
-            shownUsd={shownUsd}
-            hoverActive={hoverUsd !== null}
-            hoverForce={hoverForce}
-            currency={currency}
-            rate={rate}
-            pendingFx={pendingFx}
-            masked={masked}
-            hiddenLabel={t.shell.balanceHidden}
-            bestName={bestName}
-            worstName={worstName}
-            onChart={ui.onChart}
-            summaryTip={ui.summaryTip}
-          />
+          <>
+            <SummaryCards
+              copy={copy}
+              perf={perf}
+              shownUsd={shownUsd}
+              cashUsdc={loaded.cashUsdc}
+              hoverActive={hoverUsd !== null}
+              hoverForce={hoverForce}
+              currency={currency}
+              rate={rate}
+              pendingFx={pendingFx}
+              masked={masked}
+              hiddenLabel={t.shell.balanceHidden}
+              bestName={bestName}
+              worstName={worstName}
+              onChart={ui.onChart}
+              summaryTip={ui.summaryTip}
+            />
+
+            {/* Un solo CTA primario: explorar. Depositar y enviar quedan al lado. */}
+            <div className="flex flex-col gap-2">
+              <nav aria-label="Accesos rápidos" className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+                <Button asChild size="lg" className="col-span-2 min-h-11 sm:col-span-1">
+                  <Link href={MARKET_HREF}>{t.portfolio.explore}</Link>
+                </Button>
+                <Button asChild variant="secondary" size="lg" className="min-h-11">
+                  <Link href={DEPOSIT_HREF}>{t.trade.deposit}</Link>
+                </Button>
+                <Button asChild variant="secondary" size="lg" className="min-h-11">
+                  <Link href={SEND_HREF}>{t.wallet.send}</Link>
+                </Button>
+              </nav>
+              <PriceFreshness at={portfolio.dataUpdatedAt || loaded.updatedAt} delayedOnly />
+            </div>
+          </>
         ) : null}
-        {hasPositions ? <PriceFreshness at={portfolio.dataUpdatedAt || loaded.updatedAt} delayedOnly /> : null}
+
         {showFxNote ? <p className="text-sm text-fg-muted">{t.detail.fxFallback}</p> : null}
 
         {hasPositions && !masked ? (
@@ -686,49 +694,23 @@ export function PortfolioScreen() {
           />
         ) : (
           <>
-            <nav aria-label="Accesos rápidos" className="grid grid-cols-3 gap-2 sm:flex sm:flex-wrap">
-              <Button asChild size="lg" className="min-h-11 whitespace-normal px-2.5 text-center text-xs sm:whitespace-nowrap sm:px-4 sm:text-sm">
-                <Link href={MARKET_HREF}>{t.portfolio.explore}</Link>
-              </Button>
-              <Button asChild variant="secondary" size="lg" className="min-h-11 whitespace-normal px-2.5 text-center text-xs sm:whitespace-nowrap sm:px-4 sm:text-sm">
-                <Link href={DEPOSIT_HREF}>{t.trade.deposit}</Link>
-              </Button>
-              <Button asChild variant="secondary" size="lg" className="min-h-11 whitespace-normal px-2.5 text-center text-xs sm:whitespace-nowrap sm:px-4 sm:text-sm">
-                <Link href={SEND_HREF}>{t.wallet.send}</Link>
-              </Button>
-            </nav>
-            {slices.length > 0 ? (
-              <Card>
-                <h2 className="text-lg font-semibold tracking-tight">{t.portfolio.allocation}</h2>
-                <div className="mt-4">
-                  <AllocationBar
-                    label={t.portfolio.allocationLabel}
-                    slices={slices}
-                    items={allocationItems}
-                    cashUsd={loaded.cashUsdc}
-                    totalUsd={loaded.totalUsd}
-                    formatValue={(usd) => {
-                      if (masked) return "••••";
-                      if (pendingFx) return "…";
-                      const view = moneyView(usd, currency, rate);
-                      return formatMoney(view.amount, view.currency);
-                    }}
-                    lang={language}
-                  />
-                </div>
-                {slices.length > 0 ? (
-                  <div className="mt-6 border-t border-border/60 pt-6">
-                    <PortfolioDonut slices={slices} />
-                  </div>
-                ) : null}
-              </Card>
-            ) : null}
-            <Card className="p-4 md:p-6">
-              <div className="flex h-11 items-center justify-between gap-2">
+            <Card className={CARD_PAD}>
+              <div className="flex items-start justify-between gap-2">
                 <h2 className="min-w-0 truncate text-lg font-semibold tracking-tight">{t.portfolio.positions}</h2>
                 <InfoTip label={`${copy.whatIsThis}. ${copy.avgCost}`} text={ui.positionsTip} />
               </div>
-              <ul className="mt-2 divide-y divide-border/60 tabular-nums">
+
+              <div className="mt-4 hidden items-center gap-3 sm:flex">
+                <div className={cn(POSITION_ROW_GRID, "flex-1")}>
+                  <span aria-hidden className="size-9" />
+                  <span className="label-xs">{t.portfolio.positions}</span>
+                  <span className="label-xs text-right">{copy.currentValue}</span>
+                  <span className="label-xs text-right">{t.portfolio.pnl}</span>
+                </div>
+                <span aria-hidden className={cn("shrink-0", POSITION_ACTION_WIDTH)} />
+              </div>
+
+              <ul className="mt-1 divide-y divide-border/70 tabular-nums">
                 {loaded.positions.map((position) => {
                   const ticker = tickerBySymbol.get(position.symbol);
                   const name = positionName(position.symbol);
@@ -747,26 +729,30 @@ export function PortfolioScreen() {
                         currency={value.currency}
                         pnl={pnlValue === null ? null : pnlValue.amount}
                         pnlPct={position.pnlPct}
+                        weightPct={loaded.totalUsd > 0 ? position.valueUsd / loaded.totalUsd : null}
                         hidden={masked}
                         hiddenLabel={t.shell.balanceHidden}
                         pending={pendingFx}
                         action={
                           position.shares > 0 ? (
-                            <div className="flex shrink-0 justify-end px-2 pb-2 sm:items-center sm:px-1 sm:pb-0">
-                              <Button asChild variant="secondary" size="sm" className="min-h-11 whitespace-nowrap px-4">
-                                <Link
-                                  href={sellHref(position.symbol)}
-                                  aria-label={fill(t.detail.tradeSell, { name })}
-                                >
-                                  {t.detail.sell}
-                                </Link>
-                              </Button>
-                            </div>
+                            <Button
+                              asChild
+                              variant="secondary"
+                              size="sm"
+                              className="w-full whitespace-nowrap px-0"
+                            >
+                              <Link
+                                href={sellHref(position.symbol)}
+                                aria-label={fill(t.detail.tradeSell, { name })}
+                              >
+                                {t.detail.sell}
+                              </Link>
+                            </Button>
                           ) : null
                         }
                       />
                       {position.avgCostUsd !== null && Number.isFinite(position.avgCostUsd) ? (
-                        <p className="flex min-w-0 items-baseline gap-2 px-2 pb-2 text-xs text-fg-muted tabular-nums">
+                        <p className="flex min-w-0 items-baseline gap-1.5 pb-2 pl-12 text-xs text-fg-muted tabular-nums sm:pl-[3.25rem]">
                           <span className="shrink-0">{copy.avgCost}</span>
                           <MoneyLine
                             usd={position.avgCostUsd}
@@ -787,16 +773,43 @@ export function PortfolioScreen() {
                 })}
               </ul>
             </Card>
-            <DividendMultiplierCard
-              positions={loaded.positions}
-              currency={currency}
-              rate={rate}
-              masked={masked}
-            />
+
+            {slices.length > 0 ? (
+              <Card className={CARD_PAD}>
+                <div className="flex flex-col gap-1">
+                  <h2 className="text-lg font-semibold tracking-tight">{t.portfolio.allocation}</h2>
+                  <p className="text-xs text-fg-muted">{t.portfolio.allocationLabel}</p>
+                </div>
+                <div className="mt-5 grid gap-6 md:grid-cols-[13.75rem_minmax(0,1fr)] md:items-center md:gap-8">
+                  <PortfolioDonut slices={slices} />
+                  <AllocationBar
+                    label={t.portfolio.allocationLabel}
+                    slices={slices}
+                    items={allocationItems}
+                    cashUsd={loaded.cashUsdc}
+                    totalUsd={loaded.totalUsd}
+                    formatValue={(usd) => {
+                      if (masked) return "••••";
+                      if (pendingFx) return "…";
+                      const view = moneyView(usd, currency, rate);
+                      return formatMoney(view.amount, view.currency);
+                    }}
+                    lang={language}
+                  />
+                </div>
+              </Card>
+            ) : null}
+
             <PortfolioHealthCard
               positions={loaded.positions}
               cashUsdc={loaded.cashUsdc}
               totalUsd={loaded.totalUsd}
+              masked={masked}
+            />
+            <DividendMultiplierCard
+              positions={loaded.positions}
+              currency={currency}
+              rate={rate}
               masked={masked}
             />
             <PortfolioTaxSummaryCard
@@ -808,27 +821,6 @@ export function PortfolioScreen() {
             />
           </>
         )}
-
-        <Card className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h2 className="text-lg font-semibold tracking-tight">{t.portfolio.available}</h2>
-            <div className="mt-2">
-              {masked ? (
-                <Masked label={t.shell.balanceHidden} className="text-2xl" />
-              ) : pendingFx ? (
-                <Skeleton className="h-8 w-36" />
-              ) : (
-                <span className="block font-medium">
-                  <FlashPrice value={cashView.amount} currency={cashView.currency} size="md" />
-                </span>
-              )}
-            </div>
-            <p className="mt-1 text-sm text-fg-muted">{t.portfolio.availableNote}</p>
-          </div>
-          <Button asChild className="min-h-11 px-6">
-            <Link href={DEPOSIT_HREF}>{t.trade.deposit}</Link>
-          </Button>
-        </Card>
 
         <InvestmentHistory
           items={activity.data ?? []}
@@ -842,7 +834,7 @@ export function PortfolioScreen() {
           tickersBySymbol={tickerBySymbol}
         />
 
-        <Card>
+        <Card className={CARD_PAD}>
           <h2 className="text-lg font-semibold tracking-tight">{t.portfolio.history}</h2>
           <div className="mt-2">
             {activity.isPending ? (
@@ -862,7 +854,7 @@ export function PortfolioScreen() {
             ) : orders.length === 0 ? (
               <p className="py-4 text-sm text-fg-muted">{t.portfolio.historyEmpty}</p>
             ) : (
-              <ul className="divide-y divide-border/60">
+              <ul className="divide-y divide-border/70">
                 {orders.map((row) => {
                   const name = positionMeta(row.symbol)?.name ?? tickerBySymbol.get(row.symbol)?.name ?? row.symbol;
                   const kind = row.kind === "buy" ? t.portfolio.buy : t.portfolio.sell;
@@ -879,7 +871,7 @@ export function PortfolioScreen() {
                         explorerLabel={t.trade.explorer}
                         explorerNew={t.trade.explorerNew}
                       />
-                      <div className="flex justify-end px-2 pb-3">
+                      <div className="flex justify-end pb-3">
                         <TradeReceiptTrigger
                           id={row.id}
                           kind={row.kind === "sell" ? "sell" : "buy"}
@@ -903,6 +895,7 @@ export function PortfolioScreen() {
           </div>
         </Card>
       </div>
+
     );
   }
 

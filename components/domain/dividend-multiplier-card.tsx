@@ -37,13 +37,13 @@ export function DividendMultiplierCard({
   };
 
   return (
-    <Card className="p-5 md:p-6">
+    <Card className="p-4 shadow-card sm:p-6">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <h2 className="text-base font-semibold tracking-tight text-balance text-fg">
+          <h2 className="text-lg font-semibold tracking-tight text-balance text-fg">
             {isEn ? "Dividend multiplier" : "Multiplicador de dividendos"}
           </h2>
-          <p className="mt-1 text-sm leading-relaxed text-fg-body">
+          <p className="mt-1 max-w-prose text-xs leading-relaxed text-fg-muted">
             {isEn
               ? "Every tokenized stock on Solana carries a multiplier: the shares you see are the raw units × that multiplier."
               : "Cada acción tokenizada en Solana lleva un multiplicador: las acciones que ves son las unidades crudas × ese multiplicador."}
@@ -55,7 +55,7 @@ export function DividendMultiplierCard({
       </div>
 
       {/* Fórmula de ARQUITECTURA §6: acciones = crudo × multiplicador */}
-      <div className="mt-4 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-xl border border-border/70 bg-surface-2/60 px-3 py-2.5 text-xs">
+      <div className="mt-4 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-xl bg-surface-2/70 px-3 py-2 text-xs">
         <span className="font-medium text-fg-body">{isEn ? "Raw units" : "Unidades crudas"}</span>
         <span aria-hidden="true" className="text-fg-muted">
           ×
@@ -69,7 +69,7 @@ export function DividendMultiplierCard({
 
       <ul
         aria-label={isEn ? "Multiplier by position" : "Multiplicador por posición"}
-        className="mt-3 flex flex-col gap-2"
+        className="mt-3 divide-y divide-border/70 border-t border-border/70"
       >
         {positions.map((position) => {
           const quote = quotesBySymbol?.get(position.symbol);
@@ -81,11 +81,11 @@ export function DividendMultiplierCard({
           return (
             <li
               key={position.symbol}
-              className="flex flex-col gap-1 rounded-xl border border-border/70 bg-bg/60 px-3.5 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4"
+              className="flex flex-col gap-1.5 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4"
             >
               <div className="flex min-w-0 items-center gap-2">
-                <span className="truncate text-sm font-semibold text-fg">{position.symbol}</span>
-                <Badge tone={multiplier > 1 ? "up" : "neutral"} className="num">
+                <span className="truncate text-[15px] font-medium tracking-tight text-fg">{position.symbol}</span>
+                <Badge tone={multiplier > 1 ? "up" : "neutral"} className="num shrink-0">
                   ×{formatMultiplier(multiplier)}
                 </Badge>
               </div>
@@ -102,7 +102,7 @@ export function DividendMultiplierCard({
                       ? `${EXAMPLE_RAW_UNITS} × ${formatMultiplier(multiplier)} = ${formatShares(exampleShares)}`
                       : "—"}
                   </p>
-                  <p className="num text-[13px] font-semibold text-fg">
+                  <p className="num text-[13px] font-medium tracking-tight text-fg">
                     {exampleValueUsd !== null
                       ? formatValue(exampleValueUsd)
                       : isEn
@@ -116,7 +116,7 @@ export function DividendMultiplierCard({
         })}
       </ul>
 
-      <p role="note" className="mt-3 rounded-xl bg-surface-2/60 px-3 py-2.5 text-[11px] leading-relaxed text-fg-muted">
+      <p role="note" className="mt-4 text-xs leading-relaxed text-fg-muted">
         {isEn
           ? "The multiplier grows as xStocks reinvests dividends: the same raw units become more equivalent shares. Past returns do not guarantee future results."
           : "El multiplicador crece a medida que xStocks reinvierte dividendos: las mismas unidades crudas pasan a equivaler más acciones. Los rendimientos pasados no aseguran resultados futuros."}
