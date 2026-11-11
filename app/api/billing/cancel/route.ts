@@ -1,5 +1,6 @@
-import { assertSameOrigin, handle, requireSupabaseUser } from "@/lib/api/handler";
+import { assertSameOrigin, handle, parseJson, requireSupabaseUser } from "@/lib/api/handler";
 import { DomainError } from "@/lib/api/result";
+import { billingCancelBodySchema } from "@/lib/billing/contracts";
 import { BillingProviderError, getBillingProvider } from "@/lib/billing/provider";
 import { getBillingSubscription, saveSubscriptionState } from "@/lib/billing/store";
 import { withRateLimit } from "@/lib/security/rate-limit";
@@ -28,6 +29,9 @@ export function POST(req: Request) {
 
     const userLimited = await withRateLimit(req, "me", [session.userId]);
     if (userLimited) return userLimited;
+
+    // Sin cuerpo: se acepta vacío o `{}`, y cualquier campo extra es 400.
+    await parseJson(req, billingCancelBodySchema);
 
     const row = await getBillingSubscription(session.userId);
     if (!row) throw new DomainError("NOT_FOUND", "No encontramos una suscripción tuya.");

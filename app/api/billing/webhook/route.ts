@@ -1,8 +1,7 @@
 import { createHash } from "node:crypto";
 
-import { z } from "zod";
-
 import { assertSameOrigin, handle, parseJson, parseQuery } from "@/lib/api/handler";
+import { billingWebhookBodySchema, billingWebhookQuerySchema } from "@/lib/billing/contracts";
 import { COPY_PLANS, type BillingPlanId } from "@/lib/billing/plans";
 import {
   getBillingProvider,
@@ -37,11 +36,6 @@ export const runtime = "nodejs";
  */
 
 const MAX_WEBHOOK_BYTES = 32_768;
-
-/** El aviso es un objeto abierto de Mercado Pago: sólo se leen campos sueltos. */
-const webhookBodySchema = z.record(z.string(), z.unknown());
-/** La query trae `data.id` y `type`; cualquier otro parámetro se ignora. */
-const webhookQuerySchema = z.record(z.string(), z.string());
 
 const USER_ID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -87,8 +81,8 @@ export function POST(req: Request) {
 
     // Exenta de Origin (ver el comentario de arriba): la firma manda.
     assertSameOrigin(req);
-    const query = parseQuery(req, webhookQuerySchema);
-    const body = await parseJson(req, webhookBodySchema, { maxBytes: MAX_WEBHOOK_BYTES });
+    const query = parseQuery(req, billingWebhookQuerySchema);
+    const body = await parseJson(req, billingWebhookBodySchema, { maxBytes: MAX_WEBHOOK_BYTES });
 
     // El `data.id` de la firma viaja en la query (documentación de Mercado
     // Pago); el cuerpo queda como respaldo. Nunca se usa para decidir estado.

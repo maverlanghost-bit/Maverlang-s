@@ -118,6 +118,11 @@ export const copyFollowsResponseSchema = z.object({
   available: z.boolean(),
 });
 
+/** `POST /api/copy/fraccion-pro`: sólo el comprobante firmado que emite Fraccion. */
+export const copyFraccionProRequestSchema = z
+  .object({ token: z.string().trim().min(16).max(4096) })
+  .strict();
+
 /** Código propio de estas rutas (§3 del encargo). */
 export type CopyErrorCode = "FEATURE_DISABLED";
 

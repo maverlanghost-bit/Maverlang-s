@@ -1,7 +1,6 @@
-import { z } from "zod";
-
 import { assertSameOrigin, handle, parseJson, requireSession } from "@/lib/api/handler";
 import { DomainError } from "@/lib/api/result";
+import { copyFraccionProRequestSchema } from "@/lib/copy/contracts";
 import { copyFeatureDisabledResponse, isCopyEnabled } from "@/lib/copy/flags";
 import { redeemFraccionPro } from "@/lib/copy/fraccion-pro";
 import { withRateLimit } from "@/lib/security/rate-limit";
@@ -22,11 +21,6 @@ import { getServices } from "@/lib/services";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-/** Solo el comprobante. `.strict()` rechaza campos extra. */
-const fraccionProBodySchema = z
-  .object({ token: z.string().trim().min(16).max(4096) })
-  .strict();
-
 function unavailable(message: string): Response {
   return Response.json(
     { ok: false, error: { code: "FEATURE_DISABLED", message } },
@@ -44,7 +38,7 @@ export function POST(req: Request) {
     const limited = await withRateLimit(req, "me", [session.userId]);
     if (limited) return limited;
 
-    const body = await parseJson(req, fraccionProBodySchema);
+    const body = await parseJson(req, copyFraccionProRequestSchema);
 
     const email = session.email?.trim() ?? "";
     if (email === "") {

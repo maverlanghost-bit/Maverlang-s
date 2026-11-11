@@ -1,8 +1,7 @@
-import { z } from "zod";
-
 import { assertSameOrigin, handle, parseJson, requireSupabaseUser } from "@/lib/api/handler";
 import { DomainError } from "@/lib/api/result";
-import { BILLING_PLAN_IDS, BILLING_RETURN_PATH, TRIAL_DAYS } from "@/lib/billing/plans";
+import { billingCheckoutBodySchema } from "@/lib/billing/contracts";
+import { BILLING_RETURN_PATH, TRIAL_DAYS } from "@/lib/billing/plans";
 import {
   BillingProviderError,
   billingGate,
@@ -24,12 +23,6 @@ export const runtime = "nodejs";
  * llama a Mercado Pago. La vuelta del checkout NO da acceso: eso lo decide el
  * webhook con el estado re-consultado a la API.
  */
-
-const checkoutBodySchema = z
-  .object({
-    plan: z.enum(BILLING_PLAN_IDS),
-  })
-  .strict();
 
 function featureDisabled(): Response {
   return Response.json(
@@ -69,7 +62,7 @@ export function POST(req: Request) {
     const userLimited = await withRateLimit(req, "me", [session.userId]);
     if (userLimited) return userLimited;
 
-    const body = await parseJson(req, checkoutBodySchema);
+    const body = await parseJson(req, billingCheckoutBodySchema);
     const email = session.email?.trim() ?? "";
     if (!email || session.emailVerified !== true) {
       throw new DomainError("VALIDATION", "Necesitas un correo verificado para suscribirte.");
