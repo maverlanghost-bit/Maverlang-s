@@ -17,6 +17,11 @@ export const ADMIN_FLAGS = [
   { key: "withdrawals_enabled", label: "Salida de dinero" },
   { key: "signup_enabled", label: "Registro de cuentas" },
   { key: "beta_only", label: "Sólo beta" },
+  // Copiar carteras (C1/C2/C3): los tres nacen apagados. El helper único de
+  // lectura es `lib/copy/flags.ts`; acá solo se declaran para el panel con MFA.
+  { key: "copy_enabled", label: "Copiar carteras" },
+  { key: "copy_buy_enabled", label: "Copiar con dinero real" },
+  { key: "copy_billing_enabled", label: "Cobro de Copiar" },
 ] as const;
 
 export type AdminFlagKey = (typeof ADMIN_FLAGS)[number]["key"];
@@ -36,6 +41,11 @@ export function safeFlagDefault(key: string): boolean {
     case "offramp_enabled":
     case "deposits_enabled":
     case "withdrawals_enabled":
+      return false;
+    // Copiar carteras: con la base caída o la fila ausente, apagado.
+    case "copy_enabled":
+    case "copy_buy_enabled":
+    case "copy_billing_enabled":
       return false;
     case "signup_enabled":
       return true;

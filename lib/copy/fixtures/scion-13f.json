@@ -1,0 +1,154 @@
+{
+  "example": true,
+  "provider": "fraccion.si",
+  "legend": "tecnología de Fraccion.si",
+  "generated_at": "2026-11-10T11:00:00.000Z",
+  "version_id": "v1:c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3",
+  "portfolio": {
+    "slug": "scion-13f",
+    "aliases": ["scion-asset-management"],
+    "name": "Scion 13F",
+    "family": "13f",
+    "source": "sec_13f",
+    "manager": "Michael Burry",
+    "country": "US",
+    "as_of": "2025-09-30",
+    "filed_at": "2025-11-03",
+    "published_at": "2025-11-03",
+    "lag_days": 34,
+    "lag_note": "Cartera congelada: el fondo se desregistró y no hay 13F posteriores al último presentado. No es la cartera de hoy.",
+    "is_estimated": false,
+    "is_complete": true,
+    "is_frozen": true,
+    "coverage": "full_13f",
+    "verification": "official_filing",
+    "license": "Dominio público (SEC EDGAR)",
+    "attribution": "Fuente: SEC EDGAR, formulario 13F-HR. Tecnología de Fraccion.si.",
+    "source_url": "https://www.sec.gov/edgar/searchedgar/companysearch"
+  },
+  "positions": [
+    {
+      "symbol": "BABA",
+      "name": "Alibaba Group Holding Limited",
+      "weight": 20,
+      "previous_weight": 18.5,
+      "side": "long",
+      "currency": "USD",
+      "as_of": "2025-09-30"
+    },
+    {
+      "symbol": "JD",
+      "name": "JD.com, Inc.",
+      "weight": 14,
+      "previous_weight": 13,
+      "side": "long",
+      "currency": "USD",
+      "as_of": "2025-09-30"
+    },
+    {
+      "symbol": "GOOGL",
+      "name": "Alphabet Inc.",
+      "weight": 12,
+      "previous_weight": 12.5,
+      "side": "long",
+      "currency": "USD",
+      "as_of": "2025-09-30"
+    },
+    {
+      "symbol": "PYPL",
+      "name": "PayPal Holdings, Inc.",
+      "weight": 10,
+      "previous_weight": 10.5,
+      "side": "long",
+      "currency": "USD",
+      "as_of": "2025-09-30"
+    },
+    {
+      "symbol": "BRK.B",
+      "name": "Berkshire Hathaway Inc.",
+      "weight": 10,
+      "previous_weight": 9,
+      "side": "long",
+      "currency": "USD",
+      "as_of": "2025-09-30"
+    },
+    {
+      "symbol": "MOH",
+      "name": "Molina Healthcare, Inc.",
+      "weight": 8,
+      "previous_weight": 8,
+      "side": "long",
+      "currency": "USD",
+      "as_of": "2025-09-30"
+    },
+    {
+      "symbol": "CVS",
+      "name": "CVS Health Corporation",
+      "weight": 7,
+      "previous_weight": 7.5,
+      "side": "long",
+      "currency": "USD",
+      "as_of": "2025-09-30"
+    },
+    {
+      "symbol": "CI",
+      "name": "The Cigna Group",
+      "weight": 6,
+      "previous_weight": 6,
+      "side": "long",
+      "currency": "USD",
+      "as_of": "2025-09-30"
+    },
+    {
+      "symbol": "HUM",
+      "name": "Humana Inc.",
+      "weight": 5,
+      "previous_weight": 5.2,
+      "side": "long",
+      "currency": "USD",
+      "as_of": "2025-09-30"
+    },
+    {
+      "symbol": "BIDU",
+      "name": "Baidu, Inc.",
+      "weight": 4,
+      "previous_weight": 4.1,
+      "side": "long",
+      "currency": "USD",
+      "as_of": "2025-09-30"
+    },
+    {
+      "symbol": "ELV",
+      "name": "Elevance Health, Inc.",
+      "weight": 2,
+      "previous_weight": 2.2,
+      "side": "long",
+      "currency": "USD",
+      "as_of": "2025-09-30"
+    },
+    {
+      "symbol": "WBA",
+      "name": "Walgreens Boots Alliance, Inc.",
+      "weight": 2,
+      "previous_weight": 2.5,
+      "side": "long",
+      "currency": "USD",
+      "as_of": "2025-09-30"
+    }
+  ],
+  "movements": [
+    {
+      "type": "weight_change",
+      "symbol": "BABA",
+      "tx_date": null,
+      "published_at": "2025-11-03",
+      "lag_days": null,
+      "weight_from": 18.5,
+      "weight_to": 20,
+      "source_url": "https://www.sec.gov/edgar/searchedgar/companysearch",
+      "verification": "official_filing"
+    }
+  ],
+  "performance": [],
+  "disclaimer": "Datos de ejemplo para probar la integración con Fraccion.si. La cartera está congelada: no es la cartera de hoy ni una recomendación de inversión."
+}

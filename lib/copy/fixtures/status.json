@@ -1,0 +1,16 @@
+{
+  "example": true,
+  "provider": "fraccion.si",
+  "generated_at": "2026-11-10T11:00:00.000Z",
+  "status": "ok",
+  "pipeline_started_at": "2026-11-10T10:41:00.000Z",
+  "pipeline_finished_at": "2026-11-10T11:00:00.000Z",
+  "failed_stages": [],
+  "exported_count": 5,
+  "skipped": [
+    {
+      "slug": "larrainvial-top-picks",
+      "reason": "No se exporta en V1: requiere confirmar derecho de uso y dato vivo."
+    }
+  ]
+}

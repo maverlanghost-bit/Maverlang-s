@@ -721,10 +721,32 @@ export function historyStaleMs(data: unknown, freshMs: number): number {
   if (row.real !== true || row.source === "mock" || count < 2) return HISTORY_EMPTY_STALE_MS;
   return freshMs;
 }
-/** POST /api/revalidate: el workflow manda el cuerpo vacío. */
+/**
+ * POST /api/revalidate.
+ *
+ * El workflow de precios manda el cuerpo vacío (sin cambios). El ping del feed
+ * de Fraccion.si (§3.6 del plan conjunto) agrega su etiqueta y sus metadatos:
+ * se aceptan y se descartan; la autenticación va siempre por `Authorization`
+ * con el secreto propio de ese camino (`FRACCION_REVALIDATE_SECRET`).
+ * Cualquier otra etiqueta o campo desconocido sigue siendo 400.
+ */
 export const revalidateBodySchema = z.preprocess(
   (value) => (value == null ? {} : value),
-  z.object({}).strict(),
+  z
+    .object({
+      /** Sólo el ping del feed. Los precios mandan el cuerpo vacío. */
+      tag: z.literal("fraccion-feed").optional(),
+      source: z.literal("fraccion.si").optional(),
+      generated_at: z.string().trim().min(1).max(64).optional(),
+      status: z.enum(["ok", "parcial"]).optional(),
+      index_sha256: z
+        .string()
+        .trim()
+        .regex(/^[0-9a-fA-F]{64}$/, "Hash inválido.")
+        .optional(),
+      key_id: z.string().trim().min(1).max(64).optional(),
+    })
+    .strict(),
 );
 export const balancesResponseSchema = z.array(balanceSchema);
 export const activityResponseSchema = z.array(activitySchema);

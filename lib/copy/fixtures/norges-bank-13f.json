@@ -1,0 +1,165 @@
+{
+  "example": true,
+  "provider": "fraccion.si",
+  "legend": "tecnología de Fraccion.si",
+  "generated_at": "2026-11-10T11:00:00.000Z",
+  "version_id": "v1:b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2",
+  "portfolio": {
+    "slug": "norges-bank-13f",
+    "aliases": [],
+    "name": "Norges Bank (13F)",
+    "family": "13f",
+    "source": "sec_13f",
+    "manager": "Norges Bank Investment Management",
+    "country": "Global",
+    "as_of": "2026-09-30",
+    "filed_at": "2026-11-06",
+    "published_at": "2026-11-06",
+    "lag_days": 37,
+    "lag_note": "Solo se publican las 50 posiciones de mayor valor. El peso de cada línea es su participación en el 13F completo, no en el corte. Por eso los pesos del recorte no suman 100.",
+    "is_estimated": false,
+    "is_complete": false,
+    "is_frozen": false,
+    "coverage": "top50_of_full_book",
+    "verification": "official_filing",
+    "license": "Dominio público (SEC EDGAR)",
+    "attribution": "Fuente: SEC EDGAR, formulario 13F-HR. Tecnología de Fraccion.si.",
+    "source_url": "https://www.sec.gov/edgar/searchedgar/companysearch"
+  },
+  "positions": [
+    {
+      "symbol": "MSFT",
+      "name": "Microsoft Corporation",
+      "weight": 3.4,
+      "previous_weight": 3.2,
+      "side": "long",
+      "currency": "USD",
+      "as_of": "2026-09-30"
+    },
+    {
+      "symbol": "AAPL",
+      "name": "Apple Inc.",
+      "weight": 3.1,
+      "previous_weight": 3.3,
+      "side": "long",
+      "currency": "USD",
+      "as_of": "2026-09-30"
+    },
+    {
+      "symbol": "NVDA",
+      "name": "NVIDIA Corporation",
+      "weight": 2.9,
+      "previous_weight": 2.6,
+      "side": "long",
+      "currency": "USD",
+      "as_of": "2026-09-30"
+    },
+    {
+      "symbol": "GOOGL",
+      "name": "Alphabet Inc.",
+      "weight": 2.2,
+      "previous_weight": 2.1,
+      "side": "long",
+      "currency": "USD",
+      "as_of": "2026-09-30"
+    },
+    {
+      "symbol": "AMZN",
+      "name": "Amazon.com, Inc.",
+      "weight": 2,
+      "previous_weight": 1.9,
+      "side": "long",
+      "currency": "USD",
+      "as_of": "2026-09-30"
+    },
+    {
+      "symbol": "META",
+      "name": "Meta Platforms, Inc.",
+      "weight": 1.6,
+      "previous_weight": 1.5,
+      "side": "long",
+      "currency": "USD",
+      "as_of": "2026-09-30"
+    },
+    {
+      "symbol": "AVGO",
+      "name": "Broadcom Inc.",
+      "weight": 1.4,
+      "previous_weight": 1.2,
+      "side": "long",
+      "currency": "USD",
+      "as_of": "2026-09-30"
+    },
+    {
+      "symbol": "BRK.B",
+      "name": "Berkshire Hathaway Inc.",
+      "weight": 1.3,
+      "previous_weight": 1.3,
+      "side": "long",
+      "currency": "USD",
+      "as_of": "2026-09-30"
+    },
+    {
+      "symbol": "JPM",
+      "name": "JPMorgan Chase & Co.",
+      "weight": 1.1,
+      "previous_weight": 1.2,
+      "side": "long",
+      "currency": "USD",
+      "as_of": "2026-09-30"
+    },
+    {
+      "symbol": "LLY",
+      "name": "Eli Lilly and Company",
+      "weight": 1,
+      "previous_weight": 0.9,
+      "side": "long",
+      "currency": "USD",
+      "as_of": "2026-09-30"
+    },
+    {
+      "symbol": "V",
+      "name": "Visa Inc.",
+      "weight": 0.9,
+      "previous_weight": 0.9,
+      "side": "long",
+      "currency": "USD",
+      "as_of": "2026-09-30"
+    },
+    {
+      "symbol": "XOM",
+      "name": "Exxon Mobil Corporation",
+      "weight": 0.8,
+      "previous_weight": 0.9,
+      "side": "long",
+      "currency": "USD",
+      "as_of": "2026-09-30"
+    }
+  ],
+  "movements": [
+    {
+      "type": "weight_change",
+      "symbol": "NVDA",
+      "tx_date": null,
+      "published_at": "2026-11-06",
+      "lag_days": null,
+      "weight_from": 2.6,
+      "weight_to": 2.9,
+      "source_url": "https://www.sec.gov/edgar/searchedgar/companysearch",
+      "verification": "official_filing"
+    },
+    {
+      "type": "weight_change",
+      "symbol": "AVGO",
+      "tx_date": null,
+      "published_at": "2026-11-06",
+      "lag_days": null,
+      "weight_from": 1.2,
+      "weight_to": 1.4,
+      "source_url": "https://www.sec.gov/edgar/searchedgar/companysearch",
+      "verification": "official_filing"
+    }
+  ],
+  "performance": [],
+  "disclaimer": "Datos de ejemplo para probar la integración con Fraccion.si. Es un recorte de las 50 posiciones mayores: no es el libro completo ni una recomendación de inversión."
+}

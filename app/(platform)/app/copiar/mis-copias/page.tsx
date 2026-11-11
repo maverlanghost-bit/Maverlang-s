@@ -1,0 +1,242 @@
+import type { Metadata } from "next";
+import Link from "next/link";
+
+import { CopySoonState } from "@/components/copy/empty-states";
+import { FollowList, type FollowCard } from "@/components/copy/follow-list";
+import { FraccionSeal } from "@/components/copy/fraccion-seal";
+import { Paywall } from "@/components/copy/paywall";
+import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
+import { PageHeader } from "@/components/ui/page-header";
+import { COPY_DISCLAIMER, COPY_LEGAL_PENDING_LABEL } from "@/content/copy-legal";
+import { getCopyEntitlement, hasCopyAccess } from "@/lib/copy/access";
+import { getCopyIndex, getCopyPortfolio } from "@/lib/copy/feed";
+import { isCopyEnabled } from "@/lib/copy/flags";
+import { canonicalSlug } from "@/lib/copy/slugs";
+import type { CopyPosition } from "@/lib/copy/types";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
+
+export const metadata: Metadata = {
+  title: "Mis copias",
+};
+
+/** Depende de flags, del feed y del acceso: nunca se prerenderiza. */
+export const dynamic = "force-dynamic";
+
+/** Fila de `copy_follows` tal como la lee el servidor (puede no existir la tabla). */
+type FollowRow = {
+  slug: string | null;
+  version_id: string | null;
+  weights: unknown;
+  created_at: string | null;
+};
+
+const MAX_FOLLOWS = 10;
+
+const dateFormat = new Intl.DateTimeFormat("es-CL", {
+  day: "2-digit",
+  month: "short",
+  year: "numeric",
+  timeZone: "UTC",
+});
+
+function dateLabel(value: string): string {
+  const parsed = Date.parse(value.length === 10 ? `${value}T00:00:00Z` : value);
+  return Number.isNaN(parsed) ? value : dateFormat.format(new Date(parsed));
+}
+
+async function currentUserId(): Promise<string> {
+  try {
+    const supabase = await createSupabaseServerClient();
+    if (!supabase) return "";
+    const { data, error } = await supabase.auth.getClaims();
+    const sub: unknown = data?.claims?.sub;
+    return !error && typeof sub === "string" ? sub : "";
+  } catch {
+    return "";
+  }
+}
+
+/**
+ * Lee `copy_follows` con el cliente de servidor, igual que `/api/copy/follow`.
+ * Si la migración no está aplicada (o no hay Supabase) la consulta falla: se
+ * devuelve `null` y la página muestra «Pronto» sin romper.
+ */
+async function readFollows(userId: string): Promise<FollowRow[] | null> {
+  let admin: ReturnType<typeof createSupabaseAdminClient>;
+  try {
+    admin = createSupabaseAdminClient();
+  } catch {
+    return null;
+  }
+  try {
+    const { data, error } = await admin
+      .from("copy_follows")
+      .select("slug,version_id,weights,created_at")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(MAX_FOLLOWS);
+    if (error) return null;
+    return (data ?? []) as FollowRow[];
+  } catch {
+    return null;
+  }
+}
+
+function weightsOf(positions: CopyPosition[]): Record<string, number> {
+  const weights: Record<string, number> = {};
+  for (const position of positions) {
+    if (position.side === "short") continue;
+    if (typeof position.symbol === "string" && Number.isFinite(position.weight)) {
+      weights[position.symbol] = position.weight;
+    }
+  }
+  return weights;
+}
+
+/** Acepta `[{symbol, weight}]` o `{symbol: weight}`; ignora lo que no calce. */
+function storedWeights(raw: unknown): Record<string, number> {
+  const weights: Record<string, number> = {};
+  if (Array.isArray(raw)) {
+    for (const entry of raw) {
+      if (entry === null || typeof entry !== "object") continue;
+      const record = entry as Record<string, unknown>;
+      const symbol = record.symbol;
+      const weight = record.weight;
+      if (typeof symbol === "string" && typeof weight === "number" && Number.isFinite(weight)) {
+        weights[symbol] = weight;
+      }
+    }
+    return weights;
+  }
+  if (raw !== null && typeof raw === "object") {
+    for (const [symbol, weight] of Object.entries(raw as Record<string, unknown>)) {
+      if (typeof weight === "number" && Number.isFinite(weight)) weights[symbol] = weight;
+    }
+  }
+  return weights;
+}
+
+/** Umbral de aviso: cualquier peso que se mueva más de 2 puntos. */
+function movedMoreThan(previous: Record<string, number>, current: Record<string, number>, points: number): boolean {
+  const symbols = new Set([...Object.keys(previous), ...Object.keys(current)]);
+  for (const symbol of symbols) {
+    if (Math.abs((previous[symbol] ?? 0) - (current[symbol] ?? 0)) > points) return true;
+  }
+  return false;
+}
+
+async function buildCards(rows: FollowRow[]): Promise<FollowCard[]> {
+  const cards = await Promise.all(
+    rows.slice(0, MAX_FOLLOWS).map(async (row): Promise<FollowCard | null> => {
+      const slug = typeof row.slug === "string" ? canonicalSlug(row.slug) : null;
+      if (!slug) return null;
+      const copiedVersionId = typeof row.version_id === "string" ? row.version_id : "";
+      const portfolio = await getCopyPortfolio(slug);
+      if (!portfolio) {
+        return {
+          slug,
+          name: slug,
+          manager: "",
+          family: null,
+          asOfLabel: "",
+          copiedVersionId,
+          currentVersionId: "",
+          moved: false,
+          weightsKnown: false,
+          missing: true,
+          example: false,
+        };
+      }
+      const previous = storedWeights(row.weights);
+      const weightsKnown = Object.keys(previous).length > 0;
+      return {
+        slug,
+        name: portfolio.portfolio.name,
+        manager: portfolio.portfolio.manager,
+        family: portfolio.portfolio.family,
+        asOfLabel: dateLabel(portfolio.portfolio.asOf),
+        copiedVersionId,
+        currentVersionId: portfolio.versionId,
+        moved: weightsKnown && movedMoreThan(previous, weightsOf(portfolio.positions), 2),
+        weightsKnown,
+        missing: false,
+        example: portfolio.example,
+      };
+    }),
+  );
+  return cards.filter((card): card is FollowCard => card !== null);
+}
+
+function Soon() {
+  return (
+    <article className="flex flex-col gap-6 pb-6">
+      <PageHeader title="Mis copias" />
+      <CopySoonState
+        title="Pronto"
+        description="Todavía no podemos mostrarte las carteras que sigues. Estamos afinando los últimos detalles con Fraccion.si."
+      />
+    </article>
+  );
+}
+
+export default async function MisCopiasPage() {
+  if (!(await isCopyEnabled())) return <Soon />;
+
+  const userId = await currentUserId();
+  const entitlement = userId ? await getCopyEntitlement(userId) : "none";
+  const access = hasCopyAccess(entitlement);
+
+  if (!userId || !access) {
+    return (
+      <article className="flex flex-col gap-6 pb-6">
+        <PageHeader
+          title="Mis copias"
+          description="Las carteras que sigues, la versión que copiaste y el aviso cuando cambian."
+        />
+        <Paywall
+          title="Desbloquea tus copias"
+          description={`Con Copiar carteras puedes seguir hasta ${MAX_FOLLOWS} carteras, comparar la versión que copiaste con la actual y armar un ajuste cuando cambian.`}
+        />
+      </article>
+    );
+  }
+
+  const rows = await readFollows(userId);
+  if (rows === null) return <Soon />;
+
+  const { health } = await getCopyIndex();
+  if (health.state === "none") return <Soon />;
+
+  const cards = await buildCards(rows);
+
+  return (
+    <article className="flex flex-col gap-6 pb-6">
+      <PageHeader
+        title="Mis copias"
+        description={`La versión que copiaste contra la actual. Hasta ${MAX_FOLLOWS} carteras.`}
+      />
+      <p className="text-sm leading-relaxed text-fg-muted">{COPY_DISCLAIMER}</p>
+
+      {cards.length === 0 ? (
+        <EmptyState
+          title="Todavía no sigues ninguna mezcla"
+          description="Cuando copies una cartera la vas a ver acá, con la versión que copiaste y el aviso si cambia."
+          action={
+            <Button asChild variant="secondary" size="lg" className="min-h-12 touch-manipulation">
+              <Link href="/app/copiar">Ver carteras</Link>
+            </Button>
+          }
+        />
+      ) : (
+        <FollowList items={cards} />
+      )}
+
+      <div className="flex flex-col gap-3 border-t border-border pt-4">
+        <FraccionSeal />
+        <p className="text-xs leading-relaxed text-fg-muted">{COPY_LEGAL_PENDING_LABEL}</p>
+      </div>
+    </article>
+  );
+}

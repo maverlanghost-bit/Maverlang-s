@@ -1,0 +1,147 @@
+{
+  "example": true,
+  "provider": "fraccion.si",
+  "legend": "tecnología de Fraccion.si",
+  "generated_at": "2026-11-10T11:00:00.000Z",
+  "version_id": "v1:d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4d4",
+  "portfolio": {
+    "slug": "arkk",
+    "aliases": [],
+    "name": "ARK Innovation",
+    "family": "etf",
+    "source": "ark_csv",
+    "manager": "Cathie Wood",
+    "country": "US",
+    "as_of": "2026-11-06",
+    "filed_at": null,
+    "published_at": "2026-11-07",
+    "lag_days": 1,
+    "lag_note": "Holdings diarios publicados por el emisor. El peso es el oficial del archivo de ARK, no una canasta de Fraccion.",
+    "is_estimated": false,
+    "is_complete": true,
+    "is_frozen": false,
+    "coverage": "issuer_etf",
+    "verification": "official_filing",
+    "license": "Revisar términos del emisor (ARK Invest)",
+    "attribution": "Fuente: archivo de holdings de ARK Invest. Tecnología de Fraccion.si.",
+    "source_url": "https://www.ark-funds.com/funds/arkk"
+  },
+  "positions": [
+    {
+      "symbol": "TSLA",
+      "name": "Tesla, Inc.",
+      "weight": 18,
+      "previous_weight": 17.2,
+      "side": "long",
+      "currency": "USD",
+      "as_of": "2026-11-06"
+    },
+    {
+      "symbol": "COIN",
+      "name": "Coinbase Global, Inc.",
+      "weight": 14,
+      "previous_weight": 13.4,
+      "side": "long",
+      "currency": "USD",
+      "as_of": "2026-11-06"
+    },
+    {
+      "symbol": "ROKU",
+      "name": "Roku, Inc.",
+      "weight": 11,
+      "previous_weight": 11.6,
+      "side": "long",
+      "currency": "USD",
+      "as_of": "2026-11-06"
+    },
+    {
+      "symbol": "HOOD",
+      "name": "Robinhood Markets, Inc.",
+      "weight": 10,
+      "previous_weight": 9.1,
+      "side": "long",
+      "currency": "USD",
+      "as_of": "2026-11-06"
+    },
+    {
+      "symbol": "CRSP",
+      "name": "CRISPR Therapeutics AG",
+      "weight": 9,
+      "previous_weight": 9.3,
+      "side": "long",
+      "currency": "USD",
+      "as_of": "2026-11-06"
+    },
+    {
+      "symbol": "PLTR",
+      "name": "Palantir Technologies Inc.",
+      "weight": 8.5,
+      "previous_weight": 8.2,
+      "side": "long",
+      "currency": "USD",
+      "as_of": "2026-11-06"
+    },
+    {
+      "symbol": "RBLX",
+      "name": "Roblox Corporation",
+      "weight": 8,
+      "previous_weight": 8.4,
+      "side": "long",
+      "currency": "USD",
+      "as_of": "2026-11-06"
+    },
+    {
+      "symbol": "TEM",
+      "name": "Tempus AI, Inc.",
+      "weight": 7.5,
+      "previous_weight": 6.8,
+      "side": "long",
+      "currency": "USD",
+      "as_of": "2026-11-06"
+    },
+    {
+      "symbol": "SHOP",
+      "name": "Shopify Inc.",
+      "weight": 7,
+      "previous_weight": 7.1,
+      "side": "long",
+      "currency": "USD",
+      "as_of": "2026-11-06"
+    },
+    {
+      "symbol": "PATH",
+      "name": "UiPath Inc.",
+      "weight": 7,
+      "previous_weight": 7.4,
+      "side": "long",
+      "currency": "USD",
+      "as_of": "2026-11-06"
+    }
+  ],
+  "movements": [
+    {
+      "type": "weight_change",
+      "symbol": "HOOD",
+      "tx_date": "2026-11-05",
+      "published_at": "2026-11-07",
+      "lag_days": 1,
+      "weight_from": 9.1,
+      "weight_to": 10,
+      "source_url": "https://www.ark-funds.com/funds/arkk",
+      "verification": "official_filing"
+    },
+    {
+      "type": "weight_change",
+      "symbol": "TEM",
+      "tx_date": "2026-11-05",
+      "published_at": "2026-11-07",
+      "lag_days": 1,
+      "weight_from": 6.8,
+      "weight_to": 7.5,
+      "source_url": "https://www.ark-funds.com/funds/arkk",
+      "verification": "official_filing"
+    }
+  ],
+  "performance": [],
+  "disclaimer": "Datos de ejemplo para probar la integración con Fraccion.si. No son los holdings actuales del ETF ni una recomendación de inversión."
+}
