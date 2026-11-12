@@ -1,10 +1,10 @@
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
 
 /**
- * Cáscara única de error (D1). La señal roja es una sola (el badge); el
- * reintento es el botón más fuerte de la vista porque es la única acción.
+ * Error como contenido (D2): sin caja ni sombra. La señal roja es un punto
+ * junto al rótulo; el reintento es el único botón y la acción principal.
+ * `role="alert"` se conserva para que el lector de pantalla lo anuncie.
  */
 export function ErrorState({
   title,
@@ -22,22 +22,25 @@ export function ErrorState({
   className?: string;
 }) {
   /* Si `label` repite el título (varios consumidores pasan el mismo texto en
-     ambos), el badge sobra: se muestra sólo cuando aporta. */
-  const showBadge = label.length > 0 && label !== title;
+     ambos), el rótulo sobra: se muestra sólo cuando aporta. */
+  const showLabel = label.length > 0 && label !== title;
 
   return (
-    <div
-      role="alert"
-      className={cn(
-        "flex flex-col items-center gap-3 rounded-3xl bg-surface-1 px-6 py-10 text-center",
-        className,
-      )}
-    >
-      {showBadge ? <Badge tone="down">{label}</Badge> : null}
-      <p className="text-base font-medium text-fg">{title}</p>
-      {description ? <p className="max-w-sm text-sm leading-relaxed text-fg-muted">{description}</p> : null}
+    <div role="alert" className={cn("flex flex-col items-center gap-4 py-10 text-center sm:py-12", className)}>
+      {showLabel ? (
+        <p className="inline-flex items-center gap-1.5 font-mono text-[13px] leading-5 font-medium tracking-[0.045em] text-fg-muted uppercase">
+          <span aria-hidden className="size-1.5 shrink-0 rounded-full bg-down" />
+          {label}
+        </p>
+      ) : null}
+      <div className="flex max-w-md flex-col gap-2">
+        <p className="text-[17px] leading-snug font-medium tracking-tight text-balance text-fg">{title}</p>
+        {description ? (
+          <p className="text-sm leading-relaxed text-pretty text-fg-muted">{description}</p>
+        ) : null}
+      </div>
       {onRetry ? (
-        <Button variant="primary" onClick={onRetry} className="min-h-11">
+        <Button variant="primary" onClick={onRetry} className="mt-1 min-h-11">
           {retryLabel}
         </Button>
       ) : null}
