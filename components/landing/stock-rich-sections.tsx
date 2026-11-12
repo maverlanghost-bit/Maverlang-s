@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { PublicAssetCard } from "@/components/landing/public-asset-card";
+import { cn } from "@/lib/cn";
 import {
   assetsInCategory,
   categoriesFor,
@@ -22,7 +23,46 @@ import { stockFacts, stockIntro } from "@/lib/seo/stock-copy";
  * dato no existe (`null`) simplemente no se muestra.
  */
 
-const specCellClass = "rounded-2xl bg-bg p-4 shadow-hairline";
+/**
+ * Filas label/valor con hairline: el patrón de la ficha para especificaciones y
+ * datos de la SEC. Sin tarjetas por celda, como una ficha técnica.
+ */
+export function StockDataList({
+  rows,
+  columns = 1,
+  className,
+}: {
+  rows: readonly { label: string; value: string; mono?: boolean }[];
+  columns?: 1 | 2;
+  className?: string;
+}) {
+  return (
+    <dl
+      className={cn(
+        "border-t border-border",
+        columns === 2 && "sm:grid sm:grid-cols-2 sm:gap-x-10",
+        className,
+      )}
+    >
+      {rows.map((row) => (
+        <div
+          key={row.label}
+          className="flex flex-col gap-1 border-b border-border py-3 sm:flex-row sm:items-baseline sm:justify-between sm:gap-6"
+        >
+          <dt className="text-sm text-fg-muted">{row.label}</dt>
+          <dd
+            className={cn(
+              "min-w-0 text-sm font-medium text-fg sm:text-right",
+              row.mono && "num",
+            )}
+          >
+            {row.value}
+          </dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
 
 /** "2026-11-10" → "10 de noviembre de 2026" (UTC: la fecha no se corre). */
 const SNAPSHOT_DATE_LABEL = (() => {
@@ -41,8 +81,8 @@ const chipLinkClass =
 
 /**
  * Chips a las categorías con página real (>= MIN_CATEGORY_SIZE activos).
- * Van al bloque "Para seguir entendiendo", no al hero: el hero queda en dos
- * badges y la ficha deja de repetir "24/7" cuatro veces.
+ * Van al bloque "Para seguir entendiendo", no al hero: el hero queda en la
+ * identidad, el precio y una sola CTA.
  */
 export function StockCategoryChips({
   asset,
@@ -73,9 +113,8 @@ export function StockCategoryChips({
 }
 
 /**
- * "Sobre {nombre}": una sola sección con `stockIntro` y, al final, la nota
- * legal en 12 px (token 1:1 contra el subyacente, no da derechos de accionista,
- * saldo de demo ficticio). Antes eran dos secciones con H2 que decían lo mismo.
+ * "Sobre {nombre}": una sola sección con `stockIntro`. Las notas legales no se
+ * mezclan con el texto: viven al final de la ficha (`StockLegalNotes`).
  */
 export function StockAboutSections({
   asset,
@@ -98,32 +137,17 @@ export function StockAboutSections({
             <p key={index}>{paragraph}</p>
           ))}
         </div>
-        <p className="mt-5 max-w-[62ch] text-xs leading-relaxed text-fg-muted">
-          {stockParagraph(asset)} El token se emite 1:1 contra el subyacente listado en EE.UU. y se mueve en
-          Solana (SPL): el precio sigue al de {asset.name}, pero no te convierte en accionista ni da derecho a
-          voto. La demo usa saldo ficticio, así que ninguna orden mueve dinero real.
-        </p>
       </section>
 
       {facts.length > 0 ? (
-        <section
-          aria-labelledby="accion-datos-empresa"
-          className="mt-8 rounded-3xl bg-surface-1 p-6 sm:p-8"
-        >
+        <section aria-labelledby="accion-datos-empresa" className="mt-10 border-t border-border pt-8">
           <h2 id="accion-datos-empresa" className="text-2xl sm:text-3xl">
             Datos de la empresa
           </h2>
           <p className="mt-2 max-w-[62ch] text-sm leading-relaxed text-fg-muted">
             Cifras reportadas por la empresa a la SEC. Sólo se muestran los datos disponibles.
           </p>
-          <dl className="mt-6 grid gap-3 sm:grid-cols-2">
-            {facts.map((fact) => (
-              <div key={fact.label} className={specCellClass}>
-                <dt className="label">{fact.label}</dt>
-                <dd className="num mt-1.5 text-sm font-medium text-fg">{fact.value}</dd>
-              </div>
-            ))}
-          </dl>
+          <StockDataList rows={facts} columns={2} className="mt-5 max-w-3xl" />
           <p className="mt-5 text-xs leading-relaxed text-fg-muted">
             {`Fuente: SEC EDGAR${SNAPSHOT_DATE_LABEL ? `, datos al ${SNAPSHOT_DATE_LABEL}` : ""}.`}
           </p>
@@ -143,6 +167,28 @@ export function StockAboutSections({
   );
 }
 
+/**
+ * Notas legales de la ficha, al final y literales: qué es el token (1:1 contra
+ * el subyacente, sin derechos de accionista) y el aviso de saldo ficticio.
+ */
+export function StockLegalNotes({ asset }: { asset: PublicAsset }) {
+  return (
+    <section aria-labelledby="accion-notas-legales" className="mt-14 border-t border-border pt-6">
+      <h2 id="accion-notas-legales" className="label">
+        Notas legales
+      </h2>
+      <div className="mt-3 max-w-[68ch] space-y-2 text-xs leading-relaxed text-fg-muted">
+        <p>{stockParagraph(asset)}</p>
+        <p>
+          El token se emite 1:1 contra el subyacente listado en EE.UU. y se mueve en Solana (SPL): el precio
+          sigue al de {asset.name}, pero no te convierte en accionista ni da derecho a voto. La demo usa saldo
+          ficticio, así que ninguna orden mueve dinero real.
+        </p>
+      </div>
+    </section>
+  );
+}
+
 /** FAQ de la ficha con `<details>` nativos (sin JavaScript). */
 export function StockFaqSection({ items }: { items: readonly { question: string; answer: string }[] }) {
   if (items.length === 0) return null;
@@ -152,9 +198,9 @@ export function StockFaqSection({ items }: { items: readonly { question: string;
       <h2 id="accion-preguntas" className="text-2xl sm:text-3xl">
         Preguntas frecuentes
       </h2>
-      <div className="mt-6 max-w-3xl divide-y divide-border overflow-hidden rounded-3xl bg-bg shadow-card">
+      <div className="mt-5 max-w-3xl divide-y divide-border border-y border-border">
         {items.map((item) => (
-          <details key={item.question} className="group px-5 py-4">
+          <details key={item.question} className="group py-4">
             <summary className="flex cursor-pointer list-none items-center justify-between gap-4 rounded-md text-sm font-medium text-fg [&::-webkit-details-marker]:hidden">
               <span>{item.question}</span>
               <span
