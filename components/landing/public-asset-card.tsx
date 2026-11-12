@@ -23,18 +23,38 @@ export type PublicAssetCardItem = {
   etf: boolean;
   /** Nombre del sector según el SIC de la SEC. `null` si no hay dato. */
   sector?: string | null;
+  /**
+   * Precio ya formateado (`US$ 187,42`). El catálogo público no lo entrega
+   * hoy: si ninguna ficha lo trae, la columna de precio no se dibuja.
+   */
+  price?: string | null;
 };
 
-export type PublicAssetCardVariant = "card" | "row";
+/** `table` es la fila del catálogo completo; `row` y `card` siguen en uso. */
+export type PublicAssetCardVariant = "card" | "row" | "table";
+
+/**
+ * Plantilla de columnas de la tabla: la comparten el encabezado
+ * (`public-catalog-grid`) y cada fila, para que no se desalineen nunca.
+ * Móvil: ticker + nombre. Desde `sm`: ticker · nombre · sector [· precio].
+ */
+export function publicAssetGridColumns(hasPrice: boolean): string {
+  return hasPrice
+    ? "grid-cols-[5rem_minmax(0,1fr)] sm:grid-cols-[6rem_minmax(0,1fr)_10rem_7rem]"
+    : "grid-cols-[5rem_minmax(0,1fr)] sm:grid-cols-[6rem_minmax(0,1fr)_10rem]";
+}
 
 export function PublicAssetCard({
   asset,
   variant = "card",
+  showPrice = false,
   className,
 }: {
   asset: PublicAssetCardItem;
   /** `row` en grillas densas (4 columnas), `card` en grillas de 3. */
   variant?: PublicAssetCardVariant;
+  /** Sólo `table`: dibuja la celda de precio (el encabezado la acompaña). */
+  showPrice?: boolean;
   className?: string;
 }) {
   const row = variant === "row";
@@ -42,6 +62,47 @@ export function PublicAssetCard({
   const sectorName = asset.sector?.trim();
   // El sector "ETF" repetiría el badge de tipo: se omite como subtítulo.
   const sector = sectorName && sectorName.toLowerCase() !== kind.toLowerCase() ? sectorName : null;
+  // En la tabla el tipo no tiene badge propio: si no hay sector, se nombra.
+  const sectorCell = sector ?? kind;
+  const price = asset.price?.trim();
+
+  if (variant === "table") {
+    return (
+      <Link
+        href={`/acciones/${asset.slug}`}
+        aria-label={`${asset.name} (${asset.ticker}), token ${asset.symbol}${sector ? `, ${sector}` : ""}`}
+        className={cn(
+          "group grid items-center gap-x-4 py-3 transition-colors duration-[140ms] ease-spring hover:bg-surface-1",
+          publicAssetGridColumns(showPrice),
+          className,
+        )}
+      >
+        <span className="flex min-w-0 items-center gap-2">
+          <TickerLogo
+            symbol={asset.symbol}
+            name={asset.name}
+            logoUrl={logoPathFromSymbol(asset.symbol)}
+            size={24}
+            decorative
+            loading="lazy"
+            sizes="24px"
+          />
+          <span className="font-mono text-[13px] font-medium tracking-tight text-fg">{asset.ticker}</span>
+        </span>
+        {/* Sin `truncate` ni `line-clamp`: el nombre largo envuelve en móvil. */}
+        <span className="min-w-0">
+          <span className="block text-sm leading-snug font-medium text-fg">{asset.name}</span>
+          <span className="mt-0.5 block text-xs text-fg-muted sm:hidden">{sectorCell}</span>
+        </span>
+        <span className="hidden min-w-0 truncate text-xs text-fg-muted sm:block" title={sectorCell}>
+          {sectorCell}
+        </span>
+        {showPrice ? (
+          <span className="num hidden text-right text-[13px] text-fg sm:block">{price || "—"}</span>
+        ) : null}
+      </Link>
+    );
+  }
 
   return (
     <Link
@@ -49,7 +110,7 @@ export function PublicAssetCard({
       aria-label={`${asset.name} (${asset.ticker}), token ${asset.symbol}${sector ? `, ${sector}` : ""}`}
       className={cn(
         "group flex items-center gap-3 bg-bg transition duration-[140ms] ease-spring hover:bg-surface-1",
-        row ? "min-h-16 rounded-2xl px-3 py-2.5 shadow-card" : "min-h-24 rounded-3xl p-4 shadow-card",
+        row ? "min-h-16 px-0 py-2.5" : "min-h-24 rounded-2xl border border-border p-4",
         className,
       )}
     >

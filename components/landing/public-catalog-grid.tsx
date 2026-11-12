@@ -2,8 +2,14 @@
 
 import { useMemo, useState } from "react";
 
-import { PublicAssetCard, type PublicAssetCardItem } from "@/components/landing/public-asset-card";
+import {
+  PublicAssetCard,
+  publicAssetGridColumns,
+  type PublicAssetCardItem,
+} from "@/components/landing/public-asset-card";
+import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
+import { cn } from "@/lib/cn";
 
 export type PublicCatalogItem = PublicAssetCardItem;
 
@@ -15,14 +21,15 @@ const FILTERS: readonly { id: CatalogFilter; label: string }[] = [
   { id: "etf", label: "ETFs" },
 ];
 
-/** Filas que se revelan por click: 446 fichas de una sola vez son ~18.000 px de scroll. */
-const PAGE_SIZE = 48;
+/** Filas que se revelan por click: las ~446 de una sola vez son ~25.000 px. */
+const PAGE_SIZE = 40;
 const SAMPLE_SIZE = 3;
 
-const PILL_BASE =
-  "inline-flex min-h-11 items-center justify-center rounded-full border px-3.5 text-xs font-medium transition duration-[140ms] ease-spring sm:min-h-9 sm:px-3";
-const PILL_ACTIVE = "border-fg bg-fg text-bg";
-const PILL_IDLE = "border-control bg-bg text-fg-body hover:bg-surface-1";
+/** Filtro como pestaña subrayada: la fila de datos manda, no las píldoras. */
+const TAB_BASE =
+  "inline-flex min-h-11 items-center border-b-2 px-0.5 pt-1 pb-2.5 text-[13px] font-medium whitespace-nowrap transition-colors duration-150 ease-spring";
+const TAB_ACTIVE = "border-fg text-fg";
+const TAB_IDLE = "border-transparent text-fg-muted hover:border-border-strong hover:text-fg";
 
 /** Minúsculas y sin tildes: "S&P 500" y "s&p 500" caen en el mismo término. */
 function normalize(value: string): string {
@@ -67,11 +74,17 @@ export function PublicCatalogGrid({ assets }: { assets: readonly PublicCatalogIt
     [assets, filter, terms],
   );
 
-  // La paginación vuelve a 48 al cambiar de filtro o de búsqueda, sin efecto:
+  // La paginación vuelve a 40 al cambiar de filtro o de búsqueda, sin efecto:
   // el límite guardado sólo vale para la combinación con la que se pidió.
   const key = `${filter}|${query}`;
   const limit = page.key === key ? page.limit : PAGE_SIZE;
   const visible = results.slice(0, limit);
+
+  /**
+   * La columna de precio sólo existe si algún activo trae precio formateado.
+   * Hoy el catálogo público no lo entrega: la tabla sale con tres columnas.
+   */
+  const hasPrice = useMemo(() => assets.some((asset) => Boolean(asset.price?.trim())), [assets]);
 
   // Agrupación por letra en un Map: aunque el orden alfabético deje un grupo
   // partido (p. ej. nombres con cifras), la letra aparece una sola vez.
@@ -105,17 +118,22 @@ export function PublicCatalogGrid({ assets }: { assets: readonly PublicCatalogIt
 
   return (
     <div>
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <input
-          type="search"
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          placeholder="Buscar por nombre o ticker (ej. Apple, NVDA, S&P 500)..."
-          aria-label="Buscar acciones o ETFs"
-          className="min-h-11 w-full rounded-full border border-control bg-bg px-4 text-sm text-fg transition placeholder:text-fg-muted hover:border-fg/60 sm:max-w-md"
-        />
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between sm:gap-8">
+        <div className="w-full sm:max-w-sm">
+          <label htmlFor="catalogo-buscar" className="sr-only">
+            Buscar acciones o ETFs
+          </label>
+          <input
+            id="catalogo-buscar"
+            type="search"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Buscar por nombre o ticker (Apple, NVDA, S&P 500)..."
+            className="min-h-11 w-full rounded-md border border-border-control bg-bg px-3 text-sm text-fg transition placeholder:text-fg-subtle hover:border-fg/60"
+          />
+        </div>
 
-        <div role="group" aria-label="Filtrar por tipo" className="flex flex-wrap gap-2">
+        <div role="group" aria-label="Filtrar por tipo" className="flex flex-wrap items-center gap-x-6">
           {filters.map((option) => {
             const active = filter === option.id;
             return (
@@ -124,7 +142,7 @@ export function PublicCatalogGrid({ assets }: { assets: readonly PublicCatalogIt
                 type="button"
                 aria-pressed={active}
                 onClick={() => setFilter(option.id)}
-                className={`${PILL_BASE} ${active ? PILL_ACTIVE : PILL_IDLE}`}
+                className={cn(TAB_BASE, active ? TAB_ACTIVE : TAB_IDLE)}
               >
                 {option.label}
               </button>
@@ -145,7 +163,7 @@ export function PublicCatalogGrid({ assets }: { assets: readonly PublicCatalogIt
             action={
               <div className="flex flex-col items-center gap-3">
                 {samples.length > 0 ? (
-                  <div className="flex flex-wrap items-center justify-center gap-2">
+                  <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1">
                     <span className="text-xs text-fg-muted">Prueba con:</span>
                     {samples.map((name) => (
                       <button
@@ -155,36 +173,51 @@ export function PublicCatalogGrid({ assets }: { assets: readonly PublicCatalogIt
                           setFilter("all");
                           setQuery(name);
                         }}
-                        className={`${PILL_BASE} ${PILL_IDLE}`}
+                        className="inline-flex min-h-11 items-center text-[13px] text-fg-muted underline decoration-border underline-offset-4 transition hover:text-fg hover:decoration-fg"
                       >
                         {name}
                       </button>
                     ))}
                   </div>
                 ) : null}
-                <button type="button" onClick={clearFilters} className={`${PILL_BASE} ${PILL_IDLE}`}>
+                <Button variant="secondary" onClick={clearFilters}>
                   Limpiar filtros
-                </button>
+                </Button>
               </div>
             }
           />
         </div>
       ) : (
         <>
-          <div className="mt-5 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-xs text-fg-muted">
-            <p>Acción = empresa · ETF = fondo. Cada ficha abre el detalle del token.</p>
-            <p>
-              {visible.length} de {results.length}
-            </p>
+          <p className="mt-3 text-xs text-fg-muted">
+            Acción = empresa · ETF = fondo. Cada fila abre la ficha del token.
+          </p>
+
+          {/* Encabezado de columnas: desde `sm`, cuando caben las celdas. */}
+          <div
+            aria-hidden
+            className={cn(
+              "mt-4 hidden items-center gap-x-4 border-b border-border pb-2 sm:grid",
+              publicAssetGridColumns(hasPrice),
+            )}
+          >
+            <span className="label-xs">Ticker</span>
+            <span className="label-xs">Nombre</span>
+            <span className="label-xs">Sector</span>
+            {hasPrice ? <span className="label-xs text-right">Precio</span> : null}
           </div>
 
-          <nav aria-label="Índice por letra" className="no-scrollbar -mx-5 mt-3 overflow-x-auto px-5">
-            <ul className="flex w-max items-center gap-0.5">
+          {/* Índice sticky: única agrupación de la página (por letra). */}
+          <nav
+            aria-label="Índice por letra"
+            className="sticky top-16 z-20 -mx-5 mt-2 border-b border-border bg-bg/95 px-5 backdrop-blur-sm"
+          >
+            <ul className="no-scrollbar flex items-center gap-1 overflow-x-auto">
               {groups.map((group) => (
                 <li key={`indice-${group.letter}`}>
                   <a
                     href={`#activos-${letterAnchor(group.letter)}`}
-                    className="inline-flex min-h-11 min-w-9 items-center justify-center rounded-full px-2 font-mono text-xs font-medium text-fg-muted transition hover:bg-surface-2 hover:text-fg sm:min-h-8"
+                    className="inline-flex min-h-11 min-w-8 items-center justify-center px-1 font-mono text-[13px] font-medium text-fg-muted transition hover:text-fg sm:min-h-8"
                   >
                     {group.letter}
                   </a>
@@ -193,20 +226,24 @@ export function PublicCatalogGrid({ assets }: { assets: readonly PublicCatalogIt
             </ul>
           </nav>
 
-          <div className="mt-2 space-y-5">
+          <div>
             {groups.map((group) => (
               <section
                 key={group.letter}
                 id={`activos-${letterAnchor(group.letter)}`}
                 aria-label={`Activos que empiezan con ${group.letter}`}
+                className="scroll-mt-16"
               >
-                <p className="sticky top-16 z-10 -mx-5 flex items-baseline gap-2 border-b border-border bg-bg/95 px-5 py-2 backdrop-blur-sm">
-                  <span className="font-mono text-sm font-medium text-fg">{group.letter}</span>
-                </p>
-                <ul className="mt-2 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+                <h2 className="flex items-baseline gap-3 border-b border-border pt-7 pb-2">
+                  <span className="font-mono text-[13px] font-medium tracking-[0.045em] text-fg uppercase">
+                    {group.letter}
+                  </span>
+                  <span className="num text-[13px] text-fg-muted">{group.items.length}</span>
+                </h2>
+                <ul className="divide-y divide-border">
                   {group.items.map((asset) => (
                     <li key={asset.slug}>
-                      <PublicAssetCard asset={asset} variant="row" />
+                      <PublicAssetCard asset={asset} variant="table" showPrice={hasPrice} />
                     </li>
                   ))}
                 </ul>
@@ -215,14 +252,13 @@ export function PublicCatalogGrid({ assets }: { assets: readonly PublicCatalogIt
           </div>
 
           {visible.length < results.length ? (
-            <div className="mt-6 flex justify-center">
-              <button
-                type="button"
-                onClick={() => setPage({ key, limit: limit + PAGE_SIZE })}
-                className="inline-flex min-h-11 items-center justify-center rounded-full border border-control bg-bg px-5 text-sm font-medium text-fg transition hover:bg-surface-1 sm:min-h-10"
-              >
+            <div className="mt-8 flex flex-wrap items-center justify-between gap-x-4 gap-y-3 border-t border-border pt-5">
+              <p className="num text-[13px] text-fg-muted">
+                Mostrando {visible.length} de {results.length}
+              </p>
+              <Button variant="secondary" onClick={() => setPage({ key, limit: limit + PAGE_SIZE })}>
                 Ver {Math.min(PAGE_SIZE, results.length - visible.length)} más
-              </button>
+              </Button>
             </div>
           ) : null}
         </>

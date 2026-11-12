@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound, permanentRedirect } from "next/navigation";
 import { LandingSection } from "@/components/landing/section";
 import { PublicAssetCard } from "@/components/landing/public-asset-card";
+import { buttonClasses } from "@/components/ui/button";
 import { COMPANY_SNAPSHOT_DATE, companyProfile } from "@/lib/seo/company-profile";
 import { assetsInCategory, CATEGORIES, MIN_CATEGORY_SIZE, sectorFor } from "@/lib/seo/categories";
 import { breadcrumbJsonLd, itemListJsonLd, JsonLd } from "@/lib/seo/jsonld";
@@ -20,6 +21,10 @@ const NOT_FOUND = {
   title: "Categoría no encontrada",
   description: "La dirección no existe o cambió.",
 } as const;
+
+/** Enlaces de texto: una sola receta para toda la ficha de categoría. */
+const textLinkClass =
+  "inline-flex min-h-11 items-center text-[13px] font-medium text-fg-body underline decoration-border underline-offset-4 hover:text-fg hover:decoration-fg";
 
 /** Dato de la SEC: dólares por acción, dos decimales, formato es-CL. */
 function usdPerShare(value: number): string {
@@ -142,7 +147,7 @@ export default async function CategoriaPage({ params }: { params: Promise<{ slug
         })}
       />
 
-      <nav aria-label="Migas" className="text-sm text-fg-muted">
+      <nav aria-label="Migas" className="text-[13px] text-fg-muted">
         <ol className="flex flex-wrap items-center gap-x-2 gap-y-1">
           <li>
             <Link href="/" className="underline decoration-border underline-offset-4 hover:decoration-fg">
@@ -165,24 +170,36 @@ export default async function CategoriaPage({ params }: { params: Promise<{ slug
         </ol>
       </nav>
 
-      <header className="mt-8 max-w-2xl">
-        <p className="label">{category.kind === "sector" ? "Sector" : "Selección"}</p>
+      <header className="mt-8 max-w-3xl">
+        <p className="label text-[13px]">{category.kind === "sector" ? "Sector" : "Selección"}</p>
         <h1 id="categoria-title" className="mt-3 text-3xl sm:text-4xl">
           {category.name}
         </h1>
-        <div className="mt-4 max-w-[62ch] space-y-3 text-base leading-relaxed text-fg-body">
-          {introParagraphs.map((paragraph) => (
-            <p key={paragraph}>{paragraph}</p>
+        <div className="mt-4 max-w-[62ch] space-y-3">
+          {introParagraphs.map((paragraph, index) => (
+            <p
+              key={paragraph}
+              className={
+                index === 0 ? "text-lead text-fg-body" : "text-sm leading-relaxed text-fg-body"
+              }
+            >
+              {paragraph}
+            </p>
           ))}
         </div>
-        <p className="mt-5 inline-flex items-center gap-1.5 rounded-full bg-surface-1 px-3 py-1.5 text-xs leading-snug text-fg-body sm:text-sm">
-          <span className="num font-medium text-fg">{rows.length}</span>
-          <span>{rows.length === 1 ? "activo con ficha pública" : "activos con ficha pública"}</span>
+        <p className="mt-6 flex flex-wrap items-center gap-x-6 gap-y-1 border-t border-border pt-3 text-[13px] leading-relaxed text-fg-muted">
+          <span>
+            <span className="num font-medium text-fg">{rows.length}</span>{" "}
+            {rows.length === 1 ? "activo con ficha pública" : "activos con ficha pública"}
+          </span>
+          <Link href="/categorias" className={textLinkClass}>
+            ← Todas las categorías
+          </Link>
         </p>
         {category.editorial ? (
-          <div className="mt-5 rounded-2xl border border-border bg-surface-1 px-4 py-3">
-            <p className="label">Aviso</p>
-            <p className="mt-1 text-sm leading-relaxed text-fg-body">
+          <div className="mt-4">
+            <p className="label text-[13px]">Aviso</p>
+            <p className="mt-1 max-w-[62ch] text-[13px] leading-relaxed text-fg-body">
               Selección editorial de {brandShort()}, no es una recomendación.
             </p>
           </div>
@@ -190,16 +207,16 @@ export default async function CategoriaPage({ params }: { params: Promise<{ slug
       </header>
 
       <section aria-labelledby="categoria-activos" className="mt-12">
-        <h2 id="categoria-activos" className="text-2xl sm:text-3xl">
+        <h2 id="categoria-activos" className="border-b border-border pb-3 text-xl sm:text-2xl">
           Activos en {category.name}
         </h2>
-        <p className="mt-2 text-sm leading-relaxed text-fg-muted">
+        <p className="mt-3 max-w-[62ch] text-[13px] leading-relaxed text-fg-muted">
           Cada enlace abre la ficha pública del token, con sus datos de empresa.
         </p>
 
-        <ul className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <ul className="mt-6 max-w-4xl divide-y divide-border">
           {rows.map(({ asset, dividend, sourceUrl }) => (
-            <li key={asset.slug} className="flex flex-col gap-2">
+            <li key={asset.slug} className="py-2">
               <PublicAssetCard
                 asset={{
                   slug: asset.slug,
@@ -214,7 +231,7 @@ export default async function CategoriaPage({ params }: { params: Promise<{ slug
               />
 
               {dividend !== null ? (
-                <p className="px-1 text-xs leading-snug text-fg-body">
+                <p className="px-1 pt-2 text-[13px] leading-snug text-fg-body">
                   Dividendos por acción (12 meses, SEC):{" "}
                   <span className="num font-medium text-fg">{usdPerShare(dividend)}</span>
                 </p>
@@ -226,7 +243,7 @@ export default async function CategoriaPage({ params }: { params: Promise<{ slug
                   target="_blank"
                   rel="nofollow noopener"
                   aria-label={`Fuente: SEC EDGAR, datos de ${asset.name}`}
-                  className="inline-flex min-h-11 items-center px-1 text-xs font-medium text-fg-muted underline decoration-border underline-offset-4 hover:text-fg hover:decoration-fg"
+                  className="inline-flex min-h-11 items-center px-1 text-[13px] font-medium text-fg-muted underline decoration-border underline-offset-4 hover:text-fg hover:decoration-fg"
                 >
                   Fuente: SEC EDGAR
                 </a>
@@ -236,27 +253,24 @@ export default async function CategoriaPage({ params }: { params: Promise<{ slug
         </ul>
 
         {category.slug === DIVIDENDS_SLUG ? (
-          <p className="mt-6 max-w-2xl text-xs leading-relaxed text-fg-muted">
+          <p className="mt-6 max-w-[62ch] text-[13px] leading-relaxed text-fg-muted">
             Dividendos por acción de los últimos 12 meses según SEC EDGAR, datos al{" "}
             {longDate(COMPANY_SNAPSHOT_DATE)}. Es un dato histórico, no una proyección.
           </p>
         ) : null}
       </section>
 
-      <p className="mt-12 flex flex-wrap items-center gap-x-6 gap-y-3 text-sm">
-        <Link
-          href="/acciones"
-          className="inline-flex min-h-11 items-center font-medium text-fg underline decoration-border underline-offset-4 hover:decoration-fg"
-        >
-          Ver el catálogo completo
+      <div className="mt-12 flex max-w-4xl flex-wrap items-center gap-x-6 gap-y-3 border-t border-border pt-6">
+        <Link href="/acciones" className={buttonClasses({ variant: "secondary" })}>
+          Ver todas las acciones
         </Link>
-        <Link
-          href="/categorias"
-          className="inline-flex min-h-11 items-center text-fg-body underline decoration-border underline-offset-4 hover:text-fg hover:decoration-fg"
-        >
+        <Link href="/comparar" className={textLinkClass}>
+          Comparar activos
+        </Link>
+        <Link href="/categorias" className={textLinkClass}>
           Todas las categorías
         </Link>
-      </p>
+      </div>
     </LandingSection>
   );
 }

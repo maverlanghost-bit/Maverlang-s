@@ -53,21 +53,23 @@ export default async function AccionesPage() {
           Fracciones de acciones tokenizadas de EE.UU., desde Chile. Cada ficha describe un token que
           sigue el precio. La demo usa saldo ficticio y se opera 24/7.
         </p>
-        <ul className="mt-5 flex flex-wrap items-center gap-2">
-          <li className="inline-flex items-center gap-1 rounded-full bg-surface-1 px-3 py-1.5 text-xs leading-snug text-fg-body sm:text-sm">
-            <span className="font-mono font-medium tabular-nums text-fg">{assets.length}</span>
-            <span>activos disponibles</span>
-          </li>
-          <li className="inline-flex items-center rounded-full bg-surface-1 px-3 py-1.5 text-xs leading-snug text-fg-body sm:text-sm">
-            Fracciones desde US$10
-          </li>
-          <li className="inline-flex items-center rounded-full bg-surface-1 px-3 py-1.5 text-xs leading-snug text-fg-body sm:text-sm">
-            Horario 24/7 (xStocks)
-          </li>
-          <li className="inline-flex items-center rounded-full bg-surface-1 px-3 py-1.5 text-xs leading-snug text-fg-body sm:text-sm">
-            Autocustodia en Solana SPL
-          </li>
-        </ul>
+        <p className="mt-5 flex flex-wrap items-baseline gap-x-2 gap-y-1 text-sm text-fg-body">
+          <span>
+            <span className="num font-medium text-fg">{assets.length}</span> activos disponibles
+          </span>
+          <span aria-hidden className="text-fg-subtle">
+            ·
+          </span>
+          <span>Fracciones desde US$10</span>
+          <span aria-hidden className="text-fg-subtle">
+            ·
+          </span>
+          <span>Horario 24/7 (xStocks)</span>
+          <span aria-hidden className="text-fg-subtle">
+            ·
+          </span>
+          <span>Autocustodia en Solana SPL</span>
+        </p>
         <p className="mt-1 text-sm">
           <Link
             href="/comparar"
@@ -79,17 +81,17 @@ export default async function AccionesPage() {
       </div>
 
       {categoryLinks.length > 0 ? (
-        <nav aria-label="Categorías de acciones" className="mt-8">
+        <nav aria-label="Categorías de acciones" className="mt-8 border-t border-border pt-4">
           <p className="label">Explorar por categoría</p>
-          <ul className="mt-3 flex flex-wrap items-center gap-2">
+          <ul className="mt-1 flex flex-wrap gap-x-6 gap-y-0">
             {categoryLinks.map(({ category, count }) => (
               <li key={category.slug}>
                 <Link
                   href={`/categorias/${category.slug}`}
-                  className="inline-flex min-h-11 items-center gap-2 rounded-full border border-control bg-bg px-4 text-xs font-medium text-fg-body transition duration-[140ms] ease-spring hover:bg-surface-1 sm:min-h-9 sm:text-sm"
+                  className="inline-flex min-h-11 items-center gap-2 text-sm text-fg-body transition-colors hover:text-fg"
                 >
-                  <span>{category.name}</span>
-                  <span className="num text-fg-muted">{count}</span>
+                  <span className="underline decoration-border underline-offset-4">{category.name}</span>
+                  <span className="num text-xs text-fg-muted">{count}</span>
                 </Link>
               </li>
             ))}
@@ -110,9 +112,9 @@ export default async function AccionesPage() {
           />
         </div>
       ) : (
-        <div className="mt-8">
+        <div className="mt-8 max-w-5xl">
           <PublicCatalogGrid assets={catalog} />
-          <aside className="mt-10 rounded-3xl bg-surface-1 p-6 md:p-8">
+          <aside className="mt-14 max-w-2xl border-t border-border pt-8">
             <h2 className="text-2xl sm:text-3xl">Prueba la demo con US$10.000 ficticios</h2>
             <p className="mt-2 max-w-2xl text-base leading-relaxed text-fg-body">
               Saldo de mentira, precios reales: compra y vende fracciones sin plata de por medio. El
