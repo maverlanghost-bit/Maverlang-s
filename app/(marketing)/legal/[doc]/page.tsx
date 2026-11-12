@@ -68,8 +68,11 @@ export default async function LegalPage({ params }: { params: Promise<{ doc: str
           </ol>
         </nav>
 
-        <header className="max-w-3xl">
-          <p role="note" className="rounded-2xl bg-warn-bg px-4 py-3 text-sm font-medium text-warn">
+        <header className="max-w-[68ch]">
+          <p
+            role="note"
+            className="border-l-2 border-warn pl-3 text-[13px] leading-relaxed font-medium text-warn"
+          >
             Borrador — [REVISIÓN ABOGADO]
           </p>
           <h1 id="legal-title" className="mt-6 text-3xl sm:text-4xl">

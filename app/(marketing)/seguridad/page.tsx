@@ -163,7 +163,7 @@ const linkClass =
 export default function SeguridadPage() {
   return (
     <>
-      <LandingSection titleId="seguridad-page-title" density="compact" className="pb-6 md:pb-8">
+      <LandingSection titleId="seguridad-page-title" density="compact" className="pb-2 md:pb-4">
         <div className="max-w-3xl">
           <p className="label">Seguridad</p>
           <h1 id="seguridad-page-title" className="mt-3 text-balance text-3xl sm:text-4xl">
@@ -228,7 +228,7 @@ export default function SeguridadPage() {
           <h2 id="seguridad-marco" className="mt-3 text-balance text-2xl sm:text-3xl">
             El marco completo
           </h2>
-          <ul className="mt-6 divide-y divide-border overflow-hidden rounded-3xl bg-surface-1 shadow-card sm:mt-8">
+          <ul className="mt-6 divide-y divide-border border-y border-border sm:mt-8">
             {framework.map((item) => (
               <li
                 key={item.label}

@@ -48,8 +48,8 @@ type Heading = Extract<Block, { type: "h2" }>;
 /**
  * Índice del documento: la misma fila (44 px, número mono, subrayado al pasar)
  * que usa el índice de `/guias/[slug]`. Se pinta dos veces porque el `<details>`
- * de móvil no puede abrirse por CSS desde `sm`: uno se oculta bajo `sm` y el
- * otro desde `sm`, y sólo uno queda en el árbol de accesibilidad.
+ * de móvil no puede abrirse por CSS desde `lg`: uno se oculta bajo `lg` y el
+ * otro desde `lg`, y sólo uno queda en el árbol de accesibilidad.
  */
 function IndexLinks({ headings, className }: { headings: Heading[]; className?: string }) {
   return (
@@ -60,7 +60,7 @@ function IndexLinks({ headings, className }: { headings: Heading[]; className?: 
             href={`#${heading.id}`}
             className="flex min-h-11 items-start gap-2.5 py-1.5 leading-snug text-fg-body underline decoration-transparent underline-offset-4 transition-colors duration-150 hover:text-fg hover:decoration-fg motion-reduce:transition-none"
           >
-            <span aria-hidden="true" className="mt-px font-mono text-xs tabular-nums text-fg-muted">
+            <span aria-hidden="true" className="mt-px font-mono text-[13px] tabular-nums text-fg-muted">
               {String(index + 1).padStart(2, "0")}
             </span>
             <span className="min-w-0">{heading.text}</span>
@@ -80,29 +80,26 @@ export function LegalBody({ blocks }: { blocks: Block[] }) {
     <div className={cn("mt-8", withIndex && "lg:grid lg:grid-cols-[minmax(0,1fr)_15rem] lg:items-start lg:gap-12")}>
       {withIndex ? (
         <aside className="mb-8 lg:order-2 lg:sticky lg:top-24 lg:mb-0">
-          {/* <sm: plegado, 44 px de summary, mismo indicador que /ayuda y /guias. */}
-          <details className="group rounded-3xl bg-surface-1 px-4 pb-1 shadow-card sm:hidden">
-            <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-4 py-2 text-sm font-medium text-fg [&::-webkit-details-marker]:hidden">
+          {/* <lg: plegado, 44 px de summary, mismo indicador que /ayuda. */}
+          <details className="group border-y border-border lg:hidden">
+            <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-4 py-3 text-sm font-medium text-fg [&::-webkit-details-marker]:hidden">
               <span className="min-w-0">
                 En este documento
                 <span className="text-fg-muted"> · {headings.length} secciones</span>
               </span>
               <IconChevron className="disclosure-chevron size-4 shrink-0 text-fg-muted transition-transform duration-200 motion-reduce:transition-none" />
             </summary>
-            <nav aria-label="Índice del documento" className="pb-2">
+            <nav aria-label="Índice del documento" className="pb-3">
               <IndexLinks headings={headings} />
             </nav>
           </details>
-          {/* ≥sm: visible y, en lg, fijo junto al texto. */}
+          {/* lg: fijo junto al texto. */}
           <nav
             aria-label="Índice del documento"
-            className="hidden rounded-3xl bg-surface-1 p-5 shadow-card sm:block"
+            className="hidden border-t border-border pt-4 lg:block"
           >
             <p className="eyebrow">En este documento</p>
-            <IndexLinks
-              headings={headings}
-              className="sm:grid sm:grid-cols-2 sm:gap-x-6 sm:gap-y-0 lg:block lg:space-y-0.5"
-            />
+            <IndexLinks headings={headings} />
           </nav>
         </aside>
       ) : null}
@@ -164,7 +161,7 @@ export function LegalBody({ blocks }: { blocks: Block[] }) {
                           <th
                             key={cellIndex}
                             scope="col"
-                            className="px-4 py-3 text-xs font-medium text-fg-muted"
+                            className="px-4 py-3 text-[13px] font-medium text-fg-muted"
                           >
                             <Inlines items={cell} />
                           </th>
@@ -228,10 +225,10 @@ export function LegalNav({ current }: { current: string }) {
           <Link
             key={item.slug}
             href={`/legal/${item.slug}`}
-            className="group flex min-h-24 flex-col justify-between gap-3 rounded-2xl bg-surface-1 p-4 shadow-card transition-colors hover:bg-surface-2"
+            className="group flex min-h-24 flex-col justify-between gap-3 rounded-2xl border border-border p-4 transition-colors hover:bg-surface-1"
           >
             <span className="text-sm font-medium text-balance text-fg">{item.label}</span>
-            <span className="inline-flex items-center gap-1 text-xs font-medium text-fg-muted transition-colors group-hover:text-fg">
+            <span className="inline-flex items-center gap-1 text-[13px] font-medium text-fg-muted transition-colors group-hover:text-fg">
               Leer documento →
             </span>
           </Link>

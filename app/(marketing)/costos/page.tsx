@@ -2,7 +2,6 @@ import Link from "next/link";
 import { CostSimulator } from "@/components/landing/cost-simulator";
 import { CostsSection } from "@/components/landing/costs-section";
 import { LandingSection } from "@/components/landing/section";
-import { Card } from "@/components/ui/card";
 import { brandShort, pageMetadata } from "@/lib/seo/metadata";
 
 export const metadata = pageMetadata({
@@ -13,7 +12,7 @@ export const metadata = pageMetadata({
   absolute: true,
 });
 
-/** Resumen en píldoras: los tres datos que se repiten en la página. */
+/** Una línea de datos: los tres datos que se repiten en la página. */
 const RESUMEN = [
   "0% comisión de lanzamiento",
   "Costos visibles antes de firmar",
@@ -40,31 +39,25 @@ export default function CostosPage() {
             La comisión de lanzamiento es 0%. El resto depende del mercado, la red y el proveedor, y
             siempre aparece en el desglose antes de que aceptes la orden.
           </p>
-          <ul aria-label="Resumen de costos" className="mt-6 flex flex-wrap items-center gap-2">
+          <p className="mt-5 flex flex-wrap items-baseline gap-x-2.5 gap-y-1 text-[13px] leading-relaxed text-fg-muted">
             {RESUMEN.map((item, index) => (
-              <li
-                key={item}
-                className="inline-flex items-center gap-2 rounded-full border border-border bg-surface-1 px-3 py-1.5 text-xs leading-none font-medium text-fg-body"
-              >
-                <span
-                  aria-hidden="true"
-                  className={
-                    index === 0
-                      ? "size-1.5 shrink-0 rounded-full bg-fg"
-                      : "size-1.5 shrink-0 rounded-full bg-fg-muted"
-                  }
-                />
-                {item}
-              </li>
+              <span key={item} className="inline-flex items-baseline gap-2.5">
+                {index > 0 ? (
+                  <span aria-hidden="true" className="text-border-strong">
+                    ·
+                  </span>
+                ) : null}
+                <span className="tabular-nums">{item}</span>
+              </span>
             ))}
-          </ul>
+          </p>
         </div>
       </LandingSection>
 
       <CostsSection showIntro={false} />
 
       <LandingSection titleId="costos-simulador" density="compact">
-        <div className="grid gap-8 md:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] md:items-start md:gap-12">
+        <div className="grid gap-8 border-t border-border pt-8 md:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] md:items-start md:gap-12 md:pt-10">
           <div className="max-w-md">
             <p className="label">Simulador</p>
             <h2 id="costos-simulador" className="mt-3 text-2xl text-balance sm:text-3xl">
@@ -79,9 +72,9 @@ export default function CostosPage() {
               proveedor, aparece antes de confirmar la orden.
             </p>
           </div>
-          <Card className="rounded-3xl p-5 sm:p-6 md:p-8">
+          <div className="min-w-0 border-t border-border pt-6 md:border-t-0 md:border-l md:pt-0 md:pl-10">
             <CostSimulator />
-          </Card>
+          </div>
         </div>
       </LandingSection>
 

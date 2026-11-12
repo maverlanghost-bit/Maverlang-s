@@ -4,7 +4,6 @@ import { HowItWorks } from "@/components/landing/how-it-works";
 import { LiveLandingPrices } from "@/components/landing/live-landing-prices";
 import { LandingSection } from "@/components/landing/section";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { getLandingQuotes } from "@/lib/landing/live-quotes";
 import { brandShort, pageMetadata } from "@/lib/seo/metadata";
 
@@ -25,6 +24,9 @@ const RESUMEN: { label: string; num?: boolean }[] = [
   { label: "24/7", num: true },
   { label: "Autocustodia" },
 ];
+
+const textLinkClass =
+  "inline-flex min-h-11 items-center text-sm font-medium text-fg underline decoration-border underline-offset-4 transition-colors hover:decoration-fg motion-reduce:transition-none";
 
 function WalletIcon() {
   return (
@@ -114,26 +116,21 @@ function NotaCard({
   children: ReactNode;
 }) {
   return (
-    <Card className="group flex h-full flex-col p-5 transition-colors duration-200 hover:bg-surface-2/50 motion-reduce:transition-none sm:p-6">
+    <div className="flex h-full flex-col border-t border-border pt-5">
       <div className="flex items-start justify-between gap-3">
         <span
           aria-hidden="true"
-          className="inline-flex size-10 shrink-0 items-center justify-center rounded-2xl bg-bg text-fg"
+          className="inline-flex size-8 shrink-0 items-center justify-center rounded-xl border border-border bg-bg text-fg"
         >
           {icon}
         </span>
-        <span
-          className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border border-border bg-bg px-2.5 py-1 text-xs leading-none font-medium text-fg-muted${
-            mono ? " num" : ""
-          }`}
-        >
-          <span aria-hidden="true" className="size-1.5 shrink-0 rounded-full bg-fg-muted" />
+        <span className={`text-[13px] leading-none font-medium text-fg-muted${mono ? " num" : ""}`}>
           {badge}
         </span>
       </div>
-      <h3 className="mt-5 text-base">{title}</h3>
+      <h3 className="mt-4 text-[15px] leading-snug">{title}</h3>
       <p className="mt-2 text-sm leading-relaxed text-fg-body">{children}</p>
-    </Card>
+    </div>
   );
 }
 
@@ -145,23 +142,8 @@ export default async function ComoFuncionaPage() {
     <>
       <LandingSection titleId="como-funciona-page-title" density="compact" className="pb-6 md:pb-8">
         <div className="max-w-3xl">
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-            <p className="label">Cómo funciona</p>
-            <span aria-hidden="true" className="hidden h-3 w-px bg-border sm:block" />
-            <ul aria-label="Resumen rápido" className="flex flex-wrap items-center gap-2">
-              {RESUMEN.map((item) => (
-                <li
-                  key={item.label}
-                  className={`inline-flex items-center rounded-full border border-border bg-surface-1 px-2.5 py-1 text-xs leading-none font-medium text-fg-body${
-                    item.num ? " num" : " tabular-nums"
-                  }`}
-                >
-                  {item.label}
-                </li>
-              ))}
-            </ul>
-          </div>
-          <h1 id="como-funciona-page-title" className="mt-5 text-3xl text-balance sm:text-4xl">
+          <p className="label">Cómo funciona</p>
+          <h1 id="como-funciona-page-title" className="mt-3 text-3xl text-balance sm:text-4xl">
             Cómo comprar acciones tokenizadas
           </h1>
           <p className="mt-5 max-w-[62ch] text-lead text-fg-body">
@@ -169,11 +151,29 @@ export default async function ComoFuncionaPage() {
             billetera: nosotros no custodiamos tus activos. Los montos de abajo son ejemplos.
             Cuando haya cuentas reales, el depósito y su costo se muestran en ese paso.
           </p>
-          <p className="mt-6">
-            <Button asChild variant="secondary">
-              <Link href="/costos">Ver costos</Link>
+          <ul
+            aria-label="Resumen rápido"
+            className="mt-5 flex flex-wrap items-baseline gap-x-2.5 gap-y-1 text-[13px] leading-relaxed text-fg-muted"
+          >
+            {RESUMEN.map((item, index) => (
+              <li key={item.label} className="inline-flex items-baseline gap-2.5">
+                {index > 0 ? (
+                  <span aria-hidden="true" className="text-border-strong">
+                    ·
+                  </span>
+                ) : null}
+                <span className={item.num ? "num" : "tabular-nums"}>{item.label}</span>
+              </li>
+            ))}
+          </ul>
+          <div className="mt-8 flex flex-wrap items-center gap-x-6 gap-y-3">
+            <Button asChild>
+              <Link href="/app/registro">Probar la demo</Link>
             </Button>
-          </p>
+            <Link href="/acciones" className={textLinkClass}>
+              Ver acciones
+            </Link>
+          </div>
         </div>
       </LandingSection>
 
@@ -186,7 +186,7 @@ export default async function ComoFuncionaPage() {
           <h2 id="como-funciona-notas" className="text-2xl text-balance sm:text-3xl">
             Antes de partir
           </h2>
-          <div className="mt-6 grid gap-4 sm:grid-cols-2 md:gap-5">
+          <div className="mt-8 grid gap-x-8 gap-y-8 sm:grid-cols-2">
             <NotaCard icon={<WalletIcon />} title="El depósito" badge="Saldo ficticio">
               La demo no pide dinero real: practicas con US$10.000 ficticios. Cuando haya cuentas
               reales, el monto, el método y el costo del proveedor se ven en ese paso.
@@ -205,17 +205,11 @@ export default async function ComoFuncionaPage() {
             </NotaCard>
           </div>
 
-          <div className="mt-10 flex flex-col gap-3 border-t border-border pt-8 sm:flex-row sm:flex-wrap sm:items-center">
-            <Button asChild>
-              <Link href="/app/registro">Probar la demo</Link>
-            </Button>
-            <Button asChild variant="secondary">
-              <Link href="/acciones">Ver acciones</Link>
-            </Button>
-            <Link
-              href="/ayuda"
-              className="inline-flex min-h-11 items-center text-sm font-medium text-fg underline decoration-border underline-offset-4 transition-colors hover:decoration-fg sm:ml-auto"
-            >
+          <div className="mt-10 flex flex-wrap items-center gap-x-6 gap-y-2 border-t border-border pt-6">
+            <Link href="/costos" className={textLinkClass}>
+              Ver costos
+            </Link>
+            <Link href="/ayuda" className={`${textLinkClass} sm:ml-auto`}>
               Ir al centro de ayuda
             </Link>
           </div>

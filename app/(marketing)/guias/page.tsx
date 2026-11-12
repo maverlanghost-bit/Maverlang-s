@@ -24,7 +24,11 @@ const crumbs = [
   { name: "Guías", path: "/guias" },
 ];
 
-const linkClass =
+/** Rótulo mono del índice: 13 px, el mínimo de la escala editorial. */
+const eyebrowMono =
+  "font-mono text-[13px] leading-none font-medium uppercase tracking-[0.045em] text-fg-muted";
+
+const textLinkClass =
   "inline-flex min-h-11 items-center text-sm font-medium text-fg underline decoration-border underline-offset-4 hover:decoration-fg";
 
 /** Fecha de la guía en es-CL, sin corrimiento por zona horaria. */
@@ -57,24 +61,15 @@ export default function GuiasPage() {
       ) : null}
 
       <div className="max-w-3xl">
-        <p className="label">Guías</p>
+        <p className={eyebrowMono}>Guías</p>
         <h1 id="guias-title" className="mt-3 text-3xl sm:text-4xl">
           Guías de acciones tokenizadas
         </h1>
         <p className="mt-4 max-w-[62ch] text-lead text-fg-body">
-          Explicaciones cortas para entender cómo funciona una acción tokenizada, cómo se consigue USDC
-          desde Chile, qué pasa con el horario y la liquidez, y qué riesgos conviene mirar antes de operar.
-          Contenido educativo: no es asesoría financiera ni una recomendación de compra o venta.
+          Explicaciones cortas sobre cómo funciona una acción tokenizada, cómo se consigue USDC, el
+          horario y los riesgos. Contenido educativo: no es asesoría financiera ni una recomendación
+          de compra o venta.
         </p>
-        <ul className="mt-6 flex flex-wrap items-center gap-2">
-          <li className="inline-flex items-center gap-1 rounded-full border border-border bg-surface-1 px-3 py-1.5 text-xs leading-snug text-fg-body">
-            <span className="font-mono font-medium tabular-nums text-fg">{guides.length}</span>
-            <span>{guides.length === 1 ? "guía publicada" : "guías publicadas"}</span>
-          </li>
-          <li className="inline-flex items-center rounded-full border border-border bg-surface-1 px-3 py-1.5 text-xs leading-snug text-fg-body">
-            Contenido educativo
-          </li>
-        </ul>
       </div>
 
       {guides.length === 0 ? (
@@ -89,62 +84,75 @@ export default function GuiasPage() {
           }
         />
       ) : (
-        /* Con tres guías, una columna de filas horizontales se lee mejor que tres tarjetas altas. */
-        <ol className="mt-8 max-w-4xl divide-y divide-border border-y border-border">
-          {guides.map((guide, index) => (
-            <li key={guide.slug}>
-              <Link
-                href={`/guias/${guide.slug}`}
-                className="group grid gap-2 py-6 sm:grid-cols-[2.5rem_minmax(0,1fr)] sm:gap-x-6 sm:py-7"
-              >
-                <span
-                  aria-hidden="true"
-                  className="num text-xs leading-relaxed tabular-nums text-fg-muted sm:pt-1.5"
+        /* Índice editorial: una fila por guía, con hairlines en vez de tarjetas. */
+        <div className="mt-10 max-w-4xl">
+          <p className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b border-border pb-3">
+            <span className={eyebrowMono}>Índice</span>
+            <span className="text-[13px] text-fg-muted">
+              <span className="num tabular-nums text-fg">{guides.length}</span>{" "}
+              {guides.length === 1 ? "guía publicada" : "guías publicadas"}
+            </span>
+          </p>
+          <ol>
+            {guides.map((guide, index) => (
+              <li key={guide.slug} className="border-b border-border">
+                <Link
+                  href={`/guias/${guide.slug}`}
+                  className="group grid grid-cols-[1.75rem_minmax(0,1fr)] gap-x-4 py-7 sm:grid-cols-[2.5rem_minmax(0,1fr)] sm:gap-x-6 sm:py-8"
                 >
-                  {String(index + 1).padStart(2, "0")}
-                </span>
-                <div className="min-w-0">
-                  <h2 className="text-lg leading-snug font-medium text-fg sm:text-xl">
-                    <span className="underline decoration-transparent underline-offset-4 transition-colors group-hover:decoration-fg">
-                      {guide.title}
-                    </span>
-                  </h2>
-                  <p className="mt-2 max-w-[62ch] text-sm leading-relaxed text-fg-body">
-                    {guide.description}
-                  </p>
-                  <p className="mt-3 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs leading-relaxed text-fg-muted">
-                    <span>{guide.readingMinutes} min de lectura</span>
-                    <span aria-hidden="true">·</span>
-                    <span>Actualizada el {formatGuideDate(guide.updatedAt)}</span>
-                    <span
-                      aria-hidden="true"
-                      className="ml-auto font-mono text-sm text-fg-muted transition group-hover:text-fg motion-safe:group-hover:translate-x-0.5"
-                    >
-                      →
-                    </span>
-                  </p>
-                </div>
-              </Link>
-            </li>
-          ))}
-        </ol>
+                  <span
+                    aria-hidden="true"
+                    className="num pt-1 text-[13px] leading-none tabular-nums text-fg-muted"
+                  >
+                    {String(index + 1).padStart(2, "0")}
+                  </span>
+                  <div className="min-w-0">
+                    <h2 className="text-[1.0625rem] leading-snug font-medium text-fg sm:text-[1.125rem]">
+                      <span className="underline decoration-transparent underline-offset-[5px] transition-colors duration-150 group-hover:decoration-fg motion-reduce:transition-none">
+                        {guide.title}
+                      </span>
+                    </h2>
+                    <p className="mt-2 max-w-[64ch] text-[0.9375rem] leading-relaxed text-fg-body">
+                      {guide.description}
+                    </p>
+                    <p className="mt-3.5 flex flex-wrap items-center gap-x-2.5 gap-y-1.5 font-mono text-[13px] leading-snug text-fg-muted">
+                      <span className="uppercase tracking-[0.045em]">Guía</span>
+                      <span aria-hidden="true">·</span>
+                      <span>{guide.readingMinutes} min de lectura</span>
+                      <span aria-hidden="true">·</span>
+                      <time dateTime={guide.updatedAt} className="tabular-nums">
+                        Actualizada el {formatGuideDate(guide.updatedAt)}
+                      </time>
+                      <span
+                        aria-hidden="true"
+                        className="ml-auto text-sm transition-transform duration-150 group-hover:translate-x-0.5 motion-reduce:transition-none"
+                      >
+                        →
+                      </span>
+                    </p>
+                  </div>
+                </Link>
+              </li>
+            ))}
+          </ol>
+        </div>
       )}
 
-      <aside className="mt-10 max-w-4xl rounded-3xl bg-surface-1 p-6 shadow-card md:p-8">
+      <footer className="mt-12 max-w-4xl border-t border-border pt-8 md:mt-14">
         <h2 className="text-base font-medium text-fg">Del texto al catálogo</h2>
-        <p className="mt-2 max-w-2xl text-sm leading-relaxed text-fg-body">
-          Cada ficha de acción muestra el precio del token, los datos de la empresa tomados de la SEC y los
-          riesgos de operar fuera del horario regular de la bolsa de EE.UU.
+        <p className="mt-2 max-w-[62ch] text-[0.9375rem] leading-relaxed text-fg-body">
+          Cada ficha de acción muestra el precio del token, los datos de la empresa tomados de la SEC
+          y los riesgos de operar fuera del horario regular de la bolsa de EE.UU.
         </p>
-        <p className="mt-5 flex flex-wrap items-center gap-x-6 gap-y-3">
+        <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
           <Button asChild>
             <Link href="/acciones">Ver acciones</Link>
           </Button>
-          <Link href="/ayuda" className={linkClass}>
+          <Link href="/ayuda" className={textLinkClass}>
             Centro de ayuda
           </Link>
-        </p>
-      </aside>
+        </div>
+      </footer>
     </LandingSection>
   );
 }
