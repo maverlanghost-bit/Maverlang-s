@@ -54,7 +54,7 @@ export function ContentTable({
                 <dt className="label-xs shrink-0">{column.header}</dt>
                 <dd
                   className={cn(
-                    "min-w-0 text-right text-sm leading-snug text-fg-body",
+                    "min-w-0 text-right text-sm leading-snug break-words text-fg-body",
                     (column.align ?? "left") === "left" && "text-left",
                     column.className,
                   )}
@@ -96,6 +96,8 @@ export function ContentTable({
                     className={cn(
                       "py-2.5 pr-4 align-top text-fg-body",
                       alignClass[column.align ?? "left"],
+                      /* Cifras: nunca parten el número en dos líneas. */
+                      (column.align ?? "left") === "right" && "whitespace-nowrap tabular-nums",
                       column.className,
                     )}
                   >

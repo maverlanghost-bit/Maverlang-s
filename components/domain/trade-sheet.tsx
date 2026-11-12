@@ -213,7 +213,7 @@ function TradeMark({ ticker }: { ticker: Ticker }) {
       <TickerLogo symbol={ticker.symbol} name={ticker.name} logoUrl={ticker.logo} size={32} decorative loading="eager" sizes="32px" />
       <div className="min-w-0">
         <p className="truncate text-[13px] leading-4 font-medium text-fg">{ticker.name}</p>
-        <p className="num mt-0.5 truncate text-[11px] leading-4 uppercase tracking-[0.045em] text-fg-subtle">{ticker.symbol}</p>
+        <p className="num mt-1 truncate text-[12px] leading-4 uppercase tracking-[0.045em] text-fg-muted">{ticker.symbol}</p>
       </div>
     </div>
   );
@@ -225,8 +225,8 @@ function TradeHeader({ ticker, priceLabel, price }: { ticker: Ticker; priceLabel
     <div className="flex items-end justify-between gap-4">
       <TradeMark ticker={ticker} />
       <div className="shrink-0 text-right">
-        <p className="label-xs">{priceLabel}</p>
-        <p className="num mt-1 text-[13px] leading-4 text-fg">{price}</p>
+        <p className="label">{priceLabel}</p>
+        <p className="num mt-1 text-sm leading-5 font-medium text-fg">{price}</p>
       </div>
     </div>
   );
@@ -248,7 +248,7 @@ function AmountSentence({ template, amount, name }: { template: string; amount: 
 function StatementRow({ label, value, strong = false }: { label: string; value: ReactNode; strong?: boolean }) {
   return (
     <div className="grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-6 py-3">
-      <dt className="label-xs min-w-0">{label}</dt>
+      <dt className="label min-w-0">{label}</dt>
       <dd
         className={cn(
           "num text-right leading-5 text-fg",
@@ -276,7 +276,7 @@ function QuoteValidity({
   const expired = remainingMs <= 0;
   return (
     <div className="flex flex-col gap-2">
-      <span className={cn("text-[11px] leading-4", expired ? "text-down" : "text-fg-muted")}>
+      <span className={cn("text-[12px] leading-4 tabular-nums", expired ? "font-medium text-down" : "text-fg-muted")}>
         {expired ? expiredLabel : label}
       </span>
       <QuoteValidityBar remainingMs={remainingMs} language={language} />
@@ -295,7 +295,7 @@ function ActionButton({
       {amount ? (
         <span className="flex w-full items-center justify-between gap-4">
           <span>{children}</span>
-          <span className="num text-[13px] font-medium text-white/70">{amount}</span>
+          <span className="num shrink-0 text-[13px] font-medium text-white/80">{amount}</span>
         </span>
       ) : (
         children
@@ -615,7 +615,7 @@ function TradeFlow({ side, ticker }: { side: Side; ticker: Ticker }) {
         {quote ? (
           <div className="mt-auto flex items-baseline justify-between gap-6 border-t border-border pt-4">
             <span className="text-[12px] leading-4 text-fg-muted">{t.trade.youReceive}</span>
-            <span className="num text-right text-[13px] leading-4 text-fg">
+            <span className="num text-right text-sm leading-5 text-fg">
               {side === "buy" ? formatShares(quote.outAmountUi) : shownMoney(quote.outAmountUi, displayCurrency, fxRate)}
             </span>
           </div>
@@ -675,7 +675,7 @@ function TradeFlow({ side, ticker }: { side: Side; ticker: Ticker }) {
             ) : null}
           </dl>
 
-          <p className="text-[11px] leading-relaxed text-fg-subtle">Enrutamiento Jupiter Spot → Solana SPL.</p>
+          <p className="text-[12px] leading-relaxed text-fg-muted">Enrutamiento Jupiter Spot → Solana SPL.</p>
         </div>
 
         <SheetActionBar>
@@ -707,7 +707,7 @@ function TradeFlow({ side, ticker }: { side: Side; ticker: Ticker }) {
     return (
       <div role="alert" className="flex min-h-full flex-col">
         <div className="flex flex-1 flex-col gap-3 pt-1 pb-8">
-          <p className="label-xs text-down">{t.states.error}</p>
+          <p className="label text-down">{t.states.error}</p>
           <p className="text-xl leading-snug text-balance text-fg">{flowError ?? t.trade.orderFailed}</p>
         </div>
         <SheetActionBar>
@@ -798,12 +798,12 @@ function TradeFlow({ side, ticker }: { side: Side; ticker: Ticker }) {
             <button
               type="button"
               onClick={() => setPhase("form")}
-              className="-ml-2 inline-flex min-h-11 items-center gap-1.5 rounded-full px-2 text-[13px] font-medium text-fg-muted transition-colors hover:text-fg"
+              className="-ml-2 inline-flex min-h-11 items-center gap-1.5 rounded-full px-2 text-[13px] font-medium text-fg-muted transition-colors outline-none hover:text-fg focus-visible:ring-4 focus-visible:ring-fg/20"
             >
               <IconBack className="size-4" aria-hidden="true" />
               {t.trade.back}
             </button>
-            <span className="num text-[11px] uppercase tracking-[0.045em] text-fg-subtle">{ticker.symbol}</span>
+            <span className="num text-[12px] uppercase tracking-[0.045em] text-fg-muted">{ticker.symbol}</span>
           </div>
 
           <section className="border-y border-border py-5">
@@ -811,18 +811,18 @@ function TradeFlow({ side, ticker }: { side: Side; ticker: Ticker }) {
             {quote && fresh ? (
               side === "buy" ? (
                 <p className="mt-2.5 flex flex-wrap items-baseline gap-x-2 gap-y-1">
-                  <span className="num text-[2rem] leading-none tracking-[-0.02em] text-fg">
+                  <span className="num text-[2rem] leading-none tracking-[-0.02em] break-words text-fg">
                     {formatShares(quote.outAmountUi)}
                   </span>
-                  <span className="num text-[11px] uppercase tracking-[0.045em] text-fg-muted">{ticker.symbol}</span>
+                  <span className="num text-[12px] uppercase tracking-[0.045em] text-fg-muted">{ticker.symbol}</span>
                 </p>
               ) : (
-                <p className="num mt-2.5 text-[2rem] leading-none tracking-[-0.02em] text-fg">
+                <p className="num mt-2.5 text-[2rem] leading-none tracking-[-0.02em] break-words text-fg">
                   {shownMoney(quote.outAmountUi, displayCurrency, fxRate)}
                 </p>
               )
             ) : (
-              <p className="num mt-2.5 text-[2rem] leading-none text-fg-subtle">—</p>
+              <p className="num mt-2.5 text-[2rem] leading-none text-fg-muted">—</p>
             )}
             {sub ? <p className="mt-3 text-[13px] leading-relaxed text-fg-body">{sub}</p> : null}
           </section>
@@ -872,11 +872,11 @@ function TradeFlow({ side, ticker }: { side: Side; ticker: Ticker }) {
             />
           ) : null}
 
-          {dollarsNote ? <p className="text-[11px] leading-4 text-fg-subtle">{dollarsNote}</p> : null}
+          {dollarsNote ? <p className="text-[12px] leading-4 text-fg-muted">{dollarsNote}</p> : null}
 
           {/* M83: aviso antes de confirmar. Texto borrador hasta la revisión
               del abogado; si la exige, cambia en un solo lugar. */}
-          <p className="text-[11px] leading-relaxed text-fg-subtle">
+          <p className="text-[12px] leading-relaxed text-fg-muted">
             El precio puede variar. Operación ejecutada en Solana vía Jupiter. No es asesoría.{" "}
             <span className="font-medium text-warn">[REVISIÓN ABOGADO]</span>
           </p>
@@ -927,7 +927,6 @@ function TradeFlow({ side, ticker }: { side: Side; ticker: Ticker }) {
           describedBy={hint ? reasonId : undefined}
           invalid={block === "min" || block === "funds"}
           chips={quickChips}
-          chipsClassName="no-scrollbar flex-nowrap justify-start overflow-x-auto pb-1 sm:flex-wrap sm:pb-0"
           caption={
             <p aria-live="polite">
               {fresh && quote && estimate ? (
@@ -951,7 +950,7 @@ function TradeFlow({ side, ticker }: { side: Side; ticker: Ticker }) {
         />
 
         {side === "sell" && shares > 0 ? (
-          <div className="no-scrollbar -mt-1 flex flex-nowrap items-center gap-1 overflow-x-auto">
+          <div className="flex flex-wrap items-center gap-1">
             {([
               { pct: 0.25, label: "25%" },
               { pct: 0.5, label: "50%" },
@@ -972,7 +971,7 @@ function TradeFlow({ side, ticker }: { side: Side; ticker: Ticker }) {
                           : shares * preset.pct;
                   setAmountRaw(String(Number(base.toFixed(6))));
                 }}
-                className="inline-flex min-h-11 shrink-0 touch-manipulation items-center justify-center rounded-md px-2 text-[12px] font-medium whitespace-nowrap tabular-nums text-fg-muted transition-colors duration-150 hover:bg-surface-1 hover:text-fg active:scale-[0.98]"
+                className="inline-flex min-h-11 min-w-11 shrink-0 touch-manipulation items-center justify-center rounded-md px-3 text-[12px] font-medium whitespace-nowrap tabular-nums text-fg-muted transition-colors duration-150 outline-none hover:bg-surface-1 hover:text-fg focus-visible:ring-4 focus-visible:ring-fg/20 active:scale-[0.98]"
               >
                 {preset.label}
               </button>
@@ -983,10 +982,10 @@ function TradeFlow({ side, ticker }: { side: Side; ticker: Ticker }) {
         <div className="flex flex-col gap-2 border-t border-border pt-3">
           <div className="flex items-baseline justify-between gap-6">
             <span className="text-[12px] leading-4 text-fg-muted">{availableLabel}</span>
-            <span className="num text-[13px] leading-4 text-fg">{availableValue ?? "—"}</span>
+            <span className="num text-[13px] leading-4 font-medium text-fg">{availableValue ?? "—"}</span>
           </div>
-          {side === "buy" ? <p className="text-[11px] leading-4 text-fg-subtle">{minHelp}</p> : null}
-          {dollarsNote ? <p className="text-[11px] leading-4 text-fg-subtle">{dollarsNote}</p> : null}
+          {side === "buy" ? <p className="text-[12px] leading-4 text-fg-muted">{minHelp}</p> : null}
+          {dollarsNote ? <p className="text-[12px] leading-4 text-fg-muted">{dollarsNote}</p> : null}
         </div>
 
         {quote && !quoting && !quoteError ? (

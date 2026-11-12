@@ -281,11 +281,16 @@ export function WalletScreen() {
         <p className="label">{t.wallet.usdcLabel}</p>
         <div className="mt-2 min-w-0 max-w-full" aria-live="polite">
           {masked ? (
-            <Masked label={t.shell.balanceHidden} className="text-4xl tracking-tight sm:text-5xl" />
+            <Masked label={t.shell.balanceHidden} className="block text-[1.75rem] leading-none tracking-tight sm:text-[2rem]" />
           ) : pendingFx ? (
-            <Skeleton className="h-12 w-48" />
+            <Skeleton className="h-8 w-44" />
           ) : (
-            <PriceText value={usdcView.amount} currency={usdcView.currency} size="lg" className="max-w-full break-words font-medium" />
+            <PriceText
+              value={usdcView.amount}
+              currency={usdcView.currency}
+              size="lg"
+              className="max-w-full break-words text-[1.75rem] leading-none font-medium tracking-tight tabular-nums sm:text-[2rem]"
+            />
           )}
           {masked || pendingFx ? null : currency === "CLP" && !fxKnown ? (
             <p className="mt-2 text-sm text-fg-muted">{t.detail.fxMissing}</p>
@@ -305,14 +310,14 @@ export function WalletScreen() {
           </p>
         ) : null}
 
-        <div className="mt-6 border-t border-border/60 pt-4">
+        <div className="mt-6 border-t border-border pt-4">
           <p className="label">{t.wallet.solLabel}</p>
           {sol ? (
             <>
               <p className="mt-2 max-w-full text-lg break-words text-fg">{masked ? <Masked label={t.shell.balanceHidden} /> : <span className="num font-medium tabular-nums">{formatSol(solUi)}</span>}</p>
               <p className="mt-1 max-w-xl text-sm leading-relaxed text-fg-muted">{t.wallet.solExplain}</p>
               {lowSol ? (
-                <p role="status" className="mt-3 rounded-2xl border border-border/70 bg-warn-bg px-4 py-3 text-sm leading-relaxed text-fg">
+                <p role="status" className="mt-3 rounded-2xl border border-warn/30 bg-warn-bg px-4 py-3 text-sm leading-relaxed text-fg">
                   {t.wallet.solLow}
                 </p>
               ) : null}
@@ -322,14 +327,14 @@ export function WalletScreen() {
           )}
         </div>
 
-        <div className="mt-5 grid grid-cols-3 gap-2">
-          <Button asChild size="lg" className="w-full px-2.5 text-xs whitespace-nowrap sm:px-4 sm:text-sm">
+        <div className="mt-5 flex flex-col gap-2 sm:grid sm:grid-cols-3">
+          <Button asChild size="lg" className="w-full">
             <Link href={DEPOSIT_HREF}>{t.wallet.deposit}</Link>
           </Button>
-          <Button asChild variant="secondary" size="lg" className="w-full px-2.5 text-xs whitespace-nowrap sm:px-4 sm:text-sm">
+          <Button asChild variant="secondary" size="lg" className="w-full">
             <Link href={SEND_HREF}>{t.wallet.send}</Link>
           </Button>
-          <Button asChild variant="secondary" size="lg" className="w-full px-2.5 text-xs whitespace-nowrap sm:px-4 sm:text-sm">
+          <Button asChild variant="secondary" size="lg" className="w-full">
             <Link href={RECEIVE_HREF}>{t.wallet.receive}</Link>
           </Button>
         </div>
@@ -361,7 +366,7 @@ export function WalletScreen() {
             />
           </div>
         ) : (
-          <ul className="mt-2 min-w-0 divide-y divide-border/60">
+          <ul className="mt-2 min-w-0 divide-y divide-border">
             {rows.map((row) => (
               <li key={row.mint}>
                 <AssetLine
@@ -390,7 +395,7 @@ export function WalletScreen() {
             {t.wallet.activity}
           </h2>
           <div className="flex flex-wrap items-center gap-1.5 sm:justify-end">
-            <div role="group" aria-label="Filtrar actividad" className="flex max-w-full flex-nowrap items-center gap-1.5 overflow-x-auto pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:flex-wrap sm:pb-0">
+            <div role="group" aria-label="Filtrar actividad" className="flex max-w-full flex-wrap items-center gap-1.5">
               {ACTIVITY_FILTERS.map((filter) => {
                 const active = activityFilter === filter.id;
                 return (
@@ -400,10 +405,10 @@ export function WalletScreen() {
                     aria-pressed={active}
                     onClick={() => setActivityFilter(filter.id)}
                     className={cn(
-                      "shrink-0 cursor-pointer whitespace-nowrap rounded-full border px-3 py-1 text-xs font-medium transition duration-150",
+                      "min-h-11 shrink-0 cursor-pointer rounded-full border px-3.5 text-[13px] font-medium whitespace-nowrap transition duration-150 sm:min-h-9",
                       active
                         ? "border-fg/20 bg-fg text-bg shadow-[0_1px_2px_rgba(12,15,20,0.08)]"
-                        : "border-border/70 bg-surface-1/70 text-fg-muted hover:bg-surface-2 hover:text-fg",
+                        : "border-border bg-surface-1 text-fg-muted hover:bg-surface-2 hover:text-fg",
                     )}
                   >
                     {filter.label}
@@ -417,25 +422,25 @@ export function WalletScreen() {
           </div>
         </div>
         {allActivities.length > 0 ? (
-          <div className="mt-3 flex flex-col gap-2.5 rounded-2xl border border-border/70 bg-surface-1/50 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex flex-wrap items-center gap-1.5 text-[11px] font-medium">
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-white px-2.5 py-1 text-fg">
+          <div className="mt-3 flex flex-col gap-2.5 rounded-2xl border border-border bg-surface-1 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-wrap items-center gap-1.5 text-xs font-medium">
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-bg px-2.5 py-1 text-fg">
                 <span className="size-1.5 rounded-full bg-fg-muted" aria-hidden="true" />
                 <span className="num">{allActivities.length}</span>
                 <span className="text-fg-muted">movimientos</span>
               </span>
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-white px-2.5 py-1 text-fg">
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-bg px-2.5 py-1 text-fg">
                 <span className="size-1.5 rounded-full bg-up" aria-hidden="true" />
                 <span className="num">{buyCount}</span>
                 <span className="text-fg-muted">compras</span>
               </span>
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-white px-2.5 py-1 text-fg">
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-bg px-2.5 py-1 text-fg">
                 <span className="size-1.5 rounded-full bg-down" aria-hidden="true" />
                 <span className="num">{sellCount}</span>
                 <span className="text-fg-muted">ventas y retiros</span>
               </span>
               {activityTerm.length > 0 ? (
-                <span className="inline-flex items-center gap-1.5 rounded-full border border-brand/25 bg-brand-soft/40 px-2.5 py-1 font-semibold text-fg">
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface-2 px-2.5 py-1 font-semibold text-fg">
                   <span className="num">{filteredActivities.length}</span>
                   <span>{filteredActivities.length === 1 ? "resultado" : "resultados"}</span>
                 </span>
@@ -447,12 +452,12 @@ export function WalletScreen() {
               onChange={(e) => setActivityQuery(e.target.value)}
               placeholder="Buscar por símbolo (ej. NVDAx, USDC) o hash..."
               aria-label="Buscar en actividad"
-              className="h-9 w-full rounded-xl border border-border/70 bg-surface-1/60 px-3 text-xs text-fg placeholder:text-fg-muted outline-none focus:border-fg/40 sm:w-64"
+              className="h-11 w-full rounded-xl border border-border bg-surface-1 px-3 text-[13px] text-fg placeholder:text-fg-muted outline-none focus:border-fg/40 sm:h-9 sm:w-64"
             />
           </div>
         ) : null}
         {activityTerm.length > 0 && filteredActivities.length === 0 ? (
-          <p role="status" className="mt-3 rounded-2xl border border-border/70 bg-surface-1/60 px-4 py-3 text-sm leading-relaxed text-fg-muted">
+          <p role="status" className="mt-3 rounded-2xl border border-border bg-surface-1 px-4 py-3 text-sm leading-relaxed text-fg-muted">
             Sin resultados para «{activityQuery.trim()}». Revisa el símbolo o el hash de la transacción, o limpia el buscador para ver todo el historial.
           </p>
         ) : (
@@ -593,7 +598,7 @@ function ActivityList({
           <h3 id={`day-${group.key}`} className="label">
             {group.label}
           </h3>
-          <ul className="min-w-0 divide-y divide-border/60">
+          <ul className="min-w-0 divide-y divide-border">
             {group.rows.map((row) => (
               <li key={row.id}>
                 <ActivityItem

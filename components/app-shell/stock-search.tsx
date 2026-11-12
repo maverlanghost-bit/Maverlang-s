@@ -35,7 +35,8 @@ import type { Currency, Quote } from "@/lib/types";
 const SEARCH_MS = 300;
 const PAGE_SIZE = 20;
 
-type Box = { top: number; left: number; width: number; maxHeight: number };
+type PopoverBox = { top: number; left: number; width: number; maxHeight: number };
+type Placement = { sheet: boolean; box: PopoverBox | null };
 
 function subscribeMounted() {
   return () => {};
@@ -45,31 +46,34 @@ function useMounted() {
   return useSyncExternalStore(subscribeMounted, () => true, () => false);
 }
 
-/** El menú sale al lado del botón, por fuera de la barra. Si no cabe, queda debajo. */
-function placeMenu(anchor: HTMLElement, viewport: { width: number; height: number }): Box {
+/**
+ * En escritorio el menú sale al lado del botón, por fuera de la barra; si no
+ * cabe, queda debajo. En móvil el buscador es una hoja a pantalla completa:
+ * un popover de 360px bajo la barra deja media pantalla muerta y compite con
+ * el scroll del body.
+ */
+function placeMenu(anchor: HTMLElement, viewport: { width: number; height: number }): Placement {
+  if (viewport.width < 1024) return { sheet: true, box: null };
   const rect = anchor.getBoundingClientRect();
   const aside = anchor.closest("aside");
   const edge = aside ? Math.max(rect.right, aside.getBoundingClientRect().right) : rect.right;
   const margin = 12;
-  const width = Math.min(360, viewport.width - margin * 2);
-  if (viewport.width < 1024) {
-    const top = Math.max(margin, Math.min(rect.bottom + 8, viewport.height - margin - 240));
-    return {
-      top,
-      left: margin,
-      width: viewport.width - margin * 2,
-      maxHeight: Math.max(240, viewport.height - top - margin),
-    };
-  }
+  const width = Math.min(384, viewport.width - margin * 2);
   const fitsRight = edge + 8 + width <= viewport.width - margin;
   if (fitsRight) {
     const maxHeight = Math.min(520, viewport.height - margin * 2);
     const top = Math.max(margin, Math.min(rect.top, viewport.height - margin - maxHeight));
-    return { top, left: edge + 8, width, maxHeight: Math.min(maxHeight, viewport.height - top - margin) };
+    return {
+      sheet: false,
+      box: { top, left: edge + 8, width, maxHeight: Math.min(maxHeight, viewport.height - top - margin) },
+    };
   }
   const top = Math.max(margin, rect.bottom + 8);
   const left = Math.max(margin, Math.min(edge - width, viewport.width - margin - width));
-  return { top, left, width, maxHeight: Math.max(240, viewport.height - top - margin) };
+  return {
+    sheet: false,
+    box: { top, left, width, maxHeight: Math.max(240, viewport.height - top - margin) },
+  };
 }
 
 type SearchApi = {
@@ -185,11 +189,11 @@ export function StockSearchButton({
       aria-haspopup="dialog"
       onClick={onClick}
       className={cn(
-        "group flex cursor-pointer items-center rounded-lg text-left transition-colors duration-150",
+        "group flex cursor-pointer items-center rounded-lg text-left transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fg",
         collapsed
-          ? "mx-auto size-11 justify-center text-fg-muted hover:bg-fg/[0.05] hover:text-fg"
-          : "min-h-11 w-full gap-2 border border-border-control bg-bg pl-2.5 pr-2 text-[13px] text-fg-muted hover:border-fg/40 hover:text-fg",
-        api.open && !collapsed && "border-fg/50 text-fg",
+          ? "mx-auto size-11 justify-center text-fg-muted hover:bg-fg/[0.055] hover:text-fg"
+          : "min-h-11 w-full gap-2 border border-border-control bg-bg px-3 text-sm text-fg-muted hover:border-fg/40 hover:text-fg",
+        api.open && !collapsed && "border-fg text-fg",
       )}
     >
       <IconSearch className="size-4 shrink-0" />
@@ -197,7 +201,7 @@ export function StockSearchButton({
       {collapsed ? null : (
         <kbd
           aria-hidden
-          className="hidden shrink-0 rounded border border-border px-1 py-0.5 font-mono text-[10px] leading-none text-fg-subtle lg:inline"
+          className="hidden shrink-0 rounded border border-border px-1 py-0.5 font-mono text-[11px] leading-none text-fg-muted lg:inline"
         >
           /
         </kbd>
@@ -226,7 +230,8 @@ function StockSearchPanel({
   const [draft, setDraft] = useState("");
   const [needle, setNeedle] = useState("");
   const [active, setActive] = useState(0);
-  const [box, setBox] = useState<Box | null>(null);
+  const [box, setBox] = useState<PopoverBox | null>(null);
+  const [sheet, setSheet] = useState(false);
   const mounted = useMounted();
   const focused = useRef(false);
 
@@ -243,14 +248,20 @@ function StockSearchPanel({
       const anchor = anchorRef.current;
       if (!anchor) return;
       const next = placeMenu(anchor, { width: window.innerWidth, height: window.innerHeight });
+      setSheet(next.sheet);
+      if (!next.box) {
+        setBox(null);
+        return;
+      }
+      const target = next.box;
       setBox((current) =>
         current &&
-        current.top === next.top &&
-        current.left === next.left &&
-        current.width === next.width &&
-        current.maxHeight === next.maxHeight
+        current.top === target.top &&
+        current.left === target.left &&
+        current.width === target.width &&
+        current.maxHeight === target.maxHeight
           ? current
-          : next,
+          : target,
       );
     };
     place();
@@ -262,11 +273,21 @@ function StockSearchPanel({
     };
   }, [anchorRef]);
 
+  /** La hoja móvil tapa la página: el body no scrollea por detrás. */
   useEffect(() => {
-    if (!mounted || !box || focused.current) return;
+    if (!sheet) return;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previous;
+    };
+  }, [sheet]);
+
+  useEffect(() => {
+    if (!mounted || (!sheet && !box) || focused.current) return;
     focused.current = true;
     inputRef.current?.focus();
-  }, [box, mounted]);
+  }, [box, sheet, mounted]);
 
   useEffect(() => {
     const onPointerDown = (event: PointerEvent) => {
@@ -324,15 +345,25 @@ function StockSearchPanel({
     router.push(`/app/accion/${encodeURIComponent(symbol)}`);
   }
 
-  if (!mounted || !box) return null;
+  if (!mounted || (!sheet && !box)) return null;
 
   return createPortal(
     <div
       ref={panelRef}
       role="dialog"
+      aria-modal={sheet ? true : undefined}
       aria-label={t.market.searchLabel}
-      className="fixed z-40 flex flex-col overflow-hidden rounded-xl border border-border bg-bg shadow-float"
-      style={{ top: box.top, left: box.left, width: box.width, maxHeight: box.maxHeight }}
+      className={cn(
+        "fixed z-50 flex flex-col overflow-hidden bg-bg",
+        sheet
+          ? "inset-0 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]"
+          : "rounded-xl border border-border shadow-float",
+      )}
+      style={
+        sheet || !box
+          ? undefined
+          : { top: box.top, left: box.left, width: box.width, maxHeight: box.maxHeight }
+      }
       onKeyDown={(event) => {
         if (event.key === "Escape") {
           event.preventDefault();
@@ -352,7 +383,7 @@ function StockSearchPanel({
         <label htmlFor={inputId} className="sr-only">
           {t.market.searchLabel}
         </label>
-        <div className="flex min-w-0 flex-1 items-center gap-2.5 rounded-lg border border-border-control bg-bg px-3 transition-colors duration-150 focus-within:border-fg">
+        <div className="flex min-h-11 min-w-0 flex-1 items-center gap-2.5 rounded-lg border border-border-control bg-bg px-3 transition-colors duration-150 focus-within:border-fg">
           <IconSearch className="size-4 shrink-0 text-fg-muted" />
           <Input
             ref={inputRef}
@@ -384,7 +415,7 @@ function StockSearchPanel({
           />
           {draft ? null : (
             <kbd
-              className="pointer-events-none shrink-0 rounded border border-border px-1.5 py-0.5 font-mono text-[10px] leading-none text-fg-subtle"
+              className="pointer-events-none hidden shrink-0 rounded border border-border px-1.5 py-0.5 font-mono text-[11px] leading-none text-fg-muted sm:block"
               aria-hidden
             >
               /
@@ -395,13 +426,13 @@ function StockSearchPanel({
           type="button"
           aria-label={t.shell.searchClose}
           onClick={onDismiss}
-          className="flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-full text-fg-muted transition-colors hover:bg-surface-2 hover:text-fg"
+          className="flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-full text-fg-muted transition-colors hover:bg-surface-2 hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fg"
         >
           <IconClose />
         </button>
       </form>
 
-      <div className="min-h-0 flex-1 overflow-y-auto p-1.5">
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-1.5">
         {needle.length === 0 ? (
           <div className="flex flex-col items-center gap-2.5 px-6 py-10 text-center">
             <IconSearch className="size-5 text-fg-subtle" />
@@ -469,19 +500,19 @@ function StockSearchPanel({
                       <span className="flex min-w-0 items-center gap-2">
                         <span className="truncate text-sm font-medium text-fg">{row.item.name}</span>
                         {row.item.underReview ? (
-                          <Badge tone="warn" className="shrink-0 px-1.5 py-0 text-[10px]">
+                          <Badge tone="warn" className="shrink-0 px-1.5 py-0 text-[11px]">
                             {t.market.underReview}
                           </Badge>
                         ) : null}
                       </span>
                       <span className="mt-0.5 flex min-w-0 items-center gap-1.5">
-                        <span className="num shrink-0 text-[11px] uppercase tracking-[0.03em] text-fg-muted">
+                        <span className="num shrink-0 text-xs uppercase tracking-[0.03em] text-fg-muted">
                           {row.item.symbol}
                         </span>
-                        <span aria-hidden className="text-[11px] text-fg-subtle">
+                        <span aria-hidden className="text-xs text-fg-subtle">
                           ·
                         </span>
-                        <span className="truncate text-[11px] text-fg-subtle">
+                        <span className="truncate text-xs text-fg-muted">
                           {t.market[row.item.category]}
                         </span>
                       </span>
@@ -502,7 +533,7 @@ function StockSearchPanel({
         ) : null}
 
         {search.data?.hasMore && rows.length > 0 ? (
-          <p className="px-4 py-2.5 text-center text-[11px] text-fg-subtle">{t.market.searchMore}</p>
+          <p className="px-4 py-2.5 text-center text-xs text-fg-muted">{t.market.searchMore}</p>
         ) : null}
       </div>
     </div>,

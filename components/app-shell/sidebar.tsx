@@ -39,12 +39,15 @@ const ACTION_EVENT = "maverlang:ai-chat-action";
  * Fila base del riel: 44px de alto. Sin íconos cuando hay texto: la jerarquía
  * la hacen el peso, el color y el fondo; el ícono sólo aparece en el riel
  * colapsado (con tooltip), donde no cabe la etiqueta.
+ *
+ * El estado activo es una píldora blanca con hairline de control: se distingue
+ * por forma y por borde, no por sombra (en modo claro la sombra casi no existe).
  */
 const ROW_BASE =
-  "group relative flex cursor-pointer items-center rounded-lg transition-colors duration-150";
-const ROW_EXPANDED = "min-h-11 w-full gap-2.5 px-3";
-const ROW_HOVER = "hover:bg-fg/[0.04] hover:text-fg";
-const ROW_ACTIVE = "bg-bg font-medium text-fg ring-1 ring-border";
+  "group relative flex cursor-pointer items-center rounded-lg transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fg";
+const ROW_EXPANDED = "min-h-11 w-full gap-2.5 px-3 text-sm";
+const ROW_HOVER = "hover:bg-fg/[0.055] hover:text-fg";
+const ROW_ACTIVE = "bg-bg font-medium text-fg ring-1 ring-border-strong/60";
 
 type SidebarChatAction =
   | { type: "rename"; chatId: string; title: string }
@@ -192,13 +195,13 @@ function AccountMenuPanel({
   if (!open) return null;
 
   const item =
-    "flex min-h-10 w-full items-center rounded-lg px-2.5 text-left text-[13px] text-fg-body transition-colors hover:bg-surface-1 hover:text-fg";
+    "flex min-h-11 w-full items-center rounded-lg px-3 text-left text-sm text-fg-body transition-colors hover:bg-surface-1 hover:text-fg";
 
   return (
     <div
       role="menu"
       aria-label={labels.account}
-      className="absolute inset-x-0 bottom-full z-40 mb-2 flex flex-col rounded-xl border border-border/70 bg-bg p-1.5 shadow-float"
+      className="absolute inset-x-0 bottom-full z-40 mb-2 flex flex-col rounded-xl border border-border bg-bg p-1.5 shadow-float"
     >
       <Link role="menuitem" href="/app/perfil" onClick={onClose} className={item}>
         {labels.profile}
@@ -207,9 +210,9 @@ function AccountMenuPanel({
         {labels.settings}
       </Link>
       <div role="presentation" className="my-1 h-px bg-border" />
-      <div className="flex items-center justify-between gap-2 pl-2.5 pr-1">
+      <div className="flex min-h-11 items-center justify-between gap-2 pl-3 pr-1">
         <span className="label-xs">{labels.currency}</span>
-        <CurrencySwitch />
+        <CurrencySwitch compact />
       </div>
       <div role="presentation" className="my-1 h-px bg-border" />
       <button
@@ -249,12 +252,12 @@ function AccountTrigger({
     >
       <Avatar alt="" fallback={name} size="sm" className="size-8" />
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-[13px] font-medium leading-5 text-fg">{name}</span>
-        {email ? <span className="block truncate text-[11px] leading-4 text-fg-subtle">{email}</span> : null}
+        <span className="block truncate text-sm font-medium leading-5 text-fg">{name}</span>
+        {email ? <span className="block truncate text-xs leading-4 text-fg-muted">{email}</span> : null}
       </span>
       <IconChevron
         className={cn(
-          "size-3.5 shrink-0 text-fg-subtle transition-transform duration-200",
+          "size-3.5 shrink-0 text-fg-muted transition-transform duration-200",
           open && "rotate-180",
         )}
       />
@@ -365,7 +368,7 @@ export function Sidebar({
         aria-current={active ? "page" : undefined}
         className={cn(
           ROW_BASE,
-          collapsed ? "size-11 justify-center" : cn(ROW_EXPANDED, utility ? "text-[13px]" : "text-sm"),
+          collapsed ? "size-11 justify-center" : ROW_EXPANDED,
           active ? ROW_ACTIVE : cn(utility ? "text-fg-muted" : "text-fg-body", ROW_HOVER),
         )}
       >
@@ -387,16 +390,16 @@ export function Sidebar({
   return (
     <aside
       className={cn(
-        "sticky top-0 z-30 hidden h-dvh shrink-0 flex-col overflow-visible border-r border-border bg-surface-1/60 lg:flex",
+        "sticky top-0 z-30 hidden h-dvh shrink-0 flex-col overflow-visible border-r border-border bg-surface-1 lg:flex",
         WIDTH_ANIMATION,
-        collapsed ? "w-[72px]" : "w-[240px]",
+        collapsed ? "w-[76px]" : "w-[240px]",
       )}
     >
-      {/* Marca. El slot de 44px queda centrado en los 72px del riel colapsado
-          (14 + 44 + 14 = 72), así el isotipo no se mueve al colapsar. */}
+      {/* Marca. El slot de 44px queda centrado en los 76px del riel colapsado
+          (16 + 44 + 16 = 76), así el isotipo no se mueve al colapsar. */}
       <div
         className={cn(
-          "flex shrink-0 items-center px-3.5 pt-3",
+          "flex shrink-0 items-center px-4 pt-3",
           collapsed ? "justify-center pb-1" : "justify-between pb-1.5",
         )}
       >
@@ -419,7 +422,7 @@ export function Sidebar({
             onClick={onToggle}
             aria-label={t.shell.collapseSidebar}
             title={`${t.shell.collapseSidebar} (Ctrl+B)`}
-            className="flex size-9 cursor-pointer items-center justify-center rounded-lg text-fg-subtle transition-colors hover:bg-fg/[0.05] hover:text-fg"
+            className="flex size-11 cursor-pointer items-center justify-center rounded-lg text-fg-muted transition-colors hover:bg-fg/[0.055] hover:text-fg"
           >
             <PanelLeftCloseIcon className="size-4" />
           </button>
@@ -432,7 +435,7 @@ export function Sidebar({
               type="button"
               onClick={onToggle}
               aria-label={t.shell.expandSidebar}
-              className="flex size-11 cursor-pointer items-center justify-center rounded-lg text-fg-subtle transition-colors hover:bg-fg/[0.05] hover:text-fg"
+              className="flex size-11 cursor-pointer items-center justify-center rounded-lg text-fg-muted transition-colors hover:bg-fg/[0.055] hover:text-fg"
             >
               <PanelLeftIcon className="size-4" />
             </button>
@@ -440,7 +443,7 @@ export function Sidebar({
         </div>
       ) : null}
 
-      <nav aria-label={t.nav.label} className="flex-1 overflow-y-auto px-3.5 pt-1 pb-2">
+      <nav aria-label={t.nav.label} className="flex-1 overflow-y-auto px-4 pt-1 pb-2">
         {isAiRoute ? (
           collapsed ? (
             <ul className="flex flex-col items-center gap-0.5">
@@ -517,7 +520,7 @@ export function Sidebar({
                 </li>
               </ul>
 
-              <div className="mt-3 border-t border-border/70 pt-2">
+              <div className="mt-3 border-t border-border pt-2">
                 <NavChatsHistory
                   chats={savedChats}
                   activeChatId={activeChatId}
@@ -541,7 +544,7 @@ export function Sidebar({
                 <li key={item.id}>{navRow(item, false)}</li>
               ))}
             </ul>
-            <div aria-hidden className="mx-1 my-2 h-px bg-border/70" />
+            <div aria-hidden className="mx-1 my-2 h-px bg-border" />
             <ul className="flex flex-col gap-0.5">
               {sidebarUtility.map((item) => (
                 <li key={item.id}>{navRow(item, true)}</li>
@@ -551,10 +554,10 @@ export function Sidebar({
         )}
       </nav>
 
-      <footer className="shrink-0 border-t border-border/70 px-3.5 py-3">
+      <footer className="shrink-0 border-t border-border px-4 py-3">
         {!isAiRoute && !collapsed ? (
           <>
-            <BalanceHeader variant="sidebar" className="bg-bg shadow-none" />
+            <BalanceHeader variant="sidebar" className="bg-bg" />
             <div className="mt-2">
               <AccountSwitch mode={accountMode} onChange={onAccountChange ?? (() => {})} />
             </div>
@@ -586,7 +589,7 @@ export function Sidebar({
                 href="/app/perfil"
                 aria-label={loading ? t.shell.account : `${name}. ${t.shell.account}`}
                 title={loading ? t.shell.account : name}
-                className="flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-lg hover:bg-fg/[0.04]"
+                className="flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-lg hover:bg-fg/[0.055]"
               >
                 <Avatar alt="" fallback={name} size="sm" className="size-8" />
               </Link>

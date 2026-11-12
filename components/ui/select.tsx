@@ -115,7 +115,7 @@ export function Select({
             setOpen(true);
           }}
           onKeyDown={onKeyDown}
-          className="flex h-11 w-full items-center justify-between gap-2 rounded-md border border-[#767676] bg-surface-2 px-3 text-left text-base text-fg transition duration-[140ms] focus-visible:border-fg disabled:opacity-40"
+          className="flex h-11 w-full items-center justify-between gap-2 rounded-md border border-control bg-surface-2 px-3 text-left text-base text-fg transition duration-[140ms] ease-spring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fg focus-visible:ring-offset-2 focus-visible:ring-offset-bg disabled:cursor-not-allowed disabled:opacity-60"
         >
           {/* M85: el placeholder es texto visible; AA exige 4,5:1 (fg-subtle da 2,2:1). */}
           <span className={cn("truncate", !selectedOption && "text-fg-muted")}>
@@ -128,7 +128,7 @@ export function Select({
             id={listId}
             role="listbox"
             aria-labelledby={labelId}
-            className="absolute top-full right-0 left-0 z-20 mt-1 max-h-60 overflow-y-auto rounded-xl border border-border bg-bg p-1 shadow-float"
+            className="absolute top-full right-0 left-0 z-20 mt-1 max-h-60 overflow-y-auto overscroll-contain rounded-xl border border-border bg-bg p-1 shadow-card"
           >
             {options.map((option, index) => {
               const isSelected = option.value === selected;

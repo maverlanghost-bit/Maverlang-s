@@ -3,6 +3,7 @@
 import { type ReactNode, useCallback, useEffect, useId, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
 import { site } from "@/config/site";
 import { cn } from "@/lib/cn";
 import { formatClp, formatDateTime, formatShares, formatUsd } from "@/lib/format";
@@ -39,7 +40,7 @@ function ReceiptRow({
 }) {
   return (
     <div className="grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-6 py-2.5">
-      <dt className="label-xs min-w-0">{label}</dt>
+      <dt className="label min-w-0">{label}</dt>
       <dd
         className={cn(
           "min-w-0 text-right leading-5",
@@ -177,7 +178,7 @@ export function TradeReceiptTrigger({
         type="button"
         aria-haspopup="dialog"
         onClick={() => setOpen(true)}
-        className="inline-flex min-h-10 items-center gap-1.5 rounded-full border border-border-control/50 bg-bg px-3 text-xs font-medium text-fg-body transition-colors duration-150 hover:border-fg/50 hover:text-fg"
+        className="inline-flex min-h-11 items-center gap-1.5 rounded-full border border-control bg-bg px-4 text-xs font-medium text-fg-body transition-colors duration-150 outline-none hover:border-fg hover:text-fg focus-visible:ring-4 focus-visible:ring-fg/20"
       >
         Comprobante
       </button>
@@ -216,7 +217,7 @@ export function TradeReceiptTrigger({
               </div>
               <span
                 className={cn(
-                  "inline-flex shrink-0 items-center gap-1.5 pt-1 text-[11px] leading-4 font-medium",
+                  "inline-flex shrink-0 items-center gap-1.5 pt-1 text-[12px] leading-4 font-medium",
                   statusMeta.toneClassName,
                 )}
               >
@@ -226,12 +227,12 @@ export function TradeReceiptTrigger({
             </div>
 
             <div className="mt-5 -mx-5 border-y border-border px-5 py-4 sm:-mx-6 sm:px-6">
-              <p className="label-xs">Total operación</p>
-              <p className="num mt-2 text-[2rem] leading-none tracking-[-0.02em] text-fg">{totalUsdLabel}</p>
-              {totalClpLabel ? <p className="num mt-2 text-[13px] leading-5 text-fg-muted">{totalClpLabel}</p> : null}
+              <p className="label">Total operación</p>
+              <p className="num mt-2 text-[2rem] leading-none tracking-[-0.02em] break-words text-fg">{totalUsdLabel}</p>
+              {totalClpLabel ? <p className="num mt-2 text-sm leading-5 text-fg-muted">{totalClpLabel}</p> : null}
             </div>
 
-            <dl className="divide-y divide-border/70">
+            <dl className="divide-y divide-border">
               <ReceiptRow
                 label="Operación"
                 value={kind === "buy" ? "Compra de acción tokenizada" : "Venta de acción tokenizada"}
@@ -248,16 +249,16 @@ export function TradeReceiptTrigger({
 
             {signature ? (
               <div className="mt-4 border-t border-border pt-3">
-                <p className="label-xs">Hash de la transacción</p>
-                <div className="mt-2 flex items-baseline justify-between gap-3">
-                  <span className="num min-w-0 truncate text-[12px] tracking-tight text-fg-body">
+                <p className="label">Hash de la transacción</p>
+                <div className="mt-2 flex items-center justify-between gap-3">
+                  <span className="num min-w-0 truncate text-[12px] leading-5 tracking-tight text-fg-body">
                     {truncateHash(signature)}
                   </span>
                   <a
                     href={explorerTxUrl(signature)}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="shrink-0 text-[12px] font-medium text-fg underline decoration-border-strong underline-offset-4 transition-colors hover:decoration-fg"
+                    className="-mr-1 inline-flex min-h-11 shrink-0 items-center rounded-sm px-1 text-[12px] font-medium text-fg underline decoration-border-strong underline-offset-4 outline-none transition-colors hover:decoration-fg focus-visible:ring-4 focus-visible:ring-fg/20"
                   >
                     Ver en Solscan
                   </a>
@@ -265,7 +266,7 @@ export function TradeReceiptTrigger({
               </div>
             ) : null}
 
-            <p className="mt-4 text-[11px] leading-relaxed text-fg-subtle">
+            <p className="mt-4 text-[12px] leading-relaxed text-fg-muted">
               Documento informativo de la operación. No constituye un instrumento tributario.
             </p>
 
@@ -278,7 +279,7 @@ export function TradeReceiptTrigger({
                 >
                   {copied ? "Folio copiado" : "Copiar folio"}
                 </button>
-                <span aria-hidden="true" className="h-3 w-px bg-border" />
+                <Separator orientation="vertical" className="h-3 bg-border-strong/70" />
                 <button
                   type="button"
                   onClick={() => window.print()}

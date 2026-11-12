@@ -90,7 +90,7 @@ export function TradeExecutionStepper({
                   "relative z-10 mt-0.5 grid size-5 place-items-center rounded-full border bg-bg transition-colors duration-300",
                   isDone && "border-fg bg-fg text-bg",
                   isActive && "border-fg text-fg",
-                  step.state === "waiting" && "border-border-control/50",
+                  step.state === "waiting" && "border-control",
                   isLastWaiting && "motion-safe:animate-pulse motion-reduce:animate-none",
                 )}
               >

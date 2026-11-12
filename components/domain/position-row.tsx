@@ -91,10 +91,10 @@ export function PositionRow({
               <span className="num shrink-0 text-fg-muted">{symbol}</span>
               {weight ? (
                 <>
-                  <span aria-hidden className="text-fg-subtle">
+                  <span aria-hidden className="text-fg-muted">
                     ·
                   </span>
-                  <span className="num shrink-0 text-fg-subtle">{weight}</span>
+                  <span className="num shrink-0 text-fg-muted">{weight}</span>
                 </>
               ) : null}
             </span>
@@ -132,7 +132,7 @@ export function PositionRow({
           ) : pending ? (
             <Skeleton className="ml-auto h-4 w-16" />
           ) : price === null ? (
-            <span className="text-fg-subtle">—</span>
+            <span className="text-fg-muted">—</span>
           ) : (
             formatMoney(price, currency)
           )}
@@ -142,7 +142,7 @@ export function PositionRow({
           {hidden ? null : pending ? (
             <Skeleton className="ml-auto h-4 w-16" />
           ) : pnl === null ? (
-            <span className="num hidden text-[13px] tabular-nums text-fg-subtle max-md:hidden md:inline">—</span>
+            <span className="num hidden text-[13px] tabular-nums text-fg-muted max-md:hidden md:inline">—</span>
           ) : (
             <FlashPrice
               value={pnl}
@@ -153,7 +153,7 @@ export function PositionRow({
             />
           )}
           {hidden ? null : !pending && pnlPct !== null ? (
-            <ChangeBadge value={pnlPct} size="sm" className="shrink-0" />
+            <ChangeBadge value={pnlPct} className="shrink-0" />
           ) : null}
         </span>
       </Link>

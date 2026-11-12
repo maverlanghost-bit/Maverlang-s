@@ -26,7 +26,7 @@ export function EmptyState({
     <div className={cn("flex flex-col items-center gap-4 py-10 text-center sm:py-14", className)}>
       {media ??
         (icon ? (
-          <span aria-hidden className="flex size-10 items-center justify-center text-fg-subtle [&_svg]:size-5">
+          <span aria-hidden className="flex size-10 items-center justify-center text-fg-muted [&_svg]:size-5">
             {icon}
           </span>
         ) : null)}

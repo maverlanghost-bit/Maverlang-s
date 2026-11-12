@@ -23,7 +23,7 @@ export function Dialog({
       title={title}
       description={description}
       frameClassName="flex items-center justify-center p-4"
-      panelClassName="max-h-[85dvh] w-full max-w-md overflow-y-auto overscroll-contain rounded-3xl bg-bg p-6 shadow-float animate-pop-in"
+      panelClassName="max-h-[85dvh] w-full max-w-md overflow-y-auto overscroll-contain rounded-xl bg-bg p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-card animate-pop-in sm:p-6"
     >
       {children}
     </OverlayPanel>

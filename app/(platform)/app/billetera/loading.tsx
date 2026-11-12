@@ -19,7 +19,7 @@ export default function BilleteraLoading() {
       </div>
 
       <div className={CARD}>
-        <div className="mb-5 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-border/70 px-3.5 py-2.5">
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-border px-3.5 py-2.5">
           <div className="flex min-w-0 items-center gap-2">
             <Skeleton className="size-2 shrink-0 rounded-full" />
             <Skeleton className="h-3.5 w-36 max-w-[55%]" />
@@ -30,7 +30,7 @@ export default function BilleteraLoading() {
 
         <Skeleton className="h-3 w-24" />
         <div className="mt-2 flex flex-col gap-2">
-          <Skeleton className="h-11 w-48 max-w-full sm:h-12" />
+          <Skeleton className="h-8 w-44 max-w-full" />
           <Skeleton className="h-4 w-64 max-w-full" />
         </div>
 
@@ -40,7 +40,7 @@ export default function BilleteraLoading() {
           <Skeleton className="h-4 w-full max-w-md" />
         </div>
 
-        <div className="mt-5 grid grid-cols-3 gap-2">
+        <div className="mt-5 flex flex-col gap-2 sm:grid sm:grid-cols-3">
           {["a", "b", "c"].map((key) => (
             <Skeleton key={key} className="h-11 w-full rounded-full" />
           ))}
@@ -49,7 +49,7 @@ export default function BilleteraLoading() {
 
       <div className={CARD}>
         <Skeleton className="h-6 w-36 max-w-full" />
-        <div className="mt-2 flex flex-col divide-y divide-border/60">
+        <div className="mt-2 flex flex-col divide-y divide-border">
           {ASSET_ROWS.map((key) => (
             <div key={key} className="flex min-h-16 items-center gap-3 py-2">
               <Skeleton className="size-9 shrink-0 rounded-full" />
@@ -72,16 +72,16 @@ export default function BilleteraLoading() {
           <Skeleton className="h-7 w-56 max-w-full rounded-full" />
         </div>
 
-        <div className="mt-4 flex flex-col gap-2.5 rounded-2xl border border-border/70 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between">
+        <div className="mt-4 flex flex-col gap-2.5 rounded-2xl border border-border px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between">
           <Skeleton className="h-6 w-64 max-w-full rounded-full" />
-          <Skeleton className="h-9 w-full rounded-xl sm:w-64" />
+          <Skeleton className="h-11 w-full rounded-xl sm:h-9 sm:w-64" />
         </div>
 
         <div className="mt-4 flex flex-col gap-6">
           {["a", "b"].map((group) => (
             <div key={group} className="flex flex-col gap-2">
               <Skeleton className="h-3 w-24" />
-              <div className="flex flex-col divide-y divide-border/60">
+              <div className="flex flex-col divide-y divide-border">
                 {MOVES.map((key) => (
                   <div key={`${group}-${key}`} className="flex min-h-14 items-center gap-3 py-2">
                     <div className="flex min-w-0 flex-1 flex-col gap-2">

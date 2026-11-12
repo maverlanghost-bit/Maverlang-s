@@ -21,7 +21,7 @@ const sizeClass: Record<ButtonSize, string> = {
 };
 
 export const buttonBase =
-  "inline-flex items-center justify-center rounded-full font-medium transition duration-[140ms] ease-spring active:scale-[0.98] disabled:pointer-events-none disabled:opacity-40";
+  "inline-flex items-center justify-center rounded-full font-medium transition duration-[140ms] ease-spring active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fg focus-visible:ring-offset-2 focus-visible:ring-offset-bg disabled:pointer-events-none disabled:opacity-50";
 
 export function buttonClasses({
   variant = "primary",

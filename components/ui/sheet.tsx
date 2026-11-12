@@ -35,7 +35,7 @@ export function Sheet({
       description={description}
       panelClassName={cn(
         // Hoja: columna con cabecera fija y un solo cuerpo desplazable.
-        "absolute inset-x-0 bottom-0 flex max-h-[92dvh] flex-col overflow-hidden rounded-t-3xl bg-bg shadow-float animate-sheet-up",
+        "absolute inset-x-0 bottom-0 flex max-h-[92dvh] flex-col overflow-hidden rounded-t-xl bg-bg shadow-card animate-sheet-up",
         "px-5 pt-4",
         // Cabecera siempre visible: el título y el cierre no se van con el scroll.
         "[&>h2]:shrink-0 [&>h2]:pr-14 [&>h2]:text-[17px] [&>h2]:leading-6 [&>h2]:tracking-[-0.01em]",
@@ -45,7 +45,7 @@ export function Sheet({
         // Cierre evidente: botón con borde propio, no un icono flotando sobre el contenido.
         "[&>button]:top-3 [&>button]:right-3 [&>button]:border [&>button]:border-border [&>button]:text-fg-muted",
         // Desktop: panel lateral a alto completo.
-        "md:inset-y-0 md:right-0 md:left-auto md:h-full md:max-h-none md:w-[26rem] md:rounded-none md:rounded-l-3xl md:border-l md:border-border md:px-7 md:pt-5 md:animate-sheet-side lg:w-[28rem]",
+        "md:inset-y-0 md:right-0 md:left-auto md:h-full md:max-h-none md:w-[26rem] md:rounded-none md:rounded-l-xl md:border-l md:border-border md:px-7 md:pt-5 md:animate-sheet-side lg:w-[28rem]",
         "md:[&>div]:-mx-7 md:[&>div]:px-7",
         description ? "[&>h2]:pb-1 [&>p]:pb-3" : "[&>h2]:pb-3",
         fill ? "pb-0 [&>div]:flex [&>div]:flex-col" : "pb-[max(1.5rem,env(safe-area-inset-bottom))] md:pb-7",

@@ -11,11 +11,11 @@ export function WalletVaultHeader({ solUi, lowSol, mode }: WalletVaultHeaderProp
   const bars = solUi <= 0 ? 0 : lowSol ? 1 : solUi < 0.02 ? 2 : solUi < 0.05 ? 3 : 4;
 
   return (
-    <div className="mb-5 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-border/70 bg-surface-1/70 px-3.5 py-2.5 text-xs">
+    <div className="mb-5 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-border bg-surface-1 px-3.5 py-2.5 text-xs">
       <div className="flex items-center gap-2">
         <span className="size-2 rounded-full bg-up" aria-hidden="true" />
         <span className="font-semibold text-fg">Bóveda Autocustodia · Solana SPL</span>
-        <span className="rounded-full border border-border/60 bg-white px-2 py-0.5 text-[11px] font-medium text-fg-muted">
+        <span className="rounded-full border border-border bg-bg px-2 py-0.5 text-xs font-medium text-fg-muted">
           {mode === "real" ? "Cuenta real" : "Modo demo"}
         </span>
       </div>

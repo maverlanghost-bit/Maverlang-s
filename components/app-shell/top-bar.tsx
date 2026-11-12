@@ -42,7 +42,7 @@ export function TopBar({
   return (
     <>
       {hideMobileCluster ? null : (
-        <div className="fixed inset-x-0 top-0 z-30 border-b border-border/70 bg-bg/85 pt-[env(safe-area-inset-top)] backdrop-blur-xl lg:hidden">
+        <div className="fixed inset-x-0 top-0 z-30 border-b border-border bg-bg/90 pt-[env(safe-area-inset-top)] backdrop-blur-xl lg:hidden">
           <div className="mx-auto flex h-14 w-full max-w-6xl items-center gap-2 px-5">
             <div className="min-w-0 flex-1">
               <StockSearchButton />
@@ -51,7 +51,7 @@ export function TopBar({
             <Link
               href="/app/perfil"
               aria-label={label}
-              className="relative flex size-11 shrink-0 items-center justify-center rounded-full transition-colors duration-150 hover:bg-surface-2"
+              className="relative flex size-11 shrink-0 items-center justify-center rounded-full transition-colors duration-150 hover:bg-surface-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fg"
             >
               {account.loading ? (
                 <Skeleton className="size-8 rounded-full" />
@@ -66,8 +66,8 @@ export function TopBar({
         </div>
       )}
       {assistantRoute ? null : (
-        <div className="sticky top-0 z-20 hidden border-b border-border/70 bg-bg/85 backdrop-blur-xl lg:block">
-          <div className="mx-auto flex w-full max-w-6xl items-center gap-4 px-8 py-2">
+        <div className="sticky top-0 z-20 hidden border-b border-border bg-bg/90 backdrop-blur-xl lg:block">
+          <div className="mx-auto flex h-16 w-full max-w-6xl items-center gap-4 px-8">
             <div className="w-full max-w-[22rem] min-w-0">
               <StockSearchButton />
             </div>

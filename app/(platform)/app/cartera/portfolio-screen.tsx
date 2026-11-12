@@ -266,9 +266,9 @@ function PatrimonyHero({
       <div className="mt-3 flex flex-col gap-6 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between sm:gap-x-12">
         <div className="min-w-0">
           {masked ? (
-            <Masked label={hiddenLabel} className="num block text-[2.5rem] tracking-[0.14em] sm:text-[3.5rem]" />
+            <Masked label={hiddenLabel} className="num block text-[1.75rem] tracking-[0.14em] sm:text-[2rem]" />
           ) : pendingFx ? (
-            <Skeleton className="h-12 w-64 max-w-full sm:h-14" />
+            <Skeleton className="h-8 w-56 max-w-full sm:h-9" />
           ) : (
             <span className="-ml-1 block">
               <FlashPrice
@@ -277,11 +277,11 @@ function PatrimonyHero({
                 size="lg"
                 live={!hoverActive}
                 force={hoverForce}
-                className="block text-[2.5rem] leading-none font-medium tracking-tight sm:text-[3.5rem]"
+                className="block text-[1.75rem] leading-none font-medium tracking-tight tabular-nums sm:text-[2rem]"
               />
             </span>
           )}
-          <p className="mt-2 h-4 text-xs text-fg-subtle">{hoverActive && !masked ? onChart : ""}</p>
+          <p className="mt-2 h-4 text-xs text-fg-muted">{hoverActive && !masked ? onChart : ""}</p>
         </div>
 
         <dl className="flex flex-wrap items-end gap-x-10 gap-y-4">
@@ -514,7 +514,7 @@ export function PortfolioScreen() {
         <span className="sr-only">{t.states.loading}</span>
         <div className="flex flex-col">
           <Skeleton className="h-3 w-24" />
-          <Skeleton className="mt-4 h-11 w-64 max-w-full sm:h-14" />
+          <Skeleton className="mt-4 h-8 w-56 max-w-full sm:h-9" />
           <div className="mt-8 flex flex-wrap gap-x-10 gap-y-5 border-t border-border pt-5">
             {["ganancia", "invertido", "disponible"].map((key) => (
               <div key={key} className="flex flex-col gap-2">
@@ -692,7 +692,7 @@ export function PortfolioScreen() {
                           {masked ? (
                             <Masked label={t.shell.balanceHidden} className="shrink-0 text-[13px]" />
                           ) : (
-                            <ChangeBadge value={perf.best.pnlPct} size="sm" className="shrink-0" />
+                            <ChangeBadge value={perf.best.pnlPct} className="shrink-0" />
                           )}
                         </>
                       )}
@@ -711,7 +711,7 @@ export function PortfolioScreen() {
                             {masked ? (
                               <Masked label={t.shell.balanceHidden} className="shrink-0 text-[13px]" />
                             ) : (
-                              <ChangeBadge value={perf.worst.pnlPct} size="sm" className="shrink-0" />
+                              <ChangeBadge value={perf.worst.pnlPct} className="shrink-0" />
                             )}
                           </>
                         )}
@@ -724,12 +724,12 @@ export function PortfolioScreen() {
               <div className="mt-6 hidden items-center gap-4 pb-2 md:flex">
                 <div className={cn(POSITION_ROW_GRID, "flex-1")}>
                   <span aria-hidden />
-                  <span className="label-xs text-right">{t.detail.shares}</span>
-                  <span className="label-xs text-right">
+                  <span className="label text-right">{t.detail.shares}</span>
+                  <span className="label text-right">
                     {currency === "CLP" ? t.detail.priceClp : t.detail.priceUsd}
                   </span>
-                  <span className="label-xs text-right">{t.detail.value}</span>
-                  <span className="label-xs text-right">{t.portfolio.pnl}</span>
+                  <span className="label text-right">{t.detail.value}</span>
+                  <span className="label text-right">{t.portfolio.pnl}</span>
                 </div>
                 <span aria-hidden className={cn("shrink-0", POSITION_ACTION_WIDTH)} />
               </div>
@@ -780,7 +780,7 @@ export function PortfolioScreen() {
                         }
                       />
                       {position.avgCostUsd !== null && Number.isFinite(position.avgCostUsd) ? (
-                        <p className="flex min-w-0 items-baseline gap-1.5 pb-3 pl-12 text-[12px] leading-4 text-fg-subtle tabular-nums sm:pl-[3.25rem]">
+                        <p className="flex min-w-0 items-baseline gap-1.5 pb-3 pl-12 text-xs leading-4 text-fg-muted tabular-nums sm:pl-[3.25rem]">
                           <span className="shrink-0">{copy.avgCost}</span>
                           <MoneyLine
                             usd={position.avgCostUsd}

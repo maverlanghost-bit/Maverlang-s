@@ -24,7 +24,7 @@ export function Switch({
   const on = checked ?? internal;
 
   return (
-    <div className={cn("flex min-h-11 items-center justify-between gap-3", disabled && "opacity-40")}>
+    <div className={cn("flex min-h-11 items-center justify-between gap-3", disabled && "opacity-60")}>
       <label htmlFor={buttonId} className="text-sm text-fg">
         {label}
       </label>
@@ -39,9 +39,9 @@ export function Switch({
           if (checked === undefined) setInternal(next);
           onCheckedChange?.(next);
         }}
-        className="inline-flex h-11 w-14 shrink-0 items-center justify-center disabled:pointer-events-none"
+        className="inline-flex h-11 w-14 shrink-0 items-center justify-center rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fg focus-visible:ring-offset-2 focus-visible:ring-offset-bg disabled:pointer-events-none"
       >
-        <span className={cn("relative h-6 w-11 rounded-full transition duration-[140ms]", on ? "bg-fg" : "bg-[#8a8a8a]")}>
+        <span className={cn("relative h-6 w-11 rounded-full transition duration-[140ms]", on ? "bg-fg" : "bg-control")}>
           <span
             aria-hidden
             className={cn(

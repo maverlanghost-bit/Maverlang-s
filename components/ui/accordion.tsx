@@ -41,7 +41,7 @@ export function Accordion({
                 aria-expanded={open}
                 aria-controls={panelId}
                 onClick={() => toggle(item.id)}
-                className="flex min-h-11 w-full items-center justify-between gap-3 px-4 py-3 text-left text-sm font-medium text-fg"
+                className="flex min-h-11 w-full items-center justify-between gap-3 px-4 py-3 text-left text-sm font-medium text-fg transition-colors hover:bg-surface-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fg focus-visible:ring-inset"
               >
                 {item.title}
                 <IconChevron className={cn("shrink-0 text-fg-muted transition duration-[140ms]", open && "rotate-180")} />

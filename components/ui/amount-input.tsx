@@ -229,7 +229,7 @@ export function AmountInput({
               disabled={chip.value === "max" && max === undefined}
               onClick={() => applyQuick(chip.value)}
               className={cn(
-                "inline-flex min-h-11 items-center justify-center rounded-md px-2 text-[12px] leading-none font-medium tracking-[0.01em] tabular-nums transition-colors duration-150 hover:bg-surface-1 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-40",
+                "inline-flex min-h-11 items-center justify-center rounded-md px-2 text-[12px] leading-none font-medium tracking-[0.01em] tabular-nums transition-colors duration-150 hover:bg-surface-1 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50 sm:min-h-9",
                 pressed
                   ? "text-fg underline decoration-fg decoration-1 underline-offset-4"
                   : "text-fg-muted hover:text-fg",
@@ -294,7 +294,7 @@ function CurrencySwitch({
             tabIndex={selected ? 0 : -1}
             onClick={() => onChange(option)}
             className={cn(
-              "min-h-10 rounded-full px-3 text-xs font-medium tracking-[0.01em] transition-colors duration-150",
+              "min-h-11 rounded-full px-3 text-xs font-medium tracking-[0.01em] transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fg focus-visible:ring-inset sm:min-h-9",
               selected
                 ? "bg-surface-2 text-fg shadow-[inset_0_0_0_1px_rgba(10,10,10,0.05)]"
                 : "text-fg-muted hover:text-fg",

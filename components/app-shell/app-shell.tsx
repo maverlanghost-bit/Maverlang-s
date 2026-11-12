@@ -57,11 +57,11 @@ function SyncToastOffset({ includeTabs }: { includeTabs: boolean }) {
 }
 
 /**
- * Ancho real de la barra lateral en escritorio (debe coincidir con `w-[72px]` /
+ * Ancho real de la barra lateral en escritorio (debe coincidir con `w-[76px]` /
  * `w-[240px]` de sidebar.tsx). Se publica como `--app-sidebar-width` para que
  * las capas fijas —el chat de IA— sepan cuánto espacio tienen a la derecha.
  */
-const SIDEBAR_WIDTH = { collapsed: 72, expanded: 240 } as const;
+const SIDEBAR_WIDTH = { collapsed: 76, expanded: 240 } as const;
 
 /** Sin tabs privadas, la barra de la ficha queda al borde de la pantalla. */
 function ClearPrivateTabs() {
@@ -127,8 +127,8 @@ function ShellFrame({
             <TopBar accountMode={account.mode} hideMobileCluster={assistantRoute} />
             <div
               className={cn(
-                "mx-auto flex w-full max-w-6xl flex-1 flex-col px-5 pb-[var(--app-tabs-height)] lg:px-8 lg:pb-0 lg:pt-10",
-                assistantRoute ? "pt-0" : "pt-[calc(env(safe-area-inset-top)+4.25rem)]",
+                "mx-auto flex w-full max-w-6xl flex-1 flex-col px-5 pb-[var(--app-tabs-height)] lg:px-8 lg:pb-0 lg:pt-8",
+                assistantRoute ? "pt-0" : "pt-[calc(env(safe-area-inset-top)+4.5rem)]",
               )}
             >
               <main id="contenido" tabIndex={-1} className="min-w-0 flex-1 scroll-mt-16 outline-none">

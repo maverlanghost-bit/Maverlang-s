@@ -63,8 +63,15 @@ const PROVIDER_OPTIONS = [
  * Superficie del gráfico en pantalla completa: ahí sí hace falta una lámina
  * propia porque tapa la página. En línea el gráfico va sin marco.
  */
-const CHART_SURFACE =
-  "rounded-2xl bg-white p-5 shadow-[0_1px_2px_rgba(16,24,40,0.04),0_8px_24px_rgba(16,24,40,0.08)]";
+const CHART_SURFACE = "rounded-2xl bg-bg p-5 shadow-float ring-1 ring-border";
+
+/**
+ * Un solo tamaño por rol dentro de la ficha: nota 12px en `fg-muted`,
+ * rótulo de métrica 12px mayúsculas y cifra 15px tabular.
+ */
+const NOTE = "text-xs leading-5 text-fg-muted";
+const METRIC_LABEL = "font-mono text-xs leading-4 font-medium tracking-[0.08em] text-fg-muted uppercase";
+const METRIC_VALUE = "num text-[15px] leading-5 font-medium text-fg tabular-nums";
 
 function studyQueryOptions(enabled: boolean) {
   return {
@@ -740,7 +747,7 @@ export function PricePanel({
           {quote && Number.isFinite(quote.change24hPct) ? (
             <span className="inline-flex items-baseline gap-1.5">
               <ChangeBadge value={quote.change24hPct} />
-              <span className="text-[11px] leading-4 text-fg-muted">24 h</span>
+              <span className="text-xs leading-5 text-fg-muted">24 h</span>
             </span>
           ) : null}
         </div>
@@ -752,9 +759,9 @@ export function PricePanel({
             live={polledAt > 0 && polledRow?.stale !== true}
           />
           {point === null && quote.reference ? (
-            <p className="text-[11px] leading-4 text-fg-muted">{t.detail.referencePrice}</p>
+            <p className={NOTE}>{t.detail.referencePrice}</p>
           ) : null}
-          {showFxNote ? <p className="text-[11px] leading-4 text-fg-muted">{t.detail.fxFallback}</p> : null}
+          {showFxNote ? <p className={NOTE}>{t.detail.fxFallback}</p> : null}
         </div>
         {showDislocation && poolPct !== null && marketShown !== null ? (
           <p className="text-xs leading-relaxed text-warn">
@@ -846,7 +853,7 @@ export function PricePanel({
         />
       </div>
 
-      {illustrative ? <p className="mt-3 text-[11px] leading-4 text-fg-muted">{t.detail.chartReference}</p> : null}
+      {illustrative ? <p className={cn("mt-3", NOTE)}>{t.detail.chartReference}</p> : null}
 
       <div
         ref={chartCardRef}
@@ -1063,7 +1070,7 @@ export function PricePanel({
           <p className="mt-2 text-xs text-fg-muted">Mostrando gráfico en tiempo real vía TradingView</p>
         ) : null}
         {period ? (
-          <div className="num mt-2 flex justify-between gap-3 text-[11px] leading-4 text-fg-muted">
+          <div className="num mt-2 flex justify-between gap-3 text-xs leading-5 text-fg-muted">
             <time dateTime={new Date(period.start).toISOString()}>{formatPeriodDate(period.start)}</time>
             <time dateTime={new Date(period.end).toISOString()}>{formatPeriodDate(period.end)}</time>
           </div>
@@ -1084,27 +1091,27 @@ export function PricePanel({
           return (
             <div className="mt-5 border-t border-border pt-4">
               <p className="label">Resumen del período</p>
-              <dl className="mt-3 grid grid-cols-2 gap-x-8">
-                <div>
-                  <dt className="text-[11px] leading-4 text-fg-muted">Apertura</dt>
-                  <dd className="num mt-1 text-[13px] leading-5 font-medium text-fg">
+              <dl className="mt-3 grid grid-cols-2 gap-x-8 gap-y-4">
+                <div className="min-w-0">
+                  <dt className={METRIC_LABEL}>Apertura</dt>
+                  <dd className={cn("mt-1", METRIC_VALUE)}>
                     {formatMoney(openShown ?? openUsd, openShown === null ? "USD" : priceCurrency)}
                   </dd>
                 </div>
-                <div>
-                  <dt className="text-[11px] leading-4 text-fg-muted">Promedio</dt>
-                  <dd className="num mt-1 text-[13px] leading-5 font-medium text-fg">
+                <div className="min-w-0">
+                  <dt className={METRIC_LABEL}>Promedio</dt>
+                  <dd className={cn("mt-1", METRIC_VALUE)}>
                     {formatMoney(avgShown ?? periodAvgUsd, avgShown === null ? "USD" : priceCurrency)}
                   </dd>
                 </div>
               </dl>
               {simulator ? (
-                <p className="num mt-4 text-[11px] leading-4 text-fg-muted">
+                <p className={cn("mt-4", NOTE)}>
                   Si hubieras invertido {formatMoney(simulator.base, priceCurrency)}:{" "}
-                  <span className="font-medium text-fg">{formatMoney(simulator.finalValue, priceCurrency)}</span>{" "}
+                  <span className="num font-medium text-fg">{formatMoney(simulator.finalValue, priceCurrency)}</span>{" "}
                   <span
                     className={cn(
-                      "font-medium",
+                      "num font-medium",
                       simulator.profit > 0 ? "text-up" : simulator.profit < 0 ? "text-down" : "text-fg-muted",
                     )}
                   >
@@ -1128,7 +1135,7 @@ export function PricePanel({
         ) : null}
         {technical ? <p className="mt-3 text-xs text-fg-muted">{copy.disclaimer}</p> : null}
       </div>
-      {sourceLine ? <p className="mt-3 text-[11px] leading-4 text-fg-muted">{sourceLine}</p> : null}
+      {sourceLine ? <p className={cn("mt-3", NOTE)}>{sourceLine}</p> : null}
     </section>
   );
 }

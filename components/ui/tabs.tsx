@@ -67,7 +67,7 @@ export function Tabs({
               disabled={tab.disabled}
               onClick={() => select(tab.value)}
               className={cn(
-                "min-h-11 shrink-0 border-b-2 px-3 text-sm transition duration-[240ms] ease-spring active:scale-[0.98]",
+                "min-h-11 shrink-0 border-b-2 px-3 text-sm transition duration-[240ms] ease-spring active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fg focus-visible:ring-inset disabled:cursor-not-allowed disabled:opacity-50",
                 active ? "border-fg text-fg" : "border-transparent text-fg-muted hover:text-fg",
               )}
             >

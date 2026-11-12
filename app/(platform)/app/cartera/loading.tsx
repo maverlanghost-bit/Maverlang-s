@@ -19,7 +19,7 @@ export default function CarteraLoading() {
 
         <div className="flex flex-col">
           <Skeleton className="h-3 w-24" />
-          <Skeleton className="mt-4 h-11 w-64 max-w-full sm:h-14" />
+          <Skeleton className="mt-4 h-8 w-56 max-w-full sm:h-9" />
           <div className="mt-8 flex flex-wrap gap-x-10 gap-y-5 border-t border-border pt-5">
             <div className="flex flex-col gap-2">
               <Skeleton className="h-3 w-24" />

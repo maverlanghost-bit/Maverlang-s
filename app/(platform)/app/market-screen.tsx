@@ -214,6 +214,18 @@ function ResultsSkeleton({ label }: { label: string }) {
   );
 }
 
+/** Mismo aviso para catálogo, precios y paginación: un error no cambia de forma. */
+function LoadFailure({ message, retryLabel, onRetry }: { message: string; retryLabel: string; onRetry: () => void }) {
+  return (
+    <div className="flex flex-wrap items-center gap-3">
+      <p className="text-sm leading-5 text-fg-muted">{message}</p>
+      <Button variant="secondary" size="sm" onClick={onRetry}>
+        {retryLabel}
+      </Button>
+    </div>
+  );
+}
+
 export function MarketScreen({
   initialFilter,
   initialSort,
@@ -657,12 +669,7 @@ export function MarketScreen({
         {view === "list" && !waiting && !failed && listRows.length > 0 ? (
           <>
             {quotesFailed ? (
-              <div className="flex flex-wrap items-center gap-3">
-                <p className="text-sm text-fg-muted">{t.market.loadError}</p>
-                <Button variant="secondary" onClick={retry}>
-                  {t.states.retry}
-                </Button>
-              </div>
+              <LoadFailure message={t.market.loadError} retryLabel={t.states.retry} onRetry={retry} />
             ) : null}
 
             {/* Encabezado y filas en un mismo bloque: la hairline del
@@ -718,12 +725,7 @@ export function MarketScreen({
             </div>
 
             {pageFailed ? (
-              <div className="flex flex-wrap items-center gap-3">
-                <p className="text-sm text-fg-muted">{t.market.loadError}</p>
-                <Button variant="secondary" onClick={retry}>
-                  {t.states.retry}
-                </Button>
-              </div>
+              <LoadFailure message={t.market.loadError} retryLabel={t.states.retry} onRetry={retry} />
             ) : null}
 
             {hasMore && !pageFailed ? (
@@ -752,12 +754,7 @@ export function MarketScreen({
             Sin cotizaciones no se pinta ninguna celda y se dice tal cual. */}
         {view === "heatmap" && !waiting && !failed && listRows.length > 0 ? (
           quotesFailed && heatmapRows.length === 0 ? (
-            <div className="flex flex-wrap items-center gap-3">
-              <p className="text-sm text-fg-muted">{t.market.loadError}</p>
-              <Button variant="secondary" onClick={retry}>
-                {t.states.retry}
-              </Button>
-            </div>
+            <LoadFailure message={t.market.loadError} retryLabel={t.states.retry} onRetry={retry} />
           ) : heatmapRows.length === 0 && (firstPrices?.isPending ?? false) ? (
             <ResultsSkeleton label={t.states.loading} />
           ) : (

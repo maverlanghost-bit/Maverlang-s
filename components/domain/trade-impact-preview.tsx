@@ -35,11 +35,18 @@ function ImpactRow({
     <div
       className={cn(
         "grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-6 py-[0.6875rem]",
-        divider && (emphasis ? "mt-1 border-t border-fg/25 pt-3.5" : "border-t border-border/70"),
+        divider && (emphasis ? "mt-1 border-t border-fg/25 pt-3.5" : "border-t border-border"),
       )}
     >
       <dt className="min-w-0 text-[13px] leading-5 text-fg-muted">{label}</dt>
-      <dd className={cn("num text-right text-[13px] leading-5 text-fg", emphasis && "font-medium")}>{children}</dd>
+      <dd
+        className={cn(
+          "num text-right leading-5 text-fg",
+          emphasis ? "text-[15px] font-medium" : "text-[13px]",
+        )}
+      >
+        {children}
+      </dd>
     </div>
   );
 }
@@ -49,7 +56,7 @@ function Delta({ from, to }: { from: string; to: string }) {
   return (
     <>
       <span className="text-fg-muted">{from}</span>
-      <span aria-hidden="true" className="mx-1.5 text-fg-subtle">
+      <span aria-hidden="true" className="mx-1.5 text-fg-muted">
         →
       </span>
       <span className="font-medium text-fg">{to}</span>
@@ -99,7 +106,7 @@ export function TradeImpactPreview(props: TradeImpactPreviewProps) {
           {nextCashText}
         </ImpactRow>
       </dl>
-      <p className="mt-3 text-[11px] leading-relaxed text-fg-subtle">Jupiter Spot Router · 0% comisión</p>
+      <p className="mt-3 text-[12px] leading-relaxed text-fg-muted">Jupiter Spot Router · 0% comisión</p>
     </section>
   );
 }
