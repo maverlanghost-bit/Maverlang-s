@@ -53,19 +53,19 @@ export function PriceRangeBar({
 
   return (
     <div className="mt-5 border-t border-border pt-4">
-      <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
         <p className="label">Termómetro del período ({rangeLabel})</p>
-        <p className="num text-xs leading-4 text-fg-muted">
+        <p className="num text-[11px] leading-4 text-fg-muted">
           Amplitud +{spreadText}% · Posición {positionText}% del rango
         </p>
       </div>
 
       <div
-        className="relative mt-3 h-1.5"
+        className="relative mt-3 h-1"
         role="img"
         aria-label={`Rango del período: mínimo ${lowText}, actual ${currentText}, máximo ${highText}. Posición ${positionText}% del rango.`}
       >
-        <div className="h-full w-full overflow-hidden rounded-full bg-surface-3">
+        <div className="h-full w-full overflow-hidden rounded-full bg-surface-2">
           <div
             aria-hidden="true"
             className="h-full rounded-full bg-fg/25 transition-[width] duration-500 ease-out"
@@ -74,12 +74,12 @@ export function PriceRangeBar({
         </div>
         <span
           aria-hidden="true"
-          className="absolute top-1/2 size-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-bg bg-fg ring-1 ring-border"
+          className="absolute top-1/2 size-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-fg ring-2 ring-bg"
           style={{ left: `${pct}%` }}
         />
       </div>
 
-      <div className="num mt-2.5 grid grid-cols-3 gap-2 text-xs leading-4 text-fg-muted">
+      <div className="num mt-2.5 grid grid-cols-3 gap-2 text-[11px] leading-4 text-fg-muted">
         <p className="truncate text-left">
           Mín: <span className="text-fg">{lowText}</span>
         </p>

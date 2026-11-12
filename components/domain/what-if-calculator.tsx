@@ -80,14 +80,14 @@ export function WhatIfCalculator({
     : null;
 
   return (
-    <section className="flex flex-col gap-5 border-t border-border pt-6">
+    <section className="flex flex-col gap-5 border-t border-border pt-8">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="label">{isEn ? "What if" : "Simulador"}</p>
-          <h2 className="mt-1 text-lg font-medium tracking-tight text-balance text-fg">
+          <h2 className="mt-1.5 text-lg font-medium tracking-tight text-balance text-fg">
             {isEn ? `What if you had invested in ${name}?` : `¿Y si hubieras invertido en ${name}?`}
           </h2>
-          <p className="mt-1 text-xs leading-4 text-fg-muted">
+          <p className="mt-1 text-[11px] leading-4 text-fg-muted">
             <span className="num font-medium text-fg-body">{symbol}</span>
             {sinceLabel ? (
               <>
@@ -101,7 +101,7 @@ export function WhatIfCalculator({
       </div>
 
       <div>
-        <p className="text-xs leading-4 text-fg-muted">{isEn ? "Initial amount" : "Monto inicial"}</p>
+        <p className="label-xs">{isEn ? "Initial amount" : "Monto inicial"}</p>
         <div
           role="group"
           aria-label={isEn ? "Choose an initial amount" : "Elige un monto inicial"}
@@ -119,8 +119,8 @@ export function WhatIfCalculator({
                 className={cn(
                   "num min-h-11 rounded-full border px-3.5 text-[13px] font-medium transition-colors duration-150 outline-none focus-visible:ring-4 focus-visible:ring-fg/20 sm:min-h-9",
                   selected
-                    ? "border-fg bg-surface-2 text-fg"
-                    : "border-control bg-bg text-fg-muted hover:border-fg hover:text-fg",
+                    ? "border-transparent bg-surface-2 text-fg"
+                    : "border-border-control bg-bg text-fg-muted hover:border-fg hover:text-fg",
                 )}
               >
                 {label}
@@ -129,7 +129,7 @@ export function WhatIfCalculator({
           })}
         </div>
         {currency === "CLP" && !showInClp ? (
-          <p className="mt-2 text-xs leading-4 text-fg-muted">
+          <p className="mt-2 text-[11px] leading-4 text-fg-muted">
             {isEn
               ? "Exchange rate unavailable right now: amounts shown in US$."
               : "Sin tipo de cambio disponible ahora: los montos se muestran en US$."}
@@ -137,35 +137,37 @@ export function WhatIfCalculator({
         ) : null}
       </div>
 
-      <div aria-live="polite" className="flex flex-col gap-3">
-        <dl className="grid grid-cols-2 gap-x-6 sm:grid-cols-3">
-          <div className="min-w-0 border-t border-border/70 pt-2.5">
-            <dt className="text-xs leading-4 text-fg-muted">{isEn ? "Invested" : "Invertido"}</dt>
-            <dd className="num mt-1 text-sm leading-5 font-medium text-fg">{formatAmount(amountUsd)}</dd>
+      <div aria-live="polite" className="flex flex-col gap-4">
+        <dl className="grid grid-cols-2 gap-x-8 sm:grid-cols-3">
+          <div className="min-w-0 border-t border-border/70 py-3">
+            <dt className="label-xs">{isEn ? "Invested" : "Invertido"}</dt>
+            <dd className="num mt-1 text-base leading-6 font-medium text-fg">{formatAmount(amountUsd)}</dd>
           </div>
-          <div className="min-w-0 border-t border-border/70 pt-2.5">
-            <dt className="text-xs leading-4 text-fg-muted">{isEn ? "Value today" : "Valor hoy"}</dt>
-            <dd className="num mt-1 text-sm leading-5 font-medium text-fg">{formatAmount(valueTodayUsd)}</dd>
+          <div className="min-w-0 border-t border-border/70 py-3">
+            <dt className="label-xs">{isEn ? "Value today" : "Valor hoy"}</dt>
+            <dd className="num mt-1 text-base leading-6 font-medium text-fg">{formatAmount(valueTodayUsd)}</dd>
           </div>
-          <div className="col-span-2 min-w-0 border-t border-border/70 pt-2.5 sm:col-span-1">
-            <dt className="text-xs leading-4 text-fg-muted">{isEn ? "Shares bought" : "Acciones compradas"}</dt>
-            <dd className="num mt-1 text-sm leading-5 font-medium text-fg">{formatShares(shares)}</dd>
+          <div className="col-span-2 min-w-0 border-t border-border/70 py-3 sm:col-span-1">
+            <dt className="label-xs">{isEn ? "Shares bought" : "Acciones compradas"}</dt>
+            <dd className="num mt-1 text-base leading-6 font-medium text-fg">{formatShares(shares)}</dd>
           </div>
         </dl>
 
-        <div className="flex flex-wrap items-baseline justify-between gap-2 border-t border-border pt-3">
+        <div className="flex flex-wrap items-baseline justify-between gap-2 border-t border-border pt-4">
           <span className="text-[13px] leading-5 text-fg-muted">{isEn ? "Gain / loss" : "Ganancia / pérdida"}</span>
-          <span className={cn("num text-base font-medium", isUp ? "text-up" : "text-down")}>{pnlText}</span>
+          <span className={cn("num text-xl font-medium tracking-tight", isUp ? "text-up" : "text-down")}>
+            {pnlText}
+          </span>
         </div>
       </div>
 
-      <p className="num text-xs leading-4 text-fg-muted">
+      <p className="num text-[11px] leading-4 text-fg-muted">
         {isEn ? "Entry" : "Entrada"} {formatUsd(startPrice)}
         {" · "}
         {isEn ? "Today" : "Hoy"} {formatUsd(currentPriceUsd)}
       </p>
 
-      <p className="border-t border-border pt-3 text-xs leading-4 text-pretty text-fg-muted">
+      <p className="border-t border-border pt-3 text-[11px] leading-4 text-pretty text-fg-muted">
         {isEn
           ? "Past returns do not guarantee future results. Simulation based on the token price at the start of the period and the current price; fees and taxes are not included."
           : "Los rendimientos pasados no aseguran resultados futuros. Simulación con el precio del token al inicio del período y el precio actual; no incluye comisiones ni impuestos."}

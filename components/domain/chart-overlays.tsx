@@ -19,7 +19,7 @@ const RSI_GUIDE = "#e5e5e5";
 const RSI_LEVELS = [30, 70] as const;
 
 /** Alto fijo de la fila de chips: el skeleton y los toggles ocupan lo mismo. */
-const STUDY_ROW = "mb-3 flex h-11 min-w-0 max-w-full items-center gap-1";
+const STUDY_ROW = "mb-2 flex h-11 min-w-0 max-w-full items-center gap-1";
 const STUDY_SCROLL =
   "flex h-8 min-w-0 flex-1 flex-nowrap items-center gap-1.5 overflow-x-auto overscroll-x-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden";
 

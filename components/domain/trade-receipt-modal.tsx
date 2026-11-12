@@ -2,6 +2,7 @@
 
 import { type ReactNode, useCallback, useEffect, useId, useRef, useState } from "react";
 
+import { Button } from "@/components/ui/button";
 import { site } from "@/config/site";
 import { cn } from "@/lib/cn";
 import { formatClp, formatDateTime, formatShares, formatUsd } from "@/lib/format";
@@ -12,28 +13,12 @@ type TradeReceiptStatus = "pending" | "submitted" | "confirmed" | "failed";
 
 const STATUS_META: Record<
   TradeReceiptStatus,
-  { label: string; badgeClassName: string; dotClassName: string }
+  { label: string; toneClassName: string; dotClassName: string }
 > = {
-  confirmed: {
-    label: "Confirmada on-chain",
-    badgeClassName: "border-up/25 bg-up-bg text-up",
-    dotClassName: "bg-up",
-  },
-  submitted: {
-    label: "Enviada",
-    badgeClassName: "border-info/25 bg-info-bg text-info",
-    dotClassName: "bg-info",
-  },
-  pending: {
-    label: "Pendiente",
-    badgeClassName: "border-warn/25 bg-warn-bg text-warn",
-    dotClassName: "bg-warn",
-  },
-  failed: {
-    label: "Fallida",
-    badgeClassName: "border-down/25 bg-down-bg text-down",
-    dotClassName: "bg-down",
-  },
+  confirmed: { label: "Confirmada on-chain", toneClassName: "text-up", dotClassName: "bg-up" },
+  submitted: { label: "Enviada", toneClassName: "text-info", dotClassName: "bg-info" },
+  pending: { label: "Pendiente", toneClassName: "text-warn", dotClassName: "bg-warn" },
+  failed: { label: "Fallida", toneClassName: "text-down", dotClassName: "bg-down" },
 };
 
 function truncateHash(signature: string) {
@@ -53,12 +38,12 @@ function ReceiptRow({
   numeric?: boolean;
 }) {
   return (
-    <div className="grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-4 py-2.5">
-      <dt className="min-w-0 text-[13px] leading-5 text-fg-muted">{label}</dt>
+    <div className="grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-6 py-2.5">
+      <dt className="label-xs min-w-0">{label}</dt>
       <dd
         className={cn(
           "min-w-0 text-right leading-5",
-          numeric ? "num text-sm" : "text-[13px]",
+          numeric ? "num text-[13px]" : "text-[13px]",
           strong ? "font-medium text-fg" : "text-fg-body",
         )}
       >
@@ -212,27 +197,27 @@ export function TradeReceiptTrigger({
             aria-describedby={folioId}
             tabIndex={-1}
             onMouseDown={(event) => event.stopPropagation()}
-            className="relative max-h-[92dvh] w-full max-w-[26rem] overflow-y-auto rounded-t-2xl border border-border bg-bg px-5 pt-3 pb-[max(1.5rem,env(safe-area-inset-bottom))] text-fg shadow-float outline-none animate-sheet-up sm:rounded-2xl sm:px-6 sm:py-6 sm:animate-pop-in"
+            className="relative max-h-[92dvh] w-full max-w-[26rem] overflow-y-auto overscroll-contain rounded-t-3xl border border-border bg-bg px-5 pt-3 pb-[max(1.5rem,env(safe-area-inset-bottom))] text-fg shadow-float outline-none animate-sheet-up sm:rounded-3xl sm:px-6 sm:py-6 sm:animate-pop-in"
           >
             <span
               aria-hidden="true"
-              className="mx-auto mb-3 block h-1 w-9 rounded-full bg-border-strong/60 sm:hidden"
+              className="mx-auto mb-4 block h-1 w-9 rounded-full bg-border-strong/60 sm:hidden"
             />
 
-            <div className="flex items-start justify-between gap-3">
+            <div className="flex items-start justify-between gap-4">
               <div className="min-w-0">
                 <p className="label">{site.name}</p>
-                <h2 id={titleId} className="mt-1.5 text-lg font-medium tracking-tight text-fg">
+                <h2 id={titleId} className="mt-1.5 text-[17px] leading-6 font-medium tracking-[-0.01em] text-fg">
                   Comprobante
                 </h2>
-                <p id={folioId} className="num mt-1 text-xs text-fg-muted">
+                <p id={folioId} className="num mt-1 text-[12px] leading-4 text-fg-muted">
                   Folio {folio}
                 </p>
               </div>
               <span
                 className={cn(
-                  "inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium",
-                  statusMeta.badgeClassName,
+                  "inline-flex shrink-0 items-center gap-1.5 pt-1 text-[11px] leading-4 font-medium",
+                  statusMeta.toneClassName,
                 )}
               >
                 <span className={cn("size-1.5 rounded-full", statusMeta.dotClassName)} aria-hidden="true" />
@@ -240,10 +225,10 @@ export function TradeReceiptTrigger({
               </span>
             </div>
 
-            <div className="mt-5 border-y border-border py-4">
+            <div className="mt-5 -mx-5 border-y border-border px-5 py-4 sm:-mx-6 sm:px-6">
               <p className="label-xs">Total operación</p>
-              <p className="num mt-1.5 text-[1.875rem] leading-none text-fg">{totalUsdLabel}</p>
-              {totalClpLabel ? <p className="num mt-1.5 text-[13px] text-fg-muted">{totalClpLabel}</p> : null}
+              <p className="num mt-2 text-[2rem] leading-none tracking-[-0.02em] text-fg">{totalUsdLabel}</p>
+              {totalClpLabel ? <p className="num mt-2 text-[13px] leading-5 text-fg-muted">{totalClpLabel}</p> : null}
             </div>
 
             <dl className="divide-y divide-border/70">
@@ -264,15 +249,15 @@ export function TradeReceiptTrigger({
             {signature ? (
               <div className="mt-4 border-t border-border pt-3">
                 <p className="label-xs">Hash de la transacción</p>
-                <div className="mt-1.5 flex items-baseline justify-between gap-3">
-                  <span className="num min-w-0 truncate text-xs tracking-tight text-fg-body">
+                <div className="mt-2 flex items-baseline justify-between gap-3">
+                  <span className="num min-w-0 truncate text-[12px] tracking-tight text-fg-body">
                     {truncateHash(signature)}
                   </span>
                   <a
                     href={explorerTxUrl(signature)}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="shrink-0 text-xs font-medium text-fg underline decoration-border-strong underline-offset-4 transition-colors hover:decoration-fg"
+                    className="shrink-0 text-[12px] font-medium text-fg underline decoration-border-strong underline-offset-4 transition-colors hover:decoration-fg"
                   >
                     Ver en Solscan
                   </a>
@@ -280,34 +265,31 @@ export function TradeReceiptTrigger({
               </div>
             ) : null}
 
-            <p className="mt-3 text-[11px] leading-relaxed text-fg-subtle">
+            <p className="mt-4 text-[11px] leading-relaxed text-fg-subtle">
               Documento informativo de la operación. No constituye un instrumento tributario.
             </p>
 
-            <div className="mt-5 flex flex-col gap-2">
-              <div className="grid grid-cols-2 gap-2">
+            <div className="mt-5 flex flex-col gap-1">
+              <div className="flex items-center justify-center gap-3">
                 <button
                   type="button"
                   onClick={() => void copyFolio()}
-                  className="inline-flex min-h-11 items-center justify-center rounded-full border border-border-control/50 bg-bg px-3 text-[13px] font-medium text-fg-body transition-colors duration-150 hover:border-fg/50 hover:text-fg"
+                  className="inline-flex min-h-11 items-center px-2 text-[13px] font-medium text-fg-muted transition-colors duration-150 hover:text-fg"
                 >
                   {copied ? "Folio copiado" : "Copiar folio"}
                 </button>
+                <span aria-hidden="true" className="h-3 w-px bg-border" />
                 <button
                   type="button"
                   onClick={() => window.print()}
-                  className="inline-flex min-h-11 items-center justify-center rounded-full border border-border-control/50 bg-bg px-3 text-[13px] font-medium text-fg-body transition-colors duration-150 hover:border-fg/50 hover:text-fg"
+                  className="inline-flex min-h-11 items-center px-2 text-[13px] font-medium text-fg-muted transition-colors duration-150 hover:text-fg"
                 >
                   Imprimir / PDF
                 </button>
               </div>
-              <button
-                type="button"
-                onClick={close}
-                className="inline-flex min-h-11 items-center justify-center rounded-full bg-fg px-5 text-sm font-medium text-white transition-colors duration-150 hover:bg-[#1f2329] active:scale-[0.99]"
-              >
+              <Button size="lg" className="min-h-12 w-full text-[15px]" onClick={close}>
                 Cerrar
-              </button>
+              </Button>
               <span aria-live="polite" className="sr-only">
                 {copied ? "Folio copiado al portapapeles" : ""}
               </span>

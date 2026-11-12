@@ -17,7 +17,6 @@ import { OnchainVerificationCard } from "@/components/domain/onchain-verificatio
 import { AlertButton } from "@/components/domain/alert-button";
 import { CompanyCard } from "@/components/domain/company-card";
 import { ExplainChartButton } from "@/components/domain/explain-chart-button";
-import { PriceRangeBar } from "@/components/domain/price-range-bar";
 import { WhatIfCalculator } from "@/components/domain/what-if-calculator";
 import { Accordion } from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
@@ -142,11 +141,18 @@ function shownMoney(usd: number, currency: Currency, rate: number | undefined) {
 }
 
 /** Fila de dato con hairline: rótulo a la izquierda, cifra tabular a la derecha. */
-function DataRow({ label, children }: { label: string; children: ReactNode }) {
+function DataRow({ label, children, mono = true }: { label: string; children: ReactNode; mono?: boolean }) {
   return (
-    <div className="flex items-baseline justify-between gap-4 border-b border-border/70 py-2.5 last:border-b-0">
+    <div className="flex items-baseline justify-between gap-6 border-b border-border/70 py-3 last:border-b-0">
       <dt className="min-w-0 flex-1 text-[13px] leading-5 text-fg-muted">{label}</dt>
-      <dd className="num shrink-0 text-right text-[13px] leading-5 font-medium whitespace-nowrap text-fg">{children}</dd>
+      <dd
+        className={cn(
+          "shrink-0 text-right text-[13px] leading-5 font-medium whitespace-nowrap text-fg",
+          mono ? "num" : "font-sans",
+        )}
+      >
+        {children}
+      </dd>
     </div>
   );
 }
@@ -169,7 +175,7 @@ function PositionRows({
   const { t } = useT();
   if (pending) {
     return (
-      <div className="mt-5 border-t border-border pt-4" role="status" aria-live="polite" aria-busy="true">
+      <div className="mt-5 border-t border-border pt-5" role="status" aria-live="polite" aria-busy="true">
         <span className="sr-only">{t.states.loading}</span>
         <Skeleton className="h-4 w-24" />
         <Skeleton className="mt-3 h-4 w-full" />
@@ -179,7 +185,7 @@ function PositionRows({
   }
   if (failed) {
     return (
-      <div className="mt-5 border-t border-border pt-4">
+      <div className="mt-5 border-t border-border pt-5">
         <ErrorState title={t.detail.positionError} label={t.states.error} retryLabel={t.states.retry} onRetry={onRetry} />
       </div>
     );
@@ -187,12 +193,12 @@ function PositionRows({
   if (!position || position.shares <= 0) return null;
 
   return (
-    <div className="mt-5 border-t border-border pt-4">
+    <div className="mt-5 border-t border-border pt-5">
       <h3 className="label">{t.detail.position}</h3>
       <dl className="mt-1">
         <DataRow label={t.detail.shares}>{formatShares(position.shares)}</DataRow>
         <DataRow label={t.detail.value}>{shownMoney(position.valueUsd, currency, rate)}</DataRow>
-        <div className="flex items-baseline justify-between gap-4 py-2.5">
+        <div className="flex items-baseline justify-between gap-6 py-3">
           <dt className="min-w-0 text-[13px] leading-5 text-fg-muted">{t.detail.pnl}</dt>
           <dd className="flex min-w-0 shrink-0 items-center gap-2">
             {position.pnlUsd === null ? (
@@ -211,7 +217,7 @@ function PositionRows({
           </dd>
         </div>
       </dl>
-      <p className="mt-2 text-xs leading-relaxed text-fg-muted">{t.detail.positionNote}</p>
+      <p className="mt-2 text-[11px] leading-4 text-fg-muted">{t.detail.positionNote}</p>
     </div>
   );
 }
@@ -220,7 +226,7 @@ function StockTokenGuide() {
   const { language } = useT();
   const copy = carteraCopy(language);
   return (
-    <section aria-label={copy.tokenGuideTitle} className="border-t border-border pt-6">
+    <section aria-label={copy.tokenGuideTitle}>
       <Accordion items={[{ id: "stock-token", title: copy.tokenGuideTitle, content: copy.tokenGuideBody }]} />
     </section>
   );
@@ -261,20 +267,20 @@ function AccountActions({
   useDetailCtaOffset(variant === "bar", barRef);
 
   const buttons = (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-1.5">
       <Button
         asChild
         size="lg"
-        className="h-auto min-h-11 w-full px-3 text-sm whitespace-nowrap sm:px-4 sm:text-base"
+        className="h-auto min-h-12 w-full px-3 text-[15px] font-semibold whitespace-nowrap sm:px-4"
       >
         <Link href={primary.href}>{primary.label}</Link>
       </Button>
       {secondary ? (
         <Button
           asChild
+          variant="ghost"
           size="lg"
-          variant="secondary"
-          className="h-auto min-h-11 w-full px-3 text-sm whitespace-nowrap sm:px-4 sm:text-base"
+          className="h-auto min-h-11 w-full px-3 text-[13px] font-medium whitespace-nowrap text-fg-muted hover:text-fg sm:px-4"
         >
           <Link href={secondary.href}>{secondary.label}</Link>
         </Button>
@@ -299,14 +305,23 @@ function AccountActions({
   }
 
   return (
-    <div className="rounded-3xl border border-border bg-bg p-5 md:p-6">
-      <BuyPriceBox symbol={symbol} underlying={underlying} issuer={issuer} quote={quote} currency={currency} rate={rate} />
-      <div className="mt-5">{buttons}</div>
+    <div className="rounded-3xl border border-border bg-bg p-5 lg:p-6">
+      <BuyPriceBox
+        divided={false}
+        symbol={symbol}
+        underlying={underlying}
+        issuer={issuer}
+        quote={quote}
+        currency={currency}
+        rate={rate}
+      />
+      <div className="mt-5 border-t border-border pt-5">{buttons}</div>
     </div>
   );
 }
 
 function BuyPriceBox({
+  divided = true,
   symbol,
   underlying,
   issuer,
@@ -314,6 +329,8 @@ function BuyPriceBox({
   currency,
   rate,
 }: {
+  /** Hairline superior cuando la caja sigue a un encabezado dentro de la ficha. */
+  divided?: boolean;
   symbol: string;
   underlying: string;
   issuer: Ticker["issuer"];
@@ -334,31 +351,31 @@ function BuyPriceBox({
       : null;
 
   return (
-    <div className="mt-4 border-t border-border pt-4">
+    <div className={cn(divided && "mt-5 border-t border-border pt-5")}>
       <p className="label">
         {language === "en" ? `Buy price · 1 ${symbol}` : `Precio de compra · 1 ${symbol}`}
       </p>
-      <div className="mt-1.5 flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
+      <div className="mt-2 flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
         {primaryPrice ? (
-          <p className="num text-2xl leading-none font-medium tracking-tight text-fg">{primaryPrice}</p>
+          <p className="num text-[27px] leading-none font-medium tracking-tight text-fg">{primaryPrice}</p>
         ) : (
-          <Skeleton className="h-7 w-32" />
+          <Skeleton className="h-8 w-32" />
         )}
         {quote && Number.isFinite(quote.change24hPct) ? <ChangeBadge value={quote.change24hPct} /> : null}
       </div>
       {secondaryPrice ? (
-        <p className="num mt-1.5 text-xs leading-4 text-fg-muted">
+        <p className="num mt-2 text-[11px] leading-4 text-fg-muted">
           {language === "en" ? `Approx. ${secondaryPrice} per share (${underlying})` : `Equivale a ${secondaryPrice} por acción (${underlying})`}
         </p>
       ) : null}
       <dl className="mt-4 border-t border-border/70">
-        <div className="flex items-baseline justify-between gap-3 border-b border-border/70 py-2.5 last:border-b-0">
+        <div className="flex items-baseline justify-between gap-4 border-b border-border/70 py-2.5 last:border-b-0">
           <dt className="text-[13px] leading-5 text-fg-muted">{language === "en" ? "Minimum" : "Inversión mínima"}</dt>
           <dd className="text-[13px] leading-5 font-medium text-fg">
             {language === "en" ? "Fractional shares" : "Desde fracciones"}
           </dd>
         </div>
-        <div className="flex items-baseline justify-between gap-3 py-2.5">
+        <div className="flex items-baseline justify-between gap-4 py-2.5">
           <dt className="text-[13px] leading-5 text-fg-muted">{t.detail.issuer}</dt>
           <dd className="text-[13px] leading-5 font-medium text-fg">{issuer}</dd>
         </div>
@@ -463,7 +480,11 @@ function TradeActions({
   const buyButton = (
     <Button
       size="lg"
-      className={wide ? "min-h-12 w-full text-base font-semibold" : "h-auto min-h-11 w-full min-w-0 flex-1 px-3 text-base font-semibold md:h-auto md:px-5"}
+      className={
+        wide
+          ? "min-h-12 w-full text-[15px] font-semibold"
+          : "h-auto min-h-12 min-w-0 flex-[1.6] px-3 text-[15px] font-semibold"
+      }
       disabled={buyDisabled}
       aria-describedby={blockedReason ? blockedId : undefined}
       onClick={() => {
@@ -479,10 +500,10 @@ function TradeActions({
       size="lg"
       variant="secondary"
       className={cn(
-        "min-w-0 flex-1",
+        "min-w-0",
         wide
-          ? "min-h-12 w-full text-base font-semibold"
-          : "h-auto min-h-11 whitespace-nowrap px-3 text-base md:h-auto md:px-5",
+          ? "min-h-11 w-full text-[13px] font-medium"
+          : "h-auto min-h-12 flex-1 px-3 text-[13px] font-medium whitespace-nowrap",
       )}
       disabled={sellDisabled}
       aria-describedby={blockedReason ? blockedId : sellDisabled ? hintId : undefined}
@@ -498,7 +519,7 @@ function TradeActions({
     <div
       role="group"
       aria-label={language === "en" ? "Buy or sell" : "Comprar o vender"}
-      className={wide ? "flex flex-col gap-2" : "flex gap-2"}
+      className={wide ? "flex flex-col gap-1.5" : "flex gap-2"}
     >
       {buyButton}
       {sellDisabled && !blockedReason ? (
@@ -548,10 +569,10 @@ function TradeActions({
   }
 
   return (
-    <div className="rounded-3xl border border-border bg-bg p-5 md:p-6">
-      <div className="flex flex-col gap-1.5">
+    <div className="rounded-3xl border border-border bg-bg p-5 lg:p-6">
+      <div className="flex flex-col gap-1">
         <h2 className="text-lg font-medium tracking-tight text-fg">{t.detail.actions}</h2>
-        <span className="inline-flex items-center gap-1.5 text-xs leading-4 text-fg-muted">
+        <span className="inline-flex items-center gap-1.5 text-[11px] leading-4 text-fg-muted">
           <span className={cn("size-1.5 shrink-0 rounded-full", chipDot)} aria-hidden />
           {chipText}
         </span>
@@ -565,9 +586,9 @@ function TradeActions({
         currency={currency}
         rate={rate}
       />
-      <div className="mt-5">{buttons}</div>
+      <div className="mt-5 border-t border-border pt-5">{buttons}</div>
       {blockedReason ? (
-        <p id={blockedId} className="mt-3 text-xs leading-relaxed text-fg-muted">
+        <p id={blockedId} className="mt-3 text-[11px] leading-4 text-fg-muted">
           {blockedReason}
         </p>
       ) : null}
@@ -584,8 +605,8 @@ function categoryName(
 
 function ContextItem({ children, separator = false }: { children: ReactNode; separator?: boolean }) {
   return (
-    <li className="inline-flex shrink-0 items-center gap-2">
-      {separator ? <span aria-hidden className="h-3 w-px bg-border-strong/60" /> : null}
+    <li className="inline-flex shrink-0 items-center gap-3">
+      {separator ? <span aria-hidden className="size-[3px] shrink-0 rounded-full bg-border-strong" /> : null}
       <span className="inline-flex items-center gap-1.5 whitespace-nowrap">{children}</span>
     </li>
   );
@@ -658,9 +679,9 @@ function KeyStats({
           : t.detail.operable;
 
   return (
-    <section className="border-t border-border pt-6">
+    <section className="border-t border-border pt-8">
       <h2 className="text-lg font-medium tracking-tight text-fg">{t.detail.stats}</h2>
-      <dl className="mt-4 grid grid-cols-1 gap-x-10 sm:grid-cols-2 sm:[&>div:nth-last-child(-n+2)]:border-b-0">
+      <dl className="mt-3 grid grid-cols-1 gap-x-12 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
         {/* Precio actual: mismo `quote.priceUsd` del titular, en tu moneda. */}
         <DataRow label={shownCurrency === "CLP" ? t.detail.priceClp : t.detail.priceUsd}>
           {quoteCellPending ? (
@@ -715,20 +736,10 @@ function KeyStats({
           )}
         </DataRow>
         {/* Ficha del activo: sólo campos que existen en `ticker` (sin cifras inventadas). */}
-        <DataRow label={t.detail.issuer}>{issuer}</DataRow>
-        <DataRow label={t.detail.category}>{categoryLabel}</DataRow>
-        <DataRow label={t.detail.status}>{estadoText}</DataRow>
+        <DataRow label={t.detail.issuer} mono={false}>{issuer}</DataRow>
+        <DataRow label={t.detail.category} mono={false}>{categoryLabel}</DataRow>
+        <DataRow label={t.detail.status} mono={false}>{estadoText}</DataRow>
       </dl>
-      {bounds && quote && Number.isFinite(quote.priceUsd) ? (
-        <PriceRangeBar
-          lowUsd={bounds.low}
-          highUsd={bounds.high}
-          currentUsd={quote.priceUsd}
-          rangeLabel={caption}
-          currency={shownCurrency}
-          rate={rate}
-        />
-      ) : null}
     </section>
   );
 }
@@ -972,13 +983,13 @@ export function DetailScreen({
     <>
     <motion.div
       data-ticker={ticker.symbol}
-      className="lg:grid lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start lg:gap-x-10 xl:grid-cols-[minmax(0,1fr)_24rem] xl:gap-x-12"
+      className="lg:grid lg:grid-cols-[minmax(0,1fr)_20rem] lg:gap-x-10 xl:grid-cols-[minmax(0,1fr)_23rem] xl:gap-x-16"
       initial={reduceMotion ? false : { opacity: 0, scale: 0.97 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={reduceMotion ? { duration: 0 } : { duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
     >
-      <div className="flex min-w-0 max-w-full flex-col gap-9">
-        <div className="flex min-w-0 flex-col gap-5">
+      <div className="flex min-w-0 max-w-full flex-col gap-10">
+        <div className="flex min-w-0 flex-col gap-4">
           <Link
             href="/app"
             className="-ml-2 flex min-h-11 w-fit items-center gap-1.5 rounded-full px-2 text-[13px] font-medium text-fg-muted outline-none transition-colors duration-150 hover:bg-surface-1 hover:text-fg focus-visible:ring-4 focus-visible:ring-fg/20"
@@ -987,23 +998,23 @@ export function DetailScreen({
             {t.detail.backToMarket}
           </Link>
 
-          <header className="flex flex-wrap items-start gap-x-4 gap-y-4">
+          <header className="flex flex-wrap items-center gap-x-4 gap-y-3">
             <span className="shrink-0">
               <TickerLogo
                 symbol={ticker.symbol}
                 name={ticker.name}
                 logoUrl={ticker.logo}
-                size={52}
+                size={48}
                 decorative
                 loading="eager"
-                sizes="64px"
+                sizes="56px"
               />
             </span>
-            <div className="min-w-0 flex-1 basis-40">
-              <h1 className="max-w-full text-[28px] leading-[1.1] break-words text-balance sm:text-[32px]">
+            <div className="min-w-0 flex-1 basis-44">
+              <h1 className="max-w-full text-[27px] leading-[1.08] break-words text-balance sm:text-[32px]">
                 {ticker.name}
               </h1>
-              <p className="num mt-1.5 max-w-full text-[13px] leading-5 break-words text-fg-muted">
+              <p className="num mt-1.5 max-w-full text-xs leading-5 break-words text-fg-muted">
                 <span className="font-medium text-fg">{ticker.symbol}</span>
                 <span aria-hidden> · </span>
                 <span className="font-sans">
@@ -1012,7 +1023,7 @@ export function DetailScreen({
                 </span>
               </p>
             </div>
-            <div className="flex w-full min-w-0 items-center justify-end gap-1 sm:w-auto sm:basis-auto">
+            <div className="flex w-full min-w-0 items-center justify-end gap-0.5 sm:w-auto sm:basis-auto">
               <span className="mr-auto hidden sm:block">
                 <AskAiButton ticker={ticker.symbol} />
               </span>
@@ -1023,7 +1034,7 @@ export function DetailScreen({
           </header>
 
           <ul
-            className="flex min-w-0 max-w-full list-none flex-wrap items-center gap-x-3 gap-y-1.5 p-0 text-xs leading-4 text-fg-muted"
+            className="flex min-w-0 max-w-full list-none flex-wrap items-center gap-x-3 gap-y-1 p-0 font-mono text-[11px] leading-4 tracking-[0.04em] text-fg-muted uppercase"
             aria-label={t.detail.chips}
           >
             {contextItems.map((item, index) => (
@@ -1044,7 +1055,7 @@ export function DetailScreen({
             <li className="sm:hidden">
               <Link
                 href={`/app/asistente?ticker=${encodeURIComponent(ticker.symbol)}&q=${encodeURIComponent(`Analiza ${ticker.name} (${ticker.symbol}): desempeño, riesgos y contexto actual`)}`}
-                className="inline-flex min-h-11 items-center gap-1.5 text-xs font-medium text-fg-muted transition-colors hover:text-fg"
+                className="inline-flex min-h-11 items-center gap-1.5 text-[11px] font-medium text-fg-muted transition-colors hover:text-fg"
               >
                 <svg className="size-3.5 shrink-0" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
                   <path d="M8 1l1.65 4.35L14 7l-4.35 1.65L8 13l-1.65-4.35L2 7l4.35-1.65L8 1z" />
@@ -1054,7 +1065,7 @@ export function DetailScreen({
             </li>
           </ul>
           {statusReady && chipNote ? (
-            <p className="text-xs leading-relaxed text-fg-muted">{chipNote}</p>
+            <p className="text-xs leading-5 text-fg-muted">{chipNote}</p>
           ) : null}
         </div>
 
@@ -1083,8 +1094,6 @@ export function DetailScreen({
           <ShareCardButton id={ticker.symbol} name={ticker.name} pct={position?.pnlPct ?? null} />
         </div>
 
-        <TokenGapCard symbol={ticker.symbol} quote={quote} />
-
         <KeyStats
           quote={quote}
           quotePending={prices.isPending && quote === null}
@@ -1099,6 +1108,8 @@ export function DetailScreen({
           tradeBlock={effectiveBlock}
         />
 
+        <TokenGapCard symbol={ticker.symbol} quote={quote} />
+
         {/* Simulador "¿y si hubieras invertido?": se autodescarta sin historial o sin precio. */}
         <WhatIfCalculator
           symbol={ticker.symbol}
@@ -1111,25 +1122,34 @@ export function DetailScreen({
 
         <CompanyCard symbol={ticker.symbol} />
 
-        <section className="flex flex-col gap-3 border-t border-border pt-6">
+        <section className="flex flex-col gap-3 border-t border-border pt-8">
           <h2 className="text-lg font-medium tracking-tight text-fg">{t.detail.aboutTitle}</h2>
-          <p className="text-[13px] leading-relaxed text-fg-muted">{t.detail.aboutNote}</p>
-          <p className="text-sm leading-relaxed text-pretty text-fg-body">{aboutText ?? t.detail.aboutMissing}</p>
+          <p className="text-[11px] leading-4 text-fg-muted">{t.detail.aboutNote}</p>
+          <p className="max-w-prose text-[15px] leading-relaxed text-pretty text-fg-body">
+            {aboutText ?? t.detail.aboutMissing}
+          </p>
         </section>
 
-        <section className="flex flex-col gap-4 border-t border-border pt-6">
+        <section className="flex flex-col gap-4 border-t border-border pt-8">
           <h2 className="text-lg font-medium tracking-tight text-fg">{t.detail.tokenTitle}</h2>
-          <p className="text-sm leading-relaxed text-pretty text-fg-body">
+          <p className="max-w-prose text-sm leading-relaxed text-pretty text-fg-body">
             {fill(t.detail.tokenLead, { issuer: ticker.issuer, brand: site.name, name: ticker.name })}
           </p>
-          <dl className="min-w-0 max-w-full border-t border-border/70">
-            <DataRow label={t.detail.issuer}>{ticker.issuer}</DataRow>
-            <div className="min-w-0 max-w-full border-b border-border/70 py-3">
+          <dl className="min-w-0 max-w-full">
+            <DataRow label={t.detail.issuer} mono={false}>{ticker.issuer}</DataRow>
+            <DataRow label={t.detail.multiplier}>
+              {quote && Number.isFinite(quote.multiplier) ? (
+                formatMultiplier(quote.multiplier)
+              ) : (
+                <MissingFigure label={t.detail.unavailable} />
+              )}
+            </DataRow>
+            <div className="min-w-0 max-w-full py-3">
               <dt className="text-[13px] leading-5 text-fg-muted">{t.detail.mint}</dt>
-              <dd className="mt-1">
-                <p className="text-xs leading-relaxed text-fg-muted">{t.detail.mintHint}</p>
-                <p className="num mt-2 text-[13px] leading-5 break-all text-fg">{ticker.mint}</p>
-                <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2">
+              <dd className="mt-1.5">
+                <p className="num text-[13px] leading-5 break-all text-fg">{ticker.mint}</p>
+                <p className="mt-1 text-[11px] leading-4 text-fg-muted">{t.detail.mintHint}</p>
+                <div className="mt-2 flex flex-wrap items-center gap-x-5 gap-y-1">
                   <CopyButton value={ticker.mint} label={t.detail.copy} copiedLabel={t.detail.copied} />
                   <a
                     href={solscanMintUrl(ticker.mint)}
@@ -1143,22 +1163,17 @@ export function DetailScreen({
                 </div>
               </dd>
             </div>
-            <DataRow label={t.detail.multiplier}>
-              {quote && Number.isFinite(quote.multiplier) ? (
-                formatMultiplier(quote.multiplier)
-              ) : (
-                <MissingFigure label={t.detail.unavailable} />
-              )}
-            </DataRow>
           </dl>
-          <p className="text-xs leading-relaxed text-fg-muted">{t.detail.multiplierHint}</p>
-          <p className="text-sm leading-relaxed text-pretty text-fg-body">{t.detail.risks}</p>
-          <Link
-            href="/legal/riesgos"
-            className="inline-flex min-h-11 w-fit items-center rounded-sm text-[13px] font-medium text-fg underline underline-offset-4 outline-none focus-visible:ring-4 focus-visible:ring-fg/20"
-          >
-            {t.detail.risksLink}
-          </Link>
+          <p className="text-[11px] leading-4 text-fg-muted">{t.detail.multiplierHint}</p>
+          <div className="mt-2 border-t border-border pt-5">
+            <p className="max-w-prose text-sm leading-relaxed text-pretty text-fg-body">{t.detail.risks}</p>
+            <Link
+              href="/legal/riesgos"
+              className="inline-flex min-h-11 w-fit items-center rounded-sm text-[13px] font-medium text-fg underline underline-offset-4 outline-none focus-visible:ring-4 focus-visible:ring-fg/20"
+            >
+              {t.detail.risksLink}
+            </Link>
+          </div>
         </section>
 
         <OnchainVerificationCard
@@ -1174,7 +1189,7 @@ export function DetailScreen({
       </div>
 
       <aside className="hidden lg:block">
-        <div className="sticky top-8">{tradeSlot("card")}</div>
+        <div className="sticky top-6">{tradeSlot("card")}</div>
       </aside>
 
     </motion.div>

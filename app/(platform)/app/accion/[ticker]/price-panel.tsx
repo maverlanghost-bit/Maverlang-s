@@ -14,6 +14,7 @@ import {
 import { ChartLegend, ChartStudyBar, RsiPanel, SMA_COLOR, StudiesSkeleton } from "@/components/domain/chart-overlays";
 import { FlashPrice } from "@/components/domain/flash-price";
 import { PriceFreshness } from "@/components/domain/price-freshness";
+import { PriceRangeBar } from "@/components/domain/price-range-bar";
 import { TONE_STROKE } from "@/components/domain/svg-price-chart";
 import { SvgPriceChart } from "@/components/domain/svg-price-chart";
 import { TradingViewChart } from "@/components/domain/tradingview-chart";
@@ -57,6 +58,13 @@ const PROVIDER_OPTIONS = [
   { value: "native", label: "Gráfico Pro" },
   { value: "tradingview", label: "TradingView" },
 ] as const;
+
+/**
+ * Superficie del gráfico en pantalla completa: ahí sí hace falta una lámina
+ * propia porque tapa la página. En línea el gráfico va sin marco.
+ */
+const CHART_SURFACE =
+  "rounded-2xl bg-white p-5 shadow-[0_1px_2px_rgba(16,24,40,0.04),0_8px_24px_rgba(16,24,40,0.08)]";
 
 function studyQueryOptions(enabled: boolean) {
   return {
@@ -192,7 +200,7 @@ function RangeCapsule({
       role="group"
       aria-label={label}
       className={cn(
-        "inline-flex w-fit max-w-full items-center gap-0.5 rounded-full border border-border bg-bg p-0.5",
+        "flex w-fit max-w-full items-center",
         compact && "w-full justify-between sm:w-fit sm:justify-start",
         className,
       )}
@@ -212,12 +220,19 @@ function RangeCapsule({
             aria-pressed={selected}
             onClick={() => onChange(option.value)}
             className={cn(
-              "min-h-11 shrink-0 rounded-full text-[13px] font-medium whitespace-nowrap outline-none transition-colors duration-150 focus-visible:ring-4 focus-visible:ring-fg/20 sm:min-h-9",
-              compact ? "px-2.5 sm:px-3.5" : "px-3.5",
-              selected ? "bg-fg text-bg" : "text-fg-muted hover:bg-surface-1 hover:text-fg",
+              "relative inline-flex h-11 shrink-0 items-center text-[13px] font-medium whitespace-nowrap outline-none transition-colors duration-150 sm:h-9",
+              compact ? "px-2.5 sm:px-3" : "px-3",
+              selected ? "text-fg" : "text-fg-muted hover:text-fg",
             )}
           >
             {option.label}
+            <span
+              aria-hidden
+              className={cn(
+                "absolute inset-x-1 -bottom-px h-px transition-colors duration-150",
+                selected ? "bg-fg" : "bg-transparent",
+              )}
+            />
           </button>
         );
       })}
@@ -226,12 +241,12 @@ function RangeCapsule({
 }
 
 const TOGGLE_ACTIVE = {
-  accent: "border-[#2b7fd9]/40 bg-[#2b7fd9]/10 text-[#2b7fd9]",
-  solid: "border-fg bg-fg text-bg",
-  neutral: "border-fg/20 bg-surface-2 text-fg",
+  accent: "bg-surface-2 text-fg",
+  solid: "bg-fg text-bg",
+  neutral: "bg-surface-2 text-fg",
 } as const;
 
-/** Píldora de control del gráfico. Mismo look en la barra y en pantalla completa. */
+/** Chip de control del gráfico. Mismo look en la barra y en pantalla completa. */
 function ChartToggle({
   pressed,
   onClick,
@@ -254,7 +269,7 @@ function ChartToggle({
       aria-label={label}
       onClick={onClick}
       className={cn(
-        "inline-flex h-11 shrink-0 items-center gap-1.5 rounded-full border border-transparent px-3 text-[13px] font-medium whitespace-nowrap transition-colors outline-none focus-visible:ring-4 focus-visible:ring-fg/20 sm:h-8",
+        "inline-flex h-11 shrink-0 items-center gap-1.5 rounded-full px-3 text-[13px] font-medium whitespace-nowrap transition-colors outline-none focus-visible:ring-4 focus-visible:ring-fg/20 sm:h-8",
         pressed ? TOGGLE_ACTIVE[tone] : "text-fg-muted hover:bg-surface-1 hover:text-fg",
         className,
       )}
@@ -695,7 +710,12 @@ export function PricePanel({
 
   let priceNode: ReactNode;
   if (pending && !quote) {
-    priceNode = <Skeleton className="h-12 w-48" />;
+    priceNode = (
+      <div className="flex flex-col gap-3">
+        <Skeleton className="h-12 w-48 max-w-full" />
+        <Skeleton className="h-4 w-36" />
+      </div>
+    );
   } else if (!quote || shown === null) {
     priceNode = (
       <ErrorState
@@ -707,28 +727,37 @@ export function PricePanel({
     );
   } else {
     priceNode = (
-      <div className="flex min-w-0 max-w-full flex-col gap-2">
+      <div className="flex min-w-0 max-w-full flex-col gap-2.5">
         <div className="-ml-1 flex flex-wrap items-baseline gap-x-3 gap-y-1.5">
-          <FlashPrice value={shown} currency={priceCurrency} size="lg" live={point === null} force={hoverForce} />
+          <FlashPrice
+            value={shown}
+            currency={priceCurrency}
+            size="lg"
+            live={point === null}
+            force={hoverForce}
+            className="font-medium"
+          />
           {quote && Number.isFinite(quote.change24hPct) ? (
             <span className="inline-flex items-baseline gap-1.5">
               <ChangeBadge value={quote.change24hPct} />
-              <span className="text-xs text-fg-muted">24 h</span>
+              <span className="text-[11px] leading-4 text-fg-muted">24 h</span>
             </span>
           ) : null}
         </div>
-        <PriceFreshness
-          at={polledAt > 0 ? polledAt : (priceUpdatedAt ?? quote.updatedAt)}
-          stale={polledAt > 0 ? polledRow?.stale === true : priceStale || quote.stale === true}
-          delayedOnly={polledAt <= 0}
-          live={polledAt > 0 && polledRow?.stale !== true}
-        />
-        {point === null && quote.reference ? (
-          <p className="text-sm text-fg-muted">{t.detail.referencePrice}</p>
-        ) : null}
-        {showFxNote ? <p className="text-sm text-fg-muted">{t.detail.fxFallback}</p> : null}
+        <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
+          <PriceFreshness
+            at={polledAt > 0 ? polledAt : (priceUpdatedAt ?? quote.updatedAt)}
+            stale={polledAt > 0 ? polledRow?.stale === true : priceStale || quote.stale === true}
+            delayedOnly={polledAt <= 0}
+            live={polledAt > 0 && polledRow?.stale !== true}
+          />
+          {point === null && quote.reference ? (
+            <p className="text-[11px] leading-4 text-fg-muted">{t.detail.referencePrice}</p>
+          ) : null}
+          {showFxNote ? <p className="text-[11px] leading-4 text-fg-muted">{t.detail.fxFallback}</p> : null}
+        </div>
         {showDislocation && poolPct !== null && marketShown !== null ? (
-          <p className="text-sm text-warn">
+          <p className="text-xs leading-relaxed text-warn">
             {fill(t.detail.dislocated, { pct: formatPercent(poolPct), market: marketShown })}
           </p>
         ) : null}
@@ -738,71 +767,59 @@ export function PricePanel({
 
   return (
     <section
-      className="flex min-w-0 max-w-full flex-col gap-4"
+      className="flex min-w-0 max-w-full flex-col"
       data-range={range}
       data-points={points.length}
       data-chart-mode={mode}
     >
       {priceNode}
 
-      <div className="flex h-7 min-w-0 items-center gap-2.5 overflow-hidden">
-        {history.isPending ? (
-          <Skeleton className="h-6 w-16 shrink-0 rounded-full" />
-        ) : pointIso ? (
-          <div className="flex min-w-0 items-center gap-2">
-            {deltaFormatted ? (
+      <div className="mt-3 flex min-w-0 flex-wrap items-center justify-between gap-x-4 gap-y-1">
+        <div className="flex min-h-6 min-w-0 items-baseline gap-x-3 overflow-hidden">
+          {history.isPending ? (
+            <Skeleton className="h-6 w-16 shrink-0 rounded-full" />
+          ) : pointIso ? (
+            <div className="flex min-w-0 items-center gap-2">
+              {deltaFormatted ? (
+                <span
+                  className={cn(
+                    "num shrink-0 text-[13px] font-semibold tabular-nums",
+                    deltaUsd !== null && deltaUsd >= 0 ? "text-up" : "text-down",
+                  )}
+                >
+                  {deltaFormatted}
+                </span>
+              ) : null}
+              <p className="num min-w-0 truncate text-[13px] text-fg-muted">
+                <span className="sr-only">{t.detail.onChart}. </span>
+                <time dateTime={pointIso}>{formatDateTime(pointIso)}</time>
+              </p>
+            </div>
+          ) : move === null ? (
+            <span className="num text-[13px] text-fg-muted">—</span>
+          ) : (
+            <>
               <span
                 className={cn(
-                  "num shrink-0 text-[13px] font-semibold tabular-nums",
-                  deltaUsd !== null && deltaUsd >= 0 ? "text-up" : "text-down",
+                  "num shrink-0 text-[13px] font-medium",
+                  move > 0 ? "text-up" : move < 0 ? "text-down" : "text-fg-muted",
                 )}
               >
-                {deltaFormatted}
+                {formatPercent(move)}
               </span>
-            ) : null}
-            <p className="num min-w-0 truncate text-[13px] text-fg-muted">
-              <span className="sr-only">{t.detail.onChart}. </span>
-              <time dateTime={pointIso}>{formatDateTime(pointIso)}</time>
-            </p>
-          </div>
-        ) : move === null ? (
-          <span className="num text-[13px] text-fg-muted">—</span>
-        ) : (
-          <>
-            <span
-              className={cn(
-                "num shrink-0 text-[13px] font-medium",
-                move > 0 ? "text-up" : move < 0 ? "text-down" : "text-fg-muted",
-              )}
-            >
-              {formatPercent(move)}
-            </span>
-            <span className="min-w-0 truncate text-[13px] text-fg-muted">{t.detail.rangeCaption[range]}</span>
-            {deltaFormatted ? (
-              <span
-                className={cn(
-                  "num shrink-0 text-[13px] text-fg-muted",
-                  deltaUsd !== null && deltaUsd >= 0 ? "text-up" : "text-down",
-                )}
-              >
-                · {deltaFormatted}
-              </span>
-            ) : null}
-          </>
-        )}
-      </div>
-
-      <div className="flex w-full min-w-0 max-w-full flex-wrap items-center justify-between gap-2">
-        <div className="w-full min-w-0 sm:w-auto">
-          <RangeCapsule
-            compact
-            label={t.detail.rangesLabel}
-            options={rangeOptions}
-            value={range}
-            onChange={(value) => {
-              if (isDetailRange(value)) onRangeChange(value);
-            }}
-          />
+              <span className="min-w-0 truncate text-[13px] text-fg-muted">{t.detail.rangeCaption[range]}</span>
+              {deltaFormatted ? (
+                <span
+                  className={cn(
+                    "num hidden shrink-0 text-[13px] text-fg-muted sm:inline",
+                    deltaUsd !== null && deltaUsd >= 0 ? "text-up" : "text-down",
+                  )}
+                >
+                  · {deltaFormatted}
+                </span>
+              ) : null}
+            </>
+          )}
         </div>
         <RangeCapsule
           className="shrink-0"
@@ -817,14 +834,29 @@ export function PricePanel({
         />
       </div>
 
-      {illustrative ? <p className="text-sm text-fg-muted">{t.detail.chartReference}</p> : null}
+      <div className="mt-2 flex w-full min-w-0 max-w-full border-b border-border">
+        <RangeCapsule
+          compact
+          label={t.detail.rangesLabel}
+          options={rangeOptions}
+          value={range}
+          onChange={(value) => {
+            if (isDetailRange(value)) onRangeChange(value);
+          }}
+        />
+      </div>
+
+      {illustrative ? <p className="mt-3 text-[11px] leading-4 text-fg-muted">{t.detail.chartReference}</p> : null}
 
       <div
         ref={chartCardRef}
         className={cn(
-          "min-w-0 max-w-full rounded-2xl bg-white p-5 shadow-[0_1px_2px_rgba(16,24,40,0.04),0_8px_24px_rgba(16,24,40,0.08)] sm:p-6",
+          "min-w-0 max-w-full",
           fullscreen &&
-            "fixed inset-0 z-[100] flex h-screen w-screen flex-col justify-between overflow-y-auto rounded-none border-0 bg-white p-5 sm:p-8 gap-4",
+            cn(
+              CHART_SURFACE,
+              "fixed inset-0 z-[100] flex h-screen w-screen flex-col justify-between gap-4 overflow-y-auto rounded-none p-5 sm:p-8",
+            ),
         )}
         role={fullscreen ? "dialog" : undefined}
         aria-modal={fullscreen ? true : undefined}
@@ -975,7 +1007,7 @@ export function PricePanel({
             maxCompare={MAX_COMPARE}
           />
         )}
-        <div className="relative min-w-0 max-w-full">
+        <div className="relative mt-4 min-w-0 max-w-full">
           {tvActive ? (
             <TradingViewChart symbol={symbol} underlying={underlying} range={range} fullscreen={fullscreen} />
           ) : null}
@@ -1031,50 +1063,43 @@ export function PricePanel({
           <p className="mt-2 text-xs text-fg-muted">Mostrando gráfico en tiempo real vía TradingView</p>
         ) : null}
         {period ? (
-          <div className="num mt-2 flex justify-between gap-3 text-xs leading-4 text-fg-muted">
+          <div className="num mt-2 flex justify-between gap-3 text-[11px] leading-4 text-fg-muted">
             <time dateTime={new Date(period.start).toISOString()}>{formatPeriodDate(period.start)}</time>
             <time dateTime={new Date(period.end).toISOString()}>{formatPeriodDate(period.end)}</time>
           </div>
         ) : null}
-        {chartReady && stats && openUsd !== null && periodAvgUsd !== null ? (() => {
+        {chartReady && stats && quote && Number.isFinite(quote.priceUsd) ? (
+          <PriceRangeBar
+            lowUsd={stats.low}
+            highUsd={stats.high}
+            currentUsd={quote.priceUsd}
+            rangeLabel={t.detail.rangeCaption[range]}
+            currency={priceCurrency}
+            rate={rate}
+          />
+        ) : null}
+        {chartReady && openUsd !== null && periodAvgUsd !== null ? (() => {
           const openShown = displayPrice(openUsd, priceCurrency, rate);
           const avgShown = displayPrice(periodAvgUsd, priceCurrency, rate);
-          const highShown = displayPrice(stats.high, priceCurrency, rate);
-          const lowShown = displayPrice(stats.low, priceCurrency, rate);
-          const amplitudePct = stats.low > 0 ? ((stats.high - stats.low) / stats.low) * 100 : 0;
           return (
-            <div className="mt-3 border-t border-border/70 pt-3">
+            <div className="mt-5 border-t border-border pt-4">
               <p className="label">Resumen del período</p>
-              <dl className="mt-2 grid grid-cols-2 gap-x-6 gap-y-2.5 sm:grid-cols-4">
+              <dl className="mt-3 grid grid-cols-2 gap-x-8">
                 <div>
-                  <dt className="text-xs leading-4 text-fg-muted">Apertura</dt>
-                  <dd className="num mt-0.5 text-[13px] leading-5 font-medium text-fg">
+                  <dt className="text-[11px] leading-4 text-fg-muted">Apertura</dt>
+                  <dd className="num mt-1 text-[13px] leading-5 font-medium text-fg">
                     {formatMoney(openShown ?? openUsd, openShown === null ? "USD" : priceCurrency)}
                   </dd>
                 </div>
                 <div>
-                  <dt className="text-xs leading-4 text-fg-muted">Promedio</dt>
-                  <dd className="num mt-0.5 text-[13px] leading-5 font-medium text-fg">
+                  <dt className="text-[11px] leading-4 text-fg-muted">Promedio</dt>
+                  <dd className="num mt-1 text-[13px] leading-5 font-medium text-fg">
                     {formatMoney(avgShown ?? periodAvgUsd, avgShown === null ? "USD" : priceCurrency)}
-                  </dd>
-                </div>
-                <div className="min-w-0">
-                  <dt className="text-xs leading-4 text-fg-muted">Máx / Mín</dt>
-                  <dd className="num mt-0.5 truncate text-[13px] leading-5 font-medium text-fg">
-                    {formatMoney(highShown ?? stats.high, highShown === null ? "USD" : priceCurrency)}
-                    <span className="text-fg-muted"> · </span>
-                    {formatMoney(lowShown ?? stats.low, lowShown === null ? "USD" : priceCurrency)}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-xs leading-4 text-fg-muted">Amplitud</dt>
-                  <dd className="num mt-0.5 text-[13px] leading-5 font-medium text-fg">
-                    {amplitudePct.toFixed(2).replace(".", ",")}%
                   </dd>
                 </div>
               </dl>
               {simulator ? (
-                <p className="num mt-3 text-xs leading-4 text-fg-muted">
+                <p className="num mt-4 text-[11px] leading-4 text-fg-muted">
                   Si hubieras invertido {formatMoney(simulator.base, priceCurrency)}:{" "}
                   <span className="font-medium text-fg">{formatMoney(simulator.finalValue, priceCurrency)}</span>{" "}
                   <span
@@ -1103,7 +1128,7 @@ export function PricePanel({
         ) : null}
         {technical ? <p className="mt-3 text-xs text-fg-muted">{copy.disclaimer}</p> : null}
       </div>
-      {sourceLine ? <p className="text-xs text-fg-muted">{sourceLine}</p> : null}
+      {sourceLine ? <p className="mt-3 text-[11px] leading-4 text-fg-muted">{sourceLine}</p> : null}
     </section>
   );
 }

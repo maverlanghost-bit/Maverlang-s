@@ -23,18 +23,18 @@ export function CostBreakdown({
         <div
           key={row.label}
           className={cn(
-            "grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-4 py-2.5",
+            "grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-6 py-[0.6875rem]",
             index > 0 && "border-t border-border/70",
           )}
         >
           <dt className="min-w-0 text-[13px] leading-5 text-fg-muted">{row.label}</dt>
-          <dd className="num text-right text-sm leading-5 text-fg">{row.value}</dd>
+          <dd className="num text-right text-[13px] leading-5 text-fg">{row.value}</dd>
         </div>
       ))}
       {total ? (
-        <div className="mt-0.5 grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-4 border-t border-fg/20 pt-3 pb-0.5">
-          <dt className="min-w-0 text-sm font-medium text-fg">{total.label}</dt>
-          <dd className="num text-right text-[15px] font-medium text-fg">{total.value}</dd>
+        <div className="mt-1 grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-6 border-t border-fg/25 pt-3.5">
+          <dt className="min-w-0 text-[13px] leading-5 font-medium text-fg">{total.label}</dt>
+          <dd className="num text-right text-[15px] leading-5 font-medium text-fg">{total.value}</dd>
         </div>
       ) : null}
     </dl>

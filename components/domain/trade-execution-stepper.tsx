@@ -56,16 +56,15 @@ export function TradeExecutionStepper({
 
   return (
     <div role="status" aria-live="polite" className="flex w-full min-w-0 flex-col gap-5">
-      <div className="flex items-baseline justify-between gap-3">
+      <div>
         <p className="label">{isEnglish ? "Executing order" : "Ejecutando orden"}</p>
-        <p className="num text-xs font-medium text-fg-muted">{progressPct}%</p>
-      </div>
-
-      <div aria-hidden="true" className="h-px w-full overflow-hidden bg-border">
-        <div
-          className="h-full bg-fg transition-[width] duration-500 ease-out motion-reduce:transition-none"
-          style={{ width: `${progressPct}%` }}
-        />
+        {/* Barra de actividad, no de porcentaje: no promete un avance exacto. */}
+        <div aria-hidden="true" className="mt-3 h-px w-full overflow-hidden bg-border">
+          <div
+            className="h-full bg-fg transition-[width] duration-500 ease-out motion-reduce:transition-none"
+            style={{ width: `${progressPct}%` }}
+          />
+        </div>
       </div>
 
       <ol className="flex flex-col">
@@ -76,6 +75,7 @@ export function TradeExecutionStepper({
           return (
             <li
               key={step.title}
+              aria-current={isActive ? "step" : undefined}
               className="relative grid grid-cols-[1.25rem_minmax(0,1fr)] gap-x-3.5 pb-4 last:pb-0"
             >
               {index < steps.length - 1 ? (

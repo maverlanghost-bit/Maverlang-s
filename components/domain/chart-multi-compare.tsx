@@ -170,8 +170,8 @@ export function ChartMultiCompare({
               "inline-flex h-11 shrink-0 items-center gap-1.5 rounded-full border px-3 text-[13px] font-medium tracking-tight outline-none transition-colors duration-150 sm:h-8 sm:text-xs",
               "focus-visible:ring-2 focus-visible:ring-fg/20",
               open
-                ? "border-fg/40 bg-surface-1 text-fg"
-                : "border-border-control bg-bg text-fg-muted hover:border-fg hover:bg-surface-1 hover:text-fg",
+                ? "border-border-control bg-bg text-fg"
+                : "border-border-control bg-bg text-fg-muted hover:text-fg",
             )}
           >
             <svg viewBox="0 0 16 16" fill="none" className="size-3.5 shrink-0" aria-hidden="true">

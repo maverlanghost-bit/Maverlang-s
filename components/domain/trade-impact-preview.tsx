@@ -1,5 +1,8 @@
 "use client";
 
+import type { ReactNode } from "react";
+
+import { cn } from "@/lib/cn";
 import { formatMoney, formatShares } from "@/lib/format";
 import { displayPrice } from "@/lib/market/browse";
 
@@ -16,10 +19,47 @@ export interface TradeImpactPreviewProps {
   rate?: number | null;
 }
 
+/** Fila del estado de cuenta: rótulo a la izquierda, cifra mono a la derecha. */
+function ImpactRow({
+  label,
+  children,
+  emphasis = false,
+  divider = true,
+}: {
+  label: string;
+  children: ReactNode;
+  emphasis?: boolean;
+  divider?: boolean;
+}) {
+  return (
+    <div
+      className={cn(
+        "grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-6 py-[0.6875rem]",
+        divider && (emphasis ? "mt-1 border-t border-fg/25 pt-3.5" : "border-t border-border/70"),
+      )}
+    >
+      <dt className="min-w-0 text-[13px] leading-5 text-fg-muted">{label}</dt>
+      <dd className={cn("num text-right text-[13px] leading-5 text-fg", emphasis && "font-medium")}>{children}</dd>
+    </div>
+  );
+}
+
+/** `antes → después`, con el valor resultante en primer plano. */
+function Delta({ from, to }: { from: string; to: string }) {
+  return (
+    <>
+      <span className="text-fg-muted">{from}</span>
+      <span aria-hidden="true" className="mx-1.5 text-fg-subtle">
+        →
+      </span>
+      <span className="font-medium text-fg">{to}</span>
+    </>
+  );
+}
+
 /**
  * Vista previa del impacto de la orden: posición, peso en cartera y efectivo
- * resultante. Filas hairline, sin tarjetas anidadas: se lee como un estado de
- * cuenta antes de confirmar.
+ * resultante. Se lee como el cierre de un estado de cuenta antes de confirmar.
  */
 export function TradeImpactPreview(props: TradeImpactPreviewProps) {
   const nextShares = Math.max(
@@ -46,27 +86,20 @@ export function TradeImpactPreview(props: TradeImpactPreviewProps) {
   })();
 
   return (
-    <section className="min-w-0 border-t border-border pt-4">
+    <section className="min-w-0">
       <p className="label">Impacto estimado en tu cartera</p>
-      <dl className="mt-1">
-        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-4 py-2.5">
-          <dt className="min-w-0 text-[13px] leading-5 text-fg-muted">Posición {props.symbol}</dt>
-          <dd className="num text-right text-sm leading-5 text-fg">
-            {`${formatShares(props.currentShares)} → ${formatShares(nextShares)}`}
-          </dd>
-        </div>
-        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-4 border-t border-border/70 py-2.5">
-          <dt className="min-w-0 text-[13px] leading-5 text-fg-muted">Peso en cartera</dt>
-          <dd className="num text-right text-sm leading-5 text-fg">
-            {`${Math.round(currentWeightPct)}% → ${Math.round(nextWeightPct)}%`}
-          </dd>
-        </div>
-        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-4 border-t border-fg/15 pt-3 pb-0.5">
-          <dt className="min-w-0 text-[13px] leading-5 text-fg-muted">Efectivo post-orden</dt>
-          <dd className="num text-right text-sm font-medium text-fg">{nextCashText}</dd>
-        </div>
+      <dl className="mt-1 border-t border-border">
+        <ImpactRow label={`Posición ${props.symbol}`} divider={false}>
+          <Delta from={formatShares(props.currentShares)} to={formatShares(nextShares)} />
+        </ImpactRow>
+        <ImpactRow label="Peso en cartera">
+          <Delta from={`${Math.round(currentWeightPct)}%`} to={`${Math.round(nextWeightPct)}%`} />
+        </ImpactRow>
+        <ImpactRow label="Efectivo post-orden" emphasis>
+          {nextCashText}
+        </ImpactRow>
       </dl>
-      <p className="mt-2.5 text-[11px] leading-relaxed text-fg-subtle">Jupiter Spot Router · 0% comisión</p>
+      <p className="mt-3 text-[11px] leading-relaxed text-fg-subtle">Jupiter Spot Router · 0% comisión</p>
     </section>
   );
 }

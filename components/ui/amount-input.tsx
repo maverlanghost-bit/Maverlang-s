@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, type ChangeEvent } from "react";
+import { useId, type ChangeEvent, type ReactNode } from "react";
 
 import { indexFromKey } from "@/components/ui/keys";
 import { cn } from "@/lib/cn";
@@ -90,6 +90,7 @@ export function AmountInput({
   describedBy,
   invalid = false,
   chips,
+  caption,
   inputClassName,
   chipClassName,
   chipsClassName,
@@ -111,6 +112,8 @@ export function AmountInput({
   invalid?: boolean;
   /** Si no se pasa, los atajos son los de la moneda. */
   chips?: readonly { label: string; value: number | "max" }[];
+  /** Línea bajo la cifra (equivalencia, nota del paso). Reserva alto fijo. */
+  caption?: ReactNode;
   /** Ajustes sólo visuales (móvil) del campo y los atajos, sin tocar lógica. */
   inputClassName?: string;
   chipClassName?: string;
@@ -120,18 +123,22 @@ export function AmountInput({
   const fieldId = id ?? `${baseId}-amount`;
   const places = placesOf(currency);
   const display = places === 0 ? groupClp(value.replace(/\D/g, "")) : decimalToDisplay(value);
-  const symbol = currency === "CLP" ? "$" : currency === "SHARES" ? "" : "US$";
   const choices = currencies ?? (["CLP", "USD"] as const);
   const shownChips = (chips ?? quickAmounts[currency]).map((chip) =>
     chip.value === "max" && maxLabel ? { ...chip, label: maxLabel } : chip,
   );
-  // La cifra protagonista baja de tamaño sólo cuando el número es largo: nunca desborda a 390 px.
+  // La unidad va pegada a la cifra: «12.345 CLP» no deja dudas de moneda.
+  const unit =
+    currency === "SHARES"
+      ? (suffix ?? labels?.SHARES ?? defaultLabels.SHARES)
+      : (labels?.[currency] ?? defaultLabels[currency]);
+  // La cifra protagonista baja de tamaño sólo cuando el número es largo: nunca desborda a 360 px.
   const sizeClass =
-    display.length > 12
-      ? "text-[1.625rem] sm:text-[1.75rem]"
-      : display.length > 9
-        ? "text-[1.875rem] sm:text-[2rem]"
-        : "text-[2.375rem] sm:text-[2.625rem]";
+    display.length > 11
+      ? "text-[1.75rem] sm:text-[2rem]"
+      : display.length > 8
+        ? "text-[2rem] sm:text-[2.25rem]"
+        : "text-[2.5rem] sm:text-[2.75rem]";
 
   function onInput(event: ChangeEvent<HTMLInputElement>) {
     if (places === 0) {
@@ -155,8 +162,8 @@ export function AmountInput({
   }
 
   return (
-    <div className="flex w-full min-w-0 flex-col gap-3.5">
-      <div className="flex min-h-10 flex-wrap items-center justify-between gap-x-3 gap-y-2">
+    <div className="flex w-full min-w-0 flex-col">
+      <div className="flex min-h-9 flex-wrap items-center justify-between gap-x-3 gap-y-1">
         <label htmlFor={fieldId} className="label cursor-default">
           {label}
         </label>
@@ -170,51 +177,47 @@ export function AmountInput({
               if (next !== currency) onCurrencyChange(next);
             }}
           />
-        ) : (
-          <span className="label-xs text-fg-subtle">{labels?.[currency] ?? defaultLabels[currency]}</span>
-        )}
+        ) : null}
       </div>
 
       <div
         className={cn(
-          "rounded-2xl border bg-bg transition-[border-color,box-shadow] duration-150",
+          "mt-2 flex min-w-0 items-baseline gap-2 border-b pb-2.5 transition-colors duration-150",
           invalid
-            ? "border-down/60 focus-within:border-down focus-within:shadow-[0_0_0_3px_rgba(200,30,30,0.07)]"
-            : "border-border-control/50 hover:border-border-control/80 focus-within:border-fg focus-within:shadow-[0_0_0_3px_rgba(10,10,10,0.05)]",
+            ? "border-down"
+            : "border-border-control/45 hover:border-border-control focus-within:border-fg",
         )}
       >
-        <div className="flex min-w-0 items-baseline justify-center gap-2 px-4 py-4">
-          {symbol ? (
-            <span aria-hidden="true" className="shrink-0 self-center font-mono text-base text-fg-subtle tabular-nums">
-              {symbol}
-            </span>
-          ) : null}
-          <input
-            id={fieldId}
-            data-bare-input
-            inputMode={places === 0 ? "numeric" : "decimal"}
-            autoComplete="off"
-            spellCheck={false}
-            aria-label={`${label} en ${labels?.[currency] ?? defaultLabels[currency]}`}
-            aria-invalid={invalid || undefined}
-            aria-describedby={describedBy}
-            placeholder="0"
-            value={display}
-            onChange={onInput}
-            style={{ width: `${Math.max(display.length, 1) + 1}ch` }}
-            className={cn(
-              "min-w-0 max-w-full overflow-x-auto rounded-md bg-transparent text-center font-mono leading-none text-fg tabular-nums caret-fg outline-none placeholder:text-fg-subtle/70",
-              sizeClass,
-              inputClassName,
-            )}
-          />
-          {suffix ? (
-            <span className="shrink-0 self-center text-[13px] font-medium text-fg-subtle">{suffix}</span>
-          ) : null}
-        </div>
+        <input
+          id={fieldId}
+          data-bare-input
+          inputMode={places === 0 ? "numeric" : "decimal"}
+          enterKeyHint="done"
+          autoComplete="off"
+          spellCheck={false}
+          aria-label={`${label} en ${unit}`}
+          aria-invalid={invalid || undefined}
+          aria-describedby={describedBy}
+          placeholder="0"
+          value={display}
+          onChange={onInput}
+          style={{ width: `${Math.max(display.length, 1) + 1}ch` }}
+          className={cn(
+            "min-w-0 max-w-full rounded-none bg-transparent text-left font-mono leading-none tracking-[-0.02em] text-fg tabular-nums caret-fg outline-none placeholder:text-fg-subtle",
+            sizeClass,
+            inputClassName,
+          )}
+        />
+        <span className="shrink-0 font-mono text-[12px] leading-none font-medium tracking-[0.045em] text-fg-muted uppercase">
+          {unit}
+        </span>
       </div>
 
-      <div className={cn("flex flex-wrap justify-center gap-2", chipsClassName)}>
+      {caption !== undefined ? (
+        <div className="mt-2.5 min-h-5 text-[13px] leading-5 text-fg-muted">{caption}</div>
+      ) : null}
+
+      <div className={cn("mt-2 flex flex-wrap items-center gap-x-1", chipsClassName)}>
         {shownChips.map((chip) => {
           const target = chip.value === "max" ? (max === undefined ? null : asRaw(max, currency)) : asRaw(chip.value, currency);
           const pressed = target !== null && value === target;
@@ -226,10 +229,10 @@ export function AmountInput({
               disabled={chip.value === "max" && max === undefined}
               onClick={() => applyQuick(chip.value)}
               className={cn(
-                "inline-flex min-h-11 items-center justify-center rounded-full border px-4 text-[13px] font-medium tracking-[0.01em] tabular-nums transition duration-150 ease-spring active:scale-[0.98] disabled:pointer-events-none disabled:opacity-40",
+                "inline-flex min-h-11 items-center justify-center rounded-md px-2 text-[12px] leading-none font-medium tracking-[0.01em] tabular-nums transition-colors duration-150 hover:bg-surface-1 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-40",
                 pressed
-                  ? "border-fg bg-surface-1 text-fg ring-1 ring-fg"
-                  : "border-border-control/50 bg-bg text-fg-body hover:border-border-control hover:bg-surface-1 hover:text-fg",
+                  ? "text-fg underline decoration-fg decoration-1 underline-offset-4"
+                  : "text-fg-muted hover:text-fg",
                 chipClassName,
               )}
             >
