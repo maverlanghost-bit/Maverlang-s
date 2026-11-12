@@ -167,11 +167,11 @@ export function ChartMultiCompare({
             }
             onClick={() => setOpen((value) => !value)}
             className={cn(
-              "inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border px-3 text-xs font-medium tracking-tight outline-none transition duration-150",
+              "inline-flex h-11 shrink-0 items-center gap-1.5 rounded-full border px-3 text-[13px] font-medium tracking-tight outline-none transition-colors duration-150 sm:h-8 sm:text-xs",
               "focus-visible:ring-2 focus-visible:ring-fg/20",
               open
-                ? "border-fg/30 bg-surface-1 text-fg"
-                : "border-border/80 bg-white text-fg hover:border-fg/25 hover:bg-surface-1",
+                ? "border-fg/40 bg-surface-1 text-fg"
+                : "border-border-control bg-bg text-fg-muted hover:border-fg hover:bg-surface-1 hover:text-fg",
             )}
           >
             <svg viewBox="0 0 16 16" fill="none" className="size-3.5 shrink-0" aria-hidden="true">
@@ -190,7 +190,7 @@ export function ChartMultiCompare({
             </svg>
             <span>Comparar</span>
             {hasComparisons ? (
-              <span className="font-mono text-[11px] font-medium tabular-nums text-fg-muted">
+              <span className="num text-xs font-medium text-fg-muted">
                 ({comparedCount})
               </span>
             ) : null}
@@ -208,11 +208,11 @@ export function ChartMultiCompare({
               role="dialog"
               aria-modal="false"
               aria-label="Agregar activos para comparar"
-              className="absolute top-full left-0 z-30 mt-1.5 max-h-[min(22rem,60vh)] w-[min(24rem,calc(100vw_-_4rem))] overflow-y-auto overscroll-contain rounded-2xl border border-border/70 bg-white p-2 shadow-float"
+              className="absolute top-full left-0 z-30 mt-1.5 max-h-[min(22rem,60vh)] w-[min(24rem,calc(100vw_-_4rem))] overflow-y-auto overscroll-contain rounded-xl border border-border bg-bg p-2 shadow-float"
             >
               {groups.map((entry) => (
                 <section key={entry.group} aria-label={entry.label} className="py-1">
-                  <p className="px-2 pb-1 text-[10px] font-semibold tracking-wider text-fg-muted uppercase">
+                  <p className="px-2 pb-1 text-xs font-medium tracking-wide text-fg-muted uppercase">
                     {entry.label}
                   </p>
                   <ul className="grid grid-cols-1 gap-0.5 sm:grid-cols-2">
@@ -230,7 +230,7 @@ export function ChartMultiCompare({
                             disabled={locked}
                             onClick={() => onToggleSymbol(option.symbol)}
                             className={cn(
-                              "flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs outline-none transition-colors duration-150",
+                              "flex min-h-11 w-full items-center gap-2 rounded-lg px-2 text-left text-[13px] outline-none transition-colors duration-150",
                               "hover:bg-surface-1 focus-visible:ring-2 focus-visible:ring-fg/20",
                               "disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent",
                               selected ? "text-fg" : "text-fg-body",
@@ -268,7 +268,7 @@ export function ChartMultiCompare({
                 </section>
               ))}
               {atCap ? (
-                <p className="mt-1 border-t border-border/60 px-2 pt-2 text-[11px] leading-snug text-fg-muted">
+                <p className="mt-1 border-t border-border/60 px-2 pt-2 text-xs leading-snug text-fg-muted">
                   Máximo {max} activos comparados a la vez.
                 </p>
               ) : null}
@@ -277,7 +277,7 @@ export function ChartMultiCompare({
         </div>
 
         {hasComparisons ? (
-          <p className="min-w-0 flex-1 text-[11px] leading-snug text-fg-muted">
+          <p className="min-w-0 flex-1 text-xs leading-snug text-fg-muted">
             Toca o pasa el cursor sobre un activo para enfocar su curva
           </p>
         ) : null}
@@ -287,7 +287,7 @@ export function ChartMultiCompare({
             type="button"
             onClick={onClearAll}
             aria-label="Limpiar comparación"
-            className="shrink-0 rounded-full px-2 py-1 text-[11px] font-medium text-fg-muted underline-offset-2 outline-none transition-colors duration-150 hover:text-fg hover:underline focus-visible:ring-2 focus-visible:ring-fg/20"
+            className="inline-flex min-h-11 shrink-0 items-center rounded-full px-2 text-xs font-medium text-fg-muted underline-offset-2 outline-none transition-colors duration-150 hover:text-fg hover:underline focus-visible:ring-2 focus-visible:ring-fg/20"
           >
             Limpiar
           </button>
@@ -320,11 +320,11 @@ export function ChartMultiCompare({
                   onHighlightChange(highlightedId === item.id ? null : item.id);
                 }}
                 className={cn(
-                  "inline-flex max-w-full min-w-0 shrink-0 cursor-pointer items-center gap-2 rounded-full border bg-white px-2.5 py-1.5 text-xs outline-none transition duration-150",
+                  "inline-flex min-h-11 max-w-full min-w-0 shrink-0 cursor-pointer items-center gap-2 rounded-full border bg-bg px-3 text-xs outline-none transition-colors duration-150 sm:min-h-8 sm:px-2.5",
                   "focus-visible:ring-2 focus-visible:ring-fg/30",
                   focused
-                    ? "border-fg/20 ring-2 ring-fg/20 bg-white shadow-xs scale-[1.02]"
-                    : "border-border/80 hover:border-fg/25 hover:bg-surface-1",
+                    ? "border-fg/40"
+                    : "border-border hover:border-fg/30 hover:bg-surface-1",
                   dimmed && "opacity-50",
                 )}
               >
@@ -337,7 +337,7 @@ export function ChartMultiCompare({
                 <span className="max-w-[8.5rem] truncate text-fg-muted">{item.name}</span>
                 <span
                   className={cn(
-                    "font-mono text-[11px] font-medium tabular-nums",
+                    "num text-xs font-medium",
                     pctTone(item.changePct),
                     item.pending && "animate-pulse",
                   )}
@@ -349,9 +349,9 @@ export function ChartMultiCompare({
                     type="button"
                     onClick={() => removeItem(item)}
                     aria-label={`Quitar ${item.symbol} de la comparación`}
-                    className="ml-0.5 inline-flex size-4 shrink-0 items-center justify-center rounded-full text-fg-muted outline-none transition-colors duration-150 hover:bg-surface-2 hover:text-fg focus-visible:ring-2 focus-visible:ring-fg/30"
+                    className="-mr-1 ml-0.5 inline-flex size-7 shrink-0 items-center justify-center rounded-full text-fg-muted outline-none transition-colors duration-150 hover:bg-surface-2 hover:text-fg focus-visible:ring-2 focus-visible:ring-fg/30"
                   >
-                    <IconClose className="size-2.5" />
+                    <IconClose className="size-3" />
                   </button>
                 ) : null}
               </div>

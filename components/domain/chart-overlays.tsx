@@ -40,8 +40,8 @@ function StudyChip({
       aria-pressed={pressed}
       onClick={onClick}
       className={cn(
-        "inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border px-2.5 text-xs font-medium whitespace-nowrap outline-none transition duration-150 ease-spring focus-visible:ring-4 focus-visible:ring-fg/20 active:scale-[0.98]",
-        pressed ? "border-transparent bg-surface-2 text-fg" : "border-border/70 bg-white text-fg-muted hover:text-fg",
+        "inline-flex h-11 shrink-0 items-center gap-1.5 rounded-full border border-transparent px-3 text-[13px] font-medium whitespace-nowrap outline-none transition-colors duration-150 focus-visible:ring-4 focus-visible:ring-fg/20 sm:h-8 sm:px-2.5 sm:text-xs",
+        pressed ? "bg-surface-2 text-fg" : "text-fg-muted hover:bg-surface-1 hover:text-fg",
       )}
     >
       <span aria-hidden className="size-1.5 shrink-0 rounded-full" style={{ background: color }} />
@@ -71,7 +71,7 @@ function StyleSwitch({
     <div
       role="group"
       aria-label={label}
-      className="inline-flex h-8 shrink-0 items-center gap-0.5 rounded-full border border-border/70 bg-surface-1/80 p-0.5"
+      className="inline-flex h-11 shrink-0 items-center gap-0.5 rounded-full border border-border bg-bg p-0.5 sm:h-8"
     >
       {options.map(([id, text]) => {
         const selected = value === id;
@@ -82,7 +82,7 @@ function StyleSwitch({
             aria-pressed={selected}
             onClick={() => onChange(id)}
             className={cn(
-              "h-7 shrink-0 rounded-full px-2.5 text-xs font-medium whitespace-nowrap outline-none focus-visible:ring-4 focus-visible:ring-fg/20",
+              "h-9 shrink-0 rounded-full px-2.5 text-[13px] font-medium whitespace-nowrap outline-none focus-visible:ring-4 focus-visible:ring-fg/20 sm:h-7 sm:text-xs",
               selected ? "bg-fg text-bg" : "text-fg-muted hover:text-fg",
             )}
           >
@@ -183,7 +183,7 @@ export function ChartLegend({
   return (
     <ul
       aria-label={label}
-      className="mt-2 flex max-w-full flex-nowrap items-center gap-3 overflow-x-auto text-[11px] text-fg-subtle [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      className="mt-3 flex max-w-full flex-nowrap items-center gap-3 overflow-x-auto text-xs leading-4 text-fg-muted [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
     >
       {items.map((item) => (
         <li key={item.id} className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap">
@@ -262,7 +262,7 @@ export function RsiPanel({
             <span
               key={level}
               aria-hidden
-              className="num pointer-events-none absolute right-0 -translate-y-1/2 text-[10px] leading-none text-fg-subtle"
+              className="num pointer-events-none absolute right-0 -translate-y-1/2 text-xs leading-none text-fg-muted"
               style={{ top: `${(yForRsi(level) / RSI_H) * 100}%` }}
             >
               {level}

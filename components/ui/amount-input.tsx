@@ -1,9 +1,10 @@
 "use client";
 
-import type { ChangeEvent } from "react";
+import { useId, type ChangeEvent } from "react";
+
+import { indexFromKey } from "@/components/ui/keys";
 import { cn } from "@/lib/cn";
 import type { MoneyCurrency } from "@/lib/format";
-import { SegmentedControl } from "@/components/ui/segmented-control";
 
 /** CLP y USD son dinero. USDC se muestra como dólar. SHARES es la cantidad de la acción. */
 export type AmountCurrency = MoneyCurrency | "USDC" | "SHARES";
@@ -115,6 +116,8 @@ export function AmountInput({
   chipClassName?: string;
   chipsClassName?: string;
 }) {
+  const baseId = useId();
+  const fieldId = id ?? `${baseId}-amount`;
   const places = placesOf(currency);
   const display = places === 0 ? groupClp(value.replace(/\D/g, "")) : decimalToDisplay(value);
   const symbol = currency === "CLP" ? "$" : currency === "SHARES" ? "" : "US$";
@@ -122,6 +125,13 @@ export function AmountInput({
   const shownChips = (chips ?? quickAmounts[currency]).map((chip) =>
     chip.value === "max" && maxLabel ? { ...chip, label: maxLabel } : chip,
   );
+  // La cifra protagonista baja de tamaño sólo cuando el número es largo: nunca desborda a 390 px.
+  const sizeClass =
+    display.length > 12
+      ? "text-[1.625rem] sm:text-[1.75rem]"
+      : display.length > 9
+        ? "text-[1.875rem] sm:text-[2rem]"
+        : "text-[2.375rem] sm:text-[2.625rem]";
 
   function onInput(event: ChangeEvent<HTMLInputElement>) {
     if (places === 0) {
@@ -145,42 +155,65 @@ export function AmountInput({
   }
 
   return (
-    <div className="flex flex-col items-center gap-4">
-      <span className="text-sm font-medium text-fg">{label}</span>
-      {onCurrencyChange ? (
-        <SegmentedControl
-          label={currencyLabel}
-          value={currency}
-          onChange={(next) => {
-            const match = choices.find((choice) => choice === next);
-            if (match) onCurrencyChange(match);
-          }}
-          options={choices.map((choice) => ({ value: choice, label: labels?.[choice] ?? defaultLabels[choice] }))}
-        />
-      ) : (
-        <span className="text-sm text-fg-muted">{labels?.[currency] ?? defaultLabels[currency]}</span>
-      )}
-      <div className="flex min-w-0 max-w-full items-baseline justify-center gap-2">
-        {symbol ? <span className="font-mono text-2xl text-fg-muted tabular-nums">{symbol}</span> : null}
-        <input
-          id={id}
-          inputMode={places === 0 ? "numeric" : "decimal"}
-          autoComplete="off"
-          spellCheck={false}
-          aria-label={`${label} en ${labels?.[currency] ?? defaultLabels[currency]}`}
-          aria-invalid={invalid || undefined}
-          aria-describedby={describedBy}
-          placeholder="0"
-          value={display}
-          onChange={onInput}
-          style={{ width: `${Math.max(display.length, 1) + 1}ch` }}
-          className={cn(
-            "min-w-0 max-w-full overflow-x-auto rounded-lg bg-transparent text-center font-mono text-4xl text-fg tabular-nums placeholder:text-fg-subtle sm:text-5xl",
-            inputClassName,
-          )}
-        />
-        {suffix ? <span className="text-sm text-fg-muted">{suffix}</span> : null}
+    <div className="flex w-full min-w-0 flex-col gap-3.5">
+      <div className="flex min-h-10 flex-wrap items-center justify-between gap-x-3 gap-y-2">
+        <label htmlFor={fieldId} className="label cursor-default">
+          {label}
+        </label>
+        {onCurrencyChange ? (
+          <CurrencySwitch
+            label={currencyLabel}
+            value={currency}
+            options={choices}
+            labels={labels}
+            onChange={(next) => {
+              if (next !== currency) onCurrencyChange(next);
+            }}
+          />
+        ) : (
+          <span className="label-xs text-fg-subtle">{labels?.[currency] ?? defaultLabels[currency]}</span>
+        )}
       </div>
+
+      <div
+        className={cn(
+          "rounded-2xl border bg-bg transition-[border-color,box-shadow] duration-150",
+          invalid
+            ? "border-down/60 focus-within:border-down focus-within:shadow-[0_0_0_3px_rgba(200,30,30,0.07)]"
+            : "border-border-control/50 hover:border-border-control/80 focus-within:border-fg focus-within:shadow-[0_0_0_3px_rgba(10,10,10,0.05)]",
+        )}
+      >
+        <div className="flex min-w-0 items-baseline justify-center gap-2 px-4 py-4">
+          {symbol ? (
+            <span aria-hidden="true" className="shrink-0 self-center font-mono text-base text-fg-subtle tabular-nums">
+              {symbol}
+            </span>
+          ) : null}
+          <input
+            id={fieldId}
+            data-bare-input
+            inputMode={places === 0 ? "numeric" : "decimal"}
+            autoComplete="off"
+            spellCheck={false}
+            aria-label={`${label} en ${labels?.[currency] ?? defaultLabels[currency]}`}
+            aria-invalid={invalid || undefined}
+            aria-describedby={describedBy}
+            placeholder="0"
+            value={display}
+            onChange={onInput}
+            style={{ width: `${Math.max(display.length, 1) + 1}ch` }}
+            className={cn(
+              "min-w-0 max-w-full overflow-x-auto rounded-md bg-transparent text-center font-mono leading-none text-fg tabular-nums caret-fg outline-none placeholder:text-fg-subtle/70",
+              sizeClass,
+              inputClassName,
+            )}
+          />
+          {suffix ? (
+            <span className="shrink-0 self-center text-[13px] font-medium text-fg-subtle">{suffix}</span>
+          ) : null}
+        </div>
+      </div>
+
       <div className={cn("flex flex-wrap justify-center gap-2", chipsClassName)}>
         {shownChips.map((chip) => {
           const target = chip.value === "max" ? (max === undefined ? null : asRaw(max, currency)) : asRaw(chip.value, currency);
@@ -193,8 +226,10 @@ export function AmountInput({
               disabled={chip.value === "max" && max === undefined}
               onClick={() => applyQuick(chip.value)}
               className={cn(
-                "min-h-11 rounded-full px-3 text-sm transition duration-[140ms] ease-spring active:scale-[0.98] disabled:opacity-40",
-                pressed ? "bg-surface-3 text-fg" : "bg-surface-2 text-fg hover:bg-surface-3",
+                "inline-flex min-h-11 items-center justify-center rounded-full border px-4 text-[13px] font-medium tracking-[0.01em] tabular-nums transition duration-150 ease-spring active:scale-[0.98] disabled:pointer-events-none disabled:opacity-40",
+                pressed
+                  ? "border-fg bg-surface-1 text-fg ring-1 ring-fg"
+                  : "border-border-control/50 bg-bg text-fg-body hover:border-border-control hover:bg-surface-1 hover:text-fg",
                 chipClassName,
               )}
             >
@@ -203,6 +238,69 @@ export function AmountInput({
           );
         })}
       </div>
+    </div>
+  );
+}
+
+/** Conmutador de moneda: pista hairline + píldora blanca. Alto táctil de 44 px. */
+function CurrencySwitch({
+  label,
+  value,
+  options,
+  labels,
+  onChange,
+}: {
+  label: string;
+  value: AmountCurrency;
+  options: readonly AmountCurrency[];
+  labels?: Partial<Record<AmountCurrency, string>>;
+  onChange: (currency: AmountCurrency) => void;
+}) {
+  const baseId = useId();
+
+  function move(key: string) {
+    const current = Math.max(0, options.indexOf(value));
+    const next = indexFromKey(key, current, options.length);
+    if (next === null) return;
+    const option = options[next];
+    if (!option) return;
+    onChange(option);
+    document.getElementById(`${baseId}-${option}`)?.focus();
+  }
+
+  return (
+    <div
+      role="radiogroup"
+      aria-label={label}
+      onKeyDown={(event) => {
+        if (indexFromKey(event.key, 0, options.length) === null) return;
+        event.preventDefault();
+        move(event.key);
+      }}
+      className="inline-flex shrink-0 items-center rounded-full border border-border-control/45 bg-bg p-0.5"
+    >
+      {options.map((option) => {
+        const selected = option === value;
+        return (
+          <button
+            key={option}
+            id={`${baseId}-${option}`}
+            type="button"
+            role="radio"
+            aria-checked={selected}
+            tabIndex={selected ? 0 : -1}
+            onClick={() => onChange(option)}
+            className={cn(
+              "min-h-10 rounded-full px-3 text-xs font-medium tracking-[0.01em] transition-colors duration-150",
+              selected
+                ? "bg-surface-2 text-fg shadow-[inset_0_0_0_1px_rgba(10,10,10,0.05)]"
+                : "text-fg-muted hover:text-fg",
+            )}
+          >
+            {labels?.[option] ?? defaultLabels[option]}
+          </button>
+        );
+      })}
     </div>
   );
 }

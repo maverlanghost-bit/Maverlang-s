@@ -1,6 +1,5 @@
 "use client";
 
-import { Badge } from "@/components/ui/badge";
 import { IconCheck } from "@/components/ui/icons";
 import { cn } from "@/lib/cn";
 import { useT } from "@/lib/hooks/use-t";
@@ -56,81 +55,77 @@ export function TradeExecutionStepper({
   ];
 
   return (
-    <div
-      role="status"
-      aria-live="polite"
-      className="flex w-full flex-col gap-4 rounded-2xl border border-border/70 bg-surface-1 p-5 text-left shadow-card"
-    >
+    <div role="status" aria-live="polite" className="flex w-full min-w-0 flex-col gap-5">
       <div className="flex items-baseline justify-between gap-3">
-        <p className="text-xs font-semibold tracking-wider text-fg-muted uppercase">
-          {isEnglish ? "Executing order" : "Ejecutando orden"}
-        </p>
-        <p className="num text-xs font-medium tabular-nums text-fg-muted">{progressPct}%</p>
+        <p className="label">{isEnglish ? "Executing order" : "Ejecutando orden"}</p>
+        <p className="num text-xs font-medium text-fg-muted">{progressPct}%</p>
       </div>
 
-      <div aria-hidden="true" className="h-1 w-full overflow-hidden rounded-full bg-surface-3">
+      <div aria-hidden="true" className="h-px w-full overflow-hidden bg-border">
         <div
-          className="h-full rounded-full bg-brand transition-[width] duration-500 ease-out motion-reduce:transition-none"
+          className="h-full bg-fg transition-[width] duration-500 ease-out motion-reduce:transition-none"
           style={{ width: `${progressPct}%` }}
         />
       </div>
 
-      <ol className="flex flex-col gap-3">
+      <ol className="flex flex-col">
         {steps.map((step, index) => {
           const isDone = step.state === "done";
           const isActive = step.state === "active";
-          // El último paso queda en espera con un pulso tenue hasta la confirmación.
           const isLastWaiting = step.state === "waiting" && index === steps.length - 1;
           return (
-            <li key={step.title} className="flex items-start gap-3">
+            <li
+              key={step.title}
+              className="relative grid grid-cols-[1.25rem_minmax(0,1fr)] gap-x-3.5 pb-4 last:pb-0"
+            >
+              {index < steps.length - 1 ? (
+                <span
+                  aria-hidden="true"
+                  className="absolute top-5 bottom-0 left-2.5 w-px bg-border"
+                />
+              ) : null}
               <span
                 aria-hidden="true"
                 className={cn(
-                  "num mt-0.5 grid size-6 shrink-0 place-items-center rounded-full border text-[11px] font-semibold transition-colors duration-300",
-                  isDone && "border-brand bg-brand text-bg",
-                  isActive && "border-brand/60 bg-surface-2 text-brand",
-                  step.state === "waiting" && "border-border bg-surface-2 text-fg-muted",
+                  "relative z-10 mt-0.5 grid size-5 place-items-center rounded-full border bg-bg transition-colors duration-300",
+                  isDone && "border-fg bg-fg text-bg",
+                  isActive && "border-fg text-fg",
+                  step.state === "waiting" && "border-border-control/50",
                   isLastWaiting && "motion-safe:animate-pulse motion-reduce:animate-none",
                 )}
               >
                 {isDone ? (
-                  <IconCheck className="size-3.5" />
+                  <IconCheck className="size-3" />
                 ) : isActive ? (
-                  <span className="size-2 rounded-full bg-brand motion-safe:animate-pulse motion-reduce:animate-none" />
-                ) : (
-                  index + 1
-                )}
+                  <span className="size-1.5 rounded-full bg-fg motion-safe:animate-pulse motion-reduce:animate-none" />
+                ) : null}
               </span>
 
-              <div className="flex min-w-0 flex-col gap-0.5">
+              <div className="min-w-0">
                 <p
                   className={cn(
-                    "text-sm leading-snug font-medium text-balance",
+                    "text-sm leading-5 font-medium text-balance",
                     step.state === "waiting" ? "text-fg-muted" : "text-fg",
                   )}
                 >
                   {step.title}
                 </p>
-                <p className="text-xs leading-relaxed text-fg-muted">{step.detail}</p>
+                <p className="mt-0.5 text-[13px] leading-relaxed text-fg-muted">{step.detail}</p>
               </div>
-
-              {isActive ? (
-                <Badge tone="neutral" className="ml-auto shrink-0">
-                  {isEnglish ? "In progress" : "En curso"}
-                </Badge>
-              ) : null}
             </li>
           );
         })}
       </ol>
 
-      <p className="flex items-center gap-2 border-t border-border pt-3 text-sm text-fg-body">
+      <div className="flex items-start gap-2.5 border-t border-border pt-4">
         <span
           aria-hidden="true"
-          className="size-1.5 shrink-0 rounded-full bg-brand motion-safe:animate-pulse motion-reduce:animate-none"
+          className="mt-[0.4375rem] size-1.5 shrink-0 rounded-full bg-fg motion-safe:animate-pulse motion-reduce:animate-none"
         />
-        <span className="text-balance">{isSigning ? signingLabel : submittingLabel}</span>
-      </p>
+        <p className="text-sm leading-relaxed text-balance text-fg-body">
+          {isSigning ? signingLabel : submittingLabel}
+        </p>
+      </div>
     </div>
   );
 }

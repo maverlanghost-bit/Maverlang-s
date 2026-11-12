@@ -2,7 +2,6 @@
 
 import { InfoTip } from "@/components/domain/info-tip";
 import { Badge } from "@/components/ui/badge";
-import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { carteraCopy } from "@/content/i18n/extra-cartera";
 import { formatDateTime, formatMoney, type MoneyCurrency } from "@/lib/format";
@@ -46,22 +45,22 @@ function GapLine({ template, pct }: { template: string; pct: string }) {
 
 function GapSkeleton({ label }: { label: string }) {
   return (
-    <Card className="flex flex-col gap-3 p-4" aria-busy="true">
+    <section className="flex flex-col gap-3 border-t border-border pt-6" aria-busy="true">
       <span className="sr-only">{label}</span>
-      <Skeleton className="h-5 w-4/5 max-w-sm" />
-      <div className="grid grid-cols-2 gap-3">
+      <Skeleton className="h-4 w-4/5 max-w-sm" />
+      <div className="grid grid-cols-2 gap-6">
         <div>
           <Skeleton className="h-3 w-16" />
-          <Skeleton className="mt-1 h-5 w-24" />
+          <Skeleton className="mt-1.5 h-4 w-24" />
           <Skeleton className="mt-1 h-3 w-20" />
         </div>
         <div>
           <Skeleton className="h-3 w-20" />
-          <Skeleton className="mt-1 h-5 w-24" />
+          <Skeleton className="mt-1.5 h-4 w-24" />
           <Skeleton className="mt-1 h-3 w-20" />
         </div>
       </div>
-    </Card>
+    </section>
   );
 }
 
@@ -78,9 +77,11 @@ function PriceColumn({
 }) {
   return (
     <div className="min-w-0">
-      <dt className="text-xs font-medium leading-4 tracking-tight whitespace-nowrap text-fg-muted">{label}</dt>
-      <dd className="num mt-0.5 text-sm text-fg">{pending ? <Skeleton className="h-5 w-24" /> : amount}</dd>
-      <dd className="mt-0.5 min-h-4 text-[11px] leading-4 text-fg-muted">{at ? formatDateTime(at) : null}</dd>
+      <dt className="text-xs leading-4 text-fg-muted">{label}</dt>
+      <dd className="num mt-1 text-[13px] leading-5 font-medium text-fg">
+        {pending ? <Skeleton className="h-4 w-24" /> : amount}
+      </dd>
+      <dd className="num mt-0.5 min-h-4 text-xs leading-4 text-fg-muted">{at ? formatDateTime(at) : null}</dd>
     </div>
   );
 }
@@ -116,14 +117,14 @@ export function TokenGapCard({ symbol, quote }: { symbol: string; quote: Quote |
   const template = gap.side === "above" ? copy.gapAbove : gap.side === "below" ? copy.gapBelow : copy.gapEven;
 
   return (
-    <Card className="flex flex-col gap-3 p-4" data-token-gap={symbol}>
+    <section className="flex flex-col gap-3 border-t border-border pt-6" data-token-gap={symbol}>
       <div className="flex items-start gap-1">
-        <p className="min-w-0 flex-1 text-sm leading-5 text-pretty text-fg">
+        <p className="min-w-0 flex-1 text-sm leading-relaxed text-pretty text-fg-body">
           <GapLine template={template} pct={gapPercentText(gap.diffPct)} />
         </p>
         <InfoTip className="-mt-1.5 -mr-1.5 shrink-0" label={`${copy.whatIsThis}. ${copy.gapTitle}`} text={`${copy.gapTip} ${copy.gapWhy}`} />
       </div>
-      <dl className="grid grid-cols-2 gap-3">
+      <dl className="grid grid-cols-2 gap-x-6 border-t border-border/70 pt-3">
         <PriceColumn
           label={copy.gapToken}
           amount={formatMoney(tokenView.amount, tokenView.currency)}
@@ -137,6 +138,6 @@ export function TokenGapCard({ symbol, quote }: { symbol: string; quote: Quote |
           at={gap.closeAt}
         />
       </dl>
-    </Card>
+    </section>
   );
 }

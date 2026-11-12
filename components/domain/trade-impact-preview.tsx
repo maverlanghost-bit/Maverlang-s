@@ -16,22 +16,26 @@ export interface TradeImpactPreviewProps {
   rate?: number | null;
 }
 
-/** Vista previa del impacto de la orden: posición, peso en cartera y efectivo resultante. */
+/**
+ * Vista previa del impacto de la orden: posición, peso en cartera y efectivo
+ * resultante. Filas hairline, sin tarjetas anidadas: se lee como un estado de
+ * cuenta antes de confirmar.
+ */
 export function TradeImpactPreview(props: TradeImpactPreviewProps) {
   const nextShares = Math.max(
     0,
-    props.side === "buy" ? props.currentShares + props.deltaShares : props.currentShares - props.deltaShares
+    props.side === "buy" ? props.currentShares + props.deltaShares : props.currentShares - props.deltaShares,
   );
   const nextPosUsd = Math.max(
     0,
-    props.side === "buy" ? props.currentValueUsd + props.orderUsd : props.currentValueUsd - props.orderUsd
+    props.side === "buy" ? props.currentValueUsd + props.orderUsd : props.currentValueUsd - props.orderUsd,
   );
   const denom = Math.max(1, props.totalPortfolioUsd, nextPosUsd);
   const currentWeightPct = Math.min(100, Math.max(0, (props.currentValueUsd / denom) * 100));
   const nextWeightPct = Math.min(100, Math.max(0, (nextPosUsd / denom) * 100));
   const nextCashUsd = Math.max(
     0,
-    props.side === "buy" ? props.cashUsdc - props.orderUsd : props.cashUsdc + props.orderUsd
+    props.side === "buy" ? props.cashUsdc - props.orderUsd : props.cashUsdc + props.orderUsd,
   );
   const nextCashText = (() => {
     if (props.currency === "CLP" && props.rate && props.rate > 0) {
@@ -42,31 +46,27 @@ export function TradeImpactPreview(props: TradeImpactPreviewProps) {
   })();
 
   return (
-    <div className="rounded-2xl border border-border/70 bg-surface-1/65 p-3.5 text-xs tabular-nums">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className="font-semibold text-fg">Impacto estimado en tu cartera</span>
-        <span className="rounded-full border border-brand/25 bg-brand-soft/50 px-2.5 py-0.5 text-[11px] font-medium text-brand">
-          Jupiter Spot Router · 0% comisión
-        </span>
-      </div>
-      <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
-        <div className="rounded-xl border border-border/60 bg-surface-1/70 px-3 py-2">
-          <p className="text-[11px] uppercase tracking-wide text-fg-muted">Posición {props.symbol}</p>
-          <p className="mt-0.5 font-medium text-fg">
+    <section className="min-w-0 border-t border-border pt-4">
+      <p className="label">Impacto estimado en tu cartera</p>
+      <dl className="mt-1">
+        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-4 py-2.5">
+          <dt className="min-w-0 text-[13px] leading-5 text-fg-muted">Posición {props.symbol}</dt>
+          <dd className="num text-right text-sm leading-5 text-fg">
             {`${formatShares(props.currentShares)} → ${formatShares(nextShares)}`}
-          </p>
+          </dd>
         </div>
-        <div className="rounded-xl border border-border/60 bg-surface-1/70 px-3 py-2">
-          <p className="text-[11px] uppercase tracking-wide text-fg-muted">Peso en cartera</p>
-          <p className="mt-0.5 font-medium text-fg">
+        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-4 border-t border-border/70 py-2.5">
+          <dt className="min-w-0 text-[13px] leading-5 text-fg-muted">Peso en cartera</dt>
+          <dd className="num text-right text-sm leading-5 text-fg">
             {`${Math.round(currentWeightPct)}% → ${Math.round(nextWeightPct)}%`}
-          </p>
+          </dd>
         </div>
-        <div className="rounded-xl border border-border/60 bg-surface-1/70 px-3 py-2">
-          <p className="text-[11px] uppercase tracking-wide text-fg-muted">Efectivo post-orden</p>
-          <p className="mt-0.5 font-medium text-fg">{nextCashText}</p>
+        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-4 border-t border-fg/15 pt-3 pb-0.5">
+          <dt className="min-w-0 text-[13px] leading-5 text-fg-muted">Efectivo post-orden</dt>
+          <dd className="num text-right text-sm font-medium text-fg">{nextCashText}</dd>
         </div>
-      </div>
-    </div>
+      </dl>
+      <p className="mt-2.5 text-[11px] leading-relaxed text-fg-subtle">Jupiter Spot Router · 0% comisión</p>
+    </section>
   );
 }
