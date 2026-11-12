@@ -20,10 +20,13 @@ export default async function MercadoPage({
 }) {
   const params = await searchParams;
   const showCopy = await isCopyEnabled();
+  // Las secciones del mercado (Acciones · Cripto · Ganar · Copiar) son
+  // subnavegación del encabezado: van dentro de la pantalla, bajo el H1.
   return (
-    <div className="flex min-w-0 flex-col gap-5">
-      <MarketSectionChips active="stocks" showCopy={showCopy} />
-      <MarketScreen initialFilter={one(params.filtro)} initialSort={one(params.orden)} />
-    </div>
+    <MarketScreen
+      initialFilter={one(params.filtro)}
+      initialSort={one(params.orden)}
+      sections={<MarketSectionChips active="stocks" showCopy={showCopy} />}
+    />
   );
 }

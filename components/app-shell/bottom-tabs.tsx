@@ -71,7 +71,7 @@ export function BottomTabs() {
       data-mode={mode}
       data-assistant={assistantRoute ? "true" : "false"}
       className={cn(
-        "liquid-nav pointer-events-none fixed inset-x-0 bottom-0 z-30 flex justify-center px-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] min-[400px]:px-4 md:hidden",
+        "liquid-nav pointer-events-none fixed inset-x-0 bottom-0 z-30 flex justify-center px-4 pb-[calc(0.75rem+env(safe-area-inset-bottom))] md:hidden",
         assistantRoute && "hidden",
       )}
     >
@@ -97,7 +97,6 @@ export function BottomTabs() {
                 <Link
                   href={item.href}
                   aria-current={active ? "page" : undefined}
-                  aria-label={center ? label : undefined}
                   data-state={active ? "active" : "inactive"}
                   tabIndex={assistantRoute ? -1 : undefined}
                   className={cn("liquid-tab", center && "liquid-tab--center")}
@@ -107,7 +106,7 @@ export function BottomTabs() {
                       <span className="liquid-tab__ai" aria-hidden="true">
                         AI
                       </span>
-                      <span className="sr-only">{label}</span>
+                      <span className={cn("liquid-tab__label", active && "text-bg")}>{label}</span>
                     </>
                   ) : (
                     <>

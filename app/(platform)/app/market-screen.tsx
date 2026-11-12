@@ -1,16 +1,17 @@
 "use client";
 
-import { useEffect, useId, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useState, type ReactNode } from "react";
+import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useQueries } from "@tanstack/react-query";
 import { motion, useReducedMotion } from "framer-motion";
 
+import { ChangeBadge } from "@/components/domain/change-badge";
 import { FavoriteButton } from "@/components/domain/favorite-button";
 import { MarketHeatmap } from "@/components/domain/market-heatmap";
 import { MarketToday } from "@/components/domain/market-today/market-today";
 import { FloatingMarketOrb } from "@/components/domain/market-status-pill";
 import { PriceFreshness } from "@/components/domain/price-freshness";
-import { TickerCard } from "@/components/domain/ticker-card";
 import { TickerRow } from "@/components/domain/ticker-row";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -124,13 +125,13 @@ function moversOfPriced(rows: readonly PricedItem[], limit = 3): PricedItem[] {
 }
 
 /**
- * Píldora de criterio. El inactivo lleva contorno `border-control` (3,74:1):
- * antes era un relleno gris a 1,06:1 y parecía deshabilitado.
+ * Píldora de criterio, sin contorno en reposo: el filtro se lee como texto y
+ * sólo el activo toma tinta. 44px de alto en móvil; 36px en escritorio.
  */
 const chipClass =
-  "inline-flex min-h-11 shrink-0 scroll-mx-5 items-center justify-center rounded-full border px-3.5 text-[13px] font-medium whitespace-nowrap transition-colors duration-150 ease-spring active:scale-[0.98]";
-const chipActiveClass = "border-fg bg-fg text-bg shadow-xs";
-const chipIdleClass = "border-border-control bg-bg text-fg hover:bg-surface-1";
+  "inline-flex min-h-11 shrink-0 items-center justify-center rounded-full px-3.5 text-[13px] font-medium whitespace-nowrap transition-colors duration-150 ease-spring active:scale-[0.98] sm:min-h-9";
+const chipActiveClass = "bg-fg text-bg";
+const chipIdleClass = "text-fg-muted hover:bg-surface-1 hover:text-fg";
 
 function ChipGroup<T extends string>({
   ariaLabel,
@@ -159,7 +160,7 @@ function ChipGroup<T extends string>({
     <div
       role="radiogroup"
       aria-label={ariaLabel}
-      className="-mx-5 flex min-w-0 items-center gap-2 overflow-x-auto scroll-px-5 px-5 pb-0.5 [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 [&::-webkit-scrollbar]:hidden"
+      className="flex min-w-0 flex-wrap items-center gap-1.5"
       onKeyDown={(event) => {
         if (indexFromKey(event.key, 0, options.length) === null) return;
         event.preventDefault();
@@ -188,19 +189,24 @@ function ChipGroup<T extends string>({
 }
 
 function ResultsSkeleton({ label }: { label: string }) {
-  // Placeholder estático (sin pulso): misma caja que la lista, primer pintado
+  // Placeholder estático (sin pulso): mismas filas que la lista, primer pintado
   // más barato y sin saltos cuando llega el catálogo.
   return (
-    <div role="status" aria-live="polite" aria-busy="true" className="flex flex-col gap-6">
+    <div role="status" aria-live="polite" aria-busy="true" className="flex flex-col gap-2">
       <span className="sr-only">{label}</span>
-      <div className="flex gap-3 overflow-hidden" aria-hidden>
-        <div className="h-28 w-60 shrink-0 rounded-2xl bg-surface-2" />
-        <div className="h-28 w-60 shrink-0 rounded-2xl bg-surface-2" />
-        <div className="h-28 w-60 shrink-0 rounded-2xl bg-surface-2" />
-      </div>
-      <div className="flex flex-col gap-2" aria-hidden>
-        {["a", "b", "c", "d", "e", "f"].map((key) => (
-          <div key={key} className="min-h-16 w-full rounded-2xl bg-surface-2" />
+      <div className="flex flex-col divide-y divide-border" aria-hidden>
+        {["a", "b", "c", "d", "e", "f", "g", "h"].map((key) => (
+          <div key={key} className="flex min-h-16 items-center gap-3 px-2 py-2 sm:px-3">
+            <div className="size-9 shrink-0 rounded-full bg-surface-2" />
+            <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+              <div className="h-3 w-14 rounded-sm bg-surface-2" />
+              <div className="h-3 w-32 max-w-full rounded-sm bg-surface-2" />
+            </div>
+            <div className="flex shrink-0 flex-col items-end gap-1.5">
+              <div className="h-3.5 w-16 rounded-sm bg-surface-2" />
+              <div className="h-3 w-12 rounded-sm bg-surface-2" />
+            </div>
+          </div>
         ))}
       </div>
     </div>
@@ -210,9 +216,12 @@ function ResultsSkeleton({ label }: { label: string }) {
 export function MarketScreen({
   initialFilter,
   initialSort,
+  sections,
 }: {
   initialFilter: string;
   initialSort: string;
+  /** Navegación de secciones del mercado (Acciones · Cripto · Ganar · Copiar). */
+  sections?: ReactNode;
 }) {
   const { t, currency, language } = useT();
   const router = useRouter();
@@ -516,37 +525,78 @@ export function MarketScreen({
 
   return (
     <motion.div
-      className="flex min-w-0 flex-col gap-6"
+      className="flex min-w-0 flex-col gap-8 lg:gap-10"
       initial={reduceMotion ? false : { opacity: 0, scale: 0.98 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={reduceMotion ? { duration: 0 } : { duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
     >
-      <PageHeader title={t.pages.market.title} description={t.pages.market.lead} />
+      <div className="flex min-w-0 flex-col gap-5">
+        <PageHeader title={t.pages.market.title} description={t.pages.market.lead} />
+        {sections ? <div className="min-w-0">{sections}</div> : null}
+      </div>
+
       <MarketToday />
 
-      {/* Ordenar y categoría: dos grupos con rótulo visible. En móvil las
-          categorías quedan detrás de «Filtros · X ▾» para no empujar la lista. */}
-      <div className="flex min-w-0 flex-col gap-3">
-        <div role="group" aria-label="Vista del mercado" className="flex min-w-0 flex-wrap items-center gap-2">
-          {viewOptions.map((option) => {
-            const active = option.value === view;
-            return (
-              <button
-                key={option.value}
-                type="button"
-                aria-pressed={active}
-                onClick={() => setView(option.value)}
-                className={cn(chipClass, active ? chipActiveClass : chipIdleClass)}
-              >
-                {option.label}
-              </button>
-            );
-          })}
+      <section className="flex min-w-0 flex-col gap-4">
+        <h2 className="text-xl leading-tight tracking-tight text-fg">{t.market.list}</h2>
+
+        {/* Conteo real, frescura del precio y vista. Sin cifras hasta que el catálogo llegue. */}
+        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
+          <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-[13px] leading-5 text-fg-muted">
+            {total > 0 ? (
+              <>
+                <span
+                  className="num font-medium tabular-nums text-fg-body"
+                  aria-live="polite"
+                  title={t.market.stockCount.replace("{total}", String(total))}
+                >
+                  {t.market.showingOf.replace("{shown}", String(listRows.length)).replace("{total}", String(total))}
+                  {language === "en"
+                    ? total === 1
+                      ? " stock"
+                      : " stocks"
+                    : total === 1
+                      ? " acción"
+                      : " acciones"}
+                </span>
+                <span aria-hidden className="text-border-strong">
+                  ·
+                </span>
+              </>
+            ) : null}
+            <PriceFreshness at={freshestAt} stale={anyStale} />
+          </div>
+
+          <div
+            role="group"
+            aria-label="Vista del mercado"
+            className="inline-flex shrink-0 items-center gap-0.5 rounded-full border border-border bg-bg p-0.5"
+          >
+            {viewOptions.map((option) => {
+              const active = option.value === view;
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  aria-pressed={active}
+                  onClick={() => setView(option.value)}
+                  className={cn(
+                    "inline-flex min-h-11 cursor-pointer items-center rounded-full px-3 text-[13px] font-medium transition-colors duration-150 sm:min-h-8",
+                    active ? "bg-fg text-bg" : "text-fg-muted hover:text-fg",
+                  )}
+                >
+                  {option.label}
+                </button>
+              );
+            })}
+          </div>
         </div>
 
-        <div className="flex min-w-0 flex-col gap-3 sm:grid sm:grid-cols-[auto_minmax(0,1fr)] sm:gap-x-8">
+        {/* Ordenar y categoría: dos grupos con rótulo visible. En móvil las
+            categorías quedan detrás de «Filtros · X»; abiertas, envuelven. */}
+        <div className="flex min-w-0 flex-col gap-3 border-t border-border/70 pt-4 sm:grid sm:grid-cols-[auto_minmax(0,1fr)] sm:gap-x-10">
           <div className="flex min-w-0 flex-col gap-1.5">
-            <p id={sortLabelId} className="text-xs font-medium text-fg-muted">
+            <p id={sortLabelId} className="text-[13px] font-medium text-fg-muted">
               {t.market.sortLabel}
             </p>
             <ChipGroup ariaLabel={t.market.sortLabel} value={sort} options={sortOptions} onChange={onSortChange} />
@@ -554,7 +604,7 @@ export function MarketScreen({
 
           <div className="flex min-w-0 flex-col gap-1.5">
             <div className="flex min-w-0 items-center justify-between gap-2">
-              <p id={filtersLabelId} className="text-xs font-medium text-fg-muted">
+              <p id={filtersLabelId} className="text-[13px] font-medium text-fg-muted">
                 {filtersTitle}
               </p>
               <button
@@ -562,7 +612,7 @@ export function MarketScreen({
                 aria-expanded={filtersOpen}
                 aria-controls={filtersPanelId}
                 onClick={() => setFiltersOpen((value) => !value)}
-                className="inline-flex min-h-11 items-center gap-1 rounded-full border border-border-control bg-bg px-3 text-xs font-medium text-fg transition-colors hover:bg-surface-1 sm:hidden"
+                className="inline-flex min-h-11 items-center gap-1 rounded-full border border-border-control bg-bg px-3 text-[13px] font-medium text-fg transition-colors hover:bg-surface-1 sm:hidden"
               >
                 {`${language === "en" ? "Filters" : "Filtros"} · ${activeFilterLabel}`}
                 <span aria-hidden>{filtersOpen ? "▴" : "▾"}</span>
@@ -573,185 +623,151 @@ export function MarketScreen({
             </div>
           </div>
         </div>
+
+        {currencyNote ? (
+          <p
+            className="text-xs leading-5 text-fg-muted"
+            title={currency === "CLP" && !fxKnown ? t.detail.fxFallback : undefined}
+          >
+            {currencyNote}
+          </p>
+        ) : null}
+
         {currency === "CLP" && !fxKnown && !fx.isPending && !waiting && !failed ? (
           <p className="text-xs leading-relaxed text-fg-muted">{t.detail.fxFallback}</p>
         ) : null}
-      </div>
 
-      {waiting ? <ResultsSkeleton label={t.states.loading} /> : null}
-      {!waiting && failed ? (
-        <ErrorState
-          title={t.market.loadError}
-          description={failureDetail && failureDetail !== t.market.loadError ? failureDetail : undefined}
-          onRetry={retry}
-          retryLabel={t.states.retry}
-          label={t.states.error}
-        />
-      ) : null}
-      {!waiting && !failed && moverItems.length > 0 ? (
-        <section className="order-2 flex min-w-0 flex-col gap-3 lg:order-1" aria-labelledby={moversTitleId}>
-          <div>
-            <h2 id={moversTitleId} className="text-lg font-semibold tracking-tight text-fg">
-              {t.market.movers}
-            </h2>
-            <p className="mt-1 text-sm text-fg-muted">{t.market.moversNote}</p>
-          </div>
-          <div className="-mx-5 flex min-w-0 snap-x snap-mandatory gap-3 overflow-x-auto px-5 pt-1 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:-mx-1 sm:px-1">
-            {moverItems.map(({ entry, price, currency: rowCurrency }) => (
-              <TickerCard
-                key={entry.item.symbol}
-                href={tickerHref(entry.item.symbol)}
-                symbol={entry.item.symbol}
-                name={entry.item.name}
-                logoUrl={entry.item.logoUrl}
-                price={price}
-                currency={rowCurrency}
-                change={entry.quote.change24hPct}
-                sparkline={sparkBySymbol.get(entry.item.symbol)}
-                lowLiquidityLabel={entry.item.lowLiquidity ? t.market.lowLiquidity : null}
-                action={
-                  <FavoriteButton
-                    pressed={favoriteSet.has(entry.item.symbol)}
-                    label={withName(
-                      favoriteSet.has(entry.item.symbol) ? t.market.favoriteOn : t.market.favoriteOff,
-                      entry.item.name,
-                    )}
-                    onToggle={() => toggle(entry.item.symbol)}
-                  />
-                }
-              />
-            ))}
-          </div>
-        </section>
-      ) : null}
-      {view === "list" && !waiting && !failed && listRows.length > 0 ? (
-        <section className="order-1 flex min-w-0 flex-col gap-2 lg:order-2">
-          {/* El h2 y el ul son hermanos directos: e2e/market.spec.ts localiza
-              la lista con `heading "Acciones" + following-sibling::ul`. */}
-          <h2 className="text-lg font-semibold tracking-tight text-fg">{t.market.list}</h2>
-          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-xs text-fg-muted">
-            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-              {total > 0 ? (
-                <>
-                  <span
-                    className="num font-medium tabular-nums"
-                    aria-live="polite"
-                    title={t.market.stockCount.replace("{total}", String(total))}
-                  >
-                    {t.market.showingOf.replace("{shown}", String(listRows.length)).replace("{total}", String(total))}
-                    {language === "en"
-                      ? total === 1
-                        ? " stock"
-                        : " stocks"
-                      : total === 1
-                        ? " acción"
-                        : " acciones"}
-                  </span>
-                  <span aria-hidden>·</span>
-                </>
-              ) : null}
-              <PriceFreshness at={freshestAt} stale={anyStale} />
-            </div>
-            <p
-              className="inline-flex items-center rounded-full bg-surface-2 px-2.5 py-1 font-medium text-fg-muted"
-              title={currency === "CLP" && !fxKnown ? t.detail.fxFallback : undefined}
-            >
-              {currencyNote}
-            </p>
-          </div>
-          {quotesFailed ? (
-            <div className="flex flex-wrap items-center gap-2">
-              <p className="text-sm text-fg-muted">{t.market.loadError}</p>
-              <Button variant="secondary" onClick={retry}>
-                {t.states.retry}
-              </Button>
-            </div>
-          ) : null}
-          <div
-            aria-hidden
-            className="hidden items-center justify-end gap-2 rounded-t-2xl bg-bg/95 px-4 py-2 text-xs font-medium text-fg-muted backdrop-blur sm:sticky sm:top-0 sm:z-10 sm:flex"
-          >
-            <span>Precio / Var. 24 h</span>
-          </div>
-          <ul className="flex min-w-0 flex-col divide-y divide-border/50 rounded-3xl bg-bg p-2 shadow-card">
-            {listRows.map((entry) => {
-              const shownPrice = entry.quote
-                ? priceRows([{ item: entry.item, quote: entry.quote, index: entry.index }], currency, rate)[0]
-                : undefined;
-              return (
-                <li key={entry.item.symbol}>
-                <TickerRow
-                  href={tickerHref(entry.item.symbol)}
-                  symbol={entry.item.symbol}
-                  name={entry.item.name}
-                  logoUrl={entry.item.logoUrl}
-                  price={shownPrice?.price ?? 0}
-                  currency={shownPrice?.currency ?? "USD"}
-                  change={entry.quote?.change24hPct ?? 0}
-                  sparkline={sparkBySymbol.get(entry.item.symbol)}
-                  lowLiquidityLabel={entry.item.lowLiquidity ? t.market.lowLiquidity : null}
-                  reviewLabel={entry.item.underReview ? t.market.underReview : null}
-                  reviewHint={entry.item.underReview ? t.market.underReviewHint : null}
-                  statusDot={dotFor(entry.item)}
-                  priceSlot={
-                    shownPrice ? null : (
-                      <span className="block h-8 w-16 shrink-0 rounded-md bg-surface-2" aria-hidden />
-                    )
-                  }
-                  action={
-                    <FavoriteButton
-                      pressed={favoriteSet.has(entry.item.symbol)}
-                      label={withName(
-                        favoriteSet.has(entry.item.symbol) ? t.market.favoriteOn : t.market.favoriteOff,
-                        entry.item.name,
-                      )}
-                      onToggle={() => toggle(entry.item.symbol)}
-                    />
-                  }
-                />
-                </li>
-              );
-            })}
-          </ul>
-          {pageFailed ? (
-            <div className="flex flex-wrap items-center gap-2">
-              <p className="text-sm text-fg-muted">{t.market.loadError}</p>
-              <Button variant="secondary" onClick={retry}>
-                {t.states.retry}
-              </Button>
-            </div>
-          ) : null}
-          {hasMore && !pageFailed ? (
-            <div className="pt-1">
-              <Button variant="secondary" onClick={() => setPage((value) => value + 1)} disabled={loadingMore}>
-                {loadMoreLabel}
-              </Button>
-              <div aria-hidden className="mt-2 h-1 w-full overflow-hidden rounded-full bg-surface-3">
-                <div className="h-full rounded-full bg-fg" style={{ width: `${loadedPct}%` }} />
+        {waiting ? <ResultsSkeleton label={t.states.loading} /> : null}
+
+        {!waiting && failed ? (
+          <ErrorState
+            title={t.market.loadError}
+            description={failureDetail && failureDetail !== t.market.loadError ? failureDetail : undefined}
+            onRetry={retry}
+            retryLabel={t.states.retry}
+            label={t.states.error}
+          />
+        ) : null}
+
+        {!waiting && !failed && listRows.length === 0 ? (
+          filter === "favorites" ? (
+            <EmptyState
+              title={t.market.emptyFavoritesTitle}
+              description={t.market.emptyFavoritesHint}
+              action={
+                <Button variant="secondary" onClick={() => onFilterChange("all")}>
+                  {t.market.emptyFavoritesAction}
+                </Button>
+              }
+            />
+          ) : (
+            <EmptyState title={emptyTitle} description={t.market.emptyHint} />
+          )
+        ) : null}
+
+        {view === "list" && !waiting && !failed && listRows.length > 0 ? (
+          <>
+            {quotesFailed ? (
+              <div className="flex flex-wrap items-center gap-3">
+                <p className="text-sm text-fg-muted">{t.market.loadError}</p>
+                <Button variant="secondary" onClick={retry}>
+                  {t.states.retry}
+                </Button>
               </div>
-              <span className="sr-only">
-                {t.market.showingOf.replace("{shown}", String(listRows.length)).replace("{total}", String(total))}
-              </span>
-              {loadingMore ? (
-                <div role="status" aria-live="polite" aria-busy="true" className="mt-2 flex flex-col gap-2">
-                  <span className="sr-only">{t.states.loading}</span>
-                  <Skeleton className="min-h-16 w-full rounded-2xl" />
-                  <Skeleton className="min-h-16 w-full rounded-2xl" />
-                </div>
-              ) : null}
+            ) : null}
+
+            <div
+              aria-hidden
+              className="hidden items-center justify-end border-b border-border pb-1.5 pr-11 text-[11px] font-medium tracking-[0.08em] text-fg-subtle uppercase sm:flex"
+            >
+              Precio / Var. 24 h
             </div>
-          ) : null}
-        </section>
-      ) : null}
-      {/* Vista de mapa de calor: reemplaza sólo la lista; movers, skeletons y
-          errores siguen igual. Sin cotizaciones no se pinta ninguna celda. */}
-      {view === "heatmap" && !waiting && !failed && listRows.length > 0 ? (
-        // Mismo orden visual que la lista (order-1 / lg:order-2) respecto de los movers.
-        <div className="order-1 flex min-w-0 flex-col gap-2 lg:order-2">
-          {heatmapRows.length > 0 ? (
+
+            <ul className="flex min-w-0 flex-col divide-y divide-border">
+              {listRows.map((entry) => {
+                const shownPrice = entry.quote
+                  ? priceRows([{ item: entry.item, quote: entry.quote, index: entry.index }], currency, rate)[0]
+                  : undefined;
+                return (
+                  <li key={entry.item.symbol}>
+                    <TickerRow
+                      href={tickerHref(entry.item.symbol)}
+                      symbol={entry.item.symbol}
+                      name={entry.item.name}
+                      logoUrl={entry.item.logoUrl}
+                      price={shownPrice?.price ?? 0}
+                      currency={shownPrice?.currency ?? "USD"}
+                      change={entry.quote?.change24hPct ?? 0}
+                      sparkline={sparkBySymbol.get(entry.item.symbol)}
+                      lowLiquidityLabel={entry.item.lowLiquidity ? t.market.lowLiquidity : null}
+                      reviewLabel={entry.item.underReview ? t.market.underReview : null}
+                      reviewHint={entry.item.underReview ? t.market.underReviewHint : null}
+                      statusDot={dotFor(entry.item)}
+                      priceSlot={
+                        shownPrice ? null : (
+                          <span className="block h-8 w-16 shrink-0 rounded-md bg-surface-2" aria-hidden />
+                        )
+                      }
+                      action={
+                        <FavoriteButton
+                          pressed={favoriteSet.has(entry.item.symbol)}
+                          label={withName(
+                            favoriteSet.has(entry.item.symbol) ? t.market.favoriteOn : t.market.favoriteOff,
+                            entry.item.name,
+                          )}
+                          onToggle={() => toggle(entry.item.symbol)}
+                        />
+                      }
+                    />
+                  </li>
+                );
+              })}
+            </ul>
+
+            {pageFailed ? (
+              <div className="flex flex-wrap items-center gap-3">
+                <p className="text-sm text-fg-muted">{t.market.loadError}</p>
+                <Button variant="secondary" onClick={retry}>
+                  {t.states.retry}
+                </Button>
+              </div>
+            ) : null}
+
+            {hasMore && !pageFailed ? (
+              <div className="flex flex-col items-start gap-3 pt-2">
+                <Button variant="secondary" onClick={() => setPage((value) => value + 1)} disabled={loadingMore}>
+                  {loadMoreLabel}
+                </Button>
+                <div aria-hidden className="h-px w-full max-w-xs overflow-hidden rounded-full bg-surface-3">
+                  <div className="h-full rounded-full bg-fg" style={{ width: `${loadedPct}%` }} />
+                </div>
+                <span className="sr-only">
+                  {t.market.showingOf.replace("{shown}", String(listRows.length)).replace("{total}", String(total))}
+                </span>
+                {loadingMore ? (
+                  <div
+                    role="status"
+                    aria-live="polite"
+                    aria-busy="true"
+                    className="flex w-full flex-col divide-y divide-border"
+                  >
+                    <span className="sr-only">{t.states.loading}</span>
+                    <Skeleton className="h-16 w-full rounded-none" />
+                    <Skeleton className="h-16 w-full rounded-none" />
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+          </>
+        ) : null}
+
+        {/* Vista de mapa de calor: reemplaza sólo la lista; el resto sigue igual.
+            Sin cotizaciones no se pinta ninguna celda. */}
+        {view === "heatmap" && !waiting && !failed && listRows.length > 0 ? (
+          heatmapRows.length > 0 ? (
             <MarketHeatmap rows={heatmapRows} />
           ) : quotesFailed ? (
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-wrap items-center gap-3">
               <p className="text-sm text-fg-muted">{t.market.loadError}</p>
               <Button variant="secondary" onClick={retry}>
                 {t.states.retry}
@@ -759,28 +775,45 @@ export function MarketScreen({
             </div>
           ) : (
             <ResultsSkeleton label={t.states.loading} />
-          )}
-        </div>
+          )
+        ) : null}
+      </section>
+
+      {/* Las más movidas del lote visible, en una línea de datos: sin tarjetas. */}
+      {!waiting && !failed && moverItems.length > 0 ? (
+        <section
+          aria-labelledby={moversTitleId}
+          className="flex min-w-0 flex-col gap-3 border-t border-border/70 pt-5"
+        >
+          <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
+            <h2 id={moversTitleId} className="text-[13px] font-medium text-fg">
+              {t.market.movers}
+            </h2>
+            <p className="text-[13px] leading-5 text-fg-muted">{t.market.moversNote}</p>
+          </div>
+          <ul className="flex flex-wrap items-center gap-x-6 gap-y-2">
+            {moverItems.map(({ entry, price, currency: rowCurrency }) => (
+              <li key={entry.item.symbol} className="min-w-0">
+                <Link
+                  href={tickerHref(entry.item.symbol)}
+                  className="group flex items-baseline gap-2 rounded-md transition-colors"
+                >
+                  <span className="num text-[13px] font-medium text-fg group-hover:underline group-hover:underline-offset-4">
+                    {entry.item.symbol}
+                  </span>
+                  <span className="num text-[13px] text-fg-muted">{formatMoney(price, rowCurrency)}</span>
+                  <ChangeBadge value={entry.quote.change24hPct} size="sm" />
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
       ) : null}
-      {!waiting && !failed && listRows.length === 0 ? (
-        filter === "favorites" ? (
-          <EmptyState
-            title={t.market.emptyFavoritesTitle}
-            description={t.market.emptyFavoritesHint}
-            action={
-              <Button variant="secondary" onClick={() => onFilterChange("all")}>
-                {t.market.emptyFavoritesAction}
-              </Button>
-            }
-          />
-        ) : (
-          <EmptyState title={emptyTitle} description={t.market.emptyHint} />
-        )
-      ) : null}
+
       {status.data ? (
         <FloatingMarketOrb session={status.data.session} nextChange={status.data.nextChange} language={language} />
       ) : null}
-      {/* La píldora flotante del horario no debe tapar la última fila en móvil. */}
+      {/* La píldora del horario y las tabs no deben tapar la última fila. */}
       <div aria-hidden className="h-16 lg:hidden" />
     </motion.div>
   );

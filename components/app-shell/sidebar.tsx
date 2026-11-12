@@ -7,8 +7,12 @@ import { usePathname } from "next/navigation";
 
 import { useAccountLabel } from "@/components/app-shell/account-label";
 import { CurrencySwitch } from "@/components/app-shell/currency-switch";
-import { isShellSectionActive, shellNav } from "@/components/app-shell/nav";
-import { StockSearchButton } from "@/components/app-shell/stock-search";
+import {
+  isShellSectionActive,
+  shellTabLabel,
+  sidebarPrimary,
+  sidebarUtility,
+} from "@/components/app-shell/nav";
 import { readChatSnapshot, resolveChatScope, type ChatMessage } from "@/components/ai/model";
 import { NavChatsHistory } from "@/components/ai/nav-chats";
 import { useSavedChats } from "@/components/ai/sessions-live";
@@ -31,12 +35,16 @@ const WIDTH_ANIMATION = "transition-[width] duration-200 ease-spring";
 const SELECT_EVENT = "maverlang:ai-select-chat";
 const ACTION_EVENT = "maverlang:ai-chat-action";
 
-/** Fila base del riel: 44px de alto, hover de tinta muy baja. */
+/**
+ * Fila base del riel: 44px de alto. Sin íconos cuando hay texto: la jerarquía
+ * la hacen el peso, el color y el fondo; el ícono sólo aparece en el riel
+ * colapsado (con tooltip), donde no cabe la etiqueta.
+ */
 const ROW_BASE =
-  "group relative flex cursor-pointer items-center rounded-lg text-sm transition-colors duration-150";
-const ROW_EXPANDED = "min-h-11 w-full gap-2.5 pl-3 pr-2.5";
-const ROW_HOVER = "hover:bg-fg/[0.045] hover:text-fg";
-const ROW_ACTIVE = "bg-bg font-medium text-fg shadow-raised ring-1 ring-border";
+  "group relative flex cursor-pointer items-center rounded-lg transition-colors duration-150";
+const ROW_EXPANDED = "min-h-11 w-full gap-2.5 px-3";
+const ROW_HOVER = "hover:bg-fg/[0.04] hover:text-fg";
+const ROW_ACTIVE = "bg-bg font-medium text-fg ring-1 ring-border";
 
 type SidebarChatAction =
   | { type: "rename"; chatId: string; title: string }
@@ -338,6 +346,44 @@ export function Sidebar({
     return () => window.removeEventListener("keydown", onKey);
   }, [onToggle]);
 
+  /**
+   * Fila de navegación. Con el riel abierto es sólo texto: la jerarquía la
+   * marcan el peso, el color y el fondo, sin íconos decorativos. Colapsada
+   * pasa a ícono con tooltip, porque la etiqueta no cabe en 72px.
+   */
+  function navRow(
+    item: (typeof sidebarPrimary)[number] | (typeof sidebarUtility)[number],
+    utility: boolean,
+  ) {
+    const active = isShellSectionActive(pathname, item.id);
+    const label = shellTabLabel(language, item.id, t.nav);
+    const Icon = item.icon;
+    const link = (
+      <Link
+        href={item.href}
+        aria-label={collapsed ? label : undefined}
+        aria-current={active ? "page" : undefined}
+        className={cn(
+          ROW_BASE,
+          collapsed ? "size-11 justify-center" : cn(ROW_EXPANDED, utility ? "text-[13px]" : "text-sm"),
+          active ? ROW_ACTIVE : cn(utility ? "text-fg-muted" : "text-fg-body", ROW_HOVER),
+        )}
+      >
+        {collapsed ? (
+          <Icon className={cn("size-4 shrink-0", active ? "text-fg" : "text-fg-muted group-hover:text-fg")} />
+        ) : null}
+        <span className={cn("truncate", collapsed && "sr-only")}>{label}</span>
+      </Link>
+    );
+    return collapsed ? (
+      <Tooltip content={label} side="right">
+        {link}
+      </Tooltip>
+    ) : (
+      link
+    );
+  }
+
   return (
     <aside
       className={cn(
@@ -394,13 +440,7 @@ export function Sidebar({
         </div>
       ) : null}
 
-      {isAiRoute ? null : (
-        <div className="shrink-0 px-3.5 pb-3">
-          <StockSearchButton collapsed={collapsed} />
-        </div>
-      )}
-
-      <nav aria-label={t.nav.label} className="flex-1 overflow-y-auto px-3.5 pb-2">
+      <nav aria-label={t.nav.label} className="flex-1 overflow-y-auto px-3.5 pt-1 pb-2">
         {isAiRoute ? (
           collapsed ? (
             <ul className="flex flex-col items-center gap-0.5">
@@ -495,51 +535,19 @@ export function Sidebar({
             </>
           )
         ) : (
-          <ul className="flex flex-col gap-0.5">
-            {shellNav
-              .filter((item) => item.id !== "profile")
-              .map((item) => {
-                const active = isShellSectionActive(pathname, item.id);
-                const Icon = item.icon;
-                const link = (
-                  <Link
-                    href={item.href}
-                    aria-label={collapsed ? t.nav[item.id] : undefined}
-                    aria-current={active ? "page" : undefined}
-                    className={cn(
-                      ROW_BASE,
-                      collapsed ? "size-11 justify-center" : ROW_EXPANDED,
-                      active ? ROW_ACTIVE : cn("text-fg-body", ROW_HOVER),
-                    )}
-                  >
-                    {active && !collapsed ? (
-                      <span
-                        aria-hidden
-                        className="absolute left-0 top-1/2 h-4 w-[2px] -translate-y-1/2 rounded-full bg-fg"
-                      />
-                    ) : null}
-                    <Icon
-                      className={cn(
-                        "size-4 shrink-0 transition-colors",
-                        active ? "text-fg" : "text-fg-muted group-hover:text-fg",
-                      )}
-                    />
-                    <span className={cn("truncate", collapsed && "sr-only")}>{t.nav[item.id]}</span>
-                  </Link>
-                );
-                return (
-                  <li key={item.id}>
-                    {collapsed ? (
-                      <Tooltip content={t.nav[item.id]} side="right">
-                        {link}
-                      </Tooltip>
-                    ) : (
-                      link
-                    )}
-                  </li>
-                );
-              })}
-          </ul>
+          <>
+            <ul className="flex flex-col gap-0.5">
+              {sidebarPrimary.map((item) => (
+                <li key={item.id}>{navRow(item, false)}</li>
+              ))}
+            </ul>
+            <div aria-hidden className="mx-1 my-2 h-px bg-border/70" />
+            <ul className="flex flex-col gap-0.5">
+              {sidebarUtility.map((item) => (
+                <li key={item.id}>{navRow(item, true)}</li>
+              ))}
+            </ul>
+          </>
         )}
       </nav>
 
