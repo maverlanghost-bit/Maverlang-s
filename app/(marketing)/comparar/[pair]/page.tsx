@@ -5,6 +5,7 @@ import { TickerLogo } from "@/components/domain/ticker-logo";
 import { CompareChart } from "@/components/landing/compare-chart";
 import { LandingSection } from "@/components/landing/section";
 import { StockLivePrice } from "@/components/landing/stock-live-price";
+import { buttonClasses } from "@/components/ui/button";
 import { logoPathFromSymbol } from "@/lib/catalog/logos";
 import { cn } from "@/lib/cn";
 import { COMPARE_PAIRS, comparePath, sectorFor } from "@/lib/seo/categories";
@@ -21,16 +22,42 @@ const TITLE_MAX = 60;
 const DESCRIPTION_MAX = 155;
 const DESCRIPTION_MIN = 120;
 
-const badgeClass =
-  "inline-flex items-center rounded-full bg-surface-2 px-2.5 py-1 text-xs leading-none font-medium text-fg-body";
-
 const linkClass =
   "inline-flex min-h-11 items-center font-medium text-fg underline decoration-border underline-offset-4 hover:decoration-fg";
+
+/** Rótulo mono de 13 px: el mínimo legible del comparador. */
+const eyebrowClass = "font-mono text-[13px] font-medium uppercase tracking-[0.045em] text-fg-muted";
+
+const headerCellClass =
+  "py-2.5 font-mono text-[13px] font-medium uppercase tracking-[0.045em] text-fg-muted";
 
 /** Importe por acción de la SEC (EPS o dividendos): dólares, dos decimales, es-CL. */
 function usdPerShare(value: number | null): string | null {
   if (value === null || !Number.isFinite(value)) return null;
   return `US$${value.toLocaleString("es-CL", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+/** Frase con la cifra mayor, en palabras y sin juicio de valor. */
+function winnerLabel(
+  row: {
+    left: string | null;
+    right: string | null;
+    leftValue: number | null;
+    rightValue: number | null;
+    numeric: boolean;
+  },
+  a: PublicAsset,
+  b: PublicAsset,
+): string | null {
+  if (!row.numeric) return null;
+  if (row.left === null && row.right === null) return null;
+  if (row.left === null) return `Sólo ${b.ticker} publica el dato`;
+  if (row.right === null) return `Sólo ${a.ticker} publica el dato`;
+  const left = row.leftValue;
+  const right = row.rightValue;
+  if (left === null || right === null) return null;
+  if (left === right) return "Iguales";
+  return `Cifra mayor: ${left > right ? a.ticker : b.ticker}`;
 }
 
 /** Fecha larga del snapshot, sin corrimiento de zona: el ISO es UTC. */
@@ -154,33 +181,29 @@ export async function generateMetadata({
   });
 }
 
-function SideCard({ asset }: { asset: PublicAsset }) {
+/** Cabecera de cada activo: sin tarjeta, sólo hairlines y el precio en vivo. */
+function SideSummary({ asset }: { asset: PublicAsset }) {
   return (
-    <div className="flex h-full flex-col gap-4 rounded-3xl bg-bg p-5 shadow-card sm:p-6">
+    <div className="flex h-full flex-col gap-4">
       <div className="flex items-center gap-3">
         <TickerLogo
           symbol={asset.symbol}
           name={asset.name}
           logoUrl={logoPathFromSymbol(asset.symbol)}
-          size={44}
+          size={36}
           decorative
           loading="lazy"
-          sizes="44px"
+          sizes="36px"
         />
         <div className="min-w-0">
-          <p className="label">{asset.ticker}</p>
+          <p className={eyebrowClass}>{asset.ticker}</p>
           <p className="mt-1 truncate text-base font-medium text-fg">{asset.name}</p>
         </div>
       </div>
       <StockLivePrice symbol={asset.symbol} />
-      <ul className="flex flex-wrap gap-2">
-        <li>
-          <span className={badgeClass}>{asset.symbol}</span>
-        </li>
-        <li>
-          <span className={badgeClass}>{asset.etf ? "ETF" : "Acción EE.UU."}</span>
-        </li>
-      </ul>
+      <p className="text-[13px] leading-relaxed text-fg-muted">
+        {asset.symbol} · {asset.etf ? "ETF" : "Acción EE.UU."}
+      </p>
       <Link href={`/acciones/${asset.slug}`} className={`${linkClass} mt-auto`}>
         Ver ficha de {asset.name}
       </Link>
@@ -189,10 +212,10 @@ function SideCard({ asset }: { asset: PublicAsset }) {
 }
 
 /**
- * Barras proporcionales al mayor valor de la fila. Con un valor negativo en la
- * fila la barra se dibuja desde la línea base del 50 % (izquierda = pérdida,
- * derecha = ganancia): antes `Math.abs` hacía que una pérdida se viera igual
- * que una ganancia. Sólo se dibujan con datos publicados; un nulo queda como
+ * Barras proporcionales al mayor valor absoluto de la fila, con la línea base
+ * siempre al 50 % del ancho: un valor positivo crece hacia la derecha y uno
+ * negativo hacia la izquierda. Así una pérdida no se ve igual que una
+ * ganancia. Sólo se dibujan con datos publicados; un nulo queda como
  * "Sin dato", nunca como 0.
  */
 function MetricBars({
@@ -212,8 +235,6 @@ function MetricBars({
     (value): value is number => value !== null && Number.isFinite(value),
   );
   const max = values.length > 0 ? Math.max(...values.map((value) => Math.abs(value))) : 0;
-  /** Si la fila tiene una pérdida, todas las barras comparten el eje central. */
-  const centered = values.some((value) => value < 0);
   const sides = [
     { asset: a, value: left },
     { asset: b, value: right },
@@ -221,32 +242,28 @@ function MetricBars({
 
   return (
     <div>
-      <p className="label">{label}</p>
-      <div className="mt-2 space-y-3">
+      <p className="text-[13px] font-medium text-fg-body">{label}</p>
+      <div className="mt-2.5 space-y-3">
         {sides.map(({ asset, value }) => {
           const formatted = formatUsdCompact(value);
           const magnitude =
-            value !== null && max > 0
-              ? Math.max((Math.abs(value) / max) * (centered ? 50 : 100), 1.5)
-              : 0;
+            value !== null && value !== 0 && max > 0 ? Math.max((Math.abs(value) / max) * 50, 0.8) : 0;
           const negative = value !== null && value < 0;
           return (
             <div key={asset.slug}>
-              <div className="flex items-baseline justify-between gap-3 text-xs">
+              <div className="flex items-baseline justify-between gap-3 text-[13px]">
                 <span className="font-mono text-fg-muted">{asset.ticker}</span>
                 <span className="num text-fg">{formatted ?? "Sin dato"}</span>
               </div>
-              <span aria-hidden className="relative mt-1.5 block h-2.5 overflow-hidden rounded-full bg-surface-2">
-                {centered ? (
-                  <span className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-border-strong" />
-                ) : null}
+              <span aria-hidden className="relative mt-1.5 block h-1.5 w-full bg-border">
+                <span className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-fg/30" />
                 {magnitude > 0 ? (
                   <span
-                    className={cn(
-                      "absolute inset-y-0 rounded-full",
-                      negative ? "right-1/2 bg-down/70" : centered ? "left-1/2 bg-fg/70" : "left-0 bg-fg/70",
-                    )}
-                    style={{ width: `${magnitude}%` }}
+                    className={cn("absolute inset-y-0", negative ? "bg-down" : "bg-fg")}
+                    style={{
+                      left: negative ? `${50 - magnitude}%` : "50%",
+                      width: `${magnitude}%`,
+                    }}
                   />
                 ) : null}
               </span>
@@ -273,41 +290,61 @@ export default async function CompararParPage({ params }: { params: Promise<{ pa
   const rightProfile = companyProfile(b.ticker);
   const snapshotDate = longDate(COMPANY_SNAPSHOT_DATE);
 
-  const rows: { label: string; left: string | null; right: string | null; numeric: boolean }[] = [
+  const rows: {
+    label: string;
+    left: string | null;
+    right: string | null;
+    /** Valor crudo para señalar la cifra mayor en móvil. */
+    leftValue: number | null;
+    rightValue: number | null;
+    numeric: boolean;
+  }[] = [
     {
       label: "Ingresos (12 meses)",
       left: formatUsdCompact(leftProfile?.revenueTtm ?? null),
       right: formatUsdCompact(rightProfile?.revenueTtm ?? null),
+      leftValue: leftProfile?.revenueTtm ?? null,
+      rightValue: rightProfile?.revenueTtm ?? null,
       numeric: true,
     },
     {
       label: "Utilidad neta (12 meses)",
       left: formatUsdCompact(leftProfile?.netIncomeTtm ?? null),
       right: formatUsdCompact(rightProfile?.netIncomeTtm ?? null),
+      leftValue: leftProfile?.netIncomeTtm ?? null,
+      rightValue: rightProfile?.netIncomeTtm ?? null,
       numeric: true,
     },
     {
       label: "Utilidad por acción (12 meses)",
       left: usdPerShare(leftProfile?.epsTtm ?? null),
       right: usdPerShare(rightProfile?.epsTtm ?? null),
+      leftValue: leftProfile?.epsTtm ?? null,
+      rightValue: rightProfile?.epsTtm ?? null,
       numeric: true,
     },
     {
       label: "Dividendos por acción (12 meses)",
       left: usdPerShare(leftProfile?.dividendsPerShareTtm ?? null),
       right: usdPerShare(rightProfile?.dividendsPerShareTtm ?? null),
+      leftValue: leftProfile?.dividendsPerShareTtm ?? null,
+      rightValue: rightProfile?.dividendsPerShareTtm ?? null,
       numeric: true,
     },
     {
       label: "Bolsa",
       left: leftProfile?.exchange ?? null,
       right: rightProfile?.exchange ?? null,
+      leftValue: null,
+      rightValue: null,
       numeric: false,
     },
     {
       label: "Sector",
       left: sectorFor(a)?.name ?? null,
       right: sectorFor(b)?.name ?? null,
+      leftValue: null,
+      rightValue: null,
       numeric: false,
     },
   ];
@@ -316,6 +353,8 @@ export default async function CompararParPage({ params }: { params: Promise<{ pa
       label: "Activos netos del fondo",
       left: formatUsdCompact(leftProfile?.fundNetAssets ?? null),
       right: formatUsdCompact(rightProfile?.fundNetAssets ?? null),
+      leftValue: leftProfile?.fundNetAssets ?? null,
+      rightValue: rightProfile?.fundNetAssets ?? null,
       numeric: true,
     });
   }
@@ -365,7 +404,7 @@ export default async function CompararParPage({ params }: { params: Promise<{ pa
         </nav>
 
         <header className="mt-8 border-b border-border pb-8">
-          <p className="label">Comparación</p>
+          <p className={eyebrowClass}>Comparación</p>
           <h1 id="comparar-title" className="mt-2 text-3xl text-balance sm:text-4xl">
             {a.name} vs {b.name}
           </h1>
@@ -375,9 +414,13 @@ export default async function CompararParPage({ params }: { params: Promise<{ pa
           </p>
         </header>
 
-        <div className="mt-8 grid gap-4 sm:grid-cols-2">
-          <SideCard asset={a} />
-          <SideCard asset={b} />
+        <div className="mt-8 grid sm:grid-cols-2 sm:divide-x sm:divide-border">
+          <div className="border-b border-border py-5 sm:border-b-0 sm:pr-6 lg:pr-8">
+            <SideSummary asset={a} />
+          </div>
+          <div className="py-5 sm:pl-6 lg:pl-8">
+            <SideSummary asset={b} />
+          </div>
         </div>
 
         <CompareChart
@@ -391,77 +434,93 @@ export default async function CompararParPage({ params }: { params: Promise<{ pa
           <h2 id="comparar-datos" className="text-2xl sm:text-3xl">
             Datos de la empresa
           </h2>
-          <p className="mt-2 max-w-2xl text-sm leading-relaxed text-fg-muted">
+          <p className="mt-2 max-w-2xl text-[13px] leading-relaxed text-fg-muted">
             Cifras de los últimos 12 meses según la SEC. Si la empresa no publica un dato, se muestra “Sin dato”: no se
             completa con cero.
           </p>
 
           {visibleRows.length > 0 ? (
             <>
-              {/* <md: una tarjeta por fila, con el rótulo y los dos valores. A 390 px
-                  la tabla de 3 columnas bajaba a 11 px y no se podía leer. */}
-              <ul className="mt-5 space-y-3 md:hidden">
-                {visibleRows.map((row) => (
-                  <li key={row.label} className="rounded-2xl bg-bg p-4 shadow-card">
-                    <p className="label">{row.label}</p>
-                    <dl className="mt-2 divide-y divide-border">
-                      <div className="flex items-baseline justify-between gap-3 py-1.5">
-                        <dt className="font-mono text-xs text-fg-muted">{a.ticker}</dt>
-                        <dd
-                          className={cn(
-                            "text-right text-sm text-fg",
-                            row.numeric && row.left !== null && "num",
-                            row.left === null && "text-fg-muted",
-                          )}
-                        >
-                          {row.left ?? "Sin dato"}
-                        </dd>
-                      </div>
-                      <div className="flex items-baseline justify-between gap-3 py-1.5">
-                        <dt className="font-mono text-xs text-fg-muted">{b.ticker}</dt>
-                        <dd
-                          className={cn(
-                            "text-right text-sm text-fg",
-                            row.numeric && row.right !== null && "num",
-                            row.right === null && "text-fg-muted",
-                          )}
-                        >
-                          {row.right ?? "Sin dato"}
-                        </dd>
-                      </div>
-                    </dl>
-                  </li>
-                ))}
+              {/* <sm: una fila por métrica, dos valores y la cifra mayor en palabras.
+                  Reemplaza la tabla de 3 columnas que a 390 px caía a 11 px. */}
+              <ul className="mt-4 border-t border-border sm:hidden">
+                {visibleRows.map((row) => {
+                  const winner = winnerLabel(row, a, b);
+                  return (
+                    <li key={row.label} className="border-b border-border py-4">
+                      <p className="text-[13px] font-medium text-fg-body">{row.label}</p>
+                      <dl className="mt-2 space-y-1.5">
+                        <div className="flex items-baseline justify-between gap-3">
+                          <dt className="font-mono text-[13px] text-fg-muted">{a.ticker}</dt>
+                          <dd
+                            className={cn(
+                              "text-right text-sm text-fg",
+                              row.numeric && row.left !== null && "num",
+                              row.left === null && "text-fg-muted",
+                            )}
+                          >
+                            {row.left ?? "Sin dato"}
+                          </dd>
+                        </div>
+                        <div className="flex items-baseline justify-between gap-3">
+                          <dt className="font-mono text-[13px] text-fg-muted">{b.ticker}</dt>
+                          <dd
+                            className={cn(
+                              "text-right text-sm text-fg",
+                              row.numeric && row.right !== null && "num",
+                              row.right === null && "text-fg-muted",
+                            )}
+                          >
+                            {row.right ?? "Sin dato"}
+                          </dd>
+                        </div>
+                      </dl>
+                      {winner ? <p className="mt-2 text-[13px] text-fg-muted">{winner}</p> : null}
+                    </li>
+                  );
+                })}
               </ul>
 
-              <div className="mt-5 hidden overflow-hidden rounded-3xl bg-bg shadow-card md:block">
-                <table className="w-full border-collapse text-left text-sm">
+              <div className="mt-4 hidden max-w-3xl sm:block">
+                <table className="w-full border-collapse text-left text-[13px]">
                   <caption className="sr-only">
                     Comparación de datos de empresa de {a.name} y {b.name}
                   </caption>
                   <thead>
                     <tr className="border-b border-border">
-                      <th scope="col" className="w-[34%] px-4 py-3 text-xs font-medium text-fg-muted">
+                      <th scope="col" className={cn(headerCellClass, "w-[32%] pr-4 text-left")}>
                         Dato
                       </th>
-                      <th scope="col" className="px-4 py-3 text-xs font-medium text-fg">
+                      <th scope="col" className={cn(headerCellClass, "px-4 text-right text-fg")}>
                         {a.ticker}
                       </th>
-                      <th scope="col" className="px-4 py-3 text-xs font-medium text-fg">
+                      <th scope="col" className={cn(headerCellClass, "pl-4 text-right text-fg")}>
                         {b.ticker}
                       </th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-border">
+                  <tbody>
                     {visibleRows.map((row) => (
-                      <tr key={row.label}>
-                        <th scope="row" className="px-4 py-3 align-top font-normal text-fg-muted">
+                      <tr key={row.label} className="border-b border-border">
+                        <th scope="row" className="py-3 pr-4 align-baseline font-normal text-fg-body">
                           {row.label}
                         </th>
-                        <td className={cn("px-4 py-3 align-top text-fg", row.numeric && "num")}>
+                        <td
+                          className={cn(
+                            "px-4 py-3 text-right align-baseline",
+                            row.numeric && "num",
+                            row.left === null ? "text-fg-muted" : "text-fg",
+                          )}
+                        >
                           {row.left ?? "Sin dato"}
                         </td>
-                        <td className={cn("px-4 py-3 align-top text-fg", row.numeric && "num")}>
+                        <td
+                          className={cn(
+                            "pl-4 py-3 text-right align-baseline",
+                            row.numeric && "num",
+                            row.right === null ? "text-fg-muted" : "text-fg",
+                          )}
+                        >
                           {row.right ?? "Sin dato"}
                         </td>
                       </tr>
@@ -471,12 +530,12 @@ export default async function CompararParPage({ params }: { params: Promise<{ pa
               </div>
             </>
           ) : (
-            <p className="mt-5 rounded-2xl border border-dashed border-border px-4 py-6 text-sm leading-relaxed text-fg-muted">
+            <p className="mt-4 border-t border-border py-5 text-[13px] leading-relaxed text-fg-muted">
               No hay datos de empresa publicados por la SEC para estos activos.
             </p>
           )}
 
-          <div className="mt-4 text-xs leading-relaxed text-fg-muted">
+          <div className="mt-4 text-[13px] leading-relaxed text-fg-muted">
             <p>
               Fuente: SEC EDGAR{snapshotDate ? `, datos al ${snapshotDate}` : ""}. Cifras de los últimos 12 meses cuando
               la empresa las publica.
@@ -513,18 +572,16 @@ export default async function CompararParPage({ params }: { params: Promise<{ pa
         </section>
 
         {metrics.length > 0 ? (
-          <section
-            aria-labelledby="comparar-tamano"
-            className="mt-10 rounded-3xl bg-surface-1 p-6 sm:p-8"
-          >
+          <section aria-labelledby="comparar-tamano" className="mt-10 border-t border-border pt-6">
             <h2 id="comparar-tamano" className="text-2xl sm:text-3xl">
               Tamaño relativo
             </h2>
-            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-fg-muted">
-              Barras proporcionales al mayor valor de cada fila. Sirven para comparar magnitudes, no para medir
+            <p className="mt-2 max-w-2xl text-[13px] leading-relaxed text-fg-muted">
+              Barras proporcionales al mayor valor absoluto de cada fila, con la línea base al centro: a la derecha las
+              cifras positivas y a la izquierda las negativas. Sirven para comparar magnitudes, no para medir
               rendimiento.
             </p>
-            <div className="mt-6 space-y-6">
+            <div className="mt-6 max-w-2xl space-y-6">
               {metrics.map((metric) => (
                 <MetricBars
                   key={metric.label}
@@ -540,6 +597,9 @@ export default async function CompararParPage({ params }: { params: Promise<{ pa
         ) : null}
 
         <div className="mt-10 flex flex-wrap items-center gap-x-6 gap-y-2">
+          <Link href="/acciones" className={buttonClasses({ variant: "primary" })}>
+            Ver el catálogo
+          </Link>
           <Link href={`/acciones/${a.slug}`} className={linkClass}>
             Ficha de {a.name}
           </Link>
@@ -549,12 +609,9 @@ export default async function CompararParPage({ params }: { params: Promise<{ pa
           <Link href="/comparar" className={linkClass}>
             Todas las comparaciones
           </Link>
-          <Link href="/acciones" className={linkClass}>
-            Ver el catálogo
-          </Link>
         </div>
 
-        <p className="mt-8 rounded-2xl border border-border bg-surface-1 px-5 py-4 text-xs leading-relaxed text-fg-body sm:text-sm">
+        <p className="mt-8 border-t border-border pt-4 text-[13px] leading-relaxed text-fg-body">
           Las cifras de la empresa son datos públicos de la SEC y los precios se mueven durante el día; fuera del
           horario regular de la bolsa de EE.UU. el precio puede variar más. Revisa la ficha de cada activo antes de
           operar. Información, no recomendación de inversión.

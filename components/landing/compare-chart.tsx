@@ -35,11 +35,6 @@ const PAD_X = 6;
 const PAD_TOP = 16;
 const PAD_BOTTOM = 16;
 
-const indexFormat = new Intl.NumberFormat("es-CL", {
-  minimumFractionDigits: 1,
-  maximumFractionDigits: 1,
-});
-
 const changeFormat = new Intl.NumberFormat("es-CL", {
   style: "percent",
   minimumFractionDigits: 1,
@@ -86,11 +81,13 @@ type Geometry = {
   leftEnd: { x: number; y: number };
   rightEnd: { x: number; y: number };
   hundredY: number;
-  showHundredLabel: boolean;
-  ticks: { value: number; y: number }[];
 };
 
-/** Escala compartida por las dos series: la comparación es visual y honesta. */
+/**
+ * Escala compartida por las dos series: la comparación es visual y honesta.
+ * No se rotulan ejes inventados; sólo la línea base 100, porque es el único
+ * valor con significado real en una serie normalizada.
+ */
 function buildGeometry(series: { a: Series; b: Series }): Geometry | null {
   const all = [...series.a.values, ...series.b.values];
   const first = all.at(0);
@@ -105,18 +102,18 @@ function buildGeometry(series: { a: Series; b: Series }): Geometry | null {
   }
   if (!Number.isFinite(dataMin) || !Number.isFinite(dataMax)) return null;
 
-  // Un rango muy angosto se abre para que la línea no toque los bordes.
-  const padding = Math.max((dataMax - dataMin) * 0.08, 0.4);
-  const min = dataMin - padding;
-  const max = dataMax + padding;
+  // Un rango muy angosto se abre para que la línea no toque los bordes. La
+  // base 100 siempre entra en el encuadre: es la única referencia real.
+  const domainMin = Math.min(dataMin, 100);
+  const domainMax = Math.max(dataMax, 100);
+  const padding = Math.max((domainMax - domainMin) * 0.08, 0.4);
+  const min = domainMin - padding;
+  const max = domainMax + padding;
   const span = max - min || 1;
 
   const leftEndValue = series.a.values.at(-1);
   const rightEndValue = series.b.values.at(-1);
   if (leftEndValue === undefined || rightEndValue === undefined) return null;
-
-  const hundredY = yAt(100, min, span);
-  const ticks = [max, (max + min) / 2, min].map((value) => ({ value, y: yAt(value, min, span) }));
 
   return {
     leftPath: linePath(series.a.values, min, span),
@@ -129,9 +126,7 @@ function buildGeometry(series: { a: Series; b: Series }): Geometry | null {
       x: xAt(series.b.values.length - 1, series.b.values.length),
       y: yAt(rightEndValue, min, span),
     },
-    hundredY,
-    showHundredLabel: ticks.every((tick) => Math.abs(tick.y - hundredY) > 14),
-    ticks,
+    hundredY: yAt(100, min, span),
   };
 }
 
@@ -193,14 +188,14 @@ export function CompareChart({
   return (
     <section
       aria-labelledby="comparar-grafico-title"
-      className={cn("mt-10 rounded-3xl border border-border bg-surface-1 p-6 sm:p-8", className)}
+      className={cn("mt-10 border-t border-border pt-8", className)}
     >
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="max-w-2xl">
           <h2 id="comparar-grafico-title" className="text-xl sm:text-2xl">
             Rendimiento relativo
           </h2>
-          <p className="mt-2 text-sm leading-relaxed text-fg-muted">
+          <p className="mt-2 text-[13px] leading-relaxed text-fg-muted">
             Base 100 al primer punto del último mes. Compara cómo se movió cada precio; no es una proyección.
           </p>
         </div>
@@ -218,13 +213,14 @@ export function CompareChart({
       ) : null}
 
       {state === "empty" ? (
-        <p className="mt-6 rounded-2xl border border-dashed border-border-strong bg-bg px-4 py-6 text-sm leading-relaxed text-fg-body">
-          El gráfico no está disponible ahora. El resto de la página sigue igual.
+        <p className="mt-6 max-w-2xl border-t border-border pt-4 text-[13px] leading-relaxed text-fg-muted">
+          No hay datos públicos de precio suficientes para dibujar la comparación ahora. El resto de la página sigue
+          igual.
         </p>
       ) : null}
 
       {state === "ready" && series && geometry ? (
-        <>
+        <div className="motion-safe:animate-fade-in motion-reduce:animate-none">
           <svg
             viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
             className="mt-6 h-auto w-full"
@@ -232,27 +228,6 @@ export function CompareChart({
             aria-label={`Rendimiento relativo de ${a.name} y ${b.name} en el último mes, base 100`}
           >
             <g aria-hidden="true">
-              {geometry.ticks.map((tick) => (
-                <g key={`${tick.value}-${tick.y}`}>
-                  <line
-                    x1={PAD_X}
-                    x2={WIDTH - PAD_X}
-                    y1={tick.y}
-                    y2={tick.y}
-                    className="text-border"
-                    stroke="currentColor"
-                    strokeWidth={1}
-                  />
-                  <text
-                    x={PAD_X}
-                    y={tick.y - 4}
-                    className="num text-xs text-fg-muted"
-                    fill="currentColor"
-                  >
-                    {indexFormat.format(tick.value)}
-                  </text>
-                </g>
-              ))}
               <line
                 x1={PAD_X}
                 x2={WIDTH - PAD_X}
@@ -261,19 +236,8 @@ export function CompareChart({
                 className="text-border-strong"
                 stroke="currentColor"
                 strokeWidth={1}
-                strokeDasharray="4 4"
+                strokeDasharray="3 5"
               />
-              {geometry.showHundredLabel ? (
-                <text
-                  x={WIDTH - PAD_X}
-                  y={geometry.hundredY - 4}
-                  textAnchor="end"
-                  className="num text-xs text-fg-muted"
-                  fill="currentColor"
-                >
-                  100
-                </text>
-              ) : null}
             </g>
             <path
               d={geometry.leftPath}
@@ -292,19 +256,26 @@ export function CompareChart({
               strokeWidth={2}
               strokeLinecap="round"
               strokeLinejoin="round"
-              className="text-info"
+              strokeDasharray="6 4"
+              className="text-fg-muted"
               vectorEffect="non-scaling-stroke"
             />
-            <circle cx={geometry.leftEnd.x} cy={geometry.leftEnd.y} r={3} className="text-fg" fill="currentColor" />
-            <circle cx={geometry.rightEnd.x} cy={geometry.rightEnd.y} r={3} className="text-info" fill="currentColor" />
+            <circle cx={geometry.leftEnd.x} cy={geometry.leftEnd.y} r={2.5} className="text-fg" fill="currentColor" />
+            <circle
+              cx={geometry.rightEnd.x}
+              cy={geometry.rightEnd.y}
+              r={2.5}
+              className="text-fg-muted"
+              fill="currentColor"
+            />
           </svg>
 
-          <div aria-hidden className="mt-1 flex justify-between text-xs text-fg-muted">
+          <div aria-hidden className="mt-1 flex justify-between text-[13px] text-fg-muted">
             <span>Inicio del rango</span>
             <span>Último precio</span>
           </div>
 
-          <ul className="mt-4 flex flex-col gap-2 text-sm sm:flex-row sm:flex-wrap sm:gap-x-6">
+          <ul className="mt-4 flex flex-col gap-2 text-[13px] sm:flex-row sm:flex-wrap sm:gap-x-6">
             <li className="flex flex-wrap items-center gap-x-2 gap-y-1">
               <span aria-hidden className="h-0.5 w-5 rounded-full bg-fg" />
               <span className="font-medium text-fg">{a.ticker}</span>
@@ -314,7 +285,7 @@ export function CompareChart({
               </span>
             </li>
             <li className="flex flex-wrap items-center gap-x-2 gap-y-1">
-              <span aria-hidden className="h-0.5 w-5 rounded-full bg-info" />
+              <span aria-hidden className="w-5 shrink-0 border-t-2 border-dashed border-fg-muted" />
               <span className="font-medium text-fg">{b.ticker}</span>
               <span className="text-fg-muted">{b.name}</span>
               <span className={cn("num font-medium", changeTone(series.b.change))}>
@@ -323,11 +294,11 @@ export function CompareChart({
             </li>
           </ul>
 
-          <p className="mt-3 text-xs leading-relaxed text-fg-muted">
-            Series públicas de precios, base 100 al primer punto del rango. Las dos series pueden tener horarios
-            distintos.
+          <p className="mt-3 text-[13px] leading-relaxed text-fg-muted">
+            Series públicas de precios, base 100 al primer punto del rango. La línea punteada marca ese 100. Las dos
+            series pueden tener horarios distintos.
           </p>
-        </>
+        </div>
       ) : null}
     </section>
   );
@@ -386,7 +357,7 @@ export function ShareCompareButton({
       <button
         type="button"
         onClick={() => void share()}
-        className="inline-flex min-h-11 items-center gap-2 rounded-full border border-border-control bg-bg px-4 text-sm font-medium text-fg transition duration-[140ms] ease-spring hover:bg-surface-2 active:scale-[0.98]"
+        className="inline-flex min-h-11 items-center gap-2 rounded-full border border-border-control bg-bg px-4 text-sm font-medium text-fg transition duration-[140ms] ease-spring hover:bg-surface-2 active:scale-[0.98] motion-reduce:transition-none"
       >
         <svg
           aria-hidden
@@ -404,7 +375,7 @@ export function ShareCompareButton({
         </svg>
         Compartir comparación
       </button>
-      <p aria-live="polite" className="text-xs text-fg-muted">
+      <p aria-live="polite" className="text-[13px] text-fg-muted">
         {status === "copied"
           ? "Enlace copiado."
           : status === "error"
