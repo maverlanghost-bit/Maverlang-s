@@ -1,17 +1,17 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, permanentRedirect } from "next/navigation";
+import type { ReactNode } from "react";
 
-import { Coverage, formatWeightPct } from "@/components/copy/coverage";
+import { Coverage } from "@/components/copy/coverage";
 import { CopySoonState } from "@/components/copy/empty-states";
 import { COPY_FAMILY_LABELS } from "@/components/copy/family-tabs";
 import { ExampleDataStrip, FeedBanner } from "@/components/copy/feed-banner";
-import { LegalNote } from "@/components/copy/legal-note";
 import { MovementsList } from "@/components/copy/movements-list";
 import { Paywall } from "@/components/copy/paywall";
 import { PositionsTable, type PositionRow } from "@/components/copy/positions-table";
-import { Badge } from "@/components/ui/badge";
-import { buttonClasses } from "@/components/ui/button";
+import { IconBack } from "@/components/ui/icons";
+import { COPY_DISCLAIMER, COPY_LEGAL_PENDING_LABEL } from "@/content/copy-legal";
 import { getCopyEntitlement, hasCopyAccess, redactPortfolio } from "@/lib/copy/access";
 import { getCopyIndex, getCopyPortfolio } from "@/lib/copy/feed";
 import { isCopyEnabled } from "@/lib/copy/flags";
@@ -19,6 +19,7 @@ import { formatFeedDate, lagChip } from "@/lib/copy/lag";
 import { coverageOf, mapPositions } from "@/lib/copy/mapping";
 import { canonicalSlug } from "@/lib/copy/slugs";
 import { type CopyPortfolio } from "@/lib/copy/types";
+import { cn } from "@/lib/cn";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 /** Depende de flags, del feed y del acceso: nunca se prerenderiza. */
@@ -63,6 +64,32 @@ function toRow(
 
 function firstValue(value: string | string[] | undefined): string {
   return Array.isArray(value) ? (value[0] ?? "") : (value ?? "");
+}
+
+/** Rótulo de contexto en mono, separado por un punto: sin cápsulas de color. */
+function MetaItem({
+  children,
+  separator = false,
+  tone,
+}: {
+  children: ReactNode;
+  separator?: boolean;
+  tone?: "warn" | "down";
+}) {
+  return (
+    <li className="inline-flex min-w-0 items-center gap-3">
+      {separator ? <span aria-hidden className="size-[3px] shrink-0 rounded-full bg-border-strong" /> : null}
+      <span
+        className={cn(
+          "inline-flex items-center",
+          tone === "warn" && "text-warn",
+          tone === "down" && "text-down",
+        )}
+      >
+        {children}
+      </span>
+    </li>
+  );
 }
 
 export async function generateMetadata({
@@ -123,93 +150,100 @@ export default async function CopyPositionsPage({
   const start = (page - 1) * PAGE_SIZE;
   const rows = ordered.slice(start, start + PAGE_SIZE).map((position) => toRow(position, mappedBySymbol));
   const lag = lagChip(meta.asOf, meta.family, meta.isFrozen);
-  const lagTone = lag.tone === "neutral" ? "neutral" : lag.tone === "amber" ? "warn" : "down";
+  const lagTone = lag.tone === "amber" ? "warn" : lag.tone === "red" ? "down" : undefined;
 
   const base = `/app/copiar/${canonical}/posiciones`;
   const hrefFor = (target: number) => (target <= 1 ? base : `${base}?p=${target}`);
 
   return (
-    <div className="flex min-w-0 flex-col gap-6">
+    <div className="flex min-w-0 max-w-full flex-col gap-8">
       <Link
         href={`/app/copiar/${canonical}`}
-        className="inline-flex items-center gap-1.5 text-sm text-fg-muted transition-colors hover:text-fg"
+        className="-ml-2 inline-flex min-h-11 w-fit items-center gap-1.5 rounded-full px-2 text-[13px] font-medium text-fg-muted transition-colors duration-150 hover:bg-surface-1 hover:text-fg"
       >
-        <span aria-hidden>←</span> {meta.name}
+        <IconBack className="size-4" />
+        {meta.name}
       </Link>
 
       <FeedBanner health={health} />
       {portfolio.example ? <ExampleDataStrip /> : null}
 
       <header className="flex flex-col gap-3">
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge tone="neutral">{FAMILY_LABEL[meta.family] ?? meta.family}</Badge>
-          {meta.isFrozen ? (
-            <Badge tone="warn">Cartera congelada</Badge>
-          ) : (
-            <Badge tone={lagTone}>{lag.label}</Badge>
-          )}
-          <Badge tone="neutral">
-            {showPositions ? `${total} posiciones` : "Composición bloqueada"}
-          </Badge>
-        </div>
-        <h1 className="text-3xl font-semibold tracking-tight text-balance sm:text-4xl">
-          Posiciones de {meta.name}
-        </h1>
-        <p className="text-sm text-fg-muted">
-          Dato al {formatFeedDate(meta.asOf)}
-          {meta.publishedAt ? ` · Publicado ${formatFeedDate(meta.publishedAt)}` : ""}
+        <p className="font-mono text-[13px] leading-5 font-medium tracking-[0.045em] text-fg-muted uppercase">
+          Posiciones
         </p>
+        <h1 className="text-3xl leading-[1.1] tracking-tight text-balance break-words sm:text-4xl">
+          {meta.name}
+        </h1>
+        <p className="text-[15px] leading-6 text-fg-muted">
+          {meta.manager}
+          {meta.country ? ` · ${meta.country}` : ""}
+        </p>
+        <ul
+          aria-label="Contexto de la cartera"
+          className="flex min-w-0 max-w-full list-none flex-wrap items-center gap-x-3 gap-y-1 p-0 font-mono text-[13px] leading-5 tracking-[0.04em] text-fg-muted uppercase"
+        >
+          <MetaItem>{FAMILY_LABEL[meta.family] ?? meta.family}</MetaItem>
+          <MetaItem separator tone={meta.isFrozen ? undefined : lagTone}>
+            {meta.isFrozen ? "Cartera congelada" : lag.label}
+          </MetaItem>
+          {meta.isFrozen ? <MetaItem separator>Dato al {formatFeedDate(meta.asOf)}</MetaItem> : null}
+          <MetaItem separator>{showPositions ? `${total} posiciones` : "Composición bloqueada"}</MetaItem>
+          {meta.publishedAt ? (
+            <MetaItem separator>Publicado el {formatFeedDate(meta.publishedAt)}</MetaItem>
+          ) : null}
+        </ul>
       </header>
 
-      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_19rem]">
-        <div className="flex min-w-0 flex-col gap-6">
+      <div className="grid min-w-0 items-start gap-10 lg:grid-cols-[minmax(0,1fr)_20rem] xl:grid-cols-[minmax(0,1fr)_22rem]">
+        <div className="flex min-w-0 flex-col gap-10">
           {showPositions ? (
             <section
               aria-labelledby="posiciones-titulo"
-              className="flex flex-col gap-3 rounded-2xl border border-border/70 bg-surface-1 p-5 md:p-6"
+              className="flex flex-col gap-4 border-t border-border pt-8"
             >
-              <div className="flex flex-wrap items-baseline justify-between gap-2">
-                <h2 id="posiciones-titulo" className="text-base font-medium text-fg">
-                  {total > PAGE_SIZE
-                    ? `Posiciones ${start + 1}–${Math.min(start + PAGE_SIZE, total)}`
-                    : "Todas las posiciones"}
+              <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1">
+                <h2 id="posiciones-titulo" className="text-lg font-medium tracking-tight text-fg">
+                  Composición
                 </h2>
-                <span className="font-mono text-xs tabular-nums text-fg-muted">
-                  Cobertura {formatWeightPct(coveragePct)}
-                </span>
+                {total > 0 ? (
+                  <span className="num text-[13px] leading-5 tabular-nums text-fg-muted">
+                    {start + 1}–{Math.min(start + PAGE_SIZE, total)} de {total}
+                  </span>
+                ) : null}
               </div>
 
-              {rows.length > 0 ? (
-                <PositionsTable rows={rows} showMaverlang={hasAccess} />
-              ) : (
-                <p className="text-sm leading-relaxed text-fg-muted">
-                  Esta cartera no tiene posiciones publicadas.
-                </p>
-              )}
+              <PositionsTable rows={rows} showMaverlang={hasAccess} />
 
               {totalPages > 1 ? (
                 <nav
                   aria-label="Paginación de posiciones"
-                  className="flex flex-wrap items-center justify-between gap-3 border-t border-border/70 pt-4"
+                  className="flex items-center justify-between gap-4 border-t border-border/70 pt-4"
                 >
                   {page > 1 ? (
-                    <Link href={hrefFor(page - 1)} className={buttonClasses({ variant: "secondary", size: "sm" })}>
+                    <Link
+                      href={hrefFor(page - 1)}
+                      className="inline-flex min-h-11 items-center text-[13px] font-medium text-fg underline underline-offset-4"
+                    >
                       ‹ Anteriores
                     </Link>
                   ) : (
-                    <span className={buttonClasses({ variant: "secondary", size: "sm", className: "pointer-events-none opacity-40" })} aria-disabled="true">
+                    <span aria-disabled="true" className="inline-flex min-h-11 items-center text-[13px] text-fg-subtle">
                       ‹ Anteriores
                     </span>
                   )}
-                  <span className="font-mono text-xs tabular-nums text-fg-muted">
+                  <span className="num text-[13px] leading-5 tabular-nums text-fg-muted">
                     Página {page} de {totalPages}
                   </span>
                   {page < totalPages ? (
-                    <Link href={hrefFor(page + 1)} className={buttonClasses({ variant: "secondary", size: "sm" })}>
+                    <Link
+                      href={hrefFor(page + 1)}
+                      className="inline-flex min-h-11 items-center text-[13px] font-medium text-fg underline underline-offset-4"
+                    >
                       Siguientes ›
                     </Link>
                   ) : (
-                    <span className={buttonClasses({ variant: "secondary", size: "sm", className: "pointer-events-none opacity-40" })} aria-disabled="true">
+                    <span aria-disabled="true" className="inline-flex min-h-11 items-center text-[13px] text-fg-subtle">
                       Siguientes ›
                     </span>
                   )}
@@ -226,19 +260,22 @@ export default async function CopyPositionsPage({
           {showPositions ? (
             <section
               aria-labelledby="movimientos-titulo"
-              className="flex flex-col gap-3 rounded-2xl border border-border/70 bg-surface-1 p-5 md:p-6"
+              className="flex flex-col gap-4 border-t border-border pt-8"
             >
-              <h2 id="movimientos-titulo" className="text-base font-medium text-fg">
+              <h2 id="movimientos-titulo" className="text-lg font-medium tracking-tight text-fg">
                 Movimientos
               </h2>
               <MovementsList movements={visible.movements} limit={12} />
             </section>
           ) : null}
 
-          <LegalNote />
+          <div className="flex flex-col gap-2 border-t border-border pt-6">
+            <p className="text-[13px] leading-relaxed text-fg-body">{COPY_DISCLAIMER}</p>
+            <p className="text-[13px] leading-relaxed text-fg-muted">{COPY_LEGAL_PENDING_LABEL}</p>
+          </div>
         </div>
 
-        <aside className="flex flex-col gap-4 lg:sticky lg:top-6">
+        <aside className="flex min-w-0 flex-col gap-8 lg:sticky lg:top-6">
           <Coverage
             coveragePct={coveragePct}
             mappedCount={mapped.filter((position) => position.status === "available").length}

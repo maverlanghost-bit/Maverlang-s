@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import nextDynamic from "next/dynamic";
 import Link from "next/link";
 import { notFound, permanentRedirect } from "next/navigation";
-import { Suspense } from "react";
+import { Suspense, type ReactNode } from "react";
 
 import { Coverage, COVERAGE_COPY_MIN } from "@/components/copy/coverage";
 import { CopySoonState } from "@/components/copy/empty-states";
@@ -10,13 +10,13 @@ import { COPY_FAMILY_LABELS } from "@/components/copy/family-tabs";
 import { ExampleDataStrip, FeedBanner } from "@/components/copy/feed-banner";
 import { FraccionSeal } from "@/components/copy/fraccion-seal";
 import { LagStrip } from "@/components/copy/lag-strip";
-import { LegalNote } from "@/components/copy/legal-note";
 import { MovementsList } from "@/components/copy/movements-list";
 import { Paywall } from "@/components/copy/paywall";
 import { PositionsTable, type PositionRow } from "@/components/copy/positions-table";
-import { Badge } from "@/components/ui/badge";
 import { buttonClasses } from "@/components/ui/button";
-import { COPY_CTA_NOTE } from "@/content/copy-legal";
+import { IconBack } from "@/components/ui/icons";
+import { Skeleton } from "@/components/ui/skeleton";
+import { COPY_CTA_NOTE, COPY_DISCLAIMER, COPY_LEGAL_PENDING_LABEL } from "@/content/copy-legal";
 import {
   COPY_PAST_DUE_MESSAGE,
   getCopyEntitlement,
@@ -26,17 +26,23 @@ import {
 } from "@/lib/copy/access";
 import { getCopyIndex, getCopyPortfolio, isCopyFrozenByFeed } from "@/lib/copy/feed";
 import { isCopyEnabled } from "@/lib/copy/flags";
-import { lagChip } from "@/lib/copy/lag";
+import { formatFeedDate, lagChip } from "@/lib/copy/lag";
 import { coverageOf, mapPositions } from "@/lib/copy/mapping";
 import { estimatePerformance } from "@/lib/copy/perf";
 import { canonicalSlug } from "@/lib/copy/slugs";
-import { isCopyableFamily, type CopyFamily, type CopyPortfolio } from "@/lib/copy/types";
+import {
+  isCopyableFamily,
+  type CopyFamily,
+  type CopyPortfolio,
+  type CopyPortfolioMeta,
+} from "@/lib/copy/types";
+import { cn } from "@/lib/cn";
 import { formatPortion } from "@/lib/format";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 /** El gráfico es un SVG propio, sin librerías, y entra con `next/dynamic`. */
 const PerfChart = nextDynamic(() => import("@/components/copy/perf-chart").then((module) => module.PerfChart), {
-  loading: () => <div aria-hidden className="h-40 w-full animate-pulse rounded-2xl bg-surface-3 sm:h-48" />,
+  loading: () => <PerfSkeleton />,
 });
 
 /** Depende de flags, del feed y del acceso: nunca se prerenderiza. */
@@ -53,6 +59,13 @@ const FAMILY_REASON: Partial<Record<CopyFamily, string>> = {
   afp: "Solo para mirar: la cartera de una AFP se muestra para consulta, pero no se puede copiar en Maverlang.",
   thematic:
     "Solo para mirar: las carteras temáticas se muestran para consulta, pero no se pueden copiar en Maverlang.",
+};
+
+/** Qué respalda el dato. Se dice con palabras, nunca con un sello de color. */
+const VERIFICATION_LABEL: Record<CopyPortfolioMeta["verification"], string> = {
+  official_filing: "Declaración oficial",
+  human_reviewed: "Revisión humana",
+  editorial_model: "Modelo editorial",
 };
 
 type Mapped = Awaited<ReturnType<typeof mapPositions>>[number];
@@ -87,6 +100,67 @@ function toRow(
   };
 }
 
+/** Rótulo de contexto en mono, separado por un punto: sin cápsulas de color. */
+function MetaItem({
+  children,
+  separator = false,
+  tone,
+}: {
+  children: ReactNode;
+  separator?: boolean;
+  tone?: "warn" | "down";
+}) {
+  return (
+    <li className="inline-flex min-w-0 items-center gap-3">
+      {separator ? <span aria-hidden className="size-[3px] shrink-0 rounded-full bg-border-strong" /> : null}
+      <span
+        className={cn(
+          "inline-flex items-center",
+          tone === "warn" && "text-warn",
+          tone === "down" && "text-down",
+        )}
+      >
+        {children}
+      </span>
+    </li>
+  );
+}
+
+/** Fila de dato con hairline: rótulo a la izquierda, valor a la derecha. */
+function DataRow({
+  label,
+  children,
+  mono = true,
+}: {
+  label: string;
+  children: ReactNode;
+  mono?: boolean;
+}) {
+  return (
+    <div className="flex items-baseline justify-between gap-4 border-b border-border/70 py-2.5 last:border-b-0">
+      <dt className="min-w-0 flex-1 text-[13px] leading-5 text-fg-muted">{label}</dt>
+      <dd
+        className={cn(
+          "min-w-0 text-right text-[13px] leading-5 font-medium text-fg",
+          mono ? "num shrink-0 whitespace-nowrap tabular-nums" : "font-sans",
+        )}
+      >
+        {children}
+      </dd>
+    </div>
+  );
+}
+
+function PerfSkeleton() {
+  return (
+    <div aria-hidden className="flex flex-col gap-4">
+      <Skeleton className="h-10 w-40" />
+      <Skeleton className="h-4 w-52 max-w-full" />
+      <Skeleton className="h-40 w-full sm:h-44" />
+    </div>
+  );
+}
+
 /**
  * La curva se calcula con el historial propio de Maverlang y se transmite
  * aparte: la ficha no espera a la lectura de precios para pintar.
@@ -109,8 +183,9 @@ async function PerfSection({
 
   if (!perf || perf.points.length < 2) {
     return (
-      <p className="rounded-2xl border border-dashed border-border-strong px-4 py-8 text-center text-sm text-fg-muted">
-        Sin historial de precios de Maverlang para esta cartera.
+      <p className="text-[13px] leading-relaxed text-fg-muted">
+        Sin historial de precios de Maverlang para esta cartera. No dibujamos una curva con datos que no
+        tenemos.
       </p>
     );
   }
@@ -171,7 +246,7 @@ export default async function CopyPortfolioPage({
   const familyCopyable = isCopyableFamily(meta.family);
   const feedDead = isCopyFrozenByFeed(health);
   const lag = lagChip(meta.asOf, meta.family, meta.isFrozen);
-  const lagTone = lag.tone === "neutral" ? "neutral" : lag.tone === "amber" ? "warn" : "down";
+  const lagTone = lag.tone === "amber" ? "warn" : lag.tone === "red" ? "down" : undefined;
   const topFifty = meta.coverage === "top50_of_full_book";
 
   const blockReason = !familyCopyable
@@ -187,6 +262,8 @@ export default async function CopyPortfolioPage({
             : null;
 
   const canCopy = hasAccess && blockReason === null;
+  const ctaReason =
+    blockReason ?? (hasAccess ? null : "Necesitas el plan Copiar carteras para replicar la mezcla.");
   const showPositions = hasAccess || meta.family === "broker_cl";
 
   const mappedBySymbol = new Map<string, Mapped>(mapped.map((position) => [position.symbol, position]));
@@ -197,13 +274,14 @@ export default async function CopyPortfolioPage({
   const available = mapped.filter((position) => position.status === "available").length;
 
   return (
-    <div className="flex min-w-0 flex-col gap-6">
-      <div className="flex items-center justify-between gap-3">
+    <div className="flex min-w-0 max-w-full flex-col gap-8">
+      <div className="flex items-center justify-between gap-4">
         <Link
           href="/app/copiar"
-          className="inline-flex items-center gap-1.5 text-sm text-fg-muted transition-colors hover:text-fg"
+          className="-ml-2 inline-flex min-h-11 items-center gap-1.5 rounded-full px-2 text-[13px] font-medium text-fg-muted transition-colors duration-150 hover:bg-surface-1 hover:text-fg"
         >
-          <span aria-hidden>←</span> Copiar carteras
+          <IconBack className="size-4" />
+          Copiar carteras
         </Link>
         <FraccionSeal />
       </div>
@@ -212,23 +290,29 @@ export default async function CopyPortfolioPage({
       {portfolio.example ? <ExampleDataStrip /> : null}
 
       <header className="flex flex-col gap-3">
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge tone="neutral">{FAMILY_LABEL[meta.family] ?? meta.family}</Badge>
-          {meta.isFrozen ? (
-            <Badge tone="warn">Cartera congelada</Badge>
-          ) : (
-            <Badge tone={lagTone}>{lag.label}</Badge>
-          )}
-          {topFifty ? <Badge tone="neutral">Top 50 del libro</Badge> : null}
-          {!familyCopyable ? <Badge tone="neutral">Solo para mirar</Badge> : null}
-        </div>
-        <h1 className="text-3xl font-semibold tracking-tight text-balance sm:text-4xl">{meta.name}</h1>
-        <p className="text-sm text-fg-muted">
+        <p className="font-mono text-[13px] leading-5 font-medium tracking-[0.045em] text-fg-muted uppercase">
+          {FAMILY_LABEL[meta.family] ?? meta.family}
+        </p>
+        <h1 className="text-3xl leading-[1.1] tracking-tight text-balance break-words sm:text-4xl">
+          {meta.name}
+        </h1>
+        <p className="text-[15px] leading-6 text-fg-muted">
           {meta.manager}
           {meta.country ? ` · ${meta.country}` : ""}
         </p>
+        <ul
+          aria-label="Contexto de la cartera"
+          className="flex min-w-0 max-w-full list-none flex-wrap items-center gap-x-3 gap-y-1 p-0 font-mono text-[13px] leading-5 tracking-[0.04em] text-fg-muted uppercase"
+        >
+          <MetaItem tone={meta.isFrozen ? undefined : lagTone}>
+            {meta.isFrozen ? "Cartera congelada" : lag.label}
+          </MetaItem>
+          {meta.isFrozen ? <MetaItem separator>Dato al {formatFeedDate(meta.asOf)}</MetaItem> : null}
+          {topFifty ? <MetaItem separator>Top 50 del libro</MetaItem> : null}
+          {!familyCopyable ? <MetaItem separator>Solo para mirar</MetaItem> : null}
+          <MetaItem separator>{VERIFICATION_LABEL[meta.verification]}</MetaItem>
+        </ul>
         <LagStrip
-          asOf={meta.asOf}
           filedAt={meta.filedAt}
           publishedAt={meta.publishedAt}
           generatedAt={portfolio.generatedAt}
@@ -236,65 +320,61 @@ export default async function CopyPortfolioPage({
         />
       </header>
 
-      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_19rem]">
-        <div className="flex min-w-0 flex-col gap-6">
+      <div className="grid min-w-0 items-start gap-10 lg:grid-cols-[minmax(0,1fr)_20rem] xl:grid-cols-[minmax(0,1fr)_22rem]">
+        <div className="order-2 flex min-w-0 flex-col gap-10 lg:order-1">
           <section
-            aria-labelledby="grafico-titulo"
-            className="flex flex-col gap-3 rounded-2xl border border-border/70 bg-surface-1 p-5 md:p-6"
+            aria-labelledby="rendimiento-titulo"
+            className="flex flex-col gap-4 border-t border-border pt-8"
           >
-            <div className="flex flex-wrap items-baseline justify-between gap-2">
-              <h2 id="grafico-titulo" className="text-base font-medium text-fg">
-                Evolución estimada
+            <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1">
+              <h2 id="rendimiento-titulo" className="text-lg font-medium tracking-tight text-fg">
+                Rendimiento
               </h2>
-              <span className="text-xs font-medium text-fg-muted">Último año</span>
+              <span className="font-mono text-[13px] leading-5 tracking-[0.045em] text-fg-muted uppercase">
+                Estimado · 12 meses
+              </span>
             </div>
-            <Suspense
-              fallback={
-                <div aria-hidden className="h-40 w-full animate-pulse rounded-2xl bg-surface-3 sm:h-48" />
-              }
-            >
+            <Suspense fallback={<PerfSkeleton />}>
               <PerfSection portfolio={portfolio} mapped={mapped} />
             </Suspense>
           </section>
 
           {showPositions ? (
             <section
-              aria-labelledby="posiciones-titulo"
-              className="flex flex-col gap-3 rounded-2xl border border-border/70 bg-surface-1 p-5 md:p-6"
+              aria-labelledby="composicion-titulo"
+              className="flex flex-col gap-4 border-t border-border pt-8"
             >
-              <div className="flex flex-wrap items-baseline justify-between gap-2">
-                <h2 id="posiciones-titulo" className="text-base font-medium text-fg">
-                  Top 10 posiciones
+              <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1">
+                <h2 id="composicion-titulo" className="text-lg font-medium tracking-tight text-fg">
+                  Composición
                 </h2>
                 {top.length > 0 ? (
-                  <span className="font-mono text-xs tabular-nums text-fg-muted">
-                    Top 10 = {formatPortion(topWeight / 100)} del portafolio
+                  <span className="num text-[13px] leading-5 tabular-nums text-fg-muted">
+                    {top.length} de {visible.positions.length} · {formatPortion(topWeight / 100)} del portafolio
                   </span>
                 ) : null}
               </div>
 
-              {topRows.length > 0 ? (
-                <>
-                  <PositionsTable rows={topRows} showMaverlang={hasAccess} />
-                  <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
-                    <Link
-                      href={`/app/copiar/${canonical}/posiciones`}
-                      className="text-sm font-medium text-fg underline underline-offset-4"
-                    >
-                      Ver las {visible.positions.length} posiciones
-                    </Link>
-                    {visible.positions.length > top.length ? (
-                      <span className="font-mono text-xs tabular-nums text-fg-muted">
-                        {top.length} de {visible.positions.length}
-                      </span>
-                    ) : null}
-                  </div>
-                </>
-              ) : (
-                <p className="text-sm leading-relaxed text-fg-muted">
-                  Esta cartera no tiene posiciones publicadas.
-                </p>
-              )}
+              <PositionsTable rows={topRows} showMaverlang={hasAccess} />
+
+              <div className="flex flex-wrap items-center gap-x-6 gap-y-1">
+                {visible.positions.length > 0 ? (
+                  <Link
+                    href={`/app/copiar/${canonical}/posiciones`}
+                    className="inline-flex min-h-11 items-center text-[13px] font-medium text-fg underline underline-offset-4 hover:text-fg-body"
+                  >
+                    Ver las {visible.positions.length} posiciones
+                  </Link>
+                ) : null}
+                {familyCopyable && top.length > 0 ? (
+                  <Link
+                    href={`/app/copiar/${canonical}/mezcla`}
+                    className="inline-flex min-h-11 items-center text-[13px] font-medium text-fg-muted underline underline-offset-4 hover:text-fg"
+                  >
+                    Ver la mezcla
+                  </Link>
+                ) : null}
+              </div>
             </section>
           ) : (
             <Paywall />
@@ -303,82 +383,82 @@ export default async function CopyPortfolioPage({
           {showPositions ? (
             <section
               aria-labelledby="movimientos-titulo"
-              className="flex flex-col gap-3 rounded-2xl border border-border/70 bg-surface-1 p-5 md:p-6"
+              className="flex flex-col gap-4 border-t border-border pt-8"
             >
-              <h2 id="movimientos-titulo" className="text-base font-medium text-fg">
+              <h2 id="movimientos-titulo" className="text-lg font-medium tracking-tight text-fg">
                 Movimientos
               </h2>
               <MovementsList movements={visible.movements} limit={8} />
             </section>
           ) : null}
 
-          <div className="flex flex-col gap-2">
-            <FraccionSeal />
-            <LegalNote />
+          <div className="flex flex-col gap-2 border-t border-border pt-6">
+            <p className="text-[13px] leading-relaxed text-fg-muted">
+              Atribución: {meta.attribution}
+              {meta.license ? ` · ${meta.license}` : ""}
+            </p>
+            <p className="text-[13px] leading-relaxed text-fg-body">{COPY_DISCLAIMER}</p>
+            <p className="text-[13px] leading-relaxed text-fg-muted">{COPY_LEGAL_PENDING_LABEL}</p>
           </div>
         </div>
 
-        <aside className="flex flex-col gap-4 lg:sticky lg:top-6">
-          <Coverage
-            coveragePct={coveragePct}
-            mappedCount={available}
-            totalCount={mapped.length}
-          />
-
+        <aside className="order-1 flex min-w-0 flex-col gap-4 lg:order-2">
           <section
             aria-labelledby="cta-titulo"
-            className="flex flex-col gap-3 rounded-2xl border border-border/70 bg-surface-1 p-5"
+            className="flex flex-col gap-4 rounded-3xl border border-border bg-bg p-5"
           >
-            <h2
-              id="cta-titulo"
-              className="text-base font-semibold tracking-tight text-fg"
-            >
+            <h2 id="cta-titulo" className="text-lg font-medium tracking-tight text-fg">
               Copiar esta cartera
             </h2>
 
+            <Coverage
+              coveragePct={coveragePct}
+              mappedCount={available}
+              totalCount={mapped.length}
+              className="border-t border-border/70 pt-4"
+            />
+
+            <dl className="border-t border-border/70 pt-1">
+              <DataRow label="Verificación" mono={false}>
+                {VERIFICATION_LABEL[meta.verification]}
+              </DataRow>
+              <DataRow label="Composición" mono={false}>
+                {meta.isEstimated ? "Estimada" : "Declarada"}
+              </DataRow>
+            </dl>
+
+            {ctaReason ? (
+              <p className="text-[13px] leading-relaxed text-fg-body">{ctaReason}</p>
+            ) : null}
+
             {canCopy ? (
-              <>
-                <Link
-                  href={`/app/copiar/${canonical}/mezcla`}
-                  className={buttonClasses({ variant: "primary", size: "lg" })}
-                >
-                  Copiar esta mezcla
-                </Link>
-              </>
+              <Link
+                href={`/app/copiar/${canonical}/mezcla`}
+                className={buttonClasses({ variant: "primary", size: "lg", className: "min-h-12 w-full" })}
+              >
+                Copiar esta mezcla
+              </Link>
             ) : (
-              <>
-                <button
-                  type="button"
-                  disabled
-                  className={buttonClasses({ variant: "secondary", size: "lg" })}
-                >
-                  Copiar esta mezcla
-                </button>
-                <p className="text-sm leading-relaxed text-fg-body">
-                  {blockReason ?? "Necesitas el plan Copiar carteras para replicar la mezcla."}
-                </p>
-                {familyCopyable && (!hasAccess || readOnly) ? (
-                  <Link
-                    href="/app/copiar/planes"
-                    className="text-sm font-medium text-fg underline underline-offset-4"
-                  >
-                    Ver planes
-                  </Link>
-                ) : null}
-              </>
+              <button
+                type="button"
+                disabled
+                className={buttonClasses({ variant: "secondary", size: "lg", className: "min-h-12 w-full" })}
+              >
+                Copiar esta mezcla
+              </button>
             )}
 
-            <p className="text-xs leading-relaxed text-fg-muted">{COPY_CTA_NOTE}</p>
-            <p className="text-xs leading-relaxed text-fg-muted">
-              {meta.isEstimated ? "Composición estimada por Fraccion.si. " : ""}
-              Compra y venta sujetas a disponibilidad y topes de tu cuenta.
-            </p>
-          </section>
+            {!canCopy && familyCopyable && (!hasAccess || readOnly) ? (
+              <Link
+                href="/app/copiar/planes"
+                className="inline-flex min-h-11 w-fit items-center text-[13px] font-medium text-fg underline underline-offset-4"
+              >
+                Ver planes
+              </Link>
+            ) : null}
 
-          <p className="text-xs leading-relaxed text-fg-muted">
-            Atribución: {meta.attribution}
-            {meta.license ? ` · ${meta.license}` : ""}
-          </p>
+            <p className="text-[13px] leading-relaxed text-fg-muted">{COPY_CTA_NOTE}</p>
+          </section>
         </aside>
       </div>
     </div>

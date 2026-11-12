@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, type ReactNode } from "react";
 
 import { cn } from "@/lib/cn";
 import { formatPercent } from "@/lib/format";
@@ -40,10 +40,23 @@ function sample(points: readonly PerfPoint[]): PerfPoint[] {
   return result;
 }
 
+/** Fila de dato con hairline: rótulo a la izquierda, cifra tabular a la derecha. */
+function DataRow({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="flex items-baseline justify-between gap-4 border-b border-border/70 py-2.5 last:border-b-0">
+      <dt className="min-w-0 text-[13px] leading-5 text-fg-muted">{label}</dt>
+      <dd className="num shrink-0 text-[13px] leading-5 font-medium whitespace-nowrap tabular-nums text-fg">
+        {children}
+      </dd>
+    </div>
+  );
+}
+
 /**
  * Curva estimada con precios de Maverlang (composición actual hacia atrás).
- * Siempre punteada: no es la historia real del fondo. Sin historial no se
- * dibuja nada inventado.
+ * El retorno manda: es la cifra que se busca al abrir la ficha, en mono y
+ * tabular. Siempre punteada: no es la historia real del fondo. Sin historial
+ * no se dibuja nada inventado.
  */
 export function PerfChart({
   points,
@@ -89,8 +102,9 @@ export function PerfChart({
 
   if (!drawing) {
     return (
-      <p className={cn("rounded-2xl border border-dashed border-border-strong px-4 py-8 text-center text-sm text-fg-muted", className)}>
-        Sin historial de precios de Maverlang para esta cartera.
+      <p className={cn("text-[13px] leading-relaxed text-fg-muted", className)}>
+        Sin historial de precios de Maverlang para esta cartera. No dibujamos una curva con datos que no
+        tenemos.
       </p>
     );
   }
@@ -103,83 +117,78 @@ export function PerfChart({
   const bottomPct = base > 0 ? (drawing.min - base) / base : 0;
 
   return (
-    <figure className={cn("flex flex-col gap-3", className)}>
-      {/* El retorno manda: es la cifra que se busca al abrir la ficha. */}
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
+    <figure className={cn("flex min-w-0 flex-col", className)}>
+      <div className="flex flex-col gap-1.5">
         <p
           className={cn(
-            "num text-2xl font-semibold tracking-tight tabular-nums",
+            "num text-[40px] leading-none font-medium tracking-tight tabular-nums sm:text-[44px]",
             periodPct > 0 ? "text-up" : periodPct < 0 ? "text-down" : "text-fg",
           )}
         >
           {formatPercent(periodPct)}
         </p>
-        <span className="text-xs font-medium text-fg-muted">12 meses</span>
+        <p className="text-[13px] leading-5 text-fg-muted">
+          Índice base 100 desde {start || "el primer dato"}
+        </p>
       </div>
 
-      <div className="flex gap-2">
-        <svg
-          viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
-          role="img"
-          aria-label={`Evolución estimada de la cartera${start && end ? ` entre ${start} y ${end}` : ""}. Línea punteada.`}
-          className="h-40 min-w-0 flex-1 text-fg-body sm:h-48"
-          preserveAspectRatio="none"
-        >
-          {[0.25, 0.5, 0.75].map((fraction) => (
-            <line
-              key={fraction}
-              x1={0}
-              x2={WIDTH}
-              y1={PAD + fraction * (HEIGHT - PAD * 2)}
-              y2={PAD + fraction * (HEIGHT - PAD * 2)}
-              stroke="currentColor"
-              strokeOpacity={0.08}
-              strokeWidth={1}
-              vectorEffect="non-scaling-stroke"
-            />
-          ))}
-          {/* Referencia base 100 del índice. */}
+      <svg
+        viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
+        role="img"
+        aria-label={`Evolución estimada de la cartera${start && end ? ` entre ${start} y ${end}` : ""}. Línea punteada.`}
+        className="mt-6 h-40 w-full min-w-0 text-fg-body sm:h-44"
+        preserveAspectRatio="none"
+      >
+        {[0.25, 0.5, 0.75].map((fraction) => (
           <line
+            key={fraction}
             x1={0}
             x2={WIDTH}
-            y1={drawing.yBase}
-            y2={drawing.yBase}
+            y1={PAD + fraction * (HEIGHT - PAD * 2)}
+            y2={PAD + fraction * (HEIGHT - PAD * 2)}
             stroke="currentColor"
-            strokeOpacity={0.32}
+            strokeOpacity={0.08}
             strokeWidth={1}
-            strokeDasharray="3 3"
             vectorEffect="non-scaling-stroke"
           />
-          <path d={drawing.area} fill="currentColor" fillOpacity={0.06} />
-          <path
-            d={drawing.line}
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={1.5}
-            strokeDasharray="5 4"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            vectorEffect="non-scaling-stroke"
-          />
-        </svg>
+        ))}
+        {/* Referencia base 100 del índice. */}
+        <line
+          x1={0}
+          x2={WIDTH}
+          y1={drawing.yBase}
+          y2={drawing.yBase}
+          stroke="currentColor"
+          strokeOpacity={0.32}
+          strokeWidth={1}
+          strokeDasharray="3 3"
+          vectorEffect="non-scaling-stroke"
+        />
+        <path d={drawing.area} fill="currentColor" fillOpacity={0.06} />
+        <path
+          d={drawing.line}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={1.5}
+          strokeDasharray="5 4"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          vectorEffect="non-scaling-stroke"
+        />
+      </svg>
 
-        <div
-          aria-hidden
-          className="flex w-11 shrink-0 flex-col justify-between py-0.5 text-right font-mono text-xs tabular-nums text-fg-muted"
-        >
-          <span>{formatPercent(topPct)}</span>
-          <span>{formatPercent(bottomPct)}</span>
-        </div>
-      </div>
-
-      <div className="flex items-center justify-between gap-3 font-mono text-xs tabular-nums text-fg-muted">
+      <div className="mt-3 flex items-center justify-between gap-4 num text-[13px] leading-5 tabular-nums text-fg-muted">
         <span>{start}</span>
-        <span>Base 100</span>
         <span>{end}</span>
       </div>
 
-      <figcaption className="text-xs leading-relaxed text-fg-muted">
-        Estimado: composición actual hacia atrás, con precios de Maverlang
+      <dl className="mt-6 border-t border-border/70">
+        <DataRow label="Máximo del período">{formatPercent(topPct)}</DataRow>
+        <DataRow label="Mínimo del período">{formatPercent(bottomPct)}</DataRow>
+      </dl>
+
+      <figcaption className="mt-3 text-[13px] leading-relaxed text-fg-muted">
+        Estimado: composición actual hacia atrás, con precios de Maverlang. Línea punteada.
       </figcaption>
     </figure>
   );

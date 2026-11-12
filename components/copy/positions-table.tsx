@@ -1,4 +1,3 @@
-import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/cn";
 import { formatPortion } from "@/lib/format";
 
@@ -18,25 +17,32 @@ export type PositionRow = {
 };
 
 const statusLabel: Record<PositionStatus, string> = {
-  available: "Se puede comprar",
+  available: "Comprable",
   review: "En revisión",
-  unavailable: "No disponible en Maverlang",
+  unavailable: "No disponible",
 };
 
-const statusTone: Record<PositionStatus, "up" | "warn" | "neutral"> = {
-  available: "up",
-  review: "warn",
-  unavailable: "neutral",
+const statusTone: Record<PositionStatus, string> = {
+  available: "text-fg",
+  review: "text-warn",
+  unavailable: "text-fg-muted",
 };
 
 function weight(value: number): string {
   return formatPortion((Number.isFinite(value) ? value : 0) / 100);
 }
 
+/** Retícula de columnas. En móvil cada cifra lleva su rótulo inline. */
+function columns(showMaverlang: boolean): string {
+  return showMaverlang
+    ? "sm:grid-cols-[minmax(0,1fr)_4.5rem_4.5rem_7rem]"
+    : "sm:grid-cols-[minmax(0,1fr)_4.5rem_7rem]";
+}
+
 /**
- * Tabla de posiciones (ficha top 10 y página completa). Sin tabla HTML para
- * que a 360 px no haya scroll horizontal; el estado nunca se comunica sólo
- * con color.
+ * Tabla de posiciones (ficha y página completa). Sin tabla HTML para que a
+ * 360 px no haya scroll horizontal. El estado se dice con palabra y tono,
+ * nunca sólo con color y nunca en una cápsula.
  */
 export function PositionsTable({
   rows,
@@ -48,83 +54,104 @@ export function PositionsTable({
   showMaverlang?: boolean;
   className?: string;
 }) {
-  if (rows.length === 0) return null;
+  if (rows.length === 0) {
+    return (
+      <p className={cn("border-t border-border/70 py-6 text-[13px] leading-relaxed text-fg-muted", className)}>
+        Esta cartera no tiene posiciones publicadas.
+      </p>
+    );
+  }
 
   return (
-    <div className={cn("flex flex-col", className)}>
-      {/* Cabecera de columnas sólo desde sm: en móvil cada cifra lleva su
-          etiqueta inline y nada se corta a 360 px. */}
-      <p
+    <div className={cn("flex min-w-0 flex-col", className)}>
+      {/* Cabecera de columnas sólo desde sm: en móvil nada se corta ni se
+          aprieta a 360 px. */}
+      <div
         className={cn(
-          "hidden items-center gap-x-3 pb-1 text-xs font-medium text-fg-muted sm:grid",
-          showMaverlang
-            ? "sm:grid-cols-[minmax(0,1fr)_4rem_5rem_auto]"
-            : "sm:grid-cols-[minmax(0,1fr)_4rem_auto]",
+          "hidden items-center gap-x-3 border-b border-border pb-2 font-mono text-[11px] font-medium tracking-[0.045em] text-fg-muted uppercase sm:grid",
+          columns(showMaverlang),
         )}
       >
         <span>Posición</span>
         <span className="text-right">Original</span>
-        {showMaverlang ? <span className="text-right">En Maverlang</span> : null}
+        {showMaverlang ? <span className="text-right">Maverlang</span> : null}
         <span className="text-right">Estado</span>
-      </p>
-      <ul aria-label="Posiciones de la cartera" className="flex flex-col divide-y divide-border/60">
+      </div>
+
+      <ul aria-label="Posiciones de la cartera" className="flex flex-col">
         {rows.map((row, index) => (
-          <li key={`${row.symbol}-${index}`} className="py-3">
+          <li key={`${row.symbol}-${index}`} className="border-b border-border/70 py-3 last:border-b-0">
             <div
               className={cn(
                 "grid grid-cols-2 items-baseline gap-x-3 gap-y-2 sm:items-center",
-                showMaverlang
-                  ? "sm:grid-cols-[minmax(0,1fr)_4rem_5rem_auto]"
-                  : "sm:grid-cols-[minmax(0,1fr)_4rem_auto]",
+                columns(showMaverlang),
               )}
             >
               <div className="col-span-2 flex min-w-0 flex-col sm:col-span-1">
-                <span className="truncate font-mono text-sm text-fg" title={row.symbol}>
+                <span className="truncate font-mono text-[15px] leading-5 font-medium text-fg" title={row.symbol}>
                   {row.symbol}
                 </span>
-                {row.name ? <span className="truncate text-xs text-fg-muted">{row.name}</span> : null}
+                {row.name ? (
+                  <span className="truncate text-[13px] leading-5 text-fg-muted">{row.name}</span>
+                ) : null}
               </div>
 
-              <span className="flex items-baseline justify-between gap-2 sm:block sm:text-right">
-                <span className="text-xs text-fg-muted sm:hidden">Original</span>
-                <span className="font-mono text-sm tabular-nums text-fg-body">{weight(row.weightOriginal)}</span>
-              </span>
+              <div
+                className={cn(
+                  "flex items-baseline justify-between gap-2 sm:block sm:text-right",
+                  !showMaverlang && "col-span-2 sm:col-span-1",
+                )}
+              >
+                <span className="text-[13px] leading-5 text-fg-muted sm:hidden">Original</span>
+                <span className="num text-[15px] leading-5 tabular-nums text-fg-body">
+                  {weight(row.weightOriginal)}
+                </span>
+              </div>
 
               {showMaverlang ? (
-                <span
-                  className="flex items-baseline justify-between gap-2 sm:block sm:text-right"
-                  title="Peso en la mezcla de Maverlang"
-                >
-                  <span className="text-xs text-fg-muted sm:hidden">En Maverlang</span>
+                <div className="flex items-baseline justify-between gap-2 sm:block sm:text-right">
+                  <span className="text-[13px] leading-5 text-fg-muted sm:hidden">En Maverlang</span>
                   <span
                     className={cn(
-                      "font-mono text-sm tabular-nums",
+                      "num text-[15px] leading-5 tabular-nums",
                       row.status === "available" ? "text-fg-body" : "text-fg-muted",
                     )}
+                    title="Peso en la mezcla de Maverlang"
                   >
                     {row.status === "available" ? weight(row.weightMaverlang) : "—"}
                   </span>
-                </span>
+                </div>
               ) : null}
 
-              <Badge
-                tone={statusTone[row.status]}
-                className="col-span-2 w-fit justify-self-start sm:col-span-1 sm:justify-self-end"
-              >
-                {row.status === "available" && row.tradableSymbol
-                  ? `Comprable · ${row.tradableSymbol}`
-                  : statusLabel[row.status]}
-              </Badge>
+              <div className="col-span-2 flex items-baseline justify-between gap-2 sm:col-span-1 sm:block sm:text-right">
+                <span className="text-[13px] leading-5 text-fg-muted sm:hidden">Estado</span>
+                <span className="flex flex-col items-end">
+                  <span className={cn("text-[13px] leading-5 font-medium", statusTone[row.status])}>
+                    {statusLabel[row.status]}
+                  </span>
+                  {row.status === "available" && row.tradableSymbol ? (
+                    <span className="num text-[13px] leading-5 text-fg-muted">{row.tradableSymbol}</span>
+                  ) : null}
+                </span>
+              </div>
 
               {row.status !== "available" && row.reason ? (
-                <p className="col-span-2 text-xs leading-relaxed text-fg-muted">{row.reason}</p>
+                <p
+                  className={cn(
+                    "col-span-2 text-[13px] leading-relaxed text-fg-muted",
+                    showMaverlang ? "sm:col-span-4" : "sm:col-span-3",
+                  )}
+                >
+                  {row.reason}
+                </p>
               ) : null}
             </div>
           </li>
         ))}
       </ul>
+
       {showMaverlang ? (
-        <p className="mt-3 text-xs leading-relaxed text-fg-muted">
+        <p className="border-t border-border/70 pt-3 text-[13px] leading-relaxed text-fg-muted">
           El peso de lo que no se puede comprar se reparte entre las posiciones disponibles.
         </p>
       ) : null}

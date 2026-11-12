@@ -67,8 +67,9 @@ function describe(row: CopyMovementView): {
 }
 
 /**
- * Movimientos declarados por el gestor. Sin acceso no se renderiza esta lista
- * (el paywall la reemplaza), así que nunca se filtra la composición.
+ * Movimientos declarados por el gestor, en filas con hairline. Sin acceso no
+ * se renderiza esta lista (el paywall la reemplaza), así que nunca se filtra
+ * la composición.
  */
 export function MovementsList({
   movements,
@@ -89,39 +90,48 @@ export function MovementsList({
 
   if (rows.length === 0) {
     return (
-      <p className={cn("text-sm leading-relaxed text-fg-muted", className)}>
+      <p className={cn("text-[13px] leading-relaxed text-fg-muted", className)}>
         Sin movimientos publicados para esta cartera.
       </p>
     );
   }
 
   return (
-    <ul aria-label="Movimientos de la cartera" className={cn("flex flex-col", className)}>
+    <ul
+      aria-label="Movimientos de la cartera"
+      className={cn("flex flex-col border-t border-border/70", className)}
+    >
       {rows.map((row, index) => {
         const detail = describe(row);
         const date = publishedAt(row);
         return (
           <li
             key={`${row.symbol ?? "sin-simbolo"}-${index}`}
-            className="flex flex-wrap items-baseline gap-x-3 gap-y-1 border-t border-border/70 py-2.5 first:border-t-0"
+            className="flex flex-col gap-1 border-b border-border/70 py-3 last:border-b-0"
           >
-            <span className="font-mono text-sm text-fg">{row.symbol ?? "—"}</span>
-            <span className="min-w-0 flex-1 text-sm text-fg-body">{detail.text}</span>
-            {detail.delta !== null && detail.delta !== 0 ? (
-              <span
-                className={cn(
-                  "font-mono text-xs tabular-nums",
-                  detail.delta > 0 ? "text-up" : "text-down",
-                )}
-              >
-                {deltaFormatter.format(detail.delta)} pts
+            <div className="flex items-baseline justify-between gap-4">
+              <span className="min-w-0 truncate font-mono text-[15px] leading-5 font-medium text-fg">
+                {row.symbol ?? "—"}
               </span>
-            ) : null}
-            {date ? (
-              <span className="w-full text-xs text-fg-muted sm:w-auto">
-                Publicado {formatFeedDate(date)}
-              </span>
-            ) : null}
+              {detail.delta !== null && detail.delta !== 0 ? (
+                <span
+                  className={cn(
+                    "num shrink-0 text-[13px] leading-5 tabular-nums",
+                    detail.delta > 0 ? "text-up" : "text-down",
+                  )}
+                >
+                  {deltaFormatter.format(detail.delta)} pts
+                </span>
+              ) : null}
+            </div>
+            <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+              <span className="min-w-0 text-[13px] leading-5 text-fg-body">{detail.text}</span>
+              {date ? (
+                <span className="num shrink-0 text-[13px] leading-5 tabular-nums text-fg-muted">
+                  Publicado {formatFeedDate(date)}
+                </span>
+              ) : null}
+            </div>
           </li>
         );
       })}
