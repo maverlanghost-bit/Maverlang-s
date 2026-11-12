@@ -4,7 +4,6 @@ import { useRouter } from "next/navigation";
 import { useId, useState } from "react";
 
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/cn";
 
 /**
@@ -54,10 +53,11 @@ function readPeriodEnd(raw: unknown): string | null {
 
 type Notice = { tone: "ok" | "warn" | "down"; text: string };
 
+/** Sólo tinta: el estado se dice en la frase, no en una caja de color. */
 function noticeClass(tone: Notice["tone"]): string {
-  if (tone === "ok") return "border-up/30 bg-up-bg text-up";
-  if (tone === "down") return "border-down/30 bg-down-bg text-down";
-  return "border-warn/30 bg-warn-bg text-warn";
+  if (tone === "ok") return "text-up";
+  if (tone === "down") return "text-down";
+  return "text-warn";
 }
 
 export function FraccionProLink({ disabled = false }: { disabled?: boolean }) {
@@ -114,17 +114,17 @@ export function FraccionProLink({ disabled = false }: { disabled?: boolean }) {
   }
 
   return (
-    <Card className="flex flex-col gap-4">
-      <div className="flex flex-col gap-1">
-        <h2 className="text-base font-semibold tracking-tight">¿Ya pagas Fraccion Pro?</h2>
-        <p className="text-sm leading-relaxed text-fg-body">
-          <span className="font-medium">Fraccion Pro incluye Copiar.</span> Si tu suscripción a Fraccion Pro está
-          vigente, vincula el comprobante que te entrega Fraccion.si y no pagas dos veces.
+    <section className="flex min-w-0 flex-col gap-6 border-t border-border pt-8">
+      <div className="flex flex-col gap-2">
+        <h2 className="text-lg font-medium tracking-tight text-fg">¿Ya pagas Fraccion Pro?</h2>
+        <p className="max-w-prose text-[13px] leading-relaxed text-fg-body">
+          <span className="font-medium text-fg">Fraccion Pro incluye Copiar.</span> Si tu suscripción a Fraccion
+          Pro está vigente, vincula el comprobante que te entrega Fraccion.si y no pagas dos veces.
         </p>
       </div>
 
       <div className="flex flex-col gap-2">
-        <label htmlFor={fieldId} className="text-sm font-medium text-fg">
+        <label htmlFor={fieldId} className="text-[13px] font-medium text-fg">
           Comprobante de Fraccion Pro
         </label>
         <textarea
@@ -138,15 +138,15 @@ export function FraccionProLink({ disabled = false }: { disabled?: boolean }) {
           disabled={disabled || pending || linked}
           aria-describedby={`${fieldId}-help`}
           placeholder="Pega aquí el comprobante que te entregó Fraccion.si"
-          className="min-h-24 w-full resize-y rounded-md border border-border-control bg-surface-2 px-3 py-2 font-mono text-xs leading-relaxed text-fg transition duration-[140ms] ease-spring placeholder:font-sans placeholder:text-fg-muted focus-visible:border-fg disabled:opacity-40"
+          className="min-h-24 w-full resize-y rounded-xl border border-border-control bg-bg px-3 py-2.5 font-mono text-[13px] leading-relaxed text-fg transition-colors duration-150 placeholder:font-sans placeholder:text-fg-subtle focus-visible:border-fg disabled:opacity-40"
         />
-        <p id={`${fieldId}-help`} className="text-[13px] leading-relaxed text-fg-muted">
+        <p id={`${fieldId}-help`} className="max-w-prose text-[13px] leading-relaxed text-fg-muted">
           Se compara un hash del correo de tu cuenta con el del comprobante: tu correo no se envía ni se guarda
           en claro en esta vinculación. El comprobante queda ligado al correo de tu cuenta.
         </p>
       </div>
 
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
         <Button
           size="lg"
           variant="secondary"
@@ -157,16 +157,19 @@ export function FraccionProLink({ disabled = false }: { disabled?: boolean }) {
         >
           {linked ? "Fraccion Pro vinculado" : "Vincular comprobante"}
         </Button>
-        <p className="text-xs leading-relaxed text-fg-muted">
+        <p className="text-[13px] leading-relaxed text-fg-muted">
           Si el comprobante venció, pide uno nuevo en Fraccion.si.
         </p>
       </div>
 
       {notice ? (
-        <p aria-live="polite" className={cn("rounded-xl border p-3 text-sm leading-relaxed", noticeClass(notice.tone))}>
+        <p
+          aria-live="polite"
+          className={cn("max-w-prose border-t border-border pt-4 text-[13px] leading-relaxed", noticeClass(notice.tone))}
+        >
           {notice.text}
         </p>
       ) : null}
-    </Card>
+    </section>
   );
 }
