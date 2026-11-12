@@ -1,45 +1,49 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { BrandLogoImage } from "@/components/app-shell/brand-image";
-import { esCL } from "@/content/i18n/es-CL";
 import { site, supportMailto } from "@/config/site";
 
 /**
- * D1: «Producto» se parte en dos columnas de cinco para que el pie no tenga
- * una lista de diez ítems. Se reordena, no se recorta: están los mismos diez
- * enlaces, en el mismo orden de lectura.
+ * Tres columnas en orden de lectura: descubrir → entender → cumplir.
+ * El correo de soporte cierra «Producto» cuando está configurado; si no,
+ * la columna termina en «Ayuda», que es el mismo destino de soporte.
+ * El CTA «Entrar» no se repite aquí: vive sólo en el header.
  */
-const columns: { title: string; links: { href: string; label: string }[] }[] = [
-  {
-    title: "Producto",
-    links: [
-      { href: "/como-funciona", label: "Cómo funciona" },
-      { href: "/costos", label: "Costos" },
-      { href: "/seguridad", label: "Seguridad" },
-      { href: "/acciones", label: esCL.guest.seeStocks },
-      { href: "/guias", label: "Guías" },
-    ],
-  },
-  {
-    title: "Explorar",
-    links: [
-      { href: "/categorias", label: "Categorías" },
-      { href: "/comparar", label: "Comparar" },
-      { href: "/#preguntas", label: "Preguntas" },
-      { href: "/ayuda", label: "Ayuda" },
-      { href: "/app/ingresar", label: "Entrar" },
-    ],
-  },
-  {
-    title: "Legal",
-    links: [
-      { href: "/legal/terminos", label: "Términos" },
-      { href: "/legal/privacidad", label: "Privacidad" },
-      { href: "/legal/riesgos", label: "Riesgos" },
-      { href: "/legal/comisiones", label: "Comisiones" },
-    ],
-  },
-];
+type FooterColumn = { title: string; links: { href: string; label: string }[] };
+
+function buildColumns(mailto: string | null): FooterColumn[] {
+  return [
+    {
+      title: "Explorar",
+      links: [
+        { href: "/acciones", label: "Acciones" },
+        { href: "/categorias", label: "Categorías" },
+        { href: "/comparar", label: "Comparar" },
+        { href: "/guias", label: "Guías" },
+        { href: "/#preguntas", label: "Preguntas" },
+      ],
+    },
+    {
+      title: "Producto",
+      links: [
+        { href: "/como-funciona", label: "Cómo funciona" },
+        { href: "/costos", label: "Costos" },
+        { href: "/seguridad", label: "Seguridad" },
+        { href: "/ayuda", label: "Ayuda" },
+        ...(mailto ? [{ href: mailto, label: site.supportEmail }] : []),
+      ],
+    },
+    {
+      title: "Legal",
+      links: [
+        { href: "/legal/terminos", label: "Términos" },
+        { href: "/legal/privacidad", label: "Privacidad" },
+        { href: "/legal/riesgos", label: "Riesgos" },
+        { href: "/legal/comisiones", label: "Comisiones" },
+      ],
+    },
+  ];
+}
 
 /** Píldoras de arquitectura de la franja superior. Texto fijo, sin datos de negocio. */
 const architecturePills: { label: string }[] = [
@@ -59,6 +63,7 @@ function FooterLink({ href, children }: { href: string; children: ReactNode }) {
 export function SiteFooter() {
   const year = new Date().getFullYear();
   const mailto = supportMailto();
+  const columns = buildColumns(mailto);
 
   return (
     <footer className="border-t border-border px-5 py-12 lg:py-14">
@@ -89,40 +94,28 @@ export function SiteFooter() {
           </div>
         </div>
 
-        <div className="mt-10 grid grid-cols-2 gap-x-8 gap-y-8 sm:gap-x-10 lg:grid-cols-4">
+        <div className="mt-10 grid grid-cols-2 gap-x-8 gap-y-9 sm:gap-x-10 md:grid-cols-3 lg:gap-x-16">
           {columns.map((column) => (
             <nav key={column.title} aria-label={column.title}>
               <h2 className="eyebrow">{column.title}</h2>
               <ul className="mt-2">
                 {column.links.map((link) => (
                   <li key={link.href}>
-                    <FooterLink href={link.href}>{link.label}</FooterLink>
+                    {link.href.startsWith("mailto:") ? (
+                      <a
+                        href={link.href}
+                        className="flex min-h-11 items-center text-sm break-words text-fg-body hover:text-fg md:min-h-8"
+                      >
+                        {link.label}
+                      </a>
+                    ) : (
+                      <FooterLink href={link.href}>{link.label}</FooterLink>
+                    )}
                   </li>
                 ))}
               </ul>
             </nav>
           ))}
-
-          <nav aria-label="Contacto">
-            <h2 className="eyebrow">Contacto</h2>
-            <ul className="mt-2">
-              <li>
-                <FooterLink href="/ayuda">Centro de ayuda</FooterLink>
-              </li>
-              <li>
-                {mailto ? (
-                  <a
-                    href={mailto}
-                    className="flex min-h-11 items-center text-sm text-fg-body hover:text-fg md:min-h-8"
-                  >
-                    {site.supportEmail}
-                  </a>
-                ) : (
-                  <FooterLink href="/ayuda">Soporte en el centro de ayuda</FooterLink>
-                )}
-              </li>
-            </ul>
-          </nav>
         </div>
 
         <div className="mt-10 border-t border-border pt-8">
