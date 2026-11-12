@@ -1,16 +1,17 @@
-import type { ComponentType, SVGProps } from "react";
 import Link from "next/link";
-import { BrandMarkImage } from "@/components/app-shell/brand-image";
 import { Reveal } from "@/components/landing/reveal";
 import { WaitlistForm } from "@/components/landing/waitlist-form";
 import { Button } from "@/components/ui/button";
-import { IconChart, IconCheck, IconClock, IconWallet } from "@/components/ui/icons";
 import { esCL } from "@/content/i18n/es-CL";
+import { cn } from "@/lib/cn";
 
-const summaryPills: { label: string; Icon: ComponentType<SVGProps<SVGSVGElement>> }[] = [
-  { label: "US$10.000 demo instantáneos", Icon: IconClock },
-  { label: "Sin tarjeta de crédito", Icon: IconCheck },
-  { label: "Precios en tiempo real", Icon: IconChart },
+/** Rótulo de dato a 13px: el mínimo de lectura del rediseño. */
+const MICRO = "font-mono text-[13px] font-medium uppercase tracking-[0.045em] text-fg-muted";
+
+const summaryItems: string[] = [
+  "US$10.000 demo instantáneos",
+  "Sin tarjeta de crédito",
+  "Precios en tiempo real",
 ];
 
 const scheduleComparison = [
@@ -28,61 +29,35 @@ const scheduleComparison = [
   },
 ] as const;
 
-const waitlistPerks: { text: string; Icon: ComponentType<SVGProps<SVGSVGElement>> }[] = [
-  {
-    text: "Acceso prioritario por orden de inscripción cuando abramos la cuenta Real.",
-    Icon: IconClock,
-  },
-  {
-    text: "Tus acciones tokenizadas viven en tu propia billetera, nunca en custodia nuestra.",
-    Icon: IconWallet,
-  },
-  {
-    text: "Cero spam: sólo te escribiremos para avisarte del lanzamiento oficial.",
-    Icon: IconCheck,
-  },
+const waitlistPerks: string[] = [
+  "Acceso prioritario por orden de inscripción cuando abramos la cuenta Real.",
+  "Tus acciones tokenizadas viven en tu propia billetera, nunca en custodia nuestra.",
+  "Cero spam: sólo te escribiremos para avisarte del lanzamiento oficial.",
 ];
 
 /**
- * Cierre de la portada en formato split-screen:
+ * Cierre de la portada en dos columnas sobre hairlines:
  * - Izquierda: manifiesto de horario ("La bolsa de EE.UU. abre de 9:30 a 16:00.
  *   El mercado on-chain sigue abierto."), comparativa de horarios con la nota de
- *   liquidez fuera de rueda y CTAs de la cuenta demo.
- * - Derecha: tarjeta ejecutiva independiente con el formulario de lista de espera
- *   para la cuenta Real (`#lista-de-espera`).
+ *   liquidez fuera de rueda y un solo CTA primario (la demo).
+ * - Derecha: formulario de lista de espera para la cuenta Real
+ *   (`#lista-de-espera`), como acción secundaria.
  */
 export function FinalCTA() {
   return (
     <section
       aria-labelledby="cta-final-title"
-      className="relative isolate overflow-hidden bg-surface-1 px-5 py-20 md:py-28 lg:py-32"
+      className="border-t border-border bg-surface-1 px-5 py-20 md:py-28"
     >
-      {/* Halo decorativo: esmeralda tenue a la derecha y grafito suave abajo. */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-0 -z-10 bg-[image:radial-gradient(60%_55%_at_80%_20%,rgba(15,122,50,0.10),transparent_72%)]"
-      />
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-0 -z-10 bg-[image:radial-gradient(65%_50%_at_20%_100%,rgba(10,10,10,0.05),transparent_75%)]"
-      />
-      <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-px bg-border" />
-
-      <div className="relative mx-auto w-full max-w-6xl">
-        <Reveal className="grid grid-cols-1 items-start gap-12 lg:grid-cols-12 lg:items-center lg:gap-12">
-          {/* Columna izquierda: Manifiesto 24/7 + comparativa de horario + CTAs Demo */}
+      <div className="mx-auto w-full max-w-7xl">
+        <Reveal className="grid grid-cols-1 items-start gap-12 lg:grid-cols-12 lg:gap-16">
+          {/* Columna izquierda: manifiesto 24/7, comparativa de horario y CTA. */}
           <div className="flex flex-col items-start text-left lg:col-span-7">
-            <div className="inline-flex items-center gap-2 rounded-full border border-up/25 bg-up-bg px-3 py-1 text-xs font-medium text-up">
-              <span
-                aria-hidden="true"
-                className="size-1.5 rounded-full bg-up motion-safe:animate-pulse motion-reduce:animate-none"
-              />
-              <span>Mercado on-chain · Operas 24/7</span>
-            </div>
+            <p className={MICRO}>Mercado on-chain · Operas 24/7</p>
 
             <h2
               id="cta-final-title"
-              className="mt-5 text-3xl leading-[1.06] tracking-tight text-balance sm:text-5xl lg:text-[52px]"
+              className="mt-4 max-w-[20ch] text-3xl leading-[1.06] tracking-tight text-balance sm:text-5xl lg:text-[52px]"
             >
               La bolsa de EE.UU. abre de 9:30 a 16:00.{" "}
               <span className="text-fg-body">El mercado on-chain sigue abierto.</span>
@@ -94,65 +69,66 @@ export function FinalCTA() {
               billetera.
             </p>
 
-            {/* Comparativa visual de horario: Wall Street vs Maverlang 24/7 */}
-            <div className="mt-7 w-full max-w-xl overflow-hidden rounded-2xl border border-border bg-bg/90 shadow-xs">
-              <div className="divide-y divide-border">
-                {scheduleComparison.map((row) => (
-                  <div
-                    key={row.market}
-                    className={
-                      row.highlight
-                        ? "flex flex-col gap-1 bg-up-bg/40 px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:px-5"
-                        : "flex flex-col gap-1 px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:px-5"
-                    }
-                  >
-                    <div className="min-w-0">
-                      <p className="text-xs font-semibold text-fg sm:text-sm">{row.market}</p>
-                      <p className="mt-0.5 text-xs text-fg-muted">{row.status}</p>
-                    </div>
-                    <span
-                      className={
-                        row.highlight
-                          ? "num inline-flex shrink-0 items-center gap-1.5 self-start rounded-full border border-up/25 bg-bg px-2.5 py-1 text-xs font-semibold text-up sm:self-center"
-                          : "num inline-flex shrink-0 items-center self-start rounded-full border border-border bg-surface-1 px-2.5 py-1 text-xs font-medium text-fg-muted sm:self-center"
-                      }
+            {/* Comparativa de horario como tabla de dos filas, sólo hairlines. */}
+            <div className="mt-8 w-full max-w-xl divide-y divide-border border-y border-border">
+              {scheduleComparison.map((row) => (
+                <div
+                  key={row.market}
+                  className="grid gap-1 py-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-baseline sm:gap-6"
+                >
+                  <div className="min-w-0">
+                    <p
+                      className={cn(
+                        "text-sm",
+                        row.highlight ? "font-medium text-fg" : "text-fg-body",
+                      )}
                     >
-                      {row.highlight ? (
-                        <span aria-hidden="true" className="size-1.5 rounded-full bg-up" />
-                      ) : null}
-                      {row.hours}
-                    </span>
+                      {row.market}
+                    </p>
+                    <p className="mt-1 text-[13px] leading-relaxed text-fg-muted">{row.status}</p>
                   </div>
-                ))}
-              </div>
-              <p className="border-t border-border/70 bg-surface-1/50 px-4 py-2.5 text-xs leading-relaxed text-fg-muted sm:px-5">
+                  <p
+                    className={cn(
+                      "num text-[13px] tabular-nums sm:text-right",
+                      row.highlight ? "font-medium text-fg" : "text-fg-muted",
+                    )}
+                  >
+                    {row.hours}
+                  </p>
+                </div>
+              ))}
+              <p className="py-3 text-[13px] leading-relaxed text-fg-muted">
                 Fuera del horario regular de la bolsa de EE.UU. (9:30 a 16:00, hora de Nueva York, lunes a
                 viernes) hay menos liquidez y el precio puede variar más.
               </p>
             </div>
 
-            <ul className="mt-6 flex w-full flex-wrap items-center gap-2">
-              {summaryPills.map((pill) => (
+            <ul className="mt-6 flex w-full flex-wrap items-center gap-x-5 gap-y-2">
+              {summaryItems.map((item) => (
                 <li
-                  key={pill.label}
-                  className="inline-flex items-center gap-1.5 rounded-full border border-border bg-bg px-3 py-1.5 text-xs leading-snug text-fg-body sm:text-sm"
+                  key={item}
+                  className="flex items-center gap-2 text-[13px] leading-snug text-fg-muted"
                 >
-                  <pill.Icon className="size-3.5 shrink-0 text-fg-muted" />
-                  {pill.label}
+                  <span aria-hidden="true" className="size-1 shrink-0 rounded-full bg-border-strong" />
+                  {item}
                 </li>
               ))}
             </ul>
 
-            <div className="mt-7 flex w-full flex-col items-stretch gap-3 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center">
+            {/* Un solo CTA primario en la vista: la demo. */}
+            <div className="mt-8 flex w-full flex-col items-start gap-4 sm:w-auto sm:flex-row sm:items-center sm:gap-6">
               <Button asChild size="lg" className="min-h-11 w-full sm:w-auto">
                 <Link href="/app/registro">Prueba la demo gratis</Link>
               </Button>
-              <Button asChild variant="secondary" size="lg" className="min-h-11 w-full sm:w-auto">
-                <Link href="/app">{esCL.guest.seeStocks}</Link>
-              </Button>
+              <Link
+                href="/app"
+                className="inline-flex min-h-11 items-center text-sm font-medium text-fg underline decoration-border underline-offset-4 transition-colors hover:decoration-fg motion-reduce:transition-none"
+              >
+                {esCL.guest.seeStocks}
+              </Link>
             </div>
 
-            <p className="mt-4 text-xs leading-relaxed text-fg-muted sm:text-sm">
+            <p className="mt-4 text-[13px] leading-relaxed text-fg-muted">
               ¿Prefieres esperar la apertura con dinero real?{" "}
               <Link
                 href="#lista-de-espera"
@@ -163,39 +139,39 @@ export function FinalCTA() {
             </p>
           </div>
 
-          {/* Columna derecha: Tarjeta ejecutiva de Lista de Espera */}
+          {/* Columna derecha: lista de espera como acción secundaria. */}
           <div className="w-full lg:col-span-5">
             <div
               id="lista-de-espera"
-              className="scroll-mt-24 rounded-3xl border border-border bg-bg p-6 text-left shadow-float sm:p-8"
+              className="scroll-mt-24 border-t border-border pt-8 text-left lg:border-l lg:border-t-0 lg:pl-10 lg:pt-0"
             >
-              <div className="flex items-center justify-between gap-3">
-                <span className="inline-flex items-center justify-center rounded-2xl border border-border bg-surface-1 p-2">
-                  <BrandMarkImage className="size-7" />
-                </span>
-                <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface-1 px-3 py-1 text-xs font-medium text-fg-body">
-                  <span aria-hidden="true" className="size-1.5 rounded-full bg-fg" />
-                  Acceso prioritario · Cuenta Real
-                </span>
+              <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+                <p className={MICRO}>Lista de espera</p>
+                <p className="text-[13px] text-fg-muted">Acceso prioritario · Cuenta Real</p>
               </div>
 
-              <p className="label mt-5">Lista de espera</p>
-              <h3 className="mt-1.5 text-2xl font-semibold tracking-tight text-fg sm:text-[26px]">
+              <h3 className="mt-3 text-xl leading-snug tracking-tight text-fg sm:text-2xl">
                 Reserva tu lugar para la cuenta Real
               </h3>
               <p className="mt-2 text-sm leading-relaxed text-fg-body">
                 Sólo tu correo. Te escribimos apenas habilitemos tu cupo de la cuenta Real.
               </p>
 
-              <div className="mt-6 rounded-2xl border border-border/80 bg-surface-1/60 p-4 sm:p-5">
+              <div className="mt-6">
                 <WaitlistForm source="landing" submitVariant="secondary" />
               </div>
 
-              <ul className="mt-5 space-y-2.5 border-t border-border/70 pt-5">
+              <ul className="mt-6 space-y-3 border-t border-border pt-5">
                 {waitlistPerks.map((perk) => (
-                  <li key={perk.text} className="flex items-start gap-2.5 text-xs leading-relaxed text-fg-muted">
-                    <perk.Icon className="mt-0.5 size-3.5 shrink-0 text-fg-body" />
-                    <span>{perk.text}</span>
+                  <li
+                    key={perk}
+                    className="flex items-start gap-2 text-[13px] leading-relaxed text-fg-muted"
+                  >
+                    <span
+                      aria-hidden="true"
+                      className="mt-[0.45rem] size-1 shrink-0 rounded-full bg-border-strong"
+                    />
+                    <span>{perk}</span>
                   </li>
                 ))}
               </ul>

@@ -98,15 +98,15 @@ export function WaitlistForm({
         role="status"
         aria-live="polite"
         className={cn(
-          "motion-safe:animate-fade-in rounded-2xl border border-border bg-surface-1 px-5 py-6 text-center",
+          "motion-safe:animate-fade-in border-y border-border py-6 text-center",
           className,
         )}
       >
         <span
           aria-hidden="true"
-          className="mx-auto flex size-11 items-center justify-center rounded-full bg-fg text-white"
+          className="mx-auto flex size-10 items-center justify-center rounded-full bg-fg text-white"
         >
-          <svg viewBox="0 0 24 24" fill="none" className="size-5" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" className="size-4" aria-hidden="true">
             <path
               d="m5 12.5 4.5 4.5L19 7.5"
               stroke="currentColor"
@@ -116,9 +116,9 @@ export function WaitlistForm({
             />
           </svg>
         </span>
-        <p className="mt-3 text-base font-medium text-fg">¡Gracias por sumarte!</p>
-        <p className="mt-1 text-sm leading-relaxed text-fg-body">{WAITLIST_SUCCESS_MESSAGE}</p>
-        <p className="mt-1 text-sm leading-relaxed text-fg-muted">
+        <p className="mt-3 text-sm font-medium text-fg">¡Gracias por sumarte!</p>
+        <p className="mt-1 text-[13px] leading-relaxed text-fg-body">{WAITLIST_SUCCESS_MESSAGE}</p>
+        <p className="mt-1 text-[13px] leading-relaxed text-fg-muted">
           Te escribiremos cuando abra la cuenta Real.
         </p>
       </div>
@@ -132,7 +132,7 @@ export function WaitlistForm({
       onSubmit={(event) => void onSubmit(event)}
       className={cn("w-full text-left", className)}
     >
-      <label htmlFor={emailId} className="text-sm font-medium text-fg">
+      <label htmlFor={emailId} className="text-[13px] font-medium text-fg">
         Correo
       </label>
       <Input
@@ -147,9 +147,9 @@ export function WaitlistForm({
         disabled={busy}
         aria-invalid={error ? true : undefined}
         aria-describedby={error ? errorId : undefined}
-        className="mt-2"
+        className="mt-2 rounded-none border-border-control bg-bg"
       />
-      <div className="mt-3 flex min-h-11 items-start gap-3">
+      <div className="mt-4 flex min-h-11 items-start gap-3">
         <input
           id={consentId}
           type="checkbox"
@@ -183,11 +183,11 @@ export function WaitlistForm({
         className="hidden"
       />
       {error ? (
-        <p id={errorId} role="alert" aria-live="assertive" className="mt-2 text-sm text-down">
+        <p id={errorId} role="alert" aria-live="assertive" className="mt-2 text-[13px] text-down">
           {error}
         </p>
       ) : null}
-      <Button type="submit" variant={submitVariant} loading={busy} className="mt-3 w-full min-h-11">
+      <Button type="submit" variant={submitVariant} loading={busy} className="mt-4 min-h-11 w-full">
         {busy ? "Enviando…" : "Avísame"}
       </Button>
     </form>
