@@ -1,6 +1,5 @@
 "use client";
 
-import { Card } from "@/components/ui/card";
 import { CsvExportButton } from "@/components/domain/csv-export-button";
 import { cn } from "@/lib/cn";
 import { formatMoney } from "@/lib/format";
@@ -15,6 +14,10 @@ export interface PortfolioTaxSummaryCardProps {
   masked?: boolean;
 }
 
+/**
+ * Resumen patrimonial y cartola. Datos para respaldo contable, sin cáscara de
+ * tarjeta: label, título, exportación y una grilla de cifras sobre hairlines.
+ */
 export function PortfolioTaxSummaryCard({
   positions,
   activities,
@@ -53,39 +56,35 @@ export function PortfolioTaxSummaryCard({
   ];
 
   return (
-    <Card className="p-4 shadow-card sm:p-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
+    <section className="border-t border-border pt-8">
+      <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
         <div className="min-w-0">
           <p className="label">Control Patrimonial y Cartola</p>
-          <h2 className="mt-1.5 text-lg font-semibold tracking-tight text-balance text-fg">
+          <h2 className="mt-2 text-xl font-medium tracking-tight text-balance text-fg">
             Resumen Patrimonial y Cartola Anual
           </h2>
         </div>
         {activities.length > 0 ? <CsvExportButton rows={activities} currency={currency} fxRate={rate} /> : null}
       </div>
 
-      <dl className="mt-5 grid grid-cols-1 border-t border-border sm:grid-cols-4">
+      <dl className="mt-6 grid grid-cols-2 gap-x-6 gap-y-5 border-t border-border pt-5 sm:grid-cols-4 sm:gap-y-0">
         {stats.map((stat, index) => (
           <div
             key={stat.label}
-            className={cn(
-              "flex items-baseline justify-between gap-3 border-b border-border/70 py-2.5 last:border-b-0",
-              "sm:block sm:border-b-0 sm:border-l sm:border-border sm:px-4 sm:py-4",
-              index === 0 && "sm:border-l-0 sm:pl-0",
-            )}
+            className={cn("flex min-w-0 flex-col gap-1.5", index > 0 && "sm:border-l sm:border-border sm:pl-6")}
           >
             <dt className="label leading-snug">{stat.label}</dt>
-            <dd className={cn("num shrink-0 text-[15px] font-medium tracking-tight tabular-nums sm:mt-2", stat.tone)}>
+            <dd className={cn("num truncate text-[15px] font-medium tracking-tight tabular-nums", stat.tone)}>
               {stat.value}
             </dd>
           </div>
         ))}
       </dl>
 
-      <p className="mt-4 text-xs leading-relaxed text-fg-muted">
+      <p className="mt-5 max-w-prose text-xs leading-relaxed text-fg-muted">
         Resumen informativo de tus posiciones abiertas y órdenes ejecutadas para respaldo contable personal. No
         constituye declaración ni asesoría tributaria. [REVISIÓN ABOGADO]
       </p>
-    </Card>
+    </section>
   );
 }

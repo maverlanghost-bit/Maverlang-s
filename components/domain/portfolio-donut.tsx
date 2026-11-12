@@ -6,12 +6,12 @@ import type { AllocationSlice } from "@/components/domain/allocation-bar";
 import { formatPortion } from "@/lib/format";
 import { useT } from "@/lib/hooks/use-t";
 
-/** Geometría del anillo, en unidades del viewBox (220 × 220). */
-const SIZE = 220;
+/** Geometría del anillo, en unidades del viewBox (200 × 200). */
+const SIZE = 200;
 const CENTER = SIZE / 2;
-const RADIUS = 78;
-const STROKE = 22;
-const STROKE_ACTIVE = 27;
+const RADIUS = 80;
+const STROKE = 14;
+const STROKE_ACTIVE = 18;
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
 /** Separación entre segmentos, en fracción del total (≈ 2 px del anillo). */
 const GAP = 0.005;
@@ -74,6 +74,8 @@ function buildSegments(
  * sobre el mismo círculo, rotado al ángulo donde empieza su porción. Al pasar el
  * mouse o tocar, el centro muestra el activo, su peso y su valor; sin interacción
  * muestra el mayor peso (no hay total disponible en las props).
+ *
+ * Es una lectura de datos: trazo fino, sin fondo de tarjeta ni sombras.
  */
 export function PortfolioDonut({ slices }: { slices: readonly AllocationSlice[] }) {
   const { language } = useT();
@@ -119,7 +121,7 @@ export function PortfolioDonut({ slices }: { slices: readonly AllocationSlice[] 
 
   return (
     <div className="flex w-full items-center justify-center">
-      <div className="relative w-full max-w-[220px]">
+      <div className="relative w-full max-w-[200px]">
         <svg
           viewBox={`0 0 ${SIZE} ${SIZE}`}
           className="block h-auto w-full"
@@ -165,14 +167,14 @@ export function PortfolioDonut({ slices }: { slices: readonly AllocationSlice[] 
           })}
         </svg>
 
-        <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center px-10 text-center">
+        <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center px-8 text-center">
           <p className="label w-full truncate" aria-hidden="true">
             {eyebrow}
           </p>
-          <p className="num mt-1 text-2xl leading-none font-medium tracking-tight tabular-nums text-fg" aria-hidden="true">
+          <p className="num mt-1 text-xl leading-none font-medium tracking-tight text-fg" aria-hidden="true">
             {main}
           </p>
-          <p className="num mt-1 w-full truncate text-xs tabular-nums text-fg-muted" aria-hidden="true">
+          <p className="num mt-1.5 w-full truncate text-xs text-fg-muted" aria-hidden="true">
             {sub}
           </p>
         </div>

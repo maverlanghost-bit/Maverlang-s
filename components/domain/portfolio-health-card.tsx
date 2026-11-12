@@ -3,8 +3,6 @@
 import Link from "next/link";
 
 import { Badge, type BadgeTone } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/cn";
 import { formatUsd } from "@/lib/format";
 import type { Position } from "@/lib/types";
@@ -16,6 +14,10 @@ const MASK = "••";
 
 type HealthLevel = { tone: BadgeTone; label: string };
 
+/**
+ * Salud de la cartera como una tira de datos: reparto invertido / liquidez,
+ * tres cifras y una salida al asistente. Sin cáscara de tarjeta ni adornos.
+ */
 export function PortfolioHealthCard({
   positions,
   cashUsdc,
@@ -64,13 +66,13 @@ export function PortfolioHealthCard({
   ];
 
   return (
-    <Card className="p-4 shadow-card sm:p-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h2 className="text-lg font-semibold tracking-tight text-balance text-fg">
+    <section className="border-t border-border pt-8">
+      <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
+        <div className="min-w-0 max-w-prose">
+          <h2 className="text-xl font-medium tracking-tight text-balance text-fg">
             Salud y diversificación de cartera
           </h2>
-          <p className="mt-1 max-w-prose text-xs leading-relaxed text-fg-muted">
+          <p className="mt-1 text-[13px] leading-relaxed text-fg-muted">
             Cómo se reparte tu cartera hoy entre acciones tokenizadas y USDC disponible. Se calcula sólo con tus
             posiciones actuales: no es una proyección ni una recomendación de inversión.
           </p>
@@ -80,8 +82,8 @@ export function PortfolioHealthCard({
         </Badge>
       </div>
 
-      <div className="mt-5">
-        <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+      <div className="mt-6">
+        <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
           <p className="text-[13px] text-fg-muted">
             Invertido <span className="num font-medium text-fg">{investedPct}%</span>
           </p>
@@ -95,32 +97,31 @@ export function PortfolioHealthCard({
         <div
           role="img"
           aria-label={`Reparto de tu cartera: invertido ${investedPct}%, liquidez en USDC ${cashPct}%`}
-          className="mt-2.5 flex h-2 w-full overflow-hidden rounded-full bg-surface-3"
+          className="mt-3 flex h-2.5 w-full overflow-hidden rounded-full bg-surface-3"
         >
           <span aria-hidden="true" className="h-full bg-fg" style={{ width: `${investedWidth}%` }} />
-          <span aria-hidden="true" className="h-full bg-info" style={{ width: `${cashWidth}%` }} />
+          <span aria-hidden="true" className="h-full bg-fg/15" style={{ width: `${cashWidth}%` }} />
         </div>
       </div>
 
-      <dl className="mt-5 grid grid-cols-1 gap-y-3 border-t border-border pt-4 sm:grid-cols-3 sm:gap-y-0">
+      <dl className="mt-6 grid grid-cols-1 gap-y-3 border-t border-border pt-5 sm:grid-cols-3 sm:gap-y-0">
         {stats.map((stat, index) => (
           <div
             key={stat.label}
-            className={cn("min-w-0 sm:pr-5", index > 0 && "sm:border-l sm:border-border sm:pl-5")}
+            className={cn("min-w-0 sm:pr-6", index > 0 && "sm:border-l sm:border-border sm:pl-6")}
           >
             <dt className="label">{stat.label}</dt>
-            <dd className="num mt-1.5 truncate text-[15px] font-medium tracking-tight text-fg">
-              {stat.value}
-            </dd>
+            <dd className="num mt-1.5 truncate text-[15px] font-medium tracking-tight text-fg">{stat.value}</dd>
           </div>
         ))}
       </dl>
 
-      <div className="mt-5">
-        <Button asChild variant="secondary" size="sm">
-          <Link href={assistantHref}>Evaluar mi cartera con IA →</Link>
-        </Button>
-      </div>
-    </Card>
+      <Link
+        href={assistantHref}
+        className="mt-5 inline-flex min-h-11 items-center text-[13px] font-medium text-fg underline underline-offset-4 outline-none focus-visible:ring-4 focus-visible:ring-fg/20"
+      >
+        Evaluar mi cartera con IA →
+      </Link>
+    </section>
   );
 }

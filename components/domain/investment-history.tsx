@@ -5,7 +5,6 @@ import Link from "next/link";
 
 import { TickerLogo } from "@/components/domain/ticker-logo";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { logoPathFromSymbol } from "@/lib/catalog/logos";
 import { cn } from "@/lib/cn";
@@ -160,14 +159,14 @@ export function InvestmentHistory({
   return (
     <section
       aria-label={isEn ? "Investment history" : "Historial de inversiones"}
-      className="rounded-3xl bg-surface-1 p-4 shadow-card sm:p-6 md:p-8"
+      className="border-t border-border pt-8"
     >
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between sm:gap-6">
         <div className="min-w-0">
-          <h2 className="text-lg font-semibold tracking-tight text-fg">
+          <h2 className="text-xl font-medium tracking-tight text-fg">
             {isEn ? "Investment history" : "Historial de inversiones"}
           </h2>
-          <p className="mt-0.5 text-xs text-fg-muted">
+          <p className="mt-1 max-w-prose text-[13px] leading-relaxed text-fg-muted">
             {isEn
               ? "Record of your stock purchases, sales, and wallet movements."
               : "Registro detallado de tus compras, ventas y movimientos de saldo."}
@@ -177,7 +176,7 @@ export function InvestmentHistory({
         <div
           role="tablist"
           aria-label={isEn ? "Filter operations" : "Filtrar operaciones"}
-          className="inline-flex flex-wrap items-center gap-1 self-start rounded-full bg-surface-2 p-1 sm:self-auto"
+          className="no-scrollbar -mx-2 flex items-center overflow-x-auto"
         >
           {filters.map((tab) => {
             const active = filter === tab.id;
@@ -189,18 +188,25 @@ export function InvestmentHistory({
                 aria-selected={active}
                 onClick={() => setFilter(tab.id)}
                 className={cn(
-                  "min-h-9 rounded-full px-3 text-xs font-medium transition-colors duration-150 outline-none focus-visible:ring-4 focus-visible:ring-fg/20 sm:min-h-8",
-                  active ? "bg-bg text-fg shadow-raised" : "text-fg-muted hover:text-fg",
+                  "relative inline-flex h-11 shrink-0 items-center px-3 text-[13px] font-medium whitespace-nowrap outline-none transition-colors duration-150 focus-visible:ring-4 focus-visible:ring-fg/20",
+                  active ? "text-fg" : "text-fg-muted hover:text-fg",
                 )}
               >
                 {tab.label}
+                <span
+                  aria-hidden
+                  className={cn(
+                    "absolute inset-x-2 bottom-0 h-0.5 transition-colors duration-150",
+                    active ? "bg-fg" : "bg-transparent",
+                  )}
+                />
               </button>
             );
           })}
         </div>
       </div>
 
-      <dl className="mt-4 grid grid-cols-1 border-y border-border sm:grid-cols-3">
+      <dl className="mt-5 grid grid-cols-3 gap-x-4 border-y border-border py-4 sm:gap-x-8">
         {[
           {
             label: isEn ? "Total trades" : "Total operaciones",
@@ -215,17 +221,10 @@ export function InvestmentHistory({
                 : formatUsdValue(buyVolumeUsd),
           },
           { label: isEn ? "Last activity" : "Última operación", value: latestAt },
-        ].map((stat, index) => (
-          <div
-            key={stat.label}
-            className={cn(
-              "flex items-baseline justify-between gap-3 border-b border-border/70 py-2.5 last:border-b-0",
-              "sm:block sm:border-b-0 sm:border-l sm:border-border sm:px-4 sm:py-3",
-              index === 0 && "sm:border-l-0 sm:pl-0",
-            )}
-          >
-            <dt className="text-xs whitespace-nowrap text-fg-muted">{stat.label}</dt>
-            <dd className="num min-w-0 truncate text-[15px] font-medium tracking-tight text-fg">{stat.value}</dd>
+        ].map((stat) => (
+          <div key={stat.label} className="min-w-0">
+            <dt className="text-[11px] leading-4 text-fg-muted sm:text-xs">{stat.label}</dt>
+            <dd className="num mt-1.5 truncate text-[15px] font-medium tracking-tight text-fg">{stat.value}</dd>
           </div>
         ))}
       </dl>
@@ -233,27 +232,30 @@ export function InvestmentHistory({
       <div className="mt-4">
         {loading ? (
           <div className="flex flex-col gap-2.5" role="status" aria-live="polite" aria-busy="true">
-            <Skeleton className="h-16 w-full rounded-xl" />
-            <Skeleton className="h-16 w-full rounded-xl" />
+            <Skeleton className="h-14 w-full rounded-xl" />
+            <Skeleton className="h-14 w-full rounded-xl" />
           </div>
         ) : filteredItems.length === 0 ? (
-          <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-bg/60 px-4 py-8 text-center">
+          <div className="py-6">
             <p className="text-sm font-medium text-fg">
               {isEn
                 ? "You have no recorded investments in this filter yet."
                 : "Aún no registras inversiones en este filtro."}
             </p>
-            <p className="mt-1 max-w-xs text-xs text-fg-muted">
+            <p className="mt-1 max-w-sm text-[13px] leading-relaxed text-fg-muted">
               {isEn
                 ? "Start buying fractions of tokenized U.S. stocks from $1,000 CLP."
                 : "Compra fracciones de acciones de EE. UU. y sigue cada orden aquí."}
             </p>
-            <Button asChild variant="secondary" size="sm" className="mt-3">
-              <Link href="/app">{isEn ? "Explore stocks" : "Explorar acciones"}</Link>
-            </Button>
+            <Link
+              href="/app"
+              className="mt-3 inline-flex min-h-11 items-center text-[13px] font-medium text-fg underline underline-offset-4 outline-none focus-visible:ring-4 focus-visible:ring-fg/20"
+            >
+              {isEn ? "Explore stocks" : "Explorar acciones"}
+            </Link>
           </div>
         ) : (
-          <ul className="divide-y divide-border/60">
+          <ul className="divide-y divide-border">
             {filteredItems.map((item) => {
               const ticker = tickersBySymbol?.get(item.symbol);
               const isStock = item.symbol && item.symbol !== "USDC" && item.symbol !== "SOL";
@@ -274,24 +276,21 @@ export function InvestmentHistory({
                       : { label: isEn ? "Transfer" : "Envío", tone: "neutral" as const };
 
               return (
-                <li
-                  key={item.id}
-                  className="flex items-center justify-between gap-3 py-3.5 first:pt-1 last:pb-1"
-                >
+                <li key={item.id} className="flex items-center justify-between gap-3 py-3.5">
                   <div className="flex min-w-0 items-center gap-3">
                     {isStock ? (
                       <TickerLogo
                         symbol={item.symbol}
                         name={ticker?.name ?? item.symbol}
                         logoUrl={logoUrl}
-                        size={38}
+                        size={36}
                         loading="lazy"
-                        sizes="38px"
+                        sizes="40px"
                       />
                     ) : (
                       <span
                         aria-hidden="true"
-                        className="inline-flex size-9.5 shrink-0 items-center justify-center rounded-full bg-surface-2 text-xs font-semibold text-fg-muted"
+                        className="num inline-flex size-9 shrink-0 items-center justify-center rounded-full bg-surface-2 text-xs font-medium text-fg-muted"
                       >
                         $
                       </span>
@@ -304,7 +303,7 @@ export function InvestmentHistory({
                           {ticker?.name ?? item.symbol}
                         </span>
                       </div>
-                      <p className="mt-0.5 truncate text-xs tabular-nums text-fg-muted">
+                      <p className="mt-1 truncate text-xs tabular-nums text-fg-muted">
                         {isStock ? `${formatShares(shares)} ${item.symbol} · ` : ""}
                         <time dateTime={ts}>{formatDateTime(ts)}</time>
                       </p>

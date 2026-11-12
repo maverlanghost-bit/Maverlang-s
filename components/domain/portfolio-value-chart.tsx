@@ -1,12 +1,11 @@
 "use client";
 
-import { useMemo, type ReactNode } from "react";
+import { useId, useMemo, type ReactNode } from "react";
 
 import { ChangeBadge } from "@/components/domain/change-badge";
 import { InfoTip } from "@/components/domain/info-tip";
-import { Card } from "@/components/ui/card";
 import { ErrorState } from "@/components/ui/error-state";
-import { SegmentedControl } from "@/components/ui/segmented-control";
+import { indexFromKey } from "@/components/ui/keys";
 import { Skeleton } from "@/components/ui/skeleton";
 import { carteraCopy } from "@/content/i18n/extra-cartera";
 import { cn } from "@/lib/cn";
@@ -84,8 +83,78 @@ function amountTone(deltaUsd: number): string {
 }
 
 /**
- * Bloque del gráfico del valor de la cartera: selector de rango, variación del
- * período, aviso de referencia y estados de carga y error.
+ * Cápsula de rangos con subrayado: el mismo lenguaje que la ficha de la
+ * acción, sin píldora de fondo. `role="group"` + `aria-pressed` y el mismo
+ * `aria-label` que usaba `SegmentedControl`, para no cambiar el contrato de
+ * accesibilidad.
+ */
+function RangeTabs({
+  label,
+  options,
+  value,
+  onChange,
+}: {
+  label: string;
+  options: readonly { value: string; label: string }[];
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  const idPrefix = useId();
+
+  function move(current: string, key: string) {
+    const index = Math.max(0, options.findIndex((option) => option.value === current));
+    const next = indexFromKey(key, index, options.length);
+    if (next === null) return;
+    const option = options[next];
+    if (!option) return;
+    onChange(option.value);
+    document.getElementById(`${idPrefix}-${option.value}`)?.focus();
+  }
+
+  return (
+    <div
+      role="group"
+      aria-label={label}
+      className="no-scrollbar flex w-full items-center overflow-x-auto"
+      onKeyDown={(event) => {
+        if (indexFromKey(event.key, 0, options.length) === null) return;
+        event.preventDefault();
+        move(value, event.key);
+      }}
+    >
+      {options.map((option) => {
+        const selected = option.value === value;
+        return (
+          <button
+            key={option.value}
+            id={`${idPrefix}-${option.value}`}
+            type="button"
+            aria-pressed={selected}
+            onClick={() => onChange(option.value)}
+            className={cn(
+              "relative inline-flex h-11 shrink-0 items-center px-3 text-[13px] font-medium whitespace-nowrap outline-none transition-colors duration-150 sm:px-4",
+              selected ? "text-fg" : "text-fg-muted hover:text-fg",
+            )}
+          >
+            {option.label}
+            <span
+              aria-hidden
+              className={cn(
+                "absolute inset-x-2 bottom-0 h-0.5 transition-colors duration-150 sm:inset-x-3",
+                selected ? "bg-fg" : "bg-transparent",
+              )}
+            />
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/**
+ * Bloque del gráfico del valor de la cartera: variación del período, selector
+ * de rango, aviso de referencia y estados de carga y error. Va sin cáscara de
+ * tarjeta: el gráfico se apoya directo en la página, separado por hairlines.
  *
  * La variación sale de `periodPerformance` sobre la serie visible, así que es
  * el cambio de valor del período, no una ganancia contra el costo. Sin dos
@@ -111,61 +180,51 @@ export function PortfolioValueChart({
   const options = ranges.map((option) => ({ value: option.value, label: option.label }));
 
   return (
-    <Card className="p-4 shadow-card sm:p-6" data-range={range}>
-      <div className="flex flex-col gap-5">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
-          <div className="min-w-0">
-            <div className="flex items-center gap-1.5">
-              <p className="label shrink-0">{copy.period}</p>
-              <span aria-hidden className="text-xs text-fg-subtle">
-                ·
-              </span>
-              <p className="min-w-0 truncate text-xs text-fg-muted">{t.detail.rangeCaption[range]}</p>
-              <InfoTip label={`${copy.whatIsThis}. ${copy.period}`} text={copy.periodTip} align="start" />
-            </div>
+    <section className="flex min-w-0 flex-col" data-range={range}>
+      <div className="flex items-center gap-1.5">
+        <p className="label shrink-0">{copy.period}</p>
+        <span aria-hidden className="text-xs text-fg-subtle">
+          ·
+        </span>
+        <p className="min-w-0 truncate text-xs text-fg-muted">{t.detail.rangeCaption[range]}</p>
+        <InfoTip label={`${copy.whatIsThis}. ${copy.period}`} text={copy.periodTip} align="start" />
+      </div>
 
-            <div className="mt-2 flex min-h-8 flex-wrap items-center gap-2">
-              {pending ? (
-                <Skeleton className="h-7 w-36" />
-              ) : period === null ? (
-                <span className="text-sm text-fg-muted">{copy.emptyFigure}</span>
-              ) : pendingFx ? (
-                <Skeleton className="h-7 w-36" />
-              ) : (
-                <>
-                  <span
-                    className={cn(
-                      "num text-xl font-medium tracking-tight whitespace-nowrap sm:text-2xl",
-                      amountTone(period.deltaUsd),
-                    )}
-                  >
-                    {formatValue(period.deltaUsd)}
-                  </span>
-                  <ChangeBadge value={period.pct} />
-                </>
+      <div className="mt-2 flex min-h-9 flex-wrap items-baseline gap-x-2.5 gap-y-1">
+        {pending ? (
+          <Skeleton className="h-8 w-40" />
+        ) : period === null ? (
+          <span className="text-sm text-fg-muted">{copy.emptyFigure}</span>
+        ) : pendingFx ? (
+          <Skeleton className="h-8 w-40" />
+        ) : (
+          <>
+            <span
+              className={cn(
+                "num text-2xl leading-none font-medium tracking-tight whitespace-nowrap sm:text-3xl",
+                amountTone(period.deltaUsd),
               )}
-            </div>
-          </div>
+            >
+              {formatValue(period.deltaUsd)}
+            </span>
+            <ChangeBadge value={period.pct} />
+          </>
+        )}
+      </div>
 
-          <div className="w-full shrink-0 sm:w-56">
-            <SegmentedControl
-              label={t.detail.rangesLabel}
-              options={options}
-              value={range}
-              fullWidth
-              onChange={onRangeChange}
-            />
-          </div>
-        </div>
+      <div className="mt-4 flex w-full border-b border-border">
+        <RangeTabs label={t.detail.rangesLabel} options={options} value={range} onChange={onRangeChange} />
+      </div>
 
-        {referenceNote ? (
-          <p className="-mt-1 text-xs leading-relaxed text-fg-subtle">{referenceNote}</p>
-        ) : null}
+      {referenceNote ? (
+        <p className="mt-3 text-xs leading-relaxed text-fg-subtle">{referenceNote}</p>
+      ) : null}
 
+      <div className="mt-3">
         {pending ? (
           <div role="status" aria-live="polite" aria-busy="true">
             <span className="sr-only">{t.states.loading}</span>
-            <Skeleton className="h-56 w-full rounded-2xl lg:h-72" />
+            <Skeleton className="h-60 w-full sm:h-72 lg:h-[360px]" />
           </div>
         ) : failed ? (
           <ErrorState
@@ -177,27 +236,25 @@ export function PortfolioValueChart({
         ) : (
           children
         )}
-
-        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border pt-3">
-          <button
-            type="button"
-            aria-pressed={compare.active}
-            onClick={compare.onToggle}
-            className={cn(
-              "inline-flex min-h-9 items-center gap-1.5 rounded-full border px-3 text-xs font-medium transition-colors duration-150 sm:min-h-8",
-              compare.active
-                ? "border-fg bg-fg text-bg"
-                : "border-control text-fg-muted hover:bg-surface-2 hover:text-fg",
-            )}
-          >
-            <span
-              aria-hidden
-              className={cn("size-1.5 rounded-full transition-colors", compare.active ? "bg-bg" : "bg-control")}
-            />
-            vs S&amp;P 500 (SPYx)
-          </button>
-        </div>
       </div>
-    </Card>
+
+      <div className="mt-2 flex flex-wrap items-center gap-x-5 gap-y-1">
+        <button
+          type="button"
+          aria-pressed={compare.active}
+          onClick={compare.onToggle}
+          className={cn(
+            "inline-flex min-h-11 items-center gap-2 text-[13px] font-medium transition-colors duration-150 outline-none focus-visible:ring-4 focus-visible:ring-fg/20 sm:min-h-9",
+            compare.active ? "text-fg" : "text-fg-muted hover:text-fg",
+          )}
+        >
+          <span
+            aria-hidden
+            className={cn("size-1.5 rounded-full transition-colors", compare.active ? "bg-fg" : "bg-control")}
+          />
+          vs S&amp;P 500 (SPYx)
+        </button>
+      </div>
+    </section>
   );
 }

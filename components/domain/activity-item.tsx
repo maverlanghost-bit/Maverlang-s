@@ -2,6 +2,10 @@ import type { ReactNode } from "react";
 
 import { Badge, type BadgeTone } from "@/components/ui/badge";
 
+/**
+ * Fila de actividad: qué pasó y cuándo, con el estado a la derecha. Sin
+ * contenedor propio; vive sobre los hairlines de la lista que la usa.
+ */
 export function ActivityItem({
   title,
   detail,
@@ -24,12 +28,12 @@ export function ActivityItem({
   explorerNew: string;
 }) {
   return (
-    <div className="flex flex-col gap-2 py-3.5 transition-colors duration-150 sm:flex-row sm:items-center sm:gap-4">
+    <div className="flex flex-col gap-2 py-4 transition-colors duration-150 sm:flex-row sm:items-center sm:gap-6">
       <div className="min-w-0 flex-1">
         <p className="truncate text-[15px] leading-tight font-medium tracking-tight text-fg">{title}</p>
         <p className="num mt-1 text-[13px] leading-none tabular-nums text-fg-muted">{detail}</p>
       </div>
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 sm:justify-end">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 sm:justify-end">
         <Badge tone={tone}>{status}</Badge>
         <time dateTime={dateTime} className="text-[13px] tabular-nums text-fg-muted">
           {time}
@@ -39,7 +43,7 @@ export function ActivityItem({
             href={explorerHref}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-[13px] text-fg-muted underline decoration-fg-subtle underline-offset-4 transition-colors hover:text-fg"
+            className="text-[13px] font-medium text-fg-muted underline decoration-fg-subtle underline-offset-4 transition-colors hover:text-fg"
           >
             {explorerLabel}
             <span className="sr-only"> {explorerNew}</span>

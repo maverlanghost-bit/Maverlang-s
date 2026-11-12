@@ -25,8 +25,8 @@ const CASH_COLOR = "#64748b";
 
 /**
  * Reparto de la cartera: una barra segmentada y, debajo, la leyenda con peso y
- * valor por activo. Vive dentro de la tarjeta de distribución, así que no
- * dibuja cáscara propia (sin borde ni sombra: evita el borde doble).
+ * valor por activo. Es data, no una tarjeta: no dibuja cáscara propia, sólo
+ * separadores hairline entre filas.
  */
 export function AllocationBar({
   label,
@@ -79,7 +79,7 @@ export function AllocationBar({
   const activeSlice = normalizedSlices.find((slice) => slice.key === activeKey) ?? null;
 
   return (
-    <div className="flex min-w-0 flex-col gap-2">
+    <div className="flex min-w-0 flex-col gap-4">
       <div
         className="flex h-2.5 w-full gap-[3px] overflow-hidden rounded-full bg-surface-3"
         role="img"
@@ -112,11 +112,11 @@ export function AllocationBar({
         })}
       </div>
 
-      <ul className="-mx-1.5 flex flex-col">
+      <ul className="flex flex-col">
         {normalizedSlices.map((slice, index) => {
           const isActive = activeSlice?.key === slice.key;
           return (
-            <li key={slice.key} className={cn("border-border/70", index > 0 && "border-t")}>
+            <li key={slice.key} className={cn("border-border", index > 0 && "border-t")}>
               <button
                 type="button"
                 aria-pressed={isActive}
@@ -124,8 +124,8 @@ export function AllocationBar({
                 onMouseLeave={() => setActiveKey(null)}
                 onClick={() => setActiveKey((prev) => (prev === slice.key ? null : slice.key))}
                 className={cn(
-                  "flex min-h-11 w-full items-center gap-2.5 rounded-lg px-1.5 text-left transition-colors duration-150 sm:min-h-9",
-                  isActive ? "bg-surface-2/80" : "hover:bg-surface-2/60",
+                  "-mx-2 flex min-h-11 w-[calc(100%+1rem)] items-center gap-3 rounded-lg px-2 py-2.5 text-left transition-colors duration-150",
+                  isActive ? "bg-surface-1" : "hover:bg-surface-1/70",
                 )}
               >
                 <span
@@ -134,10 +134,10 @@ export function AllocationBar({
                   aria-hidden="true"
                 />
                 <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-fg">{slice.label}</span>
-                <span className="num w-12 shrink-0 text-right text-[13px] tabular-nums text-fg-muted">
+                <span className="num w-14 shrink-0 text-right text-[13px] tabular-nums text-fg-muted">
                   {formatPortion(slice.pct)}
                 </span>
-                <span className="num w-[6.25rem] shrink-0 truncate text-right text-[13px] tabular-nums text-fg sm:w-28">
+                <span className="num w-[6.5rem] shrink-0 truncate text-right text-[13px] font-medium tabular-nums text-fg sm:w-28">
                   {slice.valueLabel}
                 </span>
               </button>
