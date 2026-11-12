@@ -2,12 +2,20 @@
 
 import { useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
-import { useEffect, useId, useRef, useState, type ReactElement, type ReactNode } from "react";
+import {
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type ComponentProps,
+  type ReactElement,
+  type ReactNode,
+} from "react";
 
 import { CostBreakdown } from "@/components/domain/cost-breakdown";
 import { AmountInput } from "@/components/ui/amount-input";
 import { Button } from "@/components/ui/button";
-import { ErrorState } from "@/components/ui/error-state";
+import { IconBack, IconCheck } from "@/components/ui/icons";
 import { Sheet } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { site } from "@/config/site";
@@ -23,14 +31,13 @@ import { useSession } from "@/lib/auth";
 import { signDemoTransaction } from "@/lib/auth/sign-transaction";
 import { findCryptoBySymbol } from "@/lib/catalog/crypto";
 import { findEarnBySymbol } from "@/lib/catalog/lst";
-import { formatMoney } from "@/lib/format";
+import { cn } from "@/lib/cn";
+import { formatDateTime, formatMoney } from "@/lib/format";
 import { SPOT_MS, usePortfolio, usePrices } from "@/lib/hooks/queries";
 import { useT } from "@/lib/hooks/use-t";
 import { parseAmount } from "@/lib/trade/amount";
 import type { Order, Side, TradeQuote } from "@/lib/types";
 
-/** Vigencia nominal de una cotización en la UI (la del servidor manda). */
-const QUOTE_VALIDITY_MS = 15_000;
 const POLL_MS = 1_000;
 const POLL_BUDGET_MS = 20_000;
 
@@ -47,6 +54,8 @@ const idleQuote: LiveQuote = { key: "", quote: null, error: null, pending: false
 
 /** Motivo por el que todavía no se puede cotizar. `null` = listo para cotizar. */
 type Block = "wait" | "empty" | "min" | "cap" | "funds" | "price" | null;
+
+type StatusAction = { label: string; onClick: () => void } | null;
 
 const tokenFormatter = new Intl.NumberFormat("es-CL", { maximumFractionDigits: 6 });
 const percentFormatter = new Intl.NumberFormat("es-CL", {
@@ -133,31 +142,89 @@ function monogram(value: string): string {
   return (letters.slice(0, 3) || "?").toUpperCase();
 }
 
-/** Barra del botón principal pegada al borde inferior del sheet (botón de 48 px). */
-function SheetActionBar({ children }: { children: ReactNode }) {
+/** Fila de estado de cuenta: rótulo a la izquierda, cifra tabular a la derecha. */
+function StatementRow({ label, value, strong = false }: { label: string; value: ReactNode; strong?: boolean }) {
   return (
-    <div className="sticky bottom-0 z-10 -mx-5 mt-auto border-t border-border/60 bg-bg/95 px-5 pt-3 pb-2 backdrop-blur-md">
-      {children}
+    <div className="grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-6 py-3">
+      <dt className="min-w-0 text-[13px] leading-5 text-fg-muted">{label}</dt>
+      <dd
+        className={cn(
+          "num text-right leading-5 text-fg",
+          strong ? "text-[15px] font-medium" : "text-[13px]",
+        )}
+      >
+        {value}
+      </dd>
     </div>
   );
 }
 
-function QuoteValidityBar({ remainingMs }: { remainingMs: number }) {
-  const pct = Math.max(0, Math.min(100, (remainingMs / QUOTE_VALIDITY_MS) * 100));
-  const tone = pct < 15 ? "bg-down" : pct < 30 ? "bg-warn" : "bg-brand";
+/** CTA primaria: el verbo a la izquierda y el monto dentro del botón. */
+function ActionButton({
+  amount,
+  children,
+  ...props
+}: { amount?: string | null; children: ReactNode } & Omit<ComponentProps<typeof Button>, "children">) {
   return (
-    <div
-      role="progressbar"
-      aria-valuemin={0}
-      aria-valuemax={100}
-      aria-valuenow={Math.round(pct)}
-      aria-label="Validez de la cotización"
-      className="mx-auto h-1 w-full max-w-56 overflow-hidden rounded-full bg-surface-3"
-    >
-      <div
-        className={`${tone} h-full rounded-full transition-[width,background-color] duration-1000 ease-linear motion-reduce:transition-none`}
-        style={{ width: `${pct}%` }}
-      />
+    <Button size="lg" className="min-h-12 w-full touch-manipulation text-[15px] md:text-base" {...props}>
+      {amount ? (
+        <span className="flex w-full items-center justify-between gap-4">
+          <span>{children}</span>
+          <span className="num text-[13px] font-medium text-white/75">{amount}</span>
+        </span>
+      ) : (
+        children
+      )}
+    </Button>
+  );
+}
+
+/**
+ * Pie del paso: una línea de estado con alto fijo (44 px) y el CTA debajo. El
+ * motivo del bloqueo va en esa misma línea, así el botón no se mueve cuando
+ * cambia el estado. `announce` se apaga en la cuenta regresiva para no repetir
+ * el aviso cada segundo.
+ */
+function SheetActionBar({
+  status,
+  statusId,
+  tone = "muted",
+  action = null,
+  announce = true,
+  children,
+}: {
+  status: string;
+  statusId?: string;
+  tone?: "muted" | "down";
+  action?: StatusAction;
+  announce?: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <div className="sticky bottom-0 z-10 -mx-5 mt-auto border-t border-border bg-bg px-5 pt-3 pb-[max(0.5rem,env(safe-area-inset-bottom))] md:-mx-7 md:px-7 md:pb-4">
+      <div className="flex min-h-11 items-center justify-between gap-3">
+        <p
+          id={statusId}
+          role="status"
+          aria-live={announce ? "polite" : "off"}
+          className={cn(
+            "line-clamp-2 min-w-0 flex-1 text-[13px] leading-[18px]",
+            tone === "down" ? "text-down" : "text-fg-muted",
+          )}
+        >
+          {status}
+        </p>
+        {action ? (
+          <button
+            type="button"
+            onClick={action.onClick}
+            className="inline-flex min-h-11 shrink-0 items-center text-[13px] font-medium text-fg underline decoration-border-strong underline-offset-4 transition-colors hover:decoration-fg"
+          >
+            {action.label}
+          </button>
+        ) : null}
+      </div>
+      {children}
     </div>
   );
 }
@@ -180,7 +247,7 @@ function CryptoFlow({
   const queryClient = useQueryClient();
   const portfolio = usePortfolio();
   const prices = usePrices([symbol], true, SPOT_MS);
-  const hintId = useId();
+  const statusId = useId();
   const [amountRaw, setAmountRaw] = useState("");
   const [phase, setPhase] = useState<Phase>("form");
   const [quoteState, setQuoteState] = useState<LiveQuote>(idleQuote);
@@ -298,13 +365,6 @@ function CryptoFlow({
     };
   }, [busy, mockError, mode, pubkey, quoteAmount, quoteCurrency, requestKey, symbol, t]);
 
-  useEffect(() => {
-    if (!quote || busy) return;
-    const left = Date.parse(quote.expiresAt) - Date.now();
-    const handle = window.setTimeout(() => setRefreshKey((key) => key + 1), Math.max(left, 0) + 30);
-    return () => window.clearTimeout(handle);
-  }, [busy, quote]);
-
   async function confirm() {
     if (confirming.current || !quote || !fresh || quoting || remainingMs <= 0) return;
     if (!pubkey) {
@@ -351,11 +411,40 @@ function CryptoFlow({
     }
   }
 
+  const header = (
+    <div className="flex items-end justify-between gap-4">
+      <div className="flex min-w-0 items-center gap-2.5">
+        <span
+          aria-hidden
+          className="flex size-10 shrink-0 items-center justify-center rounded-full border border-border bg-surface-2 text-[13px] font-semibold tracking-[0.02em] text-fg-body"
+        >
+          {monogram(symbol)}
+        </span>
+        <div className="min-w-0">
+          <p className="truncate text-[15px] leading-5 font-medium text-fg">{name}</p>
+          <p className="num mt-0.5 truncate text-[13px] leading-4 tracking-[0.01em] text-fg-muted">
+            {symbol} <span aria-hidden>·</span> Solana
+          </p>
+        </div>
+      </div>
+      <div className="shrink-0 text-right">
+        <p className="text-[13px] leading-4 text-fg-muted">Precio</p>
+        <p className="num mt-1 text-[13px] leading-4 text-fg">
+          {shownPrice ?? (prices.isPending ? "—" : "Sin precio")}
+        </p>
+      </div>
+    </div>
+  );
+
   if (portfolio.isPending) {
     return (
-      <div role="status" aria-live="polite" aria-busy="true" className="flex flex-col gap-4">
+      <div role="status" aria-live="polite" aria-busy="true" className="flex flex-col gap-6">
         <span className="sr-only">{t.states.loading}</span>
-        <Skeleton className="h-24 w-full rounded-2xl" />
+        <div className="flex items-center justify-between gap-4">
+          <Skeleton className="h-9 w-40" />
+          <Skeleton className="h-8 w-24" />
+        </div>
+        <Skeleton className="h-12 w-44" />
         <Skeleton className="h-12 w-full rounded-full" />
       </div>
     );
@@ -363,73 +452,154 @@ function CryptoFlow({
 
   if (portfolio.isError) {
     return (
-      <ErrorState
-        title="No pudimos cargar tu saldo demo."
-        label={t.states.error}
-        retryLabel={t.states.retry}
-        onRetry={() => {
-          void portfolio.refetch();
-        }}
-      />
+      <div className="flex min-h-full flex-col">
+        <div role="alert" className="flex flex-1 flex-col gap-3 pt-1 pb-8">
+          <p className="text-[13px] leading-5 text-down">Error</p>
+          <p className="text-xl leading-snug text-balance text-fg">No pudimos cargar tu saldo demo.</p>
+        </div>
+        <SheetActionBar status="Revisa tu conexión e inténtalo de nuevo." tone="down">
+          <Button
+            size="lg"
+            className="min-h-12 w-full touch-manipulation text-[15px] md:text-base"
+            onClick={() => {
+              void portfolio.refetch();
+            }}
+          >
+            {t.states.retry}
+          </Button>
+        </SheetActionBar>
+      </div>
     );
   }
 
   if (phase === "signing" || phase === "submitting") {
+    const signing = phase === "signing";
     return (
-      <div role="status" aria-live="polite" className="flex flex-col items-center gap-3 py-10 text-center">
-        <span className="size-6 animate-spin rounded-full border-2 border-border-strong border-t-fg" aria-hidden />
-        <p className="text-sm text-fg-body">{phase === "signing" ? t.trade.signing : t.trade.submitting}</p>
+      <div className="flex min-h-full flex-col gap-6">
+        {header}
+        <div role="status" aria-live="polite" className="flex flex-1 flex-col items-start justify-center gap-3 py-12">
+          <span
+            aria-hidden
+            className="size-5 animate-spin rounded-full border-2 border-border-strong border-t-fg motion-reduce:animate-none"
+          />
+          <p className="text-xl leading-tight text-fg">{signing ? t.trade.signing : t.trade.submitting}</p>
+          <p className="max-w-xs text-[13px] leading-relaxed text-fg-muted">
+            {signing
+              ? "Preparamos la transacción para tu firma. No cierres esta hoja."
+              : "Confirmando la orden en Solana. No cierres esta hoja."}
+          </p>
+        </div>
       </div>
     );
   }
 
   if (phase === "done" && result) {
     const received =
-      result.side === "buy" ? `${tokenAmount(result.outAmountUi)} ${symbol}` : formatMoney(result.outAmountUi, "USD");
+      result.side === "buy"
+        ? `${tokenAmount(result.outAmountUi)} ${symbol}`
+        : formatMoney(result.outAmountUi, "USD");
+    const summary =
+      result.side === "buy"
+        ? `Compraste ${received} de ${name}.`
+        : `Vendiste ${tokenAmount(result.inAmountUi)} ${symbol} y recibiste ${received}.`;
+    const totalLabel = result.side === "buy" ? "Total pagado" : "Total recibido";
+    const totalValue = formatMoney(result.side === "buy" ? result.inAmountUi : result.outAmountUi, "USD");
+
     return (
-      <div role="status" aria-live="polite" className="flex flex-col items-stretch gap-4 text-center">
-        <div className="mx-auto inline-flex items-center gap-2 rounded-full border border-brand/30 bg-brand-soft/80 px-3.5 py-1 text-xs font-semibold text-brand">
-          <span className="h-2 w-2 rounded-full bg-brand" aria-hidden="true" />
-          <span>OK</span>
+      <div className="flex min-h-full flex-col">
+        <div className="flex flex-col gap-6 pb-8">
+          <div className="flex items-start gap-3">
+            <span
+              aria-hidden
+              className="mt-0.5 grid size-8 shrink-0 place-items-center rounded-full bg-fg text-bg"
+            >
+              <IconCheck className="size-4" />
+            </span>
+            <div className="min-w-0">
+              <p className="text-xl leading-tight text-fg">{t.trade.done}</p>
+              <p className="mt-1.5 text-[13px] leading-relaxed text-fg-body">{summary}</p>
+            </div>
+          </div>
+
+          <dl className="divide-y divide-border border-y border-border">
+            <StatementRow label="Folio" value={`#MV-${result.id.slice(0, 8).toUpperCase()}`} />
+            <StatementRow label="Fecha" value={formatDateTime(result.createdAt)} />
+            <StatementRow
+              label={result.side === "buy" ? "Recibes" : "Entregas"}
+              value={
+                result.side === "buy"
+                  ? `${tokenAmount(result.outAmountUi)} ${symbol}`
+                  : `${tokenAmount(result.inAmountUi)} ${symbol}`
+              }
+            />
+            <StatementRow label={totalLabel} value={totalValue} strong />
+          </dl>
+
+          <p className="text-[13px] leading-relaxed text-fg-body">
+            Asiento en la demo: el saldo y las posiciones son ficticios.
+          </p>
         </div>
-        <p className="text-2xl text-fg">{t.trade.done}</p>
-        <p className="text-sm text-balance text-fg-body">
-          {result.side === "buy"
-            ? `Compraste ${received} de ${name}.`
-            : `Vendiste ${tokenAmount(result.inAmountUi)} ${symbol} y recibiste ${received}.`}
-        </p>
-        <p className="text-xs leading-relaxed text-fg-muted">
-          Asiento en la demo: el saldo y las posiciones son ficticios.
-        </p>
-        <Button asChild size="lg" className="min-h-12 w-full">
-          <Link href="/app/cartera">Ver en cartera</Link>
-        </Button>
-        {result.signature ? (
-          <Button asChild variant="secondary" size="lg" className="min-h-12 w-full">
-            <a href={explorerTxUrl(result.signature)} target="_blank" rel="noopener noreferrer">
-              {t.trade.explorer}
-            </a>
+
+        <SheetActionBar status="La orden quedó confirmada.">
+          <Button asChild size="lg" className="min-h-12 w-full touch-manipulation text-[15px] md:text-base">
+            <Link href="/app/cartera">{t.trade.portfolio}</Link>
           </Button>
-        ) : null}
-        <Button variant="ghost" size="lg" className="min-h-12 w-full" onClick={onClose}>
-          Cerrar
-        </Button>
+          <div className={cn("mt-1 flex items-center", result.signature ? "justify-between" : "justify-end")}>
+            {result.signature ? (
+              <a
+                href={explorerTxUrl(result.signature)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex min-h-11 items-center gap-1.5 text-[13px] font-medium text-fg-muted transition-colors hover:text-fg"
+              >
+                {t.trade.explorer}
+                <span className="sr-only"> {t.trade.explorerNew}</span>
+                <svg
+                  aria-hidden="true"
+                  viewBox="0 0 12 12"
+                  className="size-3"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.4"
+                >
+                  <path d="M3.5 2.5h6v6M9.5 2.5 2.5 9.5" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </a>
+            ) : null}
+            <button
+              type="button"
+              onClick={onClose}
+              className="inline-flex min-h-11 items-center text-[13px] font-medium text-fg-muted transition-colors hover:text-fg"
+            >
+              Cerrar
+            </button>
+          </div>
+        </SheetActionBar>
       </div>
     );
   }
 
   if (phase === "error") {
     return (
-      <ErrorState
-        title={flowError ?? t.trade.orderFailed}
-        label={t.states.error}
-        retryLabel={t.states.retry}
-        onRetry={() => {
-          setFlowError(null);
-          setPhase("form");
-          setRefreshKey((key) => key + 1);
-        }}
-      />
+      <div className="flex min-h-full flex-col">
+        <div role="alert" className="flex flex-1 flex-col gap-3 pt-1 pb-8">
+          <p className="text-[13px] leading-5 text-down">Error</p>
+          <p className="text-xl leading-snug text-balance text-fg">{flowError ?? t.trade.orderFailed}</p>
+        </div>
+        <SheetActionBar status="Puedes revisar el monto e intentarlo de nuevo.">
+          <Button
+            size="lg"
+            className="min-h-12 w-full touch-manipulation text-[15px] md:text-base"
+            onClick={() => {
+              setFlowError(null);
+              setPhase("form");
+              setRefreshKey((key) => key + 1);
+            }}
+          >
+            {t.states.retry}
+          </Button>
+        </SheetActionBar>
+      </div>
     );
   }
 
@@ -437,230 +607,213 @@ function CryptoFlow({
     block === "min"
       ? fill(t.trade.min, { amount: formatMoney(MIN_TRADE_USD, "USD") })
       : block === "cap"
-        ? `El tope por orden de ${symbol} es ${formatMoney(cap, "USD")}. Prueba con un monto menor.`
+        ? `El tope por orden de ${symbol} es ${formatMoney(cap, "USD")}.`
         : block === "funds"
           ? mode === "buy"
-            ? t.trade.insufficient
+            ? "Saldo insuficiente. Prueba con un monto menor."
             : `No tienes ${symbol} suficiente para esta venta.`
           : block === "price"
             ? t.trade.noPrice
             : null;
 
-  const estimate = quote
+  const quoteReady = fresh && remainingMs > 0;
+  const expired = quote !== null && !quoting && quoteError === null && remainingMs <= 0;
+  const ctaAmount =
+    amount > 0
+      ? mode === "buy"
+        ? formatMoney(amount, "USD")
+        : `${tokenAmount(amount)} ${symbol}`
+      : null;
+  const reviewAmount =
+    fresh && quote ? (mode === "buy" ? formatMoney(quote.inAmountUi, "USD") : formatMoney(quote.outAmountUi, "USD")) : null;
+  const canReview = block === null && quoteReady && !quoteError;
+  const canConfirm = phase === "review" && canReview && pubkey !== null;
+  const maxAmount = mode === "buy" ? (cash > 0 ? Math.min(cash, cap) : undefined) : held;
+
+  // Una sola línea de estado para todo el flujo. El motivo del bloqueo y el
+  // estado de la cotización comparten el mismo lugar, encima del CTA.
+  let status = "Escribe un monto para cotizar.";
+  let tone: "muted" | "down" = "muted";
+  let statusAction: StatusAction = null;
+
+  if (quoteError) {
+    status = quoteError;
+    tone = "down";
+    statusAction = { label: t.states.retry, onClick: () => setRefreshKey((key) => key + 1) };
+  } else if (expired) {
+    status = "La cotización venció.";
+    tone = "down";
+    statusAction = { label: "Recotizar", onClick: () => setRefreshKey((key) => key + 1) };
+  } else if (phase === "review" && !pubkey) {
+    status = t.trade.noWallet;
+    tone = "down";
+  } else if (hint) {
+    status = hint;
+    tone = "down";
+    if (block === "price") {
+      statusAction = {
+        label: t.states.retry,
+        onClick: () => {
+          void prices.refetch();
+        },
+      };
+    }
+  } else if (block === "wait") {
+    status = "Cargando el precio…";
+  } else if (quoting || !quote) {
+    status = t.trade.quoting;
+  } else {
+    status = `Cotización lista · vence en ${countdownLabel(remainingMs)}`;
+  }
+
+  const caption = fresh && quote
     ? mode === "buy"
       ? `Recibes ≈ ${tokenAmount(quote.outAmountUi)} ${symbol}`
       : `Recibes ≈ ${formatMoney(quote.outAmountUi, "USD")}`
-    : null;
-
-  const canReview = block === null && fresh && !quoting && !quoteError;
-  const canConfirm = phase === "review" && canReview && remainingMs > 0 && pubkey !== null;
-  const maxAmount = mode === "buy" ? (cash > 0 ? Math.min(cash, cap) : undefined) : held;
-
-  const header = (
-    <div className="flex items-center gap-3">
-      <span
-        aria-hidden
-        className="flex size-10 shrink-0 items-center justify-center rounded-full border border-border/70 bg-surface-2 text-xs font-semibold tracking-tight text-fg-body"
-      >
-        {monogram(symbol)}
-      </span>
-      <div className="min-w-0">
-        <p className="truncate font-medium text-fg">{name}</p>
-        <p className="truncate text-sm text-fg-muted">
-          {symbol} <span aria-hidden>·</span> Solana
-        </p>
-      </div>
-    </div>
-  );
+    : quoting
+      ? "Calculando el equivalente…"
+      : mode === "buy"
+        ? `El equivalente en ${symbol} aparece al cotizar.`
+        : "El equivalente en dólares aparece al cotizar.";
 
   if (phase === "review") {
+    const rows: { label: string; value: string }[] = [];
+    let total: { label: string; value: string } | undefined;
+    if (quote && fresh) {
+      rows.push(
+        { label: `Precio por ${symbol}`, value: formatPrice(quote.pricePerShareUsd) ?? "sin dato" },
+        {
+          label: fill(t.trade.fee, { brand: site.name }),
+          value:
+            quote.costs.platformFeeBps === 0
+              ? t.trade.feeFree
+              : fill(t.trade.feeLine, {
+                  percent: percentFormatter.format(quote.costs.platformFeeBps / 10_000),
+                  amount: formatMoney(quote.costs.platformFeeUsd, "USD"),
+                }),
+        },
+        { label: t.trade.network, value: `${tokenFormatter.format(quote.costs.networkFeeSol)} SOL` },
+      );
+      if (quote.costs.tokenAccountRentSol > 0) {
+        rows.push({
+          label: t.trade.rent,
+          value: `${tokenFormatter.format(quote.costs.tokenAccountRentSol)} SOL`,
+        });
+      }
+      rows.push(
+        { label: t.trade.impact, value: percentFormatter.format(quote.costs.priceImpactPct) },
+        { label: t.trade.slippage, value: percentFormatter.format(quote.costs.slippageBps / 10_000) },
+      );
+      total = {
+        label: "Total estimado",
+        value: formatMoney(mode === "buy" ? quote.inAmountUi : quote.outAmountUi, "USD"),
+      };
+    }
+
+    const heroValue =
+      quote && fresh ? (mode === "buy" ? tokenAmount(quote.outAmountUi) : formatMoney(quote.outAmountUi, "USD")) : "—";
+    const sub =
+      quote && fresh
+        ? mode === "buy"
+          ? `Pagas ${formatMoney(quote.inAmountUi, "USD")}`
+          : `Vendes ${tokenAmount(quote.inAmountUi)} ${symbol}`
+        : null;
+
     return (
-      <div className="flex w-full min-w-0 flex-col gap-5">
-        {header}
-        {fresh && quote && estimate ? (
-          <div>
-            <p className="text-center text-2xl text-balance text-fg" aria-live="polite">
-              {estimate}
-            </p>
-            <p className="mt-2 text-center text-sm text-fg-muted">
-              {mode === "buy"
-                ? `Pagas ${formatMoney(quote.inAmountUi, "USD")}`
-                : `Vendes ${tokenAmount(quote.inAmountUi)} ${symbol}`}
-            </p>
+      <div className="flex min-h-full flex-col">
+        <div className="flex flex-col gap-6 pb-8">
+          <div className="flex items-center justify-between gap-3">
+            <button
+              type="button"
+              onClick={() => setPhase("form")}
+              className="-ml-2 inline-flex min-h-11 items-center gap-1.5 rounded-full px-2 text-[13px] font-medium text-fg-muted transition-colors hover:text-fg"
+            >
+              <IconBack className="size-4" aria-hidden="true" />
+              {t.trade.back}
+            </button>
+            <span className="num text-[13px] tracking-[0.01em] text-fg-subtle">{symbol}</span>
           </div>
-        ) : null}
-        {quoting || !fresh ? (
-          <p role="status" className="text-center text-sm text-fg-muted">
-            {quoteError ?? t.trade.quoting}
+
+          <section className="border-y border-border py-5">
+            <p className="text-[13px] leading-5 text-fg-muted">{t.trade.youReceive}</p>
+            <p className="mt-2 flex min-h-9 flex-wrap items-baseline gap-x-2 gap-y-1">
+              <span className="num text-[2rem] leading-none tracking-[-0.02em] text-fg">{heroValue}</span>
+              {quote && fresh && mode === "buy" ? (
+                <span className="num text-[13px] leading-4 tracking-[0.045em] text-fg-muted uppercase">
+                  {symbol}
+                </span>
+              ) : null}
+            </p>
+            {sub ? <p className="mt-3 text-[13px] leading-relaxed text-fg-body">{sub}</p> : null}
+          </section>
+
+          {rows.length > 0 ? <CostBreakdown rows={rows} total={total} /> : null}
+
+          <p className="text-[13px] leading-relaxed text-fg-muted">
+            {quote && quote.route !== "mock"
+              ? "Cotización real de Jupiter en Solana y asiento en la demo."
+              : "Cotización de referencia en la demo; el asiento es ficticio."}{" "}
+            El precio puede variar y la cotización vence. No es asesoría de inversión.
           </p>
-        ) : (
-          <div className="flex flex-col items-center gap-2">
-            <p className="text-center text-sm text-fg-muted">
-              {fill(t.trade.expiresIn, { time: countdownLabel(remainingMs) })}
-            </p>
-            <QuoteValidityBar remainingMs={remainingMs} />
-          </div>
-        )}
-        {fresh && quote ? (
-          <div className="rounded-2xl border border-white/65 bg-surface-1/75 p-3.5 tabular-nums">
-            <CostBreakdown
-              rows={[
-                { label: "Precio por " + symbol, value: formatPrice(quote.pricePerShareUsd) ?? "sin dato" },
-                {
-                  label: t.trade.youReceive,
-                  value:
-                    mode === "buy"
-                      ? `${tokenAmount(quote.outAmountUi)} ${symbol}`
-                      : formatMoney(quote.outAmountUi, "USD"),
-                },
-                {
-                  label: fill(t.trade.fee, { brand: site.name }),
-                  value:
-                    quote.costs.platformFeeBps === 0
-                      ? t.trade.feeFree
-                      : fill(t.trade.feeLine, {
-                          percent: percentFormatter.format(quote.costs.platformFeeBps / 10_000),
-                          amount: formatMoney(quote.costs.platformFeeUsd, "USD"),
-                        }),
-                },
-                { label: t.trade.network, value: `${tokenFormatter.format(quote.costs.networkFeeSol)} SOL` },
-                { label: t.trade.impact, value: percentFormatter.format(quote.costs.priceImpactPct) },
-                { label: t.trade.slippage, value: percentFormatter.format(quote.costs.slippageBps / 10_000) },
-              ]}
-            />
-          </div>
-        ) : null}
-        <p className="text-center text-xs leading-relaxed text-fg-muted">
-          {quote?.route === "mock"
-            ? "Cotización de referencia en la demo; el asiento es ficticio."
-            : "Cotización real de Jupiter en Solana y asiento en la demo."}{" "}
-          El precio puede variar y la cotización vence. No es asesoría de inversión.
-        </p>
-        {pubkey ? null : <p className="text-center text-sm text-down">{t.trade.noWallet}</p>}
-        <Button variant="ghost" size="lg" className="min-h-12 w-full touch-manipulation" onClick={() => setPhase("form")}>
-          {t.trade.back}
-        </Button>
-        <SheetActionBar>
-          <Button
-            size="lg"
-            className="min-h-12 w-full touch-manipulation text-base"
-            disabled={!canConfirm}
-            onClick={() => void confirm()}
-          >
+        </div>
+
+        <SheetActionBar status={status} statusId={statusId} tone={tone} action={statusAction} announce={!quoteReady}>
+          <ActionButton disabled={!canConfirm} amount={reviewAmount} onClick={() => void confirm()}>
             {t.trade.confirm}
-          </Button>
+          </ActionButton>
         </SheetActionBar>
       </div>
     );
   }
 
   return (
-    <div className="flex w-full min-w-0 flex-col gap-5">
-      {header}
-      <AmountInput
-        id={`${hintId}-amount`}
-        label={mode === "buy" ? "Monto en dólares" : `Cantidad de ${symbol}`}
-        value={amountRaw}
-        onChange={setAmountRaw}
-        currency={quoteCurrency}
-        currencies={[quoteCurrency]}
-        labels={{ USDC: "USD", SHARES: symbol }}
-        suffix={mode === "sell" ? symbol : undefined}
-        maxLabel={t.trade.max}
-        max={maxAmount}
-        describedBy={hint ? hintId : undefined}
-        invalid={block === "min" || block === "cap" || block === "funds"}
-        inputClassName="min-h-14 py-2"
-        chipClassName="min-h-12 shrink-0 px-4 text-base whitespace-nowrap"
-        chipsClassName="flex-nowrap justify-start overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:flex-wrap sm:justify-center sm:pb-0"
-      />
-      <div className="flex flex-col items-center gap-1 text-center text-sm">
-        <p className="text-fg-body">
-          {shownPrice ? (
-            <>
-              Precio <span className="num font-medium text-fg">{shownPrice}</span> por {symbol}
-            </>
-          ) : prices.isPending ? (
-            "Cargando el precio…"
-          ) : (
-            <span className="text-down">
-              {mode === "buy" ? "Sin precio ahora: la compra está deshabilitada." : "Sin precio ahora."}
+    <div className="flex min-h-full flex-col">
+      <div className="flex flex-col gap-6 pb-8">
+        {header}
+
+        <AmountInput
+          id={`${statusId}-amount`}
+          label={mode === "buy" ? "Monto en dólares" : `Cantidad de ${symbol}`}
+          value={amountRaw}
+          onChange={setAmountRaw}
+          currency={quoteCurrency}
+          labels={{ USDC: "USD", SHARES: symbol }}
+          suffix={mode === "sell" ? symbol : undefined}
+          maxLabel={t.trade.max}
+          max={maxAmount}
+          describedBy={statusId}
+          invalid={block === "min" || block === "cap" || block === "funds"}
+          caption={caption}
+          inputClassName="min-h-14 py-2"
+          chipClassName="min-h-12 shrink-0 px-4 text-[13px] whitespace-nowrap"
+          chipsClassName="no-scrollbar flex-nowrap justify-start overflow-x-auto pb-1 sm:flex-wrap sm:justify-start sm:pb-0"
+        />
+
+        <div className="flex flex-col gap-1.5 border-t border-border pt-3">
+          <div className="flex items-baseline justify-between gap-6">
+            <span className="text-[13px] leading-5 text-fg-muted">
+              {mode === "buy" ? "Disponible en la demo" : "Tienes"}
             </span>
-          )}
-        </p>
-        <p className="text-xs text-fg-muted">
-          {mode === "buy"
-            ? `Mínimo ${formatMoney(MIN_TRADE_USD, "USD")} · Tope por orden ${formatMoney(cap, "USD")}`
-            : `Mínimo ${formatMoney(MIN_TRADE_USD, "USD")}`}
-        </p>
-        <p className="text-xs text-fg-muted">
-          {mode === "buy"
-            ? `Disponible en la demo: ${formatMoney(cash, "USD")}`
-            : `Tienes ${tokenAmount(held)} ${symbol}`}
-        </p>
-      </div>
-      {hint ? (
-        <p id={hintId} role="alert" className="w-full max-w-full text-center text-sm leading-relaxed break-words text-balance text-down">
-          {hint}
-        </p>
-      ) : null}
-      {block === "price" ? (
-        <Button
-          variant="secondary"
-          size="lg"
-          className="min-h-11 w-full"
-          onClick={() => {
-            void prices.refetch();
-          }}
-        >
-          {t.states.retry}
-        </Button>
-      ) : null}
-      {quoteError ? (
-        <div role="alert" className="flex w-full max-w-full flex-col items-center gap-3 text-center">
-          <p className="w-full max-w-full text-sm leading-relaxed break-words text-balance text-down">{quoteError}</p>
-          <Button
-            variant="secondary"
-            size="lg"
-            className="min-h-11"
-            onClick={() => {
-              setRefreshKey((key) => key + 1);
-            }}
-          >
-            {t.states.retry}
-          </Button>
-        </div>
-      ) : null}
-      {quoting ? (
-        <p role="status" className="text-center text-sm text-fg-muted">
-          {t.trade.quoting}
-        </p>
-      ) : null}
-      {fresh && estimate && !quoteError ? (
-        <p className="text-center text-sm text-balance text-fg-body" aria-live="polite">
-          {estimate}
-        </p>
-      ) : null}
-      {fresh && quote ? (
-        <div className="flex flex-col items-center gap-2">
-          <p className="text-center text-sm text-fg-muted">
-            {fill(t.trade.expiresIn, { time: countdownLabel(remainingMs) })}
+            <span className="num text-[13px] leading-5 text-fg">
+              {mode === "buy" ? formatMoney(cash, "USD") : `${tokenAmount(held)} ${symbol}`}
+            </span>
+          </div>
+          <p className="text-[13px] leading-5 text-fg-subtle">
+            {mode === "buy"
+              ? `Mínimo ${formatMoney(MIN_TRADE_USD, "USD")} · Tope por orden ${formatMoney(cap, "USD")}`
+              : `Mínimo ${formatMoney(MIN_TRADE_USD, "USD")}`}
           </p>
-          <QuoteValidityBar remainingMs={remainingMs} />
         </div>
-      ) : null}
-      {isLst ? <p className="text-xs leading-relaxed text-fg-body">{LST_YIELD_NOTICE}</p> : null}
-      {isUsdy ? <p className="text-xs leading-relaxed text-fg-body">{USDY_YIELD_NOTICE}</p> : null}
-      <p className="text-xs leading-relaxed text-fg-body">{NON_CUSTODY_LINE}</p>
-      <SheetActionBar>
-        <Button
-          size="lg"
-          className="min-h-12 w-full touch-manipulation text-base"
-          disabled={!canReview}
-          onClick={() => setPhase("review")}
-        >
+
+        {isLst ? <p className="text-[13px] leading-relaxed text-fg-body">{LST_YIELD_NOTICE}</p> : null}
+        {isUsdy ? <p className="text-[13px] leading-relaxed text-fg-body">{USDY_YIELD_NOTICE}</p> : null}
+        <p className="text-[13px] leading-relaxed text-fg-body">{NON_CUSTODY_LINE}</p>
+      </div>
+
+      <SheetActionBar status={status} statusId={statusId} tone={tone} action={statusAction} announce={!quoteReady}>
+        <ActionButton disabled={!canReview} amount={ctaAmount} onClick={() => setPhase("review")}>
           {t.trade.review}
-        </Button>
+        </ActionButton>
       </SheetActionBar>
     </div>
   );
@@ -697,6 +850,7 @@ export function CryptoTradeSheet({
         if (!next) onClose();
       }}
       title={title}
+      fill
     >
       <CryptoFlow
         key={`${symbol}:${mode}`}
