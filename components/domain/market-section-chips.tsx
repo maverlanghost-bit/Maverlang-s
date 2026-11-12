@@ -33,7 +33,7 @@ export function MarketSectionChips({
 }) {
   const sections: readonly MarketSection[] = showCopy ? [...SECTIONS, COPY_SECTION] : SECTIONS;
   return (
-    <nav aria-label="Secciones del mercado" className="flex min-w-0 flex-wrap items-center gap-2">
+    <nav aria-label="Secciones del mercado" className="flex min-w-0 flex-wrap items-center gap-x-6 gap-y-0.5">
       {sections.map((section) => {
         const current = section.id === active;
         return (
@@ -42,15 +42,14 @@ export function MarketSectionChips({
             href={section.href}
             aria-current={current ? "page" : undefined}
             className={cn(
-              // Misma píldora que los chips del mercado; el contorno inactivo
-              // usa `border-control` (3,74:1) para no parecer deshabilitado.
-              "inline-flex min-h-11 shrink-0 items-center justify-center rounded-full border px-3.5 text-[13px] font-medium whitespace-nowrap transition-colors duration-150 ease-spring active:scale-[0.98]",
-              current
-                ? "border-fg bg-fg text-bg shadow-xs"
-                : "border-border-control bg-bg text-fg hover:bg-surface-1",
+              // Mismo criterio que las chips del mercado: texto, no cápsula.
+              // El activo va en tinta y subrayado; el resto en gris y oscurece
+              // al pasar el puntero. 44px en móvil, 32px con puntero.
+              "inline-flex min-h-11 shrink-0 cursor-pointer items-center text-[13px] leading-5 font-medium whitespace-nowrap transition-colors duration-150 ease-spring sm:min-h-8",
+              current ? "text-fg" : "text-fg-muted hover:text-fg",
             )}
           >
-            {section.label}
+            <span className={cn(current && "underline decoration-2 underline-offset-[5px]")}>{section.label}</span>
           </Link>
         );
       })}
