@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 
-import { cn } from "@/lib/cn";
 import { formatPercent } from "@/lib/format";
 
 /** Fila del mapa de calor. `change24hPct` es un ratio (0,0123 = +1,23 %), igual que en `Quote`. */
@@ -29,9 +28,9 @@ function luminancia(r: number, g: number, b: number): number {
 }
 
 /**
- * Elige tinta oscura o blanca según cuál dé más contraste sobre el fondo.
- * El esmeralda fuerte sigue siendo claro, así que ahí gana la tinta oscura;
- * el coral profundo admite blanco. Así ninguna tarjeta baja de AA.
+ * Elige tinta oscura o blanca según cuál dé más contraste sobre el fondo
+ * compuesto. Con la escala atenuada gana la tinta oscura; el cálculo queda
+ * para que cualquier ajuste de intensidad siga cumpliendo AA.
  */
 function tintaSobre(r: number, g: number, b: number): string {
   const l = luminancia(r, g, b);
@@ -45,7 +44,11 @@ function sobreBlanco(canal: number, alpha: number): number {
   return Math.round(canal * alpha + 255 * (1 - alpha));
 }
 
-/** Estilo de una tarjeta según la intensidad de la variación (0 % → neutro, ±3 % o más → tope). */
+/**
+ * Estilo de una ficha según la intensidad de la variación (0 % → neutro,
+ * ±3 % o más → tope). El tope queda por debajo del color pleno: la ficha se
+ * lee como dato, no como semáforo, y la tinta oscura conserva AA.
+ */
 function estiloTono(change24hPct: number): {
   backgroundColor: string;
   borderColor: string;
@@ -63,8 +66,8 @@ function estiloTono(change24hPct: number): {
   // ±3 % (0,03 como ratio) o más llega al tono más fuerte.
   const intensidad = Math.min(1, Math.abs(change24hPct) / 0.03);
   const base = change24hPct > 0 ? ALZA : BAJA;
-  const alpha = 0.1 + 0.75 * intensidad;
-  const borde = Math.min(0.6, alpha + 0.12);
+  const alpha = 0.08 + 0.55 * intensidad;
+  const borde = Math.min(0.4, alpha + 0.1);
 
   return {
     backgroundColor: `rgba(${base.r}, ${base.g}, ${base.b}, ${alpha.toFixed(3)})`,
@@ -90,7 +93,7 @@ export function MarketHeatmap({ rows }: { rows: readonly MarketHeatmapRow[] }) {
     <div
       role="list"
       aria-label="Mapa de calor del mercado"
-      className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-3 lg:grid-cols-4"
+      className="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-2.5 lg:grid-cols-4"
     >
       {rows.map((row) => {
         const tono = estiloTono(row.change24hPct);
@@ -104,26 +107,20 @@ export function MarketHeatmap({ rows }: { rows: readonly MarketHeatmapRow[] }) {
             role="listitem"
             aria-label={`${row.symbol}, ${row.name}: ${variacion}, ${row.priceFormatted}`}
             style={tono}
-            className={cn(
-              "group flex min-h-24 min-w-0 flex-col justify-between gap-2 rounded-xl border p-3",
-              "transition-[background-color,border-color,transform,box-shadow] duration-200",
-              "ease-spring hover:-translate-y-0.5",
-              "hover:shadow-[0_10px_24px_-14px_rgba(12,15,20,0.28)]",
-              "active:translate-y-0 motion-reduce:transition-none",
-              "motion-reduce:hover:translate-y-0",
-            )}
+            className="flex min-h-24 min-w-0 flex-col justify-between gap-2 rounded-xl border p-3"
           >
             <span className="min-w-0">
               <span className="block truncate font-mono text-sm font-semibold tracking-tight" title={row.symbol}>
                 {row.symbol}
               </span>
-              <span className="line-clamp-2 text-xs leading-tight" title={row.name}>
+              <span className="mt-0.5 line-clamp-2 text-[13px] leading-snug" title={row.name}>
                 {row.name}
               </span>
             </span>
-            <span className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5">
-              <span className="font-mono text-sm font-medium tabular-nums">{variacion}</span>
-              <span className="font-mono text-xs tabular-nums">{row.priceFormatted}</span>
+            {/* Variación y precio: apilados en móvil, en una línea desde sm. */}
+            <span className="flex flex-col gap-0.5 sm:flex-row sm:items-baseline sm:justify-between sm:gap-2">
+              <span className="num text-sm font-medium tabular-nums">{variacion}</span>
+              <span className="num text-[13px] tabular-nums">{row.priceFormatted}</span>
             </span>
           </Link>
         );

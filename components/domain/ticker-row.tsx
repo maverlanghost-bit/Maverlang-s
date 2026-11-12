@@ -4,7 +4,21 @@ import { ChangeBadge } from "@/components/domain/change-badge";
 import { FlashPrice } from "@/components/domain/flash-price";
 import { Sparkline } from "@/components/domain/sparkline";
 import { TickerLogo } from "@/components/domain/ticker-logo";
+import { cn } from "@/lib/cn";
 import type { MoneyCurrency } from "@/lib/format";
+
+/** Marca de estado del catálogo: círculo abierta, rombo suspendida, cuadrado cerrada. */
+function StatusMarker({ kind }: { kind: "open" | "closed" | "halted" }) {
+  return (
+    <span
+      aria-hidden
+      className={cn(
+        "size-1.5 shrink-0",
+        kind === "open" ? "rounded-full bg-up" : kind === "halted" ? "rotate-45 bg-down" : "rounded-[1px] bg-warn",
+      )}
+    />
+  );
+}
 
 function TickerRowBase({
   href,
@@ -37,11 +51,11 @@ function TickerRowBase({
   action?: ReactNode;
   /** Etiqueta discreta de baja liquidez (M38). Null la oculta. */
   lowLiquidityLabel?: string | null;
-  /** Punto de estado por fila desde el catálogo (M39). Null lo oculta. */
+  /** Estado de la acción en el catálogo (M39). Null lo oculta. */
   statusDot?: { kind: "open" | "closed" | "halted"; label: string } | null;
-  /** Chip discreto "En revisión" (M54, filas `watch`). Null lo oculta. */
+  /** «En revisión» (M54, filas `watch`). Null lo oculta. */
   reviewLabel?: string | null;
-  /** Tooltip del chip de revisión (mismo texto que el CTA deshabilitado). */
+  /** Tooltip de la nota de revisión (mismo texto que el CTA deshabilitado). */
   reviewHint?: string | null;
   /**
    * Números en vivo de la portada (M42): reemplaza el bloque de precio y
@@ -49,68 +63,56 @@ function TickerRowBase({
    */
   priceSlot?: ReactNode;
 }) {
-  const dotClass =
-    statusDot?.kind === "open"
-      ? "bg-up"
-      : statusDot?.kind === "halted"
-        ? "bg-down"
-        : "bg-warn";
   return (
-    <div className="flex min-h-16 items-center rounded-2xl transition-colors duration-150 hover:bg-surface-1/80 active:bg-surface-2/60">
-      <Link
-        href={href}
-        className="flex min-h-16 min-w-0 flex-1 items-center gap-2 rounded-2xl px-2 py-2 sm:gap-3 sm:px-3"
-      >
+    <div className="flex min-h-16 items-center transition-colors duration-150 hover:bg-surface-1/70 active:bg-surface-1">
+      <Link href={href} className="flex min-h-16 min-w-0 flex-1 items-center gap-2 px-2 py-2 sm:gap-3 sm:px-3">
         <TickerLogo symbol={symbol} name={name} logoUrl={logoUrl} size={36} decorative loading="lazy" sizes="40px" />
         <span className="min-w-0 flex-1">
           <span className="flex min-w-0 items-center gap-1.5">
-            <span className="truncate font-mono text-[13px] font-semibold tracking-tight text-fg" title={symbol}>
+            <span className="truncate font-mono text-sm font-semibold tracking-tight text-fg" title={symbol}>
               {symbol}
             </span>
             {statusDot ? (
               <span
-                className="inline-flex shrink-0 items-center gap-1 text-xs font-medium sm:hidden"
+                className="inline-flex shrink-0 items-center gap-1 text-[13px] text-fg-muted sm:hidden"
                 title={statusDot.label}
               >
-                <span
-                  aria-hidden
-                  className={`size-2 shrink-0 ${
-                    statusDot.kind === "open"
-                      ? "rounded-full"
-                      : statusDot.kind === "halted"
-                        ? "rotate-45"
-                        : "rounded-sm"
-                  } ${dotClass}`}
-                />
+                <StatusMarker kind={statusDot.kind} />
                 <span className="sr-only">{statusDot.label}</span>
               </span>
             ) : null}
           </span>
-          <span className="line-clamp-2 text-sm leading-tight text-fg-muted" title={name}>
-            {name}
-            {lowLiquidityLabel ? <span> · {lowLiquidityLabel}</span> : null}
-          </span>
-          {statusDot ? (
-            <span className="mt-1 hidden w-fit shrink-0 items-center gap-1 rounded-full border border-border bg-bg px-2 py-0.5 text-[11px] leading-4 font-medium text-fg-muted sm:inline-flex">
-              <span
-                aria-hidden
-                className={`size-1.5 shrink-0 ${
-                  statusDot.kind === "open"
-                    ? "rounded-full"
-                    : statusDot.kind === "halted"
-                      ? "rotate-45"
-                      : "rounded-sm"
-                } ${dotClass}`}
-              />
-              {statusDot.label}
+
+          {/* Nombre y estado en una sola línea: la fila mantiene el mismo alto
+              en toda la tabla. Las notas (baja liquidez, en revisión) pasan a
+              una línea propia sólo en móvil, para no comerse el nombre. */}
+          <span className="mt-0.5 flex min-w-0 items-center gap-1 text-[13px] leading-4 text-fg-muted">
+            <span className="truncate" title={name}>
+              {name}
             </span>
-          ) : null}
-          {reviewLabel ? (
-            <span
-              className="mt-1 inline-flex w-fit items-center rounded-full border border-border bg-surface-1 px-2 py-0.5 text-xs leading-4 font-medium text-fg-muted"
-              title={reviewHint ?? undefined}
-            >
-              {reviewLabel}
+            {lowLiquidityLabel ? <span className="hidden shrink-0 sm:inline">· {lowLiquidityLabel}</span> : null}
+            {statusDot ? (
+              <span className="hidden shrink-0 items-center gap-1 sm:inline-flex" title={statusDot.label}>
+                <span aria-hidden>·</span>
+                <StatusMarker kind={statusDot.kind} />
+                {statusDot.label}
+              </span>
+            ) : null}
+            {reviewLabel ? (
+              <span className="hidden shrink-0 text-warn sm:inline" title={reviewHint ?? undefined}>
+                · {reviewLabel}
+              </span>
+            ) : null}
+          </span>
+
+          {lowLiquidityLabel || reviewLabel ? (
+            <span className="mt-0.5 flex flex-wrap items-center gap-x-2 text-[13px] leading-4 text-fg-muted sm:hidden">
+              {lowLiquidityLabel ? <span>{lowLiquidityLabel}</span> : null}
+              {reviewLabel ? (
+                <span className="text-warn" title={reviewHint ?? undefined}>
+                  {reviewLabel}
+                </span>
+              ) : null}
             </span>
           ) : null}
         </span>

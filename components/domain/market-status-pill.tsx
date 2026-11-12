@@ -166,9 +166,9 @@ export function FloatingMarketOrb({
         aria-label={toggleLabel}
         title={short}
         onClick={() => setShown((value) => !value)}
-        className="order-2 inline-flex size-11 cursor-pointer items-center justify-center gap-2 rounded-full border border-border-control bg-bg/85 p-0 text-sm font-medium text-fg shadow-[0_10px_30px_rgba(0,0,0,0.12),inset_0_1px_0_rgba(255,255,255,0.85)] backdrop-blur-xl transition-colors duration-200 ease-spring hover:bg-surface-1 active:scale-[0.97] sm:size-auto sm:min-h-11 sm:px-3.5 sm:py-2"
+        className="order-2 inline-flex size-11 cursor-pointer items-center justify-center gap-2 rounded-full border border-border-control bg-bg/90 p-0 text-sm font-medium text-fg backdrop-blur-md transition-colors duration-200 ease-spring hover:bg-surface-1 active:scale-[0.97] sm:size-auto sm:min-h-11 sm:px-3.5 sm:py-2"
       >
-        {open ? <SunIcon className="size-4 text-amber-500" glow /> : <MoonIcon className="size-4 text-info" />}
+        {open ? <SunIcon className="size-4 text-fg" /> : <MoonIcon className="size-4 text-info" />}
         <span className="hidden sm:inline">{short}</span>
         <span className="hidden sm:inline-flex">{open ? <LiveDot /> : <TwilightDot />}</span>
       </button>
@@ -179,17 +179,11 @@ export function FloatingMarketOrb({
           role="dialog"
           tabIndex={-1}
           aria-labelledby={titleId}
-          className="order-1 mb-2.5 w-72 max-w-[calc(100vw-2rem)] rounded-2xl bg-bg/95 p-4 shadow-[0_20px_50px_rgba(0,0,0,0.16),inset_0_1px_0_rgba(255,255,255,0.9)] ring-1 ring-border backdrop-blur-xl motion-safe:animate-pop-in sm:w-80"
+          className="order-1 mb-2.5 w-72 max-w-[calc(100vw-2rem)] rounded-2xl bg-bg/95 p-4 shadow-float ring-1 ring-border backdrop-blur-xl motion-safe:animate-pop-in sm:w-80"
         >
           <div className="flex items-start gap-3">
-            <span
-              className={
-                open
-                  ? "flex size-10 shrink-0 items-center justify-center rounded-full bg-amber-500/15"
-                  : "flex size-10 shrink-0 items-center justify-center rounded-full bg-info-bg"
-              }
-            >
-              {open ? <SunIcon className="size-5 text-amber-500" glow /> : <MoonIcon className="size-5 text-info" />}
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-surface-1">
+              {open ? <SunIcon className="size-5 text-fg" /> : <MoonIcon className="size-5 text-info" />}
             </span>
             <div className="min-w-0 flex-1 pt-0.5">
               <p id={titleId} className="text-sm font-semibold tracking-tight text-fg">
@@ -211,27 +205,22 @@ export function FloatingMarketOrb({
           </div>
           <p className="mt-3 text-sm leading-relaxed text-fg-body">{copy.hours}</p>
           {schedule ? <p className="mt-1.5 text-sm leading-relaxed text-fg">{schedule}</p> : null}
-          <p className="mt-3 rounded-xl bg-surface-2 px-3 py-2 text-xs leading-relaxed text-fg-muted">{copy.footnote}</p>
+          <p className="mt-3 border-t border-border pt-3 text-xs leading-relaxed text-fg-muted">{copy.footnote}</p>
         </div>
       ) : null}
     </div>
   );
 }
 
-function SunIcon({ className, glow = false }: { className?: string; glow?: boolean }) {
+function SunIcon({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" className={className} fill="none">
-      {glow ? (
-        <circle cx="12" cy="12" r="8" className="fill-amber-400/35 motion-safe:animate-pulse motion-reduce:animate-none" />
-      ) : null}
-      <g className="origin-center [transform-box:fill-box] motion-safe:animate-[spin_16s_linear_infinite] motion-reduce:animate-none">
-        <path
-          d="M12 2.2v2.15M12 19.65v2.15M4.15 4.15l1.52 1.52M18.33 18.33l1.52 1.52M2.2 12h2.15M19.65 12h2.15M4.15 19.85l1.52-1.52M18.33 5.67l1.52-1.52"
-          stroke="currentColor"
-          strokeWidth="1.6"
-          strokeLinecap="round"
-        />
-      </g>
+      <path
+        d="M12 2.2v2.15M12 19.65v2.15M4.15 4.15l1.52 1.52M18.33 18.33l1.52 1.52M2.2 12h2.15M19.65 12h2.15M4.15 19.85l1.52-1.52M18.33 5.67l1.52 1.52"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+      />
       <circle cx="12" cy="12" r="3.55" fill="currentColor" />
     </svg>
   );
@@ -241,28 +230,18 @@ function MoonIcon({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" className={className} fill="currentColor">
       <path d="M15.7 14.35A6.15 6.15 0 0 1 9.55 3.85 6.55 6.55 0 1 0 15.7 14.35Z" />
-      <path
-        d="M17.15 3.15l.38 1.02 1.02.38-1.02.38-.38 1.02-.38-1.02-1.02-.38 1.02-.38.38-1.02Z"
-        className="motion-safe:animate-pulse motion-reduce:animate-none"
-      />
-      <circle cx="19.55" cy="7.7" r="0.72" className="motion-safe:animate-pulse motion-reduce:animate-none" />
+      <path d="M17.15 3.15l.38 1.02 1.02.38-1.02.38-.38 1.02-.38-1.02-1.02-.38 1.02-.38.38-1.02Z" />
+      <circle cx="19.55" cy="7.7" r="0.72" />
     </svg>
   );
 }
 
 function LiveDot() {
-  return (
-    <span className="relative flex size-2" aria-hidden="true">
-      <span className="absolute inline-flex size-full rounded-full bg-up opacity-70 motion-safe:animate-ping motion-reduce:animate-none" />
-      <span className="relative size-2 rounded-full bg-up" />
-    </span>
-  );
+  return <span aria-hidden="true" className="size-2 rounded-full bg-up" />;
 }
 
 function TwilightDot() {
-  return (
-    <span aria-hidden="true" className="size-2 rounded-full bg-info shadow-[0_0_0_3px_color-mix(in_srgb,var(--color-info)_28%,transparent)]" />
-  );
+  return <span aria-hidden="true" className="size-2 rounded-full bg-info" />;
 }
 
 function CloseIcon() {
