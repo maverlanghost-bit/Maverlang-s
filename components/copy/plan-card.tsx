@@ -2,12 +2,11 @@
 
 import { useCallback, useEffect, useState } from "react";
 
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import {
   BILLING_PLAN_CATALOG,
   BILLING_PLAN_IDS,
+  TRIAL_DAYS,
   formatClp,
   type BillingPlanId,
 } from "@/lib/billing/plans";
@@ -161,83 +160,40 @@ function readInitPoint(raw: unknown): string | null {
 
 type Notice = { tone: "neutral" | "warn" | "down"; text: string };
 
+/** Acento discreto: una línea de 2 px, sin cápsula de color. */
 function noticeClass(tone: Notice["tone"]): string {
-  if (tone === "down") return "border-down/30 bg-down-bg text-down";
-  if (tone === "warn") return "border-warn/30 bg-warn-bg text-warn";
-  return "border-border bg-surface-1 text-fg-body";
+  if (tone === "down") return "border-down text-down";
+  if (tone === "warn") return "border-warn text-warn";
+  return "border-border-strong text-fg-body";
 }
 
-function PlanCard({
-  plan,
-  billingEnabled,
-  billingSoon,
-  trialUsed,
-  current,
-  pending,
-  onSubscribe,
-}: {
-  plan: BillingPlanId;
-  billingEnabled: boolean;
-  /** Motivo por el que el cobro está apagado; se muestra junto al botón. */
-  billingSoon: string;
-  trialUsed: boolean;
-  current: boolean;
-  pending: boolean;
-  onSubscribe: (plan: BillingPlanId) => void;
-}) {
-  const definition = BILLING_PLAN_CATALOG[plan];
-  const period = plan === "monthly" ? "mes" : "año";
-  return (
-    <Card
-      className={cn(
-        "flex flex-col gap-4",
-        plan === "annual" ? "border-fg/20" : undefined,
-      )}
-    >
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h2 className="text-lg font-semibold tracking-tight">{definition.label}</h2>
-          <p className="mt-1 text-sm text-fg-muted">
-            {plan === "annual" ? "Equivale a 2 meses gratis." : "Se renueva todos los meses."}
-          </p>
-        </div>
-        {plan === "annual" ? <Badge tone="brand">Mejor precio</Badge> : null}
-      </div>
+const PLAN_PERIOD: Record<BillingPlanId, string> = {
+  monthly: "mes",
+  annual: "año",
+};
 
-      <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-        <p className="flex flex-wrap items-baseline gap-1">
-          <span className="num text-3xl font-semibold tracking-tight tabular-nums">
-            {formatClp(definition.amountClp)}
-          </span>
-          <span className="text-sm text-fg-muted">/ {period}</span>
-        </p>
-        {trialUsed ? null : <Badge tone="neutral">7 días gratis</Badge>}
-      </div>
+type PlanFact = { label: string; values: Record<BillingPlanId, string> };
 
-      <ul className="flex flex-col gap-1.5 text-sm text-fg-body">
-        <li>· Composición completa y movimientos de cada cartera.</li>
-        <li>· Copiar mezcla en demo y, cuando se habilite, con dinero real.</li>
-        <li>· Seguir hasta 10 carteras con aviso de cambios.</li>
-        <li>· {trialUsed ? "La prueba de 7 días ya se usó una vez." : "7 días de prueba gratis, una vez por usuario."}</li>
-      </ul>
+/**
+ * Comparación con los datos del catálogo y de los términos: la prueba y la
+ * cancelación, más el precio de la fila superior. Nada de cifras ni columnas
+ * inventadas.
+ */
+function planFacts(trialUsed: boolean): PlanFact[] {
+  return [
+    {
+      label: "Prueba gratis",
+      values: {
+        monthly: trialUsed ? "Ya usada" : `${TRIAL_DAYS} días`,
+        annual: trialUsed ? "Ya usada" : `${TRIAL_DAYS} días`,
+      },
+    },
+    { label: "Cancelación", values: { monthly: "En un clic", annual: "En un clic" } },
+  ];
+}
 
-      <div className="mt-auto flex flex-col gap-2">
-        <Button
-          size="lg"
-          variant={plan === "annual" ? "primary" : "secondary"}
-          className="min-h-12 w-full"
-          disabled={!billingEnabled || current}
-          loading={pending}
-          onClick={() => onSubscribe(plan)}
-        >
-          {current ? "Tu plan actual" : trialUsed ? `Suscribirme: ${definition.label}` : "Empezar los 7 días gratis"}
-        </Button>
-        {!billingEnabled && !current ? (
-          <p className="text-xs leading-relaxed text-fg-muted">{billingSoon}</p>
-        ) : null}
-      </div>
-    </Card>
-  );
+function planCta(trialUsed: boolean): string {
+  return trialUsed ? "Suscribirme" : "Empezar prueba";
 }
 
 export function PlansPanel({ billingEnabled, billingSoon, returned = false }: PlansPanelProps) {
@@ -362,74 +318,217 @@ export function PlansPanel({ billingEnabled, billingSoon, returned = false }: Pl
     subscription.status !== "canceled" &&
     subscription.provider !== "fraccion_pro";
 
+  const facts = planFacts(trialUsed);
+  const needsAttention =
+    subscription !== null &&
+    (subscription.status === "past_due" || subscription.status === "canceled");
+
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-10">
       {returned ? (
-        <div className={cn("rounded-xl border p-4 text-sm leading-relaxed", noticeClass("neutral"))}>
-          <p className="font-medium">Volviste de Mercado Pago.</p>
-          <p className="mt-1">
-            El acceso se activa cuando Mercado Pago confirma el pago; puede tardar un minuto. Esta página no
-            da acceso por sí sola.
+        <section className="flex flex-col items-start gap-2 border-b border-border pb-6">
+          <h2 className="text-base leading-snug font-medium tracking-tight">
+            Volviste de Mercado Pago
+          </h2>
+          <p className="max-w-prose text-[13px] leading-relaxed text-fg-muted">
+            El acceso se activa cuando Mercado Pago confirma el pago; puede tardar un minuto. Esta
+            página no da acceso por sí sola.
           </p>
           <Button
             variant="secondary"
-            size="sm"
-            className="mt-3 min-h-11"
+            size="md"
+            className="mt-1 min-h-11"
             onClick={() => setReloadKey((key) => key + 1)}
             loading={reading}
           >
             Actualizar estado
           </Button>
+        </section>
+      ) : null}
+
+      <section aria-labelledby="planes-titulo" className="flex flex-col gap-4">
+        <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+          <h2 id="planes-titulo" className="text-lg font-medium tracking-tight">
+            Planes
+          </h2>
+          <p className="text-[13px] leading-5 text-fg-muted">
+            {trialUsed
+              ? `La prueba de ${TRIAL_DAYS} días ya se usó una vez.`
+              : `${TRIAL_DAYS} días de prueba, una vez por usuario.`}
+          </p>
         </div>
-      ) : null}
 
-      {!enabled ? (
-        <p className="rounded-xl border border-warn/30 bg-warn-bg p-3 text-sm leading-relaxed text-warn">
-          {billingSoon}
+        <ul className="grid gap-1 text-[13px] leading-relaxed text-fg-body sm:grid-cols-3 sm:gap-6">
+          <li>Composición completa y movimientos de cada cartera.</li>
+          <li>Copiar mezcla en demo y, cuando se habilite, con dinero real.</li>
+          <li>Seguir hasta 10 carteras con aviso de cambios.</li>
+        </ul>
+
+        {!enabled ? (
+          <p className="max-w-prose text-[13px] leading-relaxed text-fg-body">{billingSoon}</p>
+        ) : null}
+
+        {/* Escritorio: comparación en tabla, sin columnas que no existan. */}
+        <div className="hidden md:block">
+          <table className="w-full border-collapse text-[13px]">
+            <caption className="sr-only">Comparación de los planes Mensual y Anual</caption>
+            <thead>
+              <tr className="border-b border-border">
+                <th
+                  scope="col"
+                  className="py-2 pr-6 text-left align-bottom font-mono text-[13px] font-medium tracking-[0.045em] text-fg-muted uppercase"
+                >
+                  <span className="sr-only">Concepto</span>
+                </th>
+                {BILLING_PLAN_IDS.map((plan) => (
+                  <th
+                    key={plan}
+                    scope="col"
+                    className="w-[10.5rem] py-2 pl-4 text-left align-bottom font-mono text-[13px] font-medium tracking-[0.045em] text-fg-muted uppercase"
+                  >
+                    {BILLING_PLAN_CATALOG[plan].label}
+                    {currentPlan === plan ? (
+                      <span className="ml-1.5 font-sans text-[13px] font-normal tracking-normal normal-case text-fg-muted">
+                        · tu plan
+                      </span>
+                    ) : null}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              <tr>
+                <th
+                  scope="row"
+                  className="py-4 pr-6 text-left align-top text-[13px] font-normal text-fg-muted"
+                >
+                  Precio
+                </th>
+                {BILLING_PLAN_IDS.map((plan) => (
+                  <td key={plan} className="py-4 pl-4 align-top">
+                    <span className="num text-xl leading-none font-medium tracking-tight tabular-nums text-fg">
+                      {formatClp(BILLING_PLAN_CATALOG[plan].amountClp)}
+                    </span>
+                    <span className="mt-1 block text-[13px] leading-5 text-fg-muted">
+                      al {PLAN_PERIOD[plan]}
+                    </span>
+                  </td>
+                ))}
+              </tr>
+              {facts.map((fact) => (
+                <tr key={fact.label}>
+                  <th
+                    scope="row"
+                    className="py-2.5 pr-6 text-left align-top text-[13px] font-normal text-fg-muted"
+                  >
+                    {fact.label}
+                  </th>
+                  {BILLING_PLAN_IDS.map((plan) => (
+                    <td key={plan} className="py-2.5 pl-4 align-top text-fg-body">
+                      {fact.values[plan]}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+              <tr>
+                <td />
+                {BILLING_PLAN_IDS.map((plan) => (
+                  <td key={plan} className="py-5 pl-4">
+                    <Button
+                      size="md"
+                      variant={plan === "annual" ? "primary" : "secondary"}
+                      className="min-h-11 w-full whitespace-nowrap"
+                      disabled={!enabled || currentPlan === plan}
+                      loading={pendingPlan === plan}
+                      onClick={() => void subscribe(plan)}
+                    >
+                      {currentPlan === plan ? "Tu plan actual" : planCta(trialUsed)}
+                    </Button>
+                  </td>
+                ))}
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        {/* Móvil: el mismo dato, apilado por plan y sin scroll horizontal. */}
+        <div className="flex flex-col gap-6 md:hidden">
+          {BILLING_PLAN_IDS.map((plan) => (
+            <section key={plan} className="flex flex-col gap-3 border-t border-border pt-5">
+              <div className="flex items-baseline justify-between gap-4">
+                <h3 className="text-base font-medium tracking-tight">
+                  {BILLING_PLAN_CATALOG[plan].label}
+                </h3>
+                <p className="text-right">
+                  <span className="num text-xl font-medium tracking-tight tabular-nums text-fg">
+                    {formatClp(BILLING_PLAN_CATALOG[plan].amountClp)}
+                  </span>
+                  <span className="text-[13px] text-fg-muted"> / {PLAN_PERIOD[plan]}</span>
+                </p>
+              </div>
+
+              <dl className="flex flex-col">
+                {facts.map((fact) => (
+                  <div
+                    key={fact.label}
+                    className="flex items-baseline justify-between gap-4 border-b border-border/70 py-2 text-[13px] leading-5 last:border-b-0"
+                  >
+                    <dt className="text-fg-muted">{fact.label}</dt>
+                    <dd className="text-right font-medium text-fg-body">{fact.values[plan]}</dd>
+                  </div>
+                ))}
+              </dl>
+
+              <Button
+                size="md"
+                variant={plan === "annual" ? "primary" : "secondary"}
+                className="min-h-11 w-full"
+                disabled={!enabled || currentPlan === plan}
+                loading={pendingPlan === plan}
+                onClick={() => void subscribe(plan)}
+              >
+                {currentPlan === plan ? "Tu plan actual" : planCta(trialUsed)}
+              </Button>
+            </section>
+          ))}
+        </div>
+
+        <p className="max-w-prose text-[13px] leading-relaxed text-fg-muted">
+          La suscripción se renueva automáticamente hasta que la canceles.
         </p>
-      ) : null}
+      </section>
 
-      <div className="grid gap-4 md:grid-cols-2">
-        {BILLING_PLAN_IDS.map((plan) => (
-          <PlanCard
-            key={plan}
-            plan={plan}
-            billingEnabled={enabled}
-            billingSoon={billingSoon}
-            trialUsed={trialUsed}
-            current={currentPlan === plan}
-            pending={pendingPlan === plan}
-            onSubscribe={(next) => void subscribe(next)}
-          />
-        ))}
-      </div>
-
-      <Card className="flex flex-col gap-3">
-        <h2 className="text-base font-semibold tracking-tight">Tu suscripción</h2>
+      <section
+        aria-labelledby="suscripcion-titulo"
+        className="flex flex-col gap-3 border-t border-border pt-8"
+      >
+        <h2 id="suscripcion-titulo" className="text-lg font-medium tracking-tight">
+          Tu suscripción
+        </h2>
 
         {reading && !status ? (
-          <p className="text-sm text-fg-muted">Leyendo tu suscripción…</p>
+          <p className="text-[13px] leading-5 text-fg-muted">Leyendo tu suscripción…</p>
         ) : statusError === "session" ? (
-          <p className="text-sm leading-relaxed text-fg-muted">
-            No pudimos leer la suscripción con esta sesión. Entra con tu cuenta de Maverlang para verla y
-            cancelarla.
+          <p className="max-w-prose text-[13px] leading-relaxed text-fg-muted">
+            No pudimos leer la suscripción con esta sesión. Entra con tu cuenta de Maverlang para verla
+            y cancelarla.
           </p>
         ) : statusError === "read" ? (
-          <div className="flex flex-col gap-2">
-            <p className="text-sm leading-relaxed text-fg-muted">
+          <div className="flex flex-col items-start gap-3">
+            <p className="max-w-prose text-[13px] leading-relaxed text-fg-muted">
               No pudimos leer el estado de tu suscripción ahora. Los precios de arriba no cambian.
             </p>
             <Button
               variant="secondary"
-              size="sm"
-              className="min-h-11 self-start"
+              size="md"
+              className="min-h-11"
               onClick={() => setReloadKey((key) => key + 1)}
             >
               Reintentar
             </Button>
           </div>
         ) : subscription === null ? (
-          <div className="flex flex-col gap-1 text-sm leading-relaxed text-fg-muted">
+          <div className="flex flex-col gap-1 text-[13px] leading-relaxed text-fg-muted">
             <p>Aún no tienes una suscripción a Copiar carteras.</p>
             <p>
               {trialUsed
@@ -438,63 +537,85 @@ export function PlansPanel({ billingEnabled, billingSoon, returned = false }: Pl
             </p>
           </div>
         ) : (
-          <div className="flex flex-col gap-2 text-sm leading-relaxed">
-            <p className="flex flex-wrap items-center gap-2">
-              <Badge tone={subscription.status === "past_due" || subscription.status === "canceled" ? "warn" : "up"}>
-                {STATUS_LABEL[subscription.status]}
-              </Badge>
-              {subscription.plan ? <span className="text-fg-body">{PLAN_LABEL[subscription.plan]}</span> : null}
-              {fromFraccionPro ? <Badge tone="neutral">Fraccion Pro</Badge> : null}
-            </p>
+          <div className="flex flex-col gap-4">
+            <dl className="flex flex-col">
+              <div className="flex items-baseline justify-between gap-6 border-b border-border/70 py-2.5">
+                <dt className="text-[13px] leading-5 text-fg-muted">Estado</dt>
+                <dd
+                  className={cn(
+                    "text-right text-[13px] leading-5 font-medium",
+                    needsAttention ? "text-warn" : "text-fg",
+                  )}
+                >
+                  {STATUS_LABEL[subscription.status]}
+                </dd>
+              </div>
+              {subscription.plan ? (
+                <div className="flex items-baseline justify-between gap-6 border-b border-border/70 py-2.5">
+                  <dt className="text-[13px] leading-5 text-fg-muted">Plan</dt>
+                  <dd className="text-right text-[13px] leading-5 font-medium text-fg">
+                    {PLAN_LABEL[subscription.plan]}
+                  </dd>
+                </div>
+              ) : null}
+              {fromFraccionPro ? (
+                <div className="flex items-baseline justify-between gap-6 border-b border-border/70 py-2.5">
+                  <dt className="text-[13px] leading-5 text-fg-muted">Acceso</dt>
+                  <dd className="text-right text-[13px] leading-5 font-medium text-fg">Fraccion Pro</dd>
+                </div>
+              ) : null}
+            </dl>
+
             {subscription.status === "trial" && isoDate(subscription.trialEndsAt) ? (
-              <p className="text-fg-muted">
-                La prueba termina el {isoDate(subscription.trialEndsAt)}. Después se cobra el plan elegido.
+              <p className="max-w-prose text-[13px] leading-relaxed text-fg-muted">
+                La prueba termina el {isoDate(subscription.trialEndsAt)}. Después se cobra el plan
+                elegido.
               </p>
             ) : null}
             {subscription.status === "active" && isoDate(subscription.currentPeriodEnd) ? (
-              <>
-                <p className="text-fg-muted">
-                  Se renueva el {isoDate(subscription.currentPeriodEnd)}. Puedes cancelar cuando quieras.
-                </p>
-                <p className="text-xs text-fg-muted">
-                  Se renueva sola hasta que la canceles; puedes hacerlo cuando quieras.
-                </p>
-              </>
+              <p className="max-w-prose text-[13px] leading-relaxed text-fg-muted">
+                Se renueva el {isoDate(subscription.currentPeriodEnd)}. Puedes cancelar cuando quieras.
+              </p>
             ) : null}
             {subscription.status === "past_due" ? (
-              <p className="text-fg-muted">
-                Mercado Pago no confirmó el último cobro. Mantienes la lectura por 3 días de gracia; después se
-                suspende el acceso.
+              <p className="max-w-prose text-[13px] leading-relaxed text-fg-muted">
+                Mercado Pago no confirmó el último cobro. Mantienes la lectura por 3 días de gracia;
+                después se suspende el acceso.
               </p>
             ) : null}
             {subscription.status === "pending" ? (
-              <p className="text-fg-muted">Estamos esperando la confirmación de Mercado Pago.</p>
+              <p className="max-w-prose text-[13px] leading-relaxed text-fg-muted">
+                Estamos esperando la confirmación de Mercado Pago.
+              </p>
             ) : null}
             {subscription.status === "canceled" ? (
-              <p className="text-fg-muted">
+              <p className="max-w-prose text-[13px] leading-relaxed text-fg-muted">
                 {isoDate(subscription.currentPeriodEnd)
                   ? `Cancelada. Mantienes el acceso hasta el ${isoDate(subscription.currentPeriodEnd)}.`
                   : "Cancelada. No se renueva."}
               </p>
             ) : null}
             {fromFraccionPro ? (
-              <p className="text-fg-muted">
-                Tu acceso viene de Fraccion Pro y se administra en fraccion.si: acá no se cobra ni se cancela.
+              <p className="max-w-prose text-[13px] leading-relaxed text-fg-muted">
+                Tu acceso viene de Fraccion Pro y se administra en fraccion.si: acá no se cobra ni se
+                cancela.
               </p>
             ) : null}
 
             {canCancel ? (
-              <div className="mt-1 flex flex-col gap-2 sm:flex-row sm:items-center">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                 <Button
                   variant="secondary"
-                  size="lg"
-                  className="min-h-12 w-full sm:w-auto"
+                  size="md"
+                  className="min-h-11 w-full sm:w-auto"
                   loading={canceling}
                   onClick={() => void cancel()}
                 >
                   Cancelar suscripción
                 </Button>
-                <p className="text-xs text-fg-muted">Se cancela en un clic, sin llamadas ni formularios.</p>
+                <p className="text-[13px] leading-5 text-fg-muted">
+                  Se cancela en un clic, sin llamadas ni formularios.
+                </p>
               </div>
             ) : null}
           </div>
@@ -503,12 +624,15 @@ export function PlansPanel({ billingEnabled, billingSoon, returned = false }: Pl
         {notice ? (
           <p
             aria-live="polite"
-            className={cn("rounded-xl border p-3 text-sm leading-relaxed", noticeClass(notice.tone))}
+            className={cn(
+              "max-w-prose border-l-2 pl-3 text-[13px] leading-relaxed",
+              noticeClass(notice.tone),
+            )}
           >
             {notice.text}
           </p>
         ) : null}
-      </Card>
+      </section>
     </div>
   );
 }

@@ -14,10 +14,9 @@ import {
 import { ExampleDataStrip, FeedBanner } from "@/components/copy/feed-banner";
 import { FraccionSeal } from "@/components/copy/fraccion-seal";
 import { LegalNote } from "@/components/copy/legal-note";
-import { PortfolioCard } from "@/components/copy/portfolio-card";
+import { PortfolioCard, PORTFOLIO_HEADER_GRID } from "@/components/copy/portfolio-card";
 import { buttonClasses } from "@/components/ui/button";
 import { IconSearch } from "@/components/ui/icons";
-import { cn } from "@/lib/cn";
 import { getCopyIndex, getCopyPortfolio } from "@/lib/copy/feed";
 import { isCopyEnabled } from "@/lib/copy/flags";
 import { daysSince, lagChip, type LagChip } from "@/lib/copy/lag";
@@ -82,25 +81,41 @@ function catalogHref(state: {
   return search ? `/app/copiar?${search}` : "/app/copiar";
 }
 
-function CatalogHeader() {
+const HEADER_CELL = "font-mono text-[13px] uppercase tracking-[0.045em] text-fg-muted";
+
+/**
+ * Portada del hub: H1, una línea de alcance y una sola CTA primaria (planes).
+ * «Mis copias» queda como enlace discreto: es navegación, no la acción.
+ */
+function CatalogHeader({ cta = true }: { cta?: boolean }) {
   return (
-    <header className="flex flex-col gap-3">
-      <div className="flex flex-wrap items-end justify-between gap-4">
+    <header className="flex flex-col gap-4">
+      <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between sm:gap-10">
         <div className="min-w-0">
-          <h1 className="text-3xl font-semibold tracking-tight text-balance sm:text-4xl">
+          <h1 className="text-3xl leading-[1.1] tracking-tight text-balance sm:text-4xl">
             Copiar carteras
           </h1>
-          <p className="mt-2 max-w-2xl text-sm leading-relaxed text-fg-muted">
+          <p className="mt-3 max-w-2xl text-[15px] leading-relaxed text-fg-muted">
             Carteras 13F y ETF para replicar con acciones de Maverlang, y corredoras chilenas, AFP y
-            temáticas para mirar. Cada tarjeta muestra la fecha del dato, el atraso y la cobertura.
+            temáticas para mirar. Cada fila muestra la fecha del dato, el atraso y la cobertura.
           </p>
         </div>
-        <Link
-          href="/app/copiar/planes"
-          className={buttonClasses({ variant: "secondary", size: "md", className: "shrink-0" })}
-        >
-          Ver planes
-        </Link>
+        {cta ? (
+          <div className="flex shrink-0 flex-col items-start gap-1 sm:items-end">
+            <Link
+              href="/app/copiar/planes"
+              className={buttonClasses({ variant: "primary", size: "md", className: "min-h-11" })}
+            >
+              Ver planes
+            </Link>
+            <Link
+              href="/app/copiar/mis-copias"
+              className="inline-flex min-h-11 items-center text-[13px] font-medium text-fg-muted underline decoration-border-control underline-offset-4 transition-colors duration-150 hover:text-fg"
+            >
+              Mis copias
+            </Link>
+          </div>
+        ) : null}
       </div>
       <FraccionSeal />
     </header>
@@ -123,8 +138,8 @@ export default async function CopiarPage({
 
   if (!enabled) {
     return (
-      <div className="flex flex-col gap-6">
-        <CatalogHeader />
+      <div className="flex flex-col gap-8">
+        <CatalogHeader cta={false} />
         <CopySoonState />
       </div>
     );
@@ -140,7 +155,7 @@ export default async function CopiarPage({
 
   if (entries.length === 0) {
     return (
-      <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-8">
         <CatalogHeader />
         {health.state === "none" ? (
           <CopySoonState description="Todavía no hay datos del feed de Fraccion.si. Vuelve pronto." />
@@ -221,25 +236,27 @@ export default async function CopiarPage({
   });
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-10">
       <CatalogHeader />
-      <FeedBanner health={health} />
-      {health.source === "fixtures" ? <ExampleDataStrip /> : null}
+      <div className="flex flex-col gap-3">
+        <FeedBanner health={health} />
+        {health.source === "fixtures" ? <ExampleDataStrip /> : null}
+      </div>
 
-      <section aria-labelledby="carteras-titulo" className="flex flex-col gap-4">
+      <section aria-labelledby="carteras-titulo" className="flex flex-col gap-5">
         <h2 id="carteras-titulo" className="sr-only">
           Carteras disponibles
         </h2>
         <FamilyTabs items={tabItems} active={activeFamily} />
 
-        <form
-          action="/app/copiar"
-          method="get"
-          className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between"
-        >
-          <div className="flex w-full items-center gap-2 lg:max-w-md">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <form
+            action="/app/copiar"
+            method="get"
+            className="flex w-full items-center gap-2 lg:max-w-md"
+          >
             <div className="relative min-w-0 flex-1">
-              <IconSearch className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-fg-muted" />
+              <IconSearch className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-fg-muted" />
               <input
                 type="search"
                 name="q"
@@ -248,7 +265,7 @@ export default async function CopiarPage({
                 enterKeyHint="search"
                 placeholder="Buscar por cartera o gestor"
                 aria-label="Buscar carteras"
-                className="h-11 w-full rounded-full border border-border-control bg-surface-1 pl-9 pr-3 text-sm text-fg placeholder:text-fg-muted focus-visible:border-fg"
+                className="h-11 w-full rounded-full border border-border-control bg-bg pr-3 pl-9 text-sm text-fg placeholder:text-fg-muted focus-visible:border-fg"
               />
             </div>
             {activeFamily !== "all" ? (
@@ -266,70 +283,87 @@ export default async function CopiarPage({
             >
               Buscar
             </button>
+          </form>
+
+          <div className="flex flex-wrap items-center justify-between gap-x-5 gap-y-2 lg:justify-end">
+            <p className="text-[13px] leading-5 text-fg-muted">
+              {rows.length} {rows.length === 1 ? "cartera" : "carteras"}
+              {q ? ` para «${q}»` : ""}
+              {q ? (
+                <>
+                  {" · "}
+                  <Link
+                    href={catalogHref({ q: "", family: activeFamily, order })}
+                    className="text-fg underline decoration-border-control underline-offset-2 hover:decoration-fg"
+                  >
+                    Limpiar búsqueda
+                  </Link>
+                </>
+              ) : null}
+            </p>
+
+            <details className="group relative shrink-0">
+              <summary className="inline-flex min-h-11 cursor-pointer list-none items-center gap-1.5 rounded-full border border-border-control bg-bg px-4 text-[13px] font-medium text-fg transition-colors duration-150 hover:bg-surface-1 [&::-webkit-details-marker]:hidden">
+                Orden: {ORDERS.find((option) => option.value === order)?.label ?? "Cobertura"}
+                <span aria-hidden className="text-fg-muted">
+                  ▾
+                </span>
+              </summary>
+              <ul className="absolute top-full right-0 z-20 mt-1 w-48 rounded-xl border border-border bg-bg p-1 shadow-float">
+                {ORDERS.map((option) => {
+                  const current = order === option.value;
+                  return (
+                    <li key={option.value}>
+                      <Link
+                        href={catalogHref({ q, family: activeFamily, order: option.value })}
+                        aria-current={current ? "true" : undefined}
+                        title={option.title}
+                        className={
+                          current
+                            ? "flex min-h-11 items-center rounded-lg px-3 text-[13px] font-medium text-fg"
+                            : "flex min-h-11 items-center rounded-lg px-3 text-[13px] text-fg-muted transition-colors duration-150 hover:bg-surface-1 hover:text-fg"
+                        }
+                      >
+                        {option.label}
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            </details>
           </div>
-
-          <details className="group relative shrink-0">
-            <summary className="inline-flex min-h-11 cursor-pointer list-none items-center gap-1 rounded-full border border-border-control bg-bg px-3.5 text-[13px] font-medium text-fg transition-colors hover:bg-surface-1 [&::-webkit-details-marker]:hidden">
-              Orden: {ORDERS.find((option) => option.value === order)?.label ?? "Cobertura"}
-              <span aria-hidden>▾</span>
-            </summary>
-            <ul className="absolute top-full right-0 z-20 mt-1 w-44 rounded-xl bg-bg p-1 shadow-[0_16px_40px_rgba(12,15,20,0.16)] ring-1 ring-border">
-              {ORDERS.map((option) => {
-                const current = order === option.value;
-                return (
-                  <li key={option.value}>
-                    <Link
-                      href={catalogHref({ q, family: activeFamily, order: option.value })}
-                      aria-current={current ? "true" : undefined}
-                      title={option.title}
-                      className={cn(
-                        "flex min-h-11 items-center rounded-lg px-3 text-[13px] transition-colors",
-                        current
-                          ? "bg-surface-1 font-medium text-fg"
-                          : "text-fg-muted hover:bg-surface-1 hover:text-fg",
-                      )}
-                    >
-                      {option.label}
-                    </Link>
-                  </li>
-                );
-              })}
-            </ul>
-          </details>
-        </form>
-
-        <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-fg-muted">
-          <p>
-            {rows.length} {rows.length === 1 ? "cartera" : "carteras"}
-            {q ? ` para «${q}»` : ""}
-          </p>
-          {q ? (
-            <Link
-              href={catalogHref({ q: "", family: activeFamily, order })}
-              className="underline decoration-border-strong underline-offset-2 hover:text-fg"
-            >
-              Limpiar búsqueda
-            </Link>
-          ) : null}
         </div>
 
         {rows.length === 0 ? (
           <CopyNoResults resetHref={catalogHref({ q: "", family: "all", order })} />
         ) : (
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            {rows.map((row) => (
-              <PortfolioCard
-                key={row.entry.slug}
-                portfolio={row.entry}
-                lag={row.lag}
-                coveragePct={row.coveragePct}
-              />
-            ))}
+          <div className="flex flex-col">
+            <div className={PORTFOLIO_HEADER_GRID}>
+              <span className={HEADER_CELL}>Cartera</span>
+              <span className={HEADER_CELL}>Familia</span>
+              <span className={HEADER_CELL}>Dato</span>
+              <span className={HEADER_CELL}>Atraso</span>
+              <span className={`${HEADER_CELL} text-right`}>Cobertura</span>
+            </div>
+            <ul className="border-t border-border md:border-t-0">
+              {rows.map((row) => (
+                <PortfolioCard
+                  key={row.entry.slug}
+                  portfolio={row.entry}
+                  lag={row.lag}
+                  coveragePct={row.coveragePct}
+                />
+              ))}
+            </ul>
+            <p className="mt-3 max-w-prose text-[13px] leading-5 text-fg-muted">
+              Cobertura: parte del portafolio declarado que se puede replicar con el catálogo de
+              Maverlang.
+            </p>
           </div>
         )}
       </section>
 
-      <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-3 border-t border-border pt-6">
         <FraccionSeal />
         <LegalNote cta disclaimer />
       </div>

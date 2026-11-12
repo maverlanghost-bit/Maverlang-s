@@ -1,13 +1,12 @@
 import Link from "next/link";
 
-import { Badge, type BadgeTone } from "@/components/ui/badge";
 import { cn } from "@/lib/cn";
-import { formatFeedDate, type LagChip } from "@/lib/copy/lag";
+import { daysSince, formatFeedDate, type LagChip } from "@/lib/copy/lag";
 import { type CopyCoverage, type CopyFamily, isCopyableFamily } from "@/lib/copy/types";
 
 import { COPY_FAMILY_LABELS } from "./family-tabs";
 
-/** Metadatos mínimos que muestra la tarjeta (vienen del índice firmado). */
+/** Metadatos mínimos que muestra la fila (vienen del índice firmado). */
 export type PortfolioCardData = {
   slug: string;
   name: string;
@@ -18,16 +17,43 @@ export type PortfolioCardData = {
   coverage: CopyCoverage;
 };
 
-const lagTone: Record<LagChip["tone"], BadgeTone> = {
-  neutral: "neutral",
-  amber: "warn",
-  red: "down",
-};
+/**
+ * Retícula compartida por la fila y la cabecera de columnas del catálogo.
+ * Móvil: cartera + cobertura. Escritorio: cartera · familia · dato · atraso ·
+ * cobertura, con las cifras en mono tabular.
+ */
+export const PORTFOLIO_COLUMNS =
+  "grid-cols-[minmax(0,1fr)_auto] md:grid-cols-[minmax(0,1fr)_6rem_6rem_6.5rem_4.5rem]";
+
+export const PORTFOLIO_ROW_GRID = cn(
+  "grid items-start gap-x-4 gap-y-1 md:items-center md:gap-x-4 lg:gap-x-6",
+  PORTFOLIO_COLUMNS,
+);
+
+export const PORTFOLIO_HEADER_GRID = cn(
+  "hidden items-end gap-x-4 border-b border-border pb-2 md:grid lg:gap-x-6",
+  PORTFOLIO_COLUMNS,
+);
+
+/** «Hoy», «1 día», «12 días» o «Congelada»; nunca promete frescura que no hay. */
+export function lagAgeLabel(asOf: string, isFrozen: boolean): string {
+  if (isFrozen) return "Congelada";
+  const days = daysSince(asOf);
+  if (days === null) return "Sin fecha";
+  if (days <= 0) return "Hoy";
+  return days === 1 ? "1 día" : `${days} días`;
+}
+
+function lagToneClass(tone: LagChip["tone"]): string {
+  if (tone === "red") return "text-down";
+  if (tone === "amber") return "text-warn";
+  return "text-fg-muted";
+}
 
 /**
- * Tarjeta del catálogo: nombre, gestor, fecha del dato, chip de atraso,
- * cobertura calculada con el catálogo de Maverlang y el sello de Fraccion.si.
- * Toda la tarjeta es un enlace a la ficha; el sello vive fuera del enlace.
+ * Fila del catálogo, hairline en vez de tarjeta: nombre y gestor, familia,
+ * fecha del dato, atraso y cobertura calculada con el catálogo de Maverlang.
+ * Toda la fila es un enlace a la ficha.
  */
 export function PortfolioCard({
   portfolio,
@@ -43,62 +69,70 @@ export function PortfolioCard({
   const pct =
     coveragePct === null ? null : Math.max(0, Math.min(100, Math.round(coveragePct)));
   const coverageClass =
-    pct === null ? "text-fg-muted" : pct >= 60 ? "text-fg" : pct >= 40 ? "text-warn" : "text-down";
-  const barClass =
-    pct === null ? "bg-surface-3" : pct >= 60 ? "bg-fg" : pct >= 40 ? "bg-warn" : "bg-down";
+    pct === null ? "text-fg-subtle" : pct >= 60 ? "text-fg" : pct >= 40 ? "text-warn" : "text-down";
   const top50 = portfolio.coverage === "top50_of_full_book";
+  const asOf = formatFeedDate(portfolio.asOf);
+  const lagLabel = lagAgeLabel(portfolio.asOf, portfolio.isFrozen);
+  const lagClass = lagToneClass(lag.tone);
+  const subline = [
+    portfolio.manager || "Gestor no informado",
+    top50 ? "Top 50 del libro" : null,
+    mirrorOnly ? "Solo para mirar" : null,
+  ]
+    .filter((part): part is string => Boolean(part))
+    .join(" · ");
 
   return (
-    <article className="group flex flex-col overflow-hidden rounded-2xl bg-surface-1 shadow-card transition-colors duration-150 hover:bg-surface-2">
+    <li className="border-b border-border last:border-b-0">
       <Link
         href={`/app/copiar/${portfolio.slug}`}
-        className="flex flex-1 flex-col gap-3 p-5"
+        className={cn(
+          PORTFOLIO_ROW_GRID,
+          "-mx-3 px-3 py-4 transition-colors duration-150 ease-spring hover:bg-surface-1 focus-visible:bg-surface-1 md:py-3.5",
+        )}
       >
-        <div className="flex flex-wrap items-center gap-1.5">
-          <Badge tone="neutral">{COPY_FAMILY_LABELS[portfolio.family]}</Badge>
-          <Badge
-            tone={lagTone[lag.tone]}
-            className="h-auto max-w-full whitespace-normal py-1 text-left leading-snug"
-          >
-            {lag.label}
-          </Badge>
-          {mirrorOnly ? <Badge tone="neutral">Solo para mirar</Badge> : null}
-          {top50 ? <Badge tone="neutral">Top 50 del libro</Badge> : null}
-        </div>
-
-        <div className="flex min-w-0 flex-col gap-0.5">
-          <h3 className="text-base font-medium leading-snug tracking-tight text-fg text-balance">
+        <span className="min-w-0">
+          <span className="block truncate text-[15px] leading-tight font-medium tracking-tight text-fg">
             {portfolio.name}
-          </h3>
-          <p className="truncate text-sm text-fg-muted">{portfolio.manager || "Gestor no informado"}</p>
-        </div>
-
-        <p className="text-xs text-fg-muted">Dato al {formatFeedDate(portfolio.asOf)}</p>
-
-        <div className="mt-auto flex flex-col gap-1.5 pt-1">
-          <div className="flex items-baseline justify-between gap-2">
-            <span className="text-xs font-medium text-fg-muted">
-              Cobertura
+          </span>
+          <span className="mt-1 block text-[13px] leading-5 text-fg-muted">{subline}</span>
+          <span className="mt-0.5 flex flex-wrap items-baseline gap-x-1.5 text-[13px] leading-5 text-fg-muted md:hidden">
+            <span>{COPY_FAMILY_LABELS[portfolio.family]}</span>
+            <span aria-hidden className="text-fg-subtle">
+              ·
             </span>
-            <span className={cn("font-mono text-sm tabular-nums", coverageClass)}>
-              {pct === null ? "—" : `${pct} %`}
+            <span className="num whitespace-nowrap">{asOf || "sin fecha"}</span>
+            <span aria-hidden className="text-fg-subtle">
+              ·
             </span>
-          </div>
-          <div aria-hidden className="h-1.5 overflow-hidden rounded-full bg-surface-3">
-            <div className={cn("h-full rounded-full", barClass)} style={{ width: `${pct ?? 0}%` }} />
-          </div>
-          <p className="text-xs leading-relaxed text-fg-muted">
-            {pct === null
-              ? "Cobertura no disponible"
-              : `Replicas el ${pct} % del portafolio original`}
-          </p>
-        </div>
+            <span className={cn("whitespace-nowrap", lagClass)}>{lagLabel}</span>
+          </span>
+        </span>
 
-        <span className="inline-flex items-center gap-1 pt-1 text-xs font-medium text-fg-body">
-          Ver cartera
-          <span aria-hidden>→</span>
+        <span className="hidden text-[13px] leading-5 text-fg-muted md:block">
+          {COPY_FAMILY_LABELS[portfolio.family]}
+        </span>
+
+        <span className="num hidden text-[13px] leading-5 whitespace-nowrap text-fg-body md:block">
+          {asOf || "—"}
+        </span>
+
+        <span className={cn("hidden text-[13px] leading-5 whitespace-nowrap md:block", lagClass)}>
+          {lagLabel}
+        </span>
+
+        <span className="text-right">
+          <span className="block text-[13px] leading-4 text-fg-muted md:hidden">Cobertura</span>
+          <span
+            className={cn(
+              "num block text-[15px] leading-5 font-medium tabular-nums",
+              coverageClass,
+            )}
+          >
+            {pct === null ? "—" : `${pct} %`}
+          </span>
         </span>
       </Link>
-    </article>
+    </li>
   );
 }

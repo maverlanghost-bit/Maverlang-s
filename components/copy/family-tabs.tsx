@@ -21,6 +21,9 @@ export type FamilyTabItem = {
 /**
  * Tabs por familia como navegación con `searchParams` (sin estado de cliente):
  * cada pestaña es un enlace que conserva la búsqueda y el orden actuales.
+ *
+ * Subrayado hairline en vez de píldoras: la fila envuelve en móvil (nada de
+ * scroll horizontal) y cada pestaña mantiene 44 px de alto táctil.
  */
 export function FamilyTabs({
   items,
@@ -32,7 +35,7 @@ export function FamilyTabs({
   return (
     <nav
       aria-label="Familias de carteras"
-      className="-mx-1 flex min-w-0 items-center gap-2 overflow-x-auto scroll-px-4 px-1 py-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      className="flex min-w-0 flex-wrap items-center gap-x-6 border-b border-border"
     >
       {items.map((item) => {
         const current = item.value === active;
@@ -42,17 +45,17 @@ export function FamilyTabs({
             href={item.href}
             aria-current={current ? "true" : undefined}
             className={cn(
-              "inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full border px-3.5 text-[13px] font-medium whitespace-nowrap transition-colors duration-150 ease-spring active:scale-[0.98]",
+              "-mb-px inline-flex min-h-11 items-center gap-1.5 border-b-2 px-0.5 pt-1 pb-2.5 text-[13px] font-medium whitespace-nowrap transition-colors duration-150 ease-spring",
               current
-                ? "border-fg bg-fg text-bg shadow-xs"
-                : "border-border-control bg-bg text-fg hover:bg-surface-1",
+                ? "border-fg text-fg"
+                : "border-transparent text-fg-muted hover:border-border-strong hover:text-fg",
             )}
           >
             {item.label}
             <span
               className={cn(
-                "font-mono text-[11px] tabular-nums",
-                current ? "text-bg/70" : "text-fg-muted",
+                "num text-[13px] tabular-nums",
+                current ? "text-fg-muted" : "text-fg-subtle",
               )}
             >
               {item.count}

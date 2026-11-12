@@ -5,7 +5,7 @@ import { CopySoonState } from "@/components/copy/empty-states";
 import { FollowList, type FollowCard } from "@/components/copy/follow-list";
 import { FraccionSeal } from "@/components/copy/fraccion-seal";
 import { Paywall } from "@/components/copy/paywall";
-import { Button } from "@/components/ui/button";
+import { Button, buttonClasses } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { COPY_DISCLAIMER, COPY_LEGAL_PENDING_LABEL } from "@/content/copy-legal";
@@ -169,9 +169,26 @@ async function buildCards(rows: FollowRow[]): Promise<FollowCard[]> {
   return cards.filter((card): card is FollowCard => card !== null);
 }
 
+/** Una copia pide atención cuando la versión cambió y algún peso se movió. */
+function needsReview(card: FollowCard): boolean {
+  const versionChanged =
+    card.copiedVersionId.length > 0 && card.copiedVersionId !== card.currentVersionId;
+  return !card.missing && card.moved && versionChanged;
+}
+
+/**
+ * Orden por dato real: primero lo que pide una acción, al final lo que ya no
+ * está en el feed. Dentro de cada grupo se respeta el orden de `created_at`
+ * que devolvió la consulta (la más reciente primero).
+ */
+function orderCards(cards: FollowCard[]): FollowCard[] {
+  const rank = (card: FollowCard) => (needsReview(card) ? 0 : card.missing ? 2 : 1);
+  return [...cards].sort((a, b) => rank(a) - rank(b));
+}
+
 function Soon() {
   return (
-    <article className="flex flex-col gap-6 pb-6">
+    <article className="flex flex-col gap-8 pb-6">
       <PageHeader title="Mis copias" />
       <CopySoonState
         title="Pronto"
@@ -190,11 +207,16 @@ export default async function MisCopiasPage() {
 
   if (!userId || !access) {
     return (
-      <article className="flex flex-col gap-6 pb-6">
+      <article className="flex flex-col gap-8 pb-6">
         <PageHeader
           title="Mis copias"
           description="Las carteras que sigues, la versión que copiaste y el aviso cuando cambian."
         />
+        <p className="max-w-prose text-[13px] leading-relaxed text-fg-muted">
+          {userId
+            ? "Tu cuenta todavía no tiene una suscripción activa a Copiar carteras."
+            : "Entra con tu cuenta de Maverlang para ver las carteras que sigues."}
+        </p>
         <Paywall
           title="Desbloquea tus copias"
           description={`Con Copiar carteras puedes seguir hasta ${MAX_FOLLOWS} carteras, comparar la versión que copiaste con la actual y armar un ajuste cuando cambian.`}
@@ -210,33 +232,58 @@ export default async function MisCopiasPage() {
   if (health.state === "none") return <Soon />;
 
   const cards = await buildCards(rows);
+  const ordered = orderCards(cards);
+  const pendingReview = cards.filter(needsReview).length;
 
   return (
-    <article className="flex flex-col gap-6 pb-6">
+    <article className="flex flex-col gap-8 pb-6">
       <PageHeader
         title="Mis copias"
         description={`La versión que copiaste contra la actual. Hasta ${MAX_FOLLOWS} carteras.`}
+        action={
+          cards.length > 0 ? (
+            <Link
+              href="/app/copiar"
+              className={buttonClasses({ variant: "secondary", size: "md", className: "min-h-11" })}
+            >
+              Ver carteras
+            </Link>
+          ) : undefined
+        }
       />
-      <p className="text-sm leading-relaxed text-fg-muted">{COPY_DISCLAIMER}</p>
 
       {cards.length === 0 ? (
         <EmptyState
           title="Todavía no sigues ninguna mezcla"
           description="Cuando copies una cartera la vas a ver acá, con la versión que copiaste y el aviso si cambia."
           action={
-            <Button asChild variant="secondary" size="lg" className="min-h-12 touch-manipulation">
+            <Button asChild size="lg" className="min-h-11 touch-manipulation">
               <Link href="/app/copiar">Ver carteras</Link>
             </Button>
           }
         />
       ) : (
-        <FollowList items={cards} />
+        <section aria-labelledby="copias-titulo" className="flex flex-col gap-3">
+          <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+            <h2 id="copias-titulo" className="text-lg font-medium tracking-tight">
+              Carteras que sigues
+            </h2>
+            <p className="text-[13px] leading-5 text-fg-muted">
+              {cards.length} de {MAX_FOLLOWS}
+            </p>
+          </div>
+          {pendingReview > 0 && cards.length > 1 ? (
+            <p className="text-[13px] leading-5 text-fg-muted">Primero las que cambiaron.</p>
+          ) : null}
+          <FollowList items={ordered} />
+        </section>
       )}
 
-      <div className="flex flex-col gap-3 border-t border-border pt-4">
+      <footer className="flex flex-col gap-3 border-t border-border pt-6">
         <FraccionSeal />
-        <p className="text-xs leading-relaxed text-fg-muted">{COPY_LEGAL_PENDING_LABEL}</p>
-      </div>
+        <p className="max-w-prose text-[13px] leading-relaxed text-fg-muted">{COPY_DISCLAIMER}</p>
+        <p className="text-[13px] leading-relaxed text-fg-muted">{COPY_LEGAL_PENDING_LABEL}</p>
+      </footer>
     </article>
   );
 }

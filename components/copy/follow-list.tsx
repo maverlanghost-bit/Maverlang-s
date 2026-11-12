@@ -1,7 +1,6 @@
 import Link from "next/link";
 
 import { COPY_FAMILY_LABELS } from "@/components/copy/family-tabs";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { CopyFamily } from "@/lib/copy/types";
 
@@ -24,89 +23,129 @@ export type FollowCard = {
 };
 
 function shortVersion(versionId: string): string {
-  if (!versionId) return "sin versión registrada";
-  return versionId.length > 14 ? `${versionId.slice(0, 14)}…` : versionId;
+  if (!versionId) return "sin versión";
+  return versionId.length > 12 ? `${versionId.slice(0, 12)}…` : versionId;
 }
 
 /**
- * Carteras que la persona sigue. La versión copiada se compara con la actual:
- * si algún peso se movió más de 2 puntos aparece «La cartera cambió» y
- * «Revisar ajuste», que solo abre la mezcla para armar un plan NUEVO.
- * En F1 nada se rebalancea solo.
+ * Estado de la copia, en una línea: qué pasó con la versión y qué se puede
+ * hacer. Nunca promete sincronización ni rebalanceo automático.
+ */
+function stateOf(item: FollowCard): { review: boolean; text: string } {
+  const versionChanged =
+    item.copiedVersionId.length > 0 && item.copiedVersionId !== item.currentVersionId;
+  if (item.missing) {
+    return {
+      review: false,
+      text: "Esta cartera ya no está en el feed de Fraccion.si. Dejamos de mostrar su comparación.",
+    };
+  }
+  if (!item.copiedVersionId) {
+    return {
+      review: false,
+      text: "No tenemos registrada la versión que copiaste. Vuelve a copiarla para empezar a comparar.",
+    };
+  }
+  if (versionChanged && !item.weightsKnown) {
+    return {
+      review: false,
+      text: "La versión cambió. No guardamos los pesos de la versión que copiaste, así que no podemos medir cuánto se movió.",
+    };
+  }
+  if (item.moved && versionChanged) {
+    return {
+      review: true,
+      text: "La cartera cambió: algún peso se movió más de 2 puntos desde la versión que copiaste. Puedes revisar un ajuste con la composición de hoy.",
+    };
+  }
+  if (versionChanged) {
+    return {
+      review: false,
+      text: "La versión cambió, pero ningún peso se movió más de 2 puntos. No hace falta ajustar nada.",
+    };
+  }
+  return { review: false, text: "Estás al día con la última versión." };
+}
+
+/**
+ * Carteras que la persona sigue, una por fila hairline: nombre, gestor, fecha
+ * del dato y el estado de la versión copiada contra la actual. «Revisar
+ * ajuste» sólo abre la mezcla para armar un plan NUEVO: en F1 nada se
+ * rebalancea solo.
  */
 export function FollowList({ items }: { items: FollowCard[] }) {
   return (
-    <ul className="flex flex-col gap-4">
+    <ul className="border-t border-border">
       {items.map((item) => {
-        const versionChanged = item.copiedVersionId.length > 0 && item.copiedVersionId !== item.currentVersionId;
-        const review = item.moved && versionChanged && !item.missing;
+        const state = stateOf(item);
+        const meta = [
+          item.manager,
+          item.family ? COPY_FAMILY_LABELS[item.family] : "Cartera",
+          item.asOfLabel ? `Dato al ${item.asOfLabel}` : null,
+        ]
+          .filter((part): part is string => typeof part === "string" && part.length > 0)
+          .join(" · ");
+        const versionsDiffer =
+          item.copiedVersionId.length > 0 && item.copiedVersionId !== item.currentVersionId;
+
         return (
-          <li
-            key={item.slug}
-            className="flex flex-col gap-3 rounded-2xl border border-border/70 bg-surface-1 p-4 shadow-card sm:p-5"
-          >
-            <div className="flex flex-wrap items-start justify-between gap-3">
+          <li key={item.slug} className="border-b border-border">
+            <div className="grid gap-3 py-5 md:grid-cols-[minmax(0,1fr)_auto] md:items-start md:gap-x-8">
               <div className="min-w-0">
-                <p className="truncate text-base font-medium text-fg">{item.name}</p>
-                <p className="truncate text-sm text-fg-muted">
-                  {[item.manager, item.family ? COPY_FAMILY_LABELS[item.family] : "Cartera", item.asOfLabel ? `Dato al ${item.asOfLabel}` : null]
-                    .filter((part): part is string => typeof part === "string" && part.length > 0)
-                    .join(" · ")}
+                <div className="flex flex-wrap items-baseline gap-x-3">
+                  {item.missing ? (
+                    <span className="text-[15px] leading-tight font-medium tracking-tight text-fg">
+                      {item.name}
+                    </span>
+                  ) : (
+                    <Link
+                      href={`/app/copiar/${encodeURIComponent(item.slug)}`}
+                      className="inline-flex min-h-11 items-center text-[15px] leading-tight font-medium tracking-tight text-fg underline-offset-4 transition-colors duration-150 hover:underline"
+                    >
+                      {item.name}
+                    </Link>
+                  )}
+                  {state.review ? (
+                    <span className="text-[13px] leading-5 font-medium text-warn">
+                      La cartera cambió
+                    </span>
+                  ) : null}
+                </div>
+
+                <p className="text-[13px] leading-5 text-fg-muted">{meta}</p>
+
+                <p className="mt-2 max-w-prose text-[13px] leading-relaxed text-fg-body">
+                  {state.text}
                 </p>
-              </div>
-              {review ? <Badge tone="warn">La cartera cambió</Badge> : null}
-            </div>
 
-            <dl className="grid gap-1 text-xs text-fg-muted tabular-nums sm:grid-cols-2">
-              <div className="flex items-baseline gap-2">
-                <dt>Copiada:</dt>
-                <dd className="truncate font-medium text-fg-body">{shortVersion(item.copiedVersionId)}</dd>
-              </div>
-              <div className="flex items-baseline gap-2">
-                <dt>Actual:</dt>
-                <dd className="truncate font-medium text-fg-body">{shortVersion(item.currentVersionId)}</dd>
-              </div>
-            </dl>
+                {versionsDiffer ? (
+                  <p className="num mt-1 text-[13px] leading-5 text-fg-subtle">
+                    Copiada {shortVersion(item.copiedVersionId)} · actual{" "}
+                    {shortVersion(item.currentVersionId)}
+                  </p>
+                ) : null}
 
-            {item.missing ? (
-              <p className="text-sm leading-relaxed text-fg-muted">
-                Esta cartera ya no está en el feed de Fraccion.si. Dejamos de mostrar su comparación.
-              </p>
-            ) : !item.copiedVersionId ? (
-              <p className="text-sm leading-relaxed text-fg-muted">
-                No tenemos registrada la versión que copiaste. Vuelve a copiarla para empezar a comparar.
-              </p>
-            ) : versionChanged && !item.weightsKnown ? (
-              <p className="text-sm leading-relaxed text-fg-muted">
-                La versión cambió. No guardamos los pesos de la versión que copiaste, así que no podemos medir cuánto se
-                movió.
-              </p>
-            ) : review ? (
-              <div className="flex flex-col gap-2 rounded-xl border border-warn/40 bg-warn-bg/60 p-3">
-                <p className="text-sm leading-relaxed text-warn">
-                  La cartera cambió: algún peso se movió más de 2 puntos desde la versión que copiaste. Puedes revisar un
-                  ajuste con la composición de hoy.
-                </p>
-                <Button asChild variant="secondary" size="lg" className="min-h-12 w-full touch-manipulation sm:w-fit">
-                  <Link href={`/app/copiar/${encodeURIComponent(item.slug)}/mezcla?ajuste=1`}>Revisar ajuste</Link>
-                </Button>
+                {item.example ? (
+                  <p className="mt-1 text-[13px] leading-5 text-warn">
+                    Datos de ejemplo, no reales.
+                  </p>
+                ) : null}
               </div>
-            ) : versionChanged ? (
-              <p className="text-sm leading-relaxed text-fg-muted">
-                La versión cambió, pero ningún peso se movió más de 2 puntos. No hace falta ajustar nada.
-              </p>
-            ) : (
-              <p className="text-sm leading-relaxed text-fg-muted">Estás al día con la última versión.</p>
-            )}
 
-            {item.example ? (
-              <p className="text-xs leading-relaxed text-warn">Datos de ejemplo, no reales.</p>
-            ) : null}
-
-            <div className="flex flex-wrap gap-2">
-              <Button asChild variant="ghost" size="lg" className="min-h-12 touch-manipulation">
-                <Link href={`/app/copiar/${encodeURIComponent(item.slug)}`}>Ver cartera</Link>
-              </Button>
+              {state.review ? (
+                <div className="md:pt-1">
+                  <Button
+                    asChild
+                    variant="secondary"
+                    size="md"
+                    className="min-h-11 w-full touch-manipulation sm:w-auto"
+                  >
+                    <Link href={`/app/copiar/${encodeURIComponent(item.slug)}/mezcla?ajuste=1`}>
+                      Revisar ajuste
+                    </Link>
+                  </Button>
+                </div>
+              ) : null}
             </div>
           </li>
         );
