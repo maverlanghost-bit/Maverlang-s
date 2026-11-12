@@ -4,7 +4,6 @@ import { notFound, redirect } from "next/navigation";
 import type { ReactNode } from "react";
 
 import { CryptoBuyPanel } from "@/components/domain/crypto-trade-sheet";
-import { Badge } from "@/components/ui/badge";
 import { CopyButton } from "@/components/ui/copy-button";
 import { IconBack } from "@/components/ui/icons";
 import { site } from "@/config/site";
@@ -19,6 +18,7 @@ import {
 import { readAccountMode } from "@/lib/account/server";
 import { findCryptoBySymbol } from "@/lib/catalog/crypto";
 import { findEarnBySymbol } from "@/lib/catalog/lst";
+import { cn } from "@/lib/cn";
 import { formatMoney } from "@/lib/format";
 
 type FichaGroup = "crypto" | "dollar" | "gold" | "lst";
@@ -81,9 +81,8 @@ function fichaFor(raw: string): Ficha | null {
   return null;
 }
 
-function shortMint(mint: string): string {
-  if (mint.length <= 14) return mint;
-  return `${mint.slice(0, 6)}…${mint.slice(-5)}`;
+function solscanMintUrl(mint: string) {
+  return `https://solscan.io/token/${encodeURIComponent(mint)}`;
 }
 
 function Monogram({ symbol }: { symbol: string }) {
@@ -91,18 +90,36 @@ function Monogram({ symbol }: { symbol: string }) {
   return (
     <span
       aria-hidden
-      className="flex size-12 shrink-0 items-center justify-center rounded-full bg-surface-2 text-sm font-semibold tracking-tight text-fg-body"
+      className="flex size-12 shrink-0 items-center justify-center rounded-full bg-surface-2 font-mono text-[13px] leading-none font-medium tracking-tight text-fg-body"
     >
       {(letters.slice(0, 3) || "?").toUpperCase()}
     </span>
   );
 }
 
-function Row({ label, children }: { label: string; children: ReactNode }) {
+/** Rótulo de contexto en mono, separado por un punto: sin cápsulas de color. */
+function MetaItem({ children, separator = false }: { children: ReactNode; separator?: boolean }) {
   return (
-    <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 py-3">
-      <dt className="text-sm text-fg-muted">{label}</dt>
-      <dd className="min-w-0 text-right text-sm text-fg">{children}</dd>
+    <li className="inline-flex shrink-0 items-center gap-3">
+      {separator ? <span aria-hidden className="size-[3px] shrink-0 rounded-full bg-border-strong" /> : null}
+      <span className="inline-flex items-center gap-1.5 whitespace-nowrap">{children}</span>
+    </li>
+  );
+}
+
+/** Fila de dato con hairline: rótulo a la izquierda, valor a la derecha. */
+function DataRow({ label, children, mono = true }: { label: string; children: ReactNode; mono?: boolean }) {
+  return (
+    <div className="flex items-baseline justify-between gap-6 border-b border-border/70 py-3 last:border-b-0">
+      <dt className="min-w-0 flex-1 text-[13px] leading-5 text-fg-muted">{label}</dt>
+      <dd
+        className={cn(
+          "min-w-0 text-right text-[13px] leading-5 font-medium text-fg",
+          mono ? "num shrink-0 whitespace-nowrap" : "font-sans",
+        )}
+      >
+        {children}
+      </dd>
     </div>
   );
 }
@@ -140,114 +157,130 @@ export default async function CriptoFichaPage({ params }: { params: Promise<{ sy
     <div className="flex min-w-0 max-w-full flex-col gap-6">
       <Link
         href={backHref}
-        className="-ml-2 flex min-h-11 w-fit items-center gap-1.5 rounded-full bg-surface-1 px-3 py-1.5 text-xs font-medium text-fg-muted transition-colors duration-150 hover:bg-surface-2 hover:text-fg"
+        className="-ml-2 flex min-h-11 w-fit items-center gap-1.5 rounded-full px-2 text-[13px] font-medium text-fg-muted outline-none transition-colors duration-150 hover:bg-surface-1 hover:text-fg focus-visible:ring-4 focus-visible:ring-fg/20"
       >
         <IconBack className="size-4" />
         {backLabel}
       </Link>
 
-      <header className="flex flex-col gap-3">
-        <div className="flex flex-wrap items-center gap-3">
+      <div className="flex min-w-0 flex-col gap-4">
+        <header className="flex flex-wrap items-center gap-x-4 gap-y-3">
           <Monogram symbol={asset.symbol} />
-          <div className="min-w-0 flex-1 basis-48">
-            <h1 className="max-w-full text-3xl break-words text-balance sm:text-4xl">{asset.name}</h1>
-            <p className="mt-1 max-w-full break-words text-sm text-fg-muted">
-              <span className="num font-medium text-fg">{asset.symbol}</span>
+          <div className="min-w-0 flex-1 basis-44">
+            <h1 className="max-w-full text-[27px] leading-[1.08] break-words text-balance sm:text-[32px]">
+              {asset.name}
+            </h1>
+            <p className="num mt-1.5 max-w-full text-[13px] leading-5 break-words text-fg-muted">
+              <span className="font-medium text-fg">{asset.symbol}</span>
               <span aria-hidden> · </span>
-              <span>{asset.originLabel}</span>
+              <span className="font-sans">{asset.originLabel}</span>
             </p>
           </div>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
+        </header>
+
+        <ul
+          aria-label="Contexto del token"
+          className="flex min-w-0 max-w-full list-none flex-wrap items-center gap-x-3 gap-y-1 p-0 font-mono text-[13px] leading-5 tracking-[0.04em] text-fg-muted uppercase"
+        >
+          <MetaItem>{GROUP_LABEL[asset.group]}</MetaItem>
+          <MetaItem separator>Solana</MetaItem>
           {asset.seal ? (
-            asset.seal === "AMARILLO" ? (
-              <span className="inline-flex items-center gap-1 rounded-full bg-warn-bg px-2.5 py-0.5 text-xs leading-none font-medium text-warn">
-                <span aria-hidden="true" className="size-1.5 shrink-0 rounded-full bg-warn" />
-                Sello AMARILLO
-              </span>
-            ) : (
-              <span className="inline-flex items-center gap-1 rounded-full border border-border bg-bg px-2.5 py-0.5 text-xs leading-none font-medium text-fg-muted">
-                <span aria-hidden="true" className="size-1.5 shrink-0 rounded-full bg-fg-muted" />
-                Sello VERDE
-              </span>
-            )
-          ) : (
-            <Badge>Ganar</Badge>
-          )}
-          <Badge>{GROUP_LABEL[asset.group]}</Badge>
-          <Badge>Solana</Badge>
+            <MetaItem separator>
+              <span className={asset.seal === "AMARILLO" ? "text-warn" : undefined}>Sello {asset.seal}</span>
+            </MetaItem>
+          ) : null}
+        </ul>
+
+        {asset.seal === "AMARILLO" ? (
+          <p className="max-w-prose text-[13px] leading-relaxed text-fg-body">
+            Sello AMARILLO: tope por orden más estricto, {formatMoney(asset.maxOrderUsd, "USD")}.
+          </p>
+        ) : null}
+      </div>
+
+      {/* En móvil el precio y la compra van primero; en lg, la boleta queda fija a la derecha. */}
+      <div className="flex flex-col gap-8 lg:grid lg:grid-cols-[minmax(0,1fr)_22rem] lg:gap-x-10 xl:grid-cols-[minmax(0,1fr)_24rem] xl:gap-x-16">
+        <aside className="order-1 min-w-0 lg:order-2">
+          <div className="lg:sticky lg:top-6">
+            <CryptoBuyPanel
+              symbol={asset.symbol}
+              name={asset.name}
+              maxOrderUsd={asset.maxOrderUsd}
+              accountMode={accountMode}
+            />
+          </div>
+        </aside>
+
+        <div className="order-2 flex min-w-0 flex-col gap-10 lg:order-1">
+          {asset.symbol === "BTC" ? (
+            <p className="max-w-prose text-[13px] leading-relaxed text-fg-body">
+              <span className="font-medium text-fg">BTC aquí es cbBTC de Coinbase en Solana.</span> No es Bitcoin
+              nativo y no ofrecemos WBTC.
+            </p>
+          ) : null}
+
+          <section aria-labelledby="datos-token" className="border-t border-border pt-8">
+            <h2 id="datos-token" className="text-lg font-medium tracking-tight text-fg">
+              Datos del token
+            </h2>
+            <dl className="mt-2">
+              <DataRow label="Red">Solana</DataRow>
+              <DataRow label="Versión y origen" mono={false}>
+                {asset.originLabel}
+              </DataRow>
+              {asset.seal ? (
+                <DataRow label="Sello" mono={false}>
+                  {asset.seal}
+                </DataRow>
+              ) : null}
+              <DataRow label="Decimales">{asset.decimals ?? "Sin dato"}</DataRow>
+              <DataRow label="Tope por orden">{formatMoney(asset.maxOrderUsd, "USD")}</DataRow>
+              <div className="py-3">
+                <dt className="text-[13px] leading-5 text-fg-muted">Mint</dt>
+                <dd className="mt-1.5">
+                  <p className="num text-[13px] leading-5 break-all text-fg">{asset.mint}</p>
+                  <div className="mt-2 flex flex-wrap items-center gap-x-5 gap-y-1">
+                    <CopyButton value={asset.mint} label="Copiar mint" copiedLabel="Copiado" />
+                    <a
+                      href={solscanMintUrl(asset.mint)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex min-h-11 items-center text-[13px] font-medium text-fg underline decoration-border underline-offset-4 outline-none focus-visible:ring-4 focus-visible:ring-fg/20"
+                    >
+                      Ver en Solscan
+                      <span className="sr-only"> (se abre en otra pestaña)</span>
+                    </a>
+                  </div>
+                </dd>
+              </div>
+            </dl>
+          </section>
+
+          <section aria-labelledby="historial-precio" className="border-t border-border pt-8">
+            <h2 id="historial-precio" className="text-lg font-medium tracking-tight text-fg">
+              Historial de precio
+            </h2>
+            <p className="mt-2 max-w-prose text-[13px] leading-relaxed text-fg-body">
+              Sin historial en esta demo: todavía no guardamos series de {asset.symbol} y no rellenamos el gráfico
+              con datos inventados.
+            </p>
+          </section>
+
+          <section aria-labelledby="avisos-cripto" className="border-t border-border pt-8">
+            <h2 id="avisos-cripto" className="text-lg font-medium tracking-tight text-fg">
+              Avisos
+            </h2>
+            <div className="mt-2 flex max-w-prose flex-col gap-2 text-[13px] leading-relaxed text-fg-body">
+              <p>{NON_CUSTODY_LINE}</p>
+              <p>{BRIDGED_TOKEN_NOTICE}</p>
+              {isUsdy ? <p>{USDY_YIELD_NOTICE}</p> : null}
+              {isLst ? <p>{LST_YIELD_NOTICE}</p> : null}
+              <p>{LEGAL_REVIEW_NOTICE}</p>
+              <p className="text-fg-muted">Todo esto es una demo con saldo ficticio: no se mueve dinero real.</p>
+            </div>
+          </section>
         </div>
-        <p className="text-sm leading-relaxed text-fg-muted">
-          {asset.seal === "VERDE"
-            ? `Sello VERDE: el tope por orden es ${formatMoney(asset.maxOrderUsd, "USD")}.`
-            : asset.seal === "AMARILLO"
-              ? `Sello AMARILLO: tope por orden más estricto, ${formatMoney(asset.maxOrderUsd, "USD")}.`
-              : `Tope por orden: ${formatMoney(asset.maxOrderUsd, "USD")}.`}
-        </p>
-      </header>
-
-      <CryptoBuyPanel
-        symbol={asset.symbol}
-        name={asset.name}
-        maxOrderUsd={asset.maxOrderUsd}
-        accountMode={accountMode}
-      />
-
-      {asset.symbol === "BTC" ? (
-        <p className="rounded-2xl border border-warn/40 bg-warn-bg px-4 py-3 text-sm leading-relaxed text-fg-body">
-          <span className="font-medium text-fg">BTC aquí es cbBTC de Coinbase en Solana.</span> No es Bitcoin
-          nativo y no ofrecemos WBTC.
-        </p>
-      ) : null}
-
-      <section
-        aria-labelledby="historial-precio"
-        className="rounded-2xl border border-dashed border-border-strong bg-surface-1 p-5"
-      >
-        <h2 id="historial-precio" className="text-base font-medium text-fg">
-          Historial de precio
-        </h2>
-        <p className="mt-1 text-sm leading-relaxed text-fg-body">
-          Sin historial en esta demo: todavía no guardamos series de {asset.symbol} y no rellenamos el gráfico
-          con datos inventados.
-        </p>
-      </section>
-
-      <section aria-labelledby="datos-token" className="rounded-2xl bg-surface-1 p-5 shadow-card">
-        <h2 id="datos-token" className="text-base font-medium text-fg">
-          Datos del token
-        </h2>
-        <dl className="mt-2 divide-y divide-border">
-          <Row label="Red">Solana</Row>
-          <Row label="Versión y origen">{asset.originLabel}</Row>
-          <Row label="Mint">
-            <span className="flex flex-wrap items-center justify-end gap-2">
-              <span className="num font-mono text-xs break-all" title={asset.mint}>
-                {shortMint(asset.mint)}
-              </span>
-              <CopyButton value={asset.mint} label="Copiar" copiedLabel="Copiado" />
-            </span>
-          </Row>
-          <Row label="Decimales">{asset.decimals ?? "sin dato"}</Row>
-          <Row label="Tope por orden">{formatMoney(asset.maxOrderUsd, "USD")}</Row>
-          {asset.seal ? <Row label="Sello">{asset.seal}</Row> : null}
-        </dl>
-      </section>
-
-      <section
-        aria-labelledby="avisos-cripto"
-        className="flex flex-col gap-2 border-t border-border pt-5 text-sm leading-relaxed text-fg-body"
-      >
-        <h2 id="avisos-cripto" className="text-base font-medium text-fg">
-          Avisos
-        </h2>
-        <p>{NON_CUSTODY_LINE}</p>
-        <p>{BRIDGED_TOKEN_NOTICE}</p>
-        {isUsdy ? <p>{USDY_YIELD_NOTICE}</p> : null}
-        {isLst ? <p>{LST_YIELD_NOTICE}</p> : null}
-        <p>{LEGAL_REVIEW_NOTICE}</p>
-        <p>Todo esto es una demo con saldo ficticio: no se mueve dinero real.</p>
-      </section>
+      </div>
     </div>
   );
 }
