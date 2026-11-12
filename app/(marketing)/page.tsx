@@ -36,8 +36,10 @@ export default async function HomePage() {
       <JsonLd data={organizationJsonLd()} />
       <LiveLandingPrices symbols={symbols} live={live} initial={quotes}>
         <Hero quotes={quotes} live={live} />
-        <TickerMarquee quotes={quotes} live={live} />
+        {/* La cinta pasa tras los pasos: el hero ya trae su bloque de
+            cotizaciones y no quedan dos bloques de precios seguidos. */}
         <HowItWorks quotes={quotes} live={live} />
+        <TickerMarquee quotes={quotes} live={live} />
         <ProductMock quotes={quotes} live={live} />
       </LiveLandingPrices>
       <FeatureGrid />
