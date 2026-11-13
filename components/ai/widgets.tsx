@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import {
   CHART_H,
   CHART_W,
+  cleanTicker,
   compareScale,
   detailHref,
   finiteOrNull,
@@ -32,6 +33,18 @@ function logoFor(ticker: string): string | null {
 
 function changeLabel(value: number | null, empty: string): string {
   return value == null ? empty : formatPercent(value);
+}
+
+/**
+ * Enlace al comparador público: sólo con exactamente dos activos del catálogo.
+ * Usa el ticker en minúsculas; la página canónica resuelve slug, símbolo o ticker.
+ */
+function compareHref(items: readonly { ticker: string }[]): string | null {
+  if (items.length !== 2) return null;
+  const first = cleanTicker(items[0]?.ticker ?? "");
+  const second = cleanTicker(items[1]?.ticker ?? "");
+  if (!first || !second) return null;
+  return `/comparar/${first.toLowerCase()}-vs-${second.toLowerCase()}`;
 }
 
 /** Mínimo y máximo de una serie ya filtrada por finitud; `null` si no hay trazo posible. */
@@ -179,6 +192,7 @@ export function CompareWidget({
     .map((row) => `${row.item.name} ${changeLabel(row.change, copy.noChange)}`)
     .join(". ");
   const zeroY = valueY(0, CHART_H, scale.min, scale.max);
+  const href = compareHref(widget.items);
 
   return (
     <article data-ai-widget="compare" className={WIDGET_CARD_CLASS}>
@@ -255,6 +269,16 @@ export function CompareWidget({
           );
         })}
       </ul>
+      {href ? (
+        <div className="mt-3 flex items-center justify-end">
+          <Link
+            href={href}
+            className="inline-flex min-h-8 items-center rounded-full border border-border/80 bg-surface-2/70 px-3 text-xs font-medium text-fg-body outline-none transition-colors duration-200 hover:border-brand/40 hover:bg-brand-soft/40 hover:text-brand focus-visible:ring-4 focus-visible:ring-fg/20"
+          >
+            Ver comparación
+          </Link>
+        </div>
+      ) : null}
     </article>
   );
 }

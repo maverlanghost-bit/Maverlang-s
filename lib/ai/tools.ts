@@ -2,9 +2,14 @@ import "server-only";
 
 import { tickerBySymbol } from "@/config/tickers";
 import { aiMessages } from "@/content/i18n/extra-b";
-import { findAssetBySymbol } from "@/lib/catalog/assets";
+import { findAssetBySymbol, searchCatalog } from "@/lib/catalog/assets";
 import { fold } from "@/lib/market/browse";
+import { loadTodayBoard, type MoverCard, type OfferedName, type TodayBoard } from "@/lib/market/movers";
+import { yahooSymbol } from "@/lib/market/underlying-move";
+import { priceHistory } from "@/lib/mocks/prices";
 import { readCompanyForSymbol } from "@/lib/services/company-facts.supabase";
+import { readHistory } from "@/lib/services/price-ticks.supabase";
+import { readUnderlyingCloses } from "@/lib/services/underlying-prices.supabase";
 import type { CompanyFactsView } from "@/lib/market/fundamentals";
 import type { FxRate, Portfolio, PricePoint, Quote, Range } from "@/lib/types";
 import type { AiWidget } from "@/lib/ai/types";
@@ -34,6 +39,8 @@ export interface AssistantDeps {
   searchTickers: (query: string, deps?: ResolveDeps) => Promise<ResolvedTicker[]>;
   /** Fila de `company_facts` (SEC). Por defecto, `readCompanyForSymbol`. */
   companyFacts?: (symbol: string) => Promise<CompanyFactsView | null>;
+  /** Tablero del día (suben/bajan). Por defecto, `assistantDayBoard`. */
+  todayBoard?: () => Promise<TodayBoard>;
 }
 
 export interface ToolResult {
@@ -192,6 +199,15 @@ export const AI_TOOLS: readonly XaiTool[] = [
         },
         ["ticker", "direction", "thresholdUsd"],
       ),
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "daily_summary",
+      description:
+        "Resumen del día: hasta 3 acciones del catálogo que más suben y 3 que más bajan, y el total y la variación del día de la cartera con sesión. Sólo lectura. Resume los datos; no recomiendes ni proyectes.",
+      parameters: objectParams({}, []),
     },
   },
 ];
@@ -776,6 +792,178 @@ async function toolPortfolioToday(deps: AssistantDeps, req: Request): Promise<To
   };
 }
 
+/** Tope de acciones por lista del resumen del día. */
+const DAILY_TOP = 3;
+/** El tablero del día se vuelve a barrer como máximo cada 2 minutos por proceso. */
+const DAY_BOARD_FRESH_MS = 120_000;
+const DAY_BOARD_PAGE_SIZE = 40;
+const DAY_BOARD_CONCURRENCY = 12;
+
+let dayBoardMemo: { at: number; board: TodayBoard } | null = null;
+let dayBoardPending: Promise<TodayBoard> | null = null;
+let dayBoardStoreDown: Promise<boolean> | null = null;
+
+/** En demo o CI no hay Supabase: el tablero usa la serie de referencia del mock, como /api/market/movers. */
+function dayBoardMissingStore(error: unknown): boolean {
+  return error instanceof Error && error.message.includes("Falta la configuración");
+}
+
+function dayBoardTicksAreDown(): Promise<boolean> {
+  const known = dayBoardStoreDown;
+  if (known) return known;
+  const check = readHistory("SPYx", "1D").then(
+    () => false,
+    (error: unknown) => dayBoardMissingStore(error),
+  );
+  dayBoardStoreDown = check;
+  return check;
+}
+
+async function dayBoardOffered(): Promise<OfferedName[]> {
+  const result = await searchCatalog({ q: "", page: 1, pageSize: DAY_BOARD_PAGE_SIZE, sort: "liquidity" });
+  return result.items.map((asset) => ({
+    symbol: asset.symbol,
+    name: asset.name,
+    logoUrl: asset.logoLocal,
+    underlying: asset.underlying,
+    liquidityUsd: asset.liquidityUsd,
+  }));
+}
+
+async function dayBoardTicks(symbol: string): Promise<{ t: number; p: number }[]> {
+  if (await dayBoardTicksAreDown()) return priceHistory(symbol, "1D");
+  try {
+    return await readHistory(symbol, "1D");
+  } catch (error) {
+    if (dayBoardMissingStore(error)) return priceHistory(symbol, "1D");
+    return [];
+  }
+}
+
+async function dayBoardCloses(underlying: string): Promise<{ t: number; p: number }[]> {
+  if (await dayBoardTicksAreDown()) return [];
+  const key = yahooSymbol(underlying);
+  if (!key) return [];
+  try {
+    return await readUnderlyingCloses(key, "1M");
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Tablero del día para el asistente: el mismo barrido de `/api/market/movers`
+ * (ticks y, si no alcanzan, cierres de los subyacentes), con memo corto para
+ * no repetirlo en cada mensaje. Sin filas no se guarda: el próximo mensaje
+ * vuelve a intentar. Si falla, el error sube y la tool responde sin widget.
+ */
+export async function assistantDayBoard(): Promise<TodayBoard> {
+  if (dayBoardMemo && Date.now() - dayBoardMemo.at < DAY_BOARD_FRESH_MS) return dayBoardMemo.board;
+  if (dayBoardPending) return dayBoardPending;
+  const job = loadTodayBoard({
+    listOffered: dayBoardOffered,
+    readTicks: dayBoardTicks,
+    readCloses: dayBoardCloses,
+    concurrency: DAY_BOARD_CONCURRENCY,
+  })
+    .then((board) => {
+      const hasRows =
+        board.gainers.length + board.losers.length + board.viewed.length > 0 || board.spy !== null;
+      if (hasRows) dayBoardMemo = { at: Date.now(), board };
+      return board;
+    })
+    .finally(() => {
+      if (dayBoardPending === job) dayBoardPending = null;
+    });
+  dayBoardPending = job;
+  return job;
+}
+
+interface DailyMover {
+  ticker: string;
+  name: string;
+  changePct: number | null;
+}
+
+function dailyMovers(cards: readonly MoverCard[], limit = DAILY_TOP): DailyMover[] {
+  return cards.slice(0, limit).map((card) => ({
+    ticker: card.symbol,
+    name: card.name,
+    changePct: ratio(card.changePct),
+  }));
+}
+
+/**
+ * Variación del día de la cartera: cada posición aporta su valor por su cambio
+ * del día; el efectivo aporta 0, así que el total del servicio diluye igual.
+ * Sin posiciones con valor y cambio conocidos queda null (nunca 0).
+ */
+async function portfolioDay(
+  deps: AssistantDeps,
+  portfolio: Portfolio,
+): Promise<{ totalUsd: number | null; changePct: number | null }> {
+  const totalUsd = money(portfolio.totalUsd);
+  const changes = await quoteChangePcts(deps, portfolio.positions.map((position) => position.symbol));
+  let weighted = 0;
+  let invested = 0;
+  for (const position of portfolio.positions) {
+    const value = money(position.valueUsd);
+    const change = changes.get(position.symbol.toLowerCase());
+    if (value === null || value <= 0 || change === null || change === undefined) continue;
+    weighted += value * change;
+    invested += value;
+  }
+  if (!(invested > 0)) return { totalUsd, changePct: null };
+  const base = totalUsd !== null && totalUsd >= invested ? totalUsd : invested;
+  return { totalUsd, changePct: ratio(weighted / base) };
+}
+
+async function toolDailySummary(deps: AssistantDeps, req: Request): Promise<ToolResult> {
+  const [boardResult, loadedResult] = await Promise.allSettled([
+    (deps.todayBoard ?? assistantDayBoard)(),
+    deps.loadPortfolio(req),
+  ]);
+  const board = boardResult.status === "fulfilled" ? boardResult.value : null;
+  if (!board) {
+    return {
+      content:
+        "No pude leer el tablero del día. No inventes cifras: dilo y ofrece lo que sí venga de otras herramientas.",
+      widgets: [],
+      stockRelated: true,
+    };
+  }
+  const loaded = loadedResult.status === "fulfilled" ? loadedResult.value : null;
+  let portfolio: { totalUsd: number | null; changePct: number | null } | null = null;
+  let portfolioNote: string | null = null;
+  if (!loaded) portfolioNote = copy.unavailable;
+  else if (loaded.kind === "sign-in") portfolioNote = copy.signIn;
+  else if (loaded.kind === "no-wallet") portfolioNote = copy.noWallet;
+  else if (loaded.kind === "unavailable") portfolioNote = copy.unavailable;
+  else if (loaded.kind === "real-empty") {
+    portfolio = { totalUsd: 0, changePct: null };
+    portfolioNote = copy.realEmpty;
+  } else portfolio = await portfolioDay(deps, loaded.portfolio);
+  const widget: Extract<AiWidget, { type: "daily-summary" }> = {
+    type: "daily-summary",
+    asOf: new Date().toISOString(),
+    gainers: dailyMovers(board.gainers),
+    losers: dailyMovers(board.losers),
+    portfolio,
+  };
+  return {
+    content: JSON.stringify({
+      asOf: widget.asOf,
+      gainers: widget.gainers,
+      losers: widget.losers,
+      portfolio,
+      portfolioNote,
+      note: "Resumen informativo con los datos del tablero y de la cartera al momento de la consulta. No es una recomendación ni una predicción.",
+    }),
+    widgets: [widget],
+    stockRelated: true,
+  };
+}
+
 async function toolSimulateBuy(args: Record<string, unknown>, deps: AssistantDeps): Promise<ToolResult> {
   const query = textArg(args.ticker ?? args.query ?? args.symbol);
   if (!query) return { content: copy.badRequest, widgets: [], stockRelated: true };
@@ -903,6 +1091,7 @@ export async function executeToolCall(
     if (name === "portfolio_today") return await toolPortfolioToday(deps, req);
     if (name === "simulate_buy") return await toolSimulateBuy(args, deps);
     if (name === "propose_price_alert") return await toolPriceAlert(args, deps);
+    if (name === "daily_summary") return await toolDailySummary(deps, req);
     return { content: "No conozco esa herramienta.", widgets: [], stockRelated: false };
   } catch {
     const safeName = /^[a-z0-9_-]{1,40}$/i.test(name) ? name : "unknown";

@@ -1,14 +1,24 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, permanentRedirect } from "next/navigation";
-import { aboutForTicker } from "@/content/tickers";
+import { ShareCardButton } from "@/components/domain/share-card-button";
 import { TickerLogo } from "@/components/domain/ticker-logo";
 import { LandingSection } from "@/components/landing/section";
+import {
+  StockAboutSections,
+  StockCategoryChips,
+  StockExploreSection,
+  StockFaqSection,
+  StockSimilarSection,
+} from "@/components/landing/stock-rich-sections";
+import { StockLivePrice } from "@/components/landing/stock-live-price";
 import { logoPathFromSymbol } from "@/lib/catalog/logos";
+import { companyProfile } from "@/lib/seo/company-profile";
 import { stockDescription, stockParagraph, stockTitle } from "@/lib/seo/copy";
-import { breadcrumbJsonLd, financialProductJsonLd, JsonLd } from "@/lib/seo/jsonld";
+import { breadcrumbJsonLd, financialProductJsonLd, JsonLd, simpleFaqJsonLd } from "@/lib/seo/jsonld";
 import { pageMetadata } from "@/lib/seo/metadata";
 import { listPublicAssets, resolvePublicAsset } from "@/lib/seo/public-catalog";
+import { stockFaq } from "@/lib/seo/stock-copy";
 
 export const revalidate = 3600;
 /** Un slug desconocido entra a la página y muestra el 404 con H1, dentro del layout. */
@@ -62,7 +72,9 @@ export default async function AccionPublicaPage({ params }: { params: Promise<{ 
     permanentRedirect(`/acciones/${asset.slug}`);
   }
 
-  const about = aboutForTicker(asset.symbol);
+  const assets = await listPublicAssets();
+  const profile = companyProfile(asset.ticker);
+  const faq = stockFaq(asset, profile);
   const description = stockDescription(asset);
   const crumbs = [
     { name: "Inicio", path: "/" },
@@ -82,6 +94,7 @@ export default async function AccionPublicaPage({ params }: { params: Promise<{ 
           etf: asset.etf,
         })}
       />
+      {faq.length > 0 ? <JsonLd data={simpleFaqJsonLd(faq)} /> : null}
       <article>
         <nav aria-label="Migas" className="text-sm text-fg-muted">
           <ol className="flex flex-wrap items-center gap-x-2 gap-y-1">
@@ -130,19 +143,23 @@ export default async function AccionPublicaPage({ params }: { params: Promise<{ 
                 <span className={badgeClass}>Fracciones desde US$10</span>
               </li>
             </ul>
+            <StockCategoryChips asset={asset} assets={assets} />
+          </div>
+          <div className="shrink-0 sm:ml-auto">
+            <ShareCardButton id={asset.slug} name={asset.name} />
           </div>
         </header>
 
         <div className="mt-10 lg:grid lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start lg:gap-10">
           <div className="min-w-0">
             <p className="max-w-2xl text-sm leading-relaxed text-fg-body sm:text-base">{stockParagraph(asset)}</p>
+            <StockAboutSections asset={asset} profile={profile} />
 
             <section aria-labelledby="accion-sobre" className="mt-10">
               <h2 id="accion-sobre" className="text-xl sm:text-2xl">
                 Sobre el activo
               </h2>
               <div className="mt-3 max-w-2xl space-y-3 text-sm leading-relaxed text-fg-body sm:text-base">
-                {about ? <p>{about.es}</p> : null}
                 <p>
                   El token se emite 1:1 contra el subyacente listado en EE.UU. y se mueve en Solana (SPL): el precio
                   sigue al de {asset.name}, pero no te convierte en accionista ni da derecho a voto. La demo usa saldo
@@ -201,6 +218,16 @@ export default async function AccionPublicaPage({ params }: { params: Promise<{ 
                 <p className="label ml-auto">Resumen de operación</p>
               </div>
               <div className="px-5 py-5">
+                <div className="border-b border-border pb-4">
+                  <p className="label">Precio del token</p>
+                  <div className="mt-2">
+                    <StockLivePrice symbol={asset.symbol} />
+                  </div>
+                  <p className="mt-2 text-[11px] leading-relaxed text-fg-muted">
+                    Se actualiza cada 30 s mientras la pestaña está visible.
+                  </p>
+                </div>
+
                 <dl className="divide-y divide-border">
                   <div className="flex items-baseline justify-between gap-3 py-2.5 text-sm">
                     <dt className="text-fg-muted">Comisión plataforma</dt>
@@ -231,6 +258,10 @@ export default async function AccionPublicaPage({ params }: { params: Promise<{ 
             </div>
           </aside>
         </div>
+
+        <StockFaqSection items={faq} />
+        <StockSimilarSection asset={asset} assets={assets} />
+        <StockExploreSection asset={asset} assets={assets} />
       </article>
     </LandingSection>
   );

@@ -12,7 +12,7 @@ import {
 } from "@/lib/catalog/assets";
 import { assignPublicSlugs, companySlug, displayTicker } from "@/lib/seo/slug";
 
-/** Fecha del snapshot Ondo cuando la fila no trae `safety_checked_at`. */
+/** Fecha del registro Ondo: dato de chequeo de las filas Ondo, nunca relleno de `updatedAt`. */
 const SNAPSHOT_DATE = "2026-10-07";
 const CACHE_MS = 60 * 60 * 1000;
 
@@ -24,8 +24,11 @@ export type PublicAsset = {
   /** Símbolo del token en la app (AAPLx). */
   symbol: string;
   etf: boolean;
-  /** ISO o YYYY-MM-DD para `lastModified` del sitemap. */
-  updatedAt: string;
+  /**
+   * Fecha real de chequeo (`safety_checked_at`, ISO o YYYY-MM-DD) o null.
+   * Sin relleno: el sitemap usa el dato SEC o, si tampoco hay, omite la ficha.
+   */
+  updatedAt: string | null;
 };
 
 type Index = {
@@ -37,10 +40,11 @@ type Index = {
 
 let cache: { at: number; index: Index } | null = null;
 
-function updatedAtOf(asset: CatalogAsset): string {
+/** Sólo la fecha real de chequeo; null si falta o no se puede parsear. */
+function updatedAtOf(asset: CatalogAsset): string | null {
   const raw = asset.safetyCheckedAt;
   if (raw && !Number.isNaN(Date.parse(raw))) return raw;
-  return SNAPSHOT_DATE;
+  return null;
 }
 
 function toDraft(asset: CatalogAsset) {
@@ -96,7 +100,8 @@ function staticVisible(): CatalogAsset[] {
       ...asset,
       safetyStatus: "listed" as const,
       tradable: true,
-      safetyCheckedAt: SNAPSHOT_DATE,
+      // Sin fecha inventada: el fallback estático no trae `safety_checked_at`.
+      safetyCheckedAt: null,
     };
   });
   const rows = annotateSafety([...xstocks, ...ONDO_TICKERS.map(ondoAsset)], true);

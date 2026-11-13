@@ -50,6 +50,7 @@ function widgetKey(widget: AiWidget): string {
   if (widget.type === "alert-confirm") {
     return `alert-confirm:${widget.ticker}:${widget.direction}:${widget.thresholdUsd}`;
   }
+  if (widget.type === "daily-summary") return "daily-summary";
   return `import:${widget.positions.map((position) => position.ticker).join(",")}`;
 }
 

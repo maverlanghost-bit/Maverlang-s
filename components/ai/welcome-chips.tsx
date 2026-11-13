@@ -21,6 +21,13 @@ export type WelcomeAction = {
 
 export const WELCOME_ACTIONS: readonly WelcomeAction[] = [
   {
+    id: "daily-summary",
+    label: "Resumen del día",
+    prompt:
+      "Dame el resumen del día: qué acciones del catálogo suben y bajan más hoy y cómo va mi cartera. Sólo datos, sin recomendaciones.",
+    tone: "info",
+  },
+  {
     id: "portfolio-review",
     label: "Analizar tu portafolio",
     prompt:
@@ -112,8 +119,20 @@ function SparkIcon({ className }: IconProps): React.ReactElement {
   );
 }
 
+/** Sol: el resumen del día. */
+function SunIcon({ className }: IconProps): React.ReactElement {
+  return (
+    <svg {...SVG_BASE} className={className}>
+      <circle cx="12" cy="12" r="3.75" />
+      <path d="M12 3.5v2M12 18.5v2M3.5 12h2M18.5 12h2M6 6l1.4 1.4M16.6 16.6L18 18M18 6l-1.4 1.4M7.4 16.6L6 18" />
+    </svg>
+  );
+}
+
 function actionIcon(id: string): (props: IconProps) => React.ReactElement {
   switch (id) {
+    case "daily-summary":
+      return SunIcon;
     case "portfolio-review":
       return BriefcaseIcon;
     case "portfolio-create":
