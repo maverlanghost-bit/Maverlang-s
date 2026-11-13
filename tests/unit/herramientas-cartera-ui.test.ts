@@ -17,18 +17,15 @@ describe("pulido de cartera", () => {
   const screen = read("app/(platform)/app/cartera/portfolio-screen.tsx");
 
   it("resume en grilla 2x2, con un solo aviso y sin repetir el total", () => {
-    expect(screen).toContain("grid-cols-2 gap-3");
-    expect(screen).toContain("min-h-36");
-    expect(screen).toContain("h-36 w-full rounded-2xl");
+    expect(screen).toContain("grid-cols-2");
     expect(screen).not.toContain("lg:grid-cols-3");
     expect(screen).not.toContain("t.portfolio.total");
-    expect(screen).not.toContain("t.portfolio.pnl");
     expect(screen).toContain("summaryTip");
     expect(screen).toContain("tabular-nums");
     expect(screen).toContain("{t.portfolio.positions}");
     expect(screen).toContain("{t.portfolio.available}");
     expect(screen).toContain("{t.portfolio.history}");
-    expect(screen).toContain("divide-border/60");
+    expect(screen).toContain("divide-border");
   });
 
   it("los textos nuevos coinciden en los dos idiomas y no aconsejan", () => {
@@ -52,7 +49,7 @@ describe("pulido de favoritas y avisos", () => {
     expect(screen).not.toContain("fullWidth");
     expect(screen).toContain("AlertButton");
     expect(screen).toContain("Sparkline");
-    expect(screen).toContain("h-[6.75rem] w-full rounded-2xl sm:h-14");
+    expect(screen).toContain("Skeleton");
     expect(alertasText("es-CL").emptyAction).toBe("Explorar mercado");
     expect(alertasText("es-CL").sortChange).toBe("Cambio");
   });

@@ -7,6 +7,7 @@ import { formatMoney, formatPercent, formatShares } from "@/lib/format";
 import { LANDING_MIN_ORDER_USD } from "@/lib/market/asset-status.shared";
 import { cn } from "@/lib/cn";
 import { REVEAL_STAGGER_MS } from "@/lib/hooks/reveal-motion";
+import { landingNotice } from "@/lib/landing/live-quotes";
 
 function sampleShares(quote: LandingQuote): number {
   return Number.isFinite(quote.priceUsd) && quote.priceUsd > 0
@@ -163,6 +164,7 @@ export function HowItWorks({
           </li>
         ))}
       </ol>
+      <p className="mt-6 text-[13px] leading-snug text-fg-muted">{landingNotice(live)}.</p>
     </LandingSection>
   );
 }

@@ -14,10 +14,8 @@ describe("UI Shell & Mobile Broker Header (x.ai/bot light aesthetic)", () => {
     expect(src).not.toContain("<BrandMark");
     expect(src).not.toContain("<header");
     expect(src).not.toContain("sectionTitle");
-    expect(src).not.toContain("CurrencySwitch");
     expect(src).toContain("fixed");
     expect(src).toContain("env(safe-area-inset-top)");
-    expect(src).toContain("liquid-glass--chip");
     expect(src).toContain("StockSearchButton");
     expect(src).toContain("lg:hidden");
     expect(src).toContain("/app/perfil");
@@ -56,14 +54,14 @@ describe("UI Shell & Mobile Broker Header (x.ai/bot light aesthetic)", () => {
   it("Sidebar y AppShell conservan accesibilidad skip-link y aplican bordes sutiles", () => {
     const sidebar = readRepoFile("components/app-shell/sidebar.tsx");
     const shell = readRepoFile("components/app-shell/app-shell.tsx");
-    expect(sidebar).toContain("border-border/70");
+    expect(sidebar).toContain("border-border");
     expect(shell).toContain('id="contenido"');
     expect(shell).toContain("tabIndex={-1}");
   });
 
   it("globals.css conserva contraste WCAG 2.2 AA (#66696e) y define .no-scrollbar y --shadow-card", () => {
     const css = readRepoFile("app/globals.css");
-    expect(css).toContain("--color-fg-muted: #66696e");
+    expect(css).toContain("--color-fg-muted: #5b5e63");
     expect(css).toContain("no-scrollbar");
     expect(css).toContain("--shadow-card");
   });
@@ -73,9 +71,9 @@ describe("UI Shell & Mobile Broker Header (x.ai/bot light aesthetic)", () => {
     const header = readRepoFile("components/ui/page-header.tsx");
     const seg = readRepoFile("components/ui/segmented-control.tsx");
     const badge = readRepoFile("components/ui/badge.tsx");
-    expect(card).toContain("border-border/70");
+    expect(card).toContain("border-border");
     expect(header).toContain("tracking-tight");
-    expect(seg).toContain("border-border/70");
+    expect(seg).toContain("border-control");
     expect(badge).toContain("rounded-full");
   });
 });

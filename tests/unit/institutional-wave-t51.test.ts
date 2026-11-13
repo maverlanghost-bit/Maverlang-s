@@ -45,7 +45,7 @@ import { AddressVerificationBadge } from "@/components/wallet/address-verificati
 import { InvestorPassportCard } from "@/components/domain/investor-passport-card";
 import { PortfolioTaxSummaryCard } from "@/components/domain/portfolio-tax-summary-card";
 import { TradeImpactPreview } from "@/components/domain/trade-impact-preview";
-import { formatMoney, formatShares } from "@/lib/format";
+import { formatMoney } from "@/lib/format";
 import type { Activity, Position } from "@/lib/types";
 
 /**
@@ -77,10 +77,10 @@ describe("TradeImpactPreview", () => {
     expect(markup).toContain("Posición AAPLx");
     // `formatShares` añade el sufijo " acc.": 1 → 1,5 se pinta como
     // "1 acc. → 1,5 acc." (una sola interpolación, sin separadores de React).
-    expect(markup).toContain(`${formatShares(1)} → ${formatShares(1.5)}`);
+    expect(markup).toMatch(/>1 acc\.<\/span><span[^>]*>[^<]*<\/span><span[^>]*>1,5 acc\.</);
     expect(markup).toContain("1,5 acc.");
     // Peso: 200/1000 = 20 % → (200 + 100)/1000 = 30 %.
-    expect(markup).toContain("20% → 30%");
+    expect(markup).toMatch(/>20%<\/span><span[^>]*>[^<]*<\/span><span[^>]*>30%</);
     // Efectivo: 300 − 100 = 200 USD, con el formateador de la app.
     expect(markup).toContain("Efectivo post-orden");
     expect(markup).toContain(formatMoney(200, "USD"));
@@ -133,7 +133,7 @@ describe("PortfolioTaxSummaryCard", () => {
       }),
     );
 
-    expect(markup).toContain("Resumen Patrimonial y Cartola Anual");
+    expect(markup).toContain("Resumen patrimonial y cartola anual");
     // Costo base: 100 USD × 2 acciones = 200 USD.
     expect(markup).toContain("Costo base en cartera");
     expect(markup).toContain(formatMoney(200, "USD"));

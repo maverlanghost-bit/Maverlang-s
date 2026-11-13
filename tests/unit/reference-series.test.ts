@@ -113,10 +113,8 @@ describe("copy y pantallas", () => {
     expect(pricePanel).toContain('import { SvgPriceChart } from "@/components/domain/svg-price-chart"');
     expect(pricePanel).toContain("history.data?.points ?? NO_POINTS");
     expect(pricePanel).toContain("emptyHint={t.detail.chartEmptyHint}");
-    expect(pricePanel).toContain("rounded-2xl bg-white p-5");
-    expect(pricePanel).toContain(
-      "shadow-[0_1px_2px_rgba(16,24,40,0.04),0_8px_24px_rgba(16,24,40,0.08)]",
-    );
+    expect(pricePanel).toContain("rounded-2xl bg-bg p-5");
+    expect(pricePanel).toContain("shadow-float");
     expect(pricePanel).not.toContain("seriesForQuote");
     expect(pricePanel).not.toContain("anchorSeriesToSpot");
     expect(pricePanel).not.toContain("LazyPriceChart");

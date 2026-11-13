@@ -161,7 +161,7 @@ describe("SvgPriceChart", () => {
     expect(empty).toContain("sm:h-64");
     expect(empty).not.toContain("lg:h-72");
     expect(empty).toContain("rounded-xl");
-    expect(empty).toContain("bg-neutral-50");
+    expect(empty).toContain("bg-surface-1");
     expect(empty).toContain("items-center");
     expect(empty).toContain("justify-center");
     expect(empty).toContain("Sin datos de precio");

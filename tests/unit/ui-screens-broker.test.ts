@@ -82,8 +82,7 @@ describe("W5: accesibilidad de la ficha (detail.spec, a11y.spec)", () => {
 describe("W5: mercado móvil (market.spec)", () => {
   it("la tira de filtros es deslizable y oculta la scrollbar en móvil", () => {
     expect(marketScreen).toContain("overflow-x-auto");
-    expect(marketScreen).toContain("[scrollbar-width:none]");
-    expect(marketScreen).toContain("[&::-webkit-scrollbar]:hidden");
+    expect(marketScreen).toContain("no-scrollbar");
     expect(marketScreen).toContain("sm:flex-wrap");
   });
 
@@ -92,7 +91,7 @@ describe("W5: mercado móvil (market.spec)", () => {
     expect(marketScreen).toContain('role="radio"');
     expect(marketScreen).toContain("aria-checked={selected}");
     // El rango activo marca la píldora activa con contraste alto.
-    expect(marketScreen).toContain("bg-fg text-bg");
+    expect(marketScreen).toContain("selected ? chipActiveClass : chipIdleClass");
   });
 
   it("el contador de activos usa tipografía numérica tabular", () => {
@@ -106,7 +105,7 @@ describe("W5: cartera y billetera ejecutivas (demo-trade, deposit)", () => {
     expect(portfolioScreen).toContain("{t.portfolio.available}");
     expect(portfolioScreen).toContain("{t.portfolio.history}");
     expect(portfolioScreen).toContain("{t.portfolio.positions}");
-    expect(portfolioScreen).toContain("divide-border/60");
+    expect(portfolioScreen).toContain("divide-border");
   });
 
   it("la billetera conserva accesos, dirección y actividad (deposit.spec)", () => {

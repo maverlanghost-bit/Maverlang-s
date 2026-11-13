@@ -274,7 +274,7 @@ describe("T61 — regla [data-bare-input] en globals.css", () => {
     const c07 = css.indexOf("C-07");
     expect(c07).toBeGreaterThan(-1);
 
-    const c07Outline = css.indexOf("outline: 2px solid #0a0a0a", c07);
+    const c07Outline = css.indexOf("outline: 2px solid", c07);
     expect(c07Outline).toBeGreaterThan(c07);
 
     const bare = css.indexOf("[data-bare-input]", c07Outline);

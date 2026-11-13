@@ -88,7 +88,7 @@ describe("T49: pulido institucional (catálogo público, simulador de costos, co
       }),
     );
     expect(diversifiedHtml).toContain("Cartera diversificada");
-    expect(diversifiedHtml).toContain("Invertido 90%");
+    expect(diversifiedHtml).toMatch(/Invertido <span[^>]*>90%<\/span>/);
 
     const concentratedHtml = renderToStaticMarkup(
       createElement(PortfolioHealthCard, {

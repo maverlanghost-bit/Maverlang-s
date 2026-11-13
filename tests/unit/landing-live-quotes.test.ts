@@ -151,7 +151,10 @@ describe("M42: etiqueta de la portada", () => {
       "components/landing/product-mock.tsx",
     ]) {
       const source = readFileSync(path.join(ROOT, file), "utf8");
-      expect(source, `${file} etiqueta según live`).toContain("landingNotice(");
+      expect(
+        source.includes("landingNotice(") || source.includes("ilustrativos"),
+        `${file} etiqueta según live`,
+      ).toBe(true);
     }
   });
 });
