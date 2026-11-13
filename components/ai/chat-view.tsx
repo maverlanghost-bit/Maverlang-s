@@ -181,7 +181,7 @@ export function ChatView({
           <Link
             href="/app"
             aria-label={backLabel}
-            className="inline-flex size-9 shrink-0 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-700 shadow-sm transition hover:bg-zinc-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-300 lg:hidden motion-reduce:transition-none"
+            className="inline-flex size-11 shrink-0 items-center justify-center rounded-full border border-control/70 bg-white text-zinc-700 shadow-sm transition hover:bg-zinc-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400 lg:hidden motion-reduce:transition-none"
           >
             <ArrowLeftIcon />
           </Link>
@@ -211,7 +211,7 @@ export function ChatView({
         {messages.length > 0 ? <QuestionRail messages={messages} /> : null}
 
         {!isEmpty ? (
-          <div className="bg-gradient-to-t from-white via-white/95 to-transparent px-4 pb-4 pt-2 shrink-0">
+          <div className="bg-gradient-to-t from-white via-white/95 to-transparent px-3 pb-3 pt-2 shrink-0 sm:px-4 sm:pb-4">
             <div className="max-w-3xl mx-auto w-full">{renderComposer("bottom")}</div>
           </div>
         ) : null}

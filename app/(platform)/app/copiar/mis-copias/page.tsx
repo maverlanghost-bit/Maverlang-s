@@ -254,7 +254,7 @@ export default async function MisCopiasPage() {
 
       {cards.length === 0 ? (
         <EmptyState
-          title="Todavía no sigues ninguna mezcla"
+          title="Todavía no sigues ninguna cartera"
           description="Cuando copies una cartera la vas a ver acá, con la versión que copiaste y el aviso si cambia."
           action={
             <Button asChild size="lg" className="min-h-11 touch-manipulation">

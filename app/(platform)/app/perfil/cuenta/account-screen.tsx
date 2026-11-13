@@ -19,16 +19,32 @@ import { isProfileMigrationMessage } from "@/lib/profile/migration";
 
 import { fill, formatWhen, regionName, SettingsFrame, SettingsPanel } from "../ui";
 
-function Field({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
+const ROW =
+  "flex min-h-12 w-full items-center gap-3 px-4 py-3.5 text-left text-[15px] leading-5 outline-none transition-colors duration-[140ms] focus-visible:ring-4 focus-visible:ring-fg/20 focus-visible:ring-inset md:px-5";
+
+/** Fila de formulario: rótulo mono, valor y, si hace falta, una ayuda corta. */
+function Field({
+  label,
+  hint,
+  htmlFor,
+  children,
+}: {
+  label: string;
+  hint?: string;
+  htmlFor?: string;
+  children: ReactNode;
+}) {
   return (
-    <div className="flex flex-col gap-2 border-b border-border px-4 py-4 last:border-b-0 md:px-6">
-      <div>
-        <p className="text-sm text-fg-muted">{label}</p>
-        {hint ? (
-          <p className="mt-1 text-sm text-fg-muted">{hint}</p>
-        ) : null}
-      </div>
+    <div className="flex flex-col gap-2 border-t border-border/70 px-4 py-4 first:border-t-0 md:px-5">
+      {htmlFor ? (
+        <label htmlFor={htmlFor} className="label">
+          {label}
+        </label>
+      ) : (
+        <p className="label">{label}</p>
+      )}
       {children}
+      {hint ? <p className="text-[13px] leading-5 text-fg-muted">{hint}</p> : null}
     </div>
   );
 }
@@ -53,7 +69,7 @@ export function AccountScreen() {
   if (isProfileMigrationMessage(me.error)) {
     return (
       <SettingsFrame title={t.profile.account} description={t.profile.accountLead}>
-        <p role="status" className="rounded-2xl border border-border bg-surface-1 px-4 py-3 text-sm leading-relaxed text-fg-muted">
+        <p role="status" className="rounded-2xl bg-surface-1 px-4 py-3 text-[13px] leading-5 text-fg-muted shadow-card">
           {t.profile.schemaMissing}
         </p>
         <Button type="button" variant="secondary" size="lg" className="w-full" disabled={status === "loading"} onClick={() => void logout()}>
@@ -66,7 +82,11 @@ export function AccountScreen() {
   if (me.isPending) {
     return (
       <SettingsFrame title={t.profile.account} description={t.profile.accountLead}>
-        <LoadingState label={t.states.loading} />
+        <SettingsPanel>
+          <div className="px-4 py-4 md:px-5">
+            <LoadingState variant="list" label={t.states.loading} />
+          </div>
+        </SettingsPanel>
       </SettingsFrame>
     );
   }
@@ -128,7 +148,7 @@ export function AccountScreen() {
         userId={profile.id}
       />
       <SettingsPanel>
-        <Field label={t.profile.name} hint={t.profile.nameHint}>
+        <Field label={t.profile.name} hint={t.profile.nameHint} htmlFor="display-name">
           <form
             className="flex flex-col gap-3 sm:flex-row"
             onSubmit={(event) => {
@@ -136,9 +156,6 @@ export function AccountScreen() {
               void saveName();
             }}
           >
-            <label className="sr-only" htmlFor="display-name">
-              {t.profile.name}
-            </label>
             <Input
               id="display-name"
               value={name}
@@ -161,33 +178,42 @@ export function AccountScreen() {
             </Button>
           </form>
           {nameError ? (
-            <p role="alert" className="text-sm text-down">
+            <p role="alert" className="text-[13px] leading-5 text-down">
               {nameError}
             </p>
           ) : null}
         </Field>
         <Field label={t.profile.email} hint={t.profile.emailReadonly}>
-          <label className="sr-only" htmlFor="account-email">
-            {t.profile.email}
-          </label>
-          <Input id="account-email" value={profile.email ?? ""} placeholder={t.profile.noEmail} readOnly disabled />
+          <p className="text-[15px] leading-6 break-all text-fg">{profile.email ?? t.profile.noEmail}</p>
         </Field>
         <Field label={t.profile.country}>
-          <p className="text-sm text-fg">{regionName(profile.country, language, t.profile.noCountry)}</p>
+          <p className="text-[15px] leading-6 text-fg">{regionName(profile.country, language, t.profile.noCountry)}</p>
         </Field>
         <Field label={t.profile.userId}>
-          <p className="num text-sm break-all text-fg">{profile.id}</p>
-          <CopyButton value={profile.id} label={t.profile.copy} copiedLabel={t.profile.copied} />
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="num min-w-0 flex-1 text-[13px] leading-5 break-all text-fg">{profile.id}</p>
+            <CopyButton value={profile.id} label={t.profile.copy} copiedLabel={t.profile.copied} />
+          </div>
         </Field>
       </SettingsPanel>
 
-      <Button type="button" variant="secondary" size="lg" className="w-full" disabled={status === "loading"} onClick={() => void logout()}>
-        {t.profile.logout}
-      </Button>
-
-      <Button type="button" variant="danger" size="lg" className="w-full" onClick={() => setOpen(true)}>
-        {t.profile.delete}
-      </Button>
+      <SettingsPanel>
+        <button
+          type="button"
+          className={`${ROW} text-fg hover:bg-surface-2 disabled:pointer-events-none disabled:opacity-50`}
+          disabled={status === "loading"}
+          onClick={() => void logout()}
+        >
+          {t.profile.logout}
+        </button>
+        <button
+          type="button"
+          className={`${ROW} border-t border-border/70 text-down hover:bg-surface-2`}
+          onClick={() => setOpen(true)}
+        >
+          {t.profile.delete}
+        </button>
+      </SettingsPanel>
 
       <Dialog
         open={open}

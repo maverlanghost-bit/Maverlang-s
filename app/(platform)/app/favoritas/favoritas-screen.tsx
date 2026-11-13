@@ -287,7 +287,7 @@ export function FavoritasScreen() {
         />
       ) : null}
       {!pendingFavorites && !searching && !searchFailed && rows.length > 0 ? (
-        <ul className="flex min-w-0 flex-col divide-y divide-border/50 rounded-3xl bg-bg p-2 shadow-card">
+        <ul className="flex min-w-0 flex-col divide-y divide-border">
           {rows.map((row) => {
             const shown =
               row.priceUsd != null ? displayPrice(row.priceUsd, shownCurrency, fxKnown ? rate : undefined) : null;
@@ -315,25 +315,6 @@ export function FavoritasScreen() {
   );
 }
 
-function AlertBell({ symbol, name, priceUsd }: { symbol: string; name: string; priceUsd: number | null }) {
-  return (
-    <span className="relative inline-flex size-11 shrink-0 items-center justify-center text-fg-muted">
-      <svg viewBox="0 0 16 16" className="pointer-events-none size-4" fill="none" aria-hidden>
-        <path
-          d="M8 2.5a3.5 3.5 0 0 0-3.5 3.5v2.1L3.2 10.2a.6.6 0 0 0 .5 1h8.6a.6.6 0 0 0 .5-1L11.5 8.1V6A3.5 3.5 0 0 0 8 2.5Z"
-          stroke="currentColor"
-          strokeWidth="1.5"
-          strokeLinejoin="round"
-        />
-        <path d="M6.6 11.8a1.4 1.4 0 0 0 2.8 0" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-      </svg>
-      <span className="absolute inset-0 [&_button]:absolute [&_button]:inset-0 [&_button]:size-11 [&_button]:h-11 [&_button]:min-h-0 [&_button]:w-11 [&_button]:overflow-hidden [&_button]:rounded-full [&_button]:border-0 [&_button]:bg-transparent [&_button]:p-0 [&_button]:text-transparent [&_button]:shadow-none [&_button]:hover:bg-surface-2 [&_button]:hover:text-transparent">
-        <AlertButton symbol={symbol} name={name} priceUsd={priceUsd} />
-      </span>
-    </span>
-  );
-}
-
 function FavoriteRow({
   row,
   shown,
@@ -358,23 +339,23 @@ function FavoriteRow({
   onToggle: () => void;
 }) {
   return (
-    <div className="flex min-h-16 items-center rounded-2xl transition-colors duration-150 hover:bg-surface-1/80">
+    <div className="flex min-h-16 items-center transition-colors duration-150 hover:bg-surface-1/70 active:bg-surface-1">
       <Link
         href={tickerHref(row.symbol)}
-        className="flex min-h-16 min-w-0 flex-1 items-center gap-2 rounded-2xl px-2 py-2 sm:gap-3 sm:px-3"
+        className="flex min-h-16 min-w-0 flex-1 items-center gap-2 px-2 py-2 sm:gap-3 sm:px-3"
       >
         <TickerLogo symbol={row.symbol} name={row.name} logoUrl={row.logoUrl} size={36} decorative loading="lazy" sizes="40px" />
         <span className="min-w-0 flex-1">
-          <span className="block truncate font-mono text-[13px] font-semibold tracking-tight text-fg" title={row.symbol}>
+          <span className="block truncate font-mono text-sm font-semibold tracking-tight text-fg" title={row.symbol}>
             {row.symbol}
           </span>
-          <span className="line-clamp-2 text-sm leading-tight text-fg-muted" title={row.name}>
+          <span className="mt-0.5 block truncate text-[13px] leading-4 text-fg-muted" title={row.name}>
             {row.name}
-            {lowLiquidityLabel ? <span> · {lowLiquidityLabel}</span> : null}
+            {lowLiquidityLabel ? <span className="hidden sm:inline"> · {lowLiquidityLabel}</span> : null}
           </span>
           {reviewLabel ? (
             <span
-              className="mt-1 inline-flex w-fit max-w-full items-center truncate rounded-full border border-border bg-surface-1 px-2 py-0.5 text-xs leading-4 font-medium whitespace-nowrap text-fg-muted"
+              className="mt-1 block w-fit max-w-full truncate text-[13px] leading-4 font-medium text-warn"
               title={reviewHint ?? undefined}
             >
               {reviewLabel}
@@ -404,7 +385,7 @@ function FavoriteRow({
       </Link>
       <div className="flex shrink-0 items-center gap-1 pr-1">
         <span className="hidden sm:inline-flex">
-          <AlertBell symbol={row.symbol} name={row.name} priceUsd={row.priceUsd} />
+          <AlertButton symbol={row.symbol} name={row.name} priceUsd={row.priceUsd} iconOnly />
         </span>
         <FavoriteButton pressed label={favoriteLabel} onToggle={onToggle} />
       </div>

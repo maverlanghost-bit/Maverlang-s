@@ -211,19 +211,19 @@ function renderBlocks(text: string, onTickerClick: TickerHandler): ReactNode[] {
         }
         const key = `dl-${blockIndex}-${nodes.length}`;
         nodes.push(
-          <dl key={key} className="rounded-2xl border border-border/70 bg-surface-1/70 px-3.5 py-2">
+          <dl key={key} className="max-w-full overflow-hidden rounded-2xl border border-border/70 bg-surface-1/70 px-3.5 py-2">
             {rows.map((row, rowIndex) => (
               <div
                 key={`${key}-r${rowIndex}`}
-                className="flex items-baseline justify-between gap-4 py-0.5 text-[13px] leading-snug"
+                className="flex items-baseline justify-between gap-3 py-1 text-[13px] leading-snug"
               >
-                <dt className="min-w-0 text-fg-muted">{renderInline(row.key, onTickerClick, `${key}-k${rowIndex}`)}</dt>
-                <dd className="shrink-0 text-right font-medium text-fg tabular-nums">
+                <dt className="min-w-0 text-fg-muted [overflow-wrap:anywhere]">{renderInline(row.key, onTickerClick, `${key}-k${rowIndex}`)}</dt>
+                <dd className="max-w-[62%] shrink-0 text-right font-medium text-fg tabular-nums break-words">
                   {renderInline(row.value, onTickerClick, `${key}-v${rowIndex}`)}
                 </dd>
               </div>
             ))}
-          </dl>,
+          </dl>
         );
         continue;
       }
@@ -291,7 +291,7 @@ export function RichAssistantMessage({
               key={prompt}
               type="button"
               onClick={() => onFollowUp(prompt)}
-              className="inline-flex max-w-full items-center rounded-full border border-border/70 bg-surface-1 px-2.5 py-1 text-left text-[12px] leading-snug font-medium text-fg-muted transition-colors duration-[140ms] ease-[var(--ease-inout)] hover:border-fg/20 hover:bg-surface-2 hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand motion-reduce:transition-none"
+              className="inline-flex min-h-11 max-w-full items-center rounded-full border border-border/70 bg-surface-1 px-3 py-2 text-left text-[12px] leading-snug font-medium text-fg-muted transition-colors duration-[140ms] ease-[var(--ease-inout)] hover:border-fg/20 hover:bg-surface-2 hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand motion-reduce:transition-none sm:min-h-0 sm:px-2.5 sm:py-1"
             >
               {prompt}
             </button>
@@ -306,7 +306,7 @@ export function RichAssistantMessage({
           onClick={handleCopy}
           aria-label={copied ? "Copiado" : "Copiar"}
           className={cn(
-            "ml-auto inline-flex shrink-0 items-center gap-1.5 rounded-full border border-transparent px-2.5 py-1",
+            "ml-auto inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-full border border-transparent px-2.5 py-1.5",
             "text-[12px] font-medium text-fg-muted transition duration-[140ms] ease-[var(--ease-inout)]",
             "hover:border-border/70 hover:bg-surface-1 hover:text-fg",
             "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",

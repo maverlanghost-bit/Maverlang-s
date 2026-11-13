@@ -20,21 +20,21 @@ export function AuthFrame({
 }) {
   return (
     <Card className="w-full max-w-md">
-      <Link href="/" aria-label={site.name} className="flex w-fit items-center rounded-sm text-fg outline-none focus-visible:ring-4 focus-visible:ring-fg/20">
+      <Link href="/" aria-label={site.name} className="flex min-h-11 w-fit items-center rounded-sm text-fg">
         <BrandLogoImage />
       </Link>
-      <div className="mt-5 inline-flex w-fit items-center gap-2 rounded-full border border-brand/25 bg-brand-soft/40 px-3 py-1 text-xs font-medium text-fg">
-        <span className="size-1.5 rounded-full bg-up" aria-hidden="true" />
+      <div className="mt-4 inline-flex max-w-full items-center gap-2 rounded-full border border-border bg-bg px-3 py-1.5 text-xs font-medium leading-snug text-fg-muted">
+        <span className="size-1.5 shrink-0 rounded-full bg-up" aria-hidden="true" />
         <span>Conexión cifrada · Autocustodia en Solana</span>
       </div>
-      <h1 className="mt-6 text-3xl text-balance">{title}</h1>
-      {lead ? <p className="mt-3 text-sm leading-relaxed text-fg-body">{lead}</p> : null}
+      <h1 className="mt-5 text-[1.75rem] leading-[1.15] text-balance sm:text-3xl">{title}</h1>
+      {lead ? <p className="mt-3 text-sm leading-relaxed text-fg-muted">{lead}</p> : null}
       {children}
-      <div className="mt-6 flex flex-wrap items-center justify-center gap-2 border-t border-border/60 pt-4 text-[11px] text-fg-muted">
+      <div className="mt-6 flex flex-wrap items-center justify-center gap-x-2 gap-y-1 border-t border-border pt-4 text-xs text-fg-muted">
         <span>Respaldo 1:1 xStocks</span>
-        <span>·</span>
+        <span aria-hidden="true">·</span>
         <span>0% comisión</span>
-        <span>·</span>
+        <span aria-hidden="true">·</span>
         <span>24/7 Solana SPL</span>
       </div>
     </Card>
@@ -52,7 +52,7 @@ export function CredentialField({
   const [visible, setVisible] = useState(false);
   return (
     <div className="mt-4">
-      <label htmlFor={id} className="text-sm font-medium text-fg">
+      <label htmlFor={id} className="block text-sm font-medium text-fg">
         {label}
       </label>
       {type === "password" ? (
@@ -69,7 +69,8 @@ export function CredentialField({
             type="button"
             onClick={() => setVisible((v) => !v)}
             aria-label={visible ? "Ocultar contraseña" : "Mostrar contraseña"}
-            className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-md px-2 py-1 text-xs font-medium text-fg-muted transition-colors hover:bg-surface-2 hover:text-fg"
+            aria-controls={id}
+            className="absolute inset-y-0 right-0 flex min-w-11 items-center justify-center rounded-r-md px-3 text-xs font-medium text-fg-muted transition-colors hover:bg-surface-3 hover:text-fg"
           >
             {visible ? "Ocultar" : "Mostrar"}
           </button>
@@ -85,7 +86,7 @@ export function CredentialField({
         />
       )}
       {error ? (
-        <p id={errorId} className="mt-2 text-sm text-down" role="alert">
+        <p id={errorId} className="mt-2 break-words text-sm leading-relaxed text-down" role="alert">
           {error}
         </p>
       ) : null}
@@ -99,14 +100,14 @@ export function AuthLegal() {
       Al continuar aceptas los{" "}
       <Link
         href="/legal/terminos"
-        className="rounded-sm font-medium text-fg underline decoration-border underline-offset-4 outline-none hover:decoration-fg focus-visible:ring-4 focus-visible:ring-fg/20"
+        className="rounded-sm font-medium text-fg underline decoration-border underline-offset-4 transition-colors hover:decoration-fg"
       >
         Términos y condiciones
       </Link>{" "}
       y la{" "}
       <Link
         href="/legal/privacidad"
-        className="rounded-sm font-medium text-fg underline decoration-border underline-offset-4 outline-none hover:decoration-fg focus-visible:ring-4 focus-visible:ring-fg/20"
+        className="rounded-sm font-medium text-fg underline decoration-border underline-offset-4 transition-colors hover:decoration-fg"
       >
         Política de privacidad
       </Link>

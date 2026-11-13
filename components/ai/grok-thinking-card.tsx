@@ -4,11 +4,11 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 
 import { cn } from "@/lib/cn";
 
-/** Pasos de telemetría que se muestran mientras el asistente razona. */
+/** Etapas reales del stream: describen lo que hace la interfaz, no datos que no consulta. */
 const TELEMETRY_STEPS = [
-  "Consultando precios spot en Solana…",
-  "Verificando liquidez y series históricas…",
-  "Sintetizando análisis financiero xStocks…",
+  "Generando la respuesta…",
+  "Redactando el texto…",
+  "Terminando de escribir…",
 ] as const;
 
 const STEP_INTERVAL_MS = 1200;
@@ -75,7 +75,7 @@ export function GrokThinkingCard({
     <div
       data-ai-thinking={mode}
       className={cn(
-        "rounded-2xl border border-border/70 bg-bg-elevated/80 px-3.5 py-3 backdrop-blur",
+        "rounded-2xl border border-border/70 bg-white/90 px-3.5 py-3 backdrop-blur",
         "motion-safe:animate-fade-in motion-reduce:animate-none",
       )}
     >
@@ -92,7 +92,7 @@ export function GrokThinkingCard({
         >
           {label}
         </p>
-        <span className="ml-auto shrink-0 rounded-full border border-border/60 bg-surface-1 px-2 py-0.5 text-[10px] font-semibold tracking-[0.12em] text-fg-muted uppercase">
+        <span className="ml-auto shrink-0 rounded-full border border-border/60 bg-surface-1 px-2 py-0.5 text-[11px] font-semibold tracking-[0.08em] text-fg-muted uppercase">
           {MODE_BADGE[mode]}
         </span>
       </div>
@@ -109,7 +109,7 @@ export function GrokThinkingCard({
             />
           ))}
         </span>
-        <span className="min-w-0 truncate text-[11.5px] leading-snug text-fg-muted tabular-nums">
+        <span className="min-w-0 truncate text-[12px] leading-snug text-fg-muted tabular-nums">
           {step}
         </span>
       </div>

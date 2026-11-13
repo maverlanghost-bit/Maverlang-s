@@ -6,7 +6,7 @@ const DOLLAR_CARDS = ["a"] as const;
 /** Tarjeta de activo con la misma grilla que la real: emisor, datos y acciones. */
 function AssetCardSkeleton() {
   return (
-    <div className="flex min-w-0 flex-col gap-4 rounded-3xl border border-border/70 bg-surface-1 p-5">
+    <div className="flex min-w-0 flex-col gap-4 rounded-xl bg-surface-1 p-6 shadow-card md:p-8">
       <div className="flex items-start gap-3">
         <Skeleton className="size-10 shrink-0 rounded-full" />
         <div className="flex min-w-0 flex-1 flex-col gap-2">
@@ -14,7 +14,7 @@ function AssetCardSkeleton() {
           <Skeleton className="h-3 w-48 max-w-full" />
         </div>
       </div>
-      <div className="grid grid-cols-2 gap-3 rounded-2xl border border-border/70 bg-bg p-3">
+      <div className="grid grid-cols-2 gap-x-6 border-y border-border py-3">
         {["a", "b"].map((key) => (
           <div key={key} className="flex flex-col gap-2">
             <Skeleton className="h-3 w-16 max-w-full" />
@@ -50,19 +50,17 @@ export default function GanarLoading() {
         <Skeleton className="h-4 w-4/5 max-w-xl" />
       </div>
 
-      <section className="flex flex-col gap-3 rounded-3xl border border-border/70 bg-surface-1 p-5 sm:p-6">
+      <section className="flex flex-col gap-3 border-y border-border py-5">
         <Skeleton className="h-5 w-40 max-w-full" />
         <div className="flex flex-col gap-2">
           <Skeleton className="h-3.5 w-full max-w-2xl" />
           <Skeleton className="h-3.5 w-11/12 max-w-2xl" />
           <Skeleton className="h-3.5 w-4/5 max-w-xl" />
         </div>
-        <div className="rounded-2xl border border-border/70 bg-bg p-4">
+        <div className="flex flex-col gap-2 border-t border-border pt-3">
           <Skeleton className="h-3 w-40 max-w-full" />
-          <div className="mt-3 flex flex-col gap-2">
-            <Skeleton className="h-3.5 w-full" />
-            <Skeleton className="h-3.5 w-3/4" />
-          </div>
+          <Skeleton className="h-3.5 w-full" />
+          <Skeleton className="h-3.5 w-3/4" />
         </div>
         <Skeleton className="h-3 w-64 max-w-full" />
       </section>

@@ -58,11 +58,11 @@ export function DividendMultiplierCard({
       </div>
 
       {/* Fórmula de ARQUITECTURA §6: acciones = crudo × multiplicador */}
-      <p className="mt-4 flex flex-wrap items-baseline gap-x-2 gap-y-1 text-[13px] text-fg-muted">
+      <p className="mt-4 flex flex-wrap items-baseline gap-x-2 gap-y-1 text-[13px] leading-5 text-fg-muted">
         <span>{isEn ? "Raw units" : "Unidades crudas"}</span>
-        <span aria-hidden>×</span>
+        <span>×</span>
         <span>{isEn ? "Multiplier" : "Multiplicador"}</span>
-        <span aria-hidden>=</span>
+        <span>=</span>
         <span className="font-medium text-fg">{isEn ? "Shares" : "Acciones"}</span>
       </p>
 

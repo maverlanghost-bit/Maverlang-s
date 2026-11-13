@@ -39,7 +39,10 @@ export function TickerCard({
     <div className={cn("relative min-w-[220px] flex-1 basis-60 shrink-0 snap-start", className)}>
       <Link
         href={href}
-        className="group flex h-full min-h-32 flex-col justify-between gap-3 rounded-2xl bg-surface-1 p-4 pr-12 shadow-card transition-colors duration-200 ease-spring hover:bg-surface-2 active:bg-surface-3/60"
+        className={cn(
+          "group flex h-full min-h-32 flex-col justify-between gap-3 rounded-2xl bg-surface-1 p-4 shadow-card transition-colors duration-200 ease-spring hover:bg-surface-2 active:bg-surface-3/60",
+          action ? "pr-12" : null,
+        )}
       >
         <span className="flex items-center gap-2">
           <TickerLogo symbol={symbol} name={name} logoUrl={logoUrl} size={36} decorative loading="eager" sizes="40px" />
@@ -54,14 +57,20 @@ export function TickerCard({
           </span>
         </span>
         <span className="mt-auto flex items-end justify-between gap-2">
-          <span className="flex min-w-0 flex-col items-start gap-1.5">
-            <ChangeBadge value={change} className="px-3 py-1 text-base font-semibold" />
+          <span className="flex min-w-0 flex-col items-start gap-1">
+            {/* Precio primero: es la cifra protagonista; la variación va debajo, secundaria. */}
             <span className="flex items-baseline gap-1 font-medium">
-              <FlashPrice value={price} currency={currency} size="sm" className="-mr-1" />
+              <FlashPrice
+                value={price}
+                currency={currency}
+                size="sm"
+                className="-mr-1 text-[17px] leading-tight font-semibold"
+              />
               {currency === "CLP" ? (
-                <span className="text-[11px] leading-none font-medium text-fg-muted">CLP</span>
+                <span className="text-xs leading-none font-medium text-fg-muted">CLP</span>
               ) : null}
             </span>
+            <ChangeBadge value={change} className="px-2.5 py-1 text-[13px]" />
           </span>
           {sparkline && sparkline.length >= 2 ? (
             <Sparkline data={sparkline} width={88} height={32} className="shrink-0" />

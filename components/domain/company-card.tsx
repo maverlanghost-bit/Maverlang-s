@@ -88,17 +88,17 @@ export function CompanyCard({ symbol }: { symbol: string }) {
           <h2 id={titleId} className="text-lg font-medium tracking-tight text-fg">
             {title}
           </h2>
-          <p className="mt-1 min-h-4 truncate text-[11px] leading-4 text-fg-muted">{view.name ?? ""}</p>
+          <p className="mt-1 min-h-4 truncate text-xs leading-4 text-fg-muted">{view.name ?? ""}</p>
         </div>
         <InfoTip className="-mt-1.5 shrink-0" label={`${copy.what}. ${title}`} text={tip} />
       </div>
       <dl className="mt-4 grid grid-cols-2 gap-x-8 md:grid-cols-3 lg:grid-cols-2 xl:grid-cols-4">
         {rows.map((row) => (
           <div key={row.id} className={CELL}>
-            <dt className="label-xs block max-w-full">{row.label}</dt>
+            <dt className="label block max-w-full">{row.label}</dt>
             <dd className="mt-1 min-w-0">
               <p className={cn("break-words text-[13px] leading-5 font-medium", row.missing ? "text-fg-muted" : "num text-fg")}>{row.value}</p>
-              {row.detail ? <p className="mt-0.5 text-[11px] leading-4 text-fg-muted">{row.detail}</p> : null}
+              {row.detail ? <p className="mt-0.5 text-xs leading-5 text-fg-muted">{row.detail}</p> : null}
             </dd>
           </div>
         ))}
@@ -116,7 +116,7 @@ export function CompanyCard({ symbol }: { symbol: string }) {
           </ol>
         </div>
       ) : null}
-      <p className="mt-3 text-[11px] leading-4 text-fg-muted">
+      <p className="mt-3 text-xs leading-5 text-fg-muted">
         <span className="sr-only">{copy.sourceLabel}: </span>
         {view.sourceUrl ? (
           <a
@@ -133,7 +133,7 @@ export function CompanyCard({ symbol }: { symbol: string }) {
         )}
         {dated ? <span> · {fill(copy.asOf, { date: dated })}</span> : null}
       </p>
-      <p className="mt-1 text-[11px] leading-4 text-fg-muted">{copy.disclaimer}</p>
+      <p className="mt-1 text-xs leading-5 text-fg-muted">{copy.disclaimer}</p>
     </section>
   );
 }

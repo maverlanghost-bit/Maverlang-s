@@ -51,7 +51,7 @@ function AssetRow({ asset }: { asset: PublicAsset }) {
         loading="lazy"
         sizes="24px"
       />
-      <span className="min-w-0 flex-1 truncate text-[15px] font-medium text-fg">{asset.name}</span>
+      <span className="min-w-0 flex-1 truncate text-base font-medium text-fg">{asset.name}</span>
       <span className="shrink-0 font-mono text-[13px] text-fg-muted">{asset.ticker}</span>
     </span>
   );
@@ -82,8 +82,8 @@ function PairRow({ a, b }: { a: PublicAsset; b: PublicAsset }) {
         <AssetRow asset={b} />
       </span>
       <span className="flex items-center justify-between gap-4 sm:shrink-0 sm:justify-end">
-        {sector ? <span className="text-[13px] text-fg-muted">{sector}</span> : null}
-        <span className="ml-auto inline-flex shrink-0 items-center gap-1 text-[13px] font-medium text-fg sm:ml-0">
+        {sector ? <span className="text-[13px] leading-relaxed text-fg-muted">{sector}</span> : null}
+        <span className="ml-auto inline-flex shrink-0 items-center gap-1 text-sm font-medium text-fg sm:ml-0">
           Comparar <span aria-hidden>→</span>
         </span>
       </span>
@@ -117,15 +117,15 @@ export default async function CompararPage() {
       ) : null}
 
       <div className="max-w-2xl">
-        <p className="font-mono text-[13px] font-medium uppercase tracking-[0.045em] text-fg-muted">Comparar</p>
+        <p className="label">Comparar</p>
         <h1 id="comparar-title" className="mt-3 text-3xl sm:text-4xl">
           Comparar acciones tokenizadas
         </h1>
-        <p className="mt-4 max-w-[62ch] text-base leading-relaxed text-fg-body">
+        <p className="mt-4 max-w-[62ch] text-lead text-fg-body">
           Dos activos lado a lado: datos de la empresa según la SEC, precio del token y rendimiento relativo del
           último mes. Comparar no es recomendar.
         </p>
-        <p className="mt-3 text-[13px] text-fg-muted">
+        <p className="mt-4 text-sm text-fg-muted">
           {pairs.length === 1 ? "1 comparación disponible" : `${pairs.length} comparaciones disponibles`}
         </p>
       </div>
@@ -152,7 +152,7 @@ export default async function CompararPage() {
         </ul>
       )}
 
-      <div className="mt-8 flex flex-wrap items-center gap-x-6 gap-y-2">
+      <div className="mt-10 flex flex-wrap items-center gap-x-6 gap-y-3">
         {pairs.length > 0 ? (
           <Link href="/acciones" className={buttonClasses({ variant: "primary" })}>
             Ver el catálogo completo
@@ -160,13 +160,13 @@ export default async function CompararPage() {
         ) : null}
         <Link
           href="/categorias"
-          className="inline-flex min-h-11 items-center text-[13px] font-medium text-fg underline decoration-border underline-offset-4 hover:decoration-fg"
+          className="inline-flex min-h-11 items-center text-sm font-medium text-fg underline decoration-border underline-offset-4 transition-colors hover:decoration-fg motion-reduce:transition-none"
         >
           Explorar por categorías
         </Link>
       </div>
 
-      <p className="mt-6 max-w-2xl text-[13px] leading-relaxed text-fg-muted">
+      <p className="mt-10 max-w-2xl border-t border-border pt-6 text-[13px] leading-relaxed text-fg-muted">
         Los datos de la empresa vienen de la SEC EDGAR y los precios se mueven durante el día. Fuera del horario
         regular de la bolsa de EE.UU. el precio puede variar más. No es una recomendación de inversión.
       </p>

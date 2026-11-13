@@ -13,7 +13,6 @@ export default function CopyPortfolioLoading() {
 
       <div className="flex items-center justify-between gap-4">
         <Skeleton className="h-4 w-32" />
-        <Skeleton className="h-3 w-24" />
       </div>
 
       <div className="flex flex-col gap-3">
@@ -63,10 +62,6 @@ export default function CopyPortfolioLoading() {
             </div>
             <Skeleton className="h-px w-full" />
             <Skeleton className="h-4 w-full" />
-            <div className="flex items-baseline justify-between gap-4">
-              <Skeleton className="h-4 w-28" />
-              <Skeleton className="h-4 w-20" />
-            </div>
             <div className="flex items-baseline justify-between gap-4">
               <Skeleton className="h-4 w-24" />
               <Skeleton className="h-4 w-16" />

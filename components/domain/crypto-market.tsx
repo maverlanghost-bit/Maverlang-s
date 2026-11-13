@@ -226,7 +226,7 @@ function CryptoRow({
         </span>
 
         {/* Móvil: sello y tope como dato, sin cápsulas. */}
-        <span className="w-full pl-12 text-[13px] leading-5 text-fg-subtle sm:hidden">
+        <span className="w-full pl-12 text-[13px] leading-5 text-fg-muted sm:hidden">
           Sello <span className={warning ? "font-medium text-warn" : undefined}>{asset.seal}</span>
           <span aria-hidden> · </span>
           Tope <span className="num tabular-nums">{topeLabel(asset.maxOrderUsd)}</span>

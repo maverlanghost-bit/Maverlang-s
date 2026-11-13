@@ -40,7 +40,7 @@ export function FlashPrice({
   return (
     <span
       className={cn(
-        "rounded-md px-1 transition-colors duration-300",
+        "inline-block rounded-md px-1 transition-colors duration-300",
         tone === "up" ? "bg-up-bg" : tone === "down" ? "bg-down-bg" : "bg-transparent",
       )}
     >

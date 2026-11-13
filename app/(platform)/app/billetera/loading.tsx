@@ -1,6 +1,6 @@
 import { Skeleton } from "@/components/ui/skeleton";
 
-const CARD = "rounded-3xl border border-border bg-surface-1 p-6 md:p-8";
+const CARD = "rounded-xl border border-border bg-surface-1 p-6 md:p-8";
 const ASSET_ROWS = ["a", "b", "c", "d"] as const;
 const MOVES = ["a", "b", "c", "d", "e"] as const;
 
@@ -69,7 +69,7 @@ export default function BilleteraLoading() {
       <div className={CARD}>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <Skeleton className="h-6 w-32 max-w-full" />
-          <Skeleton className="h-7 w-56 max-w-full rounded-full" />
+          <Skeleton className="h-11 w-56 max-w-full rounded-full sm:h-9" />
         </div>
 
         <div className="mt-4 flex flex-col gap-2.5 rounded-2xl border border-border px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between">

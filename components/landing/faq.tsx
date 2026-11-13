@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { LandingSection, SectionIntro } from "@/components/landing/section";
 import { Reveal } from "@/components/landing/reveal";
-import { IconChevron } from "@/components/ui/icons";
+import { DisclosureList, type DisclosureItem } from "@/components/ui/disclosure-list";
 import { site } from "@/config/site";
 import { getFaq, type FaqEntry, type FaqPart } from "@/lib/content/faq";
 import { REVEAL_STAGGER_MS } from "@/lib/hooks/reveal-motion";
@@ -37,29 +37,34 @@ function FaqParts({ parts }: { parts: FaqPart[] }) {
   );
 }
 
+/** Las respuestas se despliegan con `<details>`: sin JavaScript, varias abiertas. */
+function toDisclosureItems(entries: FaqEntry[]): DisclosureItem[] {
+  return entries.map((entry) => ({
+    id: entry.id,
+    title: entry.question,
+    content: (
+      <div className="space-y-3 pr-6">
+        {entry.paragraphs.map((paragraph, index) => (
+          <p key={index}>
+            <FaqParts parts={paragraph} />
+          </p>
+        ))}
+      </div>
+    ),
+  }));
+}
+
 /**
- * Acordeón nativo: un `<details>` por pregunta, sin JavaScript. La respuesta
- * se mantiene íntegra en el DOM y el navegador resuelve apertura y foco.
+ * Acordeón nativo: la misma lista `<details>` del centro de ayuda
+ * (`DisclosureList`), sin JavaScript. La respuesta se mantiene íntegra en el
+ * DOM y el navegador resuelve apertura y foco.
  */
 function FaqDisclosure({ entries }: { entries: FaqEntry[] }) {
   return (
-    <div className="divide-y divide-border border-y border-border">
-      {entries.map((entry) => (
-        <details key={entry.id} className="group">
-          <summary className="flex min-h-12 cursor-pointer list-none items-start justify-between gap-6 py-4 text-left text-[15px] font-medium leading-snug text-fg sm:text-base [&::-webkit-details-marker]:hidden">
-            <span className="min-w-0">{entry.question}</span>
-            <IconChevron className="disclosure-chevron mt-0.5 size-4 shrink-0 text-fg-muted transition-transform duration-200 motion-reduce:transition-none" />
-          </summary>
-          <div className="space-y-3 pb-5 pr-6 text-sm leading-relaxed text-fg-body">
-            {entry.paragraphs.map((paragraph, index) => (
-              <p key={index}>
-                <FaqParts parts={paragraph} />
-              </p>
-            ))}
-          </div>
-        </details>
-      ))}
-    </div>
+    <DisclosureList
+      items={toDisclosureItems(entries)}
+      summaryClassName="text-[15px] leading-snug sm:text-base"
+    />
   );
 }
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -88,6 +88,7 @@ export function SavedRecipientsBar({
         listLabel: "Saved addresses",
         paste: "Paste",
         pasteInvalid: "The clipboard doesn't hold a valid Solana address.",
+        pasteBlocked: "We couldn't read the clipboard. Paste the address with the keyboard.",
         pasted: "Address pasted.",
         empty: "No saved addresses yet. Save one to send faster next time.",
         aliasLabel: "Alias (optional)",
@@ -105,6 +106,7 @@ export function SavedRecipientsBar({
         listLabel: "Direcciones guardadas",
         paste: "Pegar",
         pasteInvalid: "El portapapeles no tiene una dirección Solana válida.",
+        pasteBlocked: "No pudimos leer el portapapeles. Pega la dirección con el teclado.",
         pasted: "Dirección pegada.",
         empty: "Aún no guardas direcciones. Guarda una para enviar más rápido.",
         aliasLabel: "Alias (opcional)",
@@ -118,6 +120,7 @@ export function SavedRecipientsBar({
         useAddress: "Usar esta dirección",
       };
 
+  const aliasId = useId();
   const [saved, setSaved] = useState<SavedRecipient[]>([]);
   const [mounted, setMounted] = useState(false);
   const [alias, setAlias] = useState("");
@@ -190,19 +193,19 @@ export function SavedRecipientsBar({
       onSelect(candidate);
       setFeedback(copy.pasted);
     } catch {
-      // Portapapeles bloqueado o inexistente: se ignora en silencio y el
-      // usuario puede seguir pegando con el teclado.
+      // Portapapeles bloqueado o inexistente: se dice, no se falla en silencio.
+      setFeedback(copy.pasteBlocked);
     }
   }
 
   return (
-    <div className="rounded-2xl border border-border/70 bg-surface-2/60 p-3.5">
+    <div className="rounded-xl border border-border bg-bg p-3.5">
       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-        <p className="text-xs font-semibold tracking-wider text-fg-muted uppercase">{copy.title}</p>
+        <p className="label">{copy.title}</p>
         <button
           type="button"
           onClick={() => void handlePaste()}
-          className="inline-flex min-h-8 items-center gap-1.5 rounded-full border border-border/75 bg-bg/80 px-3 py-1 text-xs font-medium text-fg transition-colors duration-150 hover:border-border-strong hover:bg-surface-3/70 focus-visible:ring-4 focus-visible:ring-fg/20 focus-visible:outline-none"
+          className="inline-flex min-h-11 items-center gap-1.5 rounded-full border border-control bg-bg px-3 text-[13px] font-medium text-fg transition-colors duration-150 hover:bg-surface-2 sm:min-h-8"
         >
           <svg className="size-3.5 shrink-0" viewBox="0 0 24 24" fill="none" aria-hidden>
             <rect x="8" y="8" width="11" height="12" rx="2" stroke="currentColor" strokeWidth="1.8" />
@@ -217,7 +220,9 @@ export function SavedRecipientsBar({
         </button>
       </div>
 
-      {mounted && saved.length > 0 ? (
+      {!mounted ? (
+        <div className="h-8" aria-hidden="true" />
+      ) : saved.length > 0 ? (
         <ul className="flex flex-wrap gap-1.5" aria-label={copy.listLabel}>
           {saved.map((item) => {
             const isActive = item.address === current;
@@ -232,10 +237,10 @@ export function SavedRecipientsBar({
                     setFeedback(null);
                   }}
                   className={cn(
-                    "inline-flex min-h-9 max-w-56 items-center gap-2 rounded-l-full border border-r-0 py-1 pr-2 pl-3 text-xs transition-all duration-200 outline-none focus-visible:ring-4 focus-visible:ring-fg/20",
+                    "inline-flex min-h-11 max-w-52 items-center gap-2 rounded-l-full border border-r-0 py-1 pr-2 pl-3 text-xs transition-colors duration-150 outline-none focus-visible:ring-2 focus-visible:ring-fg focus-visible:ring-inset sm:max-w-56",
                     isActive
-                      ? "border-brand/50 bg-surface-3 text-fg"
-                      : "border-border/75 bg-bg/80 text-fg hover:border-border-strong hover:bg-surface-3/70",
+                      ? "border-control bg-surface-3 text-fg"
+                      : "border-border bg-bg text-fg hover:border-control hover:bg-surface-2",
                   )}
                 >
                   <span className="truncate font-medium text-fg">{item.alias || shortAddress(item.address)}</span>
@@ -248,19 +253,12 @@ export function SavedRecipientsBar({
                   onClick={() => handleRemove(item.address)}
                   aria-label={`${copy.remove}: ${item.alias || shortAddress(item.address)}`}
                   className={cn(
-                    "inline-flex min-h-9 items-center rounded-r-full border py-1 pr-2.5 pl-1.5 text-fg-muted transition-colors duration-200 outline-none focus-visible:ring-4 focus-visible:ring-fg/20",
-                    isActive
-                      ? "border-brand/50 bg-surface-3 hover:text-down"
-                      : "border-border/75 bg-bg/80 hover:border-border-strong hover:text-down",
+                    "inline-flex min-h-11 w-11 shrink-0 items-center justify-center rounded-r-full border py-1 text-fg-muted transition-colors duration-150 outline-none focus-visible:ring-2 focus-visible:ring-fg focus-visible:ring-inset hover:text-down sm:w-9",
+                    isActive ? "border-control bg-surface-3" : "border-border bg-bg hover:border-control",
                   )}
                 >
                   <svg className="size-3.5 shrink-0" viewBox="0 0 24 24" fill="none" aria-hidden>
-                    <path
-                      d="M6 6l12 12M18 6L6 18"
-                      stroke="currentColor"
-                      strokeWidth="1.8"
-                      strokeLinecap="round"
-                    />
+                    <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
                   </svg>
                 </button>
               </li>
@@ -268,30 +266,28 @@ export function SavedRecipientsBar({
           })}
         </ul>
       ) : (
-        <p className="text-xs leading-relaxed text-fg-muted">{copy.empty}</p>
+        <p className="text-[13px] leading-relaxed text-fg-muted">{copy.empty}</p>
       )}
 
-      <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
-        <Input
-          value={alias}
-          onChange={(event) => setAlias(event.target.value)}
-          maxLength={24}
-          aria-label={copy.aliasLabel}
-          placeholder={copy.aliasPlaceholder}
-          className="h-9 text-sm"
-        />
-        <Button
-          variant="secondary"
-          size="sm"
-          onClick={handleSave}
-          disabled={!canSave}
-          className="shrink-0 whitespace-nowrap"
-        >
+      <div className="mt-3 flex flex-col gap-1.5 sm:flex-row sm:items-end sm:gap-2">
+        <div className="flex min-w-0 flex-1 flex-col gap-1">
+          <label htmlFor={aliasId} className="text-[13px] font-medium text-fg">
+            {copy.aliasLabel}
+          </label>
+          <Input
+            id={aliasId}
+            value={alias}
+            onChange={(event) => setAlias(event.target.value)}
+            maxLength={24}
+            placeholder={copy.aliasPlaceholder}
+          />
+        </div>
+        <Button variant="secondary" size="sm" onClick={handleSave} disabled={!canSave} className="shrink-0 whitespace-nowrap">
           {copy.save}
         </Button>
       </div>
 
-      <p role="status" aria-live="polite" className="mt-2 min-h-4 text-xs text-fg-muted">
+      <p role="status" aria-live="polite" className="mt-2 min-h-4 text-xs leading-relaxed text-fg-muted">
         {hint}
       </p>
     </div>

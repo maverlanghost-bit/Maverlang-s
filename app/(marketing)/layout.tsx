@@ -7,17 +7,20 @@ import { esCL } from "@/content/i18n/es-CL";
 
 export default function MarketingLayout({ children }: { children: ReactNode }) {
   return (
-    <div className="min-h-dvh bg-bg pt-16">
+    <div className="flex min-h-dvh flex-col bg-bg pt-16">
       {/* M85: enlace "Saltar al contenido" (WCAG 2.4.1). La plataforma ya lo
-          tiene en el AppShell; la landing no tenía forma de saltar el header. */}
+          tiene en el AppShell; la landing no tenía forma de saltar el header.
+          Visible mide 44px (target táctil) y usa el negro de `fg` (21:1). */}
       <a
         href="#contenido"
-        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-full focus:bg-fg focus:px-4 focus:py-2 focus:text-sm focus:text-white"
+        className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:inline-flex focus:min-h-11 focus:items-center focus:rounded-full focus:bg-fg focus:px-4 focus:text-sm focus:text-white"
       >
         {esCL.shell.skip}
       </a>
       <SiteHeader />
-      <main id="contenido" tabIndex={-1} className="outline-none">
+      {/* D1: `flex-1` pega el pie al borde inferior en 404/error, que son cortas;
+          en el resto no cambia nada porque el contenido desborda la ventana. */}
+      <main id="contenido" tabIndex={-1} className="flex-1 outline-none">
         {children}
       </main>
       <SiteFooter />

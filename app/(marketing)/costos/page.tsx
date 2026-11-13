@@ -39,18 +39,21 @@ export default function CostosPage() {
             La comisión de lanzamiento es 0%. El resto depende del mercado, la red y el proveedor, y
             siempre aparece en el desglose antes de que aceptes la orden.
           </p>
-          <p className="mt-5 flex flex-wrap items-baseline gap-x-2.5 gap-y-1 text-[13px] leading-relaxed text-fg-muted">
+          <ul
+            aria-label="Resumen de costos"
+            className="mt-5 flex flex-wrap items-baseline gap-x-2.5 gap-y-1 text-sm leading-relaxed text-fg-muted"
+          >
             {RESUMEN.map((item, index) => (
-              <span key={item} className="inline-flex items-baseline gap-2.5">
+              <li key={item} className="inline-flex items-baseline gap-2.5">
                 {index > 0 ? (
-                  <span aria-hidden="true" className="text-border-strong">
+                  <span aria-hidden="true" className="text-fg-subtle">
                     ·
                   </span>
                 ) : null}
                 <span className="tabular-nums">{item}</span>
-              </span>
+              </li>
             ))}
-          </p>
+          </ul>
         </div>
       </LandingSection>
 
@@ -72,7 +75,7 @@ export default function CostosPage() {
               proveedor, aparece antes de confirmar la orden.
             </p>
           </div>
-          <div className="min-w-0 border-t border-border pt-6 md:border-t-0 md:border-l md:pt-0 md:pl-10">
+          <div className="min-w-0 md:border-l md:border-border md:pl-10">
             <CostSimulator />
           </div>
         </div>
@@ -86,7 +89,7 @@ export default function CostosPage() {
           <p className="max-w-[62ch] text-sm leading-relaxed text-fg-body">
             El detalle legal de las comisiones y las respuestas del centro de ayuda están a un clic.
           </p>
-          <p className="mt-2 flex flex-wrap items-center gap-x-6 gap-y-2">
+          <p className="mt-2 flex flex-wrap items-center gap-x-6 gap-y-3">
             <Link href="/legal/comisiones" className={linkClass}>
               Ver el detalle de comisiones
             </Link>

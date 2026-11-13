@@ -36,8 +36,13 @@ export function PortfolioHealthCard({
     (sum, position) => sum + (Number.isFinite(position.valueUsd) ? position.valueUsd : 0),
     0,
   );
-  const investedPct = Math.round((investedUsd / totalUsd) * 100);
+  const investedRatio = totalUsd > 0 ? investedUsd / totalUsd : 0;
+  const investedPct = Math.round(investedRatio * 100);
   const cashPct = Math.max(0, 100 - investedPct);
+  // Con caja real, un "0 %" por redondeo mentiría: se muestra "<1 %".
+  const cashRatio = Math.max(0, 1 - investedRatio);
+  const investedLabel = investedPct === 0 && investedRatio > 0 ? "<1" : String(investedPct);
+  const cashLabel = cashPct === 0 && cashRatio > 0 ? "<1" : String(cashPct);
 
   // Mayor posición por valor; empate se queda con la primera.
   let topPosition = positions[0];
@@ -53,8 +58,9 @@ export function PortfolioHealthCard({
         ? { tone: "warn", label: `Alta concentración en ${topPosition.symbol}` }
         : { tone: "neutral", label: "Diversificación moderada" };
 
-  // Sólo para el ancho de la barra: nunca dibujar más de 100 %.
-  const investedWidth = Math.min(100, Math.max(0, investedPct));
+  // Sólo para el ancho de la barra: nunca dibujar más de 100 %. Se usa el
+  // ratio sin redondear para que la barra y las etiquetas no se contradigan.
+  const investedWidth = Math.min(100, Math.max(0, investedRatio * 100));
   const cashWidth = Math.max(0, 100 - investedWidth);
 
   const assistantHref = `/app/asistente?q=${encodeURIComponent(ASSISTANT_PROMPT)}`;
@@ -62,7 +68,7 @@ export function PortfolioHealthCard({
   const stats = [
     { label: "Activos distintos", value: String(positions.length) },
     { label: "Mayor posición", value: `${topPosition.symbol} (${masked ? MASK : `${topWeightPct}%`})` },
-    { label: "Caja disponible", value: masked ? MASK : `${cashPct}%` },
+    { label: "Caja disponible", value: masked ? MASK : `${cashLabel}%` },
   ];
 
   return (
@@ -85,18 +91,18 @@ export function PortfolioHealthCard({
       <div className="mt-6">
         <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
           <p className="text-[13px] text-fg-muted">
-            Invertido <span className="num font-medium text-fg">{investedPct}%</span>
+            Invertido <span className="num font-medium text-fg">{investedLabel}%</span>
           </p>
           <p className="text-[13px] text-fg-muted">
             Liquidez USDC{" "}
             <span className="num font-medium text-fg">
-              {cashPct}%{masked ? "" : ` · ${formatUsd(cashUsdc)}`}
+              {cashLabel}%{masked ? "" : ` · ${formatUsd(cashUsdc)}`}
             </span>
           </p>
         </div>
         <div
           role="img"
-          aria-label={`Reparto de tu cartera: invertido ${investedPct}%, liquidez en USDC ${cashPct}%`}
+          aria-label={`Reparto de tu cartera: invertido ${investedLabel}%, liquidez en USDC ${cashLabel}%`}
           className="mt-3 flex h-2.5 w-full overflow-hidden rounded-full bg-surface-3"
         >
           <span aria-hidden="true" className="h-full bg-fg" style={{ width: `${investedWidth}%` }} />

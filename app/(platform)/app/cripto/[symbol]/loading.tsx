@@ -31,7 +31,7 @@ export default function CriptoLoading() {
 
       <div className="flex flex-col gap-8 lg:grid lg:grid-cols-[minmax(0,1fr)_22rem] lg:gap-x-10 xl:grid-cols-[minmax(0,1fr)_24rem] xl:gap-x-16">
         <aside className="order-1 min-w-0 lg:order-2">
-          <div className="flex flex-col gap-4 rounded-3xl border border-border/70 bg-surface-1 p-5" aria-hidden>
+          <div className="flex flex-col gap-4 rounded-xl bg-surface-1 p-6 shadow-card md:p-8" aria-hidden>
             <div className="flex flex-col gap-1">
               <Skeleton className="h-3 w-32" />
               <Skeleton className="mt-1 h-9 w-44 max-w-full" />

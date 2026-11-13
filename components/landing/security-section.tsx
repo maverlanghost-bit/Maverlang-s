@@ -108,9 +108,9 @@ function CustodyDiagram() {
         </ol>
       </div>
 
-      <figcaption className="mt-6 grid gap-x-8 gap-y-3 border-t border-border pt-5 sm:grid-cols-3">
+      <figcaption className="mt-6 grid gap-x-8 gap-y-3 border-t border-border pt-5 md:grid-cols-3">
         {legend.map((item) => (
-          <p key={item.term} className="text-[13px] leading-relaxed text-fg-muted">
+          <p key={item.term} className="text-[13px] leading-relaxed text-pretty text-fg-muted">
             <span className="font-medium text-fg">{item.term}</span> {item.text}
           </p>
         ))}
@@ -150,7 +150,7 @@ export function SecuritySection({ showIntro = true }: { showIntro?: boolean }) {
                 {String(index + 1).padStart(2, "0")} · {point.category}
               </p>
               <h3 className="mt-4 text-lg leading-snug text-fg">{point.title}</h3>
-              <p className="mt-3 text-sm leading-relaxed text-fg-body">{point.body}</p>
+              <p className="mt-3 text-sm leading-relaxed text-pretty text-fg-body">{point.body}</p>
               {point.extra === "risks" ? (
                 <p className="mt-auto pt-4">
                   <Link

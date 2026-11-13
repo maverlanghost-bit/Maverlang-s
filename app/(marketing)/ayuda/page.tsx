@@ -86,7 +86,7 @@ function toDisclosureItems(entries: FaqEntry[]): DisclosureItem[] {
     id: entry.id,
     title: entry.question,
     content: (
-      <div className="space-y-3">
+      <div className="max-w-[68ch] space-y-3 text-[0.9375rem] leading-relaxed sm:text-base">
         {entry.paragraphs.map((paragraph, index) => (
           <p key={index}>
             <FaqParts parts={paragraph} />
@@ -128,7 +128,7 @@ export default function AyudaPage() {
 
         <nav aria-label="Secciones de la página" className="mt-8 max-w-3xl md:mt-10">
           <p className="eyebrow">En esta página</p>
-          <ul className="mt-2 flex flex-wrap gap-x-6">
+          <ul className="mt-2 flex flex-wrap gap-x-6 gap-y-0.5">
             {JUMP_LINKS.map((link) => (
               <li key={link.href}>
                 <Link href={link.href} className={textLinkClass}>
@@ -140,7 +140,7 @@ export default function AyudaPage() {
         </nav>
 
         <section aria-labelledby="ayuda-guias" className="mt-12 max-w-3xl md:mt-16">
-          <h2 id="ayuda-guias" className="scroll-mt-24 text-2xl sm:text-3xl">
+          <h2 id="ayuda-guias" className="text-2xl sm:text-3xl">
             Guías por tema
           </h2>
           <ul className="mt-5 divide-y divide-border border-y border-border">
@@ -154,7 +154,7 @@ export default function AyudaPage() {
                     <span className="block text-[15px] leading-snug font-medium text-fg sm:text-base">
                       {guide.title}
                     </span>
-                    <span className="mt-1 block text-sm leading-relaxed text-fg-body">
+                    <span className="mt-1 block text-[0.9375rem] leading-relaxed text-fg-body">
                       {guide.body}
                     </span>
                   </span>
@@ -178,11 +178,11 @@ export default function AyudaPage() {
           ].map((group) => (
             <section key={group.id} aria-labelledby={group.id}>
               <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-                <h2 id={group.id} className="scroll-mt-24 text-2xl sm:text-3xl">
+                <h2 id={group.id} className="text-2xl sm:text-3xl">
                   {group.title}
                 </h2>
                 <p className="text-[13px] text-fg-muted tabular-nums">
-                  {group.entries.length} preguntas
+                  {group.entries.length} {group.entries.length === 1 ? "pregunta" : "preguntas"}
                 </p>
               </div>
               <DisclosureList

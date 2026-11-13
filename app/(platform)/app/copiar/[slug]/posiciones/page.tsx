@@ -7,6 +7,7 @@ import { Coverage } from "@/components/copy/coverage";
 import { CopySoonState } from "@/components/copy/empty-states";
 import { COPY_FAMILY_LABELS } from "@/components/copy/family-tabs";
 import { ExampleDataStrip, FeedBanner } from "@/components/copy/feed-banner";
+import { FraccionSeal } from "@/components/copy/fraccion-seal";
 import { MovementsList } from "@/components/copy/movements-list";
 import { Paywall } from "@/components/copy/paywall";
 import { PositionsTable, type PositionRow } from "@/components/copy/positions-table";
@@ -141,7 +142,7 @@ export default async function CopyPositionsPage({
 
   const showPositions = hasAccess || meta.family === "broker_cl";
   const mappedBySymbol = new Map<string, Mapped>(mapped.map((position) => [position.symbol, position]));
-  const ordered = showPositions ? [...visible.positions] : [];
+  const ordered = showPositions ? [...visible.positions].sort((a, b) => b.weight - a.weight) : [];
 
   const total = ordered.length;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
@@ -270,6 +271,7 @@ export default async function CopyPositionsPage({
           ) : null}
 
           <div className="flex flex-col gap-2 border-t border-border pt-6">
+            <FraccionSeal />
             <p className="text-[13px] leading-relaxed text-fg-body">{COPY_DISCLAIMER}</p>
             <p className="text-[13px] leading-relaxed text-fg-muted">{COPY_LEGAL_PENDING_LABEL}</p>
           </div>

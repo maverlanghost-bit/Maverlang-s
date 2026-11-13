@@ -92,7 +92,7 @@ export function FollowList({ items }: { items: FollowCard[] }) {
           <li key={item.slug} className="border-b border-border">
             <div className="grid gap-3 py-5 md:grid-cols-[minmax(0,1fr)_auto] md:items-start md:gap-x-8">
               <div className="min-w-0">
-                <div className="flex flex-wrap items-baseline gap-x-3">
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                   {item.missing ? (
                     <span className="text-[15px] leading-tight font-medium tracking-tight text-fg">
                       {item.name}
@@ -119,7 +119,7 @@ export function FollowList({ items }: { items: FollowCard[] }) {
                 </p>
 
                 {versionsDiffer ? (
-                  <p className="num mt-1 text-[13px] leading-5 text-fg-subtle">
+                  <p className="num mt-1 text-[13px] leading-5 text-fg-muted">
                     Copiada {shortVersion(item.copiedVersionId)} · actual{" "}
                     {shortVersion(item.currentVersionId)}
                   </p>

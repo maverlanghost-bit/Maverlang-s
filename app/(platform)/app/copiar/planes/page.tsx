@@ -6,7 +6,7 @@ import { FraccionProLink } from "@/components/copy/fraccion-pro-link";
 import { FraccionSeal } from "@/components/copy/fraccion-seal";
 import { LegalNote } from "@/components/copy/legal-note";
 import { PlansPanel } from "@/components/copy/plan-card";
-import { COPY_BILLING_SOON, COPY_CTA_NOTE, COPY_LEGAL_PENDING_LABEL, COPY_TERMS_DRAFT } from "@/content/copy-legal";
+import { COPY_BILLING_SOON, COPY_LEGAL_PENDING_LABEL, COPY_TERMS_DRAFT } from "@/content/copy-legal";
 import { isCopyBillingEnabled, isCopyEnabled } from "@/lib/copy/flags";
 
 /**
@@ -51,7 +51,6 @@ function PageHeader() {
           ← Volver al catálogo
         </Link>
       </div>
-      <FraccionSeal />
     </header>
   );
 }
@@ -86,8 +85,6 @@ export default async function PlanesPage({
     <div className="flex flex-col gap-10">
       <PageHeader />
 
-      <p className="max-w-prose text-[13px] leading-relaxed text-fg-body">{COPY_CTA_NOTE}</p>
-
       <PlansPanel
         billingEnabled={billingEnabled}
         billingSoon={COPY_BILLING_SOON}
@@ -101,7 +98,8 @@ export default async function PlanesPage({
           El cobro lo procesa Mercado Pago. Maverlang no guarda los datos de tu tarjeta y el acceso se
           activa cuando el pago queda confirmado, no al volver de la pasarela.
         </p>
-        <LegalNote disclaimer />
+        <FraccionSeal />
+        <LegalNote cta disclaimer />
       </section>
 
       <section

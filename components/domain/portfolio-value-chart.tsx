@@ -4,15 +4,17 @@ import { useId, useMemo, type ReactNode } from "react";
 
 import { ChangeBadge } from "@/components/domain/change-badge";
 import { InfoTip } from "@/components/domain/info-tip";
+import { TONE_STROKE } from "@/components/domain/svg-price-chart";
 import { ErrorState } from "@/components/ui/error-state";
 import { indexFromKey } from "@/components/ui/keys";
 import { Skeleton } from "@/components/ui/skeleton";
 import { carteraCopy } from "@/content/i18n/extra-cartera";
 import { cn } from "@/lib/cn";
 import { useT } from "@/lib/hooks/use-t";
+import { rangeMove, toneOf } from "@/lib/market/series";
 import { periodPerformance } from "@/lib/portfolio/performance";
 import { decodePoints, encodePoints, portfolioValueSeries } from "@/lib/portfolio/series";
-import type { Position, PricePoint, Range } from "@/lib/types";
+import type { Currency, Position, PricePoint, Range } from "@/lib/types";
 
 /**
  * Rangos del gráfico del valor de la cartera: 1S, 1M, 3M y 1A.
@@ -59,6 +61,8 @@ export interface PortfolioValueChartProps {
   points: readonly PricePoint[];
   /** Monto de la variación en la moneda visible de la pantalla. */
   formatValue: (usd: number) => string;
+  /** Moneda de la pantalla: la escala del gráfico siempre se rotula en US$. */
+  valueCurrency: Currency;
   /** Falta el tipo de cambio: el monto se muestra como esqueleto, no como cero. */
   pendingFx: boolean;
   /** Comparación contra el S&P 500 (SPYx), en porcentaje. */
@@ -166,6 +170,7 @@ export function PortfolioValueChart({
   onRangeChange,
   points,
   formatValue,
+  valueCurrency,
   pendingFx,
   compare,
   pending,
@@ -176,8 +181,11 @@ export function PortfolioValueChart({
 }: PortfolioValueChartProps) {
   const { t, language } = useT();
   const copy = carteraCopy(language);
+  const isEn = language === "en";
   const period = points.length >= 2 ? periodPerformance(points) : null;
   const options = ranges.map((option) => ({ value: option.value, label: option.label }));
+  // Mismo tono que la curva: el color de la leyenda no inventa un segundo trazo.
+  const tone = toneOf(rangeMove(points));
 
   return (
     <section className="flex min-w-0 flex-col" data-range={range}>
@@ -255,6 +263,32 @@ export function PortfolioValueChart({
           vs S&amp;P 500 (SPYx)
         </button>
       </div>
+
+      {/* Leyenda y unidad de la escala. Sin esto, la línea comparativa no tenía
+          nombre y el eje en dólares no se distinguía del monto en pesos. */}
+      {compare.active ? (
+        <ul className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs leading-5 text-fg-muted">
+          <li className="flex items-center gap-1.5">
+            <span
+              aria-hidden
+              className="h-0 w-4 border-t-2"
+              style={{ borderColor: TONE_STROKE[tone] }}
+            />
+            {isEn ? "Your portfolio" : "Tu cartera"}
+          </li>
+          <li className="flex items-center gap-1.5">
+            <span aria-hidden className="h-0 w-4 border-t-2 border-dashed border-[#5c5c5c]" />
+            S&amp;P 500 (SPYx)
+          </li>
+          <li className="text-fg-subtle">
+            {isEn ? "% from the start of the period" : "% desde el inicio del período"}
+          </li>
+        </ul>
+      ) : valueCurrency === "CLP" ? (
+        <p className="mt-1 text-xs leading-5 text-fg-subtle">
+          {isEn ? "Chart scale and readout in USD" : "Escala y lectura del gráfico en US$"}
+        </p>
+      ) : null}
     </section>
   );
 }

@@ -68,7 +68,7 @@ export default async function LegalPage({ params }: { params: Promise<{ doc: str
           </ol>
         </nav>
 
-        <header className="max-w-[68ch]">
+        <header className="max-w-[68ch] border-b border-border pb-8">
           <p
             role="note"
             className="border-l-2 border-warn pl-3 text-[13px] leading-relaxed font-medium text-warn"
@@ -78,7 +78,7 @@ export default async function LegalPage({ params }: { params: Promise<{ doc: str
           <h1 id="legal-title" className="mt-6 text-3xl sm:text-4xl">
             {legal.title}
           </h1>
-          <p className="mt-3 text-sm text-fg-muted">
+          <p className="mt-4 font-mono text-[13px] leading-snug text-fg-muted tabular-nums">
             Versión {legal.version} · Actualizado el {formatLegalDate(legal.updated)}
           </p>
         </header>

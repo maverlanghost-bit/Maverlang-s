@@ -44,7 +44,7 @@ function GapSkeleton({ label }: { label: string }) {
       <span className="sr-only">{label}</span>
       <Skeleton className="h-5 w-44 max-w-full" />
       <Skeleton className="mt-3 h-4 w-4/5 max-w-sm" />
-      <div className="mt-5 grid grid-cols-2 gap-x-8">
+      <div className="mt-5 grid grid-cols-2 gap-x-6 sm:gap-x-8">
         {["a", "b"].map((key) => (
           <div key={key} className="border-t border-border/70 py-3">
             <Skeleton className="h-3 w-20" />
@@ -74,7 +74,7 @@ function PriceColumn({
       <dd className="num mt-1 text-base leading-6 font-medium text-fg">
         {pending ? <Skeleton className="h-5 w-24" /> : amount}
       </dd>
-      <dd className="num mt-0.5 min-h-4 text-[11px] leading-4 text-fg-muted">{at ? formatDateTime(at) : null}</dd>
+      <dd className="num mt-0.5 min-h-4 text-xs leading-4 text-fg-muted">{at ? formatDateTime(at) : null}</dd>
     </div>
   );
 }
@@ -118,7 +118,7 @@ export function TokenGapCard({ symbol, quote }: { symbol: string; quote: Quote |
       <p className="mt-2 max-w-prose text-sm leading-relaxed text-pretty text-fg-body">
         <GapLine template={template} pct={gapPercentText(gap.diffPct)} />
       </p>
-      <dl className="mt-4 grid grid-cols-2 gap-x-8">
+      <dl className="mt-4 grid grid-cols-2 gap-x-6 sm:gap-x-8">
         <PriceColumn
           label={copy.gapToken}
           amount={formatMoney(tokenView.amount, tokenView.currency)}

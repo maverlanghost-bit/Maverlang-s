@@ -128,7 +128,7 @@ function NotaCard({
           {badge}
         </span>
       </div>
-      <h3 className="mt-4 text-[15px] leading-snug">{title}</h3>
+      <h3 className="mt-4 text-base leading-snug">{title}</h3>
       <p className="mt-2 text-sm leading-relaxed text-fg-body">{children}</p>
     </div>
   );
@@ -146,19 +146,19 @@ export default async function ComoFuncionaPage() {
           <h1 id="como-funciona-page-title" className="mt-3 text-3xl text-balance sm:text-4xl">
             Cómo comprar acciones tokenizadas
           </h1>
-          <p className="mt-5 max-w-[62ch] text-lead text-fg-body">
+          <p className="mt-4 max-w-[62ch] text-lead text-fg-body">
             Practicas con US$10.000 ficticios, eliges la acción y el token queda en tu propia
             billetera: nosotros no custodiamos tus activos. Los montos de abajo son ejemplos.
             Cuando haya cuentas reales, el depósito y su costo se muestran en ese paso.
           </p>
           <ul
             aria-label="Resumen rápido"
-            className="mt-5 flex flex-wrap items-baseline gap-x-2.5 gap-y-1 text-[13px] leading-relaxed text-fg-muted"
+            className="mt-5 flex flex-wrap items-baseline gap-x-2.5 gap-y-1 text-sm leading-relaxed text-fg-muted"
           >
             {RESUMEN.map((item, index) => (
               <li key={item.label} className="inline-flex items-baseline gap-2.5">
                 {index > 0 ? (
-                  <span aria-hidden="true" className="text-border-strong">
+                  <span aria-hidden="true" className="text-fg-subtle">
                     ·
                   </span>
                 ) : null}
@@ -205,7 +205,7 @@ export default async function ComoFuncionaPage() {
             </NotaCard>
           </div>
 
-          <div className="mt-10 flex flex-wrap items-center gap-x-6 gap-y-2 border-t border-border pt-6">
+          <div className="mt-10 flex flex-wrap items-center gap-x-6 gap-y-3 border-t border-border pt-6">
             <Link href="/costos" className={textLinkClass}>
               Ver costos
             </Link>

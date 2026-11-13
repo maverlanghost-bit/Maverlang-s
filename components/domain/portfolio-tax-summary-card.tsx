@@ -59,7 +59,7 @@ export function PortfolioTaxSummaryCard({
     <section className="border-t border-border pt-8">
       <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
         <div className="min-w-0">
-          <p className="label">Control Patrimonial y Cartola</p>
+          <p className="label">Respaldo contable</p>
           <h2 className="mt-2 text-xl font-medium tracking-tight text-balance text-fg">
             Resumen Patrimonial y Cartola Anual
           </h2>
@@ -67,14 +67,19 @@ export function PortfolioTaxSummaryCard({
         {activities.length > 0 ? <CsvExportButton rows={activities} currency={currency} fxRate={rate} /> : null}
       </div>
 
-      <dl className="mt-6 grid grid-cols-2 gap-x-6 gap-y-5 border-t border-border pt-5 sm:grid-cols-4 sm:gap-y-0">
+      <dl className="mt-6 grid grid-cols-2 gap-x-4 gap-y-5 border-t border-border pt-5 sm:grid-cols-4 sm:gap-x-6 sm:gap-y-0">
         {stats.map((stat, index) => (
           <div
             key={stat.label}
             className={cn("flex min-w-0 flex-col gap-1.5", index > 0 && "sm:border-l sm:border-border sm:pl-6")}
           >
             <dt className="label leading-snug">{stat.label}</dt>
-            <dd className={cn("num truncate text-[15px] font-medium tracking-tight tabular-nums", stat.tone)}>
+            <dd
+              className={cn(
+                "num text-[13px] leading-5 font-medium tracking-tight tabular-nums sm:text-[15px]",
+                stat.tone,
+              )}
+            >
               {stat.value}
             </dd>
           </div>

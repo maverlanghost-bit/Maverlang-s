@@ -41,7 +41,9 @@ export function RecuperarForm() {
         <p className="mt-6 text-sm break-words leading-relaxed text-fg-body">
           Si ese correo tiene cuenta, el enlace ya va en camino. Ábrelo para elegir una contraseña nueva. Si no llega, revisa el correo no deseado.
         </p>
-        <div className="mt-4 rounded-xl border border-brand/25 bg-brand-soft/40 px-3.5 py-2.5 text-xs leading-relaxed text-fg">Enlace de un solo uso con expiración automática. Nunca compartas este enlace con terceros.</div>
+        <div className="mt-4 rounded-lg border border-border bg-surface-2 px-3.5 py-3 text-sm leading-relaxed text-fg-body">
+          Enlace de un solo uso con expiración automática. Nunca compartas este enlace con terceros.
+        </div>
         <Button asChild className="mt-6 w-full" size="lg">
           <Link href="/app/ingresar">Volver a ingresar</Link>
         </Button>
@@ -51,12 +53,14 @@ export function RecuperarForm() {
 
   return (
     <AuthFrame title="Recuperar contraseña" lead="Escribe tu correo y te enviamos un enlace para elegir una contraseña nueva.">
-      <div className="mt-4 grid grid-cols-3 gap-2 text-[11px] text-fg-muted">
+      <ol className="mt-6 grid grid-cols-3 gap-2 text-[11px] leading-snug text-fg-muted">
         {["1. Tu correo", "2. Enlace cifrado", "3. Nueva clave"].map((step) => (
-          <span key={step} className="rounded-xl border border-border/70 bg-surface-1/70 px-2 py-2 text-center leading-snug">{step}</span>
+          <li key={step} className="flex min-h-12 items-center justify-center rounded-lg border border-border bg-bg px-1.5 py-2 text-center">
+            {step}
+          </li>
         ))}
-      </div>
-      <form className="mt-6" noValidate onSubmit={(event) => void submit(event)}>
+      </ol>
+      <form className="mt-6" noValidate aria-busy={busy} onSubmit={(event) => void submit(event)}>
         <CredentialField
           id="correo"
           label="Correo"
@@ -72,12 +76,12 @@ export function RecuperarForm() {
         </Button>
       </form>
       {formError ? (
-        <p className="mt-4 text-center text-sm break-words leading-relaxed text-down" role="alert">
+        <p className="mt-4 break-words rounded-lg border border-down/20 bg-down-bg px-3 py-2.5 text-center text-sm leading-relaxed text-down" role="alert">
           {formError}
         </p>
       ) : null}
-      <p className="mt-6 text-center text-sm leading-relaxed text-fg-muted">
-        <Link href="/app/ingresar" className="inline-flex min-h-11 items-center justify-center rounded-sm px-2 font-medium text-fg underline decoration-border underline-offset-4 outline-none hover:decoration-fg focus-visible:ring-4 focus-visible:ring-fg/20">
+      <p className="mt-4 text-center text-sm leading-relaxed text-fg-muted">
+        <Link href="/app/ingresar" className="inline-flex min-h-11 items-center justify-center rounded-sm px-2 font-medium text-fg underline decoration-border underline-offset-4 transition-colors hover:decoration-fg">
           Volver a ingresar
         </Link>
       </p>

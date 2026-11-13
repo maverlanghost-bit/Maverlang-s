@@ -97,7 +97,7 @@ export function MockWidget({
       title={fill(t.wallet.depositWidget, { provider })}
       description={t.wallet.depositDemo}
     >
-      <ol className="mt-5 flex gap-2">
+      <ol className="mt-5 flex gap-1.5">
         {steps.map((item) => {
           const active = item.id === current;
           return (
@@ -105,7 +105,7 @@ export function MockWidget({
               key={item.id}
               aria-current={active ? "step" : undefined}
               className={cn(
-                "flex min-h-11 flex-1 items-center justify-center rounded-full px-2 text-center text-sm",
+                "flex min-h-11 min-w-0 flex-1 items-center justify-center rounded-full px-1.5 text-center text-[13px] leading-tight transition-colors duration-150",
                 active ? "bg-surface-3 font-medium text-fg" : "bg-surface-2 text-fg-muted",
               )}
             >

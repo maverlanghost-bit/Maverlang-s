@@ -119,10 +119,10 @@ function TickerRowBase({
         {sparkline ? <Sparkline data={sparkline} change={change} width={88} height={32} className={sparklineClassName} /> : null}
         {priceSlot ?? (
           <span className="flex shrink-0 flex-col items-end gap-0.5 text-right font-medium tabular-nums">
-            <span className="flex items-baseline gap-1">
+            <span className="flex items-baseline gap-1 whitespace-nowrap">
               <FlashPrice value={price} currency={currency} size="sm" className="-mr-1" />
               {currency === "CLP" ? (
-                <span className="text-[11px] leading-none font-medium text-fg-muted">CLP</span>
+                <span className="text-xs leading-none font-medium text-fg-muted">CLP</span>
               ) : null}
             </span>
             <ChangeBadge value={change} />

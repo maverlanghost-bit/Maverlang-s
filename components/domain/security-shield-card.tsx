@@ -73,7 +73,7 @@ export function SecurityShieldCard({
     <Card className="flex flex-col gap-4 p-5 md:p-6" data-security-shield={mode}>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
-          <h2 className="text-base font-semibold tracking-tight text-fg">
+          <h2 className="text-base font-medium tracking-tight text-fg">
             Centro de Confianza y Protección
           </h2>
           <p className="mt-1 text-balance text-sm leading-5 text-fg-muted">
@@ -96,7 +96,7 @@ export function SecurityShieldCard({
         </p>
         <Link
           href="/app/perfil/seguridad"
-          className="rounded-md text-xs font-medium text-fg underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+          className="inline-flex min-h-11 items-center rounded-md text-[13px] leading-5 font-medium text-fg underline decoration-border underline-offset-4 hover:decoration-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
         >
           Configurar seguridad y 2FA →
         </Link>

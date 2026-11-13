@@ -168,7 +168,7 @@ export function ChartMultiCompare({
             onClick={() => setOpen((value) => !value)}
             className={cn(
               "inline-flex h-11 shrink-0 items-center gap-1.5 rounded-full border px-3 text-[13px] font-medium tracking-tight outline-none transition-colors duration-150 sm:h-8 sm:text-xs",
-              "focus-visible:ring-2 focus-visible:ring-fg/20",
+              "focus-visible:ring-2 focus-visible:ring-fg",
               open
                 ? "border-border-control bg-bg text-fg"
                 : "border-border-control bg-bg text-fg-muted hover:text-fg",
@@ -208,13 +208,11 @@ export function ChartMultiCompare({
               role="dialog"
               aria-modal="false"
               aria-label="Agregar activos para comparar"
-              className="absolute top-full left-0 z-30 mt-1.5 max-h-[min(22rem,60vh)] w-[min(24rem,calc(100vw_-_4rem))] overflow-y-auto overscroll-contain rounded-xl border border-border bg-bg p-2 shadow-float"
+              className="absolute top-full left-0 z-30 mt-1.5 max-h-[min(22rem,60vh)] w-[min(24rem,calc(100vw_-_2rem))] overflow-y-auto overscroll-contain rounded-xl border border-border bg-bg p-2 shadow-float"
             >
               {groups.map((entry) => (
                 <section key={entry.group} aria-label={entry.label} className="py-1">
-                  <p className="px-2 pb-1 text-xs font-medium tracking-wide text-fg-muted uppercase">
-                    {entry.label}
-                  </p>
+                  <p className="label-xs px-2 pb-1">{entry.label}</p>
                   <ul className="grid grid-cols-1 gap-0.5 sm:grid-cols-2">
                     {entry.options.map((option) => {
                       const selected = selectedSymbols.includes(option.symbol);
@@ -231,7 +229,7 @@ export function ChartMultiCompare({
                             onClick={() => onToggleSymbol(option.symbol)}
                             className={cn(
                               "flex min-h-11 w-full items-center gap-2 rounded-lg px-2 text-left text-[13px] outline-none transition-colors duration-150",
-                              "hover:bg-surface-1 focus-visible:ring-2 focus-visible:ring-fg/20",
+                              "hover:bg-surface-1 focus-visible:ring-2 focus-visible:ring-fg",
                               "disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent",
                               selected ? "text-fg" : "text-fg-body",
                             )}
@@ -287,7 +285,7 @@ export function ChartMultiCompare({
             type="button"
             onClick={onClearAll}
             aria-label="Limpiar comparación"
-            className="inline-flex min-h-11 shrink-0 items-center rounded-full px-2 text-xs font-medium text-fg-muted underline-offset-2 outline-none transition-colors duration-150 hover:text-fg hover:underline focus-visible:ring-2 focus-visible:ring-fg/20"
+            className="inline-flex min-h-11 shrink-0 items-center rounded-full px-2 text-xs font-medium text-fg-muted underline-offset-2 outline-none transition-colors duration-150 hover:text-fg hover:underline focus-visible:ring-2 focus-visible:ring-fg"
           >
             Limpiar
           </button>
@@ -321,7 +319,7 @@ export function ChartMultiCompare({
                 }}
                 className={cn(
                   "inline-flex min-h-11 max-w-full min-w-0 shrink-0 cursor-pointer items-center gap-2 rounded-full border bg-bg px-3 text-xs outline-none transition-colors duration-150 sm:min-h-8 sm:px-2.5",
-                  "focus-visible:ring-2 focus-visible:ring-fg/30",
+                  "focus-visible:ring-2 focus-visible:ring-fg",
                   focused
                     ? "border-fg/40"
                     : "border-border hover:border-fg/30 hover:bg-surface-1",
@@ -349,7 +347,7 @@ export function ChartMultiCompare({
                     type="button"
                     onClick={() => removeItem(item)}
                     aria-label={`Quitar ${item.symbol} de la comparación`}
-                    className="-mr-1 ml-0.5 inline-flex size-7 shrink-0 items-center justify-center rounded-full text-fg-muted outline-none transition-colors duration-150 hover:bg-surface-2 hover:text-fg focus-visible:ring-2 focus-visible:ring-fg/30"
+                    className="-mr-2 ml-0.5 inline-flex size-11 shrink-0 items-center justify-center rounded-full text-fg-muted outline-none transition-colors duration-150 hover:bg-surface-2 hover:text-fg focus-visible:ring-2 focus-visible:ring-fg sm:-mr-1 sm:size-6"
                   >
                     <IconClose className="size-3" />
                   </button>

@@ -46,7 +46,7 @@ const COPY = {
   },
 } as const;
 
-/** Estado general o por acción. `halted` usa tono de error. El texto lo pone quien llama. */
+/** Estado general o por acción. `halted` usa tono de error; fuera de horario, aviso. */
 export function MarketStatusPill({
   open,
   label,
@@ -56,16 +56,17 @@ export function MarketStatusPill({
   label: string;
   halted?: boolean;
 }) {
-  const tone: BadgeTone = halted ? "down" : open ? "up" : "neutral";
+  // Cerrado o fuera de horario es una advertencia (warn), no un estado neutro.
+  const tone: BadgeTone = halted ? "down" : open ? "up" : "warn";
   return (
     <Badge
       tone={tone}
       className="max-w-full rounded-full px-3 py-1 text-left text-[13px] font-medium leading-snug whitespace-normal"
     >
       {halted ? null : open ? (
-        <SunIcon className="size-3.5 shrink-0 text-amber-500" />
+        <SunIcon className="size-3.5 shrink-0" />
       ) : (
-        <MoonIcon className="size-3.5 shrink-0 text-info" />
+        <MoonIcon className="size-3.5 shrink-0" />
       )}
       {label}
     </Badge>

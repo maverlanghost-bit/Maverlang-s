@@ -28,6 +28,7 @@ import {
   type CopyIndexEntry,
   type FeedHealth,
 } from "@/lib/copy/types";
+import { cn } from "@/lib/cn";
 
 export const metadata: Metadata = {
   title: "Copiar carteras",
@@ -81,7 +82,7 @@ function catalogHref(state: {
   return search ? `/app/copiar?${search}` : "/app/copiar";
 }
 
-const HEADER_CELL = "font-mono text-[13px] uppercase tracking-[0.045em] text-fg-muted";
+const HEADER_CELL = "label-xs";
 
 /**
  * Portada del hub: H1, una línea de alcance y una sola CTA primaria (planes).
@@ -101,23 +102,22 @@ function CatalogHeader({ cta = true }: { cta?: boolean }) {
           </p>
         </div>
         {cta ? (
-          <div className="flex shrink-0 flex-col items-start gap-1 sm:items-end">
-            <Link
-              href="/app/copiar/planes"
-              className={buttonClasses({ variant: "primary", size: "md", className: "min-h-11" })}
-            >
-              Ver planes
-            </Link>
+          <div className="flex shrink-0 flex-wrap items-center gap-x-5 gap-y-1">
             <Link
               href="/app/copiar/mis-copias"
               className="inline-flex min-h-11 items-center text-[13px] font-medium text-fg-muted underline decoration-border-control underline-offset-4 transition-colors duration-150 hover:text-fg"
             >
               Mis copias
             </Link>
+            <Link
+              href="/app/copiar/planes"
+              className={buttonClasses({ variant: "primary", size: "md", className: "min-h-11" })}
+            >
+              Ver planes
+            </Link>
           </div>
         ) : null}
       </div>
-      <FraccionSeal />
     </header>
   );
 }
@@ -253,6 +253,7 @@ export default async function CopiarPage({
           <form
             action="/app/copiar"
             method="get"
+            role="search"
             className="flex w-full items-center gap-2 lg:max-w-md"
           >
             <div className="relative min-w-0 flex-1">
@@ -302,35 +303,28 @@ export default async function CopiarPage({
               ) : null}
             </p>
 
-            <details className="group relative shrink-0">
-              <summary className="inline-flex min-h-11 cursor-pointer list-none items-center gap-1.5 rounded-full border border-border-control bg-bg px-4 text-[13px] font-medium text-fg transition-colors duration-150 hover:bg-surface-1 [&::-webkit-details-marker]:hidden">
-                Orden: {ORDERS.find((option) => option.value === order)?.label ?? "Cobertura"}
-                <span aria-hidden className="text-fg-muted">
-                  ▾
-                </span>
-              </summary>
-              <ul className="absolute top-full right-0 z-20 mt-1 w-48 rounded-xl border border-border bg-bg p-1 shadow-float">
-                {ORDERS.map((option) => {
-                  const current = order === option.value;
-                  return (
-                    <li key={option.value}>
-                      <Link
-                        href={catalogHref({ q, family: activeFamily, order: option.value })}
-                        aria-current={current ? "true" : undefined}
-                        title={option.title}
-                        className={
-                          current
-                            ? "flex min-h-11 items-center rounded-lg px-3 text-[13px] font-medium text-fg"
-                            : "flex min-h-11 items-center rounded-lg px-3 text-[13px] text-fg-muted transition-colors duration-150 hover:bg-surface-1 hover:text-fg"
-                        }
-                      >
-                        {option.label}
-                      </Link>
-                    </li>
-                  );
-                })}
-              </ul>
-            </details>
+            <nav aria-label="Orden del catálogo" className="flex min-w-0 flex-wrap items-center gap-x-5">
+              <span className="label-xs">Orden</span>
+              {ORDERS.map((option) => {
+                const current = order === option.value;
+                return (
+                  <Link
+                    key={option.value}
+                    href={catalogHref({ q, family: activeFamily, order: option.value })}
+                    aria-current={current ? "true" : undefined}
+                    title={option.title}
+                    className={cn(
+                      "inline-flex min-h-11 items-center text-[13px] leading-5 font-medium whitespace-nowrap transition-colors duration-150 ease-spring",
+                      current ? "text-fg" : "text-fg-muted hover:text-fg",
+                    )}
+                  >
+                    <span className={cn(current && "underline decoration-2 underline-offset-[5px]")}>
+                      {option.label}
+                    </span>
+                  </Link>
+                );
+              })}
+            </nav>
           </div>
         </div>
 

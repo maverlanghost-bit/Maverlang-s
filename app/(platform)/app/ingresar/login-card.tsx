@@ -4,9 +4,8 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 
-import { site } from "@/config/site";
+import { AuthFrame, AuthLegal } from "@/components/auth/auth-frame";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { shouldUsePrivy, useSession, type LoginMethod } from "@/lib/auth";
 import { readBrowserCookie } from "@/lib/auth/browser-cookies";
 import { MOCK_ONBOARDING_COOKIE, ONBOARDING_DONE } from "@/lib/auth/cookies";
@@ -52,6 +51,7 @@ export function LoginCard() {
   const params = useSearchParams();
   const { status, login } = useSession();
   const [error, setError] = useState<string | null>(null);
+  const [pending, setPending] = useState<LoginMethod | null>(null);
   const next = safeNextPath(params.get("next")) ?? "/app";
   const stay = params.get(AUTH_STAY_PARAM) === "1";
   const [proceeded, setProceeded] = useState(false);
@@ -74,10 +74,12 @@ export function LoginCard() {
 
   async function enter(method: LoginMethod) {
     setError(null);
+    setPending(method);
     setProceeded(true);
     try {
       await login(method);
     } catch {
+      setPending(null);
       setProceeded(false);
       setError("No pudimos abrir el ingreso. Inténtalo otra vez.");
     }
@@ -90,15 +92,15 @@ export function LoginCard() {
   }
 
   return (
-    <Card className="w-full max-w-md">
-      <Link href="/" className="flex w-fit items-center gap-2 rounded-full text-fg">
-        <span className="size-2 shrink-0 rounded-full bg-brand" aria-hidden />
-        <span className="text-sm font-medium">{site.name}</span>
-      </Link>
-      <h1 className="mt-6 text-3xl text-balance">Ingresa o crea tu cuenta</h1>
-      <p className="mt-3 text-sm leading-relaxed text-fg-body">Con tu correo o con Google.</p>
+    <AuthFrame title="Ingresa o crea tu cuenta" lead="Con tu correo o con Google.">
       <div className="mt-6 flex flex-col gap-3">
-        <Button className="w-full" size="lg" disabled={busy} onClick={() => void enter("email")}>
+        <Button
+          className="w-full"
+          size="lg"
+          loading={pending === "email"}
+          disabled={busy}
+          onClick={() => void enter("email")}
+        >
           <MailIcon />
           Continuar con correo
         </Button>
@@ -106,6 +108,7 @@ export function LoginCard() {
           className="w-full"
           variant="secondary"
           size="lg"
+          loading={pending === "google"}
           disabled={busy}
           onClick={() => void enter("google")}
         >
@@ -114,42 +117,29 @@ export function LoginCard() {
         </Button>
       </div>
       {demo ? (
-        <p className="mt-4 text-center text-sm leading-relaxed text-fg-muted">
+        <p className="mt-4 rounded-lg bg-surface-2 px-3 py-2.5 text-center text-sm leading-relaxed text-fg-muted">
           En este entorno los dos botones abren la cuenta demo.
         </p>
       ) : null}
-      <p className="mt-6 text-center text-sm leading-relaxed text-fg-muted">
-        <Link href={create} className="font-medium text-fg underline decoration-border underline-offset-4 hover:decoration-fg">
+      <p className="mt-4 text-center text-sm leading-relaxed text-fg-muted">
+        <Link
+          href={create}
+          className="inline-flex min-h-11 items-center justify-center rounded-sm px-2 font-medium text-fg underline decoration-border underline-offset-4 transition-colors hover:decoration-fg"
+        >
           Crear cuenta
         </Link>
       </p>
       {params.get("error") === "enlace" ? (
-        <p className="mt-4 text-center text-sm text-down" role="alert">
+        <p className="mt-4 rounded-lg border border-down/20 bg-down-bg px-3 py-2.5 text-center text-sm leading-relaxed text-down" role="alert">
           Ese enlace no es válido o ya venció.
         </p>
       ) : null}
       {error ? (
-        <p className="mt-4 text-center text-sm text-down" role="alert">
+        <p className="mt-4 rounded-lg border border-down/20 bg-down-bg px-3 py-2.5 text-center text-sm leading-relaxed text-down" role="alert">
           {error}
         </p>
       ) : null}
-      <p className="mt-6 text-center text-sm leading-relaxed text-fg-muted">
-        Al continuar aceptas los{" "}
-        <Link
-          href="/legal/terminos"
-          className="font-medium text-fg underline decoration-border underline-offset-4 hover:decoration-fg"
-        >
-          Términos y condiciones
-        </Link>{" "}
-        y la{" "}
-        <Link
-          href="/legal/privacidad"
-          className="font-medium text-fg underline decoration-border underline-offset-4 hover:decoration-fg"
-        >
-          Política de privacidad
-        </Link>
-        .
-      </p>
-    </Card>
+      <AuthLegal />
+    </AuthFrame>
   );
 }

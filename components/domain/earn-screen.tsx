@@ -1,11 +1,12 @@
 "use client";
 
-import { useId, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 import { CryptoTradeSheet } from "@/components/domain/crypto-trade-sheet";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 import {
   LEGAL_REVIEW_NOTICE,
@@ -136,7 +137,6 @@ function EarnCard({
   onBuy: () => void;
   onSell: () => void;
 }) {
-  const headingId = useId();
   const isDollar = asset.yieldUnit === "USD";
   // Sin fuente oficial sin clave (JupSOL, INF, dSOL y USDY) siempre es "sin dato",
   // aunque la ruta devolviera otra cosa: nunca se inventa un porcentaje.
@@ -146,10 +146,7 @@ function EarnCard({
   const updated = hasSource ? updatedAt(apy) : null;
 
   return (
-    <article
-      aria-labelledby={headingId}
-      className="flex min-w-0 flex-col gap-4 rounded-3xl border border-border/70 bg-surface-1 p-5"
-    >
+    <Card className="flex min-w-0 flex-col gap-4">
       <div className="flex items-start gap-3">
         <span
           aria-hidden
@@ -159,42 +156,46 @@ function EarnCard({
         </span>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <h3 id={headingId} className="font-semibold tracking-tight text-balance">
+            <h3 className="text-base font-medium tracking-tight text-balance">
               {asset.name}
             </h3>
             <Badge tone="neutral">{asset.symbol}</Badge>
           </div>
-          <p className="mt-0.5 text-sm text-fg-muted">
+          <p className="mt-0.5 text-[13px] leading-5 text-fg-muted">
             {isDollar ? "Dólares" : "Staking"} · Emite {asset.issuerName}
           </p>
         </div>
       </div>
 
-      <dl className="grid grid-cols-2 gap-3 rounded-2xl border border-border/70 bg-bg p-3">
+      <dl className="grid grid-cols-2 gap-x-6 border-y border-border py-3">
         <div className="min-w-0">
-          <dt className="font-mono text-[11px] uppercase tracking-[0.08em] text-fg-muted">APY</dt>
-          <dd className="mt-1 font-mono text-xl tabular-nums tracking-tight text-fg">
-            {hasSource && apyPending ? (
-              <span className="text-sm text-fg-muted">consultando…</span>
-            ) : value !== null ? (
-              <>
-                {apyFormatter.format(value)}
-                <span className="text-sm"> %</span>
-              </>
-            ) : (
-              <span className="text-sm text-fg-muted">sin dato</span>
-            )}
+          <dt className="label-xs">APY</dt>
+          <dd className="mt-1 min-h-7">
+            <span className="num block text-lg leading-7 tracking-tight text-fg tabular-nums">
+              {hasSource && apyPending ? (
+                <span className="text-sm text-fg-muted">consultando…</span>
+              ) : value !== null ? (
+                <>
+                  {apyFormatter.format(value)}
+                  <span className="text-xs"> %</span>
+                </>
+              ) : (
+                <span className="text-sm text-fg-muted">sin dato</span>
+              )}
+            </span>
           </dd>
         </div>
         <div className="min-w-0 text-right">
-          <dt className="font-mono text-[11px] uppercase tracking-[0.08em] text-fg-muted">Precio</dt>
-          <dd className="mt-1 font-mono text-base tabular-nums tracking-tight text-fg">
-            {price ? (
-              formatUsd(price.priceUsd)
-            ) : (
-              <span className="text-sm text-fg-muted">sin precio</span>
-            )}
-            <span className="block font-sans text-[11px] text-fg-muted">USD por token</span>
+          <dt className="label-xs">Precio</dt>
+          <dd className="mt-1 min-h-7">
+            <span className="num block text-lg leading-7 tracking-tight text-fg tabular-nums">
+              {price ? (
+                formatUsd(price.priceUsd)
+              ) : (
+                <span className="text-sm text-fg-muted">sin precio</span>
+              )}
+            </span>
+            <span className="block text-xs leading-4 text-fg-muted">USD por token</span>
           </dd>
         </div>
       </dl>
@@ -227,7 +228,7 @@ function EarnCard({
           Vender
         </Button>
       </div>
-    </article>
+    </Card>
   );
 }
 
@@ -264,7 +265,7 @@ export function EarnScreen() {
 
       <section
         aria-labelledby="ganar-antes"
-        className="flex flex-col gap-3 rounded-3xl border border-border/70 bg-surface-1 p-5 sm:p-6"
+        className="flex flex-col gap-3 border-y border-border py-5"
       >
         <h2 id="ganar-antes" className="text-base font-medium tracking-tight">
           Antes de comprar
@@ -274,18 +275,16 @@ export function EarnScreen() {
           <li>La posición queda en tu billetera de la demo. {NON_CUSTODY_LINE}</li>
           <li>El valor de tu posición sigue el precio vivo del token. No simulamos un goteo de rendimiento.</li>
         </ul>
-        <div className="rounded-2xl border border-border/70 bg-bg p-4">
-          <p className="font-mono text-[11px] uppercase tracking-[0.08em] text-fg-muted">
-            Tokens de staking (LST)
-          </p>
-          <p className="mt-2 text-sm leading-relaxed text-fg-body">{LST_YIELD_NOTICE}</p>
+        <div className="flex flex-col gap-1.5 border-t border-border pt-3">
+          <p className="label">Tokens de staking (LST)</p>
+          <p className="text-[13px] leading-relaxed text-fg-body">{LST_YIELD_NOTICE}</p>
         </div>
         <p className="text-xs leading-relaxed text-fg-muted">{LEGAL_REVIEW_NOTICE}</p>
       </section>
 
       <section aria-labelledby="ganar-staking" className="flex flex-col gap-4">
         <div>
-          <h2 id="ganar-staking" className="text-xl font-semibold tracking-tight">
+          <h2 id="ganar-staking" className="text-xl font-medium tracking-tight">
             Tokens de staking
           </h2>
           <p className="mt-1 max-w-2xl text-sm leading-relaxed text-fg-muted">
@@ -311,7 +310,7 @@ export function EarnScreen() {
       {DOLLAR_ASSETS.length > 0 ? (
         <section aria-labelledby="ganar-dolares" className="flex flex-col gap-4">
           <div>
-            <h2 id="ganar-dolares" className="text-xl font-semibold tracking-tight">
+            <h2 id="ganar-dolares" className="text-xl font-medium tracking-tight">
               Dólares
             </h2>
             <p className="mt-1 max-w-2xl text-sm leading-relaxed text-fg-muted">

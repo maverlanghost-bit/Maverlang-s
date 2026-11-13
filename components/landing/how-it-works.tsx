@@ -17,7 +17,7 @@ function sampleShares(quote: LandingQuote): number {
 function BalanceMock() {
   return (
     <div className="flex h-full flex-col">
-      <p className="text-[13px] leading-none text-fg-muted">Saldo de práctica</p>
+      <p className="eyebrow leading-none">Saldo de práctica</p>
       <p className="num mt-3 text-xl leading-none text-fg sm:text-2xl">
         {formatMoney(10000, "USD")}
       </p>
@@ -67,7 +67,7 @@ function OwnedMock({ quote }: { quote: LandingQuote }) {
   const shares = sampleShares(quote);
   return (
     <div className="flex h-full flex-col">
-      <p className="text-[13px] leading-none text-fg-muted">Posición de ejemplo</p>
+      <p className="eyebrow leading-none">Posición de ejemplo</p>
       <div className="mt-3 flex items-baseline justify-between gap-3">
         <span className="num text-xl leading-none text-fg">{formatShares(shares)}</span>
         <span className="num text-sm leading-none text-fg">
@@ -145,20 +145,20 @@ export function HowItWorks({
         {steps.map((step, index) => (
           <li key={step.title}>
             <Reveal delay={(index + 1) * REVEAL_STAGGER_MS} className="border-t border-border pt-5">
-              <p aria-hidden className="num text-[13px] leading-none text-fg-muted">
+              <p aria-hidden className="label leading-none">
                 {step.number}
               </p>
 
               {/* Altura común en escritorio: los tres mocks arrancan a la misma altura. */}
               <div className="lg:min-h-[8.5rem]">
-                <h3 className="mt-5 text-[17px] leading-snug text-pretty sm:text-lg">{step.title}</h3>
-                <p className="mt-2 text-[14px] leading-relaxed text-fg-body sm:text-[15px]">
+                <h3 className="mt-5 text-lg leading-snug text-pretty">{step.title}</h3>
+                <p className="mt-3 text-sm leading-relaxed text-fg-body">
                   {step.body}
                 </p>
               </div>
 
               {/* Slot fijo: el mock no cambia el ritmo de la fila. */}
-              <div className="mt-6 h-32 border-t border-border pt-4">{step.mock}</div>
+              <div className="mt-6 min-h-32 border-t border-border pt-4">{step.mock}</div>
             </Reveal>
           </li>
         ))}

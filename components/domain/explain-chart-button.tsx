@@ -68,7 +68,7 @@ export function ExplainChartButton({
       asChild
       variant="secondary"
       size="md"
-      className={cn("gap-1.5 whitespace-nowrap outline-none focus-visible:ring-4 focus-visible:ring-fg/20", className)}
+      className={cn("gap-1.5 whitespace-nowrap", className)}
     >
       <Link href={explainChartHref(ticker, name, range)} aria-label={ariaLabel}>
         <SparkIcon />

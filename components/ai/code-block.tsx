@@ -190,16 +190,16 @@ export function CodeBlock({
   return (
     <div
       className={cn(
-        "my-3 overflow-hidden rounded-xl border border-border bg-zinc-950 text-zinc-100",
+        "my-3 min-w-0 max-w-full overflow-hidden rounded-xl border border-border bg-zinc-950 text-zinc-100",
         className,
       )}
     >
-      <div className="flex items-center justify-between gap-2 border-b border-white/10 px-3 py-1.5">
-        <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-400">
+      <div className="flex items-center justify-between gap-2 border-b border-white/10 px-3 py-2">
+        <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-300">
           {languageLabel}
         </span>
         <div className="flex items-center gap-2">
-          <span className="text-[10px] tabular-nums text-zinc-500">{lineLabel}</span>
+          <span className="text-[11px] tabular-nums text-zinc-400">{lineLabel}</span>
           <button
             type="button"
             onClick={() => {
@@ -207,20 +207,20 @@ export function CodeBlock({
             }}
             aria-label="Copiar código"
             title="Copiar código"
-            className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-medium text-zinc-300 transition-colors duration-150 hover:text-white focus-visible:ring-4 focus-visible:ring-white/20 focus-visible:outline-none"
+            className="inline-flex min-h-8 items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium text-zinc-200 transition-colors duration-150 hover:bg-white/10 hover:text-white focus-visible:ring-4 focus-visible:ring-white/25 focus-visible:outline-none"
           >
             {copied ? <CheckIcon /> : <CopyIcon />}
             <span>{copied ? "Copiado" : "Copiar"}</span>
           </button>
         </div>
       </div>
-      <pre className="overflow-x-auto p-3 text-[12.5px] leading-relaxed">
-        <code className="block whitespace-pre font-mono">
+      <pre className="max-w-full overflow-x-auto overscroll-x-contain p-3 text-[12.5px] leading-relaxed">
+        <code className="block w-max min-w-full whitespace-pre font-mono [tab-size:2]">
           {showLineNumbers ? (
             <span className="flex">
               <span
                 aria-hidden="true"
-                className="select-none whitespace-pre pr-3 text-right tabular-nums text-zinc-600"
+                className="sticky left-0 z-10 select-none whitespace-pre bg-zinc-950 pr-3 text-right tabular-nums text-zinc-400"
               >
                 {lineNumbers}
               </span>

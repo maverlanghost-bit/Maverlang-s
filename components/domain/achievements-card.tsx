@@ -160,7 +160,7 @@ export function AchievementsCard() {
         </p>
         <Link
           href="/guias"
-          className="rounded-md text-xs font-medium text-fg underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+          className="inline-flex min-h-11 items-center rounded-md text-xs font-medium text-fg underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
         >
           Ver guías educativas →
         </Link>

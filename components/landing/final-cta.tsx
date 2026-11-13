@@ -2,11 +2,9 @@ import Link from "next/link";
 import { Reveal } from "@/components/landing/reveal";
 import { WaitlistForm } from "@/components/landing/waitlist-form";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { esCL } from "@/content/i18n/es-CL";
 import { cn } from "@/lib/cn";
-
-/** Rótulo de dato a 13px: el mínimo de lectura del rediseño. */
-const MICRO = "font-mono text-[13px] font-medium uppercase tracking-[0.045em] text-fg-muted";
 
 const summaryItems: string[] = [
   "US$10.000 demo instantáneos",
@@ -36,28 +34,29 @@ const waitlistPerks: string[] = [
 ];
 
 /**
- * Cierre de la portada en dos columnas sobre hairlines:
+ * Cierre de la portada en dos columnas:
  * - Izquierda: manifiesto de horario ("La bolsa de EE.UU. abre de 9:30 a 16:00.
  *   El mercado on-chain sigue abierto."), comparativa de horarios con la nota de
  *   liquidez fuera de rueda y un solo CTA primario (la demo).
  * - Derecha: formulario de lista de espera para la cuenta Real
- *   (`#lista-de-espera`), como acción secundaria.
+ *   (`#lista-de-espera`) en una Card blanca sobre la banda gris, como acción
+ *   secundaria.
  */
 export function FinalCTA() {
   return (
     <section
       aria-labelledby="cta-final-title"
-      className="border-t border-border bg-surface-1 px-5 py-20 md:py-28"
+      className="border-t border-border bg-surface-1 px-5 py-16 sm:py-20 lg:py-24"
     >
       <div className="mx-auto w-full max-w-7xl">
         <Reveal className="grid grid-cols-1 items-start gap-12 lg:grid-cols-12 lg:gap-16">
           {/* Columna izquierda: manifiesto 24/7, comparativa de horario y CTA. */}
           <div className="flex flex-col items-start text-left lg:col-span-7">
-            <p className={MICRO}>Mercado on-chain · Operas 24/7</p>
+            <p className="label">Mercado on-chain · Operas 24/7</p>
 
             <h2
               id="cta-final-title"
-              className="mt-4 max-w-[20ch] text-3xl leading-[1.06] tracking-tight text-balance sm:text-5xl lg:text-[52px]"
+              className="mt-4 max-w-[20ch] text-3xl leading-[1.06] tracking-tight text-balance sm:text-4xl lg:text-[2.75rem]"
             >
               La bolsa de EE.UU. abre de 9:30 a 16:00.{" "}
               <span className="text-fg-body">El mercado on-chain sigue abierto.</span>
@@ -116,16 +115,13 @@ export function FinalCTA() {
             </ul>
 
             {/* Un solo CTA primario en la vista: la demo. */}
-            <div className="mt-8 flex w-full flex-col items-start gap-4 sm:w-auto sm:flex-row sm:items-center sm:gap-6">
-              <Button asChild size="lg" className="min-h-11 w-full sm:w-auto">
+            <div className="mt-8 flex w-full flex-col items-stretch gap-2 sm:w-auto sm:flex-row sm:items-center">
+              <Button asChild size="lg" className="w-full sm:w-auto">
                 <Link href="/app/registro">Prueba la demo gratis</Link>
               </Button>
-              <Link
-                href="/app"
-                className="inline-flex min-h-11 items-center text-sm font-medium text-fg underline decoration-border underline-offset-4 transition-colors hover:decoration-fg motion-reduce:transition-none"
-              >
-                {esCL.guest.seeStocks}
-              </Link>
+              <Button asChild variant="ghost" size="lg" className="w-full sm:w-auto">
+                <Link href="/app">{esCL.guest.seeStocks}</Link>
+              </Button>
             </div>
 
             <p className="mt-4 text-[13px] leading-relaxed text-fg-muted">
@@ -141,12 +137,9 @@ export function FinalCTA() {
 
           {/* Columna derecha: lista de espera como acción secundaria. */}
           <div className="w-full lg:col-span-5">
-            <div
-              id="lista-de-espera"
-              className="scroll-mt-24 border-t border-border pt-8 text-left lg:border-l lg:border-t-0 lg:pl-10 lg:pt-0"
-            >
-              <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-                <p className={MICRO}>Lista de espera</p>
+            <Card id="lista-de-espera" className="scroll-mt-24 bg-bg text-left">
+              <div className="flex flex-col gap-1 sm:flex-row sm:flex-wrap sm:items-baseline sm:justify-between sm:gap-x-4">
+                <p className="label">Lista de espera</p>
                 <p className="text-[13px] text-fg-muted">Acceso prioritario · Cuenta Real</p>
               </div>
 
@@ -169,13 +162,13 @@ export function FinalCTA() {
                   >
                     <span
                       aria-hidden="true"
-                      className="mt-[0.45rem] size-1 shrink-0 rounded-full bg-border-strong"
+                      className="mt-2 size-1 shrink-0 rounded-full bg-border-strong"
                     />
                     <span>{perk}</span>
                   </li>
                 ))}
               </ul>
-            </div>
+            </Card>
           </div>
         </Reveal>
       </div>

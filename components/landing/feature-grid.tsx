@@ -45,12 +45,12 @@ export function FeatureGrid() {
           >
             <Reveal delay={(index + 1) * REVEAL_STAGGER_MS} className="h-full py-7 md:py-8">
               <div className="flex items-baseline gap-3">
-                <span aria-hidden className="num w-5 shrink-0 text-[13px] leading-none text-fg-muted">
+                <span aria-hidden className="label w-5 shrink-0 leading-none">
                   {String(index + 1).padStart(2, "0")}
                 </span>
                 <div className="min-w-0">
-                  <h3 className="text-[17px] leading-snug text-pretty sm:text-lg">{feature.title}</h3>
-                  <p className="mt-2 max-w-[48ch] text-sm leading-relaxed text-fg-body text-pretty">
+                  <h3 className="text-lg leading-snug text-pretty">{feature.title}</h3>
+                  <p className="mt-3 max-w-[48ch] text-sm leading-relaxed text-fg-body text-pretty">
                     {feature.body}
                   </p>
                 </div>

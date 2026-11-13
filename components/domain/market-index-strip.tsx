@@ -53,7 +53,7 @@ export function MarketIndexStrip({
   return (
     <section
       aria-label="Termómetros del mercado"
-      className="flex items-center gap-2 overflow-x-auto rounded-2xl bg-surface-1 px-3.5 py-2.5 shadow-card [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      className="flex snap-x snap-mandatory items-center gap-2 overflow-x-auto overscroll-x-contain rounded-2xl bg-surface-1 px-3.5 py-2.5 shadow-card [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
     >
       <span className="label inline-flex shrink-0 items-center gap-1.5 rounded-full bg-bg px-2.5 py-1">
         <span className="size-1.5 rounded-full bg-up" aria-hidden="true" />
@@ -68,7 +68,7 @@ export function MarketIndexStrip({
           <Link
             key={symbol}
             href={`/app/accion/${encodeURIComponent(symbol)}`}
-            className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-xl border border-border-control bg-bg px-3 py-1.5 text-xs transition-colors hover:bg-surface-2"
+            className="inline-flex min-h-11 shrink-0 snap-start items-center gap-2 rounded-xl border border-border-control bg-bg px-3 py-1.5 text-xs whitespace-nowrap transition-colors hover:bg-surface-2"
           >
             <span className="font-semibold text-fg">{tag}</span>
             <span className="num text-xs text-fg-muted">{symbol}</span>

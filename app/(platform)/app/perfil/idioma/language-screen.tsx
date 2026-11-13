@@ -10,7 +10,7 @@ export function LanguageScreen() {
   const { t } = useT();
   return (
     <SettingsFrame title={t.profile.language} description={t.profile.languageLead}>
-      <SettingsPanel>
+      <SettingsPanel label={t.profile.language}>
         <PreferencesForm currencyFirst={false} />
       </SettingsPanel>
     </SettingsFrame>

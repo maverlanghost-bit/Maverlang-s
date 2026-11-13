@@ -23,13 +23,11 @@ const DESCRIPTION_MAX = 155;
 const DESCRIPTION_MIN = 120;
 
 const linkClass =
-  "inline-flex min-h-11 items-center font-medium text-fg underline decoration-border underline-offset-4 hover:decoration-fg";
+  "inline-flex min-h-11 items-center text-sm font-medium text-fg underline decoration-border underline-offset-4 transition-colors hover:decoration-fg motion-reduce:transition-none";
 
-/** Rótulo mono de 13 px: el mínimo legible del comparador. */
-const eyebrowClass = "font-mono text-[13px] font-medium uppercase tracking-[0.045em] text-fg-muted";
-
-const headerCellClass =
-  "py-2.5 font-mono text-[13px] font-medium uppercase tracking-[0.045em] text-fg-muted";
+/** Migas: el enlace mantiene 44 px de alto táctil sin agrandar el texto. */
+const crumbClass =
+  "inline-flex min-h-11 items-center underline decoration-border underline-offset-4 transition-colors hover:decoration-fg motion-reduce:transition-none";
 
 /** Importe por acción de la SEC (EPS o dividendos): dólares, dos decimales, es-CL. */
 function usdPerShare(value: number | null): string | null {
@@ -196,7 +194,7 @@ function SideSummary({ asset }: { asset: PublicAsset }) {
           sizes="36px"
         />
         <div className="min-w-0">
-          <p className={eyebrowClass}>{asset.ticker}</p>
+          <p className="label">{asset.ticker}</p>
           <p className="mt-1 truncate text-base font-medium text-fg">{asset.name}</p>
         </div>
       </div>
@@ -386,13 +384,13 @@ export default async function CompararParPage({ params }: { params: Promise<{ pa
         <nav aria-label="Migas" className="text-sm text-fg-muted">
           <ol className="flex flex-wrap items-center gap-x-2 gap-y-1">
             <li>
-              <Link href="/" className="underline decoration-border underline-offset-4 hover:decoration-fg">
+              <Link href="/" className={crumbClass}>
                 Inicio
               </Link>
             </li>
             <li aria-hidden="true">/</li>
             <li>
-              <Link href="/comparar" className="underline decoration-border underline-offset-4 hover:decoration-fg">
+              <Link href="/comparar" className={crumbClass}>
                 Comparar
               </Link>
             </li>
@@ -403,12 +401,12 @@ export default async function CompararParPage({ params }: { params: Promise<{ pa
           </ol>
         </nav>
 
-        <header className="mt-8 border-b border-border pb-8">
-          <p className={eyebrowClass}>Comparación</p>
-          <h1 id="comparar-title" className="mt-2 text-3xl text-balance sm:text-4xl">
+        <header className="mt-6 border-b border-border pb-8">
+          <p className="label">Comparación</p>
+          <h1 id="comparar-title" className="mt-3 text-3xl text-balance sm:text-4xl">
             {a.name} vs {b.name}
           </h1>
-          <p className="mt-4 max-w-[62ch] text-base leading-relaxed text-fg-body">
+          <p className="mt-4 max-w-[62ch] text-lead text-fg-body">
             Dos activos lado a lado: cifras de la empresa según la SEC, precio del token y rendimiento relativo del
             último mes. Comparar no es recomendar.
           </p>
@@ -430,7 +428,7 @@ export default async function CompararParPage({ params }: { params: Promise<{ pa
           path={canonical}
         />
 
-        <section aria-labelledby="comparar-datos" className="mt-10">
+        <section aria-labelledby="comparar-datos" className="mt-12">
           <h2 id="comparar-datos" className="text-2xl sm:text-3xl">
             Datos de la empresa
           </h2>
@@ -443,7 +441,7 @@ export default async function CompararParPage({ params }: { params: Promise<{ pa
             <>
               {/* <sm: una fila por métrica, dos valores y la cifra mayor en palabras.
                   Reemplaza la tabla de 3 columnas que a 390 px caía a 11 px. */}
-              <ul className="mt-4 border-t border-border sm:hidden">
+              <ul className="mt-5 border-t border-border sm:hidden">
                 {visibleRows.map((row) => {
                   const winner = winnerLabel(row, a, b);
                   return (
@@ -481,33 +479,36 @@ export default async function CompararParPage({ params }: { params: Promise<{ pa
                 })}
               </ul>
 
-              <div className="mt-4 hidden max-w-3xl sm:block">
+              <div className="mt-5 hidden max-w-3xl overflow-x-auto sm:block">
                 <table className="w-full border-collapse text-left text-[13px]">
                   <caption className="sr-only">
                     Comparación de datos de empresa de {a.name} y {b.name}
                   </caption>
                   <thead>
                     <tr className="border-b border-border">
-                      <th scope="col" className={cn(headerCellClass, "w-[32%] pr-4 text-left")}>
+                      <th scope="col" className="label w-[32%] py-2.5 pr-4 text-left">
                         Dato
                       </th>
-                      <th scope="col" className={cn(headerCellClass, "px-4 text-right text-fg")}>
+                      <th scope="col" className="label whitespace-nowrap py-2.5 pr-4 pl-4 text-right text-fg">
                         {a.ticker}
                       </th>
-                      <th scope="col" className={cn(headerCellClass, "pl-4 text-right text-fg")}>
+                      <th scope="col" className="label whitespace-nowrap py-2.5 pl-4 text-right text-fg">
                         {b.ticker}
                       </th>
                     </tr>
                   </thead>
                   <tbody>
                     {visibleRows.map((row) => (
-                      <tr key={row.label} className="border-b border-border">
+                      <tr
+                        key={row.label}
+                        className="border-b border-border transition-colors hover:bg-surface-1 motion-reduce:transition-none"
+                      >
                         <th scope="row" className="py-3 pr-4 align-baseline font-normal text-fg-body">
                           {row.label}
                         </th>
                         <td
                           className={cn(
-                            "px-4 py-3 text-right align-baseline",
+                            "whitespace-nowrap px-4 py-3 text-right align-baseline",
                             row.numeric && "num",
                             row.left === null ? "text-fg-muted" : "text-fg",
                           )}
@@ -516,7 +517,7 @@ export default async function CompararParPage({ params }: { params: Promise<{ pa
                         </td>
                         <td
                           className={cn(
-                            "pl-4 py-3 text-right align-baseline",
+                            "whitespace-nowrap py-3 pl-4 text-right align-baseline",
                             row.numeric && "num",
                             row.right === null ? "text-fg-muted" : "text-fg",
                           )}
@@ -572,7 +573,7 @@ export default async function CompararParPage({ params }: { params: Promise<{ pa
         </section>
 
         {metrics.length > 0 ? (
-          <section aria-labelledby="comparar-tamano" className="mt-10 border-t border-border pt-6">
+          <section aria-labelledby="comparar-tamano" className="mt-12 border-t border-border pt-8">
             <h2 id="comparar-tamano" className="text-2xl sm:text-3xl">
               Tamaño relativo
             </h2>
@@ -596,7 +597,7 @@ export default async function CompararParPage({ params }: { params: Promise<{ pa
           </section>
         ) : null}
 
-        <div className="mt-10 flex flex-wrap items-center gap-x-6 gap-y-2">
+        <div className="mt-12 flex flex-wrap items-center gap-x-6 gap-y-3">
           <Link href="/acciones" className={buttonClasses({ variant: "primary" })}>
             Ver el catálogo
           </Link>
@@ -611,7 +612,7 @@ export default async function CompararParPage({ params }: { params: Promise<{ pa
           </Link>
         </div>
 
-        <p className="mt-8 border-t border-border pt-4 text-[13px] leading-relaxed text-fg-body">
+        <p className="mt-10 border-t border-border pt-6 text-[13px] leading-relaxed text-fg-body">
           Las cifras de la empresa son datos públicos de la SEC y los precios se mueven durante el día; fuera del
           horario regular de la bolsa de EE.UU. el precio puede variar más. Revisa la ficha de cada activo antes de
           operar. Información, no recomendación de inversión.

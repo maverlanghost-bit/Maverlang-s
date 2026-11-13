@@ -117,7 +117,7 @@ export function LandingLiveBadge({ live }: { live: boolean }) {
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 text-xs font-medium",
+        "inline-flex items-center gap-2 text-xs font-medium whitespace-nowrap",
         state === "stale" ? "text-warn" : state === "live" ? "text-up" : "text-fg-muted",
       )}
     >
@@ -152,15 +152,15 @@ export function LandingPrice({
     const tone = change > 0 ? "text-up" : change < 0 ? "text-down" : "text-fg-muted";
     return (
       <span className="inline-flex items-center gap-2 px-4">
-        <span className="text-sm font-medium text-fg">{symbol}</span>
-        <span className="font-mono text-sm tabular-nums text-fg-muted">{formatUsd(priceUsd)}</span>
-        <span className={cn("font-mono text-sm tabular-nums", tone)}>{formatPercent(change)}</span>
+        <span className="text-sm font-medium whitespace-nowrap text-fg">{symbol}</span>
+        <span className="font-mono text-sm whitespace-nowrap tabular-nums text-fg-muted">{formatUsd(priceUsd)}</span>
+        <span className={cn("font-mono text-sm whitespace-nowrap tabular-nums", tone)}>{formatPercent(change)}</span>
       </span>
     );
   }
 
   return (
-    <span className="flex shrink-0 flex-col items-end gap-0.5">
+    <span className="flex shrink-0 flex-col items-end gap-1">
       <FlashPrice value={priceUsd} currency="USD" size="sm" />
       <ChangeBadge value={change} />
     </span>

@@ -253,7 +253,7 @@ function SourceCard({
 
   const body = (
     <>
-      <span className="w-[18px] h-[18px] rounded-full bg-white text-[9px] font-bold border border-zinc-200 text-zinc-500 flex shrink-0 items-center justify-center">
+      <span className="w-5 h-5 rounded-full bg-white text-[10px] font-bold border border-zinc-200 text-fg-muted flex shrink-0 items-center justify-center">
         {index + 1}
       </span>
       <span className="w-4 h-4 rounded-md bg-white border border-zinc-200/70 flex shrink-0 items-center justify-center overflow-hidden">
@@ -275,12 +275,12 @@ function SourceCard({
         )}
       </span>
       <span className="flex min-w-0 flex-1 flex-col text-left">
-        <span className="truncate text-[11px] font-semibold leading-tight text-zinc-800 transition-colors group-hover:text-[#1890FF]">
+        <span className="truncate text-[12px] font-semibold leading-tight text-zinc-800 transition-colors group-hover:text-info">
           {source.displayTitle}
         </span>
-        <span className="mt-0.5 truncate text-[9px] text-zinc-400">{source.subtitle}</span>
+        <span className="mt-0.5 truncate text-[11px] text-fg-muted">{source.subtitle}</span>
       </span>
-      <span className="shrink-0 rounded-full border border-zinc-200 bg-zinc-50 px-1.5 py-px text-[9px] font-semibold text-zinc-500">
+      <span className="shrink-0 rounded-full border border-zinc-200 bg-zinc-50 px-1.5 py-px text-[10px] font-semibold text-fg-muted">
         {source.badge}
       </span>
       <ExternalLinkIcon className="h-3 w-3 shrink-0 text-zinc-300 opacity-0 transition-opacity group-hover:opacity-100" />

@@ -262,6 +262,13 @@ export default async function CopyPortfolioPage({
             : null;
 
   const canCopy = hasAccess && blockReason === null;
+  /** Lo que se resuelve en planes: sin suscripción o con el pago atrasado. */
+  const planCanUnblock =
+    familyCopyable &&
+    !meta.isFrozen &&
+    !feedDead &&
+    coveragePct >= COVERAGE_COPY_MIN &&
+    (!hasAccess || readOnly);
   const ctaReason =
     blockReason ?? (hasAccess ? null : "Necesitas el plan Copiar carteras para replicar la mezcla.");
   const showPositions = hasAccess || meta.family === "broker_cl";
@@ -283,7 +290,6 @@ export default async function CopyPortfolioPage({
           <IconBack className="size-4" />
           Copiar carteras
         </Link>
-        <FraccionSeal />
       </div>
 
       <FeedBanner health={health} />
@@ -377,7 +383,7 @@ export default async function CopyPortfolioPage({
               </div>
             </section>
           ) : (
-            <Paywall />
+            <Paywall compact title="Desbloquea la composición" />
           )}
 
           {showPositions ? (
@@ -393,6 +399,7 @@ export default async function CopyPortfolioPage({
           ) : null}
 
           <div className="flex flex-col gap-2 border-t border-border pt-6">
+            <FraccionSeal />
             <p className="text-[13px] leading-relaxed text-fg-muted">
               Atribución: {meta.attribution}
               {meta.license ? ` · ${meta.license}` : ""}
@@ -402,7 +409,7 @@ export default async function CopyPortfolioPage({
           </div>
         </div>
 
-        <aside className="order-1 flex min-w-0 flex-col gap-4 lg:order-2">
+        <aside className="order-1 flex min-w-0 flex-col gap-4 lg:order-2 lg:sticky lg:top-6">
           <section
             aria-labelledby="cta-titulo"
             className="flex flex-col gap-4 rounded-3xl border border-border bg-bg p-5"
@@ -419,9 +426,6 @@ export default async function CopyPortfolioPage({
             />
 
             <dl className="border-t border-border/70 pt-1">
-              <DataRow label="Verificación" mono={false}>
-                {VERIFICATION_LABEL[meta.verification]}
-              </DataRow>
               <DataRow label="Composición" mono={false}>
                 {meta.isEstimated ? "Estimada" : "Declarada"}
               </DataRow>
@@ -438,6 +442,13 @@ export default async function CopyPortfolioPage({
               >
                 Copiar esta mezcla
               </Link>
+            ) : planCanUnblock ? (
+              <Link
+                href="/app/copiar/planes"
+                className={buttonClasses({ variant: "primary", size: "lg", className: "min-h-12 w-full" })}
+              >
+                Ver planes
+              </Link>
             ) : (
               <button
                 type="button"
@@ -447,15 +458,6 @@ export default async function CopyPortfolioPage({
                 Copiar esta mezcla
               </button>
             )}
-
-            {!canCopy && familyCopyable && (!hasAccess || readOnly) ? (
-              <Link
-                href="/app/copiar/planes"
-                className="inline-flex min-h-11 w-fit items-center text-[13px] font-medium text-fg underline underline-offset-4"
-              >
-                Ver planes
-              </Link>
-            ) : null}
 
             <p className="text-[13px] leading-relaxed text-fg-muted">{COPY_CTA_NOTE}</p>
           </section>

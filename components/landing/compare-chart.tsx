@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 
+import { Button } from "@/components/ui/button";
+import { IconShare } from "@/components/ui/icons";
 import { getHistories } from "@/lib/api/client";
 import { cn } from "@/lib/cn";
 
@@ -191,11 +193,11 @@ export function CompareChart({
       className={cn("mt-10 border-t border-border pt-8", className)}
     >
       <div className="flex flex-wrap items-start justify-between gap-4">
-        <div className="max-w-2xl">
-          <h2 id="comparar-grafico-title" className="text-xl sm:text-2xl">
+        <div className="min-w-0 max-w-2xl">
+          <h2 id="comparar-grafico-title" className="text-xl text-balance sm:text-2xl">
             Rendimiento relativo
           </h2>
-          <p className="mt-2 text-[13px] leading-relaxed text-fg-muted">
+          <p className="mt-2 text-[13px] leading-relaxed text-pretty text-fg-muted">
             Base 100 al primer punto del último mes. Compara cómo se movió cada precio; no es una proyección.
           </p>
         </div>
@@ -206,14 +208,14 @@ export function CompareChart({
         <div className="mt-6">
           <div
             aria-hidden
-            className="aspect-[720/260] w-full animate-pulse rounded-2xl bg-surface-2 motion-reduce:animate-none"
+            className="aspect-[720/260] w-full animate-pulse rounded-xl bg-surface-2 motion-reduce:animate-none"
           />
           <p className="sr-only">Cargando el gráfico de rendimiento relativo…</p>
         </div>
       ) : null}
 
       {state === "empty" ? (
-        <p className="mt-6 max-w-2xl border-t border-border pt-4 text-[13px] leading-relaxed text-fg-muted">
+        <p className="mt-6 max-w-2xl border-t border-border pt-4 text-[13px] leading-relaxed text-pretty text-fg-muted">
           No hay datos públicos de precio suficientes para dibujar la comparación ahora. El resto de la página sigue
           igual.
         </p>
@@ -353,29 +355,12 @@ export function ShareCompareButton({
   }
 
   return (
-    <div className={cn("flex flex-col items-start gap-1.5", className)}>
-      <button
-        type="button"
-        onClick={() => void share()}
-        className="inline-flex min-h-11 items-center gap-2 rounded-full border border-border-control bg-bg px-4 text-sm font-medium text-fg transition duration-[140ms] ease-spring hover:bg-surface-2 active:scale-[0.98] motion-reduce:transition-none"
-      >
-        <svg
-          aria-hidden
-          viewBox="0 0 16 16"
-          className="size-4"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <path d="M8 2v8" />
-          <path d="m4.8 5.2 3.2-3.2 3.2 3.2" />
-          <path d="M3 10.5v2.2c0 .7.6 1.3 1.3 1.3h7.4c.7 0 1.3-.6 1.3-1.3v-2.2" />
-        </svg>
+    <div className={cn("flex flex-col items-start gap-2", className)}>
+      <Button type="button" variant="secondary" size="md" className="gap-2" onClick={() => void share()}>
+        <IconShare className="size-4" />
         Compartir comparación
-      </button>
-      <p aria-live="polite" className="text-[13px] text-fg-muted">
+      </Button>
+      <p aria-live="polite" className="min-h-5 text-[13px] leading-5 text-fg-muted">
         {status === "copied"
           ? "Enlace copiado."
           : status === "error"

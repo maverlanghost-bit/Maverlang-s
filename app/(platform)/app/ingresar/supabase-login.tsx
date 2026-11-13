@@ -110,7 +110,7 @@ export function SupabaseLogin({
 
   return (
     <AuthFrame title="Ingresa" lead="Usa el correo y la contraseña de tu cuenta.">
-      <form className="mt-6" noValidate onSubmit={(event) => void submit(event)}>
+      <form className="mt-6" noValidate aria-busy={busy} onSubmit={(event) => void submit(event)}>
         <CredentialField
           id="correo"
           label="Correo"
@@ -130,10 +130,10 @@ export function SupabaseLogin({
           error={fields.password}
           onChange={(event) => setPassword(event.target.value)}
         />
-        <p className="mt-3 text-sm">
+        <p className="mt-2 flex justify-end text-sm">
           <Link
             href="/app/recuperar"
-            className="inline-flex min-h-11 items-center rounded-sm px-1 font-medium text-fg underline decoration-border underline-offset-4 outline-none hover:decoration-fg focus-visible:ring-4 focus-visible:ring-fg/20"
+            className="inline-flex min-h-11 items-center rounded-sm px-1 font-medium text-fg underline decoration-border underline-offset-4 transition-colors hover:decoration-fg"
           >
             Olvidé mi contraseña
           </Link>
@@ -154,7 +154,12 @@ export function SupabaseLogin({
         Próximamente
       </Button>
       {alert ? (
-        <p className={`mt-4 text-center text-sm break-words leading-relaxed ${alertIsError ? "text-down" : "text-fg-body"}`} role={alertIsError ? "alert" : "status"}>
+        <p
+          className={`mt-4 break-words rounded-lg border px-3 py-2.5 text-center text-sm leading-relaxed ${
+            alertIsError ? "border-down/20 bg-down-bg text-down" : "border-border bg-surface-2 text-fg-body"
+          }`}
+          role={alertIsError ? "alert" : "status"}
+        >
           {alert}
         </p>
       ) : null}
@@ -163,8 +168,8 @@ export function SupabaseLogin({
           Reenviar correo de confirmación
         </Button>
       ) : null}
-      <p className="mt-6 text-center text-sm leading-relaxed text-fg-muted">
-        <Link href={createHref} className="inline-flex min-h-11 items-center justify-center rounded-sm px-2 font-medium text-fg underline decoration-border underline-offset-4 outline-none hover:decoration-fg focus-visible:ring-4 focus-visible:ring-fg/20">
+      <p className="mt-4 text-center text-sm leading-relaxed text-fg-muted">
+        <Link href={createHref} className="inline-flex min-h-11 items-center justify-center rounded-sm px-2 font-medium text-fg underline decoration-border underline-offset-4 transition-colors hover:decoration-fg">
           Crear cuenta
         </Link>
       </p>

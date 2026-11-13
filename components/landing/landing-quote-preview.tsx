@@ -90,7 +90,7 @@ export function LandingQuotePreview({ quote, live }: { quote: LandingQuote; live
 
   return (
     <div className="border-y border-border">
-      <div className="grid gap-10 py-8 md:py-10 lg:grid-cols-[20rem_minmax(0,1fr)] lg:gap-16">
+      <div className="grid gap-10 py-8 md:py-10 lg:grid-cols-[22rem_minmax(0,1fr)] lg:gap-16">
         <div className="min-w-0">
           <div className="flex items-center gap-3">
             <TickerLogo
@@ -103,7 +103,7 @@ export function LandingQuotePreview({ quote, live }: { quote: LandingQuote; live
               sizes="40px"
             />
             <div className="min-w-0">
-              <p className="truncate text-[17px] leading-snug font-medium text-fg">{quote.name}</p>
+              <p title={quote.name} className="truncate text-[17px] leading-snug font-medium text-fg">{quote.name}</p>
               <p className="mt-0.5 truncate text-[13px] leading-snug text-fg-muted">
                 {quote.symbol} · {quote.underlying}
               </p>
@@ -117,7 +117,7 @@ export function LandingQuotePreview({ quote, live }: { quote: LandingQuote; live
               currency="USD"
               size="lg"
               live={live}
-              className="mt-3 block"
+              className="mt-3 block whitespace-nowrap"
             />
             <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1">
               <span
@@ -167,7 +167,7 @@ export function LandingQuotePreview({ quote, live }: { quote: LandingQuote; live
               Historial · {rangeName}
               {historyIsReference ? " · referencia" : ""}
             </p>
-            <div role="group" aria-label="Rango del gráfico" className="flex items-center gap-0.5">
+            <div role="group" aria-label="Rango del gráfico" className="flex items-center gap-1">
               {RANGE_OPTIONS.map((option) => {
                 const active = option.value === range;
                 return (
@@ -210,17 +210,17 @@ export function LandingQuotePreview({ quote, live }: { quote: LandingQuote; live
               aria-label="Métricas del período"
               className="mt-4 grid grid-cols-3 gap-3 border-t border-border pt-4"
             >
-              <div>
+              <div className="min-w-0">
                 <dt className="text-[13px] leading-none text-fg-muted">Apertura</dt>
-                <dd className="num mt-1 text-[13px] text-fg">{formatMoney(stats.open, "USD")}</dd>
+                <dd className="num mt-1 text-[13px] whitespace-nowrap text-fg">{formatMoney(stats.open, "USD")}</dd>
               </div>
-              <div>
+              <div className="min-w-0">
                 <dt className="text-[13px] leading-none text-fg-muted">Máximo</dt>
-                <dd className="num mt-1 text-[13px] text-fg">{formatMoney(stats.high, "USD")}</dd>
+                <dd className="num mt-1 text-[13px] whitespace-nowrap text-fg">{formatMoney(stats.high, "USD")}</dd>
               </div>
-              <div>
+              <div className="min-w-0">
                 <dt className="text-[13px] leading-none text-fg-muted">Mínimo</dt>
-                <dd className="num mt-1 text-[13px] text-fg">{formatMoney(stats.low, "USD")}</dd>
+                <dd className="num mt-1 text-[13px] whitespace-nowrap text-fg">{formatMoney(stats.low, "USD")}</dd>
               </div>
             </dl>
           ) : null}

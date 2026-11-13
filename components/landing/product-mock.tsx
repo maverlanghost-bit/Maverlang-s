@@ -25,7 +25,7 @@ export function ProductMock({ quotes, live }: { quotes: LandingQuote[]; live: bo
         {quote ? (
           <LandingQuotePreview quote={quote} live={live} />
         ) : (
-          <p className="text-sm text-fg-muted">No hay acciones de ejemplo.</p>
+          <p className="border-y border-border py-6 text-sm text-fg-muted">No hay acciones de ejemplo.</p>
         )}
       </Reveal>
     </LandingSection>

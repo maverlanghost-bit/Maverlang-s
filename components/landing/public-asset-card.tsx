@@ -98,7 +98,7 @@ export function PublicAssetCard({
           {sectorCell}
         </span>
         {showPrice ? (
-          <span className="num hidden text-right text-[13px] text-fg sm:block">{price || "—"}</span>
+          <span className="num hidden text-right text-[13px] whitespace-nowrap text-fg sm:block">{price || "—"}</span>
         ) : null}
       </Link>
     );
@@ -110,7 +110,7 @@ export function PublicAssetCard({
       aria-label={`${asset.name} (${asset.ticker}), token ${asset.symbol}${sector ? `, ${sector}` : ""}`}
       className={cn(
         "group flex items-center gap-3 bg-bg transition duration-[140ms] ease-spring hover:bg-surface-1",
-        row ? "min-h-16 px-0 py-2.5" : "min-h-24 rounded-2xl border border-border p-4",
+        row ? "min-h-16 px-0 py-2.5" : "min-h-24 rounded-xl border border-border p-4 hover:border-border-strong",
         className,
       )}
     >
@@ -133,7 +133,11 @@ export function PublicAssetCard({
         >
           {asset.name}
         </span>
-        {sector ? <span className="mt-0.5 block truncate text-xs text-fg-muted">{sector}</span> : null}
+        {sector ? (
+          <span title={sector} className="mt-0.5 block truncate text-xs text-fg-muted">
+            {sector}
+          </span>
+        ) : null}
       </span>
       <span className="flex shrink-0 flex-col items-end gap-1">
         <span className="font-mono text-xs text-fg-muted">{asset.ticker}</span>

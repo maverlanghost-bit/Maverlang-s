@@ -20,8 +20,9 @@ const RSI_LEVELS = [30, 70] as const;
 
 /** Alto fijo de la fila de chips: el skeleton y los toggles ocupan lo mismo. */
 const STUDY_ROW = "mb-2 flex h-11 min-w-0 max-w-full items-center gap-1";
+/* 44 px en móvil (el chip mide h-11): con h-8 el contenedor recortaba los chips. */
 const STUDY_SCROLL =
-  "flex h-8 min-w-0 flex-1 flex-nowrap items-center gap-1.5 overflow-x-auto overscroll-x-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden";
+  "flex h-11 min-w-0 flex-1 flex-nowrap items-center gap-1.5 overflow-x-auto overscroll-x-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:h-8";
 
 function StudyChip({
   pressed,
@@ -40,7 +41,7 @@ function StudyChip({
       aria-pressed={pressed}
       onClick={onClick}
       className={cn(
-        "inline-flex h-11 shrink-0 items-center gap-1.5 rounded-full border border-transparent px-3 text-[13px] font-medium whitespace-nowrap outline-none transition-colors duration-150 focus-visible:ring-4 focus-visible:ring-fg/20 sm:h-8 sm:px-2.5 sm:text-xs",
+        "inline-flex h-11 shrink-0 items-center gap-1.5 rounded-full border border-transparent px-3 text-[13px] font-medium whitespace-nowrap outline-none transition-colors duration-150 sm:h-8 sm:px-2.5 sm:text-xs",
         pressed ? "bg-surface-2 text-fg" : "text-fg-muted hover:bg-surface-1 hover:text-fg",
       )}
     >
@@ -71,7 +72,7 @@ function StyleSwitch({
     <div
       role="group"
       aria-label={label}
-      className="inline-flex h-11 shrink-0 items-center gap-0.5 rounded-full border border-border bg-bg p-0.5 sm:h-8"
+      className="inline-flex h-11 shrink-0 items-center gap-0.5 rounded-full border border-border bg-bg p-0 sm:h-8 sm:p-0.5"
     >
       {options.map(([id, text]) => {
         const selected = value === id;
@@ -82,7 +83,7 @@ function StyleSwitch({
             aria-pressed={selected}
             onClick={() => onChange(id)}
             className={cn(
-              "h-9 shrink-0 rounded-full px-2.5 text-[13px] font-medium whitespace-nowrap outline-none focus-visible:ring-4 focus-visible:ring-fg/20 sm:h-7 sm:text-xs",
+              "h-11 shrink-0 rounded-full px-3 text-[13px] font-medium whitespace-nowrap outline-none focus-visible:ring-2 focus-visible:ring-fg sm:h-7 sm:px-2.5 sm:text-xs",
               selected ? "bg-fg text-bg" : "text-fg-muted hover:text-fg",
             )}
           >
@@ -99,10 +100,10 @@ export function StudiesSkeleton({ label }: { label: string }) {
     <div className={STUDY_ROW} role="status" aria-live="polite" aria-busy="true">
       <span className="sr-only">{label}</span>
       <div className={STUDY_SCROLL} aria-hidden>
-        <Skeleton className="h-8 w-24 shrink-0 rounded-full" />
-        <Skeleton className="h-8 w-16 shrink-0 rounded-full" />
-        <Skeleton className="h-8 w-16 shrink-0 rounded-full" />
-        <Skeleton className="h-8 w-14 shrink-0 rounded-full" />
+        <Skeleton className="h-11 w-24 shrink-0 rounded-full sm:h-8" />
+        <Skeleton className="h-11 w-16 shrink-0 rounded-full sm:h-8" />
+        <Skeleton className="h-11 w-16 shrink-0 rounded-full sm:h-8" />
+        <Skeleton className="h-11 w-14 shrink-0 rounded-full sm:h-8" />
       </div>
       <Skeleton className="size-11 shrink-0 rounded-full" />
     </div>

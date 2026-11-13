@@ -24,10 +24,6 @@ const crumbs = [
   { name: "Guías", path: "/guias" },
 ];
 
-/** Rótulo mono del índice: 13 px, el mínimo de la escala editorial. */
-const eyebrowMono =
-  "font-mono text-[13px] leading-none font-medium uppercase tracking-[0.045em] text-fg-muted";
-
 const textLinkClass =
   "inline-flex min-h-11 items-center text-sm font-medium text-fg underline decoration-border underline-offset-4 hover:decoration-fg";
 
@@ -61,7 +57,7 @@ export default function GuiasPage() {
       ) : null}
 
       <div className="max-w-3xl">
-        <p className={eyebrowMono}>Guías</p>
+        <p className="label">Guías</p>
         <h1 id="guias-title" className="mt-3 text-3xl sm:text-4xl">
           Guías de acciones tokenizadas
         </h1>
@@ -87,7 +83,7 @@ export default function GuiasPage() {
         /* Índice editorial: una fila por guía, con hairlines en vez de tarjetas. */
         <div className="mt-10 max-w-4xl">
           <p className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b border-border pb-3">
-            <span className={eyebrowMono}>Índice</span>
+            <span className="eyebrow">Índice</span>
             <span className="text-[13px] text-fg-muted">
               <span className="num tabular-nums text-fg">{guides.length}</span>{" "}
               {guides.length === 1 ? "guía publicada" : "guías publicadas"}
@@ -107,12 +103,20 @@ export default function GuiasPage() {
                     {String(index + 1).padStart(2, "0")}
                   </span>
                   <div className="min-w-0">
-                    <h2 className="text-[1.0625rem] leading-snug font-medium text-fg sm:text-[1.125rem]">
-                      <span className="underline decoration-transparent underline-offset-[5px] transition-colors duration-150 group-hover:decoration-fg motion-reduce:transition-none">
-                        {guide.title}
+                    <div className="flex items-start justify-between gap-3">
+                      <h2 className="min-w-0 text-[1.0625rem] leading-snug font-medium text-fg sm:text-[1.125rem]">
+                        <span className="underline decoration-transparent underline-offset-[5px] transition-colors duration-150 group-hover:decoration-fg motion-reduce:transition-none">
+                          {guide.title}
+                        </span>
+                      </h2>
+                      <span
+                        aria-hidden="true"
+                        className="mt-0.5 shrink-0 text-sm text-fg-muted transition-[color,transform] duration-150 group-hover:translate-x-0.5 group-hover:text-fg motion-reduce:transition-none"
+                      >
+                        →
                       </span>
-                    </h2>
-                    <p className="mt-2 max-w-[64ch] text-[0.9375rem] leading-relaxed text-fg-body">
+                    </div>
+                    <p className="mt-2 max-w-[62ch] text-[0.9375rem] leading-relaxed text-fg-body">
                       {guide.description}
                     </p>
                     <p className="mt-3.5 flex flex-wrap items-center gap-x-2.5 gap-y-1.5 font-mono text-[13px] leading-snug text-fg-muted">
@@ -123,12 +127,6 @@ export default function GuiasPage() {
                       <time dateTime={guide.updatedAt} className="tabular-nums">
                         Actualizada el {formatGuideDate(guide.updatedAt)}
                       </time>
-                      <span
-                        aria-hidden="true"
-                        className="ml-auto text-sm transition-transform duration-150 group-hover:translate-x-0.5 motion-reduce:transition-none"
-                      >
-                        →
-                      </span>
                     </p>
                   </div>
                 </Link>

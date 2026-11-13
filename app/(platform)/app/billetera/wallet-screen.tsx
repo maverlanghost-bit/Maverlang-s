@@ -174,7 +174,7 @@ function AssetRow({
         {hidden && (symbol === "USDC" || symbol === "SOL") ? (
           <Masked label={hiddenLabel} />
         ) : (
-          <span className="num max-w-full text-sm break-words text-fg">{amount}</span>
+          <span className="num max-w-full text-sm break-words text-fg tabular-nums">{amount}</span>
         )}
         {hidden ? null : pending ? (
           <Skeleton className="h-5 w-16" />
@@ -310,23 +310,6 @@ export function WalletScreen() {
           </p>
         ) : null}
 
-        <div className="mt-6 border-t border-border pt-4">
-          <p className="label">{t.wallet.solLabel}</p>
-          {sol ? (
-            <>
-              <p className="mt-2 max-w-full text-lg break-words text-fg">{masked ? <Masked label={t.shell.balanceHidden} /> : <span className="num font-medium tabular-nums">{formatSol(solUi)}</span>}</p>
-              <p className="mt-1 max-w-xl text-sm leading-relaxed text-fg-muted">{t.wallet.solExplain}</p>
-              {lowSol ? (
-                <p role="status" className="mt-3 rounded-2xl border border-warn/30 bg-warn-bg px-4 py-3 text-sm leading-relaxed text-fg">
-                  {t.wallet.solLow}
-                </p>
-              ) : null}
-            </>
-          ) : (
-            <p className="mt-1 max-w-xl text-sm leading-relaxed text-fg-muted">{t.wallet.solExplain}</p>
-          )}
-        </div>
-
         <div className="mt-5 flex flex-col gap-2 sm:grid sm:grid-cols-3">
           <Button asChild size="lg" className="w-full">
             <Link href={DEPOSIT_HREF}>{t.wallet.deposit}</Link>
@@ -337,6 +320,23 @@ export function WalletScreen() {
           <Button asChild variant="secondary" size="lg" className="w-full">
             <Link href={RECEIVE_HREF}>{t.wallet.receive}</Link>
           </Button>
+        </div>
+
+        <div className="mt-6 border-t border-border pt-4">
+          <p className="label">{t.wallet.solLabel}</p>
+          {sol ? (
+            <>
+              <p className="mt-2 max-w-full text-lg break-words text-fg">{masked ? <Masked label={t.shell.balanceHidden} /> : <span className="num font-medium tabular-nums">{formatSol(solUi)}</span>}</p>
+              <p className="mt-1 max-w-xl text-sm leading-relaxed text-fg-muted">{t.wallet.solExplain}</p>
+              {lowSol ? (
+                <p role="status" className="mt-3 rounded-xl bg-warn-bg px-4 py-3 text-sm leading-relaxed text-fg">
+                  {t.wallet.solLow}
+                </p>
+              ) : null}
+            </>
+          ) : (
+            <p className="mt-1 max-w-xl text-sm leading-relaxed text-fg-muted">{t.wallet.solExplain}</p>
+          )}
         </div>
       </Card>
 
@@ -408,7 +408,7 @@ export function WalletScreen() {
                       "min-h-11 shrink-0 cursor-pointer rounded-full border px-3.5 text-[13px] font-medium whitespace-nowrap transition duration-150 sm:min-h-9",
                       active
                         ? "border-fg/20 bg-fg text-bg shadow-[0_1px_2px_rgba(12,15,20,0.08)]"
-                        : "border-border bg-surface-1 text-fg-muted hover:bg-surface-2 hover:text-fg",
+                        : "border-control bg-bg text-fg-muted hover:bg-surface-2 hover:text-fg",
                     )}
                   >
                     {filter.label}
@@ -452,7 +452,7 @@ export function WalletScreen() {
               onChange={(e) => setActivityQuery(e.target.value)}
               placeholder="Buscar por símbolo (ej. NVDAx, USDC) o hash..."
               aria-label="Buscar en actividad"
-              className="h-11 w-full rounded-xl border border-border bg-surface-1 px-3 text-[13px] text-fg placeholder:text-fg-muted outline-none focus:border-fg/40 sm:h-9 sm:w-64"
+              className="h-11 w-full rounded-xl border border-control bg-bg px-3 text-base text-fg placeholder:text-fg-muted outline-none focus:border-fg sm:h-9 sm:w-64 sm:text-[13px]"
             />
           </div>
         ) : null}

@@ -68,10 +68,10 @@ export function CostSimulator() {
                   aria-pressed={selected}
                   onClick={() => setAmountUsd(amount)}
                   className={cn(
-                    "num min-h-11 border px-2 text-[13px] font-medium tabular-nums transition-colors duration-150",
+                    "num min-h-11 rounded-full border px-2 text-[13px] font-medium transition-colors duration-150",
                     selected
                       ? "border-fg bg-fg text-white"
-                      : "border-border bg-bg text-fg-body hover:border-fg",
+                      : "border-control bg-bg text-fg hover:border-fg hover:bg-surface-1",
                   )}
                 >
                   {formatAmount(amount)}
@@ -96,7 +96,7 @@ export function CostSimulator() {
           </span>
           <span
             aria-hidden="true"
-            className="mt-0.5 flex size-5 shrink-0 items-center justify-center border border-control bg-bg transition-colors duration-150 peer-checked:border-fg peer-checked:bg-fg peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-fg"
+            className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-xs border border-control bg-bg transition-colors duration-150 peer-checked:border-fg peer-checked:bg-fg peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-fg"
           >
             <svg
               viewBox="0 0 24 24"
@@ -124,7 +124,7 @@ export function CostSimulator() {
         <dl className="mt-4 border-t border-border">
           <div className="flex items-baseline justify-between gap-4 border-b border-border py-3">
             <dt className="text-sm text-fg-muted">Monto de la orden</dt>
-            <dd className="num text-sm font-medium text-fg">{formatAmount(amountUsd)}</dd>
+            <dd className="num shrink-0 text-right text-sm font-medium text-fg">{formatAmount(amountUsd)}</dd>
           </div>
 
           <div className="flex items-baseline justify-between gap-4 border-b border-border py-3">
@@ -140,15 +140,15 @@ export function CostSimulator() {
 
           <div className="flex items-baseline justify-between gap-4 border-b border-border py-3">
             <dt className="text-sm text-fg-muted">Costo estimado red Solana</dt>
-            <dd className="num text-sm font-medium text-fg">{formatUsdFee(NETWORK_FEE_USD, 3)}</dd>
+            <dd className="num shrink-0 text-right text-sm font-medium text-fg">{formatUsdFee(NETWORK_FEE_USD, 3)}</dd>
           </div>
 
           <div className="flex items-baseline justify-between gap-4 border-b border-border py-3">
-            <dt className="flex min-w-0 flex-col gap-0.5 text-sm text-fg-muted">
+            <dt className="flex min-w-0 flex-col gap-1 text-sm text-fg-muted">
               <span>Apertura de la cuenta del token</span>
               <span className="text-[13px] text-fg-muted">Sólo la primera vez</span>
             </dt>
-            <dd className="num shrink-0 text-sm font-medium text-fg">
+            <dd className="num min-w-0 text-right text-sm font-medium text-fg">
               {firstTime ? formatUsdFee(costs.tokenAccountUsd, 2) : "US$0,00 (ya abierta)"}
             </dd>
           </div>
@@ -157,7 +157,7 @@ export function CostSimulator() {
             <dt className="max-w-[24ch] text-sm leading-snug text-fg-muted">
               Capital efectivo estimado en el activo
             </dt>
-            <dd aria-live="polite" className="num text-4xl leading-none tracking-tight text-fg sm:text-5xl">
+            <dd aria-live="polite" className="num text-right text-4xl leading-none tracking-tight whitespace-nowrap text-fg sm:text-5xl">
               {costs.capitalPct}%
             </dd>
           </div>

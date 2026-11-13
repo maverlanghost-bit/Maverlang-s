@@ -51,7 +51,7 @@ export function Coverage({
         <h2 id="cobertura-titulo" className="font-mono text-[13px] font-medium tracking-[0.045em] text-fg-muted uppercase">
           Cobertura
         </h2>
-        <p className="num text-[15px] leading-5 font-medium tabular-nums text-fg">{portion}</p>
+        <p className="num text-lg leading-5 font-medium tabular-nums text-fg">{portion}</p>
       </div>
 
       <div aria-hidden className="mt-3 h-px w-full bg-border">
@@ -77,7 +77,7 @@ export function Coverage({
       ) : null}
 
       {level === "low" ? (
-        <p className="mt-2 text-[13px] leading-relaxed text-warn">
+        <p className="mt-2 text-[13px] leading-relaxed text-down">
           Esta cartera no se puede replicar bien en Maverlang.
         </p>
       ) : null}

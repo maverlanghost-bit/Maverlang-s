@@ -12,6 +12,15 @@ import { loginErrorMessage } from "@/lib/auth/login-errors";
 import { updatePassword } from "@/lib/auth/login-client";
 import { restablecerSchema } from "@/lib/auth/login-schema";
 
+function Spinner() {
+  return (
+    <svg className="size-4 shrink-0 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2" opacity="0.25" />
+      <path d="M21 12a9 9 0 0 0-9-9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 function Expired() {
   return (
     <AuthFrame title="El enlace no sirve" lead={loginErrorMessage("expired")}>
@@ -36,7 +45,10 @@ export function RestablecerForm() {
   if (status === "loading") {
     return (
       <AuthFrame title="Nueva contraseña">
-        <p className="mt-6 text-sm text-fg-muted">Cargando…</p>
+        <p className="mt-6 flex min-h-11 items-center gap-2 text-sm text-fg-muted" role="status" aria-live="polite">
+          <Spinner />
+          Cargando…
+        </p>
       </AuthFrame>
     );
   }
@@ -74,7 +86,7 @@ export function RestablecerForm() {
 
   return (
     <AuthFrame title="Nueva contraseña" lead="Elige una contraseña de al menos 8 caracteres.">
-      <form className="mt-6" noValidate onSubmit={(event) => void submit(event)}>
+      <form className="mt-6" noValidate aria-busy={busy} onSubmit={(event) => void submit(event)}>
         <CredentialField
           id="clave"
           label="Contraseña nueva"
@@ -99,14 +111,14 @@ export function RestablecerForm() {
       </form>
       {formError ? (
         <div className="mt-4">
-          <p className="text-center text-sm break-words leading-relaxed text-down" role="alert">
+          <p className="break-words rounded-lg border border-down/20 bg-down-bg px-3 py-2.5 text-center text-sm leading-relaxed text-down" role="alert">
             {formError}
           </p>
           {formError === loginErrorMessage("expired") ? (
-            <p className="mt-3 text-center text-sm">
+            <p className="mt-2 text-center text-sm">
               <Link
                 href="/app/recuperar"
-                className="inline-flex min-h-11 items-center justify-center rounded-sm px-2 font-medium text-fg underline decoration-border underline-offset-4 outline-none hover:decoration-fg focus-visible:ring-4 focus-visible:ring-fg/20"
+                className="inline-flex min-h-11 items-center justify-center rounded-sm px-2 font-medium text-fg underline decoration-border underline-offset-4 transition-colors hover:decoration-fg"
               >
                 Pedir otro enlace
               </Link>

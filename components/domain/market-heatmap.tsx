@@ -110,17 +110,20 @@ export function MarketHeatmap({ rows }: { rows: readonly MarketHeatmapRow[] }) {
             className="flex min-h-24 min-w-0 flex-col justify-between gap-2 rounded-xl border p-3"
           >
             <span className="min-w-0">
-              <span className="block truncate font-mono text-sm font-semibold tracking-tight" title={row.symbol}>
+              <span
+                className="block truncate font-mono text-[13px] leading-4 font-semibold tracking-tight"
+                title={row.symbol}
+              >
                 {row.symbol}
               </span>
-              <span className="mt-0.5 line-clamp-2 text-[13px] leading-snug" title={row.name}>
+              <span className="mt-1 line-clamp-2 text-xs leading-snug" title={row.name}>
                 {row.name}
               </span>
             </span>
-            {/* Variación y precio: apilados en móvil, en una línea desde sm. */}
+            {/* Variación primero (la cifra que se compara) y precio abajo; nunca se parte una cifra. */}
             <span className="flex flex-col gap-0.5 sm:flex-row sm:items-baseline sm:justify-between sm:gap-2">
-              <span className="num text-sm font-medium tabular-nums">{variacion}</span>
-              <span className="num text-[13px] tabular-nums">{row.priceFormatted}</span>
+              <span className="num text-sm leading-5 font-semibold whitespace-nowrap tabular-nums">{variacion}</span>
+              <span className="num text-xs leading-4 whitespace-nowrap tabular-nums">{row.priceFormatted}</span>
             </span>
           </Link>
         );

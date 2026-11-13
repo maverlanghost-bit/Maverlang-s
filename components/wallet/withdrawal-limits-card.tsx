@@ -1,6 +1,5 @@
 "use client";
 
-import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/cn";
 import { useT } from "@/lib/hooks/use-t";
@@ -32,39 +31,21 @@ export function WithdrawalLimitsCard({ className }: { className?: string }) {
 
   return (
     <Card className={cn("flex flex-col gap-3 p-4 md:p-5", className)}>
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <span
-            aria-hidden="true"
-            className="flex size-6 shrink-0 items-center justify-center rounded-full bg-surface-2 text-fg-muted"
-          >
-            <svg viewBox="0 0 16 16" fill="none" className="size-3.5" stroke="currentColor" strokeWidth="1.4">
-              <path d="M8 1.8 13 3.6v4.1c0 2.9-2 5.1-5 6.5-3-1.4-5-3.6-5-6.5V3.6L8 1.8Z" strokeLinejoin="round" />
-              <path d="m5.9 7.9 1.5 1.5 2.8-2.9" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          </span>
-          <h2 className="text-sm font-semibold tracking-tight text-fg">
-            {isEn ? "Withdrawal limits" : "Límites de retiro"}
-          </h2>
-        </div>
-        <Badge tone="neutral">US$</Badge>
+      <div className="flex items-baseline justify-between gap-3">
+        <h2 className="text-sm font-medium text-fg">{isEn ? "Withdrawal limits" : "Límites de retiro"}</h2>
+        <span className="label-xs">US$</span>
       </div>
 
-      <dl className="flex flex-col gap-1.5 text-sm">
+      <dl className="flex flex-col divide-y divide-border text-sm">
         {WITHDRAWAL_LIMITS.map((limit) => (
-          <div
-            key={limit.key}
-            className="flex items-baseline justify-between gap-3 rounded-xl bg-surface-2/60 px-3 py-1.5"
-          >
+          <div key={limit.key} className="flex items-baseline justify-between gap-3 py-1.5">
             <dt className="text-fg-muted">{labels[limit.key]}</dt>
-            <dd className="num font-semibold tabular-nums text-fg">
-              US$ {amountFormatter.format(limit.amountUsd)}
-            </dd>
+            <dd className="num font-medium tabular-nums text-fg">{amountFormatter.format(limit.amountUsd)}</dd>
           </div>
         ))}
       </dl>
 
-      <p className="text-balance text-xs leading-relaxed text-fg-muted">
+      <p className="text-pretty text-xs leading-relaxed text-fg-muted">
         {isEn
           ? "Caps apply to transfers from your wallet. Amounts in dollars; the peso equivalent depends on the exchange rate at the time."
           : "Los cupos aplican a envíos desde tu billetera. Montos en dólares; el equivalente en pesos depende del tipo de cambio del momento."}

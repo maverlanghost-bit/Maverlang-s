@@ -68,7 +68,7 @@ export function PositionsTable({
           aprieta a 360 px. */}
       <div
         className={cn(
-          "hidden items-center gap-x-3 border-b border-border pb-2 font-mono text-[11px] font-medium tracking-[0.045em] text-fg-muted uppercase sm:grid",
+          "label-xs hidden items-center gap-x-3 border-b border-border pb-2 sm:grid",
           columns(showMaverlang),
         )}
       >
@@ -80,7 +80,7 @@ export function PositionsTable({
 
       <ul aria-label="Posiciones de la cartera" className="flex flex-col">
         {rows.map((row, index) => (
-          <li key={`${row.symbol}-${index}`} className="border-b border-border/70 py-3 last:border-b-0">
+          <li key={`${row.symbol}-${index}`} className="border-b border-border/70 py-3.5 last:border-b-0">
             <div
               className={cn(
                 "grid grid-cols-2 items-baseline gap-x-3 gap-y-2 sm:items-center",
@@ -102,18 +102,18 @@ export function PositionsTable({
                   !showMaverlang && "col-span-2 sm:col-span-1",
                 )}
               >
-                <span className="text-[13px] leading-5 text-fg-muted sm:hidden">Original</span>
-                <span className="num text-[15px] leading-5 tabular-nums text-fg-body">
+                <span className="label-xs sm:hidden">Original</span>
+                <span className="num text-[15px] leading-5 whitespace-nowrap tabular-nums text-fg-body">
                   {weight(row.weightOriginal)}
                 </span>
               </div>
 
               {showMaverlang ? (
                 <div className="flex items-baseline justify-between gap-2 sm:block sm:text-right">
-                  <span className="text-[13px] leading-5 text-fg-muted sm:hidden">En Maverlang</span>
+                  <span className="label-xs sm:hidden">En Maverlang</span>
                   <span
                     className={cn(
-                      "num text-[15px] leading-5 tabular-nums",
+                      "num text-[15px] leading-5 whitespace-nowrap tabular-nums",
                       row.status === "available" ? "text-fg-body" : "text-fg-muted",
                     )}
                     title="Peso en la mezcla de Maverlang"
@@ -124,7 +124,7 @@ export function PositionsTable({
               ) : null}
 
               <div className="col-span-2 flex items-baseline justify-between gap-2 sm:col-span-1 sm:block sm:text-right">
-                <span className="text-[13px] leading-5 text-fg-muted sm:hidden">Estado</span>
+                <span className="label-xs sm:hidden">Estado</span>
                 <span className="flex flex-col items-end">
                   <span className={cn("text-[13px] leading-5 font-medium", statusTone[row.status])}>
                     {statusLabel[row.status]}

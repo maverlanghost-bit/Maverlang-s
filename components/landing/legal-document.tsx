@@ -79,7 +79,7 @@ export function LegalBody({ blocks }: { blocks: Block[] }) {
   return (
     <div className={cn("mt-8", withIndex && "lg:grid lg:grid-cols-[minmax(0,1fr)_15rem] lg:items-start lg:gap-12")}>
       {withIndex ? (
-        <aside className="mb-8 lg:order-2 lg:sticky lg:top-24 lg:mb-0">
+        <aside className="mb-8 max-w-[68ch] lg:order-2 lg:sticky lg:top-24 lg:mb-0 lg:max-w-none">
           {/* <lg: plegado, 44 px de summary, mismo indicador que /ayuda. */}
           <details className="group border-y border-border lg:hidden">
             <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-4 py-3 text-sm font-medium text-fg [&::-webkit-details-marker]:hidden">
@@ -108,21 +108,21 @@ export function LegalBody({ blocks }: { blocks: Block[] }) {
         {blocks.map((block, index) => {
           if (block.type === "h2") {
             return (
-              <h2 key={block.id} id={block.id} className="scroll-mt-24 pt-6 text-xl sm:text-2xl">
+              <h2 key={block.id} id={block.id} className="pt-6 text-[1.375rem] first:pt-0 sm:text-2xl">
                 {block.text}
               </h2>
             );
           }
           if (block.type === "h3") {
             return (
-              <h3 key={block.id} id={block.id} className="scroll-mt-24 pt-2 text-lg">
+              <h3 key={block.id} id={block.id} className="pt-2 text-lg">
                 {block.text}
               </h3>
             );
           }
           if (block.type === "ul") {
             return (
-              <ul key={index} className="list-disc space-y-2 pl-5">
+              <ul key={index} className="list-disc space-y-2 pl-5 marker:text-fg-muted">
                 {block.items.map((item, itemIndex) => (
                   <li key={itemIndex}>
                     <Inlines items={item} />
@@ -139,12 +139,12 @@ export function LegalBody({ blocks }: { blocks: Block[] }) {
                   {block.rows.map((row, rowIndex) => {
                     const [leading, ...rest] = row;
                     return (
-                      <div key={rowIndex} className="px-4 py-3.5">
-                        <dt className="text-sm leading-relaxed font-medium text-fg">
+                      <div key={rowIndex} className="px-4 py-4">
+                        <dt className="text-[0.9375rem] leading-relaxed font-medium text-fg">
                           {leading ? <Inlines items={leading} /> : null}
                         </dt>
                         {rest.map((cell, cellIndex) => (
-                          <dd key={cellIndex} className="mt-1 text-sm leading-relaxed text-fg-body">
+                          <dd key={cellIndex} className="mt-1 text-[0.9375rem] leading-relaxed text-fg-body">
                             <Inlines items={cell} />
                           </dd>
                         ))}
@@ -154,7 +154,7 @@ export function LegalBody({ blocks }: { blocks: Block[] }) {
                 </dl>
                 {/* ≥sm: la tabla completa, con scroll y un fundido que avisa que sigue. */}
                 <div className="hidden overflow-x-auto rounded-2xl border border-border bg-bg sm:block sm:[mask-image:linear-gradient(90deg,transparent,#000_1.5%,#000_96%,transparent)]">
-                  <table className="w-full min-w-[34rem] text-left text-sm">
+                  <table className="w-full min-w-[34rem] text-left text-[0.9375rem]">
                     <thead>
                       <tr className="border-b border-border">
                         {block.headers.map((cell, cellIndex) => (
@@ -220,12 +220,12 @@ export function LegalNav({ current }: { current: string }) {
   return (
     <nav aria-label="Documentos legales" className="mt-12 max-w-5xl border-t border-border pt-6">
       <h2 className="text-base font-medium text-fg">Documentos legales</h2>
-      <div className="mt-4 grid gap-3 sm:grid-cols-3">
+      <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {others.map((item) => (
           <Link
             key={item.slug}
             href={`/legal/${item.slug}`}
-            className="group flex min-h-24 flex-col justify-between gap-3 rounded-2xl border border-border p-4 transition-colors hover:bg-surface-1"
+            className="group flex min-h-24 flex-col justify-between gap-3 rounded-2xl border border-border p-4 transition-colors hover:border-border-strong hover:bg-surface-1"
           >
             <span className="text-sm font-medium text-balance text-fg">{item.label}</span>
             <span className="inline-flex items-center gap-1 text-[13px] font-medium text-fg-muted transition-colors group-hover:text-fg">

@@ -30,7 +30,7 @@ export const RISK_POINTS = [
 
 export function BrandLink() {
   return (
-    <Link href="/" className="flex w-fit items-center gap-2 rounded-full text-fg">
+    <Link href="/" className="flex min-h-11 w-fit items-center gap-2 rounded-full text-fg">
       <span className="size-2 shrink-0 rounded-full bg-brand" aria-hidden />
       <span className="text-sm font-medium">{site.name}</span>
     </Link>

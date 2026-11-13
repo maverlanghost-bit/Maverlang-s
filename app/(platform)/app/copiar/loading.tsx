@@ -16,21 +16,28 @@ export default function CopiarLoading() {
             <Skeleton className="h-4 w-full max-w-2xl" />
             <Skeleton className="h-4 w-2/3 max-w-md" />
           </div>
-          <Skeleton className="h-11 w-32 shrink-0 rounded-full" />
+          <div className="flex shrink-0 items-center gap-5">
+            <Skeleton className="h-4 w-20" />
+            <Skeleton className="h-11 w-28 rounded-full" />
+          </div>
         </div>
-        <Skeleton className="h-4 w-40" />
       </div>
 
       <div className="flex flex-col gap-5">
-        <div className="flex flex-wrap items-center gap-x-6 gap-y-2 border-b border-border pb-3.5">
+        <div className="flex min-h-11 flex-wrap items-center gap-x-6 gap-y-2 border-b border-border">
           {["a", "b", "c", "d", "e", "f"].map((key) => (
-            <Skeleton key={key} className="h-4 w-20" />
+            <Skeleton key={key} className="h-3.5 w-16" />
           ))}
         </div>
 
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <Skeleton className="h-11 w-full rounded-full lg:max-w-md" />
-          <Skeleton className="h-11 w-40 rounded-full" />
+          <div className="flex items-center gap-5">
+            <Skeleton className="h-3.5 w-12" />
+            {["a", "b", "c"].map((key) => (
+              <Skeleton key={key} className="h-3.5 w-16" />
+            ))}
+          </div>
         </div>
 
         <div className="flex flex-col">

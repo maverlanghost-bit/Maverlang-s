@@ -12,7 +12,7 @@ import { cn } from "@/lib/cn";
 
 /** Mismo estilo que `Action` en ai-chat-extracted (`ai/actions.tsx`). */
 const ACTION_BUTTON =
-  "size-8 p-1 text-zinc-400 hover:text-zinc-900 hover:bg-zinc-100 rounded-full inline-flex items-center justify-center transition-colors cursor-pointer";
+  "size-11 sm:size-8 p-1 text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 rounded-full inline-flex items-center justify-center transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900/25";
 
 const ICON_BASE = "size-3.5";
 

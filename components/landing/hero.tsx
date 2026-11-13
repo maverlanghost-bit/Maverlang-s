@@ -48,7 +48,7 @@ export function Hero({ quotes, live }: { quotes: LandingQuote[]; live: boolean }
           propia billetera —nosotros no custodiamos tus activos—.
         </p>
 
-        <div className="mt-7 flex w-full flex-col items-stretch gap-2 sm:w-auto sm:flex-row sm:items-center sm:gap-2">
+        <div className="mt-7 flex w-full flex-col items-stretch gap-2 sm:w-auto sm:flex-row sm:items-center">
           <Button asChild size="md" className="w-full sm:w-auto">
             <Link href="/app/registro">Prueba la demo gratis</Link>
           </Button>
@@ -60,7 +60,7 @@ export function Hero({ quotes, live }: { quotes: LandingQuote[]; live: boolean }
 
       {/* Cotizaciones: tabla de datos, no tarjeta. Hairlines y nada más. */}
       <section aria-label="Cotizaciones" className="mx-auto mt-10 w-full max-w-2xl border-t border-border sm:mt-12">
-        <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1.5 pt-3">
+        <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2 px-2 pt-3 sm:px-3">
           <p className="flex min-w-0 flex-wrap items-baseline gap-x-2">
             <span className="label text-fg">Cotizaciones 24/7</span>
             <span className="text-xs text-fg-muted">xStocks en Solana</span>
@@ -73,7 +73,7 @@ export function Hero({ quotes, live }: { quotes: LandingQuote[]; live: boolean }
         </div>
 
         {heroQuotes.length > 0 ? (
-          <ul className="mt-1 divide-y divide-border">
+          <ul className="mt-3 divide-y divide-border border-t border-border">
             {heroQuotes.map((quote) => (
               <li key={quote.symbol}>
                 <TickerRow
@@ -95,12 +95,12 @@ export function Hero({ quotes, live }: { quotes: LandingQuote[]; live: boolean }
             ))}
           </ul>
         ) : (
-          <p className="mt-1 border-t border-border py-5 text-sm text-fg-muted">
+          <p className="mt-3 border-t border-border px-2 py-4 text-sm text-fg-muted sm:px-3">
             Las cotizaciones no están disponibles en este momento.
           </p>
         )}
 
-        <p className="border-t border-border py-3 text-[13px] leading-relaxed text-fg-muted">
+        <p className="border-t border-border px-2 py-3 text-[13px] leading-relaxed text-fg-muted sm:px-3">
           Practica con US$10.000 ficticios y precios reales.{" "}
           {heroQuotes.length === 0 ? null : live ? "Precios en dólares (US$)." : `${landingNotice(false)}.`}
         </p>

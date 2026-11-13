@@ -13,8 +13,8 @@ export function NoticeCard({
 }) {
   if (notice.kind === "not_configured") {
     return (
-      <div role="status" data-ai-notice="not_configured" className="rounded-2xl border border-border/70 bg-surface-1 px-4 py-4">
-        <p className="text-base font-medium text-fg">{notice.message.trim() || copy.notConfigured}</p>
+      <div role="status" data-ai-notice="not_configured" className="min-w-0 rounded-2xl border border-border/70 bg-surface-1 px-4 py-4">
+        <p className="text-pretty text-base font-medium text-fg break-words">{notice.message.trim() || copy.notConfigured}</p>
         <p className="mt-1 text-sm leading-relaxed text-fg-muted">{copy.notConfiguredHint}</p>
       </div>
     );
@@ -22,9 +22,9 @@ export function NoticeCard({
 
   if (notice.kind === "rate_limited") {
     return (
-      <div role="status" data-ai-notice="rate_limited" className="rounded-2xl border border-border/70 bg-warn-bg px-4 py-4">
+      <div role="status" data-ai-notice="rate_limited" className="min-w-0 rounded-2xl border border-warn/25 bg-warn-bg px-4 py-4">
         <p className="text-base font-medium text-warn">{copy.rateTitle}</p>
-        <p className="mt-1 text-sm leading-relaxed text-fg-body">{notice.message.trim() || copy.rateBody}</p>
+        <p className="mt-1 text-sm leading-relaxed break-words text-fg-body">{notice.message.trim() || copy.rateBody}</p>
         {onRetry ? (
           <Button variant="secondary" className="mt-3 min-h-11 w-full sm:w-auto" onClick={onRetry}>
             {copy.retry}
@@ -35,7 +35,7 @@ export function NoticeCard({
   }
 
   return (
-    <div role="alert" data-ai-notice={notice.kind} className="rounded-2xl border border-border/70 bg-down-bg px-4 py-4">
+    <div role="alert" data-ai-notice={notice.kind} className="min-w-0 rounded-2xl border border-down/25 bg-down-bg px-4 py-4">
       <p className="text-base font-medium text-down">{copy.errorTitle}</p>
       <p className="mt-1 text-sm leading-relaxed break-words text-fg-body">{notice.message.trim() || copy.errorBody}</p>
       {onRetry ? (

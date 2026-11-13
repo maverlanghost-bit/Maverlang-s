@@ -21,7 +21,7 @@ function CopyNotice({
 }) {
   return (
     <section className={cn("flex flex-col items-start gap-2 border-t border-border pt-8", className)}>
-      <h2 className="text-base leading-snug font-medium tracking-tight text-fg">{title}</h2>
+      <h2 className="text-[17px] leading-snug font-medium tracking-tight text-balance text-fg">{title}</h2>
       <p className="max-w-prose text-[13px] leading-relaxed text-fg-muted">{description}</p>
       {action ? <div className="pt-2">{action}</div> : null}
     </section>

@@ -15,7 +15,7 @@ export function FraccionSeal({ className }: { className?: string }) {
       title="Cómo calcula Fraccion.si"
       aria-label="Cómo calcula Fraccion.si (se abre en una pestaña nueva)"
       className={cn(
-        "inline-flex min-h-11 w-fit items-center gap-1 text-[13px] leading-5 text-fg-subtle transition-colors duration-150 hover:text-fg",
+        "inline-flex min-h-11 w-fit items-center gap-1 text-[13px] leading-5 text-fg-muted transition-colors duration-150 hover:text-fg",
         className,
       )}
     >

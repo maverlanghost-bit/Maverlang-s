@@ -8,7 +8,7 @@ import { useConsents } from "@/lib/hooks/queries";
 import { useT } from "@/lib/hooks/use-t";
 import type { Consent, LegalDoc } from "@/lib/types";
 
-import { formatWhen, SettingsFrame, SettingsPanel } from "../ui";
+import { formatWhen, PanelLabel, SettingsFrame, SettingsPanel } from "../ui";
 
 const DOC_ORDER: readonly LegalDoc[] = ["terminos", "privacidad", "riesgos", "us_person"];
 
@@ -34,9 +34,13 @@ export function LegalScreen() {
 
   return (
     <SettingsFrame title={t.profile.legal} description={t.profile.legalLead}>
-      <p className="text-sm text-fg-muted">{t.profile.legalDraft}</p>
+      <p className="text-[13px] leading-5 text-fg-muted">{t.profile.legalDraft}</p>
       {consents.isPending ? (
-        <LoadingState label={t.states.loading} />
+        <SettingsPanel>
+          <div className="px-4 py-4 md:px-5">
+            <LoadingState variant="list" label={t.states.loading} />
+          </div>
+        </SettingsPanel>
       ) : consents.isError ? (
         <ErrorState
           label={t.states.error}
@@ -45,58 +49,56 @@ export function LegalScreen() {
           onRetry={() => void consents.refetch()}
         />
       ) : rows.length === 0 ? (
-        <p className="text-sm text-fg-muted">{t.profile.legalEmpty}</p>
+        <p className="text-[13px] leading-5 text-fg-muted">{t.profile.legalEmpty}</p>
       ) : (
-        <SettingsPanel>
-          <table className="w-full table-fixed text-left text-sm">
-            <caption className="sr-only">{t.profile.legalLead}</caption>
-            <thead>
-              <tr className="text-fg-muted">
-                <th scope="col" className="w-[44%] px-4 py-3 font-normal md:px-6">
-                  {t.profile.doc}
-                </th>
-                <th scope="col" className="w-[30%] px-2 py-3 font-normal">
-                  {t.profile.docVersion}
-                </th>
-                <th scope="col" className="w-[26%] px-4 py-3 font-normal md:px-6">
-                  {t.profile.docDate}
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row) => (
-                <tr key={`${row.doc}-${row.version}`} className="border-t border-border">
-                  <th scope="row" className="px-4 py-3 font-normal md:px-6">
-                    {row.doc === "us_person" ? (
-                      <span>{t.profile.docs[row.doc]}</span>
-                    ) : (
-                      <Link
-                        href={`/legal/${row.doc}`}
-                        className="text-fg underline decoration-border underline-offset-2 outline-none hover:decoration-fg focus-visible:ring-4 focus-visible:ring-fg/20"
-                      >
-                        {t.profile.docs[row.doc]}
-                      </Link>
-                    )}
-                  </th>
-                  <td className="num px-2 py-3 break-all text-fg">{row.version}</td>
-                  <td className="px-4 py-3 text-fg-muted md:px-6">
-                    {formatWhen(row.acceptedAt, language, t.profile.unknownDate)}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <SettingsPanel label={t.profile.legalLead}>
+          <ul>
+            {rows.map((row) => {
+              const doc = (
+                <>
+                  <span className="text-[15px] leading-5 text-fg">{t.profile.docs[row.doc]}</span>
+                  <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[13px] leading-5 text-fg-muted">
+                    <span>
+                      <span className="sr-only">{t.profile.docVersion}: </span>
+                      <span className="num break-all">{row.version}</span>
+                    </span>
+                    <span aria-hidden="true">·</span>
+                    <span>
+                      <span className="sr-only">{t.profile.docDate}: </span>
+                      {formatWhen(row.acceptedAt, language, t.profile.unknownDate)}
+                    </span>
+                  </span>
+                </>
+              );
+              const rowClass =
+                "flex min-h-14 flex-col justify-center gap-0.5 px-4 py-3.5 outline-none md:px-5";
+              return (
+                <li key={`${row.doc}-${row.version}`} className="border-t border-border/70 first:border-t-0">
+                  {row.doc === "us_person" ? (
+                    <div className={rowClass}>{doc}</div>
+                  ) : (
+                    <Link
+                      href={`/legal/${row.doc}`}
+                      className={`${rowClass} transition-colors duration-[140ms] hover:bg-surface-2 focus-visible:ring-4 focus-visible:ring-fg/20 focus-visible:ring-inset`}
+                    >
+                      {doc}
+                    </Link>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
         </SettingsPanel>
       )}
 
       <SettingsPanel label={t.profile.legalLinks}>
-        <h2 className="px-4 pt-4 text-sm text-fg-muted md:px-6">{t.profile.legalLinks}</h2>
+        <PanelLabel>{t.profile.legalLinks}</PanelLabel>
         <ul>
           {LINKS.map(([doc, href]) => (
-            <li key={doc} className="border-b border-border last:border-b-0">
+            <li key={doc} className="border-t border-border/70">
               <Link
                 href={href}
-                className="flex min-h-11 items-center px-4 py-3 text-sm text-fg outline-none transition duration-[140ms] hover:bg-surface-2 focus-visible:ring-4 focus-visible:ring-fg/20 focus-visible:ring-inset md:px-6"
+                className="flex min-h-12 items-center px-4 py-3.5 text-[15px] leading-5 text-fg outline-none transition-colors duration-[140ms] hover:bg-surface-2 focus-visible:ring-4 focus-visible:ring-fg/20 focus-visible:ring-inset md:px-5"
               >
                 {t.profile.docs[doc]}
               </Link>

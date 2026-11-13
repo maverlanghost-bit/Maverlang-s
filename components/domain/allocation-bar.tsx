@@ -21,7 +21,7 @@ export type AllocationItem = {
   color: string;
 };
 
-const CASH_COLOR = "#64748b";
+const CASH_COLOR = "#475569";
 
 /**
  * Reparto de la cartera: una barra segmentada y, debajo, la leyenda con peso y
@@ -124,7 +124,7 @@ export function AllocationBar({
                 onMouseLeave={() => setActiveKey(null)}
                 onClick={() => setActiveKey((prev) => (prev === slice.key ? null : slice.key))}
                 className={cn(
-                  "-mx-2 flex min-h-11 w-[calc(100%+1rem)] items-center gap-3 rounded-lg px-2 py-2.5 text-left transition-colors duration-150",
+                  "-mx-2 flex min-h-11 w-[calc(100%+1rem)] items-center gap-2.5 rounded-lg px-2 py-2.5 text-left transition-colors duration-150 sm:gap-3",
                   isActive ? "bg-surface-1" : "hover:bg-surface-1/70",
                 )}
               >
@@ -134,10 +134,10 @@ export function AllocationBar({
                   aria-hidden="true"
                 />
                 <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-fg">{slice.label}</span>
-                <span className="num w-14 shrink-0 text-right text-[13px] tabular-nums text-fg-muted">
+                <span className="num w-12 shrink-0 text-right text-[13px] tabular-nums text-fg-muted">
                   {formatPortion(slice.pct)}
                 </span>
-                <span className="num w-[6.5rem] shrink-0 truncate text-right text-[13px] font-medium tabular-nums text-fg sm:w-28">
+                <span className="num w-28 shrink-0 truncate text-right text-[13px] font-medium tabular-nums text-fg sm:w-32">
                   {slice.valueLabel}
                 </span>
               </button>

@@ -95,7 +95,7 @@ export function PortfolioCard({
           <span className="block truncate text-[15px] leading-tight font-medium tracking-tight text-fg">
             {portfolio.name}
           </span>
-          <span className="mt-1 block text-[13px] leading-5 text-fg-muted">{subline}</span>
+          <span className="mt-1 block text-[13px] leading-5 text-fg-muted md:truncate">{subline}</span>
           <span className="mt-0.5 flex flex-wrap items-baseline gap-x-1.5 text-[13px] leading-5 text-fg-muted md:hidden">
             <span>{COPY_FAMILY_LABELS[portfolio.family]}</span>
             <span aria-hidden className="text-fg-subtle">
@@ -122,10 +122,10 @@ export function PortfolioCard({
         </span>
 
         <span className="text-right">
-          <span className="block text-[13px] leading-4 text-fg-muted md:hidden">Cobertura</span>
+          <span className="label-xs block md:hidden">Cobertura</span>
           <span
             className={cn(
-              "num block text-[15px] leading-5 font-medium tabular-nums",
+              "num block text-[15px] leading-5 font-medium whitespace-nowrap tabular-nums",
               coverageClass,
             )}
           >

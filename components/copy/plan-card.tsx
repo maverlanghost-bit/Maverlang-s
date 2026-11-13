@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useId, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -197,6 +197,7 @@ function planCta(trialUsed: boolean): string {
 }
 
 export function PlansPanel({ billingEnabled, billingSoon, returned = false }: PlansPanelProps) {
+  const soonId = useId();
   const [status, setStatus] = useState<StatusView | null>(null);
   const [reading, setReading] = useState(true);
   const [statusError, setStatusError] = useState<"session" | "read" | null>(null);
@@ -365,133 +366,62 @@ export function PlansPanel({ billingEnabled, billingSoon, returned = false }: Pl
         </ul>
 
         {!enabled ? (
-          <p className="max-w-prose text-[13px] leading-relaxed text-fg-body">{billingSoon}</p>
+          <p id={soonId} className="max-w-prose text-[13px] leading-relaxed text-fg-body">
+            {billingSoon}
+          </p>
         ) : null}
 
-        {/* Escritorio: comparación en tabla, sin columnas que no existan. */}
-        <div className="hidden md:block">
-          <table className="w-full border-collapse text-[13px]">
-            <caption className="sr-only">Comparación de los planes Mensual y Anual</caption>
-            <thead>
-              <tr className="border-b border-border">
-                <th
-                  scope="col"
-                  className="py-2 pr-6 text-left align-bottom font-mono text-[13px] font-medium tracking-[0.045em] text-fg-muted uppercase"
-                >
-                  <span className="sr-only">Concepto</span>
-                </th>
-                {BILLING_PLAN_IDS.map((plan) => (
-                  <th
-                    key={plan}
-                    scope="col"
-                    className="w-[10.5rem] py-2 pl-4 text-left align-bottom font-mono text-[13px] font-medium tracking-[0.045em] text-fg-muted uppercase"
-                  >
-                    {BILLING_PLAN_CATALOG[plan].label}
-                    {currentPlan === plan ? (
-                      <span className="ml-1.5 font-sans text-[13px] font-normal tracking-normal normal-case text-fg-muted">
-                        · tu plan
-                      </span>
-                    ) : null}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              <tr>
-                <th
-                  scope="row"
-                  className="py-4 pr-6 text-left align-top text-[13px] font-normal text-fg-muted"
-                >
-                  Precio
-                </th>
-                {BILLING_PLAN_IDS.map((plan) => (
-                  <td key={plan} className="py-4 pl-4 align-top">
-                    <span className="num text-xl leading-none font-medium tracking-tight tabular-nums text-fg">
-                      {formatClp(BILLING_PLAN_CATALOG[plan].amountClp)}
-                    </span>
-                    <span className="mt-1 block text-[13px] leading-5 text-fg-muted">
-                      al {PLAN_PERIOD[plan]}
-                    </span>
-                  </td>
-                ))}
-              </tr>
-              {facts.map((fact) => (
-                <tr key={fact.label}>
-                  <th
-                    scope="row"
-                    className="py-2.5 pr-6 text-left align-top text-[13px] font-normal text-fg-muted"
-                  >
-                    {fact.label}
-                  </th>
-                  {BILLING_PLAN_IDS.map((plan) => (
-                    <td key={plan} className="py-2.5 pl-4 align-top text-fg-body">
-                      {fact.values[plan]}
-                    </td>
-                  ))}
-                </tr>
-              ))}
-              <tr>
-                <td />
-                {BILLING_PLAN_IDS.map((plan) => (
-                  <td key={plan} className="py-5 pl-4">
-                    <Button
-                      size="md"
-                      variant={plan === "annual" ? "primary" : "secondary"}
-                      className="min-h-11 w-full whitespace-nowrap"
-                      disabled={!enabled || currentPlan === plan}
-                      loading={pendingPlan === plan}
-                      onClick={() => void subscribe(plan)}
-                    >
-                      {currentPlan === plan ? "Tu plan actual" : planCta(trialUsed)}
-                    </Button>
-                  </td>
-                ))}
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-        {/* Móvil: el mismo dato, apilado por plan y sin scroll horizontal. */}
-        <div className="flex flex-col gap-6 md:hidden">
-          {BILLING_PLAN_IDS.map((plan) => (
-            <section key={plan} className="flex flex-col gap-3 border-t border-border pt-5">
-              <div className="flex items-baseline justify-between gap-4">
-                <h3 className="text-base font-medium tracking-tight">
-                  {BILLING_PLAN_CATALOG[plan].label}
-                </h3>
-                <p className="text-right">
-                  <span className="num text-xl font-medium tracking-tight tabular-nums text-fg">
+        {/* Dos planes comparables: misma estructura y mismas filas de dato. */}
+        <ul className="grid gap-3 md:grid-cols-2 md:gap-6">
+          {BILLING_PLAN_IDS.map((plan) => {
+            const current = currentPlan === plan;
+            const primary = plan === "annual";
+            return (
+              <li
+                key={plan}
+                className={cn(
+                  "flex flex-col rounded-3xl border p-5 md:p-6",
+                  current ? "border-fg" : "border-border",
+                  primary ? "bg-surface-1" : "bg-bg",
+                )}
+              >
+                <h3 className="label">{BILLING_PLAN_CATALOG[plan].label}</h3>
+                <p className="mt-4 flex flex-wrap items-baseline gap-x-1.5">
+                  <span className="num text-3xl leading-none font-medium tracking-tight tabular-nums text-fg">
                     {formatClp(BILLING_PLAN_CATALOG[plan].amountClp)}
                   </span>
-                  <span className="text-[13px] text-fg-muted"> / {PLAN_PERIOD[plan]}</span>
+                  <span className="text-[13px] leading-5 text-fg-muted">/ {PLAN_PERIOD[plan]}</span>
                 </p>
-              </div>
 
-              <dl className="flex flex-col">
-                {facts.map((fact) => (
-                  <div
-                    key={fact.label}
-                    className="flex items-baseline justify-between gap-4 border-b border-border/70 py-2 text-[13px] leading-5 last:border-b-0"
+                <dl className="mt-5 flex flex-col border-t border-border/70">
+                  {facts.map((fact) => (
+                    <div
+                      key={fact.label}
+                      className="flex items-baseline justify-between gap-4 border-b border-border/70 py-2.5 text-[13px] leading-5 last:border-b-0"
+                    >
+                      <dt className="text-fg-muted">{fact.label}</dt>
+                      <dd className="text-right font-medium text-fg-body">{fact.values[plan]}</dd>
+                    </div>
+                  ))}
+                </dl>
+
+                <div className="mt-auto pt-6">
+                  <Button
+                    size="lg"
+                    variant={primary ? "primary" : "secondary"}
+                    className="min-h-12 w-full whitespace-nowrap"
+                    disabled={!enabled || current}
+                    loading={pendingPlan === plan}
+                    aria-describedby={!enabled ? soonId : undefined}
+                    onClick={() => void subscribe(plan)}
                   >
-                    <dt className="text-fg-muted">{fact.label}</dt>
-                    <dd className="text-right font-medium text-fg-body">{fact.values[plan]}</dd>
-                  </div>
-                ))}
-              </dl>
-
-              <Button
-                size="md"
-                variant={plan === "annual" ? "primary" : "secondary"}
-                className="min-h-11 w-full"
-                disabled={!enabled || currentPlan === plan}
-                loading={pendingPlan === plan}
-                onClick={() => void subscribe(plan)}
-              >
-                {currentPlan === plan ? "Tu plan actual" : planCta(trialUsed)}
-              </Button>
-            </section>
-          ))}
-        </div>
+                    {current ? "Tu plan actual" : planCta(trialUsed)}
+                  </Button>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
 
         <p className="max-w-prose text-[13px] leading-relaxed text-fg-muted">
           La suscripción se renueva automáticamente hasta que la canceles.

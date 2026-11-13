@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useEffect, useId, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent } from "react";
+import { memo, useEffect, useId, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type MouseEvent } from "react";
 
 import { cn } from "@/lib/cn";
 import { formatDateTime, formatUsd } from "@/lib/format";
@@ -498,6 +498,8 @@ function DrawnChart({
     lineMode && !reference && candleList === null && hoverPoint === undefined && lastPoint !== undefined;
   /** En 360px el tooltip no puede pegarse a los bordes: se mantiene al 22–78%. */
   const hoverLeft = hoverPoint ? Math.min(78, Math.max(22, (hoverPoint.x / CHART_W) * 100)) : 0;
+  /** En móvil el tooltip se ancla al borde más cercano: 215px no caben a 360px. */
+  const hoverOnRight = hoverPoint ? hoverPoint.x > CHART_W / 2 : false;
   const periodMove = hoverPoint && openPrice !== undefined ? changeFromOpen(openPrice, hoverPoint.usd) : null;
   const openY = openingPriceY(points);
   const rangeBand = showRangeBand ? quartileBand(points, scale) : null;
@@ -779,7 +781,7 @@ function DrawnChart({
           {gridTicks.map((tick, idx) => (
             <span
               key={idx}
-              className="num rounded bg-white/80 px-1.5 py-0.5 text-[10px] font-medium text-fg-muted backdrop-blur-xs"
+              className="num rounded bg-white/85 px-1.5 py-0.5 text-[11px] font-medium text-fg-muted backdrop-blur-xs"
               style={{
                 position: "absolute",
                 right: 0,
@@ -855,8 +857,11 @@ function DrawnChart({
             }}
           />
           <div
-            className="pointer-events-none absolute top-0 z-10 -translate-x-1/2 rounded-xl bg-fg px-3 py-2 text-xs text-bg shadow-float max-w-[215px] sm:max-w-xs"
-            style={{ left: `${hoverLeft}%` }}
+            className={cn(
+              "pointer-events-none absolute top-0 z-10 max-w-[calc(100%-1rem)] rounded-xl bg-fg px-3 py-2 text-xs text-bg shadow-float sm:max-w-[215px] sm:left-[var(--chart-hover-left)] sm:-translate-x-1/2",
+              hoverOnRight ? "right-2 sm:right-auto" : "left-2",
+            )}
+            style={{ "--chart-hover-left": `${hoverLeft}%` } as CSSProperties}
           >
             {reference ? <p>Referencia</p> : null}
             <p className="opacity-70">{hoverWhen(hoverPoint.t)}</p>
@@ -1028,7 +1033,7 @@ function SvgPriceChartBase({
           }}
           aria-label={isFullscreen ? "Salir de pantalla completa" : "Pantalla completa"}
           title={isFullscreen ? "Salir de pantalla completa (Esc)" : "Expandir a pantalla completa"}
-          className="absolute right-2.5 top-2.5 z-20 inline-flex min-h-8 min-w-8 items-center justify-center gap-1.5 rounded-full border border-border/80 bg-white/90 px-2 py-1.5 text-[11px] font-medium text-fg shadow-sm backdrop-blur-md transition-all duration-150 opacity-95 sm:px-2.5 sm:opacity-0 sm:group-hover/chart:opacity-100 focus-visible:opacity-100 hover:bg-fg hover:text-bg hover:border-fg focus-visible:ring-2 focus-visible:ring-fg/30 outline-none"
+          className="absolute right-2.5 top-2.5 z-20 inline-flex min-h-11 min-w-11 items-center justify-center gap-1.5 rounded-full border border-border/80 bg-white/90 px-2.5 py-1.5 text-xs font-medium text-fg shadow-sm backdrop-blur-md transition-all duration-150 opacity-95 sm:min-h-8 sm:min-w-8 sm:px-2.5 sm:opacity-0 sm:group-hover/chart:opacity-100 focus-visible:opacity-100 hover:bg-fg hover:text-bg hover:border-fg focus-visible:ring-2 focus-visible:ring-fg outline-none"
         >
           {isFullscreen ? (
             <svg

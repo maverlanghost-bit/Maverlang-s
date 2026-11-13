@@ -65,10 +65,6 @@ export async function generateMetadata({
   });
 }
 
-/** Rótulo mono del índice: 13 px, el mínimo de la escala editorial. */
-const eyebrowMono =
-  "font-mono text-[13px] leading-none font-medium uppercase tracking-[0.045em] text-fg-muted";
-
 const textLinkClass =
   "inline-flex min-h-11 items-center text-sm font-medium text-fg underline decoration-border underline-offset-4 hover:decoration-fg";
 
@@ -100,7 +96,7 @@ function faqItems(faq: NonNullable<Guide["faq"]>): DisclosureItem[] {
   return faq.map((entry) => ({
     id: entry.question,
     title: entry.question,
-    content: <p>{entry.answer}</p>,
+    content: <p className="max-w-[68ch] text-[0.9375rem] leading-relaxed sm:text-base">{entry.answer}</p>,
   }));
 }
 
@@ -181,7 +177,7 @@ export default async function GuiaPage({ params }: { params: Promise<{ slug: str
         </nav>
 
         <header className="mt-8 max-w-3xl border-b border-border pb-8">
-          <p className={eyebrowMono}>Guía</p>
+          <p className="label">Guía</p>
           <h1 id="guia-title" className="mt-3 text-3xl sm:text-4xl">
             {guide.h1}
           </h1>
@@ -198,7 +194,7 @@ export default async function GuiaPage({ params }: { params: Promise<{ slug: str
         </header>
 
         <div className="mt-10 max-w-5xl lg:grid lg:grid-cols-[minmax(0,1fr)_15rem] lg:items-start lg:gap-12">
-          <aside className="mb-8 lg:order-2 lg:sticky lg:top-24 lg:mb-0">
+          <aside className="mb-8 max-w-[68ch] lg:order-2 lg:sticky lg:top-24 lg:mb-0 lg:max-w-none">
             {/* <lg: plegado, con la fila de 44 px del índice; ≥lg: fijo junto al texto. */}
             <details className="group border-y border-border lg:hidden">
               <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-4 py-3 text-sm font-medium text-fg [&::-webkit-details-marker]:hidden">
@@ -224,7 +220,7 @@ export default async function GuiaPage({ params }: { params: Promise<{ slug: str
                 <section
                   key={section.id}
                   aria-labelledby={section.id}
-                  className="scroll-mt-24 border-t border-border pt-9 first:border-t-0 first:pt-0"
+                  className="border-t border-border pt-9 first:border-t-0 first:pt-0"
                 >
                   <h2 id={section.id} className="text-2xl sm:text-3xl">
                     {section.heading}
@@ -248,7 +244,7 @@ export default async function GuiaPage({ params }: { params: Promise<{ slug: str
             </div>
 
             {faq.length > 0 ? (
-              <section id="guia-faq" aria-labelledby="guia-faq-title" className="mt-12 scroll-mt-24 border-t border-border pt-9">
+              <section id="guia-faq" aria-labelledby="guia-faq-title" className="mt-12 border-t border-border pt-9">
                 <h2 id="guia-faq-title" className="text-2xl sm:text-3xl">
                   Preguntas frecuentes
                 </h2>
@@ -257,11 +253,11 @@ export default async function GuiaPage({ params }: { params: Promise<{ slug: str
             ) : null}
 
             {sources.length > 0 ? (
-              <section id="guia-fuentes" aria-labelledby="guia-fuentes-title" className="mt-12 scroll-mt-24 border-t border-border pt-9">
+              <section id="guia-fuentes" aria-labelledby="guia-fuentes-title" className="mt-12 border-t border-border pt-9">
                 <h2 id="guia-fuentes-title" className="text-2xl sm:text-3xl">
                   Fuentes
                 </h2>
-                <ul className="mt-3 text-sm leading-relaxed">
+                <ul className="mt-3 max-w-[68ch] text-[0.9375rem] leading-relaxed">
                   {sources.map((source) => (
                     <li key={source.url}>
                       <a

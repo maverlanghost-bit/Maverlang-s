@@ -15,6 +15,7 @@ import {
 import { CostBreakdown } from "@/components/domain/cost-breakdown";
 import { AmountInput } from "@/components/ui/amount-input";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { IconBack, IconCheck } from "@/components/ui/icons";
 import { Sheet } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -731,7 +732,7 @@ function CryptoFlow({
               <IconBack className="size-4" aria-hidden="true" />
               {t.trade.back}
             </button>
-            <span className="num text-[13px] tracking-[0.01em] text-fg-subtle">{symbol}</span>
+            <span className="num text-[13px] tracking-[0.01em] text-fg-muted">{symbol}</span>
           </div>
 
           <section className="border-y border-border py-5">
@@ -798,7 +799,7 @@ function CryptoFlow({
               {mode === "buy" ? formatMoney(cash, "USD") : `${tokenAmount(held)} ${symbol}`}
             </span>
           </div>
-          <p className="text-[13px] leading-5 text-fg-subtle">
+          <p className="text-[13px] leading-5 text-fg-muted">
             {mode === "buy"
               ? `Mínimo ${formatMoney(MIN_TRADE_USD, "USD")} · Tope por orden ${formatMoney(cap, "USD")}`
               : `Mínimo ${formatMoney(MIN_TRADE_USD, "USD")}`}
@@ -897,19 +898,20 @@ export function CryptoBuyPanel({
   const real = accountMode === "real";
 
   return (
-    <section
-      aria-labelledby={`${symbol}-precio`}
-      className="flex flex-col gap-4 rounded-3xl border border-border/70 bg-surface-1 p-5"
-    >
+    <Card className="flex flex-col gap-4">
       <div className="flex flex-col gap-1">
-        <h2 id={`${symbol}-precio`} className="text-xs font-medium tracking-wide text-fg-muted uppercase">
+        <h2 id={`${symbol}-precio`} className="label">
           Precio de {name} ({symbol})
         </h2>
-        <p className="num font-mono text-4xl tracking-tight text-fg tabular-nums">
-          {shownPrice ?? (prices.isPending ? "Cargando…" : "Sin precio")}
+        <p className="num text-4xl leading-none tracking-tight text-fg tabular-nums">
+          {shownPrice ?? (
+            <span className="text-lg leading-7 text-fg-muted">
+              {prices.isPending ? "Consultando…" : "Sin precio"}
+            </span>
+          )}
         </p>
         {shownPrice ? null : (
-          <p className="text-xs leading-relaxed text-fg-body">
+          <p className="text-[13px] leading-relaxed text-fg-body">
             {prices.isPending
               ? "Consultando el precio en Solana."
               : "No pudimos obtener el precio ahora. Sin precio no se puede comprar; no usamos un precio de referencia inventado."}
@@ -931,7 +933,7 @@ export function CryptoBuyPanel({
         ) : null}
       </div>
 
-      <p className="text-xs leading-relaxed text-fg-muted">
+      <p className="text-[13px] leading-5 text-fg-muted">
         Mínimo {formatMoney(MIN_TRADE_USD, "USD")} · Tope por orden {formatMoney(cap, "USD")}
         {cash !== null ? ` · Disponible en la demo ${formatMoney(cash, "USD")}` : ""}
       </p>
@@ -968,7 +970,13 @@ export function CryptoBuyPanel({
         </div>
       )}
 
-      <p className="text-xs leading-relaxed text-fg-body">{NON_CUSTODY_LINE}</p>
+      {!real && portfolio.isSuccess && !(held > 0) ? (
+        <p className="text-[13px] leading-5 text-fg-muted">
+          Aún no tienes {symbol}: primero compra para poder vender.
+        </p>
+      ) : null}
+
+      <p className="text-[13px] leading-relaxed text-fg-body">{NON_CUSTODY_LINE}</p>
 
       <CryptoTradeSheet
         symbol={symbol}
@@ -979,6 +987,6 @@ export function CryptoBuyPanel({
         mode={mode}
         maxOrderUsd={cap}
       />
-    </section>
+    </Card>
   );
 }

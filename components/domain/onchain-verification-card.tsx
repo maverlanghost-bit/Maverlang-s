@@ -65,7 +65,7 @@ export function OnchainVerificationCard({
             Custodia y trazabilidad en Solana
           </h2>
         </div>
-        <p className="inline-flex shrink-0 items-center gap-1.5 pt-0.5 text-[11px] leading-4 text-fg-muted">
+        <p className="inline-flex shrink-0 items-center gap-1.5 pt-0.5 text-xs leading-5 text-fg-muted">
           <span className="size-1.5 shrink-0 rounded-full bg-up" aria-hidden />
           SPL Verificable · 1:1
         </p>

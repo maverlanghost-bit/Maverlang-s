@@ -193,7 +193,7 @@ export function ModelSelector({
           aria-label="Elegir modelo"
           onClick={() => (open ? setOpen(false) : openMenu())}
           onKeyDown={handleTriggerKeyDown}
-          className="w-fit h-7 inline-flex items-center gap-1 bg-transparent hover:bg-zinc-100 hover:text-black px-2 rounded-lg text-xs font-normal text-black cursor-pointer shrink-0 shadow-none outline-none"
+          className="w-fit h-11 sm:h-7 inline-flex items-center gap-1 bg-transparent hover:bg-zinc-100 hover:text-black px-2.5 sm:px-2 rounded-lg text-xs font-normal text-black cursor-pointer shrink-0 shadow-none outline-none focus-visible:ring-2 focus-visible:ring-zinc-500"
         >
           <span className="hidden md:inline">{selected.name}</span>
           <span className="inline md:hidden">{selected.id === "pro" ? "v2.5 Pro" : "v2.5"}</span>
@@ -214,7 +214,7 @@ export function ModelSelector({
           aria-label="Elegir modelo"
           onClick={() => (open ? setOpen(false) : openMenu())}
           onKeyDown={handleTriggerKeyDown}
-          className="hidden md:inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold border border-zinc-200/80 bg-zinc-50 text-zinc-600 hover:bg-zinc-100 shrink-0 cursor-pointer"
+          className="hidden md:inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold border border-control/50 bg-zinc-50 text-zinc-700 hover:bg-zinc-100 shrink-0 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-500"
         >
           <IconSparkles className="w-3 h-3 text-[#1890FF]" />
           <span>{selected.name}</span>
@@ -234,7 +234,7 @@ export function ModelSelector({
           aria-label="Modelos disponibles"
           onKeyDown={handleListboxKeyDown}
           className={cn(
-            "absolute w-[280px] rounded-2xl border border-gray-200/60 bg-white p-1.5 shadow-xl z-50",
+            "absolute w-[min(17.5rem,calc(100vw-2rem))] rounded-2xl border border-gray-200/60 bg-white p-1.5 shadow-xl z-50",
             variant === "inline" ? "bottom-full right-0 mb-2" : "top-full left-0 mt-1.5",
           )}
         >
@@ -251,16 +251,16 @@ export function ModelSelector({
                 aria-selected={active}
                 tabIndex={-1}
                 onClick={() => choose(model.id)}
-                className="w-full py-2 px-3 rounded-xl flex items-center justify-between text-left hover:bg-zinc-100 transition-colors cursor-pointer outline-none focus-visible:bg-zinc-100"
+                className="w-full min-h-11 py-2.5 px-3 rounded-xl flex items-center justify-between text-left hover:bg-zinc-100 transition-colors cursor-pointer outline-none focus-visible:bg-zinc-100"
               >
                 <div>
                   <div className="font-bold text-xs text-zinc-900">
                     {model.name}
-                    <span className="ml-1.5 inline-flex items-center rounded-full border border-zinc-200 px-1.5 py-0.5 text-[9px] font-medium leading-none text-zinc-500 align-middle">
+                    <span className="ml-1.5 inline-flex items-center rounded-full border border-zinc-200 px-1.5 py-0.5 text-[10px] font-medium leading-none text-fg-muted align-middle">
                       {model.badge}
                     </span>
                   </div>
-                  <div className="text-[10px] text-zinc-500 truncate mt-0.5">{model.description}</div>
+                  <div className="text-[11px] text-fg-muted truncate mt-1">{model.description}</div>
                 </div>
                 {active ? <CheckIcon className="h-4 w-4 ml-auto text-teal-600 shrink-0" /> : null}
               </button>

@@ -27,7 +27,11 @@ export function NotificationsScreen() {
   if (prefs.isPending) {
     return (
       <SettingsFrame title={t.profile.notifications} description={t.profile.notificationsLead}>
-        <LoadingState label={t.states.loading} />
+        <SettingsPanel>
+          <div className="px-4 py-4 md:px-5">
+            <LoadingState variant="list" label={t.states.loading} />
+          </div>
+        </SettingsPanel>
       </SettingsFrame>
     );
   }
@@ -48,7 +52,7 @@ export function NotificationsScreen() {
     <SettingsFrame title={t.profile.notifications} description={t.profile.notificationsLead}>
       <SettingsPanel>
         {ROWS.map((row) => (
-          <div key={row.key} className="border-b border-border px-4 py-3 last:border-b-0 md:px-6">
+          <div key={row.key} className="border-t border-border/70 px-4 py-3.5 first:border-t-0 md:px-5">
             <Switch
               label={t.profile[row.label]}
               checked={data[row.key]}
@@ -56,7 +60,7 @@ export function NotificationsScreen() {
                 update({ [row.key]: checked }, () => toast({ title: t.profile.prefsError, tone: "down" }));
               }}
             />
-            <p className="pr-16 text-sm text-fg-muted">{t.profile[row.hint]}</p>
+            <p className="mt-1 pr-16 text-[13px] leading-5 text-fg-muted">{t.profile[row.hint]}</p>
           </div>
         ))}
       </SettingsPanel>

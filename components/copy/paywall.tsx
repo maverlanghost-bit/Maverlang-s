@@ -30,10 +30,13 @@ export function Paywall({
   title = "Desbloquea",
   description = "Con Copiar carteras ves la composición completa, los movimientos y puedes replicar la mezcla en tu cuenta.",
   className,
+  compact = false,
 }: {
   title?: string;
   description?: string;
   className?: string;
+  /** En la ficha el CTA primario vive en la tarjeta lateral: acá sólo va la vista previa. */
+  compact?: boolean;
 }) {
   return (
     <section
@@ -71,35 +74,37 @@ export function Paywall({
         </p>
       </div>
 
-      <div className="flex flex-col gap-3">
-        <dl className="flex flex-col border-t border-border/70">
-          <div className="flex items-baseline justify-between gap-4 border-b border-border/70 py-2.5">
-            <dt className="text-[13px] leading-5 text-fg-muted">Mensual</dt>
-            <dd className="num shrink-0 text-[13px] leading-5 font-medium tabular-nums text-fg">
-              {formatClp(COPY_PLANS.monthly.clp)}
-            </dd>
-          </div>
-          <div className="flex items-baseline justify-between gap-4 border-b border-border/70 py-2.5">
-            <dt className="text-[13px] leading-5 text-fg-muted">Anual</dt>
-            <dd className="num shrink-0 text-[13px] leading-5 font-medium tabular-nums text-fg">
-              {formatClp(COPY_PLANS.annual.clp)}
-            </dd>
-          </div>
-        </dl>
-        <p className="max-w-prose text-[13px] leading-relaxed text-fg-muted">
-          {TRIAL_DAYS} días de prueba gratis, una vez por usuario.
-        </p>
-        <Link
-          href="/app/copiar/planes"
-          className={buttonClasses({
-            variant: "primary",
-            size: "lg",
-            className: "min-h-12 w-full sm:w-auto",
-          })}
-        >
-          Ver planes
-        </Link>
-      </div>
+      {compact ? null : (
+        <div className="flex flex-col gap-3">
+          <dl className="flex flex-col border-t border-border/70">
+            <div className="flex items-baseline justify-between gap-4 border-b border-border/70 py-2.5">
+              <dt className="text-[13px] leading-5 text-fg-muted">Mensual</dt>
+              <dd className="num shrink-0 text-[13px] leading-5 font-medium tabular-nums text-fg">
+                {formatClp(COPY_PLANS.monthly.clp)}
+              </dd>
+            </div>
+            <div className="flex items-baseline justify-between gap-4 border-b border-border/70 py-2.5">
+              <dt className="text-[13px] leading-5 text-fg-muted">Anual</dt>
+              <dd className="num shrink-0 text-[13px] leading-5 font-medium tabular-nums text-fg">
+                {formatClp(COPY_PLANS.annual.clp)}
+              </dd>
+            </div>
+          </dl>
+          <p className="max-w-prose text-[13px] leading-relaxed text-fg-muted">
+            {TRIAL_DAYS} días de prueba gratis, una vez por usuario.
+          </p>
+          <Link
+            href="/app/copiar/planes"
+            className={buttonClasses({
+              variant: "primary",
+              size: "lg",
+              className: "min-h-12 w-full sm:w-auto",
+            })}
+          >
+            Ver planes
+          </Link>
+        </div>
+      )}
 
       <p className="max-w-prose text-[13px] leading-relaxed text-fg-muted">{COPY_LEGAL_PENDING_LABEL}</p>
     </section>

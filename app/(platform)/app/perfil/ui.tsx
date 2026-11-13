@@ -3,6 +3,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 
+import { IconBack } from "@/components/ui/icons";
 import { PageHeader } from "@/components/ui/page-header";
 import { useT } from "@/lib/hooks/use-t";
 import type { Preferences } from "@/lib/types";
@@ -46,12 +47,13 @@ export function SettingsFrame({
   const { t } = useT();
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-3">
+    <div className="flex min-w-0 flex-col gap-5">
+      <div className="flex flex-col gap-1">
         <Link
           href="/app/perfil"
-          className="inline-flex min-h-11 w-fit items-center rounded-full px-2 text-sm text-fg-muted outline-none transition duration-[140ms] hover:text-fg focus-visible:ring-4 focus-visible:ring-fg/20"
+          className="-ml-2 inline-flex min-h-11 w-fit items-center gap-1.5 rounded-full px-2 text-[13px] font-medium text-fg-muted outline-none transition duration-[140ms] hover:text-fg focus-visible:ring-4 focus-visible:ring-fg/20"
         >
+          <IconBack className="size-3.5" />
           {t.profile.back}
         </Link>
         <PageHeader title={title} description={description} />
@@ -61,10 +63,19 @@ export function SettingsFrame({
   );
 }
 
+/**
+ * Panel de ajustes: mismo hairline que `Card`, sin borde duplicado. Las filas
+ * que van dentro usan `border-t border-border/70 first:border-t-0`.
+ */
 export function SettingsPanel({ children, label }: { children: ReactNode; label?: string }) {
   return (
-    <section aria-label={label} className="overflow-hidden rounded-3xl border border-border bg-surface-1">
+    <section aria-label={label} className="overflow-hidden rounded-2xl bg-surface-1 shadow-card">
       {children}
     </section>
   );
+}
+
+/** Título interno de panel: rótulo mono, más callado que la H1 y que las filas. */
+export function PanelLabel({ children }: { children: ReactNode }) {
+  return <h2 className="label px-4 pt-4 pb-2 md:px-5">{children}</h2>;
 }

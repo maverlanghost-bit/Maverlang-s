@@ -1,5 +1,7 @@
 "use client";
 
+import type { ReactNode } from "react";
+
 import { ErrorState } from "@/components/ui/error-state";
 import { LoadingState } from "@/components/ui/loading-state";
 import { SegmentedControl } from "@/components/ui/segmented-control";
@@ -14,6 +16,17 @@ import {
 import { usePrefs } from "@/lib/hooks/queries";
 import { useT } from "@/lib/hooks/use-t";
 import type { Currency, Preferences } from "@/lib/types";
+
+/** Fila de preferencia: rótulo mono, control y una ayuda opcional debajo. */
+function Block({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
+  return (
+    <div className="flex flex-col gap-2 border-t border-border/70 px-4 py-4 first:border-t-0 md:px-5">
+      <p className="label">{label}</p>
+      {children}
+      {hint ? <p className="max-w-prose text-[13px] leading-relaxed text-fg-muted">{hint}</p> : null}
+    </div>
+  );
+}
 
 /**
  * Moneda + idioma (M40). Con sesión guarda en la DB; sin sesión queda en local.
@@ -31,7 +44,11 @@ export function PreferencesForm({ currencyFirst = true }: { currencyFirst?: bool
 
   const isAuthed = session.status === "authenticated";
   if (isAuthed && prefs.isPending) {
-    return <LoadingState label={t.states.loading} />;
+    return (
+      <div className="px-4 py-4 md:px-5">
+        <LoadingState variant="list" label={t.states.loading} />
+      </div>
+    );
   }
   if (isAuthed && (prefs.isError || !prefs.data)) {
     return (
@@ -67,8 +84,7 @@ export function PreferencesForm({ currencyFirst = true }: { currencyFirst?: bool
   }
 
   const currencyBlock = (
-    <div className="flex flex-col gap-3 border-t border-border px-4 py-4 first:border-t-0 md:px-6">
-      <p className="text-sm text-fg-muted">{t.profile.currencyLabel}</p>
+    <Block label={t.profile.currencyLabel} hint={t.profile.currencyHint}>
       <SegmentedControl
         label={t.profile.currencyLabel}
         fullWidth
@@ -79,13 +95,11 @@ export function PreferencesForm({ currencyFirst = true }: { currencyFirst?: bool
           { value: "USD", label: t.profile.usd },
         ]}
       />
-      <p className="text-sm leading-relaxed text-fg-muted">{t.profile.currencyHint}</p>
-    </div>
+    </Block>
   );
 
   const languageBlock = (
-    <div className="flex flex-col gap-3 border-t border-border px-4 py-4 first:border-t-0 md:px-6">
-      <p className="text-sm text-fg-muted">{t.profile.languageLabel}</p>
+    <Block label={t.profile.languageLabel}>
       <SegmentedControl
         label={t.profile.languageLabel}
         fullWidth
@@ -96,7 +110,7 @@ export function PreferencesForm({ currencyFirst = true }: { currencyFirst?: bool
           { value: "en", label: t.profile.english },
         ]}
       />
-    </div>
+    </Block>
   );
 
   return (

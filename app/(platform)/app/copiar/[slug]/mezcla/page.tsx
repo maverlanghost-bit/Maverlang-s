@@ -127,6 +127,7 @@ export default async function MezclaPage({
           title="Desbloquea la mezcla"
           description="Con Copiar carteras ves la composición, los movimientos y puedes armar la mezcla en demo con un clic. La cuenta con dinero real queda para después de la revisión legal."
         />
+        <FraccionSeal />
       </article>
     );
   }

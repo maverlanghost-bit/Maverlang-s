@@ -58,8 +58,16 @@ const DEPOSIT_HREF = "/app/billetera/depositar";
 const SEND_HREF = "/app/billetera/enviar";
 const MARKET_HREF = "/app";
 
-const POSITION_COLORS = ["#059669", "#0ea5e9", "#8b5cf6", "#f59e0b", "#ec4899", "#14b8a6", "#10b981", "#6366f1"] as const;
-const CASH_COLOR = "#64748b";
+/**
+ * Paleta de las series de la cartera. Cada color pasa 3:1 sobre blanco (el
+ * mínimo de WCAG 1.4.11 para un objeto gráfico) y mantiene el orden de
+ * leyenda: verde, azul, violeta, ámbar, rosado, verde azulado, oliva, índigo.
+ * Los tonos claros que había antes (ámbar 2,1:1, celeste 2,8:1) desaparecían
+ * en el anillo y en la barra de reparto.
+ */
+const POSITION_COLORS = ["#047857", "#0369a1", "#6d28d9", "#b45309", "#be123c", "#0f766e", "#4d7c0f", "#4338ca"] as const;
+/** Efectivo: gris pizarra neutro, 7,6:1 sobre blanco. */
+const CASH_COLOR = "#475569";
 
 const STATUS_TONE: Record<OrderStatus, BadgeTone> = {
   pending: "warn",
@@ -426,6 +434,7 @@ const ValueChart = memo(function ValueChart({
       }}
       points={points}
       formatValue={formatValue}
+      valueCurrency={currency}
       pendingFx={pendingFx}
       compare={{ active: compareSpy, onToggle: () => setCompareSpy((prev) => !prev) }}
       pending={pending}
@@ -445,6 +454,9 @@ const ValueChart = memo(function ValueChart({
         onHover={onHover}
         reference={reference}
         benchmark={benchmark}
+        /* Tres guías con su cifra: sin eje, una curva de valores no se puede
+           leer. Con comparación activa la escala pasa a % sola. */
+        showGrid
       />
     </PortfolioValueChart>
   );

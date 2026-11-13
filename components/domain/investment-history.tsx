@@ -151,7 +151,7 @@ export function InvestmentHistory({
       return formatClpValue(usd * fxRate);
     }
     if ((item.kind === "buy" || item.kind === "sell") && usd !== null && shares > 0) {
-      return `${formatUsdValue(usd / shares)} / acc.`;
+      return `${formatUsdValue(usd / shares)} ${isEn ? "/ share" : "/ acc."}`;
     }
     return null;
   };
@@ -174,7 +174,7 @@ export function InvestmentHistory({
         </div>
 
         <div
-          role="tablist"
+          role="group"
           aria-label={isEn ? "Filter operations" : "Filtrar operaciones"}
           className="no-scrollbar -mx-2 flex items-center overflow-x-auto"
         >
@@ -184,8 +184,7 @@ export function InvestmentHistory({
               <button
                 key={tab.id}
                 type="button"
-                role="tab"
-                aria-selected={active}
+                aria-pressed={active}
                 onClick={() => setFilter(tab.id)}
                 className={cn(
                   "relative inline-flex h-11 shrink-0 items-center px-3 text-[13px] font-medium whitespace-nowrap outline-none transition-colors duration-150 focus-visible:ring-4 focus-visible:ring-fg/20",
@@ -206,7 +205,9 @@ export function InvestmentHistory({
         </div>
       </div>
 
-      <dl className="mt-5 grid grid-cols-3 gap-x-4 border-y border-border py-4 sm:gap-x-8">
+      {/* En móvil cada cifra ocupa su línea (etiqueta a la izquierda, valor a
+          la derecha): en tres columnas de 360 px el volumen se cortaba. */}
+      <dl className="mt-5 grid grid-cols-1 gap-y-2 border-y border-border py-4 sm:grid-cols-3 sm:gap-x-8 sm:gap-y-0">
         {[
           {
             label: isEn ? "Total trades" : "Total operaciones",
@@ -222,9 +223,9 @@ export function InvestmentHistory({
           },
           { label: isEn ? "Last activity" : "Última operación", value: latestAt },
         ].map((stat) => (
-          <div key={stat.label} className="min-w-0">
+          <div key={stat.label} className="flex min-w-0 items-baseline justify-between gap-3 sm:block">
             <dt className="text-[11px] leading-4 text-fg-muted sm:text-xs">{stat.label}</dt>
-            <dd className="num mt-1.5 truncate text-[15px] font-medium tracking-tight text-fg">{stat.value}</dd>
+            <dd className="num text-[15px] font-medium tracking-tight tabular-nums text-fg sm:mt-1.5">{stat.value}</dd>
           </div>
         ))}
       </dl>
@@ -244,7 +245,7 @@ export function InvestmentHistory({
             </p>
             <p className="mt-1 max-w-sm text-[13px] leading-relaxed text-fg-muted">
               {isEn
-                ? "Start buying fractions of tokenized U.S. stocks from $1,000 CLP."
+                ? "Buy fractions of U.S. stocks and follow every order here."
                 : "Compra fracciones de acciones de EE. UU. y sigue cada orden aquí."}
             </p>
             <Link
@@ -339,7 +340,8 @@ export function InvestmentHistory({
                           href={`https://solscan.io/tx/${encodeURIComponent(sig)}`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="font-medium text-fg-muted underline-offset-2 hover:text-fg hover:underline"
+                          /* Área táctil de 44 px sin agrandar la línea de estado. */
+                          className="relative font-medium text-fg-muted underline-offset-2 after:absolute after:-inset-x-2 after:-inset-y-3.5 after:content-[''] hover:text-fg hover:underline"
                         >
                           Solscan
                         </a>

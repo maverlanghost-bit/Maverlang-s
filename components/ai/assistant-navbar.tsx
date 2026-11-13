@@ -19,8 +19,8 @@ const COPIED_FEEDBACK_MS = 1500;
  * solaparse: borde zinc sutil y sombra ligera sobre el fondo.
  */
 const CLUSTER_CIRCLE = cn(
-  "relative inline-flex size-9 shrink-0 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-700 shadow-sm",
-  "transition hover:-translate-y-px hover:bg-zinc-50 focus-visible:ring-2 focus-visible:ring-zinc-300 focus-visible:outline-none",
+  "relative inline-flex size-11 sm:size-9 shrink-0 items-center justify-center rounded-full border border-control/60 bg-white text-zinc-700 shadow-sm",
+  "transition hover:-translate-y-px hover:bg-zinc-50 focus-visible:ring-2 focus-visible:ring-zinc-500 focus-visible:outline-none",
   "disabled:cursor-default disabled:opacity-40 disabled:hover:translate-y-0 disabled:hover:bg-white motion-reduce:transition-none",
 );
 
@@ -264,7 +264,7 @@ export function AssistantNavbar({
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: -4, scale: 0.98 }}
                 transition={{ duration: 0.15, ease: "easeOut" }}
-                className="absolute right-0 top-full z-50 mt-2 w-60 origin-top-right rounded-2xl border border-zinc-200/80 bg-white p-1.5 shadow-2xl outline-none"
+                className="absolute right-0 top-full z-50 mt-2 max-h-[calc(100dvh-6rem)] w-60 origin-top-right overflow-y-auto overscroll-contain rounded-2xl border border-zinc-200/80 bg-white p-1.5 shadow-2xl outline-none"
               >
                 {editingTitle ? (
                   <div className="flex items-center gap-1">
@@ -276,14 +276,14 @@ export function AssistantNavbar({
                       aria-label="Título de la conversación"
                       onChange={(event) => setDraftTitle(event.target.value)}
                       onKeyDown={handleTitleKeyDown}
-                      className="h-9 min-w-0 flex-1 rounded-xl border border-zinc-300 bg-white px-2.5 text-[13px] font-semibold text-zinc-900 outline-none transition focus-visible:ring-2 focus-visible:ring-zinc-300 motion-reduce:transition-none"
+                      className="h-11 min-w-0 flex-1 rounded-xl border border-control/60 bg-white px-2.5 text-[16px] font-semibold text-zinc-900 outline-none transition focus-visible:ring-2 focus-visible:ring-zinc-500 motion-reduce:transition-none sm:h-9 sm:text-[13px]"
                     />
                     <button
                       type="button"
                       title="Guardar título"
                       aria-label="Guardar título"
                       onClick={commitTitle}
-                      className="inline-flex size-8 shrink-0 items-center justify-center rounded-lg text-green-600 outline-none transition hover:bg-green-50 focus-visible:ring-2 focus-visible:ring-green-200 motion-reduce:transition-none"
+                      className="inline-flex size-11 shrink-0 items-center justify-center rounded-lg text-green-700 outline-none transition hover:bg-green-50 focus-visible:ring-2 focus-visible:ring-green-300 motion-reduce:transition-none sm:size-8"
                     >
                       <IconCheck />
                     </button>
@@ -292,7 +292,7 @@ export function AssistantNavbar({
                       title="Cancelar"
                       aria-label="Cancelar"
                       onClick={cancelEditingTitle}
-                      className="inline-flex size-8 shrink-0 items-center justify-center rounded-lg text-zinc-400 outline-none transition hover:bg-zinc-100 focus-visible:ring-2 focus-visible:ring-zinc-300 motion-reduce:transition-none"
+                      className="inline-flex size-11 shrink-0 items-center justify-center rounded-lg text-zinc-500 outline-none transition hover:bg-zinc-100 focus-visible:ring-2 focus-visible:ring-zinc-500 motion-reduce:transition-none sm:size-8"
                     >
                       <IconX />
                     </button>
@@ -393,8 +393,8 @@ function MenuItem({
       onClick={onClick}
       disabled={disabled}
       className={cn(
-        "w-full text-left text-[13px] rounded-lg px-2.5 py-2 flex items-center gap-2 font-medium outline-none",
-        "transition-colors duration-150 motion-reduce:transition-none focus-visible:ring-2 focus-visible:ring-zinc-300",
+        "w-full min-h-11 sm:min-h-0 text-left text-[13px] rounded-lg px-2.5 py-2 flex items-center gap-2 font-medium outline-none",
+        "transition-colors duration-150 motion-reduce:transition-none focus-visible:ring-2 focus-visible:ring-zinc-500",
         "disabled:cursor-default disabled:opacity-40 disabled:hover:bg-transparent",
         danger ? "text-red-600 hover:bg-red-50" : "text-zinc-700 hover:bg-zinc-100",
       )}

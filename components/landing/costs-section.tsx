@@ -3,7 +3,6 @@ import { LandingSection, SectionIntro } from "@/components/landing/section";
 import { Reveal } from "@/components/landing/reveal";
 import { site } from "@/config/site";
 import { REVEAL_STAGGER_MS } from "@/lib/hooks/reveal-motion";
-import { cn } from "@/lib/cn";
 
 const rows: { concept: string; detail: string }[] = [
   {
@@ -33,12 +32,6 @@ const rows: { concept: string; detail: string }[] = [
 /** Afirmaciones cortas: antes eran píldoras; ahora una línea de tinta. */
 const notes: string[] = ["Desglose previo a firmar", "Red Solana ultrarrápida"];
 
-/** Rótulo de dato a 13px: el mínimo de lectura del rediseño. */
-const MICRO = "font-mono text-[13px] font-medium uppercase tracking-[0.045em] text-fg-muted";
-
-/** Degradado corto: avisa que la tabla sigue sin tapar la primera letra. */
-const EDGE_MASK = "[mask-image:linear-gradient(90deg,transparent,#000_2%,#000_98%,transparent)]";
-
 const INTRO_TITLE = "Lo que pagas, antes de confirmar";
 
 /**
@@ -65,7 +58,7 @@ export function CostsSection({ showIntro = true }: { showIntro?: boolean }) {
         <div className="grid lg:grid-cols-12">
           <Reveal className="lg:col-span-4 lg:border-r lg:border-border">
             <div className="py-8 lg:py-10 lg:pr-10">
-              <p className={MICRO}>Comisión de plataforma</p>
+              <p className="label">Comisión de plataforma</p>
               <p className="num mt-5 text-6xl leading-[0.9] tracking-[-0.04em] text-fg sm:text-7xl">
                 0%
               </p>
@@ -99,7 +92,7 @@ export function CostsSection({ showIntro = true }: { showIntro?: boolean }) {
           <Reveal delay={REVEAL_STAGGER_MS * 2} className="lg:col-span-8">
             <div className="py-8 lg:py-10 lg:pl-10">
               <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1">
-                <p className={MICRO}>Desglose de costos</p>
+                <p className="label">Desglose de costos</p>
                 <p className="text-[13px] text-fg-muted">Se muestra antes de confirmar</p>
               </div>
 
@@ -111,26 +104,26 @@ export function CostsSection({ showIntro = true }: { showIntro?: boolean }) {
                 {rows.map((row) => (
                   <div key={row.concept} className="py-4">
                     <dt className="text-sm font-medium leading-relaxed text-fg">{row.concept}</dt>
-                    <dd className="mt-1.5 text-sm leading-relaxed text-fg-body">{row.detail}</dd>
+                    <dd className="mt-2 text-sm leading-relaxed text-fg-body">{row.detail}</dd>
                   </div>
                 ))}
               </dl>
 
-              {/* ≥sm: la tabla de siempre, con scroll y degradado si no cabe. */}
-              <div className={cn("mt-5 hidden overflow-x-auto sm:block", EDGE_MASK)}>
+              {/* ≥sm: la tabla de siempre. Con scroll horizontal de reserva si no cabe. */}
+              <div className="mt-5 hidden overflow-x-auto sm:block">
                 <table className="w-full border-y border-border text-left text-sm md:min-w-[32rem]">
                   <caption className="sr-only">Costos de {site.name}</caption>
                   <thead>
                     <tr>
                       <th
                         scope="col"
-                        className="border-b border-border py-3 pr-6 align-bottom text-[13px] font-medium text-fg-muted"
+                        className="eyebrow border-b border-border py-3 pr-6 align-bottom"
                       >
                         Concepto
                       </th>
                       <th
                         scope="col"
-                        className="border-b border-border py-3 align-bottom text-[13px] font-medium text-fg-muted"
+                        className="eyebrow border-b border-border py-3 align-bottom"
                       >
                         Qué pagas
                       </th>
@@ -158,7 +151,7 @@ export function CostsSection({ showIntro = true }: { showIntro?: boolean }) {
               <p className="mt-6">
                 <Link
                   href="/legal/comisiones"
-                  className="inline-flex min-h-11 items-center gap-1.5 text-sm font-medium text-fg underline decoration-border underline-offset-4 transition-colors hover:decoration-fg motion-reduce:transition-none"
+                  className="inline-flex min-h-11 items-center gap-2 text-sm font-medium text-fg underline decoration-border underline-offset-4 transition-colors hover:decoration-fg motion-reduce:transition-none"
                 >
                   Ver el detalle de comisiones
                   <span aria-hidden="true">→</span>

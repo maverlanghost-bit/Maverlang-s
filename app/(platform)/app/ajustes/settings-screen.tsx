@@ -7,6 +7,37 @@ import { useT } from "@/lib/hooks/use-t";
 
 import { SettingsPanel } from "../perfil/ui";
 
+/** Un atajo: teclas, qué hace y la descripción tal como estaba. */
+const SHORTCUTS = [
+  {
+    id: "paleta",
+    keys: ["Ctrl + K", "⌘K"],
+    label: "Paleta de comandos",
+    description: "Paleta de comandos y búsqueda instantánea de acciones",
+  },
+  {
+    id: "grafico",
+    keys: ["←", "→"],
+    label: "Recorrer el gráfico",
+    description: "Inspeccionar precios punto por punto sobre cualquier gráfico",
+  },
+  {
+    id: "cerrar",
+    keys: ["Esc"],
+    label: "Cerrar",
+    description: "Cerrar hojas de compra/venta, comprobantes y buscador",
+  },
+] as const;
+
+/** Tecla suelta: mono, hairline y sin sombra, como el resto de los datos. */
+function Key({ children }: { children: string }) {
+  return (
+    <kbd className="rounded-md border border-border-strong bg-bg px-2 py-1 font-mono text-[11px] leading-4 font-medium text-fg-body">
+      {children}
+    </kbd>
+  );
+}
+
 /** Ajustes (M40): primero Moneda, luego Idioma. Pública: el visitante guarda en local. */
 export function SettingsScreen() {
   const { t } = useT();
@@ -18,54 +49,35 @@ export function SettingsScreen() {
       </SettingsPanel>
       <MfaSettings />
       <section
-        aria-label="Atajos de Teclado y Terminal"
-        className="rounded-3xl border border-border/80 bg-white p-5 shadow-xs sm:p-6"
+        aria-label="Atajos de teclado y navegación rápida"
+        className="border-t border-border pt-8"
       >
-        <h2 className="text-lg font-semibold tracking-tight text-fg">
+        <h2 className="text-lg font-medium tracking-tight text-fg">
           Atajos de teclado y navegación rápida
         </h2>
-        <p className="mt-1 text-sm text-fg-muted">
+        <p className="mt-1 max-w-prose text-[13px] leading-relaxed text-fg-muted">
           Muévete por la plataforma como en una terminal profesional desde tu computador.
         </p>
-        <div className="mt-4 grid gap-3 sm:grid-cols-3">
-          <div className="flex flex-col gap-2 rounded-2xl border border-border/70 bg-surface-1/60 p-4">
-            <span className="flex flex-wrap items-center gap-1">
-              <kbd className="rounded-md border border-border/80 bg-white px-2 py-1 text-[11px] font-semibold text-fg shadow-xs">
-                Ctrl + K
-              </kbd>
-              <span className="text-[11px] text-fg-muted">/</span>
-              <kbd className="rounded-md border border-border/80 bg-white px-2 py-1 text-[11px] font-semibold text-fg shadow-xs">
-                ⌘K
-              </kbd>
-            </span>
-            <p className="text-xs leading-relaxed text-fg-muted">
-              Paleta de comandos y búsqueda instantánea de acciones
-            </p>
-          </div>
-          <div className="flex flex-col gap-2 rounded-2xl border border-border/70 bg-surface-1/60 p-4">
-            <span className="flex flex-wrap items-center gap-1">
-              <kbd className="rounded-md border border-border/80 bg-white px-2 py-1 text-[11px] font-semibold text-fg shadow-xs">
-                ←
-              </kbd>
-              <kbd className="rounded-md border border-border/80 bg-white px-2 py-1 text-[11px] font-semibold text-fg shadow-xs">
-                →
-              </kbd>
-            </span>
-            <p className="text-xs leading-relaxed text-fg-muted">
-              Inspeccionar precios punto por punto sobre cualquier gráfico
-            </p>
-          </div>
-          <div className="flex flex-col gap-2 rounded-2xl border border-border/70 bg-surface-1/60 p-4">
-            <span className="flex flex-wrap items-center gap-1">
-              <kbd className="rounded-md border border-border/80 bg-white px-2 py-1 text-[11px] font-semibold text-fg shadow-xs">
-                Esc
-              </kbd>
-            </span>
-            <p className="text-xs leading-relaxed text-fg-muted">
-              Cerrar hojas de compra/venta, comprobantes y buscador
-            </p>
-          </div>
-        </div>
+        <dl className="mt-4 flex flex-col">
+          {SHORTCUTS.map((shortcut) => (
+            <div
+              key={shortcut.id}
+              className="flex flex-wrap items-start justify-between gap-x-6 gap-y-2 border-b border-border py-3 last:border-b-0"
+            >
+              <dt className="min-w-0 flex-1 basis-48">
+                <span className="block text-sm font-medium text-fg">{shortcut.label}</span>
+                <span className="mt-0.5 block text-[13px] leading-5 text-fg-muted">
+                  {shortcut.description}
+                </span>
+              </dt>
+              <dd className="ml-auto flex shrink-0 flex-wrap items-center gap-1.5">
+                {shortcut.keys.map((key) => (
+                  <Key key={key}>{key}</Key>
+                ))}
+              </dd>
+            </div>
+          ))}
+        </dl>
       </section>
     </div>
   );
