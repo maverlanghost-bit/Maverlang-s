@@ -137,7 +137,8 @@ describe("M86: cobertura de rutas y códigos por spec", () => {
     expect(source).toContain('"/app/cartera"');
     expect(source).toContain("Historial de órdenes");
     expect(source).toContain("Vender NVIDIA");
-    expect(source).toContain("Monto en Acciones");
+    // La etiqueta del monto en acciones pasó de "Monto en Acciones" a "Monto en acc.".
+    expect(source).toMatch(/Monto en \(Acciones\|acc\\\.\)/);
     expect(source).toContain("Reiniciar cuenta demo");
     expect(source).toContain("¡Listo!");
   });

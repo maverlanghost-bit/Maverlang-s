@@ -119,26 +119,26 @@ test("mercado: cambio de moneda CLP/USD en el sidebar", async ({ page }) => {
   // El menú se cierra después de cada cambio para que no tape la lista, así
   // que cada cambio lo vuelve a abrir.
   const perfil = page.getByRole("button", { name: /Cuenta demo\. Ir a tu perfil/ });
-  async function elegirMoneda(codigo: "USD" | "CLP") {
+  async function elegirMoneda(nombre: "Moneda: USD" | "Moneda: CLP") {
     await perfil.click();
     const moneda = page.getByRole("menu", { name: "Ir a tu perfil" }).getByRole("radiogroup", { name: "Moneda" });
-    await moneda.getByRole("radio", { name: `Moneda: ${codigo}` }).click();
-    await expect(moneda.getByRole("radio", { name: `Moneda: ${codigo}` })).toBeChecked();
+    await moneda.getByRole("radio", { name: nombre }).click();
+    await expect(moneda.getByRole("radio", { name: nombre })).toBeChecked();
     await perfil.click();
     await expect(page.getByRole("menu", { name: "Ir a tu perfil" })).toHaveCount(0);
   }
-  await elegirMoneda("USD");
+  await elegirMoneda("Moneda: USD");
 
   // Apple a US$ 228,40 (mock): el precio visible cambia de dólares.
   const apple = page.locator('a[href="/app/accion/AAPLx"]').first();
   await expect(apple).toContainText(/US\$228,40/);
 
   // A CLP con el dólar mock de 950: 228,40 × 950 = 216.980.
-  await elegirMoneda("CLP");
+  await elegirMoneda("Moneda: CLP");
   await expect(apple).toContainText(/\$216\.980/);
 
   // Volver a USD para no dejar la preferencia cruzada en la sesión mock.
-  await elegirMoneda("USD");
+  await elegirMoneda("Moneda: USD");
   await expect(apple).toContainText(/US\$228,40/);
 });
 
