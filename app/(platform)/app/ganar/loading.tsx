@@ -6,7 +6,7 @@ const DOLLAR_CARDS = ["a"] as const;
 /** Tarjeta de activo con la misma grilla que la real: emisor, datos y acciones. */
 function AssetCardSkeleton() {
   return (
-    <div className="flex min-w-0 flex-col gap-4 rounded-xl bg-surface-1 p-6 shadow-card md:p-8">
+    <div className="flex min-w-0 flex-col gap-4 rounded-xl border border-border bg-surface-1 p-6 md:p-8">
       <div className="flex items-start gap-3">
         <Skeleton className="size-10 shrink-0 rounded-full" />
         <div className="flex min-w-0 flex-1 flex-col gap-2">
@@ -37,7 +37,8 @@ function AssetCardSkeleton() {
 
 /**
  * Esqueleto de Ganar con su retícula real: aviso previo, grilla de LST y
- * ficha de dólares. Sin APY, precios ni cifras hasta que lleguen.
+ * ficha de dólares. Mismo filo y mismo relleno que `Card` (borde, no sombra)
+ * para que el contenido no se mueva al llegar. Sin APY, precios ni cifras.
  */
 export default function GanarLoading() {
   return (

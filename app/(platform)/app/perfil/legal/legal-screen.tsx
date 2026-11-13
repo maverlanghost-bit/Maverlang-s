@@ -8,7 +8,6 @@ import type { Consent, LegalDoc } from "@/lib/types";
 
 import {
   formatWhen,
-  PanelLabel,
   SettingsFrame,
   SettingsItem,
   SettingsLink,
@@ -62,7 +61,7 @@ export function LegalScreen() {
       ) : rows.length === 0 ? (
         <SettingsNote>{t.profile.legalEmpty}</SettingsNote>
       ) : (
-        <SettingsPanel label={t.profile.legal}>
+        <SettingsPanel>
           <SettingsList>
             {rows.map((row) => {
               const doc = (
@@ -72,7 +71,7 @@ export function LegalScreen() {
                     <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
                       <span>
                         <span className="sr-only">{t.profile.docVersion}: </span>
-                        <span className="num break-all">{row.version}</span>
+                        <span className="num break-words">{row.version}</span>
                       </span>
                       <span aria-hidden="true">·</span>
                       <span>
@@ -98,7 +97,6 @@ export function LegalScreen() {
       )}
 
       <SettingsPanel label={t.profile.legalLinks}>
-        <PanelLabel>{t.profile.legalLinks}</PanelLabel>
         <SettingsList>
           {LINKS.map(([doc, href]) => (
             <SettingsItem key={doc}>

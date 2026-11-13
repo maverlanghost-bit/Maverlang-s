@@ -131,7 +131,7 @@ export function AccountScreen() {
       <SettingsPanel>
         <SettingsField label={t.profile.name} hint={t.profile.nameHint} htmlFor="display-name">
           <form
-            className="flex flex-col gap-3 sm:flex-row"
+            className="flex min-w-0 flex-col gap-3 sm:flex-row"
             onSubmit={(event) => {
               event.preventDefault();
               void saveName();
@@ -143,6 +143,7 @@ export function AccountScreen() {
               maxLength={80}
               autoComplete="name"
               placeholder={t.profile.namePlaceholder}
+              className="min-w-0 flex-1"
               onChange={(event) => {
                 setDraft(event.target.value);
                 setNameError(null);
@@ -151,7 +152,7 @@ export function AccountScreen() {
             <Button
               type="submit"
               size="lg"
-              className="shrink-0"
+              className="w-full shrink-0 sm:w-auto"
               loading={saving}
               disabled={saving || name.trim() === (profile.displayName ?? "")}
             >

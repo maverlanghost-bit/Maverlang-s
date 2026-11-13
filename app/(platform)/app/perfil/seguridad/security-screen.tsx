@@ -12,7 +12,15 @@ import { useSession } from "@/lib/auth";
 import { useExportKey } from "@/lib/auth/export-wallet";
 import { useT } from "@/lib/hooks/use-t";
 
-import { fill, PanelLabel, SettingsFrame, SettingsPanel } from "../ui";
+import {
+  fill,
+  SettingsButton,
+  SettingsFrame,
+  SettingsItem,
+  SettingsList,
+  SettingsPanel,
+  SettingsRowText,
+} from "../ui";
 
 type ExportPhase = "warn" | "mock" | "privy" | "error";
 
@@ -60,39 +68,32 @@ export function SecurityScreen() {
 
   return (
     <SettingsFrame title={t.profile.security} description={t.profile.securityLead}>
-      <SettingsPanel>
-        <div className="px-4 py-4 md:px-5">
-          <div className="flex items-center gap-2">
-            <span className="size-2 shrink-0 rounded-full bg-up" aria-hidden="true" />
-            <h2 className="text-[15px] leading-5 font-medium text-fg">Arquitectura de Custodia y Protección Activa</h2>
-          </div>
-          <dl className="mt-3 grid gap-2 sm:grid-cols-3">
-            {CUSTODY.map((item) => (
-              <div key={item.title} className="rounded-xl border border-border bg-bg px-3 py-2.5">
-                <dt className="text-[13px] leading-5 font-medium text-fg">{item.title}</dt>
-                <dd className="mt-0.5 text-[13px] leading-5 text-fg-muted">{item.detail}</dd>
-              </div>
-            ))}
-          </dl>
-        </div>
+      <SettingsPanel label="Custodia">
+        <dl className="flex min-w-0 flex-col">
+          {CUSTODY.map((item) => (
+            <div key={item.title} className="min-w-0 border-t border-border px-4 py-3 first:border-t-0 md:px-5">
+              <dt className="text-[15px] leading-5 font-medium text-fg">{item.title}</dt>
+              <dd className="mt-0.5 text-[13px] leading-5 break-words text-fg-muted">{item.detail}</dd>
+            </div>
+          ))}
+        </dl>
       </SettingsPanel>
 
       <SettingsPanel label={t.profile.methods}>
-        <PanelLabel>{t.profile.methods}</PanelLabel>
         {linkedLogins.length === 0 ? (
-          <p className="px-4 pt-2 pb-4 text-[13px] leading-5 text-fg-muted md:px-5">{t.profile.noMethods}</p>
+          <p className="px-4 py-3 text-[13px] leading-5 text-fg-muted md:px-5">{t.profile.noMethods}</p>
         ) : (
-          <ul>
+          <ul className="flex min-w-0 flex-col">
             {linkedLogins.map((row) => (
               <li
                 key={row.method}
-                className="flex min-h-12 items-center justify-between gap-4 border-t border-border/70 px-4 py-3.5 md:px-5"
+                className="flex min-h-14 min-w-0 items-center justify-between gap-4 border-t border-border px-4 py-3 first:border-t-0 md:px-5"
               >
-                <span className="text-[15px] leading-5 text-fg">
+                <span className="shrink-0 text-[15px] leading-5 text-fg">
                   {row.method === "email" ? t.profile.methodEmail : t.profile.methodGoogle}
                 </span>
                 {row.detail ? (
-                  <span className="min-w-0 truncate text-[13px] leading-5 text-fg-muted">{row.detail}</span>
+                  <span className="min-w-0 text-right text-[13px] leading-5 break-words text-fg-muted">{row.detail}</span>
                 ) : null}
               </li>
             ))}
@@ -101,27 +102,26 @@ export function SecurityScreen() {
       </SettingsPanel>
 
       <SettingsPanel>
-        <button
-          type="button"
-          onClick={() => onOpenChange(true)}
-          className="flex min-h-12 w-full items-center justify-between gap-3 px-4 py-3.5 text-left text-[15px] leading-5 text-fg outline-none transition-colors duration-[140ms] hover:bg-surface-2 focus-visible:ring-4 focus-visible:ring-fg/20 focus-visible:ring-inset md:px-5"
-        >
-          <span className="min-w-0">{t.profile.export}</span>
-          <IconChevron className="size-3.5 shrink-0 -rotate-90 text-fg-muted" />
-        </button>
+        <SettingsList>
+          <SettingsItem>
+            <SettingsButton onClick={() => onOpenChange(true)}>
+              <span className="min-w-0 flex-1">{t.profile.export}</span>
+              <IconChevron aria-hidden className="size-4 shrink-0 -rotate-90 text-fg-muted" />
+            </SettingsButton>
+          </SettingsItem>
+          <SettingsItem>
+            <div className="flex min-h-14 min-w-0 items-center justify-between gap-4 px-4 py-3 md:px-5">
+              <SettingsRowText label={t.profile.sessions} hint={t.profile.soonBody} />
+              <Badge className="shrink-0">{t.profile.soon}</Badge>
+            </div>
+          </SettingsItem>
+        </SettingsList>
       </SettingsPanel>
 
-      <SettingsPanel>
-        <div className="flex min-h-12 items-center justify-between gap-4 px-4 py-3.5 md:px-5">
-          <div className="min-w-0">
-            <p className="text-[15px] leading-5 text-fg">{t.profile.sessions}</p>
-            <p className="mt-0.5 text-[13px] leading-5 text-fg-muted">{t.profile.soonBody}</p>
-          </div>
-          <Badge className="shrink-0">{t.profile.soon}</Badge>
-        </div>
-      </SettingsPanel>
-
-      <MfaSettings />
+      {/* MfaSettings trae su propio borde y radio: se alinea al radio del sistema sin tocar el componente. */}
+      <div className="[&>section]:rounded-xl">
+        <MfaSettings />
+      </div>
 
       <Dialog open={open} onOpenChange={onOpenChange} title={t.profile.exportTitle} description={t.profile.exportWarn1}>
         <ul className="list-disc space-y-2 pl-5 text-sm leading-relaxed text-fg-body">

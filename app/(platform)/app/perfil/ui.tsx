@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import type { ReactNode } from "react";
+import { useId, type ReactNode } from "react";
 
 import { IconBack, IconChevron } from "@/components/ui/icons";
 import { PageHeader } from "@/components/ui/page-header";
@@ -40,24 +40,27 @@ export function formatWhen(input: string, language: Preferences["language"], unk
 /*
  * Anatomía única de perfil y ajustes.
  *
- * Una sola escala dentro de estas pantallas: rótulo de fila 15/20, descripción
- * 13/20, rótulo de panel en `.label` (mono 12). Las pantallas nuevas toman
- * estas piezas en vez de repetir clases de fila.
+ * La pantalla es una lista: filas separadas por un hairline de `--color-border`,
+ * sin caja, sin fondo y sin sombra. El rótulo del grupo va fuera del filo, en
+ * `.label` (mono 12), para que el ojo barra primero las filas.
  *
- * Hairline: `border-border/70`, el mismo del resto de la app, con
- * `first:border-t-0` para no duplicar el filo de la caja.
+ * Una sola escala dentro de estas pantallas: rótulo de fila 15/20, descripción
+ * 13/20, rótulo de grupo en `.label`.
  */
 
-/** Inset y alto táctil de una fila: 48px mínimo, con 44px de control adentro. */
-const ROW = "flex min-h-12 items-center justify-between gap-3 px-4 py-3.5 md:px-5";
+/** Columna de lectura: 672px. En móvil ocupa el ancho útil (320px a 350px). */
+const COLUMN = "w-full max-w-2xl min-w-0";
+
+/** Alto táctil de una fila: 56px, con 44px de control adentro. */
+const ROW = "flex min-h-14 min-w-0 items-center justify-between gap-3 px-4 py-3 md:px-5";
 
 /** Fila que se puede tocar entera (link o button): foco y hover incluidos. */
 const ROW_ACTION = cn(
   ROW,
-  "w-full text-left text-[15px] leading-5 outline-none transition-colors duration-[140ms] hover:bg-surface-2 focus-visible:ring-4 focus-visible:ring-fg/20 focus-visible:ring-inset",
+  "w-full text-left text-[15px] leading-5 outline-none transition-colors duration-[140ms] hover:bg-surface-1 focus-visible:ring-2 focus-visible:ring-fg focus-visible:ring-inset",
 );
 
-const HAIRLINE = "border-t border-border/70 first:border-t-0";
+const HAIRLINE = "border-t border-border first:border-t-0";
 
 export function SettingsFrame({
   title,
@@ -74,12 +77,12 @@ export function SettingsFrame({
   const { t } = useT();
 
   return (
-    <div className="flex min-w-0 flex-col gap-6">
-      <div className="flex flex-col gap-1">
+    <div className={cn(COLUMN, "flex flex-col gap-6")}>
+      <div className="flex min-w-0 flex-col gap-1">
         {back ? (
           <Link
             href="/app/perfil"
-            className="-ml-2 inline-flex min-h-11 w-fit items-center gap-1.5 rounded-full px-2 text-[13px] leading-5 font-medium text-fg-muted outline-none transition-colors duration-[140ms] hover:text-fg focus-visible:ring-4 focus-visible:ring-fg/20"
+            className="-ml-2 inline-flex min-h-11 w-fit items-center gap-1.5 rounded-full px-2 text-[13px] leading-5 font-medium text-fg-muted outline-none transition-colors duration-[140ms] hover:text-fg focus-visible:ring-2 focus-visible:ring-fg focus-visible:ring-inset"
           >
             <IconBack className="size-3.5" />
             {t.profile.back}
@@ -93,30 +96,33 @@ export function SettingsFrame({
 }
 
 /**
- * Panel de ajustes: mismo hairline y mismo radio que `Card`, sin borde
- * duplicado. Las filas van en `SettingsList`/`SettingsItem`.
+ * Grupo de filas: rótulo opcional arriba y un solo par de hairlines (arriba y
+ * abajo) alrededor de la lista. Sin fondo, sin radio y sin sombra: el filo es
+ * toda la decoración.
  */
 export function SettingsPanel({ children, label }: { children: ReactNode; label?: string }) {
+  const labelId = useId();
+
   return (
-    <section aria-label={label} className="overflow-hidden rounded-xl bg-surface-1 shadow-card">
-      {children}
+    <section aria-labelledby={label ? labelId : undefined} className="flex min-w-0 flex-col gap-2">
+      {label ? (
+        <h2 id={labelId} className="label">
+          {label}
+        </h2>
+      ) : null}
+      <div className="border-y border-border">{children}</div>
     </section>
   );
 }
 
-/** Título interno de panel: rótulo mono, más callado que la H1 y que las filas. */
-export function PanelLabel({ children }: { children: ReactNode }) {
-  return <h2 className="label px-4 pt-4 pb-1 md:px-5">{children}</h2>;
-}
-
 /** Lista de filas dentro de un panel. */
 export function SettingsList({ children, className }: { children: ReactNode; className?: string }) {
-  return <ul className={cn("flex flex-col", className)}>{children}</ul>;
+  return <ul className={cn("flex min-w-0 flex-col", className)}>{children}</ul>;
 }
 
 /** Elemento de la lista: es quien dibuja el separador hairline. */
 export function SettingsItem({ children }: { children: ReactNode }) {
-  return <li className={HAIRLINE}>{children}</li>;
+  return <li className={cn("min-w-0", HAIRLINE)}>{children}</li>;
 }
 
 /** Contenido de una fila: etiqueta 15/20 y descripción corta 13/20. */
@@ -138,10 +144,10 @@ export function SettingsRowText({
 }
 
 export function SettingsChevron() {
-  return <IconChevron className="size-3.5 shrink-0 -rotate-90 text-fg-muted" />;
+  return <IconChevron aria-hidden className="size-4 shrink-0 -rotate-90 text-fg-muted" />;
 }
 
-/** Fila estática: el mismo inset que las accionables, sin hover. */
+/** Fila estática: el mismo ritmo que las accionables, sin hover. */
 export function SettingsRow({ children, className }: { children: ReactNode; className?: string }) {
   return <div className={cn(ROW, className)}>{children}</div>;
 }
@@ -227,7 +233,7 @@ export function SettingsField({
   children: ReactNode;
 }) {
   return (
-    <div className={cn("flex flex-col gap-2 px-4 py-4 md:px-5", HAIRLINE)}>
+    <div className={cn("flex min-w-0 flex-col gap-2 px-4 py-4 md:px-5", HAIRLINE)}>
       {htmlFor ? (
         <label htmlFor={htmlFor} className="label">
           {label}
@@ -236,7 +242,7 @@ export function SettingsField({
         <p className="label">{label}</p>
       )}
       {children}
-      {hint ? <p className="text-[13px] leading-5 text-fg-muted">{hint}</p> : null}
+      {hint ? <p className="text-[13px] leading-5 break-words text-fg-muted">{hint}</p> : null}
     </div>
   );
 }
@@ -249,15 +255,15 @@ export function SettingsValue({ children, className }: { children: ReactNode; cl
 /** Prosa de apoyo: una sola medida y una sola escala en todas las subpantallas. */
 export function SettingsNote({ children, role }: { children: ReactNode; role?: "status" | "alert" }) {
   return (
-    <p role={role} className="max-w-prose text-[13px] leading-5 text-fg-muted">
+    <p role={role} className="max-w-[62ch] text-[13px] leading-5 break-words text-fg-muted">
       {children}
     </p>
   );
 }
 
-/** Cuerpo con el inset de fila, para estados de carga y error dentro del panel. */
+/** Cuerpo con el ritmo de fila, para estados de carga y error dentro del panel. */
 export function SettingsPanelBody({ children, className }: { children: ReactNode; className?: string }) {
-  return <div className={cn("px-4 py-4 md:px-5", className)}>{children}</div>;
+  return <div className={cn("min-w-0 px-4 py-4 md:px-5", className)}>{children}</div>;
 }
 
 /**
@@ -276,11 +282,11 @@ export function SettingsToggle({
   onCheckedChange: (checked: boolean) => void;
 }) {
   return (
-    <div className="px-4 py-3.5 md:px-5">
+    <div className="min-w-0 px-4 py-2.5 md:px-5">
       <div className="[&_label]:text-[15px] [&_label]:leading-5">
         <Switch label={label} checked={checked} onCheckedChange={onCheckedChange} />
       </div>
-      {hint ? <p className="-mt-1.5 text-[13px] leading-5 text-fg-muted">{hint}</p> : null}
+      {hint ? <p className="mt-0.5 text-[13px] leading-5 break-words text-fg-muted">{hint}</p> : null}
     </div>
   );
 }
