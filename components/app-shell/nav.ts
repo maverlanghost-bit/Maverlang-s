@@ -96,8 +96,8 @@ export function shellTabLabel(
   return nav[id];
 }
 
-/** Rutas que dependen de la pestaña Mercado (acciones, criptos y Ganar). */
-const MARKET_PATHS = ["/app/accion", "/app/cripto", "/app/ganar"] as const;
+/** Rutas que dependen de la pestaña Mercado (acciones, criptos, Ganar y Copiar). */
+const MARKET_PATHS = ["/app/accion", "/app/cripto", "/app/ganar", "/app/copiar"] as const;
 
 export function isShellSectionActive(pathname: string, id: string): boolean {
   if (id === "market") {

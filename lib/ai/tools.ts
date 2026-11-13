@@ -2,6 +2,7 @@ import "server-only";
 
 import { tickerBySymbol } from "@/config/tickers";
 import { aiMessages } from "@/content/i18n/extra-b";
+import { COPY_TOOLS, executeCopyTool } from "@/lib/ai/copy-tools";
 import { findAssetBySymbol, searchCatalog } from "@/lib/catalog/assets";
 import { fold } from "@/lib/market/browse";
 import { loadTodayBoard, type MoverCard, type OfferedName, type TodayBoard } from "@/lib/market/movers";
@@ -210,6 +211,8 @@ export const AI_TOOLS: readonly XaiTool[] = [
       parameters: objectParams({}, []),
     },
   },
+  // «Copiar carteras» (§1.13): sólo lectura, con paywall y sello de Fraccion.si.
+  ...COPY_TOOLS,
 ];
 
 function textArg(value: unknown, max = 80): string | null {
@@ -1092,6 +1095,9 @@ export async function executeToolCall(
     if (name === "simulate_buy") return await toolSimulateBuy(args, deps);
     if (name === "propose_price_alert") return await toolPriceAlert(args, deps);
     if (name === "daily_summary") return await toolDailySummary(deps, req);
+    // Herramientas de Copiar carteras (sólo lectura, con paywall).
+    const copyTool = await executeCopyTool(name, args, req);
+    if (copyTool) return copyTool;
     return { content: "No conozco esa herramienta.", widgets: [], stockRelated: false };
   } catch {
     const safeName = /^[a-z0-9_-]{1,40}$/i.test(name) ? name : "unknown";

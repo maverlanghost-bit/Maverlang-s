@@ -20,6 +20,13 @@ export function isAllowedAdminImporter(relativePath: string): boolean {
   // M74: los límites leen user_limits/beta_users/orders con el cliente admin.
   if (normalized === "lib/trade/limits.ts") return true;
   if (normalized === "lib/trade/real-guards.ts") return true;
+  // Copiar carteras: el paywall y la vinculación Fraccion Pro leen copy_subscriptions.
+  if (/^lib\/copy\/(?:access|fraccion-pro)\.ts$/.test(normalized)) return true;
+  // C1/C2/C3: feed (snapshots), suscripciones, follows y «Mis copias» leen su tabla.
+  if (normalized === "lib/copy/feed.ts") return true;
+  if (normalized === "lib/billing/store.ts") return true;
+  if (normalized === "app/api/copy/follow/route.ts") return true;
+  if (normalized === "app/(platform)/app/copiar/mis-copias/page.tsx") return true;
   return false;
 }
 

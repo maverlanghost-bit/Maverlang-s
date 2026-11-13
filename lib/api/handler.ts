@@ -258,7 +258,12 @@ export function parseQuery<T>(input: Request | URL | string, schema: ZodType<T>)
 }
 
 /** Rutas exentas de `Origin`: el webhook (firma propia), los crons (token) y la revalidación (Bearer). */
-const ORIGIN_EXEMPT_PREFIXES = ["/api/onramp/webhook", "/api/cron/", "/api/revalidate"] as const;
+const ORIGIN_EXEMPT_PREFIXES = [
+  "/api/onramp/webhook",
+  "/api/billing/webhook",
+  "/api/cron/",
+  "/api/revalidate",
+] as const;
 
 export function isOriginExempt(pathname: string): boolean {
   return ORIGIN_EXEMPT_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(prefix));

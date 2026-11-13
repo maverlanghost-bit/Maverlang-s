@@ -93,7 +93,11 @@ describe("M56: toda ruta API valida su entrada (estático)", () => {
       const methods = exportedMethods(source);
       const changes = methods.some((m) => m === "POST" || m === "PUT" || m === "PATCH" || m === "DELETE");
       if (!changes) return false;
-      return !(source.includes("lib/api/contracts") && source.includes("Schema"));
+      // El esquema puede vivir en el módulo de contratos del dominio
+      // (`lib/copy/contracts.ts`, `lib/billing/contracts.ts`) o en el general.
+      const declaresSchema =
+        /lib\/(?:api|copy|billing)\/contracts/.test(source) && source.includes("Schema");
+      return !declaresSchema;
     });
     expect(missing, `sin esquema de entrada: ${missing.join(", ")}`).toEqual([]);
   });
