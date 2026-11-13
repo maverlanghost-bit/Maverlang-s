@@ -25,6 +25,10 @@ env.NEXT_PUBLIC_DATA_MODE = "mock";
 env.PRICES_MODE = "mock";
 // M49: el e2e no usa la base de Upstash ni comparte límites (memoria local).
 env.RATE_LIMIT_BACKEND = "memory";
+// El build corre con NODE_ENV=production: sin este opt-in de prueba las
+// políticas sensibles fallan cerrado (503) en memoria. Ignorado en Vercel.
+env.E2E_RATE_LIMIT_MEMORY = "true";
+delete env.VERCEL;
 // M59: el e2e corre como development/demo con mock: nunca activa el modo
 // estricto aunque el shell tenga estas variables.
 delete env.APP_ENV;

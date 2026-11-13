@@ -102,6 +102,20 @@ function isProduction(): boolean {
   return process.env.NODE_ENV === "production";
 }
 
+/**
+ * Escape SOLO para el e2e local (`scripts/e2e.mjs`): Playwright corre sobre
+ * `next start` (NODE_ENV=production) sin Upstash. Exige
+ * `E2E_RATE_LIMIT_MEMORY=true` explícito y se ignora siempre en Vercel
+ * (`VERCEL`) y con `APP_ENV=production`: la producción real sigue fallando
+ * cerrado con las políticas sensibles.
+ */
+export function e2eMemoryRateLimitAllowed(): boolean {
+  if (process.env.E2E_RATE_LIMIT_MEMORY?.trim().toLowerCase() !== "true") return false;
+  if (process.env.VERCEL?.trim()) return false;
+  if (process.env.APP_ENV?.trim().toLowerCase() === "production") return false;
+  return true;
+}
+
 let warnedNoUpstash = false;
 let warnedUpstashDown = false;
 let warnedUnavailable = false;
@@ -364,7 +378,7 @@ export async function limit(
   // justo lo que la ventana global evita. Se falla cerrado igual que sin
   // credenciales. Desarrollo, demo y test siguen con memoria.
   if (backend === "memory") {
-    if (isProduction() && sensitive) {
+    if (isProduction() && sensitive && !e2eMemoryRateLimitAllowed()) {
       warnUnavailableOnce(
         "RATE_LIMIT_BACKEND=memory en producción: una política sensible no se aplica por instancia.",
       );
