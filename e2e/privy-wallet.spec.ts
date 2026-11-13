@@ -79,7 +79,7 @@ test("ingreso demo: onboarding crea la billetera simulada y vuelve a la billeter
 
   // Paso 2: declaración de no ser persona restringida.
   await expect(page.getByRole("heading", { name: "Declaración" })).toBeVisible();
-  await page.getByRole("checkbox").check();
+  await page.getByRole("radio", { name: /Declaro que no soy ciudadano/ }).check();
   await page.getByRole("button", { name: "Continuar", exact: true }).click();
 
   // Paso 3: aceptación de los tres documentos.
@@ -92,7 +92,7 @@ test("ingreso demo: onboarding crea la billetera simulada y vuelve a la billeter
   // Paso 4: "conexión" de la billetera simulada. Debe mostrar la dirección demo
   // recortada y habilitar Continuar sólo cuando está lista.
   await expect(page.getByRole("heading", { name: "Tu billetera" })).toBeVisible();
-  await expect(page.getByText("Lista", { exact: true })).toBeVisible({ timeout: 5_000 });
+  await expect(page.getByText("Billetera lista", { exact: true })).toBeVisible({ timeout: 5_000 });
   await expect(page.getByLabel(`Dirección ${DEMO_ADDRESS}`)).toBeVisible();
   await expect(page.getByText("Queda asociada a tu cuenta. Lo que compres queda en esta billetera.")).toBeVisible();
   await page.getByRole("button", { name: "Continuar", exact: true }).click();

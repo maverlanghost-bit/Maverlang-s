@@ -23,7 +23,7 @@ test("smoke con datos mock", async ({ page }) => {
   await page.getByRole("option", { name: "Chile", exact: true }).click();
   await page.getByRole("button", { name: "Continuar" }).click();
 
-  await page.getByRole("checkbox", { name: /Declaro que no soy ciudadano/ }).check();
+  await page.getByRole("radio", { name: /Declaro que no soy ciudadano/ }).check();
   await page.getByRole("button", { name: "Continuar" }).click();
 
   await expect(page.getByRole("heading", { name: "Términos y riesgos" })).toBeVisible();
@@ -34,7 +34,7 @@ test("smoke con datos mock", async ({ page }) => {
   }
   await page.getByRole("button", { name: "Continuar" }).click();
 
-  await expect(page.getByText("Lista", { exact: true })).toBeVisible();
+  await expect(page.getByText("Billetera lista", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Continuar" }).click();
   await page.getByRole("button", { name: "Explorar acciones" }).click();
 
@@ -48,7 +48,7 @@ test("smoke con datos mock", async ({ page }) => {
 
   await page.getByRole("button", { name: "Comprar", exact: true }).click();
   const sheet = page.getByRole("dialog", { name: /Comprar Apple/ });
-  await sheet.getByRole("button", { name: "US$ 100" }).click();
+  await sheet.getByRole("button", { name: "US$ 100", exact: true }).click();
   const review = sheet.getByRole("button", { name: "Revisar" });
   await expect(review).toBeEnabled();
   await review.click();

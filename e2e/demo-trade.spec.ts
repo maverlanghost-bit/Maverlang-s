@@ -54,7 +54,7 @@ test("demo: compra NVDAx por US$100 y la cartera se actualiza", async ({ page })
   await expect(sheet).toBeVisible();
 
   // Cotización en vivo: el chip US$ 100 dispara la quote del monto.
-  await sheet.getByRole("button", { name: "US$ 100" }).click();
+  await sheet.getByRole("button", { name: "US$ 100", exact: true }).click();
   const review = sheet.getByRole("button", { name: "Revisar" });
   await expect(review).toBeEnabled();
 
@@ -87,7 +87,7 @@ test("demo: el historial de órdenes registra la compra", async ({ page }) => {
   await page.goto("/app/accion/NVDAx");
   await page.getByRole("button", { name: "Comprar", exact: true }).click();
   const sheet = page.getByRole("dialog", { name: "Comprar NVIDIA" });
-  await sheet.getByRole("button", { name: "US$ 50" }).click();
+  await sheet.getByRole("button", { name: "US$ 50", exact: true }).click();
   const review = sheet.getByRole("button", { name: "Revisar" });
   await expect(review).toBeEnabled();
   await review.click();
@@ -157,7 +157,7 @@ test("demo: reinicio de cuenta borra posiciones y vuelve al saldo inicial", asyn
   await page.goto("/app/accion/NVDAx");
   await page.getByRole("button", { name: "Comprar", exact: true }).click();
   const sheet = page.getByRole("dialog", { name: "Comprar NVIDIA" });
-  await sheet.getByRole("button", { name: "US$ 10" }).click();
+  await sheet.getByRole("button", { name: "US$ 10", exact: true }).click();
   const review = sheet.getByRole("button", { name: "Revisar" });
   await expect(review).toBeEnabled();
   await review.click();

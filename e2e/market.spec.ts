@@ -26,34 +26,59 @@ async function entrarDemo(page: import("@playwright/test").Page) {
   await expect(page.getByRole("heading", { name: "Mercado" })).toBeVisible();
 }
 
+/** Total del catálogo según el contador "Mostrando N de TOTAL acciones". */
+async function totalAcciones(page: import("@playwright/test").Page): Promise<number> {
+  const contador = page.getByText(/^Mostrando \d+ de [\d.]+ acciones$/);
+  await expect(contador).toBeVisible();
+  const texto = (await contador.textContent()) ?? "";
+  const match = /de ([\d.]+) acciones/.exec(texto);
+  expect(match, `contador: ${texto}`).not.toBeNull();
+  return Number(match![1].replace(/\./g, ""));
+}
+
+/** La lista carga de a 20: pide más hasta que aparezca la fila. */
+async function mostrarFila(page: import("@playwright/test").Page, href: string) {
+  const fila = page.locator(`a[href="${href}"]`).first();
+  const mas = page.getByRole("button", { name: /^Cargar \d+ más$/ });
+  for (let intento = 0; intento < 30 && !(await fila.isVisible()); intento += 1) {
+    if (!(await mas.isVisible())) break;
+    await mas.click();
+    await page.waitForTimeout(150);
+  }
+  await expect(fila).toBeVisible();
+}
+
 test("mercado: catálogo con contador, acciones y ETFs", async ({ page }) => {
   await entrarDemo(page);
   await expect(page.getByRole("heading", { name: "Mercado" })).toBeVisible();
 
-  // Contador del scope listed (50 símbolos en el catálogo generado).
-  await expect(page.getByText("50 acciones")).toBeVisible();
+  // Contador del scope listed (catálogo generado: más de 50 símbolos).
+  const total = await totalAcciones(page);
+  expect(total).toBeGreaterThan(50);
 
   // La lista muestra acciones y ETFs del catálogo.
   const lista = page.getByRole("heading", { name: "Acciones", exact: true }).locator("xpath=following-sibling::ul").first();
   await expect(lista).toBeVisible();
-  await expect(page.locator('a[href="/app/accion/AAPLx"]')).toBeVisible();
-  await expect(page.locator('a[href="/app/accion/SPYx"]')).toBeVisible();
-  await expect(page.locator('a[href="/app/accion/NVDAx"]')).toBeVisible();
+  await expect(page.locator('a[href="/app/accion/SPYx"]').first()).toBeVisible();
+  await expect(page.locator('a[href="/app/accion/NVDAx"]').first()).toBeVisible();
+  await mostrarFila(page, "/app/accion/AAPLx");
 
   // Encabezado de la lista con el conteo visible.
-  await expect(page.getByText(/Mostrando \d+ de 50/)).toBeVisible();
+  await expect(page.getByText(new RegExp(`Mostrando \\d+ de ${total.toLocaleString("es-CL")} acciones`))).toBeVisible();
 });
 
 test("mercado: filtro ETFs deja sólo ETFs y actualiza la URL", async ({ page }) => {
   await entrarDemo(page);
-  await expect(page.getByText("50 acciones")).toBeVisible();
+  const total = await totalAcciones(page);
 
   // El filtro es un radiogroup "Filtrar" con chips.
   const filtros = page.getByRole("radiogroup", { name: "Filtrar" });
   await filtros.getByRole("radio", { name: "ETFs" }).click();
 
-  await expect(page.getByText("4 acciones")).toBeVisible();
-  await expect(page.locator('a[href="/app/accion/SPYx"]')).toBeVisible();
+  await expect.poll(() => totalAcciones(page)).toBeLessThan(total);
+  const etfs = await totalAcciones(page);
+  expect(etfs).toBeGreaterThan(0);
+  await expect(page.locator('a[href="/app/accion/SPYx"]').first()).toBeVisible();
   // Apple (tech) ya no está en el resultado filtrado.
   await expect(page.locator('a[href="/app/accion/AAPLx"]')).toHaveCount(0);
   // El filtro se refleja en la URL (router.replace sin scroll).
@@ -61,8 +86,8 @@ test("mercado: filtro ETFs deja sólo ETFs y actualiza la URL", async ({ page })
 
   // Volver a Todas restaura el catálogo completo.
   await filtros.getByRole("radio", { name: "Todas" }).click();
-  await expect(page.getByText("50 acciones")).toBeVisible();
-  await expect(page.locator('a[href="/app/accion/AAPLx"]')).toBeVisible();
+  await expect.poll(() => totalAcciones(page)).toBe(total);
+  await mostrarFila(page, "/app/accion/AAPLx");
 });
 
 test("mercado: buscador en vivo lleva a la ficha de NVDAx", async ({ page }) => {
@@ -85,7 +110,8 @@ test("mercado: buscador en vivo lleva a la ficha de NVDAx", async ({ page }) => 
 
 test("mercado: cambio de moneda CLP/USD en el sidebar", async ({ page }) => {
   await entrarDemo(page);
-  await expect(page.getByText("50 acciones")).toBeVisible();
+  await totalAcciones(page);
+  await mostrarFila(page, "/app/accion/AAPLx");
 
   // Precios en USD por defecto (preferencia inicial de la demo es CLP;
   // el registro demo la fija en CLP, así que primero pasamos a USD).
@@ -97,7 +123,7 @@ test("mercado: cambio de moneda CLP/USD en el sidebar", async ({ page }) => {
   await page.getByRole("button", { name: /Cuenta demo\. Ir a tu perfil/ }).click();
 
   // Apple a US$ 228,40 (mock): el precio visible cambia de dólares.
-  const apple = page.locator('a[href="/app/accion/AAPLx"]');
+  const apple = page.locator('a[href="/app/accion/AAPLx"]').first();
   await expect(apple).toContainText(/US\$228,40/);
 
   // A CLP con el dólar mock de 950: 228,40 × 950 = 216.980.

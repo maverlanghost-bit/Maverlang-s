@@ -147,5 +147,5 @@ test("ficha: vender deshabilitado sin posición; guest ve CTA de cuenta", async 
   await page.goto("/app/accion/NVDAx");
   const vender = page.getByRole("button", { name: "Vender", exact: true }).first();
   await expect(vender).toBeDisabled();
-  await expect(page.getByText("Para vender, primero tienes que tener esta acción.")).toBeVisible();
+  await expect(page.getByText("Para vender, primero tienes que tener esta acción.").first()).toBeVisible();
 });

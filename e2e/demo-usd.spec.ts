@@ -38,7 +38,7 @@ test("demo mock: US$10.000, compra US$100 y reinicio", async ({ page }) => {
   await page.goto("/app/accion/AAPLx");
   await page.getByRole("button", { name: "Comprar", exact: true }).click();
   const sheet = page.getByRole("dialog", { name: /Comprar Apple/ });
-  await sheet.getByRole("button", { name: "US$ 100" }).click();
+  await sheet.getByRole("button", { name: "US$ 100", exact: true }).click();
   const review = sheet.getByRole("button", { name: "Revisar" });
   await expect(review).toBeEnabled();
   await review.click();

@@ -1,5 +1,7 @@
 import { expect, test } from "@playwright/test";
 
+import { PESO_DEPOSITS_ENABLED } from "../config/onramp";
+
 /**
  * M86: billetera y depósitos en modo demo/mock.
  *
@@ -12,9 +14,16 @@ import { expect, test } from "@playwright/test";
  * muestra su error de cotización y "Continuar con Koywe" queda deshabilitado.
  * La pestaña USDC muestra la dirección, el QR y los pasos de la red Solana.
  *
+ * Primera versión (`PESO_DEPOSITS_ENABLED=false` en config/onramp.ts): sólo
+ * USDC, sin pestañas. En la demo no se muestran direcciones ni QR: la
+ * pantalla avisa "Estás en la demo" y que no se envíen fondos reales.
+ *
  * Contratos API de billetera: `GET /api/wallet/balances` y
  * `GET /api/wallet/activity` (200, `ok: true`, `private, no-store`).
  */
+
+/** Dirección derivada de la billetera demo: nunca debe mostrarse para cobrar. */
+const DEMO_ADDRESS = "8MydrPjqgPoNBXrRNPdbX1WCcNvBioNL2E9e2XQ4pQNT";
 
 /** Sesión demo iniciada. */
 async function entrarDemo(page: import("@playwright/test").Page, correo: string) {
@@ -50,9 +59,14 @@ test("billetera: USDC, SOL, dirección y accesos", async ({ page }) => {
     "/app/billetera/recibir",
   );
 
-  // La dirección demo (maverlang-demo-wallet-v1) con su copia.
-  await expect(page.getByRole("heading", { name: "Tu dirección" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Copiar" }).first()).toBeVisible();
+  // En la demo no hay dirección de cobro: se avisa y no se ofrece copiar ni QR.
+  await expect(page.getByRole("heading", { name: "Estás en la demo" })).toBeVisible();
+  await expect(
+    page.getByText("No envíes fondos reales: no hay una dirección de cobro en la demo."),
+  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Tu dirección" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Copiar" })).toHaveCount(0);
+  await expect(page.getByText(DEMO_ADDRESS)).toHaveCount(0);
 
   // Actividad (vacía o con movimientos, pero la sección existe).
   await expect(page.getByRole("heading", { name: "Actividad", exact: true })).toBeVisible();
@@ -65,8 +79,9 @@ test("billetera: USDC y SOL aparecen en la lista de activos", async ({ page }) =
   await expect(page.getByRole("heading", { name: "Activos" })).toBeVisible();
   const activos = page.getByRole("heading", { name: "Activos" }).locator("xpath=following-sibling::ul");
   await expect(activos).toBeVisible();
-  await expect(activos.getByText("USDC", { exact: true })).toBeVisible();
-  await expect(activos.getByText("SOL", { exact: true })).toBeVisible();
+  // Cada fila repite el símbolo (ícono y nombre): basta con el primero.
+  await expect(activos.getByText("USDC", { exact: true }).first()).toBeVisible();
+  await expect(activos.getByText("SOL", { exact: true }).first()).toBeVisible();
   await expect(activos.getByText("Dólares digitales")).toBeVisible();
 });
 
@@ -75,6 +90,17 @@ test("depósito: pestañas Con pesos / Con USDC", async ({ page }) => {
   await page.goto("/app/billetera/depositar");
 
   await expect(page.getByRole("heading", { level: 1, name: "Depositar" })).toBeVisible();
+
+  if (!PESO_DEPOSITS_ENABLED) {
+    // Sólo USDC: sin pestañas ni monto en pesos.
+    await expect(page.getByText("Envía USDC por la red Solana a tu billetera.")).toBeVisible();
+    await expect(page.getByRole("tablist", { name: "Forma de depósito" })).toHaveCount(0);
+    await expect(page.getByRole("tab", { name: "Con pesos" })).toHaveCount(0);
+    await expect(page.getByLabel("Monto en CLP")).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Continuar con Koywe" })).toHaveCount(0);
+    return;
+  }
+
   await expect(page.getByText("Pesos con un proveedor, o USDC por la red Solana.")).toBeVisible();
 
   const pestanas = page.getByRole("tablist", { name: "Forma de depósito" });
@@ -98,6 +124,10 @@ test("depósito: pestañas Con pesos / Con USDC", async ({ page }) => {
 });
 
 test("depósito en pesos: mínimo del proveedor y cotización apagada", async ({ page }) => {
+  test.skip(
+    !PESO_DEPOSITS_ENABLED,
+    "Depósito en pesos oculto en esta versión (PESO_DEPOSITS_ENABLED=false); la prueba de pestañas verifica que no aparezca.",
+  );
   await entrarDemo(page, "m86-deposit-pesos@example.com");
   await page.goto("/app/billetera/depositar");
 
@@ -115,25 +145,22 @@ test("depósito en pesos: mínimo del proveedor y cotización apagada", async ({
   await expect(page.getByRole("button", { name: "Otros métodos" })).toBeDisabled();
 });
 
-test("depósito en USDC: pasos de la red Solana y dirección", async ({ page }) => {
+test("depósito en USDC: la demo no muestra dirección ni QR para cobrar", async ({ page }) => {
   await entrarDemo(page, "m86-deposit-usdc@example.com");
   await page.goto("/app/billetera/depositar");
 
-  await page.getByRole("tab", { name: "Con USDC" }).click();
+  if (PESO_DEPOSITS_ENABLED) await page.getByRole("tab", { name: "Con USDC" }).click();
 
-  await expect(page.getByText("Envía USDC desde otro servicio a tu dirección, por la red Solana.")).toBeVisible();
-  await expect(page.getByLabel("Cómo depositar USDC")).toBeVisible();
-  await expect(page.getByText("En el servicio desde el que envías, elige enviar USDC.")).toBeVisible();
-  await expect(page.getByText(/Red: Solana\. Si eliges otra, el envío no llega/)).toBeVisible();
-
-  // Advertencias: sólo red Solana y sólo USDC.
-  await expect(page.getByText("Sólo red Solana. Si eliges otra, el USDC no llega.")).toBeVisible();
-  await expect(page.getByText("Envía sólo USDC. Otros activos pueden perderse.")).toBeVisible();
-
-  // QR de la dirección con su texto accesible.
-  await expect(page.getByRole("img", { name: "Código QR de tu dirección para recibir USDC en Solana" })).toBeVisible();
-  // La dirección demo visible bajo el QR.
-  await expect(page.getByText("8MydrPjqgPoNBXrRNPdbX1WCcNvBioNL2E9e2XQ4pQNT")).toBeVisible();
+  // La demo protege al usuario: sin dirección de cobro ni QR, con el aviso.
+  await expect(page.getByRole("heading", { name: "Estás en la demo" })).toBeVisible();
+  await expect(
+    page.getByText("No envíes fondos reales: no hay una dirección de cobro en la demo."),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("img", { name: "Código QR de tu dirección para recibir USDC en Solana" }),
+  ).toHaveCount(0);
+  await expect(page.getByText(DEMO_ADDRESS)).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Copiar" })).toHaveCount(0);
 });
 
 test("contratos API: balances y actividad de la billetera", async ({ page }) => {

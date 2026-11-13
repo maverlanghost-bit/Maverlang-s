@@ -1,5 +1,7 @@
 import { expect, test } from "@playwright/test";
 
+import { PESO_DEPOSITS_ENABLED } from "../config/onramp";
+
 /**
  * M86: dinero real apagado por defecto (`REAL_TRADING_READY=false`).
  *
@@ -113,7 +115,7 @@ test("trade quote: la demo sigue operando con el flag apagado", async ({ page })
   await page.goto("/app/accion/NVDAx");
   await page.getByRole("button", { name: "Comprar", exact: true }).click();
   const sheet = page.getByRole("dialog", { name: "Comprar NVIDIA" });
-  await sheet.getByRole("button", { name: "US$ 10" }).click();
+  await sheet.getByRole("button", { name: "US$ 10", exact: true }).click();
   await expect(sheet.getByRole("button", { name: "Revisar" })).toBeEnabled();
 });
 
@@ -130,20 +132,32 @@ test("UI demo: el aviso de simulación es visible en la plataforma", async ({ pa
   // El botón de reinicio de la demo existe (la cuenta real no se reinicia).
   await expect(page.getByRole("button", { name: "Reiniciar cuenta demo" })).toBeVisible();
 
-  // En la pantalla de depósito, el dinero real apagado se nota: cotizar en
-  // pesos falla con el mensaje de la app (REAL_DISABLED no filtra detalles).
+  // En la pantalla de depósito, el dinero real apagado se nota.
   await page.goto("/app/billetera/depositar");
-  const monto = page.getByLabel("Monto en CLP");
-  await monto.fill("50000");
-  await expect(page.getByText("No pudimos calcular el depósito.")).toBeVisible();
-  await expect(page.getByRole("button", { name: "Continuar con Koywe" })).toBeDisabled();
+  if (PESO_DEPOSITS_ENABLED) {
+    // Cotizar en pesos falla con el mensaje de la app (REAL_DISABLED no
+    // filtra detalles).
+    const monto = page.getByLabel("Monto en CLP");
+    await monto.fill("50000");
+    await expect(page.getByText("No pudimos calcular el depósito.")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Continuar con Koywe" })).toBeDisabled();
+  } else {
+    // Depósito en pesos apagado (config/onramp.ts): la demo no muestra una
+    // dirección de cobro y avisa que no se envíen fondos reales.
+    await expect(page.getByRole("heading", { name: "Estás en la demo" })).toBeVisible();
+    await expect(
+      page.getByText("No envíes fondos reales: no hay una dirección de cobro en la demo."),
+    ).toBeVisible();
+    await expect(page.getByLabel("Monto en CLP")).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Continuar con Koywe" })).toHaveCount(0);
+  }
 });
 
 test("UI: cambiar a cuenta real muestra el aviso de próximamente", async ({ page }) => {
   await entrarDemo(page);
 
   // El interruptor "Tipo de cuenta" del sidebar (expandido en 1280px).
-  const tipoCuenta = page.getByRole("radiogroup", { name: "Tipo de cuenta" });
+  const tipoCuenta = page.getByRole("group", { name: "Tipo de cuenta" });
   await tipoCuenta.getByRole("button", { name: "Cuenta real" }).click();
 
   // No hay flujo real: el diálogo informa que estará disponible pronto.

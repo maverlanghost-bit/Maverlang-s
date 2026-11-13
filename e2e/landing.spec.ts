@@ -23,7 +23,7 @@ test("portada: héroe, CTAs y aviso de demo", async ({ page }) => {
   await expect(demo).toHaveAttribute("href", "/app/registro");
 
   const acciones = page.getByRole("link", { name: "Ver acciones" }).first();
-  await expect(acciones).toHaveAttribute("href", "/app");
+  await expect(acciones).toHaveAttribute("href", "/acciones");
 
   await expect(page.getByText("Practica con US$10.000 ficticios y precios reales.")).toBeVisible();
   await expect(page.getByText("Opera 24/7").first()).toBeVisible();
@@ -79,7 +79,7 @@ test("portada: la lista de espera exige el consentimiento", async ({ page }) => 
   await waitlist.getByRole("button", { name: "Avísame" }).click();
 
   await expect(
-    page.getByRole("alert").filter({ hasText: "Acepta que te contacten para avisarte del lanzamiento." }),
+    page.getByRole("alert").filter({ hasText: "Acepta que te contactemos para avisarte del lanzamiento." }),
   ).toBeVisible();
   await expect(page.getByRole("form", { name: "Lista de espera" })).toBeVisible();
 });
@@ -107,7 +107,7 @@ test("legales: los cuatro documentos con su aviso de borrador", async ({ page })
   test.slow();
   const docs = [
     { slug: "terminos", heading: /Términos/ },
-    { slug: "privacidad", heading: /Privacidad/ },
+    { slug: "privacidad", heading: /Privacidad/i },
     { slug: "riesgos", heading: /Riesgos/ },
     { slug: "comisiones", heading: /Comisiones/ },
   ] as const;
@@ -129,8 +129,14 @@ test("seguridad: la página explica custodia y enlaza los riesgos", async ({ pag
   await expect(page.getByRole("heading", { name: "La demo no es dinero real" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "El marco completo" })).toBeVisible();
 
+  // La página enlaza los riesgos en más de un lugar: todos van a /legal/riesgos.
   const riesgos = page.getByRole("link", { name: "Leer los riesgos" });
-  await expect(riesgos).toHaveAttribute("href", "/legal/riesgos");
+  await expect(riesgos.first()).toBeVisible();
+  const totalRiesgos = await riesgos.count();
+  expect(totalRiesgos).toBeGreaterThanOrEqual(1);
+  for (let index = 0; index < totalRiesgos; index += 1) {
+    await expect(riesgos.nth(index)).toHaveAttribute("href", "/legal/riesgos");
+  }
   const demo = page.getByRole("link", { name: "Probar la demo" });
   await expect(demo).toHaveAttribute("href", "/app/registro");
 });
@@ -149,13 +155,25 @@ test("idioma: ES → EN en ajustes y de vuelta", async ({ page }) => {
   await page.goto("/app/ajustes");
   await expect(page.getByRole("heading", { level: 1, name: "Ajustes" })).toBeVisible();
 
-  await page.getByRole("radio", { name: "English" }).click();
+  // Cada cambio se guarda en el servidor mock (PATCH /api/me/preferences); se
+  // espera la respuesta para no dejar la sesión demo compartida en inglés.
+  await Promise.all([
+    page.waitForResponse(
+      (r) => r.url().includes("/api/me/preferences") && r.request().method() !== "GET" && r.ok(),
+    ),
+    page.getByRole("radio", { name: "English" }).click(),
+  ]);
   await expect(page.getByRole("heading", { level: 1, name: "Settings" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Market" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Wallet" })).toBeVisible();
 
   // Volver a español: la preferencia persiste en el servidor mock.
-  await page.getByRole("radio", { name: "Español (Chile)" }).click();
+  await Promise.all([
+    page.waitForResponse(
+      (r) => r.url().includes("/api/me/preferences") && r.request().method() !== "GET" && r.ok(),
+    ),
+    page.getByRole("radio", { name: "Español (Chile)" }).click(),
+  ]);
   await expect(page.getByRole("heading", { level: 1, name: "Ajustes" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Mercado" })).toBeVisible();
 });

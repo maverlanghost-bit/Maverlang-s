@@ -96,11 +96,11 @@ test("onboarding: residencia en EE.UU. bloquea el registro", async ({ page }) =>
   // País de residencia: Estados Unidos (restringido).
   await page.getByRole("combobox", { name: "País de residencia" }).click();
   await page.getByRole("option", { name: "Estados Unidos", exact: true }).click();
-  await page.getByRole("combobox", { name: "Nacionalidad" }).click();
-  await page.getByRole("option", { name: "Chile", exact: true }).click();
-  await page.getByRole("button", { name: "Continuar" }).click();
 
-  // La pantalla cambia a "No disponible" con el mensaje de cuenta bloqueada.
+  // Elegir un país restringido basta: la pantalla cambia de inmediato a
+  // "No disponible" con el mensaje de cuenta bloqueada (no pide nacionalidad
+  // ni deja continuar).
+  await expect(page.getByRole("combobox", { name: "Nacionalidad" })).toHaveCount(0);
   await expect(page.getByRole("heading", { name: "No disponible" })).toBeVisible();
   await expect(
     page.getByText(/No podemos crear la cuenta con el país que indicaste/),
@@ -181,9 +181,9 @@ test("onboarding: flujo elegible completa con declaración y documentos", async 
   }
   await page.getByRole("button", { name: "Continuar" }).click();
 
-  // Paso 4: la billetera demo se crea y queda "Lista".
+  // Paso 4: la billetera demo se crea y queda "Billetera lista".
   await expect(page.getByRole("heading", { name: "Tu billetera" })).toBeVisible();
-  await expect(page.getByText("Lista", { exact: true })).toBeVisible();
+  await expect(page.getByText("Billetera lista", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Continuar" }).click();
 
   // Paso 5: todo listo → Explorar acciones entra al mercado.
@@ -199,7 +199,9 @@ test("API: PATCH /api/me registra el perfil elegible de Chile", async ({ page })
   const aceptado = await patchMe(page, {
     residenceCountry: "CL",
     nationalityCountry: "CL",
-    isUsPerson: false,
+    // M75/DB-03: el contrato ya no acepta `isUsPerson`; se declara con
+    // "no" explícito y el servidor deriva isUsPerson=false.
+    usPersonDeclaration: "no",
     onboardingCompleted: true,
     usPersonDeclarationVersion: "2026-10-draft",
   });
