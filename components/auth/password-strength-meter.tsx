@@ -13,8 +13,8 @@ export function passwordStrengthLabel(
 
 /**
  * Medidor de contraseña: el nivel va escrito y cada requisito lleva su propio
- * glifo (✓ / ○), así el estado no depende sólo del color. Los 4 segmentos son
- * refuerzo visual, no la única señal.
+ * glifo (✓ / ○), así el estado no depende sólo del color. Los segmentos son
+ * refuerzo visual y miden lo mismo que la lista: 3 requisitos, 3 segmentos.
  */
 export function PasswordStrengthMeter({ password }: { password: string }) {
   if (!password) return null;
@@ -22,39 +22,37 @@ export function PasswordStrengthMeter({ password }: { password: string }) {
   const label = passwordStrengthLabel(password);
 
   const checks = [
-    { label: "8 caracteres o más", met: password.length >= 8 },
+    { label: "8+ caracteres", met: password.length >= 8 },
     { label: "Letras y números", met: /[A-Za-z]/.test(password) && /\d/.test(password) },
-    { label: "12 caracteres o más", met: password.length >= 12 },
-    {
-      label: "Una mayúscula o un símbolo",
-      met: /[A-Z]/.test(password) || /[^A-Za-z0-9]/.test(password),
-    },
+    { label: "12+ caracteres", met: password.length >= 12 },
   ];
-  const score = Math.min(4, Math.max(1, checks.filter((check) => check.met).length));
+  const score = Math.max(1, checks.filter((check) => check.met).length);
 
   const tone = label === "Muy corta" ? "bg-down" : label === "Aceptable" ? "bg-warn" : "bg-up";
 
   return (
-    <div className="mt-3 rounded-lg border border-border bg-bg p-3" role="status" aria-live="polite">
-      <div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-1 text-xs">
-        <span className="text-fg-muted">Seguridad de la contraseña</span>
-        <span className="font-medium text-fg">{label}</span>
+    <div className="mt-2 rounded-lg bg-surface-2 px-3 py-2.5">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5">
+        <span className="label-xs">Seguridad de la clave</span>
+        <span className="text-[13px] font-medium text-fg" role="status" aria-live="polite">
+          Nivel: {label}
+        </span>
       </div>
 
-      <div className="mt-2 grid grid-cols-4 gap-1" aria-hidden="true">
-        {[1, 2, 3, 4].map((segment) => (
+      <div className="mt-2 grid grid-cols-3 gap-1" aria-hidden="true">
+        {checks.map((check, index) => (
           <span
-            key={segment}
-            className={`h-1 rounded-full ${segment <= score ? tone : "bg-surface-3"}`}
+            key={check.label}
+            className={`h-1 rounded-full ${index < score ? tone : "bg-surface-3"}`}
           />
         ))}
       </div>
 
-      <ul className="mt-2.5 grid gap-1 text-xs leading-snug sm:grid-cols-2">
+      <ul className="mt-2 flex flex-wrap gap-x-3 gap-y-0.5 text-[13px] leading-snug">
         {checks.map((check) => (
           <li
             key={check.label}
-            className={`flex items-start gap-1.5 ${check.met ? "text-fg" : "text-fg-muted"}`}
+            className={`inline-flex items-start gap-1 ${check.met ? "text-fg" : "text-fg-muted"}`}
           >
             <span
               aria-hidden="true"

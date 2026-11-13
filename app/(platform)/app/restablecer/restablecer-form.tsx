@@ -4,7 +4,8 @@ import { useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 
-import { AuthFrame, CredentialField } from "@/components/auth/auth-frame";
+import { AuthFrame, authLinkClass, CredentialField } from "@/components/auth/auth-frame";
+import { FormAlert } from "@/components/auth/form-alert";
 import { PasswordStrengthMeter } from "@/components/auth/password-strength-meter";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
@@ -28,6 +29,11 @@ function Expired() {
       <Button asChild className="mt-6 w-full" size="lg">
         <Link href="/app/recuperar">Pedir otro enlace</Link>
       </Button>
+      <p className="mt-1 text-center text-[13px] leading-relaxed text-fg-muted">
+        <Link href="/app/ingresar" className={authLinkClass}>
+          Volver a ingresar
+        </Link>
+      </p>
     </AuthFrame>
   );
 }
@@ -87,7 +93,7 @@ export function RestablecerForm() {
 
   return (
     <AuthFrame title="Nueva contraseña" lead="Elige una contraseña de al menos 8 caracteres.">
-      <form className="mt-6" noValidate aria-busy={busy} onSubmit={(event) => void submit(event)}>
+      <form className="mt-5" noValidate aria-busy={busy} onSubmit={(event) => void submit(event)}>
         <CredentialField
           id="clave"
           label="Contraseña nueva"
@@ -107,26 +113,21 @@ export function RestablecerForm() {
           error={fields.passwordConfirm}
           onChange={(event) => setPasswordConfirm(event.target.value)}
         />
-        <Button type="submit" className="mt-6 w-full" size="lg" loading={busy}>
+        <Button type="submit" className="mt-5 w-full" size="lg" loading={busy}>
           Guardar contraseña
         </Button>
       </form>
       {formError ? (
-        <div className="mt-4">
-          <p className="break-words rounded-lg border border-down/20 bg-down-bg px-3 py-2.5 text-sm leading-relaxed text-down" role="alert">
-            {formError}
-          </p>
+        <>
+          <FormAlert>{formError}</FormAlert>
           {formError === loginErrorMessage("expired") ? (
-            <p className="mt-2 text-sm">
-              <Link
-                href="/app/recuperar"
-                className="inline-flex min-h-11 items-center justify-center rounded-sm px-2 font-medium text-fg underline decoration-border underline-offset-4 transition-colors hover:decoration-fg"
-              >
+            <p className="mt-1 text-[13px]">
+              <Link href="/app/recuperar" className={authLinkClass}>
                 Pedir otro enlace
               </Link>
             </p>
           ) : null}
-        </div>
+        </>
       ) : null}
     </AuthFrame>
   );

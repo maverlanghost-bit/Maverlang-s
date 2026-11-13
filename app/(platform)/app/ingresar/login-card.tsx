@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 
-import { AuthFrame, AuthLegal } from "@/components/auth/auth-frame";
+import { AuthFrame, AuthLegal, authLinkClass } from "@/components/auth/auth-frame";
+import { FormAlert } from "@/components/auth/form-alert";
 import { Button } from "@/components/ui/button";
 import { shouldUsePrivy, useSession, type LoginMethod } from "@/lib/auth";
 import { readBrowserCookie } from "@/lib/auth/browser-cookies";
@@ -93,7 +94,7 @@ export function LoginCard() {
 
   return (
     <AuthFrame title="Ingresa o crea tu cuenta" lead="Con tu correo o con Google.">
-      <div className="mt-6 flex flex-col gap-3">
+      <div className="mt-5 flex flex-col gap-2">
         <Button
           className="w-full"
           size="lg"
@@ -117,28 +118,15 @@ export function LoginCard() {
         </Button>
       </div>
       {demo ? (
-        <p className="mt-4 rounded-lg border border-border bg-surface-2 px-3 py-2.5 text-sm leading-relaxed text-fg-muted">
-          En este entorno los dos botones abren la cuenta demo.
-        </p>
+        <FormAlert tone="info">En este entorno los dos botones abren la cuenta demo.</FormAlert>
       ) : null}
-      <p className="mt-4 text-center text-sm leading-relaxed text-fg-muted">
-        <Link
-          href={create}
-          className="inline-flex min-h-11 items-center justify-center rounded-sm px-2 font-medium text-fg underline decoration-border underline-offset-4 transition-colors hover:decoration-fg"
-        >
+      <p className="mt-1 text-center text-[13px] leading-relaxed text-fg-muted">
+        <Link href={create} className={authLinkClass}>
           Crear cuenta
         </Link>
       </p>
-      {params.get("error") === "enlace" ? (
-        <p className="mt-4 rounded-lg border border-down/20 bg-down-bg px-3 py-2.5 text-sm leading-relaxed text-down" role="alert">
-          Ese enlace no es válido o ya venció.
-        </p>
-      ) : null}
-      {error ? (
-        <p className="mt-4 rounded-lg border border-down/20 bg-down-bg px-3 py-2.5 text-sm leading-relaxed text-down" role="alert">
-          {error}
-        </p>
-      ) : null}
+      {params.get("error") === "enlace" ? <FormAlert>Ese enlace no es válido o ya venció.</FormAlert> : null}
+      {error ? <FormAlert>{error}</FormAlert> : null}
       <AuthLegal />
     </AuthFrame>
   );

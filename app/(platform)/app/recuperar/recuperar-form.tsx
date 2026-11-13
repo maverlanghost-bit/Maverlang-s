@@ -3,7 +3,8 @@
 import { useState, type FormEvent } from "react";
 import Link from "next/link";
 
-import { AuthFrame, CredentialField } from "@/components/auth/auth-frame";
+import { AuthFrame, authLinkClass, CredentialField } from "@/components/auth/auth-frame";
+import { FormAlert } from "@/components/auth/form-alert";
 import { Button } from "@/components/ui/button";
 import { requestPasswordReset } from "@/lib/auth/login-client";
 import { recuperarSchema } from "@/lib/auth/login-schema";
@@ -38,12 +39,12 @@ export function RecuperarForm() {
   if (sent) {
     return (
       <AuthFrame title="Revisa tu correo" lead="Te enviamos un correo con un enlace.">
-        <p className="mt-6 max-w-[60ch] text-sm break-words leading-relaxed text-pretty text-fg-body">
+        <p className="mt-5 max-w-[60ch] text-sm break-words leading-relaxed text-pretty text-fg-body">
           Si ese correo tiene cuenta, el enlace ya va en camino. Ábrelo para elegir una contraseña nueva. Si no llega, revisa el correo no deseado.
         </p>
-        <div className="mt-4 rounded-lg border border-border bg-surface-2 px-3.5 py-3 text-sm leading-relaxed text-pretty text-fg-body">
+        <p className="mt-3 border-l-2 border-border pl-4 text-[13px] leading-relaxed text-pretty text-fg-muted">
           Enlace de un solo uso con expiración automática. Nunca compartas este enlace con terceros.
-        </div>
+        </p>
         <Button asChild className="mt-6 w-full" size="lg">
           <Link href="/app/ingresar">Volver a ingresar</Link>
         </Button>
@@ -53,7 +54,7 @@ export function RecuperarForm() {
 
   return (
     <AuthFrame title="Recuperar contraseña" lead="Escribe tu correo y te enviamos un enlace para elegir una contraseña nueva.">
-      <form className="mt-6" noValidate aria-busy={busy} onSubmit={(event) => void submit(event)}>
+      <form className="mt-5" noValidate aria-busy={busy} onSubmit={(event) => void submit(event)}>
         <CredentialField
           id="correo"
           label="Correo"
@@ -64,17 +65,13 @@ export function RecuperarForm() {
           error={fieldError}
           onChange={(event) => setEmail(event.target.value)}
         />
-        <Button type="submit" className="mt-6 w-full" size="lg" loading={busy}>
+        <Button type="submit" className="mt-5 w-full" size="lg" loading={busy}>
           Enviar enlace
         </Button>
       </form>
-      {formError ? (
-        <p className="mt-4 break-words rounded-lg border border-down/20 bg-down-bg px-3 py-2.5 text-sm leading-relaxed text-down" role="alert">
-          {formError}
-        </p>
-      ) : null}
-      <p className="mt-4 text-center text-sm leading-relaxed text-fg-muted">
-        <Link href="/app/ingresar" className="inline-flex min-h-11 items-center justify-center rounded-sm px-2 font-medium text-fg underline decoration-border underline-offset-4 transition-colors hover:decoration-fg">
+      {formError ? <FormAlert>{formError}</FormAlert> : null}
+      <p className="mt-1 text-center text-[13px] leading-relaxed text-fg-muted">
+        <Link href="/app/ingresar" className={authLinkClass}>
           Volver a ingresar
         </Link>
       </p>

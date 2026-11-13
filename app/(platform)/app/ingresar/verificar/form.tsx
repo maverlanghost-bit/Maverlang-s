@@ -4,6 +4,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import { AuthFrame, CredentialField } from "@/components/auth/auth-frame";
+import { FormAlert } from "@/components/auth/form-alert";
 import { Button } from "@/components/ui/button";
 import { isTotpCode, listTotp, mfaReturnPath, needsMfaStep, verifyTotp, type MfaErrorCode } from "@/lib/auth/mfa";
 import { useSession } from "@/lib/auth/session-context";
@@ -95,12 +96,8 @@ export function MfaVerifyForm() {
         </p>
       ) : null}
       {phase === "error" ? (
-        <div className="mt-6">
-          {alert ? (
-            <p className="rounded-lg border border-down/20 bg-down-bg px-3 py-2.5 text-sm leading-relaxed text-down" role="alert">
-              {alert}
-            </p>
-          ) : null}
+        <div className="mt-5">
+          {alert ? <FormAlert>{alert}</FormAlert> : null}
           <Button type="button" variant="secondary" size="lg" className="mt-4 w-full" onClick={() => {
             setErrorCode(null);
             setPhase("loading");
@@ -111,7 +108,7 @@ export function MfaVerifyForm() {
         </div>
       ) : null}
       {phase === "ready" ? (
-        <form className="mt-6" noValidate aria-busy={busy} onSubmit={(event) => void submit(event)}>
+        <form className="mt-5" noValidate aria-busy={busy} onSubmit={(event) => void submit(event)}>
           <CredentialField
             id="mfa-login-code"
             label={t.mfa.codeLabel}
@@ -129,12 +126,12 @@ export function MfaVerifyForm() {
               setErrorCode(null);
             }}
           />
-          <Button type="submit" className="mt-6 w-full" size="lg" loading={busy}>
+          <Button type="submit" className="mt-5 w-full" size="lg" loading={busy}>
             {t.mfa.verify}
           </Button>
         </form>
       ) : null}
-      <Button type="button" variant="ghost" size="lg" className="mt-3 w-full" disabled={busy} onClick={() => void logout()}>
+      <Button type="button" variant="ghost" size="md" className="mt-1 w-full" disabled={busy} onClick={() => void logout()}>
         {t.mfa.leave}
       </Button>
     </AuthFrame>

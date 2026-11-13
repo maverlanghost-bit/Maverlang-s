@@ -146,8 +146,8 @@ export function MfaSettings() {
   const alert = shapeError ? t.mfa.codeShape : errorCode ? t.mfa.errors[errorCode] : null;
 
   return (
-    <section aria-label={t.mfa.title} className="overflow-hidden rounded-3xl border border-border bg-surface-1">
-      <div className="flex flex-col gap-3 px-4 py-4 md:px-6">
+    <section aria-label={t.mfa.title} className="rounded-xl border border-border bg-surface-1">
+      <div className="flex flex-col gap-3 p-4 md:p-5">
         <div className="flex items-center justify-between gap-3">
           <h2 className="text-sm font-medium text-fg">{t.mfa.title}</h2>
           {phase === "active" ? <Badge tone="up">{t.mfa.active}</Badge> : null}
@@ -177,7 +177,13 @@ export function MfaSettings() {
             {enrollment.qrCode.startsWith("data:") ? (
               // El QR es un SVG en data URI. next/image no lo optimiza; la CSP ya permite data:.
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={enrollment.qrCode} alt={t.mfa.qrAlt} width={192} height={192} className="size-48 bg-white p-2" />
+              <img
+                src={enrollment.qrCode}
+                alt={t.mfa.qrAlt}
+                width={192}
+                height={192}
+                className="size-48 rounded-lg border border-border bg-white p-2"
+              />
             ) : null}
             <div>
               <p className="text-sm font-medium text-fg">{t.mfa.secretLabel}</p>

@@ -4,9 +4,10 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useRef, useState, type FormEvent } from "react";
 
-import { BrandLink, CheckField } from "@/app/(platform)/app/onboarding/panel";
+import { CheckField } from "@/app/(platform)/app/onboarding/panel";
+import { AuthCard, authTitleClass } from "@/components/auth/auth-frame";
+import { FormAlert } from "@/components/auth/form-alert";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { addConsent, ApiError } from "@/lib/api/client";
 import { DEMO_LEGAL_MESSAGE } from "@/lib/auth/registro-schema";
 import { publishDemoMetadata } from "@/lib/auth/registro-client";
@@ -66,14 +67,13 @@ export function AceptarForm({
   }
 
   return (
-    <Card className="my-auto w-full max-w-md">
-      <BrandLink />
+    <AuthCard>
       <form className="mt-6" aria-busy={busy} onSubmit={(event) => void onSubmit(event)} noValidate>
-        <h1 className="text-[1.75rem] leading-[1.15] text-balance sm:text-3xl">Acepta los documentos</h1>
+        <h1 className={authTitleClass}>Acepta los documentos</h1>
         <p className="mt-3 max-w-[60ch] text-sm leading-relaxed text-pretty text-fg-body">
           Para usar la demo tienes que aceptar los Términos y Condiciones y la Política de Privacidad.
         </p>
-        <div className="mt-4">
+        <div className="mt-5">
           <CheckField
             checked={checked}
             onChange={setChecked}
@@ -105,18 +105,14 @@ export function AceptarForm({
             }
           />
         </div>
-        <p className="mt-4 text-sm leading-relaxed text-fg-muted">Borrador. [REVISIÓN ABOGADO]</p>
-        {formError && checked ? (
-          <p className="mt-4 break-words rounded-lg border border-down/20 bg-down-bg px-3 py-2.5 text-sm leading-relaxed text-pretty text-down" role="alert">
-            {formError}
-          </p>
-        ) : null}
+        <p className="mt-4 text-[13px] leading-relaxed text-fg-muted">Borrador. [REVISIÓN ABOGADO]</p>
+        {formError && checked ? <FormAlert>{formError}</FormAlert> : null}
         <div className="mt-6">
           <Button type="submit" size="lg" className="w-full" loading={busy}>
             Continuar
           </Button>
         </div>
       </form>
-    </Card>
+    </AuthCard>
   );
 }
