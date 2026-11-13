@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ErrorState } from "@/components/ui/error-state";
+import { Input } from "@/components/ui/input";
 import { LoadingState } from "@/components/ui/loading-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -291,7 +292,7 @@ export function WalletScreen() {
               value={usdcView.amount}
               currency={usdcView.currency}
               size="lg"
-              className="max-w-full break-words text-[1.75rem] leading-none font-medium tracking-tight tabular-nums sm:text-[2rem]"
+              className="max-w-full text-[1.75rem] leading-none font-medium tracking-tight tabular-nums sm:text-[2rem]"
             />
           )}
           {masked || pendingFx ? null : currency === "CLP" && !fxKnown ? (
@@ -312,16 +313,18 @@ export function WalletScreen() {
           </p>
         ) : null}
 
-        <div className="mt-5 flex flex-col gap-2 sm:grid sm:grid-cols-3">
+        <div className="mt-5 flex flex-col gap-2">
           <Button asChild size="lg" className="w-full">
             <Link href={DEPOSIT_HREF}>{t.wallet.deposit}</Link>
           </Button>
-          <Button asChild variant="secondary" size="lg" className="w-full">
-            <Link href={SEND_HREF}>{t.wallet.send}</Link>
-          </Button>
-          <Button asChild variant="secondary" size="lg" className="w-full">
-            <Link href={RECEIVE_HREF}>{t.wallet.receive}</Link>
-          </Button>
+          <div className="grid grid-cols-2 gap-2">
+            <Button asChild variant="secondary" size="lg" className="w-full">
+              <Link href={SEND_HREF}>{t.wallet.send}</Link>
+            </Button>
+            <Button asChild variant="secondary" size="lg" className="w-full">
+              <Link href={RECEIVE_HREF}>{t.wallet.receive}</Link>
+            </Button>
+          </div>
         </div>
 
         <div className="mt-6 flex flex-col gap-1.5 border-t border-border pt-4">
@@ -382,74 +385,55 @@ export function WalletScreen() {
       {mode === "demo" ? <DemoAddressNotice /> : null}
 
       <Card>
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <h2 id="actividad" className="text-lg font-semibold tracking-tight scroll-mt-24">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 id="actividad" className="scroll-mt-24 text-lg font-semibold tracking-tight">
             {t.wallet.activity}
           </h2>
-          <div className="flex flex-wrap items-center gap-1.5 sm:justify-end">
-            <div role="group" aria-label="Filtrar actividad" className="flex max-w-full flex-wrap items-center gap-1.5">
-              {ACTIVITY_FILTERS.map((filter) => {
-                const active = activityFilter === filter.id;
-                return (
-                  <button
-                    key={filter.id}
-                    type="button"
-                    aria-pressed={active}
-                    onClick={() => setActivityFilter(filter.id)}
-                    className={cn(
-                      "min-h-11 shrink-0 cursor-pointer rounded-full border px-3.5 text-[13px] font-medium whitespace-nowrap transition duration-150 sm:min-h-9",
-                      active
-                        ? "border-fg/20 bg-fg text-bg shadow-[0_1px_2px_rgba(12,15,20,0.08)]"
-                        : "border-control bg-bg text-fg-muted hover:bg-surface-2 hover:text-fg",
-                    )}
-                  >
-                    {filter.label}
-                  </button>
-                );
-              })}
-            </div>
-            {filteredActivities.length > 0 ? (
-              <CsvExportButton rows={filteredActivities} currency={currency} fxRate={fxKnown ? rate : undefined} />
-            ) : null}
-          </div>
+          {filteredActivities.length > 0 ? (
+            <CsvExportButton rows={filteredActivities} currency={currency} fxRate={fxKnown ? rate : undefined} />
+          ) : null}
+        </div>
+        <div role="group" aria-label="Filtrar actividad" className="mt-3 flex flex-wrap items-center gap-1.5">
+          {ACTIVITY_FILTERS.map((filter) => {
+            const active = activityFilter === filter.id;
+            return (
+              <button
+                key={filter.id}
+                type="button"
+                aria-pressed={active}
+                onClick={() => setActivityFilter(filter.id)}
+                className={cn(
+                  "min-h-11 shrink-0 cursor-pointer rounded-full border px-3.5 text-[13px] font-medium whitespace-nowrap transition duration-150 sm:min-h-9",
+                  active
+                    ? "border-fg/20 bg-fg text-bg"
+                    : "border-control bg-bg text-fg-muted hover:bg-surface-2 hover:text-fg",
+                )}
+              >
+                {filter.label}
+              </button>
+            );
+          })}
         </div>
         {allActivities.length > 0 ? (
-          <div className="mt-3 flex flex-col gap-2.5 rounded-2xl border border-border bg-surface-1 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex flex-wrap items-center gap-1.5 text-xs font-medium">
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-bg px-2.5 py-1 text-fg">
-                <span className="size-1.5 rounded-full bg-fg-muted" aria-hidden="true" />
-                <span className="num">{allActivities.length}</span>
-                <span className="text-fg-muted">movimientos</span>
-              </span>
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-bg px-2.5 py-1 text-fg">
-                <span className="size-1.5 rounded-full bg-up" aria-hidden="true" />
-                <span className="num">{buyCount}</span>
-                <span className="text-fg-muted">compras</span>
-              </span>
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-bg px-2.5 py-1 text-fg">
-                <span className="size-1.5 rounded-full bg-down" aria-hidden="true" />
-                <span className="num">{sellCount}</span>
-                <span className="text-fg-muted">ventas y retiros</span>
-              </span>
-              {activityTerm.length > 0 ? (
-                <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface-2 px-2.5 py-1 font-semibold text-fg">
-                  <span className="num">{filteredActivities.length}</span>
-                  <span>{filteredActivities.length === 1 ? "resultado" : "resultados"}</span>
-                </span>
-              ) : null}
-            </div>
-            <input
+          <div className="mt-3 flex flex-col gap-2">
+            <Input
               type="search"
               value={activityQuery}
               onChange={(e) => setActivityQuery(e.target.value)}
               placeholder="Buscar por símbolo (ej. NVDAx, USDC) o hash..."
               aria-label="Buscar en actividad"
-              className="h-11 w-full rounded-xl border border-control bg-bg px-3 text-base text-fg placeholder:text-fg-muted outline-none focus:border-fg sm:h-9 sm:w-64 sm:text-[13px]"
+              className="w-full sm:max-w-sm"
             />
+            <p className="text-[13px] leading-relaxed tabular-nums text-fg-muted">
+              {`${allActivities.length} movimientos · ${buyCount} compras · ${sellCount} ventas y retiros`}
+              {activityTerm.length > 0
+                ? ` · ${filteredActivities.length} ${filteredActivities.length === 1 ? "resultado" : "resultados"}`
+                : ""}
+            </p>
           </div>
         ) : null}
         {activityTerm.length > 0 && filteredActivities.length === 0 ? (
-          <p role="status" className="mt-3 rounded-2xl border border-border bg-surface-1 px-4 py-3 text-sm leading-relaxed text-fg-muted">
+          <p role="status" className="mt-3 rounded-xl border border-border bg-surface-1 px-4 py-3 text-[13px] leading-relaxed text-fg-muted">
             Sin resultados para «{activityQuery.trim()}». Revisa el símbolo o el hash de la transacción, o limpia el buscador para ver todo el historial.
           </p>
         ) : (

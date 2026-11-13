@@ -40,10 +40,12 @@ export default function BilleteraLoading() {
           <Skeleton className="h-4 w-full max-w-md" />
         </div>
 
-        <div className="mt-5 flex flex-col gap-2 sm:grid sm:grid-cols-3">
-          {["a", "b", "c"].map((key) => (
-            <Skeleton key={key} className="h-11 w-full rounded-full" />
-          ))}
+        <div className="mt-5 flex flex-col gap-2">
+          <Skeleton className="h-11 w-full rounded-full" />
+          <div className="grid grid-cols-2 gap-2">
+            <Skeleton className="h-11 w-full rounded-full" />
+            <Skeleton className="h-11 w-full rounded-full" />
+          </div>
         </div>
       </div>
 
@@ -67,14 +69,20 @@ export default function BilleteraLoading() {
       </div>
 
       <div className={CARD}>
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <Skeleton className="h-6 w-32 max-w-full" />
-          <Skeleton className="h-11 w-56 max-w-full rounded-full sm:h-9" />
+          <Skeleton className="h-9 w-28 max-w-full rounded-full" />
         </div>
 
-        <div className="mt-4 flex flex-col gap-2.5 rounded-2xl border border-border px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between">
-          <Skeleton className="h-6 w-64 max-w-full rounded-full" />
-          <Skeleton className="h-11 w-full rounded-xl sm:h-9 sm:w-64" />
+        <div className="mt-3 flex flex-wrap gap-1.5">
+          <Skeleton className="h-11 w-20 rounded-full" />
+          <Skeleton className="h-11 w-28 rounded-full" />
+          <Skeleton className="h-11 w-40 max-w-full rounded-full" />
+        </div>
+
+        <div className="mt-3 flex flex-col gap-2">
+          <Skeleton className="h-11 w-full rounded-md sm:max-w-sm" />
+          <Skeleton className="h-3 w-64 max-w-full" />
         </div>
 
         <div className="mt-4 flex flex-col gap-6">

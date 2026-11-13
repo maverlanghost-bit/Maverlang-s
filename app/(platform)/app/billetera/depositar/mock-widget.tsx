@@ -115,18 +115,18 @@ export function MockWidget({
         })}
       </ol>
 
-      <dl className="mt-5 flex flex-col gap-2 text-sm">
-        <div className="flex items-baseline justify-between gap-3">
-          <dt className="text-fg-muted">{t.wallet.depositAmount}</dt>
-          <dd className="num text-right font-medium text-fg tabular-nums">{formatClp(amountClp)}</dd>
+      <dl className="mt-5 divide-y divide-border overflow-hidden rounded-xl border border-border text-sm">
+        <div className="flex min-h-11 items-center justify-between gap-3 px-4 py-2.5">
+          <dt className="min-w-0 text-fg-muted">{t.wallet.depositAmount}</dt>
+          <dd className="num shrink-0 text-right font-medium text-fg tabular-nums">{formatClp(amountClp)}</dd>
         </div>
-        <div className="flex items-baseline justify-between gap-3">
-          <dt className="text-fg-muted">{t.wallet.depositEstimate}</dt>
-          <dd className="num text-right font-medium text-fg tabular-nums">{usdc}</dd>
+        <div className="flex min-h-11 items-center justify-between gap-3 px-4 py-2.5">
+          <dt className="min-w-0 text-fg-muted">{t.wallet.depositEstimate}</dt>
+          <dd className="num shrink-0 text-right font-medium text-fg tabular-nums">{usdc}</dd>
         </div>
-        <div className="flex items-baseline justify-between gap-3">
-          <dt className="text-fg-muted">{t.wallet.depositFee}</dt>
-          <dd className="num text-right font-medium text-fg tabular-nums">{formatClp(session.feeClp)}</dd>
+        <div className="flex min-h-11 items-center justify-between gap-3 px-4 py-2.5">
+          <dt className="min-w-0 text-fg-muted">{t.wallet.depositFee}</dt>
+          <dd className="num shrink-0 text-right font-medium text-fg tabular-nums">{formatClp(session.feeClp)}</dd>
         </div>
       </dl>
 

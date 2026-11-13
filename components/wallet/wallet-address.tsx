@@ -18,6 +18,16 @@ export function shortenAddress(address: string, head = 6, tail = 6): string {
   return `${value.slice(0, head)}…${value.slice(-tail)}`;
 }
 
+/**
+ * Mitades de la dirección recortada. Se pintan como dos piezas: si el ancho
+ * aprieta, la primera se recorta y el final queda siempre visible.
+ */
+function addressParts(address: string, head = 6, tail = 6): { start: string; end: string } {
+  const value = address.trim();
+  if (value.length <= head + tail + 1) return { start: value, end: "" };
+  return { start: value.slice(0, head), end: value.slice(-tail) };
+}
+
 export function WalletAddress({
   address,
   label,
@@ -33,6 +43,7 @@ export function WalletAddress({
 }) {
   const [copied, setCopied] = useState(false);
   const timer = useRef<number | null>(null);
+  const parts = addressParts(address);
 
   useEffect(() => {
     return () => {
@@ -57,18 +68,28 @@ export function WalletAddress({
       <div className="flex w-full min-w-0 flex-col gap-2 sm:flex-row sm:items-stretch">
         <p
           title={address}
-          className="num flex min-h-11 min-w-0 flex-1 items-center justify-center rounded-md border border-border bg-bg px-3 text-[13px] leading-none text-fg sm:justify-start"
+          className="num flex min-h-11 w-full min-w-0 items-center justify-center gap-1.5 rounded-md border border-border bg-bg px-3 text-[13px] leading-none text-fg sm:flex-1 sm:justify-start"
         >
-          <span className="truncate" aria-hidden>
-            {shortenAddress(address)}
+          <span className="min-w-0 truncate" aria-hidden>
+            {parts.start}
           </span>
+          {parts.end ? (
+            <span className="flex shrink-0 items-center gap-1.5" aria-hidden>
+              <span className="text-fg-muted">…</span>
+              <span>{parts.end}</span>
+            </span>
+          ) : null}
           <span className="sr-only">{address}</span>
         </p>
-        <Button type="button" size="md" onClick={() => void copy()} aria-live="polite" className="w-full shrink-0 sm:w-auto">
+        <Button type="button" size="md" onClick={() => void copy()} className="w-full shrink-0 sm:w-auto">
           {copied ? <IconCheck /> : <IconCopy />}
           {copied ? copiedLabel : copyLabel}
         </Button>
       </div>
+      {/* El texto del botón ya cambia; esto lo anuncia aunque el foco esté lejos. */}
+      <span role="status" aria-live="polite" className="sr-only">
+        {copied ? copiedLabel : ""}
+      </span>
     </div>
   );
 }

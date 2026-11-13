@@ -88,21 +88,18 @@ export function UsdcDeposit({ depositEligible }: { depositEligible: boolean }) {
       <div className="flex flex-col gap-2">
         <h2 className="text-lg font-semibold tracking-tight">{t.wallet.address}</h2>
         <p className="text-sm leading-relaxed text-fg-body">{t.wallet.depositUsdcLead}</p>
-        <dl className="mt-2 grid grid-cols-1 gap-px overflow-hidden rounded-xl border border-border bg-border sm:grid-cols-3">
+        <dl className="mt-1 divide-y divide-border overflow-hidden rounded-xl border border-border">
           {NETWORK_FACTS.map((fact) => (
-            <div
-              key={fact.label}
-              className="flex items-baseline justify-between gap-3 bg-bg px-3.5 py-2.5 sm:flex-col sm:items-start sm:gap-1"
-            >
-              <dt className="label-xs">{fact.label}</dt>
-              <dd className="text-right text-[13px] leading-snug font-medium text-fg sm:text-left">{fact.value}</dd>
+            <div key={fact.label} className="flex min-h-11 items-center justify-between gap-3 px-4 py-2.5">
+              <dt className="label-xs shrink-0">{fact.label}</dt>
+              <dd className="min-w-0 text-right text-[13px] leading-snug font-medium text-fg">{fact.value}</dd>
             </div>
           ))}
         </dl>
       </div>
 
       <div className="flex flex-col items-center gap-3">
-        <QRCode value={address} size={196} label={t.wallet.depositQr} />
+        <QRCode value={address} size={176} label={t.wallet.depositQr} />
         <div className="w-full max-w-sm">
           <WalletAddress address={address} copyLabel={t.wallet.copy} copiedLabel={t.wallet.copied} />
         </div>

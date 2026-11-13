@@ -91,12 +91,12 @@ export function ReceiveScreen() {
               }}
             />
           ) : (
-            <Card className="flex flex-col items-center gap-6">
+            <Card className="flex w-full min-w-0 flex-col items-center gap-6">
               {address ? (
                 <>
-                  <QRCode value={address} size={196} label={t.wallet.qrLabel} />
+                  <QRCode value={address} size={176} label={t.wallet.qrLabel} />
 
-                  <div className="flex w-full max-w-sm flex-col gap-3">
+                  <div className="flex w-full max-w-sm min-w-0 flex-col gap-3">
                     <WalletAddress
                       address={address}
                       label={t.wallet.address}

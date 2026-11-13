@@ -306,9 +306,9 @@ export function SendScreen() {
         <p className="text-center text-2xl leading-tight tracking-tight text-balance text-fg tabular-nums">
           {fill(t.wallet.reviewLead, { amount: formatAssetAmount(draft.symbol, draft.amount), symbol: draft.symbol })}
         </p>
-        <div className="flex flex-col gap-1.5 rounded-xl bg-surface-1 px-4 py-3.5 text-center">
+        <div className="flex min-w-0 flex-col gap-1.5 rounded-xl border border-border bg-bg px-4 py-3.5 text-center">
           <p className="label">{t.wallet.destination}</p>
-          <p className="num text-[12px] leading-relaxed break-all text-fg">{draft.to}</p>
+          <p className="num text-[13px] leading-relaxed break-all text-fg">{draft.to}</p>
         </div>
         {draft.own ? <p className="rounded-xl bg-warn-bg px-4 py-3 text-sm text-fg">{t.wallet.ownAddress}</p> : null}
         <CostBreakdown rows={rows} />

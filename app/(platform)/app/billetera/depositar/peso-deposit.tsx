@@ -241,17 +241,17 @@ function Estimate({
   fee: string | null;
 }) {
   return (
-    <div className="flex flex-col gap-2 rounded-xl bg-surface-2 px-4 py-3 text-[13px]" aria-live="polite">
-      <dl className="flex flex-col gap-2">
-        <div className="flex items-baseline justify-between gap-3">
-          <dt className="text-fg-muted">{label}</dt>
-          <dd className="num flex min-h-5 min-w-0 items-center justify-end text-right font-medium text-fg">
+    <div className="flex flex-col gap-2" aria-live="polite">
+      <dl className="divide-y divide-border overflow-hidden rounded-xl border border-border text-[13px]">
+        <div className="flex min-h-11 items-center justify-between gap-3 px-4 py-2.5">
+          <dt className="min-w-0 text-fg-muted">{label}</dt>
+          <dd className="num flex min-w-0 items-center justify-end text-right text-[15px] leading-none font-medium text-fg tabular-nums">
             {quoting ? <Skeleton className="h-4 w-24" /> : error ? "—" : (usdc ?? "—")}
           </dd>
         </div>
-        <div className="flex items-baseline justify-between gap-3">
-          <dt className="text-fg-muted">{feeLabel}</dt>
-          <dd className="num flex min-h-5 min-w-0 items-center justify-end text-right font-medium text-fg">
+        <div className="flex min-h-11 items-center justify-between gap-3 px-4 py-2.5">
+          <dt className="min-w-0 text-fg-muted">{feeLabel}</dt>
+          <dd className="num flex min-w-0 items-center justify-end text-right text-[15px] leading-none font-medium text-fg tabular-nums">
             {quoting ? <Skeleton className="h-4 w-20" /> : error ? "—" : (fee ?? "—")}
           </dd>
         </div>

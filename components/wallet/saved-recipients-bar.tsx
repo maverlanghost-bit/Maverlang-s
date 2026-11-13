@@ -100,6 +100,7 @@ export function SavedRecipientsBar({
         invalid: "The address isn't valid Base58.",
         remove: "Remove",
         useAddress: "Use this address",
+        inUse: "In use",
       }
     : {
         title: "Destinatarios frecuentes",
@@ -118,6 +119,7 @@ export function SavedRecipientsBar({
         invalid: "La dirección no tiene un formato Base58 válido.",
         remove: "Quitar",
         useAddress: "Usar esta dirección",
+        inUse: "En uso",
       };
 
   const aliasId = useId();
@@ -199,13 +201,13 @@ export function SavedRecipientsBar({
   }
 
   return (
-    <div className="rounded-xl border border-border bg-bg p-3.5">
-      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+    <div className="overflow-hidden rounded-xl border border-border bg-bg">
+      <div className="flex items-center justify-between gap-2 border-b border-border py-1 pr-1.5 pl-3.5">
         <p className="label">{copy.title}</p>
         <button
           type="button"
           onClick={() => void handlePaste()}
-          className="inline-flex min-h-11 items-center gap-1.5 rounded-full border border-control bg-bg px-3 text-[13px] font-medium text-fg transition-colors duration-150 hover:bg-surface-2 sm:min-h-8"
+          className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full px-2.5 text-[13px] font-medium text-fg-muted transition-colors duration-150 hover:text-fg focus-visible:ring-2 focus-visible:ring-fg focus-visible:ring-inset focus-visible:outline-none"
         >
           <svg className="size-3.5 shrink-0" viewBox="0 0 24 24" fill="none" aria-hidden>
             <rect x="8" y="8" width="11" height="12" rx="2" stroke="currentColor" strokeWidth="1.8" />
@@ -221,13 +223,13 @@ export function SavedRecipientsBar({
       </div>
 
       {!mounted ? (
-        <div className="h-8" aria-hidden="true" />
+        <div className="h-12" aria-hidden="true" />
       ) : saved.length > 0 ? (
-        <ul className="flex flex-wrap gap-1.5" aria-label={copy.listLabel}>
+        <ul className="divide-y divide-border" aria-label={copy.listLabel}>
           {saved.map((item) => {
             const isActive = item.address === current;
             return (
-              <li key={item.address} className="flex items-stretch">
+              <li key={item.address} className="flex items-center gap-0.5 pr-1">
                 <button
                   type="button"
                   aria-pressed={isActive}
@@ -237,25 +239,31 @@ export function SavedRecipientsBar({
                     setFeedback(null);
                   }}
                   className={cn(
-                    "inline-flex min-h-11 max-w-52 items-center gap-2 rounded-l-full border border-r-0 py-1 pr-2 pl-3 text-xs transition-colors duration-150 outline-none focus-visible:ring-2 focus-visible:ring-fg focus-visible:ring-inset sm:max-w-56",
-                    isActive
-                      ? "border-control bg-surface-3 text-fg"
-                      : "border-border bg-bg text-fg hover:border-control hover:bg-surface-2",
+                    "flex min-h-11 min-w-0 flex-1 items-center gap-3 rounded-lg px-3 py-2 text-left transition-colors duration-150 outline-none focus-visible:ring-2 focus-visible:ring-fg focus-visible:ring-inset",
+                    isActive ? "bg-surface-2" : "hover:bg-surface-1",
                   )}
                 >
-                  <span className="truncate font-medium text-fg">{item.alias || shortAddress(item.address)}</span>
-                  {item.alias ? (
-                    <span className="num shrink-0 truncate text-fg-muted">{shortAddress(item.address)}</span>
+                  <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                    <span className="truncate text-sm leading-tight font-medium text-fg">
+                      {item.alias || shortAddress(item.address)}
+                    </span>
+                    {item.alias ? (
+                      <span className="num truncate text-[13px] leading-tight text-fg-muted">
+                        {shortAddress(item.address)}
+                      </span>
+                    ) : null}
+                  </span>
+                  {isActive ? (
+                    <span className="shrink-0 text-[11px] font-medium tracking-[0.045em] text-fg-muted uppercase">
+                      {copy.inUse}
+                    </span>
                   ) : null}
                 </button>
                 <button
                   type="button"
                   onClick={() => handleRemove(item.address)}
                   aria-label={`${copy.remove}: ${item.alias || shortAddress(item.address)}`}
-                  className={cn(
-                    "inline-flex min-h-11 w-11 shrink-0 items-center justify-center rounded-r-full border py-1 text-fg-muted transition-colors duration-150 outline-none focus-visible:ring-2 focus-visible:ring-fg focus-visible:ring-inset hover:text-down sm:w-9",
-                    isActive ? "border-control bg-surface-3" : "border-border bg-bg hover:border-control",
-                  )}
+                  className="inline-flex size-11 shrink-0 items-center justify-center rounded-lg text-fg-muted transition-colors duration-150 outline-none hover:bg-surface-2 hover:text-down focus-visible:ring-2 focus-visible:ring-fg focus-visible:ring-inset"
                 >
                   <svg className="size-3.5 shrink-0" viewBox="0 0 24 24" fill="none" aria-hidden>
                     <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
@@ -266,11 +274,11 @@ export function SavedRecipientsBar({
           })}
         </ul>
       ) : (
-        <p className="text-[13px] leading-relaxed text-fg-muted">{copy.empty}</p>
+        <p className="px-3.5 py-3 text-[13px] leading-relaxed text-fg-muted">{copy.empty}</p>
       )}
 
       {currentIsValid && !alreadySaved && !atLimit ? (
-        <div className="mt-3 flex flex-col gap-1.5 sm:flex-row sm:items-end sm:gap-2">
+        <div className="flex flex-col gap-2 border-t border-border px-3.5 py-3 sm:flex-row sm:items-end sm:gap-2">
           <div className="flex min-w-0 flex-1 flex-col gap-1">
             <label htmlFor={aliasId} className="text-[13px] font-medium text-fg">
               {copy.aliasLabel}
@@ -289,7 +297,7 @@ export function SavedRecipientsBar({
         </div>
       ) : null}
 
-      <p role="status" aria-live="polite" className="mt-2 min-h-4 text-xs leading-relaxed text-fg-muted">
+      <p role="status" aria-live="polite" className="min-h-4 px-3.5 pb-2.5 text-xs leading-relaxed text-fg-muted">
         {hint}
       </p>
     </div>
