@@ -63,15 +63,32 @@ test("smoke con datos mock", async ({ page }) => {
 
   await page.goto("/app/billetera/enviar");
   await page.getByLabel("Destino").fill("no-es-una-direccion");
-  await expect(page.getByRole("alert").filter({ hasText: "La dirección no es válida." })).toBeVisible();
+  // El estado del destino vive pegado al campo y anuncia el formato inválido.
+  await expect(
+    page.getByRole("status").filter({ hasText: /inválido.*dirección Solana/ }),
+  ).toBeVisible();
   await expect(page.getByRole("button", { name: "Revisar" })).toBeDisabled();
 
   await page.goto("/app/perfil");
   await page.getByRole("link", { name: "Ajustes" }).click();
   await expect(page.getByRole("heading", { name: "Ajustes" })).toBeVisible();
-  await page.getByRole("radio", { name: "English" }).click();
+  await Promise.all([
+    page.waitForResponse(
+      (r) => r.url().includes("/api/me/preferences") && r.request().method() !== "GET" && r.ok(),
+    ),
+    page.getByRole("radio", { name: "English" }).click(),
+  ]);
   await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Market" })).toBeVisible();
+
+  // De vuelta a español: la cuenta demo es compartida entre pruebas.
+  await Promise.all([
+    page.waitForResponse(
+      (r) => r.url().includes("/api/me/preferences") && r.request().method() !== "GET" && r.ok(),
+    ),
+    page.getByRole("radio", { name: "Español (Chile)" }).click(),
+  ]);
+  await expect(page.getByRole("heading", { name: "Ajustes" })).toBeVisible();
 });
 
 test("visita el detalle sin sesión", async ({ browser }) => {

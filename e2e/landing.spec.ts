@@ -106,10 +106,10 @@ test("portada: correo inválido no navega a ningún resultado", async ({ page })
 test("legales: los cuatro documentos con su aviso de borrador", async ({ page }) => {
   test.slow();
   const docs = [
-    { slug: "terminos", heading: /Términos/ },
+    { slug: "terminos", heading: /Términos/i },
     { slug: "privacidad", heading: /Privacidad/i },
-    { slug: "riesgos", heading: /Riesgos/ },
-    { slug: "comisiones", heading: /Comisiones/ },
+    { slug: "riesgos", heading: /Riesgos/i },
+    { slug: "comisiones", heading: /Comisiones/i },
   ] as const;
 
   for (const doc of docs) {

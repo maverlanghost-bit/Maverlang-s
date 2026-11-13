@@ -116,22 +116,33 @@ test("mercado: cambio de moneda CLP/USD en el sidebar", async ({ page }) => {
   // Precios en USD por defecto (preferencia inicial de la demo es CLP;
   // el registro demo la fija en CLP, así que primero pasamos a USD).
   // El interruptor vive en el menú del perfil del sidebar.
-  await page.getByRole("button", { name: /Cuenta demo\. Ir a tu perfil/ }).click();
-  const moneda = page.getByRole("menu", { name: "Ir a tu perfil" }).getByRole("radiogroup", { name: "Moneda" });
-  await moneda.getByRole("radio", { name: "Moneda: USD" }).click();
-  // Cerrar el menú para que no tape la lista.
-  await page.getByRole("button", { name: /Cuenta demo\. Ir a tu perfil/ }).click();
+  // El menú se cierra después de cada cambio para que no tape la lista, así
+  // que cada cambio lo vuelve a abrir.
+  const perfil = page.getByRole("button", { name: /Cuenta demo\. Ir a tu perfil/ });
+  async function elegirMoneda(codigo: "USD" | "CLP") {
+    await perfil.click();
+    const moneda = page.getByRole("menu", { name: "Ir a tu perfil" }).getByRole("radiogroup", { name: "Moneda" });
+    await Promise.all([
+      page.waitForResponse(
+        (r) => r.url().includes("/api/me/preferences") && r.request().method() !== "GET" && r.ok(),
+      ),
+      moneda.getByRole("radio", { name: `Moneda: ${codigo}` }).click(),
+    ]);
+    await perfil.click();
+    await expect(page.getByRole("menu", { name: "Ir a tu perfil" })).toHaveCount(0);
+  }
+  await elegirMoneda("USD");
 
   // Apple a US$ 228,40 (mock): el precio visible cambia de dólares.
   const apple = page.locator('a[href="/app/accion/AAPLx"]').first();
   await expect(apple).toContainText(/US\$228,40/);
 
   // A CLP con el dólar mock de 950: 228,40 × 950 = 216.980.
-  await moneda.getByRole("radio", { name: "Moneda: CLP" }).click();
+  await elegirMoneda("CLP");
   await expect(apple).toContainText(/\$216\.980/);
 
   // Volver a USD para no dejar la preferencia cruzada en la sesión mock.
-  await moneda.getByRole("radio", { name: "Moneda: USD" }).click();
+  await elegirMoneda("USD");
   await expect(apple).toContainText(/US\$228,40/);
 });
 
