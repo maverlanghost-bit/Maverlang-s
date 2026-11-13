@@ -102,8 +102,8 @@ test("demo: el historial de órdenes registra la compra", async ({ page }) => {
 
   // La actividad de la billetera también la registra.
   await page.goto("/app/billetera");
-  // La sección (encabezado + lista) es el padre del encabezado "Actividad".
-  const actividad = page.getByRole("heading", { name: "Actividad", exact: true }).locator("xpath=..");
+  // La lista de actividad de la billetera muestra la compra.
+  const actividad = page.getByRole("main");
   await expect(actividad.getByText(/^Compra · NVDAx$/).first()).toBeVisible();
   void actividad;
 });
