@@ -146,7 +146,23 @@ export function resolvePolicy(name: RateLimitPolicyName): RateLimitPolicy {
     const raw = Number(process.env.RATE_LIMIT_TEST_SEARCH);
     if (Number.isInteger(raw) && raw > 0) return { limit: raw, windowMs: base.windowMs };
   }
+  const scale = e2eRateLimitScale();
+  if (scale > 1) return { limit: base.limit * scale, windowMs: base.windowMs };
   return { limit: base.limit, windowMs: base.windowMs };
+}
+
+/**
+ * Multiplicador de cupos SOLO para el e2e local: la suite completa corre desde
+ * una misma IP y con la misma cuenta demo, y supera cupos pensados para una
+ * persona (p. ej. 5 reinicios de demo por hora). Sólo vale junto al opt-in
+ * `E2E_RATE_LIMIT_MEMORY=true` (nunca en Vercel ni con APP_ENV=production) y
+ * con `E2E_RATE_LIMIT_SCALE` entero entre 2 y 1000; si no, 1 (sin cambio).
+ */
+export function e2eRateLimitScale(): number {
+  if (!e2eMemoryRateLimitAllowed()) return 1;
+  const raw = Number(process.env.E2E_RATE_LIMIT_SCALE?.trim());
+  if (!Number.isInteger(raw) || raw < 2 || raw > 1000) return 1;
+  return raw;
 }
 
 /* --- IP del cliente (A-02/A1-03: el sujeto no puede venir del cliente) --- */

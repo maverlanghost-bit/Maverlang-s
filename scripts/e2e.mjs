@@ -28,6 +28,9 @@ env.RATE_LIMIT_BACKEND = "memory";
 // El build corre con NODE_ENV=production: sin este opt-in de prueba las
 // políticas sensibles fallan cerrado (503) en memoria. Ignorado en Vercel.
 env.E2E_RATE_LIMIT_MEMORY = "true";
+// La suite completa comparte IP y cuenta demo: cupos x50 sólo en este e2e
+// (mismo opt-in; se ignora en Vercel y con APP_ENV=production).
+env.E2E_RATE_LIMIT_SCALE = "50";
 delete env.VERCEL;
 // M59: el e2e corre como development/demo con mock: nunca activa el modo
 // estricto aunque el shell tenga estas variables.
