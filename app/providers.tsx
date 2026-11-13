@@ -6,7 +6,12 @@ import { useEffect, useMemo, useState, type ComponentType, type ReactNode } from
 
 import { ToastProvider } from "@/components/ui/toast";
 import { queryRetry } from "@/lib/api/retry";
-import { LoadingSession, SessionProvider } from "@/lib/auth/session-context";
+import {
+  BridgedSession,
+  SessionProvider,
+  SessionReporter,
+  type AuthBridgeValue,
+} from "@/lib/auth/session-context";
 import type { SessionValue } from "@/lib/auth/types";
 
 /** Privy y Supabase sólo en la plataforma. El marketing queda con una sesión invitada. */
@@ -27,9 +32,16 @@ function GuestSession({ children }: { children: ReactNode }) {
   return <SessionProvider value={value}>{children}</SessionProvider>;
 }
 
-/** El chunk de auth no entra al marketing. Mientras llega, la plataforma pinta igual. */
+/**
+ * El chunk de auth no entra al marketing. Mientras llega, la plataforma pinta
+ * igual. La app queda siempre bajo `BridgedSession` (misma posición y tipos);
+ * el provider de cuenta se monta al lado y sólo publica su sesión. Si la app
+ * fuera hija del provider, el cambio de `LoadingSession` al provider real la
+ * desmontaría y montaría de nuevo al cargar (foco y estado perdidos).
+ */
 function AccountShell({ children }: { children: ReactNode }) {
   const [Provider, setProvider] = useState<ComponentType<{ children: ReactNode }> | null>(null);
+  const [bridge, setBridge] = useState<AuthBridgeValue | null>(null);
   useEffect(() => {
     let cancelled = false;
     void import("@/lib/auth/provider").then((mod) => {
@@ -39,8 +51,16 @@ function AccountShell({ children }: { children: ReactNode }) {
       cancelled = true;
     };
   }, []);
-  if (!Provider) return <LoadingSession>{children}</LoadingSession>;
-  return <Provider>{children}</Provider>;
+  return (
+    <>
+      <BridgedSession value={bridge}>{children}</BridgedSession>
+      {Provider ? (
+        <Provider>
+          <SessionReporter onChange={setBridge} />
+        </Provider>
+      ) : null}
+    </>
+  );
 }
 
 function makeQueryClient() {
