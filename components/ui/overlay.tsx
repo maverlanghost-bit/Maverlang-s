@@ -79,7 +79,37 @@ function useOverlay(open: boolean, onClose: () => void) {
     }
 
     const initial = focusable();
-    (initial[0] ?? panel)?.focus();
+    let autoFocused: HTMLElement | null = initial[0] ?? panel;
+    autoFocused?.focus();
+
+    // Si al abrir el contenido todavía carga (p. ej. un esqueleto), el foco cae
+    // en el cierre o en el panel. Cuando llega el contenido real, se mueve al
+    // primer control, sólo mientras la persona no haya tocado nada.
+    const observer =
+      panel && typeof MutationObserver !== "undefined"
+        ? new MutationObserver(() => {
+            if (!autoFocused || document.activeElement !== autoFocused) {
+              stopFollowing();
+              return;
+            }
+            const first = focusable()[0];
+            if (first && first !== autoFocused) {
+              autoFocused = first;
+              first.focus();
+            }
+          })
+        : null;
+    function stopFollowing() {
+      observer?.disconnect();
+      autoFocused = null;
+      document.removeEventListener("keydown", stopFollowing, true);
+      document.removeEventListener("pointerdown", stopFollowing, true);
+    }
+    if (observer && panel) {
+      observer.observe(panel, { childList: true, subtree: true, attributes: true, attributeFilter: ["disabled", "hidden"] });
+      document.addEventListener("keydown", stopFollowing, true);
+      document.addEventListener("pointerdown", stopFollowing, true);
+    }
 
     function onKey(event: KeyboardEvent) {
       if (event.key === "Escape") {
@@ -108,6 +138,7 @@ function useOverlay(open: boolean, onClose: () => void) {
     document.addEventListener("keydown", onKey);
     lockScroll();
     return () => {
+      stopFollowing();
       document.removeEventListener("keydown", onKey);
       unlockScroll();
       previous?.focus();
