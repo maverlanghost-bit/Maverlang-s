@@ -45,7 +45,8 @@ export function ActivityItem({
             href={explorerHref}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-[13px] font-medium text-fg-muted underline decoration-fg-subtle underline-offset-4 transition-colors hover:text-fg"
+            /* Área táctil de 44 px sin agrandar la línea de metadatos. */
+            className="relative text-[13px] font-medium text-fg-muted underline decoration-fg-subtle underline-offset-4 transition-colors after:absolute after:-inset-x-2 after:-inset-y-[0.9rem] after:content-[''] hover:text-fg hover:decoration-fg"
           >
             {explorerLabel}
             <span className="sr-only"> {explorerNew}</span>

@@ -163,7 +163,7 @@ export function InvestmentHistory({
     >
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between sm:gap-6">
         <div className="min-w-0">
-          <h2 className="text-xl font-medium tracking-tight text-fg">
+          <h2 className="text-lg font-medium tracking-tight text-fg">
             {isEn ? "Investment history" : "Historial de inversiones"}
           </h2>
           <p className="mt-1 max-w-prose text-[13px] leading-relaxed text-fg-muted">
@@ -207,7 +207,7 @@ export function InvestmentHistory({
 
       {/* En móvil cada cifra ocupa su línea (etiqueta a la izquierda, valor a
           la derecha): en tres columnas de 360 px el volumen se cortaba. */}
-      <dl className="mt-5 grid grid-cols-1 gap-y-2 border-y border-border py-4 sm:grid-cols-3 sm:gap-x-8 sm:gap-y-0">
+      <dl className="mt-5 grid grid-cols-1 divide-y divide-border border-y border-border sm:grid-cols-3 sm:divide-y-0 sm:gap-x-8 sm:py-4">
         {[
           {
             label: isEn ? "Total trades" : "Total operaciones",
@@ -223,8 +223,8 @@ export function InvestmentHistory({
           },
           { label: isEn ? "Last activity" : "Última operación", value: latestAt },
         ].map((stat) => (
-          <div key={stat.label} className="flex min-w-0 items-baseline justify-between gap-3 sm:block">
-            <dt className="text-[11px] leading-4 text-fg-muted sm:text-xs">{stat.label}</dt>
+          <div key={stat.label} className="flex min-w-0 items-baseline justify-between gap-3 py-2.5 sm:block sm:py-0">
+            <dt className="text-[13px] leading-4 text-fg-muted">{stat.label}</dt>
             <dd className="num text-[15px] font-medium tracking-tight tabular-nums text-fg sm:mt-1.5">{stat.value}</dd>
           </div>
         ))}

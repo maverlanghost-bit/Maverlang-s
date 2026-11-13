@@ -75,7 +75,7 @@ export function PortfolioHealthCard({
     <section className="border-t border-border pt-8">
       <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
         <div className="min-w-0 max-w-prose">
-          <h2 className="text-xl font-medium tracking-tight text-balance text-fg">
+          <h2 className="text-lg font-medium tracking-tight text-balance text-fg">
             Salud y diversificación de cartera
           </h2>
           <p className="mt-1 max-w-prose text-[13px] leading-relaxed text-fg-muted">
@@ -107,14 +107,16 @@ export function PortfolioHealthCard({
         </div>
       </div>
 
-      <dl className="mt-6 grid grid-cols-1 gap-y-3 border-t border-border pt-5 sm:grid-cols-3 sm:gap-y-0">
+      <dl className="mt-6 grid grid-cols-1 divide-y divide-border border-t border-border sm:grid-cols-3 sm:divide-y-0 sm:pt-5">
         {stats.map((stat, index) => (
           <div
             key={stat.label}
-            className={cn("min-w-0 sm:pr-6", index > 0 && "sm:border-l sm:border-border sm:pl-6")}
+            className={cn("min-w-0 py-3 sm:py-0 sm:pr-6", index > 0 && "sm:border-l sm:border-border sm:pl-6")}
           >
             <dt className="label">{stat.label}</dt>
-            <dd className="num mt-1.5 truncate text-[15px] font-medium tracking-tight text-fg">{stat.value}</dd>
+            <dd className="num mt-1.5 text-[15px] leading-snug font-medium tracking-tight text-balance break-words text-fg">
+              {stat.value}
+            </dd>
           </div>
         ))}
       </dl>

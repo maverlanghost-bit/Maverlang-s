@@ -60,7 +60,7 @@ export function PortfolioTaxSummaryCard({
       <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
         <div className="min-w-0">
           <p className="label">Respaldo contable</p>
-          <h2 className="mt-2 text-xl font-medium tracking-tight text-balance text-fg">
+          <h2 className="mt-2 text-lg font-medium tracking-tight text-balance text-fg">
             Resumen patrimonial y cartola anual
           </h2>
         </div>
@@ -82,7 +82,7 @@ export function PortfolioTaxSummaryCard({
             <dt className="label leading-snug">{stat.label}</dt>
             <dd
               className={cn(
-                "num shrink-0 text-right text-[15px] leading-5 font-medium tracking-tight tabular-nums sm:text-left",
+                "num shrink-0 text-right text-[15px] leading-5 font-medium tracking-tight tabular-nums whitespace-nowrap sm:text-left",
                 stat.tone,
               )}
             >

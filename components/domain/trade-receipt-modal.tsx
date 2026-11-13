@@ -178,7 +178,7 @@ export function TradeReceiptTrigger({
         type="button"
         aria-haspopup="dialog"
         onClick={() => setOpen(true)}
-        className="inline-flex min-h-11 items-center gap-1.5 rounded-full border border-control bg-bg px-4 text-xs font-medium text-fg-body transition-colors duration-150 outline-none hover:border-fg hover:text-fg focus-visible:ring-4 focus-visible:ring-fg/20"
+        className="inline-flex min-h-11 items-center gap-1.5 text-[13px] font-medium text-fg-muted underline-offset-4 transition-colors duration-150 outline-none hover:text-fg hover:underline focus-visible:ring-4 focus-visible:ring-fg/20"
       >
         Comprobante
       </button>
@@ -198,7 +198,7 @@ export function TradeReceiptTrigger({
             aria-describedby={folioId}
             tabIndex={-1}
             onMouseDown={(event) => event.stopPropagation()}
-            className="relative max-h-[92dvh] w-full max-w-[26rem] overflow-y-auto overscroll-contain rounded-t-3xl border border-border bg-bg px-5 pt-3 pb-[max(1.5rem,env(safe-area-inset-bottom))] text-fg shadow-float outline-none animate-sheet-up sm:rounded-3xl sm:px-6 sm:py-6 sm:animate-pop-in"
+            className="relative max-h-[92dvh] w-full max-w-[26rem] overflow-y-auto overscroll-contain rounded-t-3xl border border-border bg-bg px-5 pt-3 pb-[max(1.5rem,env(safe-area-inset-bottom))] text-fg outline-none animate-sheet-up sm:rounded-3xl sm:px-6 sm:py-6 sm:animate-pop-in"
           >
             <span
               aria-hidden="true"

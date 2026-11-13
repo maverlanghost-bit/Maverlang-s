@@ -185,7 +185,7 @@ function orderDetail(
 }
 
 function signClass(value: number, size: "sm" | "lg"): string {
-  const scale = size === "lg" ? "text-lg" : "text-[12px]";
+  const scale = size === "lg" ? "text-lg" : "text-[13px]";
   if (value > 0) return `num ${scale} text-up`;
   if (value < 0) return `num ${scale} text-down`;
   return `num ${scale} text-fg`;
@@ -208,7 +208,7 @@ function MoneyLine({
   hiddenLabel: string;
   size?: "sm" | "lg";
 }) {
-  if (masked) return <Masked label={hiddenLabel} className={size === "lg" ? "text-lg" : "text-[12px]"} />;
+  if (masked) return <Masked label={hiddenLabel} className={size === "lg" ? "text-lg" : "text-[13px]"} />;
   if (pendingFx) return <Skeleton className={size === "lg" ? "h-7 w-28" : "h-4 w-20"} />;
   const view = moneyView(usd, currency, rate);
   return <span className={signClass(usd, size)}>{formatMoney(view.amount, view.currency)}</span>;
@@ -272,11 +272,13 @@ function PatrimonyHero({
       </div>
 
       <div className="mt-3 flex flex-col gap-6 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between sm:gap-x-12">
+        {/* A 360 px manda la cifra: 28 px, tabular y sin partirse. El número
+            nunca se trunca; si no cabe, baja el tamaño antes que recortarlo. */}
         <div className="min-w-0">
           {masked ? (
-            <Masked label={hiddenLabel} className="num block text-[2rem] tracking-[0.14em] sm:text-[2.25rem]" />
+            <Masked label={hiddenLabel} className="num block text-[1.75rem] tracking-[0.14em] sm:text-[2.25rem]" />
           ) : pendingFx ? (
-            <Skeleton className="h-8 w-56 max-w-full sm:h-9" />
+            <Skeleton className="h-7 w-52 max-w-full sm:h-9" />
           ) : (
             <span className="-ml-1 block">
               <FlashPrice
@@ -285,7 +287,7 @@ function PatrimonyHero({
                 size="lg"
                 live={!hoverActive}
                 force={hoverForce}
-                className="block text-[2rem] leading-none font-medium tracking-tight tabular-nums sm:text-[2.25rem]"
+                className="block text-[1.75rem] leading-[1.05] font-medium tracking-tight tabular-nums whitespace-nowrap sm:text-[2.25rem]"
               />
             </span>
           )}
@@ -317,7 +319,7 @@ function PatrimonyHero({
 
           <div className="min-w-0">
             <dt className="label">{copy.invested}</dt>
-            <dd className="num mt-1.5 text-[15px] font-medium tracking-tight text-fg">
+            <dd className="num mt-1.5 text-[15px] font-medium tracking-tight whitespace-nowrap text-fg">
               {invested === null ? (
                 copy.emptyFigure
               ) : masked ? (
@@ -458,7 +460,7 @@ const ValueChart = memo(function ValueChart({
         label={fill(t.portfolio.chartLabel, { range: t.detail.rangeCaption[range] })}
         emptyLabel={t.detail.chartEmpty}
         emptyHint={t.detail.chartEmptyHint}
-        heightClassName="h-60 sm:h-72 lg:h-[360px]"
+        heightClassName="h-56 sm:h-64 lg:h-[340px]"
         onHover={onHover}
         reference={reference}
         benchmark={benchmark}
@@ -548,7 +550,7 @@ export function PortfolioScreen() {
           <Skeleton className="h-11 w-full rounded-full sm:w-48" />
           <Skeleton className="h-3 w-32" />
         </div>
-        <Skeleton className="h-64 w-full sm:h-72" />
+        <Skeleton className="h-56 w-full sm:h-64" />
         <div className="flex flex-col gap-4 border-t border-border pt-8">
           {["a", "b", "c", "d"].map((key) => (
             <div key={key} className="flex items-center gap-3">
@@ -693,6 +695,35 @@ export function PortfolioScreen() {
           />
         ) : (
           <>
+            {slices.length > 0 ? (
+              <section className="border-t border-border pt-8">
+                <div className="min-w-0">
+                  <h2 className="text-xl font-medium tracking-tight">{t.portfolio.allocation}</h2>
+                  <p className="mt-1 text-[13px] leading-relaxed text-fg-muted">{t.portfolio.allocationLabel}</p>
+                </div>
+
+                <div className="mt-5 grid gap-6 md:grid-cols-[200px_minmax(0,1fr)] md:items-center md:gap-12">
+                  <div className="hidden md:block">
+                    <PortfolioDonut slices={slices} />
+                  </div>
+                  <AllocationBar
+                    label={t.portfolio.allocationLabel}
+                    slices={slices}
+                    items={allocationItems}
+                    cashUsd={loaded.cashUsdc}
+                    totalUsd={loaded.totalUsd}
+                    formatValue={(usd) => {
+                      if (masked) return "••••";
+                      if (pendingFx) return "…";
+                      const view = moneyView(usd, currency, rate);
+                      return formatMoney(view.amount, view.currency);
+                    }}
+                    lang={language}
+                  />
+                </div>
+              </section>
+            ) : null}
+
             <section className="border-t border-border pt-8">
               <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-3">
                 <div className="flex min-w-0 items-center gap-1.5">
@@ -700,9 +731,9 @@ export function PortfolioScreen() {
                   <InfoTip label={`${copy.whatIsThis}. ${copy.avgCost}`} text={ui.positionsTip} />
                 </div>
 
-                <dl className="flex flex-wrap items-baseline gap-x-6 gap-y-2">
+                <dl className="flex w-full flex-col gap-1.5 sm:w-auto sm:flex-row sm:flex-wrap sm:items-baseline sm:gap-x-6 sm:gap-y-2">
                   <div className="flex min-w-0 items-baseline gap-2">
-                    <dt className="label">{copy.best}</dt>
+                    <dt className="label shrink-0">{copy.best}</dt>
                     <dd className="flex min-w-0 items-center gap-2">
                       {perf.best === null || !bestName ? (
                         <span className="text-[13px] text-fg-muted">{copy.emptyFigure}</span>
@@ -721,7 +752,7 @@ export function PortfolioScreen() {
 
                   {sameRank ? null : (
                     <div className="flex min-w-0 items-baseline gap-2">
-                      <dt className="label">{copy.worst}</dt>
+                      <dt className="label shrink-0">{copy.worst}</dt>
                       <dd className="flex min-w-0 items-center gap-2">
                         {perf.worst === null || !worstName ? (
                           <span className="text-[13px] text-fg-muted">{copy.emptyFigure}</span>
@@ -800,7 +831,7 @@ export function PortfolioScreen() {
                         }
                       />
                       {position.avgCostUsd !== null && Number.isFinite(position.avgCostUsd) ? (
-                        <p className="flex min-w-0 items-baseline gap-1.5 pb-3 pl-12 text-xs leading-4 text-fg-muted tabular-nums sm:pl-[3.25rem]">
+                        <p className="flex min-w-0 items-baseline gap-1.5 pb-3 pl-12 text-[13px] leading-4 text-fg-muted tabular-nums sm:pl-[3.25rem]">
                           <span className="shrink-0">{copy.avgCost}</span>
                           <MoneyLine
                             usd={position.avgCostUsd}
@@ -821,37 +852,6 @@ export function PortfolioScreen() {
                 })}
               </ul>
             </section>
-
-            {slices.length > 0 ? (
-              <section className="border-t border-border pt-8">
-                <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-2">
-                  <div className="min-w-0">
-                    <h2 className="text-xl font-medium tracking-tight">{t.portfolio.allocation}</h2>
-                    <p className="mt-1 text-[13px] text-fg-muted">{t.portfolio.allocationLabel}</p>
-                  </div>
-                </div>
-
-                <div className="mt-6 grid gap-8 md:grid-cols-[200px_minmax(0,1fr)] md:items-center md:gap-12">
-                  <div className="hidden md:block">
-                    <PortfolioDonut slices={slices} />
-                  </div>
-                  <AllocationBar
-                    label={t.portfolio.allocationLabel}
-                    slices={slices}
-                    items={allocationItems}
-                    cashUsd={loaded.cashUsdc}
-                    totalUsd={loaded.totalUsd}
-                    formatValue={(usd) => {
-                      if (masked) return "••••";
-                      if (pendingFx) return "…";
-                      const view = moneyView(usd, currency, rate);
-                      return formatMoney(view.amount, view.currency);
-                    }}
-                    lang={language}
-                  />
-                </div>
-              </section>
-            ) : null}
 
             <PortfolioHealthCard
               positions={loaded.positions}
@@ -876,10 +876,10 @@ export function PortfolioScreen() {
         )}
 
         <section className="border-t border-border pt-8">
-          <h2 className="text-xl font-medium tracking-tight">{t.portfolio.history}</h2>
-          <div className="mt-2">
+          <h2 className="text-lg font-medium tracking-tight">{t.portfolio.history}</h2>
+          <div>
             {activity.isPending ? (
-              <div role="status" aria-live="polite" aria-busy="true">
+              <div role="status" aria-live="polite" aria-busy="true" className="mt-4">
                 <span className="sr-only">{t.states.loading}</span>
                 <Skeleton className="h-16 w-full rounded-xl" />
               </div>

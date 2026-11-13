@@ -3,8 +3,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 const ROWS = ["a", "b", "c", "d"] as const;
 
 /**
- * Esqueleto de la cartera: encabezado, hero patrimonial, gráfico y filas de
- * posiciones. Repite la retícula de la vista para que el cambio no salte.
+ * Esqueleto de la cartera: encabezado, hero patrimonial, gráfico, reparto y
+ * filas de posiciones. Repite la retícula y el orden de la vista para que el
+ * cambio no salte.
  */
 export default function CarteraLoading() {
   return (
@@ -19,7 +20,7 @@ export default function CarteraLoading() {
 
         <div className="flex flex-col">
           <Skeleton className="h-3 w-24" />
-          <Skeleton className="mt-4 h-8 w-56 max-w-full sm:h-9" />
+          <Skeleton className="mt-3 h-7 w-56 max-w-full sm:h-9" />
           <div className="mt-8 flex flex-wrap gap-x-10 gap-y-5 border-t border-border pt-5">
             <div className="flex flex-col gap-2">
               <Skeleton className="h-3 w-24" />
@@ -42,9 +43,24 @@ export default function CarteraLoading() {
 
       <div className="flex flex-col gap-3">
         <Skeleton className="h-3 w-24" />
-        <Skeleton className="h-8 w-48 max-w-full" />
+        <Skeleton className="h-6 w-32" />
         <Skeleton className="h-11 w-full rounded-full sm:w-64" />
-        <Skeleton className="h-60 w-full sm:h-72 lg:h-[360px]" />
+        <Skeleton className="h-56 w-full sm:h-64 lg:h-[340px]" />
+      </div>
+
+      {/* Reparto: barra y tres filas, el mismo orden que la vista final. */}
+      <div className="flex flex-col gap-3 border-t border-border pt-8">
+        <Skeleton className="h-6 w-40" />
+        <Skeleton className="h-3 w-56 max-w-full" />
+        <Skeleton className="mt-2 h-2.5 w-full rounded-full" />
+        {["a", "b", "c"].map((key) => (
+          <div key={key} className="flex items-center gap-3 py-2">
+            <Skeleton className="size-2 shrink-0 rounded-full" />
+            <Skeleton className="h-3.5 flex-1" />
+            <Skeleton className="h-3.5 w-10 shrink-0" />
+            <Skeleton className="h-3.5 w-20 shrink-0" />
+          </div>
+        ))}
       </div>
 
       <div className="border-t border-border pt-8">

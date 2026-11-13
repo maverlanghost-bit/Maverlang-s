@@ -43,7 +43,7 @@ export function DividendMultiplierCard({
     <section className="border-t border-border pt-8">
       <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-2">
         <div className="min-w-0 max-w-prose">
-          <h2 className="text-xl font-medium tracking-tight text-balance text-fg">
+          <h2 className="text-lg font-medium tracking-tight text-balance text-fg">
             {isEn ? "Dividend multiplier" : "Multiplicador de dividendos"}
           </h2>
           <p className="mt-1 text-[13px] leading-relaxed text-fg-muted">
@@ -99,13 +99,18 @@ export function DividendMultiplierCard({
                       ? `${EXAMPLE_RAW_UNITS} × ${formatMultiplier(multiplier)} = ${formatShares(exampleShares)}`
                       : "—"}
                   </p>
-                  <p className="num text-[13px] font-medium tracking-tight text-fg">
-                    {exampleValueUsd !== null
-                      ? formatValue(exampleValueUsd)
-                      : isEn
-                        ? "No quote"
-                        : "Sin cotización"}
+                  <p className="num text-[13px] leading-snug font-medium tracking-tight text-fg">
+                    {exampleValueUsd !== null ? (
+                      formatValue(exampleValueUsd)
+                    ) : (
+                      <span className="text-fg-muted" aria-hidden="true">
+                        —
+                      </span>
+                    )}
                   </p>
+                  {exampleValueUsd === null ? (
+                    <span className="sr-only">{isEn ? "No quote" : "Sin cotización"}</span>
+                  ) : null}
                 </div>
               )}
             </li>

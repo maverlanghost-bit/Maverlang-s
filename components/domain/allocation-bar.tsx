@@ -132,13 +132,15 @@ export function AllocationBar({
                   style={{ backgroundColor: slice.color }}
                   aria-hidden="true"
                 />
-                <span className="min-w-0 flex-1 truncate text-[13px] leading-tight font-medium text-fg">
+                {/* El nombre envuelve en vez de cortarse; el monto nunca se
+                    trunca: si no cabe, cede ancho el nombre. */}
+                <span className="line-clamp-2 min-w-0 flex-1 text-[13px] leading-snug font-medium text-fg">
                   {slice.label}
                 </span>
-                <span className="num w-11 shrink-0 text-right text-[13px] leading-tight tabular-nums text-fg-muted">
+                <span className="num w-10 shrink-0 text-right text-[13px] leading-tight tabular-nums text-fg-muted">
                   {formatPortion(slice.pct)}
                 </span>
-                <span className="num w-24 shrink-0 truncate text-right text-[13px] leading-tight font-medium tabular-nums text-fg sm:w-32">
+                <span className="num shrink-0 text-right text-[13px] leading-tight font-medium tabular-nums whitespace-nowrap text-fg">
                   {slice.valueLabel}
                 </span>
               </button>

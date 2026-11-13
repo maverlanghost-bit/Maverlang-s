@@ -209,7 +209,7 @@ export function PortfolioValueChart({
           <>
             <span
               className={cn(
-                "num text-xl leading-none font-medium tracking-tight whitespace-nowrap sm:text-2xl",
+                "num text-lg leading-none font-medium tracking-tight whitespace-nowrap sm:text-2xl",
                 amountTone(period.deltaUsd),
               )}
             >
@@ -232,7 +232,7 @@ export function PortfolioValueChart({
         {pending ? (
           <div role="status" aria-live="polite" aria-busy="true">
             <span className="sr-only">{t.states.loading}</span>
-            <Skeleton className="h-60 w-full sm:h-72 lg:h-[360px]" />
+            <Skeleton className="h-56 w-full sm:h-64 lg:h-[340px]" />
           </div>
         ) : failed ? (
           <ErrorState

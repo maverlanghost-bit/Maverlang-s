@@ -84,7 +84,9 @@ export function PositionRow({
           />
 
           <span className="min-w-0">
-            <span className="block truncate text-[15px] leading-tight font-medium tracking-tight text-fg">
+            {/* El nombre envuelve hasta dos líneas: truncarlo dejaba "NVIDIA
+                Corporat…" en 360 px y no hay forma de ver el resto. */}
+            <span className="line-clamp-2 text-[15px] leading-snug font-medium tracking-tight break-words text-fg">
               {name}
             </span>
             <span className="mt-1 flex min-w-0 items-baseline gap-1.5 text-[13px] leading-none">
