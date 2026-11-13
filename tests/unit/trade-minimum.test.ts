@@ -5,7 +5,7 @@ import { esCL } from "@/content/i18n/es-CL";
 import { formatMoney } from "@/lib/format";
 import { displayPrice } from "@/lib/market/browse";
 import { effectiveMinOrderUsd } from "@/lib/market/asset-status.shared";
-import { amountBlock, minInCurrency, quickTradeAmounts } from "@/lib/trade/amount";
+import { amountBlock, maxAmount, minInCurrency, quickTradeAmounts } from "@/lib/trade/amount";
 
 const FX = 950;
 const PRICE = 228.4;
@@ -81,5 +81,19 @@ describe("M43b: mínimo efectivo de compra", () => {
     const message = esCL.trade.min.replace("{amount}", shownMinimum(minUsd, "CLP", FX));
     expect(message).toContain("$9.500");
     expect(message).not.toContain("$950");
+  });
+});
+
+describe("compra por número de acciones", () => {
+  const base = { side: "buy" as const, cashUsdc: CASH, shares: 0, fx: FX, priceUsd: PRICE };
+  it("el tope es el saldo dividido por el precio", () => {
+    expect(maxAmount({ ...base, currency: "SHARES" })).toBeCloseTo(CASH / PRICE, 8);
+    expect(maxAmount({ ...base, currency: "SHARES", priceUsd: null })).toBeNull();
+  });
+  it("1 acción con saldo suficiente no se bloquea; sin saldo pide fondos", () => {
+    const input = { ...base, currency: "SHARES" as const, fxPending: false, pricePending: false, portfolioPending: false };
+    expect(amountBlock({ ...input, amount: 1 })).toBeNull();
+    expect(amountBlock({ ...input, amount: 2 })).toBe("funds");
+    expect(amountBlock({ ...input, amount: 1, priceUsd: null })).toBe("price");
   });
 });

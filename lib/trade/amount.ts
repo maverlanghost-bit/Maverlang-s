@@ -38,6 +38,11 @@ export function maxAmount(input: {
 }): number | null {
   const { side, currency, cashUsdc, shares, fx, priceUsd } = input;
   if (side === "buy") {
+    if (currency === "SHARES") {
+      // Comprar por número de acciones: el tope es el saldo al precio vigente.
+      if (!(priceUsd && priceUsd > 0)) return null;
+      return Math.max(0, cashUsdc / priceUsd);
+    }
     if (currency !== "CLP" && currency !== "USDC") return null;
     if (currency === "USDC") return Math.max(0, cashUsdc);
     if (!(fx && fx > 0)) return null;
