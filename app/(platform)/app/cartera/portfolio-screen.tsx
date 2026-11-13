@@ -672,6 +672,26 @@ export function PortfolioScreen() {
           <p className={cn("text-[13px] text-fg-muted", hasPositions && "-mt-4")}>{t.detail.fxFallback}</p>
         ) : null}
 
+        {/* Sin posiciones el héroe no se pinta, pero el disponible para invertir
+            sigue a la vista (como en main): es el primer dato de una cuenta nueva. */}
+        {hasPositions ? null : (
+          <section className="flex flex-col">
+            <h2 className="label">{t.portfolio.available}</h2>
+            <div className="mt-1.5 flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
+              {masked ? (
+                <Masked label={t.shell.balanceHidden} className="text-xl" />
+              ) : pendingFx ? (
+                <Skeleton className="h-6 w-24" />
+              ) : (
+                <span className="num text-xl font-medium tracking-tight tabular-nums text-fg">
+                  {formatMoney(moneyView(loaded.cashUsdc, currency, rate).amount, moneyView(loaded.cashUsdc, currency, rate).currency)}
+                </span>
+              )}
+              <span className="text-[13px] text-fg-muted">{t.portfolio.availableNote}</span>
+            </div>
+          </section>
+        )}
+
         {loaded.positions.length === 0 ? (
           <EmptyState
             title={t.portfolio.emptyTitle}
