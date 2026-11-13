@@ -43,7 +43,7 @@ export function TopBar({
     <>
       {hideMobileCluster ? null : (
         <div className="fixed inset-x-0 top-0 z-30 overflow-x-clip border-b border-border bg-bg/90 pt-[env(safe-area-inset-top)] backdrop-blur-xl lg:hidden">
-          <div className="mx-auto flex h-14 w-full max-w-6xl items-center gap-2 px-5">
+          <div className="mx-auto flex h-14 w-full min-w-0 max-w-6xl items-center gap-2 px-5">
             <div className="min-w-0 flex-1">
               <StockSearchButton />
             </div>
@@ -51,7 +51,7 @@ export function TopBar({
             <Link
               href="/app/perfil"
               aria-label={label}
-              className="relative flex size-11 shrink-0 items-center justify-center rounded-full transition-colors duration-150 hover:bg-surface-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fg"
+              className="relative flex size-11 shrink-0 touch-manipulation items-center justify-center rounded-full transition-colors duration-150 hover:bg-surface-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fg"
             >
               {account.loading ? (
                 <Skeleton className="size-8 rounded-full" />

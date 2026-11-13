@@ -79,7 +79,7 @@ function SkipLink({ label }: { label: string }) {
   return (
     <a
       href="#contenido"
-      className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-full focus:bg-fg focus:px-4 focus:py-2 focus:text-sm focus:text-white"
+      className="sr-only focus:not-sr-only focus:fixed focus:top-[max(0.75rem,env(safe-area-inset-top))] focus:left-4 focus:z-[60] focus:inline-flex focus:min-h-11 focus:items-center focus:rounded-full focus:bg-fg focus:px-5 focus:text-sm focus:font-medium focus:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border-strong"
     >
       {label}
     </a>
@@ -127,7 +127,7 @@ function ShellFrame({
             <TopBar accountMode={account.mode} hideMobileCluster={assistantRoute} />
             <div
               className={cn(
-                "mx-auto flex w-full max-w-6xl flex-1 flex-col px-5 pb-[var(--app-tabs-height)] lg:px-8 lg:pb-0 lg:pt-8",
+                "mx-auto flex w-full max-w-6xl min-w-0 flex-1 flex-col px-5 pb-[var(--app-tabs-height)] lg:px-8 lg:pb-0 lg:pt-8",
                 assistantRoute ? "pt-0" : "pt-[calc(env(safe-area-inset-top)+4.5rem)]",
               )}
             >

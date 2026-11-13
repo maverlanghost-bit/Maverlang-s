@@ -22,7 +22,7 @@ const sizeClass: Record<ButtonSize, string> = {
 };
 
 export const buttonBase =
-  "inline-flex touch-manipulation items-center justify-center rounded-full font-medium select-none transition duration-[140ms] ease-spring active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fg focus-visible:ring-offset-2 focus-visible:ring-offset-bg disabled:pointer-events-none disabled:opacity-50";
+  "inline-flex max-w-full touch-manipulation items-center justify-center rounded-full font-medium select-none transition duration-[140ms] ease-spring active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fg focus-visible:ring-offset-2 focus-visible:ring-offset-bg disabled:pointer-events-none disabled:opacity-50";
 
 export function buttonClasses({
   variant = "primary",

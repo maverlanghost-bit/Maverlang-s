@@ -136,6 +136,7 @@
   line-height: 1.15;
   text-decoration: none;
   user-select: none;
+  touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
   transition: color 160ms ease;
 }
@@ -291,6 +292,8 @@
   color: light-dark(var(--color-fg-muted, #5b5e63), rgb(204 204 204));
   background: transparent;
   text-decoration: none;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
   transition:
     background-color 160ms ease,
     color 160ms ease;

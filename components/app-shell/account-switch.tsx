@@ -70,7 +70,7 @@ export function AccountSwitch({
             type="button"
             onClick={() => pick(next)}
             aria-label={`${t.account.typeLabel}: ${t.account[mode]}. ${label}`}
-            className="flex size-11 cursor-pointer items-center justify-center rounded-xl transition duration-200 ease-spring hover:bg-surface-2 active:scale-[0.98]"
+            className="flex size-11 cursor-pointer touch-manipulation items-center justify-center rounded-xl transition duration-200 ease-spring hover:bg-surface-2 active:scale-[0.98]"
           >
             <span
               aria-hidden
@@ -118,7 +118,7 @@ export function AccountSwitch({
               tabIndex={active ? 0 : -1}
               onClick={() => pick(option.value)}
               className={cn(
-                "min-h-11 min-w-0 cursor-pointer rounded-full px-1.5 text-[12px] leading-tight transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-fg",
+                "min-h-11 min-w-0 cursor-pointer touch-manipulation rounded-full px-2 text-[12px] leading-tight transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-fg",
                 active
                   ? "bg-bg font-medium text-fg shadow-raised ring-1 ring-border"
                   : "text-fg-muted hover:text-fg",

@@ -188,7 +188,7 @@ export function AmountInput({
           "mt-2 flex min-w-0 items-baseline gap-2 border-b pb-2.5 transition duration-150",
           invalid
             ? "border-down"
-            : "border-border-control hover:border-fg focus-within:border-fg focus-within:shadow-[inset_0_-1px_0_#0a0a0a]",
+            : "border-border-control hover:border-fg focus-within:border-fg focus-within:shadow-[inset_0_-2px_0_var(--color-fg)]",
         )}
       >
         <input
@@ -232,7 +232,7 @@ export function AmountInput({
               disabled={chip.value === "max" && max === undefined}
               onClick={() => applyQuick(chip.value)}
               className={cn(
-                "inline-flex min-h-11 min-w-11 items-center justify-center rounded-md px-2 text-[12px] leading-none font-medium tracking-[0.01em] tabular-nums transition-colors duration-150 hover:bg-surface-1 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50 sm:min-h-9",
+                "inline-flex min-h-11 min-w-11 touch-manipulation items-center justify-center rounded-md px-2 text-[12px] leading-none font-medium tracking-[0.01em] tabular-nums transition-colors duration-150 hover:bg-surface-1 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50 sm:min-h-9",
                 pressed
                   ? "text-fg underline decoration-fg decoration-1 underline-offset-4"
                   : "text-fg-muted hover:text-fg",
@@ -297,7 +297,7 @@ function CurrencySwitch({
             tabIndex={selected ? 0 : -1}
             onClick={() => onChange(option)}
             className={cn(
-              "min-h-11 rounded-full px-3 text-xs font-medium tracking-[0.01em] transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fg focus-visible:ring-inset sm:min-h-9",
+              "min-h-11 cursor-pointer touch-manipulation rounded-full px-3 text-xs font-medium tracking-[0.01em] transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-fg sm:min-h-9",
               /* Seleccionado sin depender del color: el anillo de 1 px aparece
                  sólo en la opción activa (la píldora gris sola daba 1,1:1). */
               selected

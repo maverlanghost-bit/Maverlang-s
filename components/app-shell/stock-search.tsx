@@ -35,6 +35,8 @@ import type { Currency, Quote } from "@/lib/types";
 const SEARCH_MS = 300;
 const PAGE_SIZE = 20;
 
+const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
 type PopoverBox = { top: number; left: number; width: number; maxHeight: number };
 type Placement = { sheet: boolean; box: PopoverBox | null };
 
@@ -273,15 +275,35 @@ function StockSearchPanel({
     };
   }, [anchorRef]);
 
-  /** La hoja móvil tapa la página: el body no scrollea por detrás. */
+  /**
+   * La hoja móvil tapa la página: el body no scrollea por detrás. Se compensa
+   * el ancho de la barra de scroll para que no haya salto de layout.
+   */
   useEffect(() => {
     if (!sheet) return;
-    const previous = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
+    const body = document.body;
+    const scrollbar = window.innerWidth - document.documentElement.clientWidth;
+    const overflow = body.style.overflow;
+    const paddingRight = body.style.paddingRight;
+    body.style.overflow = "hidden";
+    if (scrollbar > 0) body.style.paddingRight = `${scrollbar}px`;
     return () => {
-      document.body.style.overflow = previous;
+      body.style.overflow = overflow;
+      body.style.paddingRight = paddingRight;
     };
   }, [sheet]);
+
+  /** Escape cierra desde cualquier punto, incluso con el foco fuera del campo. */
+  useEffect(() => {
+    if (!sheet && !box) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      onDismiss();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [sheet, box, onDismiss]);
 
   useEffect(() => {
     if (!mounted || (!sheet && !box) || focused.current) return;
@@ -365,15 +387,26 @@ function StockSearchPanel({
           : { top: box.top, left: box.left, width: box.width, maxHeight: box.maxHeight }
       }
       onKeyDown={(event) => {
-        if (event.key === "Escape") {
+        if (event.key !== "Tab" || !sheet) return;
+        const panel = panelRef.current;
+        if (!panel) return;
+        const items = Array.from(panel.querySelectorAll<HTMLElement>(FOCUSABLE));
+        const first = items[0];
+        const last = items[items.length - 1];
+        if (!first || !last) return;
+        const active = document.activeElement;
+        if (event.shiftKey && (active === first || !panel.contains(active))) {
           event.preventDefault();
-          onDismiss();
+          last.focus();
+        } else if (!event.shiftKey && active === last) {
+          event.preventDefault();
+          first.focus();
         }
       }}
     >
       <form
         role="search"
-        className="flex items-center gap-2 border-b border-border p-2.5"
+        className="flex shrink-0 items-center gap-2 border-b border-border p-2.5"
         onSubmit={(event) => {
           event.preventDefault();
           const row = rows[activeIndex];
@@ -411,7 +444,7 @@ function StockSearchPanel({
                 setActive((value) => (rows.length === 0 ? 0 : (value - 1 + rows.length) % rows.length));
               }
             }}
-            className="h-10 min-w-0 flex-1 border-0 bg-transparent px-0 text-[15px] outline-none focus-visible:border-0"
+            className="h-11 min-w-0 flex-1 border-0 bg-transparent px-0 text-base outline-none focus-visible:border-0"
           />
           {draft ? null : (
             <kbd
@@ -432,7 +465,7 @@ function StockSearchPanel({
         </button>
       </form>
 
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-1.5">
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-1.5 [scrollbar-width:thin]">
         {needle.length === 0 ? (
           <div className="flex flex-col items-center gap-2.5 px-6 py-10 text-center">
             <IconSearch className="size-5 text-fg-subtle" />

@@ -16,7 +16,7 @@ export default function PlatformError({ error, reset }: { error: unknown; reset:
   }, [error]);
 
   return (
-    <div role="alert" className="flex max-w-xl flex-col items-start gap-5 py-10 sm:py-14">
+    <div role="alert" className="mx-auto flex w-full max-w-md flex-col items-center gap-6 py-16 text-center sm:py-24">
       <p className="font-mono text-[13px] leading-5 font-medium tracking-[0.045em] text-fg-muted uppercase">
         Error
       </p>
@@ -24,12 +24,12 @@ export default function PlatformError({ error, reset }: { error: unknown; reset:
         <h1 className="text-3xl leading-[1.1] tracking-tight text-balance sm:text-4xl">
           No pudimos cargar esta pantalla
         </h1>
-        <p className="max-w-md text-sm leading-relaxed text-pretty text-fg-muted">
+        <p className="text-sm leading-relaxed text-pretty text-fg-muted">
           Puede ser un problema momentáneo. Reintenta; si sigue igual, vuelve al inicio y sigue desde ahí.
         </p>
       </div>
-      <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
-        <Button onClick={() => reset()} className="min-h-11">
+      <div className="flex w-full flex-col items-center gap-3 sm:w-auto sm:flex-row sm:gap-5">
+        <Button onClick={() => reset()} className="w-full sm:w-auto">
           Reintentar
         </Button>
         <Link

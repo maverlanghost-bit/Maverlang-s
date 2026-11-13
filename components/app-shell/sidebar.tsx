@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import Link from "next/link";
 import { BrandFavicon } from "@/components/app-shell/brand-image";
 import { usePathname } from "next/navigation";
@@ -185,20 +185,23 @@ function AccountMenuPanel({
   onLogout,
   logoutDisabled,
   labels,
+  panelRef,
 }: {
   open: boolean;
   onClose: () => void;
   onLogout: () => void;
   logoutDisabled: boolean;
   labels: AccountMenuLabels;
+  panelRef: RefObject<HTMLDivElement | null>;
 }) {
   if (!open) return null;
 
   const item =
-    "flex min-h-11 w-full items-center rounded-lg px-3 text-left text-sm text-fg-body transition-colors hover:bg-surface-1 hover:text-fg";
+    "flex min-h-11 w-full items-center rounded-lg px-3 text-left text-sm text-fg-body transition-colors hover:bg-surface-1 hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-fg";
 
   return (
     <div
+      ref={panelRef}
       role="menu"
       aria-label={labels.account}
       className="absolute inset-x-0 bottom-full z-40 mb-2 flex flex-col rounded-xl border border-border bg-bg p-1.5 shadow-float"
@@ -234,15 +237,18 @@ function AccountTrigger({
   label,
   open,
   onClick,
+  triggerRef,
 }: {
   name: string;
   email: string | null;
   label: string;
   open: boolean;
   onClick: () => void;
+  triggerRef: RefObject<HTMLButtonElement | null>;
 }) {
   return (
     <button
+      ref={triggerRef}
       type="button"
       aria-haspopup="menu"
       aria-expanded={open}
@@ -287,6 +293,8 @@ export function Sidebar({
   /** Menú del perfil: Perfil, Ajustes, moneda y salir. */
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const accountTriggerRef = useRef<HTMLButtonElement>(null);
+  const accountPanelRef = useRef<HTMLDivElement>(null);
   const session = useSession();
   const userId = session.user?.id ?? null;
   const chatScope = useMemo(() => resolveChatScope(session.status, userId), [session.status, userId]);
@@ -336,12 +344,40 @@ export function Sidebar({
     return () => document.removeEventListener("pointerdown", onPointerDown);
   }, [menuOpen]);
 
-  /** Escape cierra el menú aunque el foco se haya ido a otro control del riel. */
+  /**
+   * Menú del perfil con teclado: al abrir, el foco entra al primer ítem; las
+   * flechas recorren la lista, Escape cierra y devuelve el foco al disparador.
+   */
   useEffect(() => {
     if (!menuOpen) return;
+    const panel = accountPanelRef.current;
+    const items = (): HTMLElement[] => (panel ? Array.from(panel.querySelectorAll<HTMLElement>('[role="menuitem"]')) : []);
+    items()[0]?.focus();
+
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setMenuOpen(false);
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setMenuOpen(false);
+        accountTriggerRef.current?.focus();
+        return;
+      }
+      if (event.key !== "ArrowDown" && event.key !== "ArrowUp" && event.key !== "Home" && event.key !== "End") return;
+      const list = items();
+      if (list.length === 0) return;
+      event.preventDefault();
+      const active = document.activeElement;
+      const current = active instanceof HTMLElement ? list.indexOf(active) : -1;
+      const next =
+        event.key === "Home"
+          ? 0
+          : event.key === "End"
+            ? list.length - 1
+            : event.key === "ArrowDown"
+              ? (current + 1) % list.length
+              : (current - 1 + list.length) % list.length;
+      list[next]?.focus();
     };
+
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
   }, [menuOpen]);
@@ -453,7 +489,7 @@ export function Sidebar({
         </div>
       ) : null}
 
-      <nav aria-label={t.nav.label} className="flex-1 overflow-y-auto px-4 pt-1 pb-2">
+      <nav aria-label={t.nav.label} className="flex-1 overflow-y-auto overscroll-contain px-4 pt-1 pb-2">
         {isAiRoute ? (
           collapsed ? (
             <ul className="flex flex-col items-center gap-0.5">
@@ -584,6 +620,7 @@ export function Sidebar({
             onLogout={() => void account.logout()}
             logoutDisabled={account.status === "loading"}
             labels={menuLabels}
+            panelRef={accountPanelRef}
           />
           {loading ? (
             <div className="flex min-h-11 items-center rounded-lg px-1.5">
@@ -608,6 +645,7 @@ export function Sidebar({
               label={`${name}. ${t.shell.account}`}
               open={menuOpen}
               onClick={() => setMenuOpen((open) => !open)}
+              triggerRef={accountTriggerRef}
             />
           )}
         </div>
