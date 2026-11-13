@@ -6,9 +6,8 @@ import { FraccionProLink } from "@/components/copy/fraccion-pro-link";
 import { FraccionSeal } from "@/components/copy/fraccion-seal";
 import { LegalNote } from "@/components/copy/legal-note";
 import { PlansPanel } from "@/components/copy/plan-card";
-import { Badge } from "@/components/ui/badge";
-import { buttonClasses } from "@/components/ui/button";
-import { COPY_BILLING_SOON, COPY_CTA_NOTE, COPY_LEGAL_PENDING_LABEL, COPY_TERMS_DRAFT } from "@/content/copy-legal";
+import { IconBack } from "@/components/ui/icons";
+import { COPY_BILLING_SOON, COPY_LEGAL_PENDING_LABEL, COPY_TERMS_DRAFT } from "@/content/copy-legal";
 import { isCopyBillingEnabled, isCopyEnabled } from "@/lib/copy/flags";
 
 /**
@@ -34,26 +33,26 @@ function one(value: string | string[] | undefined): string {
 
 function PageHeader() {
   return (
-    <header className="flex flex-col gap-3">
-      <div className="flex flex-wrap items-end justify-between gap-4">
+    <header className="flex flex-col gap-4">
+      <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between sm:gap-10">
         <div className="min-w-0">
-          <h1 className="text-2xl font-semibold tracking-tight text-balance sm:text-3xl">
+          <h1 className="text-3xl leading-[1.1] tracking-tight text-balance sm:text-4xl">
             Planes de Copiar carteras
           </h1>
-          <p className="mt-2 max-w-2xl text-sm leading-relaxed text-fg-muted">
+          <p className="mt-3 max-w-2xl text-[15px] leading-6 text-pretty text-fg-muted">
             Carteras reconstruidas por Fraccion.si, con la fecha del dato y su atraso a la vista. La
-            suscripción abre la composición completa, los movimientos y la mezcla de compra; cada orden la
-            confirmas y la firmas tú.
+            suscripción abre la composición completa, los movimientos y la mezcla de compra; cada orden
+            la confirmas y la firmas tú.
           </p>
         </div>
         <Link
           href="/app/copiar"
-          className={buttonClasses({ variant: "ghost", size: "md", className: "shrink-0" })}
+          className="-ml-2 inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full px-2 text-[13px] font-medium text-fg-muted transition-colors duration-150 hover:bg-surface-1 hover:text-fg sm:mb-1"
         >
+          <IconBack className="size-4" />
           Volver al catálogo
         </Link>
       </div>
-      <FraccionSeal />
     </header>
   );
 }
@@ -77,7 +76,7 @@ export default async function PlanesPage({
 
   if (!enabled) {
     return (
-      <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-8">
         <PageHeader />
         <CopySoonState />
       </div>
@@ -85,12 +84,8 @@ export default async function PlanesPage({
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-10">
       <PageHeader />
-
-      <p className="rounded-xl border border-border bg-surface-1 p-3 text-sm font-medium text-fg-body">
-        {COPY_CTA_NOTE}
-      </p>
 
       <PlansPanel
         billingEnabled={billingEnabled}
@@ -101,20 +96,22 @@ export default async function PlanesPage({
       <FraccionProLink />
 
       <section className="flex flex-col gap-2">
-        <p className="text-sm leading-relaxed text-fg-muted">
-          El cobro lo procesa Mercado Pago. Maverlang no guarda los datos de tu tarjeta y el acceso se activa
-          cuando el pago queda confirmado, no al volver de la pasarela.
+        <p className="max-w-prose text-[13px] leading-relaxed text-fg-muted">
+          El cobro lo procesa Mercado Pago. Maverlang no guarda los datos de tu tarjeta y el acceso se
+          activa cuando el pago queda confirmado, no al volver de la pasarela.
         </p>
-        <LegalNote disclaimer />
+        <FraccionSeal />
+        <LegalNote cta disclaimer />
       </section>
 
-      <section aria-labelledby="terminos-titulo" className="flex flex-col gap-2">
-        <div className="flex flex-wrap items-center gap-2">
-          <h2 id="terminos-titulo" className="text-base font-semibold tracking-tight">
-            Términos de la suscripción
-          </h2>
-          <Badge tone="warn">{COPY_LEGAL_PENDING_LABEL}</Badge>
-        </div>
+      <section
+        aria-labelledby="terminos-titulo"
+        className="flex flex-col gap-2 border-t border-border pt-6"
+      >
+        <h2 id="terminos-titulo" className="text-lg font-medium tracking-tight">
+          Términos de la suscripción
+        </h2>
+        <p className="text-[13px] leading-5 text-fg-muted">{COPY_LEGAL_PENDING_LABEL}</p>
         <p className="max-w-3xl whitespace-pre-line text-[13px] leading-relaxed text-fg-muted">
           {COPY_TERMS_DRAFT}
         </p>

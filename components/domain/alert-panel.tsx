@@ -28,7 +28,7 @@ export function AlertsPanel() {
   return (
     <section className="flex min-w-0 flex-col gap-3" aria-labelledby="avisos-precio">
       <div className="flex items-center justify-between gap-2">
-        <h2 id="avisos-precio" className="min-w-0 text-lg font-semibold tracking-tight text-fg">
+        <h2 id="avisos-precio" className="min-w-0 text-lg font-medium tracking-tight text-fg">
           {copy.alertsTitle}
         </h2>
         <InfoTip label={`${copy.alertsTitle}. ${copy.disclaimer}`} text={copy.alertsLead} />
@@ -40,12 +40,12 @@ export function AlertsPanel() {
         </div>
       ) : null}
       {session.status === "unauthenticated" ? (
-        <div className="flex flex-col gap-3 rounded-2xl border border-border/70 p-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-3 rounded-2xl border border-border p-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0">
             <p className="font-medium text-fg">{copy.signInTitle}</p>
             <p className="mt-1 text-sm leading-relaxed text-fg-muted">{copy.signInBody}</p>
           </div>
-          <Button asChild size="lg" className="min-h-11 w-full shrink-0 whitespace-nowrap sm:w-auto">
+          <Button asChild size="lg" className="min-h-12 w-full shrink-0 whitespace-nowrap sm:w-auto">
             <Link href={ingresarPath("/app/favoritas")}>{copy.signInAction}</Link>
           </Button>
         </div>
@@ -125,8 +125,9 @@ function AlertsList({ copy }: { copy: AlertasMessages }) {
       </p>
       {alerts.data?.storage === "memory" ? <p className="text-sm text-fg-muted">{copy.memoryNote}</p> : null}
       {error ? (
-        <p role="alert" className="text-sm text-down">
-          {error}
+        <p role="alert" className="flex items-start gap-2 text-sm leading-relaxed text-down">
+          <span aria-hidden="true" className="mt-2 size-1.5 shrink-0 rounded-full bg-down" />
+          <span className="min-w-0 text-pretty">{error}</span>
         </p>
       ) : null}
       {rows.length === 0 ? <p className="text-sm text-fg-muted">{copy.alertsEmpty}</p> : null}
@@ -141,7 +142,7 @@ function AlertsList({ copy }: { copy: AlertasMessages }) {
             return (
               <li
                 key={alert.id}
-                className="flex h-14 min-w-0 items-center gap-2 rounded-2xl border border-border/70 px-3"
+                className="flex min-h-14 min-w-0 items-center gap-2 rounded-2xl border border-border py-2 pr-2 pl-4"
               >
                 <div className="min-w-0 flex-1">
                   <Link
@@ -177,8 +178,9 @@ function AlertsList({ copy }: { copy: AlertasMessages }) {
         description={confirmRow ? `${confirmSentence} ${fillAlert(copy.confirmBody, { symbol: confirmRow.symbol })}` : undefined}
       >
         {error ? (
-          <p role="alert" className="mb-3 text-sm text-down">
-            {error}
+          <p role="alert" className="mb-3 flex items-start gap-2 text-sm leading-relaxed text-down">
+            <span aria-hidden="true" className="mt-2 size-1.5 shrink-0 rounded-full bg-down" />
+            <span className="min-w-0 text-pretty">{error}</span>
           </p>
         ) : null}
         <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
@@ -186,7 +188,7 @@ function AlertsList({ copy }: { copy: AlertasMessages }) {
             type="button"
             variant="secondary"
             size="lg"
-            className="min-h-11 w-full whitespace-nowrap sm:w-auto"
+            className="min-h-12 w-full whitespace-nowrap sm:w-auto"
             disabled={pendingId !== null}
             onClick={() => setConfirmId(null)}
           >
@@ -196,7 +198,7 @@ function AlertsList({ copy }: { copy: AlertasMessages }) {
             type="button"
             variant="danger"
             size="lg"
-            className="min-h-11 w-full whitespace-nowrap sm:w-auto"
+            className="min-h-12 w-full whitespace-nowrap sm:w-auto"
             disabled={pendingId !== null || confirmRow === null}
             loading={pendingId !== null}
             onClick={() => {

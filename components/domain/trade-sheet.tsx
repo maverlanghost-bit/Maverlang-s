@@ -2,7 +2,7 @@
 
 import { useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
-import { useEffect, useId, useRef, useState, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type ComponentProps, type ReactNode } from "react";
 
 import { CostBreakdown } from "@/components/domain/cost-breakdown";
 import { TradeImpactPreview } from "@/components/domain/trade-impact-preview";
@@ -13,6 +13,7 @@ import { TradeExecutionStepper } from "@/components/domain/trade-execution-stepp
 import { AmountInput } from "@/components/ui/amount-input";
 import { Button } from "@/components/ui/button";
 import { ErrorState } from "@/components/ui/error-state";
+import { IconBack, IconCheck } from "@/components/ui/icons";
 import { Sheet } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { site } from "@/config/site";
@@ -23,7 +24,7 @@ import { useSession } from "@/lib/auth";
 import { signDemoTransaction, useSignTrade } from "@/lib/auth/sign-transaction";
 import { isRealAccountUiBlocked } from "@/lib/account/real-ui-gate";
 import { cn } from "@/lib/cn";
-import { formatMoney, formatShares } from "@/lib/format";
+import { formatDateTime, formatMoney, formatShares } from "@/lib/format";
 import { useAccountMode } from "@/lib/hooks/use-account-mode";
 import { SPOT_MS, useAssetStatus, useFx, useMarketStatus, usePortfolio, usePrices } from "@/lib/hooks/queries";
 import { useT } from "@/lib/hooks/use-t";
@@ -72,6 +73,11 @@ function fill(template: string, values: Record<string, string>) {
   let next = template;
   for (const [key, value] of Object.entries(values)) next = next.split(`{${key}}`).join(value);
   return next;
+}
+
+/** «Disponible {amount}» → «Disponible». Reutiliza el texto ya traducido. */
+function templateLabel(template: string) {
+  return template.split("{amount}")[0]?.trim() ?? template;
 }
 
 function countdownLabel(ms: number) {
@@ -130,7 +136,11 @@ function shownMoney(usd: number, currency: Currency, rate: number | null | undef
   return formatMoney(value, currency);
 }
 
-function costRows(t: Messages, quote: TradeQuote, side: Side, currency: Currency, rate: number | null | undefined) {
+/**
+ * Filas del detalle. El total va aparte (`CostBreakdown.total`) para que la
+ * última línea tenga el peso de un estado de cuenta.
+ */
+function quoteRows(t: Messages, quote: TradeQuote, currency: Currency, rate: number | null | undefined) {
   const fee =
     quote.costs.platformFeeBps === 0
       ? t.trade.feeFree
@@ -140,10 +150,6 @@ function costRows(t: Messages, quote: TradeQuote, side: Side, currency: Currency
         });
   const rows = [
     { label: t.trade.price, value: shownMoney(quote.pricePerShareUsd, currency, rate) },
-    {
-      label: t.trade.youReceive,
-      value: side === "buy" ? formatShares(quote.outAmountUi) : shownMoney(quote.outAmountUi, currency, rate),
-    },
     { label: fill(t.trade.fee, { brand: site.name }), value: fee },
     { label: t.trade.network, value: solText(quote.costs.networkFeeSol) },
   ];
@@ -183,7 +189,7 @@ function blockCopy(
  */
 function QuoteValidityBar({ remainingMs, language }: { remainingMs: number; language: "es-CL" | "en" }) {
   const pct = Math.max(0, Math.min(100, (remainingMs / QUOTE_VALIDITY_MS) * 100));
-  const tone = pct < 15 ? "bg-down" : pct < 30 ? "bg-warn" : "bg-brand";
+  const tone = pct < 15 ? "bg-down" : pct < 30 ? "bg-warn" : "bg-fg";
   return (
     <div
       role="progressbar"
@@ -191,7 +197,7 @@ function QuoteValidityBar({ remainingMs, language }: { remainingMs: number; lang
       aria-valuemax={100}
       aria-valuenow={Math.round(pct)}
       aria-label={language === "en" ? "Quote validity" : "Validez de la cotización"}
-      className="mx-auto h-1 w-full max-w-56 overflow-hidden rounded-full bg-surface-3"
+      className="h-0.5 w-full overflow-hidden rounded-full bg-border"
     >
       <div
         className={cn(tone, "h-full rounded-full transition-[width,background-color] duration-1000 ease-linear motion-reduce:transition-none")}
@@ -203,12 +209,149 @@ function QuoteValidityBar({ remainingMs, language }: { remainingMs: number; lang
 
 function TradeMark({ ticker }: { ticker: Ticker }) {
   return (
-    <div className="flex items-center gap-3">
-      <TickerLogo symbol={ticker.symbol} name={ticker.name} logoUrl={ticker.logo} size={40} decorative loading="eager" sizes="48px" />
+    <div className="flex min-w-0 items-center gap-2.5">
+      <TickerLogo symbol={ticker.symbol} name={ticker.name} logoUrl={ticker.logo} size={32} decorative loading="eager" sizes="32px" />
       <div className="min-w-0">
-        <p className="truncate font-medium text-fg">{ticker.name}</p>
-        <p className="truncate text-sm text-fg-muted">{ticker.symbol}</p>
+        <p className="truncate text-[13px] leading-4 font-medium text-fg">{ticker.name}</p>
+        <p className="num mt-1 truncate text-[12px] leading-4 uppercase tracking-[0.045em] text-fg-muted">{ticker.symbol}</p>
       </div>
+    </div>
+  );
+}
+
+/** Activo a la izquierda, precio estimado a la derecha. Contexto de todos los pasos. */
+function TradeHeader({ ticker, priceLabel, price }: { ticker: Ticker; priceLabel: string; price: string }) {
+  return (
+    <div className="flex items-end justify-between gap-4">
+      <TradeMark ticker={ticker} />
+      <div className="shrink-0 text-right">
+        <p className="label">{priceLabel}</p>
+        <p className="num mt-1 text-sm leading-5 font-medium text-fg">{price}</p>
+      </div>
+    </div>
+  );
+}
+
+/** Frase con la cifra en `.num`: «Recibes ≈ 0,00412 acc. de NVIDIA». */
+function AmountSentence({ template, amount, name }: { template: string; amount: string; name?: string }) {
+  const [before = "", after = ""] = template.split("{amount}");
+  return (
+    <>
+      {before}
+      <span className="num font-medium text-fg">{amount}</span>
+      {name ? after.split("{name}").join(name) : after}
+    </>
+  );
+}
+
+/** Fila de documento: rótulo mono a la izquierda, cifra mono a la derecha. */
+function StatementRow({ label, value, strong = false }: { label: string; value: ReactNode; strong?: boolean }) {
+  return (
+    <div className="grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-6 py-3">
+      <dt className="label min-w-0">{label}</dt>
+      <dd
+        className={cn(
+          "num text-right leading-5 text-fg",
+          strong ? "text-[15px] font-medium" : "text-[13px]",
+        )}
+      >
+        {value}
+      </dd>
+    </div>
+  );
+}
+
+/** Vigencia de la cotización: una línea y la barra. Al vencer, el texto lo dice. */
+function QuoteValidity({
+  remainingMs,
+  label,
+  expiredLabel,
+  language,
+}: {
+  remainingMs: number;
+  label: string;
+  expiredLabel: string;
+  language: "es-CL" | "en";
+}) {
+  const expired = remainingMs <= 0;
+  return (
+    <div className="flex flex-col gap-2">
+      <span className={cn("text-[12px] leading-4 tabular-nums", expired ? "font-medium text-down" : "text-fg-muted")}>
+        {expired ? expiredLabel : label}
+      </span>
+      <QuoteValidityBar remainingMs={remainingMs} language={language} />
+    </div>
+  );
+}
+
+/** CTA primaria: el verbo queda a la izquierda y el monto dentro del botón. */
+function ActionButton({
+  amount,
+  children,
+  ...props
+}: { amount?: string | null; children: ReactNode } & Omit<ComponentProps<typeof Button>, "children">) {
+  return (
+    <Button size="lg" className="min-h-12 w-full touch-manipulation text-[15px] md:text-base" {...props}>
+      {amount ? (
+        <span className="flex w-full items-center justify-between gap-4">
+          <span>{children}</span>
+          <span className="num shrink-0 text-[13px] font-medium text-white/80">{amount}</span>
+        </span>
+      ) : (
+        children
+      )}
+    </Button>
+  );
+}
+
+/**
+ * Pie del paso: pegado al borde inferior de la hoja, a todo el ancho. Arriba va
+ * el motivo cuando la acción está bloqueada, así el CTA no se mueve y el
+ * usuario no tiene que buscar la explicación. El área segura la aporta la
+ * propia barra.
+ */
+function SheetActionBar({
+  reason,
+  reasonId,
+  tone = "muted",
+  retry,
+  retryLabel,
+  children,
+}: {
+  reason?: string | null;
+  reasonId?: string;
+  tone?: "muted" | "down";
+  retry?: (() => void) | null;
+  retryLabel?: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className="sticky bottom-0 z-10 -mx-5 mt-auto border-t border-border bg-bg px-5 pt-3 pb-[max(0.5rem,env(safe-area-inset-bottom))] md:-mx-7 md:px-7 md:pb-4">
+      {reason ? (
+        <p
+          id={reasonId}
+          className={cn(
+            "mb-2.5 text-[12px] leading-4 text-balance",
+            tone === "down" ? "text-down" : "text-fg-muted",
+          )}
+        >
+          {reason}
+        </p>
+      ) : null}
+      {/* Los errores se anuncian una vez; el «Cotizando…» no interrumpe. */}
+      <p role="status" aria-live="polite" className="sr-only">
+        {tone === "down" && reason ? reason : ""}
+      </p>
+      {retry ? (
+        <button
+          type="button"
+          onClick={retry}
+          className="mb-1 inline-flex min-h-11 items-center text-[13px] font-medium text-fg underline decoration-border-strong underline-offset-4 transition-colors hover:decoration-fg"
+        >
+          {retryLabel}
+        </button>
+      ) : null}
+      {children}
     </div>
   );
 }
@@ -224,19 +367,8 @@ function quickChipLabel(value: number, currency: TradeAmountCurrency): string {
 }
 
 /**
- * Barra del botón principal. Queda pegada al borde inferior del sheet a todo el
- * ancho (`sticky`), con el botón de 48 px. El espacio del área segura del iPhone
- * lo aporta el panel del `Sheet` (paddingBottom con `env(safe-area-inset-bottom)`),
- * así que aquí no se duplica.
+ * Barra del botón principal: la define `SheetActionBar` más arriba.
  */
-function SheetActionBar({ children }: { children: ReactNode }) {
-  return (
-    <div className="sticky bottom-0 z-10 -mx-5 mt-auto border-t border-border/60 bg-bg/95 px-5 pt-3 pb-2 backdrop-blur-md">
-      {children}
-    </div>
-  );
-}
-
 function TradeFlow({ side, ticker }: { side: Side; ticker: Ticker }) {
   const { t, currency: displayCurrency, language } = useT();
   const session = useSession();
@@ -249,6 +381,7 @@ function TradeFlow({ side, ticker }: { side: Side; ticker: Ticker }) {
   const market = useMarketStatus();
   const asset = useAssetStatus(ticker.symbol);
   const hintId = useId();
+  const reasonId = useId();
   const [amountRaw, setAmountRaw] = useState("");
   const [currency, setCurrency] = useState<TradeAmountCurrency>(side === "sell" ? "SHARES" : "USDC");
   const [phase, setPhase] = useState<Phase>("form");
@@ -266,6 +399,10 @@ function TradeFlow({ side, ticker }: { side: Side; ticker: Ticker }) {
   const mounted = useRef(true);
   const confirming = useRef(false);
 
+  const isEnglish = language === "en";
+  const doc = isEnglish
+    ? { folio: "Order ID", date: "Date", receive: "You receive", deliver: "You deliver", paid: "Total paid", received: "Total received" }
+    : { folio: "Folio", date: "Fecha", receive: "Recibes", deliver: "Entregas", paid: "Total pagado", received: "Total recibido" };
   const wallet = session.user?.walletAddress?.trim() ?? "";
   const userId = session.user?.id?.trim() ?? "";
   // La cuenta demo no tiene billetera: se firma con el id de usuario (uuid ≥ 32).
@@ -464,11 +601,26 @@ function TradeFlow({ side, ticker }: { side: Side; ticker: Ticker }) {
   if (phase === "signing" || phase === "submitting") {
     // El stepper trae su propio role="status" aria-live="polite".
     return (
-      <TradeExecutionStepper
-        phase={phase}
-        signingLabel={t.trade.signing}
-        submittingLabel={t.trade.submitting}
-      />
+      <div className="flex min-h-full flex-col gap-6">
+        <TradeHeader
+          ticker={ticker}
+          priceLabel={t.trade.price}
+          price={priceUsd ? shownMoney(priceUsd, displayCurrency, fxRate) : "—"}
+        />
+        <TradeExecutionStepper
+          phase={phase}
+          signingLabel={t.trade.signing}
+          submittingLabel={t.trade.submitting}
+        />
+        {quote ? (
+          <div className="mt-auto flex items-baseline justify-between gap-6 border-t border-border pt-4">
+            <span className="text-[12px] leading-4 text-fg-muted">{t.trade.youReceive}</span>
+            <span className="num text-right text-sm leading-5 text-fg">
+              {side === "buy" ? formatShares(quote.outAmountUi) : shownMoney(quote.outAmountUi, displayCurrency, fxRate)}
+            </span>
+          </div>
+        ) : null}
+      </div>
     );
   }
 
@@ -477,58 +629,101 @@ function TradeFlow({ side, ticker }: { side: Side; ticker: Ticker }) {
       result.side === "buy"
         ? fill(t.trade.doneBuy, { amount: formatShares(result.outAmountUi), name: ticker.name })
         : fill(t.trade.doneSell, { amount: formatShares(result.inAmountUi), name: ticker.name });
+    const totalLabel = result.side === "buy" ? doc.paid : doc.received;
+    const totalValue = shownMoney(
+      result.side === "buy" ? result.inAmountUi : result.outAmountUi,
+      displayCurrency,
+      fxRate,
+    );
     return (
-      <div role="status" aria-live="polite" className="flex flex-col items-stretch gap-4 rounded-2xl border border-white/65 bg-white/80 p-5 text-center shadow-[0_12px_32px_-12px_rgba(12,15,20,0.08),inset_0_1px_0_rgba(255,255,255,0.9)] backdrop-blur-xl tabular-nums">
-        <div className="mx-auto inline-flex items-center gap-2 rounded-full border border-brand/30 bg-brand-soft/80 px-3.5 py-1 text-xs font-semibold text-brand shadow-[0_0_16px_rgba(5,150,105,0.28)]">
-          <span className="h-2 w-2 rounded-full bg-brand shadow-[0_0_8px_rgba(5,150,105,0.85)]" aria-hidden="true" />
-          <span>OK</span>
+      <div role="status" aria-live="polite" className="flex min-h-full flex-col">
+        <div className="flex flex-col gap-6 pb-8">
+          <div className="flex items-start gap-3">
+            <span
+              aria-hidden="true"
+              className="mt-0.5 grid size-8 shrink-0 place-items-center rounded-full bg-fg text-bg"
+            >
+              <IconCheck className="size-4" />
+            </span>
+            <div className="min-w-0">
+              <p className="text-xl leading-tight text-fg">{t.trade.done}</p>
+              <p className="mt-1.5 text-[13px] leading-relaxed text-fg-body">{summary}</p>
+            </div>
+          </div>
+
+          <dl className="divide-y divide-border border-y border-border">
+            <StatementRow label={doc.folio} value={`#MV-${result.id.slice(0, 8).toUpperCase()}`} />
+            <StatementRow label={doc.date} value={formatDateTime(result.createdAt)} />
+            <StatementRow
+              label={result.side === "buy" ? doc.receive : doc.deliver}
+              value={
+                result.side === "buy"
+                  ? `${formatShares(result.outAmountUi)} ${ticker.symbol}`
+                  : formatShares(result.inAmountUi)
+              }
+            />
+            <StatementRow label={totalLabel} value={totalValue} strong />
+            {quote ? (
+              <StatementRow
+                label={fill(t.trade.fee, { brand: site.name })}
+                value={
+                  quote.costs.platformFeeBps === 0
+                    ? t.trade.feeFree
+                    : plainPercent.format(quote.costs.platformFeeBps / 10_000)
+                }
+              />
+            ) : null}
+          </dl>
+
+          <p className="text-[12px] leading-relaxed text-fg-muted">Enrutamiento Jupiter Spot → Solana SPL.</p>
         </div>
-        <p className="text-2xl text-fg">{t.trade.done}</p>
-        <p className="text-sm text-balance text-fg-body">{summary}</p>
-        {result.side === "sell" ? (
-          <p className="text-sm text-fg-muted">{fill(t.trade.receiveSell, { amount: shownMoney(result.outAmountUi, displayCurrency, fxRate) })}</p>
-        ) : null}
-        <div className="rounded-xl border border-border/70 bg-surface-1/70 p-3 text-left text-xs tabular-nums">
-          <div className="flex items-center justify-between gap-3 border-b border-border/50 py-1 last:border-b-0">
-            <span className="text-fg-muted">Folio de operación</span>
-            <span className="font-medium text-fg">{`#MV-${result.id.slice(0, 8).toUpperCase()}`}</span>
+
+        <SheetActionBar>
+          <div className="flex flex-col gap-1">
+            <Button asChild size="lg" className="min-h-12 w-full text-[15px] md:text-base">
+              <Link href="/app/cartera">{t.trade.portfolio}</Link>
+            </Button>
+            {result.signature ? (
+              <a
+                href={explorerTxUrl(result.signature)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex min-h-11 items-center justify-center gap-1.5 text-[13px] font-medium text-fg-muted transition-colors hover:text-fg"
+              >
+                {t.trade.explorer}
+                <span className="sr-only"> {t.trade.explorerNew}</span>
+                <svg aria-hidden="true" viewBox="0 0 12 12" className="size-3" fill="none" stroke="currentColor" strokeWidth="1.4">
+                  <path d="M3.5 2.5h6v6M9.5 2.5 2.5 9.5" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </a>
+            ) : null}
           </div>
-          <div className="flex items-center justify-between gap-3 border-b border-border/50 py-1 last:border-b-0">
-            <span className="text-fg-muted">Enrutamiento</span>
-            <span className="font-medium text-fg">Jupiter Spot → Solana SPL</span>
-          </div>
-          <div className="flex items-center justify-between gap-3 border-b border-border/50 py-1 last:border-b-0">
-            <span className="text-fg-muted">Comisión Maverlang</span>
-            <span className="font-medium text-fg">0% (US$0,00)</span>
-          </div>
-        </div>
-        <Button asChild size="lg" className="w-full">
-          <Link href="/app/cartera">{t.trade.portfolio}</Link>
-        </Button>
-        {result.signature ? (
-          <Button asChild variant="secondary" size="lg" className="w-full">
-            <a href={explorerTxUrl(result.signature)} target="_blank" rel="noopener noreferrer">
-              {t.trade.explorer}
-              <span className="sr-only"> {t.trade.explorerNew}</span>
-            </a>
-          </Button>
-        ) : null}
+        </SheetActionBar>
       </div>
     );
   }
 
   if (phase === "error") {
     return (
-      <ErrorState
-        title={flowError ?? t.trade.orderFailed}
-        label={t.states.error}
-        retryLabel={t.states.retry}
-        onRetry={() => {
-          setFlowError(null);
-          setPhase("form");
-          setRefreshKey((key) => key + 1);
-        }}
-      />
+      <div role="alert" className="flex min-h-full flex-col">
+        <div className="flex flex-1 flex-col gap-3 pt-1 pb-8">
+          <p className="label text-down">{t.states.error}</p>
+          <p className="text-xl leading-snug text-balance text-fg">{flowError ?? t.trade.orderFailed}</p>
+        </div>
+        <SheetActionBar>
+          <Button
+            size="lg"
+            className="min-h-12 w-full text-[15px] md:text-base"
+            onClick={() => {
+              setFlowError(null);
+              setPhase("form");
+              setRefreshKey((key) => key + 1);
+            }}
+          >
+            {t.states.retry}
+          </Button>
+        </SheetActionBar>
+      </div>
     );
   }
 
@@ -536,273 +731,290 @@ function TradeFlow({ side, ticker }: { side: Side; ticker: Ticker }) {
   const showDeposit = side === "buy" && block === "funds";
   const canReview = block === null && fresh && !quoting && !quoteError && !halted;
   const canConfirm = phase === "review" && canReview && remainingMs > 0 && pubkey !== null && !halted;
+  // Monto que se juega en el paso: pagado al comprar, recibido al vender.
+  const ctaAmount =
+    quote && fresh ? shownMoney(side === "buy" ? quote.inAmountUi : quote.outAmountUi, displayCurrency, fxRate) : null;
+  const retry =
+    quoteError !== null
+      ? () => setRefreshKey((key) => key + 1)
+      : block === "fx"
+        ? () => void fx.refetch()
+        : block === "price"
+          ? () => void prices.refetch()
+          : null;
+  // Un solo motivo, junto al botón: por qué no se puede avanzar todavía.
+  const reason = halted
+    ? t.detail.tradeHaltedNote
+    : quoteError
+      ? quoteError
+      : block === "wait"
+        ? t.states.loading
+        : hint
+          ? hint
+          : quoting || (block === null && !quote)
+            ? t.trade.quoting
+            : !pubkey && phase === "review"
+              ? t.trade.noWallet
+              : null;
+  const reasonTone = halted || quoteError !== null || hint ? "down" : "muted";
   const estimate = quote
     ? side === "buy"
       ? fill(t.trade.receiveBuy, { amount: formatShares(quote.outAmountUi), name: ticker.name })
       : fill(t.trade.receiveSell, { amount: shownMoney(quote.outAmountUi, displayCurrency, fxRate) })
     : null;
-  const availableUsd = side === "buy" ? cashUsdc : (priceUsd && priceUsd > 0 ? shares * priceUsd : cashUsdc);
-  const available =
-    cap === null
-      ? null
+  const availableValue =
+    side === "buy"
+      ? shownMoney(cashUsdc, displayCurrency, fxRate)
       : currency === "SHARES"
-        ? fill(t.trade.holding, { amount: formatShares(cap) })
-        : fill(t.trade.available, { amount: shownMoney(availableUsd, displayCurrency, fxRate) });
+        ? formatShares(shares)
+        : priceUsd && priceUsd > 0
+          ? shownMoney(shares * priceUsd, displayCurrency, fxRate)
+          : null;
+  const availableLabel = templateLabel(
+    side === "sell" && currency === "SHARES" ? t.trade.holding : t.trade.available,
+  );
   const labels = { CLP: "CLP", USDC: "USD", SHARES: t.trade.shares, USD: "USD" } as const;
 
   if (phase === "review") {
     const sub = quote
       ? side === "buy"
-        ? fill(t.trade.pay, {
-            amount: shownMoney(quote.inAmountUi, displayCurrency, fxRate),
-          })
+        ? fill(t.trade.pay, { amount: shownMoney(quote.inAmountUi, displayCurrency, fxRate) })
         : fill(t.trade.sellOf, { amount: formatShares(quote.inAmountUi), name: ticker.name })
       : null;
+    const rows = quote && fresh ? quoteRows(t, quote, displayCurrency, fxRate) : null;
+    // Al vender, la cifra grande ya es el total recibido: no se repite abajo.
+    const total =
+      quote && fresh && side === "buy"
+        ? {
+            label: isEnglish ? "Estimated total" : "Total estimado",
+            value: shownMoney(quote.inAmountUi, displayCurrency, fxRate),
+          }
+        : undefined;
+
     return (
-      <div className="flex w-full min-w-0 flex-col gap-5">
-        <TradeMark ticker={ticker} />
-        {fresh && quote && estimate ? (
-          <div>
-            <p className="text-center text-2xl text-balance text-fg" aria-live="polite">
-              {estimate}
-            </p>
-            {sub ? <p className="mt-2 text-center text-sm text-fg-muted">{sub}</p> : null}
+      <div className="flex min-h-full flex-col">
+        <div className="flex flex-col gap-6 pb-8">
+          <div className="flex items-center justify-between gap-3">
+            <button
+              type="button"
+              onClick={() => setPhase("form")}
+              className="-ml-2 inline-flex min-h-11 items-center gap-1.5 rounded-full px-2 text-[13px] font-medium text-fg-muted transition-colors outline-none hover:text-fg focus-visible:ring-4 focus-visible:ring-fg/20"
+            >
+              <IconBack className="size-4" aria-hidden="true" />
+              {t.trade.back}
+            </button>
+            <span className="num text-[12px] uppercase tracking-[0.045em] text-fg-muted">{ticker.symbol}</span>
           </div>
-        ) : null}
-        {quoting || !fresh ? (
-          <p role="status" className="text-center text-sm text-fg-muted">
-            {quoteError ?? t.trade.quoting}
+
+          <section className="border-y border-border py-5">
+            <p className="label">{t.trade.youReceive}</p>
+            {quote && fresh ? (
+              side === "buy" ? (
+                <p className="mt-2.5 flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                  <span className="num text-[2rem] leading-none tracking-[-0.02em] break-words text-fg">
+                    {formatShares(quote.outAmountUi)}
+                  </span>
+                  <span className="num text-[12px] uppercase tracking-[0.045em] text-fg-muted">{ticker.symbol}</span>
+                </p>
+              ) : (
+                <p className="num mt-2.5 text-[2rem] leading-none tracking-[-0.02em] break-words text-fg">
+                  {shownMoney(quote.outAmountUi, displayCurrency, fxRate)}
+                </p>
+              )
+            ) : (
+              <p className="num mt-2.5 text-[2rem] leading-none text-fg-muted">—</p>
+            )}
+            {sub ? <p className="mt-3 text-[13px] leading-relaxed text-fg-body">{sub}</p> : null}
+          </section>
+
+          {quote && !quoting && !quoteError ? (
+            <QuoteValidity
+              remainingMs={remainingMs}
+              label={fill(t.trade.expiresIn, { time: countdownLabel(remainingMs) })}
+              expiredLabel={t.trade.errors.QUOTE_EXPIRED}
+              language={language}
+            />
+          ) : null}
+
+          {halted ? (
+            <MarketStatusPill open={false} halted label={t.detail.assetHalted} />
+          ) : asset.data && (asset.data.period !== "market" || !asset.data.openNow) ? (
+            <MarketStatusPill
+              open={false}
+              label={
+                asset.data.period === "extended"
+                  ? t.detail.assetExtended
+                  : asset.data.period === "overnight"
+                    ? t.detail.assetOvernight
+                    : asset.data.period === "closed"
+                      ? t.detail.assetClosed
+                      : t.market.offHours
+              }
+            />
+          ) : market.data && market.data.session !== "regular" ? (
+            <MarketStatusPill open={false} label={market.data.session === "closed" ? t.market.closed : t.market.offHours} />
+          ) : null}
+
+          {rows ? <CostBreakdown rows={rows} total={total} /> : null}
+
+          {fresh && quote ? (
+            <TradeImpactPreview
+              side={side}
+              symbol={ticker.symbol}
+              currentShares={shares}
+              deltaShares={side === "buy" ? quote.outAmountUi : quote.inAmountUi}
+              currentValueUsd={position?.valueUsd ?? 0}
+              orderUsd={side === "buy" ? quote.inAmountUi : quote.outAmountUi}
+              totalPortfolioUsd={portfolio.data?.totalUsd ?? cashUsdc}
+              cashUsdc={cashUsdc}
+              currency={displayCurrency}
+              rate={fxRate}
+            />
+          ) : null}
+
+          {dollarsNote ? <p className="text-[12px] leading-4 text-fg-muted">{dollarsNote}</p> : null}
+
+          {/* M83: aviso antes de confirmar. Texto borrador hasta la revisión
+              del abogado; si la exige, cambia en un solo lugar. */}
+          <p className="text-[12px] leading-relaxed text-fg-muted">
+            El precio puede variar. Operación ejecutada en Solana vía Jupiter. No es asesoría.{" "}
+            <span className="font-medium text-warn">[REVISIÓN ABOGADO]</span>
           </p>
-        ) : (
-          <div className="flex flex-col items-center gap-2">
-            <p className="text-center text-sm text-fg-muted">{fill(t.trade.expiresIn, { time: countdownLabel(remainingMs) })}</p>
-            <QuoteValidityBar remainingMs={remainingMs} language={language} />
-          </div>
-        )}
-        {halted ? (
-          <MarketStatusPill open={false} halted label={t.detail.assetHalted} />
-        ) : asset.data && (asset.data.period !== "market" || !asset.data.openNow) ? (
-          <MarketStatusPill
-            open={false}
-            label={
-              asset.data.period === "extended"
-                ? t.detail.assetExtended
-                : asset.data.period === "overnight"
-                  ? t.detail.assetOvernight
-                  : asset.data.period === "closed"
-                    ? t.detail.assetClosed
-                    : t.market.offHours
-            }
-          />
-        ) : market.data && market.data.session !== "regular" ? (
-          <MarketStatusPill open={false} label={market.data.session === "closed" ? t.market.closed : t.market.offHours} />
-        ) : null}
-        {halted ? <p className="text-center text-sm text-down">{t.detail.tradeHaltedNote}</p> : null}
-        {fresh && quote ? (
-          <div className="rounded-2xl border border-white/65 bg-surface-1/75 p-3.5 shadow-[0_8px_24px_-12px_rgba(12,15,20,0.08),inset_0_1px_0_rgba(255,255,255,0.85)] backdrop-blur-xl tabular-nums">
-            <CostBreakdown rows={costRows(t, quote, side, displayCurrency, fxRate)} />
-          </div>
-        ) : null}
-        {fresh && quote ? (
-          <TradeImpactPreview
-            side={side}
-            symbol={ticker.symbol}
-            currentShares={shares}
-            deltaShares={side === "buy" ? quote.outAmountUi : quote.inAmountUi}
-            currentValueUsd={position?.valueUsd ?? 0}
-            orderUsd={side === "buy" ? quote.inAmountUi : quote.outAmountUi}
-            totalPortfolioUsd={portfolio.data?.totalUsd ?? cashUsdc}
-            cashUsdc={cashUsdc}
-            currency={displayCurrency}
-            rate={fxRate}
-          />
-        ) : null}
-        {dollarsNote ? <p className="text-center text-xs text-fg-muted">{dollarsNote}</p> : null}
-        {/* M83: aviso antes de confirmar. Texto borrador hasta la revisión
-            del abogado; si la exige, cambia en un solo lugar. */}
-        <p className="text-center text-xs leading-relaxed text-fg-muted">
-          El precio puede variar. Operación ejecutada en Solana vía Jupiter. No es asesoría.{" "}
-          <span className="font-medium text-warn">[REVISIÓN ABOGADO]</span>
-        </p>
-        <Link href="/legal/riesgos" className="inline-flex min-h-11 items-center rounded-sm text-sm font-medium text-fg underline underline-offset-4 outline-none focus-visible:ring-4 focus-visible:ring-fg/20">
-          {t.detail.risksLink}
-        </Link>
-        {pubkey ? null : <p className="text-center text-sm text-down">{t.trade.noWallet}</p>}
-        <Button variant="ghost" size="lg" className="min-h-12 w-full touch-manipulation" onClick={() => setPhase("form")}>
-          {t.trade.back}
-        </Button>
-        <SheetActionBar>
-          <Button
-            size="lg"
-            className="min-h-12 w-full touch-manipulation text-base"
+
+          <Link
+            href="/legal/riesgos"
+            className="inline-flex min-h-11 w-fit items-center text-[13px] font-medium text-fg underline decoration-border-strong underline-offset-4 outline-none transition-colors hover:decoration-fg focus-visible:ring-4 focus-visible:ring-fg/20"
+          >
+            {t.detail.risksLink}
+          </Link>
+        </div>
+
+        <SheetActionBar reason={reason} reasonId={reasonId} tone={reasonTone} retry={retry} retryLabel={t.states.retry}>
+          <ActionButton
             disabled={!canConfirm}
             onClick={() => void confirm()}
+            amount={ctaAmount}
+            aria-describedby={reason ? reasonId : undefined}
           >
             {t.trade.confirm}
-          </Button>
+          </ActionButton>
         </SheetActionBar>
       </div>
     );
   }
 
   return (
-    <div className="flex w-full min-w-0 flex-col gap-5">
-      <TradeMark ticker={ticker} />
-      <AmountInput
-        id={`${hintId}-amount`}
-        label={t.trade.amount}
-        value={amountRaw}
-        onChange={setAmountRaw}
-        currency={currency}
-        currencies={currencies}
-        currencyLabel={t.trade.currency}
-        labels={labels}
-        maxLabel={t.trade.max}
-        suffix={currency === "SHARES" ? t.trade.shareSuffix : undefined}
-        max={cap ?? undefined}
-        describedBy={hint ? hintId : undefined}
-        invalid={block === "min" || block === "funds"}
-        chips={quickChips}
-        inputClassName="min-h-14 py-2"
-        chipClassName="min-h-12 shrink-0 px-4 text-base whitespace-nowrap"
-        chipsClassName="flex-nowrap justify-start overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:flex-wrap sm:justify-center sm:pb-0"
-        onCurrencyChange={(next) => {
-          if (next !== "CLP" && next !== "USDC" && next !== "SHARES") return;
-          setAmountRaw(convertAmount(amount, currency, next, fxRate, priceUsd));
-          setCurrency(next);
-        }}
-      />
-      {side === "buy" && (currency === "CLP" || currency === "USDC") ? (
-        <div className="flex flex-nowrap items-center gap-2 overflow-x-auto px-1 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:flex-wrap sm:justify-center sm:px-0 sm:pb-0">
-          {(currency === "CLP"
-            ? ([
-                { val: 10000, label: "$10.000" },
-                { val: 50000, label: "$50.000" },
-                { val: 100000, label: "$100.000" },
-                { val: 250000, label: "$250.000" },
-              ] as const).filter((item) => !quickValues.includes(item.val))
-            : ([
-                { val: 10, label: "US$10" },
-                { val: 50, label: "US$50" },
-                { val: 100, label: "US$100" },
-                { val: 250, label: "US$250" },
-              ] as const)
-          ).map((preset) => (
-            <button
-              key={preset.label}
-              type="button"
-              onClick={() => setAmountRaw(String(preset.val))}
-              className="inline-flex min-h-11 shrink-0 touch-manipulation items-center justify-center whitespace-nowrap rounded-full border border-border/80 bg-surface-1/80 px-4 text-sm font-medium text-fg tabular-nums transition-all duration-150 hover:border-brand/40 hover:bg-brand-soft/50 hover:text-brand active:scale-95"
-            >
-              {preset.label}
-            </button>
-          ))}
-        </div>
-      ) : null}
-      {side === "sell" && shares > 0 ? (
-        <div className="flex flex-nowrap items-center gap-2 overflow-x-auto px-1 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:flex-wrap sm:justify-center sm:px-0 sm:pb-0">
-          {([
-            { pct: 0.25, label: "25%" },
-            { pct: 0.5, label: "50%" },
-            { pct: 0.75, label: "75%" },
-            { pct: 1, label: "100%" },
-          ] as const).map((preset) => (
-            <button
-              key={preset.label}
-              type="button"
-              onClick={() => {
-                const base =
-                  currency === "SHARES"
-                    ? shares * preset.pct
-                    : currency === "CLP" && priceUsd && fxRate
-                      ? Math.floor(shares * priceUsd * fxRate * preset.pct)
-                      : priceUsd
-                        ? Number((shares * priceUsd * preset.pct).toFixed(2))
-                        : shares * preset.pct;
-                setAmountRaw(String(Number(base.toFixed(6))));
-              }}
-              className="inline-flex min-h-11 shrink-0 touch-manipulation items-center justify-center whitespace-nowrap rounded-full border border-border/80 bg-surface-1/80 px-4 text-sm font-medium text-fg tabular-nums transition-all duration-150 hover:border-brand/40 hover:bg-brand-soft/50 hover:text-brand active:scale-95"
-            >
-              {preset.label}
-            </button>
-          ))}
-        </div>
-      ) : null}
-      {available ? <p className="text-center text-sm text-fg-muted">{available}</p> : null}
-      {side === "buy" ? <p className="text-center text-xs text-fg-muted">{minHelp}</p> : null}
-      {halted ? (
-        <p role="alert" className="w-full max-w-full text-center text-sm leading-relaxed break-words text-balance text-down">
-          {t.detail.tradeHaltedNote}
-        </p>
-      ) : null}
-      {block === "wait" ? (
-        <p role="status" className="text-center text-sm text-fg-muted">
-          {t.states.loading}
-        </p>
-      ) : null}
-      {hint ? (
-        <p id={hintId} role="alert" className="w-full max-w-full text-center text-sm leading-relaxed break-words text-balance text-down">
-          {hint}
-        </p>
-      ) : null}
-      {quoteError ? (
-        <div role="alert" className="flex w-full max-w-full flex-col items-center gap-3 text-center">
-          <p className="w-full max-w-full text-sm leading-relaxed break-words text-balance text-down">{quoteError}</p>
-          <Button
-            variant="secondary"
-            size="lg"
-            className="min-h-11"
-            onClick={() => {
-              setRefreshKey((key) => key + 1);
-            }}
-          >
-            {t.states.retry}
-          </Button>
-        </div>
-      ) : null}
-      {quoting ? (
-        <p role="status" className="text-center text-sm text-fg-muted">
-          {t.trade.quoting}
-        </p>
-      ) : null}
-      {fresh && estimate && !quoteError ? (
-        <p className="text-center text-sm text-balance text-fg-body" aria-live="polite">
-          {estimate}
-        </p>
-      ) : null}
-      {fresh && quote ? (
-        <div className="flex flex-col items-center gap-2">
-          <p className="text-center text-sm text-fg-muted">{fill(t.trade.expiresIn, { time: countdownLabel(remainingMs) })}</p>
-          <QuoteValidityBar remainingMs={remainingMs} language={language} />
-        </div>
-      ) : null}
-      {dollarsNote ? <p className="text-center text-xs text-fg-muted">{dollarsNote}</p> : null}
-      {block === "fx" || block === "price" ? (
-        <Button
-          variant="secondary"
-          size="lg"
-          className="min-h-11 w-full"
-          onClick={() => {
-            void (block === "fx" ? fx.refetch() : prices.refetch());
+    <div className="flex min-h-full flex-col">
+      <div className="flex flex-col gap-5 pb-8">
+        <TradeHeader
+          ticker={ticker}
+          priceLabel={t.trade.price}
+          price={priceUsd ? shownMoney(priceUsd, displayCurrency, fxRate) : "—"}
+        />
+
+        <AmountInput
+          id={`${hintId}-amount`}
+          label={t.trade.amount}
+          value={amountRaw}
+          onChange={setAmountRaw}
+          currency={currency}
+          currencies={currencies}
+          currencyLabel={t.trade.currency}
+          labels={labels}
+          maxLabel={t.trade.max}
+          suffix={currency === "SHARES" ? t.trade.shareSuffix : undefined}
+          max={cap ?? undefined}
+          describedBy={hint ? reasonId : undefined}
+          invalid={block === "min" || block === "funds"}
+          chips={quickChips}
+          caption={
+            <p aria-live="polite">
+              {fresh && quote && estimate ? (
+                <AmountSentence
+                  template={side === "buy" ? t.trade.receiveBuy : t.trade.receiveSell}
+                  amount={
+                    side === "buy"
+                      ? formatShares(quote.outAmountUi)
+                      : shownMoney(quote.outAmountUi, displayCurrency, fxRate)
+                  }
+                  name={ticker.name}
+                />
+              ) : null}
+            </p>
+          }
+          onCurrencyChange={(next) => {
+            if (next !== "CLP" && next !== "USDC" && next !== "SHARES") return;
+            setAmountRaw(convertAmount(amount, currency, next, fxRate, priceUsd));
+            setCurrency(next);
           }}
-        >
-          {t.states.retry}
-        </Button>
-      ) : null}
-      <SheetActionBar>
+        />
+
+        {side === "sell" && shares > 0 ? (
+          <div className="flex flex-wrap items-center gap-1">
+            {([
+              { pct: 0.25, label: "25%" },
+              { pct: 0.5, label: "50%" },
+              { pct: 0.75, label: "75%" },
+              { pct: 1, label: "100%" },
+            ] as const).map((preset) => (
+              <button
+                key={preset.label}
+                type="button"
+                onClick={() => {
+                  const base =
+                    currency === "SHARES"
+                      ? shares * preset.pct
+                      : currency === "CLP" && priceUsd && fxRate
+                        ? Math.floor(shares * priceUsd * fxRate * preset.pct)
+                        : priceUsd
+                          ? Number((shares * priceUsd * preset.pct).toFixed(2))
+                          : shares * preset.pct;
+                  setAmountRaw(String(Number(base.toFixed(6))));
+                }}
+                className="inline-flex min-h-11 min-w-11 shrink-0 touch-manipulation items-center justify-center rounded-md px-3 text-[12px] font-medium whitespace-nowrap tabular-nums text-fg-muted transition-colors duration-150 outline-none hover:bg-surface-1 hover:text-fg focus-visible:ring-4 focus-visible:ring-fg/20 active:scale-[0.98]"
+              >
+                {preset.label}
+              </button>
+            ))}
+          </div>
+        ) : null}
+
+        <div className="flex flex-col gap-2 border-t border-border pt-3">
+          <div className="flex items-baseline justify-between gap-6">
+            <span className="text-[12px] leading-4 text-fg-muted">{availableLabel}</span>
+            <span className="num text-[13px] leading-4 font-medium text-fg">{availableValue ?? "—"}</span>
+          </div>
+          {side === "buy" ? <p className="text-[12px] leading-4 text-fg-muted">{minHelp}</p> : null}
+          {dollarsNote ? <p className="text-[12px] leading-4 text-fg-muted">{dollarsNote}</p> : null}
+        </div>
+
+        {quote && !quoting && !quoteError ? (
+          <QuoteValidity
+            remainingMs={remainingMs}
+            label={fill(t.trade.expiresIn, { time: countdownLabel(remainingMs) })}
+            expiredLabel={t.trade.errors.QUOTE_EXPIRED}
+            language={language}
+          />
+        ) : (
+          // Reserva el alto de la línea + barra: cotizar no mueve el formulario.
+          <div aria-hidden="true" className="h-[1.625rem]" />
+        )}
+      </div>
+
+      <SheetActionBar reason={reason} reasonId={reasonId} tone={reasonTone} retry={retry} retryLabel={t.states.retry}>
         {showDeposit ? (
-          <Button asChild size="lg" className="min-h-12 w-full touch-manipulation text-base">
+          <Button asChild size="lg" className="min-h-12 w-full touch-manipulation text-[15px] md:text-base">
             <Link href={DEPOSIT_HREF}>{t.trade.deposit}</Link>
           </Button>
         ) : (
-          <Button
-            size="lg"
-            className="min-h-12 w-full touch-manipulation text-base"
+          <ActionButton
             disabled={!canReview}
             onClick={() => setPhase("review")}
+            amount={ctaAmount}
+            aria-describedby={reason ? reasonId : undefined}
           >
             {t.trade.review}
-          </Button>
+          </ActionButton>
         )}
       </SheetActionBar>
     </div>
@@ -825,7 +1037,7 @@ export function TradeSheet({
   const title = fill(side === "sell" ? t.detail.tradeSell : t.detail.tradeBuy, { name: ticker.name });
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange} title={title}>
+    <Sheet open={open} onOpenChange={onOpenChange} title={title} fill>
       <TradeFlow key={`${side}:${ticker.symbol}`} side={side} ticker={ticker} />
     </Sheet>
   );

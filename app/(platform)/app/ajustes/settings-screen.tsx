@@ -7,65 +7,84 @@ import { useT } from "@/lib/hooks/use-t";
 
 import { SettingsPanel } from "../perfil/ui";
 
-/** Ajustes (M40): primero Moneda, luego Idioma. Pública: el visitante guarda en local. */
+/** Un atajo: teclas, qué hace y la descripción tal como estaba. */
+const SHORTCUTS = [
+  {
+    id: "paleta",
+    keys: ["Ctrl + K", "⌘K"],
+    label: "Paleta de comandos",
+    description: "Paleta de comandos y búsqueda instantánea de acciones",
+  },
+  {
+    id: "grafico",
+    keys: ["←", "→"],
+    label: "Recorrer el gráfico",
+    description: "Inspeccionar precios punto por punto sobre cualquier gráfico",
+  },
+  {
+    id: "cerrar",
+    keys: ["Esc"],
+    label: "Cerrar",
+    description: "Cerrar hojas de compra/venta, comprobantes y buscador",
+  },
+] as const;
+
+/** Tecla suelta: mono, hairline y sin sombra, como el resto de los datos. */
+function Key({ children }: { children: string }) {
+  return (
+    <kbd className="rounded-md border border-border-strong bg-bg px-2 py-1 font-mono text-[11px] leading-4 font-medium text-fg-body">
+      {children}
+    </kbd>
+  );
+}
+
+/**
+ * Ajustes: la misma lista con hairline que Perfil. Moneda e idioma son filas
+ * de un panel; la verificación en dos pasos mantiene su bloque propio y los
+ * atajos de teclado sólo aparecen donde hay teclado.
+ */
 export function SettingsScreen() {
   const { t } = useT();
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex w-full max-w-2xl min-w-0 flex-col gap-6">
       <PageHeader title={t.pages.settings.title} description={t.pages.settings.lead} />
-      <SettingsPanel label={t.pages.settings.title}>
+
+      <SettingsPanel label={t.profile.language}>
         <PreferencesForm currencyFirst />
       </SettingsPanel>
-      <MfaSettings />
-      <section
-        aria-label="Atajos de Teclado y Terminal"
-        className="rounded-3xl border border-border/80 bg-white p-5 shadow-xs sm:p-6"
-      >
-        <h2 className="text-lg font-semibold tracking-tight text-fg">
-          Atajos de teclado y navegación rápida
-        </h2>
-        <p className="mt-1 text-sm text-fg-muted">
-          Muévete por la plataforma como en una terminal profesional desde tu computador.
-        </p>
-        <div className="mt-4 grid gap-3 sm:grid-cols-3">
-          <div className="flex flex-col gap-2 rounded-2xl border border-border/70 bg-surface-1/60 p-4">
-            <span className="flex flex-wrap items-center gap-1">
-              <kbd className="rounded-md border border-border/80 bg-white px-2 py-1 text-[11px] font-semibold text-fg shadow-xs">
-                Ctrl + K
-              </kbd>
-              <span className="text-[11px] text-fg-muted">/</span>
-              <kbd className="rounded-md border border-border/80 bg-white px-2 py-1 text-[11px] font-semibold text-fg shadow-xs">
-                ⌘K
-              </kbd>
-            </span>
-            <p className="text-xs leading-relaxed text-fg-muted">
-              Paleta de comandos y búsqueda instantánea de acciones
-            </p>
-          </div>
-          <div className="flex flex-col gap-2 rounded-2xl border border-border/70 bg-surface-1/60 p-4">
-            <span className="flex flex-wrap items-center gap-1">
-              <kbd className="rounded-md border border-border/80 bg-white px-2 py-1 text-[11px] font-semibold text-fg shadow-xs">
-                ←
-              </kbd>
-              <kbd className="rounded-md border border-border/80 bg-white px-2 py-1 text-[11px] font-semibold text-fg shadow-xs">
-                →
-              </kbd>
-            </span>
-            <p className="text-xs leading-relaxed text-fg-muted">
-              Inspeccionar precios punto por punto sobre cualquier gráfico
-            </p>
-          </div>
-          <div className="flex flex-col gap-2 rounded-2xl border border-border/70 bg-surface-1/60 p-4">
-            <span className="flex flex-wrap items-center gap-1">
-              <kbd className="rounded-md border border-border/80 bg-white px-2 py-1 text-[11px] font-semibold text-fg shadow-xs">
-                Esc
-              </kbd>
-            </span>
-            <p className="text-xs leading-relaxed text-fg-muted">
-              Cerrar hojas de compra/venta, comprobantes y buscador
-            </p>
-          </div>
+
+      {/* MfaSettings trae su propio borde y radio: se alinea al radio del sistema sin tocar el componente. */}
+      <div className="[&>section]:rounded-xl">
+        <MfaSettings />
+      </div>
+
+      <section aria-labelledby="atajos-teclado" className="hidden min-w-0 flex-col gap-3 lg:flex">
+        <div className="flex min-w-0 flex-col gap-1">
+          <h2 id="atajos-teclado" className="text-[17px] leading-6 font-medium text-fg">
+            Atajos de teclado
+          </h2>
+          <p className="max-w-[62ch] text-[13px] leading-5 text-fg-muted">
+            Muévete por la plataforma como en una terminal profesional desde tu computador.
+          </p>
         </div>
+        <dl className="flex min-w-0 flex-col border-y border-border">
+          {SHORTCUTS.map((shortcut) => (
+            <div
+              key={shortcut.id}
+              className="flex min-w-0 items-start justify-between gap-6 border-t border-border px-4 py-3 first:border-t-0 md:px-5"
+            >
+              <dt className="min-w-0">
+                <span className="block text-[15px] leading-5 font-medium text-fg">{shortcut.label}</span>
+                <span className="mt-0.5 block text-[13px] leading-5 text-fg-muted">{shortcut.description}</span>
+              </dt>
+              <dd className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
+                {shortcut.keys.map((key) => (
+                  <Key key={key}>{key}</Key>
+                ))}
+              </dd>
+            </div>
+          ))}
+        </dl>
       </section>
     </div>
   );

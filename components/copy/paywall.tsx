@@ -1,6 +1,5 @@
 import Link from "next/link";
 
-import { FraccionSeal } from "@/components/copy/fraccion-seal";
 import { buttonClasses } from "@/components/ui/button";
 import { COPY_LEGAL_PENDING_LABEL } from "@/content/copy-legal";
 import { COPY_PLANS, TRIAL_DAYS } from "@/lib/billing/plans";
@@ -21,66 +20,93 @@ const PREVIEW_ROWS = [
 
 /**
  * Muro de suscripción (§1.10). Se renderiza en el servidor sin recibir la
- * composición: lo único que muestra son filas inventadas y borrosas.
+ * composición: lo único que muestra son filas inventadas.
+ *
+ * Sin cáscara ni sombra: entra como una sección más, con hairline y el estado
+ * dicho con palabras. El precio y la prueba se leen como datos, no como
+ * insignias.
  */
 export function Paywall({
   title = "Desbloquea",
   description = "Con Copiar carteras ves la composición completa, los movimientos y puedes replicar la mezcla en tu cuenta.",
   className,
+  compact = false,
 }: {
   title?: string;
   description?: string;
   className?: string;
+  /** En la ficha el CTA primario vive en la tarjeta lateral: acá sólo va la vista previa. */
+  compact?: boolean;
 }) {
   return (
     <section
       aria-labelledby="paywall-titulo"
-      className={cn(
-        "flex flex-col overflow-hidden rounded-2xl border border-border/70 bg-surface-1 p-6 md:p-8",
-        className,
-      )}
+      className={cn("flex min-w-0 flex-col gap-6 border-t border-border pt-8", className)}
     >
-      <h2 id="paywall-titulo" className="text-xl font-semibold tracking-tight text-fg">
-        {title}
-      </h2>
-      <p className="mt-2 max-w-md text-sm leading-relaxed text-fg-body">{description}</p>
-
-      <div className="relative mt-5" aria-hidden>
-        <ul className="pointer-events-none flex select-none flex-col gap-2 opacity-80 blur-[4px]">
-          {PREVIEW_ROWS.map((row) => (
-            <li
-              key={row.symbol}
-              className="flex items-center justify-between gap-3 rounded-xl bg-surface-2 px-3 py-2"
-            >
-              <span className="font-mono text-sm text-fg">{row.symbol}</span>
-              <span className="font-mono text-sm tabular-nums text-fg-body">
-                {formatPortion(row.weight / 100)}
-              </span>
-            </li>
-          ))}
-        </ul>
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-10 bg-gradient-to-b from-transparent to-surface-1" />
+      <div className="flex flex-col gap-2">
+        <h2 id="paywall-titulo" className="text-lg font-medium tracking-tight text-fg">
+          {title}
+        </h2>
+        <p className="max-w-prose text-[15px] leading-6 text-fg-body">{description}</p>
       </div>
-      <p className="mt-2 text-xs leading-relaxed text-fg-muted">
-        La vista previa usa datos inventados de ejemplo; no es la composición de esta cartera.
-      </p>
 
-      <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-2">
-        <Link href="/app/copiar/planes" className={buttonClasses({ variant: "primary", size: "md" })}>
-          Ver planes
-        </Link>
-        <p className="font-mono text-sm tabular-nums text-fg-body">
-          {formatClp(COPY_PLANS.monthly.clp)} al mes · {formatClp(COPY_PLANS.annual.clp)} al año
+      <div className="flex flex-col gap-2">
+        <div aria-hidden className="flex select-none flex-col gap-2">
+          <p className="font-mono text-[13px] leading-5 font-medium tracking-[0.045em] text-fg-subtle uppercase">
+            Vista previa
+          </p>
+          <ul className="flex flex-col border-t border-border/70">
+            {PREVIEW_ROWS.map((row) => (
+              <li
+                key={row.symbol}
+                className="flex items-baseline justify-between gap-4 border-b border-border/70 py-2.5"
+              >
+                <span className="min-w-0 text-[13px] leading-5 text-fg-muted">{row.symbol}</span>
+                <span className="num shrink-0 text-[13px] leading-5 tabular-nums text-fg">
+                  {formatPortion(row.weight / 100)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+        <p className="max-w-prose text-[13px] leading-5 text-fg-muted">
+          La vista previa usa datos inventados de ejemplo; no es la composición de esta cartera.
         </p>
       </div>
-      <p className="mt-1 text-xs leading-relaxed text-fg-muted">
-        {TRIAL_DAYS} días de prueba gratis, una vez por usuario.
-      </p>
 
-      <p className="mt-4 text-xs text-fg-subtle">{COPY_LEGAL_PENDING_LABEL}</p>
-      <div className="mt-3">
-        <FraccionSeal />
-      </div>
+      {compact ? null : (
+        <div className="flex flex-col gap-3">
+          <dl className="flex flex-col border-t border-border/70">
+            <div className="flex items-baseline justify-between gap-4 border-b border-border/70 py-2.5">
+              <dt className="text-[13px] leading-5 text-fg-muted">Mensual</dt>
+              <dd className="num shrink-0 text-[13px] leading-5 font-medium tabular-nums text-fg">
+                {formatClp(COPY_PLANS.monthly.clp)}
+              </dd>
+            </div>
+            <div className="flex items-baseline justify-between gap-4 border-b border-border/70 py-2.5">
+              <dt className="text-[13px] leading-5 text-fg-muted">Anual</dt>
+              <dd className="num shrink-0 text-[13px] leading-5 font-medium tabular-nums text-fg">
+                {formatClp(COPY_PLANS.annual.clp)}
+              </dd>
+            </div>
+          </dl>
+          <p className="max-w-prose text-[13px] leading-relaxed text-fg-muted">
+            {TRIAL_DAYS} días de prueba gratis, una vez por usuario.
+          </p>
+          <Link
+            href="/app/copiar/planes"
+            className={buttonClasses({
+              variant: "primary",
+              size: "lg",
+              className: "min-h-12 w-full sm:w-auto",
+            })}
+          >
+            Ver planes
+          </Link>
+        </div>
+      )}
+
+      <p className="max-w-prose text-[13px] leading-relaxed text-fg-muted">{COPY_LEGAL_PENDING_LABEL}</p>
     </section>
   );
 }

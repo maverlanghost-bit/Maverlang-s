@@ -6,6 +6,7 @@ import { AmountInput } from "@/components/ui/amount-input";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { LoadingState } from "@/components/ui/loading-state";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/components/ui/toast";
 import {
   ONRAMP_CHIPS_CLP,
@@ -154,7 +155,7 @@ export function PesoDeposit() {
             describedBy={belowMin ? minId : undefined}
           />
           {belowMin ? (
-            <p id={minId} role="alert" className="text-center text-sm text-down">
+            <p id={minId} role="alert" className="text-sm text-down">
               {t.wallet.depositMin.replace("{amount}", formatClp(ONRAMP_MIN_CLP))}
             </p>
           ) : null}
@@ -167,15 +168,15 @@ export function PesoDeposit() {
             fee={live.session ? formatClp(live.session.feeClp) : null}
           />
           <div className="flex flex-col gap-2">
-            <p className="text-sm font-medium text-fg">{t.wallet.depositMethods}</p>
-            <ul className="flex flex-wrap gap-2">
+            <p className="label">{t.wallet.depositMethods}</p>
+            <ul className="flex flex-wrap gap-1.5">
               {ONRAMP_METHOD_IDS.map((id) => (
-                <li key={id} className="rounded-full bg-surface-2 px-3 py-2 text-sm text-fg">
+                <li key={id} className="rounded-full bg-surface-2 px-3 py-1 text-[13px] text-fg">
                   {methodLabel(t, id)}
                 </li>
               ))}
             </ul>
-            <p className="text-sm leading-relaxed text-fg-muted">{t.wallet.depositMethodsNote}</p>
+            <p className="text-[13px] leading-relaxed text-fg-muted">{t.wallet.depositMethodsNote}</p>
           </div>
           <p className="text-sm leading-relaxed text-fg-muted">{t.wallet.depositNote}</p>
           {/* M83: el contrato y el pago son con el proveedor, no con Maverlang. */}
@@ -183,11 +184,6 @@ export function PesoDeposit() {
             Compra a Koywe. Tu contrato y tu pago son con Koywe.{" "}
             <span className="font-medium text-warn">[REVISIÓN ABOGADO]</span>
           </p>
-          {live.error ? (
-            <p role="alert" className="text-sm text-down">
-              {live.error}
-            </p>
-          ) : null}
           <div className="flex flex-col gap-2">
             <Button
               size="lg"
@@ -211,7 +207,9 @@ export function PesoDeposit() {
           </div>
         </>
       ) : (
-        <p className="text-sm text-fg-muted">{t.wallet.noWallet}</p>
+        <p role="status" className="text-sm leading-relaxed text-fg-body">
+          {t.wallet.noWallet}
+        </p>
       )}
       {widget ? (
         <MockWidget
@@ -242,18 +240,28 @@ function Estimate({
   usdc: string | null;
   fee: string | null;
 }) {
-  const value = quoting ? quoting : error ? "—" : (usdc ?? "—");
-  const cost = quoting || error ? "—" : (fee ?? "—");
   return (
-    <dl className="flex flex-col gap-2 rounded-2xl bg-surface-2 px-4 py-3 text-sm" aria-live="polite">
-      <div className="flex items-baseline justify-between gap-3">
-        <dt className="text-fg-muted">{label}</dt>
-        <dd className="num text-fg">{value}</dd>
-      </div>
-      <div className="flex items-baseline justify-between gap-3">
-        <dt className="text-fg-muted">{feeLabel}</dt>
-        <dd className="num text-fg">{cost}</dd>
-      </div>
-    </dl>
+    <div className="flex flex-col gap-2" aria-live="polite">
+      <dl className="divide-y divide-border overflow-hidden rounded-xl border border-border text-[13px]">
+        <div className="flex min-h-11 items-center justify-between gap-3 px-4 py-2.5">
+          <dt className="min-w-0 text-fg-muted">{label}</dt>
+          <dd className="num flex min-w-0 items-center justify-end text-right text-[15px] leading-none font-medium text-fg tabular-nums">
+            {quoting ? <Skeleton className="h-4 w-24" /> : error ? "—" : (usdc ?? "—")}
+          </dd>
+        </div>
+        <div className="flex min-h-11 items-center justify-between gap-3 px-4 py-2.5">
+          <dt className="min-w-0 text-fg-muted">{feeLabel}</dt>
+          <dd className="num flex min-w-0 items-center justify-end text-right text-[15px] leading-none font-medium text-fg tabular-nums">
+            {quoting ? <Skeleton className="h-4 w-20" /> : error ? "—" : (fee ?? "—")}
+          </dd>
+        </div>
+      </dl>
+      {quoting ? <span className="sr-only">{quoting}</span> : null}
+      {error ? (
+        <p role="alert" className="text-[13px] leading-relaxed text-down">
+          {error}
+        </p>
+      ) : null}
+    </div>
   );
 }

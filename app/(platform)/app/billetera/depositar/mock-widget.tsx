@@ -97,7 +97,7 @@ export function MockWidget({
       title={fill(t.wallet.depositWidget, { provider })}
       description={t.wallet.depositDemo}
     >
-      <ol className="mt-5 flex gap-2">
+      <ol className="mt-5 flex gap-1.5">
         {steps.map((item) => {
           const active = item.id === current;
           return (
@@ -105,7 +105,7 @@ export function MockWidget({
               key={item.id}
               aria-current={active ? "step" : undefined}
               className={cn(
-                "flex min-h-11 flex-1 items-center justify-center rounded-full px-2 text-center text-sm",
+                "flex min-h-11 min-w-0 flex-1 items-center justify-center rounded-full px-1.5 text-center text-[13px] leading-tight transition-colors duration-150",
                 active ? "bg-surface-3 font-medium text-fg" : "bg-surface-2 text-fg-muted",
               )}
             >
@@ -115,24 +115,24 @@ export function MockWidget({
         })}
       </ol>
 
-      <dl className="mt-5 flex flex-col gap-2 text-sm">
-        <div className="flex items-baseline justify-between gap-3">
-          <dt className="text-fg-muted">{t.wallet.depositAmount}</dt>
-          <dd className="num text-fg">{formatClp(amountClp)}</dd>
+      <dl className="mt-5 divide-y divide-border overflow-hidden rounded-xl border border-border text-sm">
+        <div className="flex min-h-11 items-center justify-between gap-3 px-4 py-2.5">
+          <dt className="min-w-0 text-fg-muted">{t.wallet.depositAmount}</dt>
+          <dd className="num shrink-0 text-right font-medium text-fg tabular-nums">{formatClp(amountClp)}</dd>
         </div>
-        <div className="flex items-baseline justify-between gap-3">
-          <dt className="text-fg-muted">{t.wallet.depositEstimate}</dt>
-          <dd className="num text-fg">{usdc}</dd>
+        <div className="flex min-h-11 items-center justify-between gap-3 px-4 py-2.5">
+          <dt className="min-w-0 text-fg-muted">{t.wallet.depositEstimate}</dt>
+          <dd className="num shrink-0 text-right font-medium text-fg tabular-nums">{usdc}</dd>
         </div>
-        <div className="flex items-baseline justify-between gap-3">
-          <dt className="text-fg-muted">{t.wallet.depositFee}</dt>
-          <dd className="num text-fg">{formatClp(session.feeClp)}</dd>
+        <div className="flex min-h-11 items-center justify-between gap-3 px-4 py-2.5">
+          <dt className="min-w-0 text-fg-muted">{t.wallet.depositFee}</dt>
+          <dd className="num shrink-0 text-right font-medium text-fg tabular-nums">{formatClp(session.feeClp)}</dd>
         </div>
       </dl>
 
       <div className="mt-5" aria-live="polite">
         {step === "pay" ? <p className="text-sm leading-relaxed text-fg-body">{t.wallet.depositPayLead}</p> : null}
-        {step === "processing" ? <p className="text-sm text-fg">{t.wallet.depositProcessing}</p> : null}
+        {step === "processing" ? <p className="sr-only">{t.wallet.depositProcessing}</p> : null}
         {step === "credited" ? (
           <div>
             <p className="font-medium text-fg">{t.wallet.depositCredited}</p>

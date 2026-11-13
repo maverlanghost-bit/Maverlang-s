@@ -39,6 +39,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { ErrorState } from "@/components/ui/error-state";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/ui/page-header";
+import { cn } from "@/lib/cn";
 import { ADMIN_FLAGS, panelFlags } from "@/lib/flags";
 import { parseLimitsDefault } from "@/lib/trade/limits";
 
@@ -71,43 +72,85 @@ async function readUserLimitsRowByEmail(email: string) {
   return readUserLimitsRow(user.id);
 }
 
+/** Acción sobre un activo: nota obligatoria y los dos botones. Igual en tabla y en tarjeta. */
+function AssetActionForm({ asset, q, className }: { asset: AdminAsset; q: string; className?: string }) {
+  return (
+    <form className={cn("flex flex-col gap-2", className)}>
+      <input type="hidden" name="symbol" value={asset.symbol} />
+      <input type="hidden" name="q" value={q} />
+      <Input
+        name="note"
+        required
+        maxLength={500}
+        autoComplete="off"
+        placeholder="Nota (obligatoria)"
+        aria-label={`Nota para ${asset.symbol}`}
+      />
+      <div className="flex flex-wrap gap-2">
+        <Button type="submit" formAction={hideAsset} variant="danger" size="sm">
+          Ocultar
+        </Button>
+        <Button type="submit" formAction={clearOverride} variant="secondary" size="sm">
+          Quitar override
+        </Button>
+      </div>
+    </form>
+  );
+}
+
 function AssetRow({ asset, q }: { asset: AdminAsset; q: string }) {
   return (
     <tr className="border-t border-border align-top">
       <td className="px-3 py-3">
-        <p className="font-medium text-fg">{asset.symbol}</p>
-        <p className="text-sm text-fg-muted">{asset.name}</p>
-        {asset.manualNote ? <p className="mt-1 text-sm text-fg-body">{asset.manualNote}</p> : null}
+        <p className="num text-sm leading-5 font-semibold tracking-tight text-fg">{asset.symbol}</p>
+        <p className="text-[13px] leading-5 text-fg-muted">{asset.name}</p>
+        {asset.manualNote ? (
+          <p className="mt-1 text-[13px] leading-5 text-fg-body">{asset.manualNote}</p>
+        ) : null}
       </td>
       <td className="px-3 py-3">
         <Badge tone={toneOf(asset.safetyStatus)}>{statusLabel(asset.safetyStatus)}</Badge>
-        <p className="mt-1 text-sm text-fg-muted">{overrideLabel(asset.manualOverride)}</p>
+        <p className="mt-1 text-[13px] leading-5 text-fg-muted">{overrideLabel(asset.manualOverride)}</p>
       </td>
-      <td className="px-3 py-3 text-sm text-fg-body">{formatReasons(asset.reasons)}</td>
-      <td className="px-3 py-3 text-sm text-fg-muted">{formatAdminDate(asset.checkedAt)}</td>
+      <td className="px-3 py-3 text-[13px] leading-5 text-fg-body">{formatReasons(asset.reasons)}</td>
+      <td className="num px-3 py-3 text-[13px] leading-5 text-fg-muted">{formatAdminDate(asset.checkedAt)}</td>
       <td className="px-3 py-3">
-        <form className="flex min-w-56 flex-col gap-2">
-          <input type="hidden" name="symbol" value={asset.symbol} />
-          <input type="hidden" name="q" value={q} />
-          <Input
-            name="note"
-            required
-            maxLength={500}
-            autoComplete="off"
-            placeholder="Nota (obligatoria)"
-            aria-label={`Nota para ${asset.symbol}`}
-          />
-          <div className="flex flex-wrap gap-2">
-            <Button type="submit" formAction={hideAsset} variant="danger" size="sm">
-              Ocultar
-            </Button>
-            <Button type="submit" formAction={clearOverride} variant="secondary" size="sm">
-              Quitar override
-            </Button>
-          </div>
-        </form>
+        <AssetActionForm asset={asset} q={q} className="min-w-56" />
       </td>
     </tr>
+  );
+}
+
+/** Misma fila en tarjeta para el móvil: la tabla de cinco columnas no cabe a 360 px. */
+function AssetCard({ asset, q }: { asset: AdminAsset; q: string }) {
+  return (
+    <li className="rounded-xl bg-surface-1 p-4 shadow-card">
+      <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-2">
+        <p className="font-mono text-sm leading-5 font-semibold tracking-tight text-fg">{asset.symbol}</p>
+        <Badge tone={toneOf(asset.safetyStatus)}>{statusLabel(asset.safetyStatus)}</Badge>
+      </div>
+      <p className="mt-0.5 text-[13px] leading-5 text-fg-muted">{asset.name}</p>
+      {asset.manualNote ? (
+        <p className="mt-1 text-[13px] leading-5 text-fg-body">{asset.manualNote}</p>
+      ) : null}
+
+      <dl className="mt-3 flex flex-col gap-1.5 border-t border-border pt-3 text-[13px] leading-5">
+        <div className="grid grid-cols-[5.5rem_minmax(0,1fr)] gap-x-3">
+          <dt className="text-fg-muted">Override</dt>
+          <dd className="min-w-0 text-fg-body">{overrideLabel(asset.manualOverride)}</dd>
+        </div>
+        <div className="grid grid-cols-[5.5rem_minmax(0,1fr)] gap-x-3">
+          <dt className="text-fg-muted">Motivos</dt>
+          <dd className="min-w-0 text-fg-body">{formatReasons(asset.reasons)}</dd>
+        </div>
+        <div className="grid grid-cols-[5.5rem_minmax(0,1fr)] gap-x-3">
+          <dt className="text-fg-muted">Revisado</dt>
+          <dd className="num min-w-0 text-fg-body">{formatAdminDate(asset.checkedAt)}</dd>
+        </div>
+      </dl>
+
+      <AssetActionForm asset={asset} q={q} className="mt-3" />
+    </li>
   );
 }
 
@@ -180,7 +223,7 @@ export default async function AdminPage({
               <li key={flag.key} className="flex flex-col gap-3 border-t border-border pt-4 first:border-t-0 first:pt-0 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <p className="text-sm font-medium text-fg">{flag.label}</p>
-                  <Badge tone={flag.on ? "up" : "down"}>{flag.on ? "Encendido" : "Apagado"}</Badge>
+                  <Badge tone={flag.on ? "up" : "neutral"}>{flag.on ? "Encendido" : "Apagado"}</Badge>
                 </div>
                 <form action={setFlag} className="flex flex-col gap-2 sm:items-end">
                   <input type="hidden" name="key" value={flag.key} />
@@ -320,11 +363,12 @@ export default async function AdminPage({
             description={q ? "Prueba con otro símbolo o nombre." : undefined}
           />
         ) : (
-          <div className="overflow-x-auto rounded-3xl border border-border bg-surface-1">
+          <>
+            <div className="hidden overflow-x-auto rounded-xl bg-surface-1 shadow-card md:block">
             <table className="w-full min-w-[720px] text-left">
               <caption className="sr-only">Activos del catálogo</caption>
               <thead>
-                <tr className="text-sm text-fg-muted">
+                <tr className="text-[13px] text-fg-muted">
                   <th scope="col" className="px-3 py-3 font-medium">Activo</th>
                   <th scope="col" className="px-3 py-3 font-medium">Estado</th>
                   <th scope="col" className="px-3 py-3 font-medium">Motivos</th>
@@ -339,6 +383,12 @@ export default async function AdminPage({
               </tbody>
             </table>
           </div>
+            <ul aria-label="Activos del catálogo" className="flex flex-col gap-3 md:hidden">
+              {shown.map((asset) => (
+                <AssetCard key={asset.symbol} asset={asset} q={q} />
+              ))}
+            </ul>
+          </>
         )}
         {assetsResult.ok && filtered.length > shown.length ? (
           <p className="text-sm text-fg-muted">

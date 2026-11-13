@@ -1,7 +1,7 @@
 "use client";
 
 import { useQueryClient } from "@tanstack/react-query";
-import { useState, type ReactNode } from "react";
+import { useState } from "react";
 
 import { InvestorPassportCard } from "@/components/domain/investor-passport-card";
 import { Button } from "@/components/ui/button";
@@ -17,21 +17,20 @@ import { useDeletionStatus, useMe } from "@/lib/hooks/queries";
 import { useT } from "@/lib/hooks/use-t";
 import { isProfileMigrationMessage } from "@/lib/profile/migration";
 
-import { fill, formatWhen, regionName, SettingsFrame, SettingsPanel } from "../ui";
-
-function Field({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
-  return (
-    <div className="flex flex-col gap-2 border-b border-border px-4 py-4 last:border-b-0 md:px-6">
-      <div>
-        <p className="text-sm text-fg-muted">{label}</p>
-        {hint ? (
-          <p className="mt-1 text-sm text-fg-muted">{hint}</p>
-        ) : null}
-      </div>
-      {children}
-    </div>
-  );
-}
+import {
+  fill,
+  formatWhen,
+  regionName,
+  SettingsButton,
+  SettingsField,
+  SettingsFrame,
+  SettingsItem,
+  SettingsList,
+  SettingsNote,
+  SettingsPanel,
+  SettingsPanelBody,
+  SettingsValue,
+} from "../ui";
 
 export function AccountScreen() {
   const { t, language } = useT();
@@ -53,9 +52,7 @@ export function AccountScreen() {
   if (isProfileMigrationMessage(me.error)) {
     return (
       <SettingsFrame title={t.profile.account} description={t.profile.accountLead}>
-        <p role="status" className="rounded-2xl border border-border bg-surface-1 px-4 py-3 text-sm leading-relaxed text-fg-muted">
-          {t.profile.schemaMissing}
-        </p>
+        <SettingsNote role="status">{t.profile.schemaMissing}</SettingsNote>
         <Button type="button" variant="secondary" size="lg" className="w-full" disabled={status === "loading"} onClick={() => void logout()}>
           {t.profile.logout}
         </Button>
@@ -66,7 +63,11 @@ export function AccountScreen() {
   if (me.isPending) {
     return (
       <SettingsFrame title={t.profile.account} description={t.profile.accountLead}>
-        <LoadingState label={t.states.loading} />
+        <SettingsPanel>
+          <SettingsPanelBody>
+            <LoadingState variant="list" label={t.states.loading} />
+          </SettingsPanelBody>
+        </SettingsPanel>
       </SettingsFrame>
     );
   }
@@ -128,23 +129,21 @@ export function AccountScreen() {
         userId={profile.id}
       />
       <SettingsPanel>
-        <Field label={t.profile.name} hint={t.profile.nameHint}>
+        <SettingsField label={t.profile.name} hint={t.profile.nameHint} htmlFor="display-name">
           <form
-            className="flex flex-col gap-3 sm:flex-row"
+            className="flex min-w-0 flex-col gap-3 sm:flex-row"
             onSubmit={(event) => {
               event.preventDefault();
               void saveName();
             }}
           >
-            <label className="sr-only" htmlFor="display-name">
-              {t.profile.name}
-            </label>
             <Input
               id="display-name"
               value={name}
               maxLength={80}
               autoComplete="name"
               placeholder={t.profile.namePlaceholder}
+              className="min-w-0 flex-1"
               onChange={(event) => {
                 setDraft(event.target.value);
                 setNameError(null);
@@ -153,7 +152,7 @@ export function AccountScreen() {
             <Button
               type="submit"
               size="lg"
-              className="shrink-0"
+              className="w-full shrink-0 sm:w-auto"
               loading={saving}
               disabled={saving || name.trim() === (profile.displayName ?? "")}
             >
@@ -161,33 +160,39 @@ export function AccountScreen() {
             </Button>
           </form>
           {nameError ? (
-            <p role="alert" className="text-sm text-down">
+            <p role="alert" className="text-[13px] leading-5 text-down">
               {nameError}
             </p>
           ) : null}
-        </Field>
-        <Field label={t.profile.email} hint={t.profile.emailReadonly}>
-          <label className="sr-only" htmlFor="account-email">
-            {t.profile.email}
-          </label>
-          <Input id="account-email" value={profile.email ?? ""} placeholder={t.profile.noEmail} readOnly disabled />
-        </Field>
-        <Field label={t.profile.country}>
-          <p className="text-sm text-fg">{regionName(profile.country, language, t.profile.noCountry)}</p>
-        </Field>
-        <Field label={t.profile.userId}>
-          <p className="num text-sm break-all text-fg">{profile.id}</p>
-          <CopyButton value={profile.id} label={t.profile.copy} copiedLabel={t.profile.copied} />
-        </Field>
+        </SettingsField>
+        <SettingsField label={t.profile.email} hint={t.profile.emailReadonly}>
+          <SettingsValue className="break-all">{profile.email ?? t.profile.noEmail}</SettingsValue>
+        </SettingsField>
+        <SettingsField label={t.profile.country}>
+          <SettingsValue>{regionName(profile.country, language, t.profile.noCountry)}</SettingsValue>
+        </SettingsField>
+        <SettingsField label={t.profile.userId}>
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="num min-w-0 flex-1 text-[13px] leading-5 break-all text-fg">{profile.id}</p>
+            <CopyButton value={profile.id} label={t.profile.copy} copiedLabel={t.profile.copied} />
+          </div>
+        </SettingsField>
       </SettingsPanel>
 
-      <Button type="button" variant="secondary" size="lg" className="w-full" disabled={status === "loading"} onClick={() => void logout()}>
-        {t.profile.logout}
-      </Button>
-
-      <Button type="button" variant="danger" size="lg" className="w-full" onClick={() => setOpen(true)}>
-        {t.profile.delete}
-      </Button>
+      <SettingsPanel>
+        <SettingsList>
+          <SettingsItem>
+            <SettingsButton disabled={status === "loading"} onClick={() => void logout()}>
+              {t.profile.logout}
+            </SettingsButton>
+          </SettingsItem>
+          <SettingsItem>
+            <SettingsButton tone="danger" onClick={() => setOpen(true)}>
+              {t.profile.delete}
+            </SettingsButton>
+          </SettingsItem>
+        </SettingsList>
+      </SettingsPanel>
 
       <Dialog
         open={open}

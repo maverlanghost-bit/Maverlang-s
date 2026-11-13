@@ -1,26 +1,16 @@
-import Link from "next/link";
-
 /**
- * Copy en uso: "Opera 24/7 • Cómo funciona"
- * ALTERNATIVA: "En tu propia billetera • Cómo funciona"
- * ALTERNATIVA: "Comisión 0% en el lanzamiento • Ver costos"
+ * Copy en uso: "Comisión 0% en el lanzamiento"
+ * Dejó de ser píldora: en el hero es una línea de texto (sin cápsula, relleno
+ * ni borde). El enlace a costos vive en la cabecera y en la sección de costos,
+ * así que el hero no suma una acción más.
+ *
+ * ALTERNATIVA: "Opera 24/7 · Cómo funciona"
+ * ALTERNATIVA: "En tu propia billetera · Cómo funciona"
  */
 export function AnnouncementPill() {
   return (
-    <Link
-      href="/#como-funciona"
-      className="mx-auto inline-flex min-h-11 max-w-full flex-wrap items-center justify-center gap-x-2 gap-y-0.5 rounded-full border border-border bg-bg px-3 py-2 text-center text-sm leading-snug text-fg-body transition duration-[140ms] ease-spring hover:bg-surface-2 active:scale-[0.98]"
-    >
-      <span>Opera 24/7</span>
-      {/* ALTERNATIVA: En tu propia billetera */}
-      {/* ALTERNATIVA: Comisión 0% en el lanzamiento */}
-      {/* M85: decorativo para lectores (aria-hidden) pero con contraste AA
-          visual (fg-muted): axe mide el texto visible aunque sea decorativo. */}
-      <span aria-hidden className="text-fg-muted">
-        •
-      </span>
-      <span className="font-medium text-fg">Cómo funciona</span>
-      {/* ALTERNATIVA (con la pill de comisión): Ver costos → /#costos */}
-    </Link>
+    <p className="max-w-full text-center text-sm leading-5 text-pretty text-fg-muted">
+      <span className="font-medium whitespace-nowrap text-fg">Comisión 0%</span> en el lanzamiento
+    </p>
   );
 }

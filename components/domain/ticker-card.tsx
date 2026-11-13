@@ -39,24 +39,38 @@ export function TickerCard({
     <div className={cn("relative min-w-[220px] flex-1 basis-60 shrink-0 snap-start", className)}>
       <Link
         href={href}
-        className="group relative flex h-full min-h-32 min-w-[220px] flex-1 basis-60 snap-start flex-col justify-between gap-3 rounded-2xl border border-border/80 bg-white/90 p-4 pr-12 shadow-[0_8px_24px_-14px_rgba(12,15,20,0.08)] transition-all duration-200 ease-spring hover:-translate-y-0.5 hover:border-brand/35 hover:bg-white hover:shadow-[0_14px_32px_-12px_rgba(12,15,20,0.12)] active:bg-surface-2/60"
+        className={cn(
+          "group flex h-full min-h-32 flex-col justify-between gap-3 rounded-2xl bg-surface-1 p-4 shadow-card transition-colors duration-200 ease-spring hover:bg-surface-2 active:bg-surface-3/60",
+          action ? "pr-12" : null,
+        )}
       >
         <span className="flex items-center gap-2">
           <TickerLogo symbol={symbol} name={name} logoUrl={logoUrl} size={36} decorative loading="eager" sizes="40px" />
           <span className="min-w-0">
-            <span className="block truncate font-semibold tracking-tight text-fg">{symbol}</span>
-            <span className="block truncate text-sm text-fg-muted">
+            <span className="block truncate font-mono text-[13px] font-semibold tracking-tight text-fg" title={symbol}>
+              {symbol}
+            </span>
+            <span className="line-clamp-2 text-sm leading-tight text-fg-muted" title={name}>
               {name}
               {lowLiquidityLabel ? <span> · {lowLiquidityLabel}</span> : null}
             </span>
           </span>
         </span>
         <span className="mt-auto flex items-end justify-between gap-2">
-          <span className="flex min-w-0 flex-col items-start gap-1.5">
-            <ChangeBadge value={change} className="px-3 py-1 text-base font-semibold" />
-            <span className="font-medium">
-              <FlashPrice value={price} currency={currency} size="sm" />
+          <span className="flex min-w-0 flex-col items-start gap-1">
+            {/* Precio primero: es la cifra protagonista; la variación va debajo, secundaria. */}
+            <span className="flex items-baseline gap-1 font-medium">
+              <FlashPrice
+                value={price}
+                currency={currency}
+                size="sm"
+                className="-mr-1 text-[17px] leading-tight font-semibold"
+              />
+              {currency === "CLP" ? (
+                <span className="text-xs leading-none font-medium text-fg-muted">CLP</span>
+              ) : null}
             </span>
+            <ChangeBadge value={change} className="px-2.5 py-1 text-[13px]" />
           </span>
           {sparkline && sparkline.length >= 2 ? (
             <Sparkline data={sparkline} width={88} height={32} className="shrink-0" />

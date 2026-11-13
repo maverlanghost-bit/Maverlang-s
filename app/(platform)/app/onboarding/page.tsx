@@ -34,7 +34,7 @@ export default async function OnboardingPage({
   };
 
   return (
-    <main className="flex min-h-dvh items-center justify-center px-5 py-10">
+    <main className="flex min-h-dvh flex-col items-center px-4 py-8 sm:px-5 sm:py-12">
       {isSupabaseAuth() ? (
         <RealOnboardingGate
           next={returnTo}

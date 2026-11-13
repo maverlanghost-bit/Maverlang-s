@@ -5,6 +5,7 @@ import { TickerLogo } from "@/components/domain/ticker-logo";
 import { CompareChart } from "@/components/landing/compare-chart";
 import { LandingSection } from "@/components/landing/section";
 import { StockLivePrice } from "@/components/landing/stock-live-price";
+import { buttonClasses } from "@/components/ui/button";
 import { logoPathFromSymbol } from "@/lib/catalog/logos";
 import { cn } from "@/lib/cn";
 import { COMPARE_PAIRS, comparePath, sectorFor } from "@/lib/seo/categories";
@@ -21,16 +22,40 @@ const TITLE_MAX = 60;
 const DESCRIPTION_MAX = 155;
 const DESCRIPTION_MIN = 120;
 
-const badgeClass =
-  "inline-flex items-center rounded-full border border-border bg-bg px-2.5 py-1 text-[11px] leading-none font-medium text-fg-muted";
-
 const linkClass =
-  "inline-flex min-h-11 items-center font-medium text-fg underline decoration-border underline-offset-4 hover:decoration-fg";
+  "inline-flex min-h-11 items-center text-sm font-medium text-fg underline decoration-border underline-offset-4 transition-colors hover:decoration-fg motion-reduce:transition-none";
+
+/** Migas: el enlace mantiene 44 px de alto táctil sin agrandar el texto. */
+const crumbClass =
+  "inline-flex min-h-11 items-center underline decoration-border underline-offset-4 transition-colors hover:decoration-fg motion-reduce:transition-none";
 
 /** Importe por acción de la SEC (EPS o dividendos): dólares, dos decimales, es-CL. */
 function usdPerShare(value: number | null): string | null {
   if (value === null || !Number.isFinite(value)) return null;
   return `US$${value.toLocaleString("es-CL", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+/** Frase con la cifra mayor, en palabras y sin juicio de valor. */
+function winnerLabel(
+  row: {
+    left: string | null;
+    right: string | null;
+    leftValue: number | null;
+    rightValue: number | null;
+    numeric: boolean;
+  },
+  a: PublicAsset,
+  b: PublicAsset,
+): string | null {
+  if (!row.numeric) return null;
+  if (row.left === null && row.right === null) return null;
+  if (row.left === null) return `Sólo ${b.ticker} publica el dato`;
+  if (row.right === null) return `Sólo ${a.ticker} publica el dato`;
+  const left = row.leftValue;
+  const right = row.rightValue;
+  if (left === null || right === null) return null;
+  if (left === right) return "Iguales";
+  return `Cifra mayor: ${left > right ? a.ticker : b.ticker}`;
 }
 
 /** Fecha larga del snapshot, sin corrimiento de zona: el ISO es UTC. */
@@ -154,18 +179,19 @@ export async function generateMetadata({
   });
 }
 
-function SideCard({ asset }: { asset: PublicAsset }) {
+/** Cabecera de cada activo: sin tarjeta, sólo hairlines y el precio en vivo. */
+function SideSummary({ asset }: { asset: PublicAsset }) {
   return (
-    <div className="flex h-full flex-col gap-4 rounded-3xl border border-border bg-surface-1 p-5 sm:p-6">
+    <div className="flex h-full flex-col gap-4">
       <div className="flex items-center gap-3">
         <TickerLogo
           symbol={asset.symbol}
           name={asset.name}
           logoUrl={logoPathFromSymbol(asset.symbol)}
-          size={44}
+          size={36}
           decorative
           loading="lazy"
-          sizes="44px"
+          sizes="36px"
         />
         <div className="min-w-0">
           <p className="label">{asset.ticker}</p>
@@ -173,14 +199,9 @@ function SideCard({ asset }: { asset: PublicAsset }) {
         </div>
       </div>
       <StockLivePrice symbol={asset.symbol} />
-      <ul className="flex flex-wrap gap-2">
-        <li>
-          <span className={badgeClass}>{asset.symbol}</span>
-        </li>
-        <li>
-          <span className={badgeClass}>{asset.etf ? "ETF" : "Acción EE.UU."}</span>
-        </li>
-      </ul>
+      <p className="text-[13px] leading-relaxed text-fg-muted">
+        {asset.symbol} · {asset.etf ? "ETF" : "Acción EE.UU."}
+      </p>
       <Link href={`/acciones/${asset.slug}`} className={`${linkClass} mt-auto`}>
         Ver ficha de {asset.name}
       </Link>
@@ -189,8 +210,11 @@ function SideCard({ asset }: { asset: PublicAsset }) {
 }
 
 /**
- * Barras proporcionales al mayor valor absoluto de la fila. Sólo se dibujan
- * con datos publicados; un nulo queda como "Sin dato", nunca como 0.
+ * Barras proporcionales al mayor valor absoluto de la fila, con la línea base
+ * siempre al 50 % del ancho: un valor positivo crece hacia la derecha y uno
+ * negativo hacia la izquierda. Así una pérdida no se ve igual que una
+ * ganancia. Sólo se dibujan con datos publicados; un nulo queda como
+ * "Sin dato", nunca como 0.
  */
 function MetricBars({
   label,
@@ -216,25 +240,28 @@ function MetricBars({
 
   return (
     <div>
-      <p className="label">{label}</p>
-      <div className="mt-2 space-y-3">
+      <p className="text-[13px] font-medium text-fg-body">{label}</p>
+      <div className="mt-2.5 space-y-3">
         {sides.map(({ asset, value }) => {
           const formatted = formatUsdCompact(value);
-          const width = value !== null && max > 0 ? Math.max((Math.abs(value) / max) * 100, 1.5) : 0;
+          const magnitude =
+            value !== null && value !== 0 && max > 0 ? Math.max((Math.abs(value) / max) * 50, 0.8) : 0;
+          const negative = value !== null && value < 0;
           return (
             <div key={asset.slug}>
-              <div className="flex items-baseline justify-between gap-3 text-xs">
+              <div className="flex items-baseline justify-between gap-3 text-[13px]">
                 <span className="font-mono text-fg-muted">{asset.ticker}</span>
                 <span className="num text-fg">{formatted ?? "Sin dato"}</span>
               </div>
-              <span aria-hidden className="mt-1.5 block h-2.5 overflow-hidden rounded-full bg-surface-2">
-                {width > 0 ? (
+              <span aria-hidden className="relative mt-1.5 block h-1.5 w-full bg-border">
+                <span className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-fg/30" />
+                {magnitude > 0 ? (
                   <span
-                    className={cn(
-                      "block h-full rounded-full",
-                      value !== null && value < 0 ? "bg-down/70" : "bg-fg/70",
-                    )}
-                    style={{ width: `${width}%` }}
+                    className={cn("absolute inset-y-0", negative ? "bg-down" : "bg-fg")}
+                    style={{
+                      left: negative ? `${50 - magnitude}%` : "50%",
+                      width: `${magnitude}%`,
+                    }}
                   />
                 ) : null}
               </span>
@@ -261,36 +288,62 @@ export default async function CompararParPage({ params }: { params: Promise<{ pa
   const rightProfile = companyProfile(b.ticker);
   const snapshotDate = longDate(COMPANY_SNAPSHOT_DATE);
 
-  const rows: { label: string; left: string | null; right: string | null }[] = [
+  const rows: {
+    label: string;
+    left: string | null;
+    right: string | null;
+    /** Valor crudo para señalar la cifra mayor en móvil. */
+    leftValue: number | null;
+    rightValue: number | null;
+    numeric: boolean;
+  }[] = [
     {
       label: "Ingresos (12 meses)",
       left: formatUsdCompact(leftProfile?.revenueTtm ?? null),
       right: formatUsdCompact(rightProfile?.revenueTtm ?? null),
+      leftValue: leftProfile?.revenueTtm ?? null,
+      rightValue: rightProfile?.revenueTtm ?? null,
+      numeric: true,
     },
     {
       label: "Utilidad neta (12 meses)",
       left: formatUsdCompact(leftProfile?.netIncomeTtm ?? null),
       right: formatUsdCompact(rightProfile?.netIncomeTtm ?? null),
+      leftValue: leftProfile?.netIncomeTtm ?? null,
+      rightValue: rightProfile?.netIncomeTtm ?? null,
+      numeric: true,
     },
     {
       label: "Utilidad por acción (12 meses)",
       left: usdPerShare(leftProfile?.epsTtm ?? null),
       right: usdPerShare(rightProfile?.epsTtm ?? null),
+      leftValue: leftProfile?.epsTtm ?? null,
+      rightValue: rightProfile?.epsTtm ?? null,
+      numeric: true,
     },
     {
       label: "Dividendos por acción (12 meses)",
       left: usdPerShare(leftProfile?.dividendsPerShareTtm ?? null),
       right: usdPerShare(rightProfile?.dividendsPerShareTtm ?? null),
+      leftValue: leftProfile?.dividendsPerShareTtm ?? null,
+      rightValue: rightProfile?.dividendsPerShareTtm ?? null,
+      numeric: true,
     },
     {
       label: "Bolsa",
       left: leftProfile?.exchange ?? null,
       right: rightProfile?.exchange ?? null,
+      leftValue: null,
+      rightValue: null,
+      numeric: false,
     },
     {
       label: "Sector",
       left: sectorFor(a)?.name ?? null,
       right: sectorFor(b)?.name ?? null,
+      leftValue: null,
+      rightValue: null,
+      numeric: false,
     },
   ];
   if (leftProfile?.fundNetAssets != null || rightProfile?.fundNetAssets != null) {
@@ -298,6 +351,9 @@ export default async function CompararParPage({ params }: { params: Promise<{ pa
       label: "Activos netos del fondo",
       left: formatUsdCompact(leftProfile?.fundNetAssets ?? null),
       right: formatUsdCompact(rightProfile?.fundNetAssets ?? null),
+      leftValue: leftProfile?.fundNetAssets ?? null,
+      rightValue: rightProfile?.fundNetAssets ?? null,
+      numeric: true,
     });
   }
   const visibleRows = rows.filter((row) => row.left !== null || row.right !== null);
@@ -322,19 +378,19 @@ export default async function CompararParPage({ params }: { params: Promise<{ pa
   ];
 
   return (
-    <LandingSection titleId="comparar-title">
+    <LandingSection titleId="comparar-title" density="compact">
       <JsonLd data={breadcrumbJsonLd(crumbs)} />
       <article>
         <nav aria-label="Migas" className="text-sm text-fg-muted">
           <ol className="flex flex-wrap items-center gap-x-2 gap-y-1">
             <li>
-              <Link href="/" className="underline decoration-border underline-offset-4 hover:decoration-fg">
+              <Link href="/" className={crumbClass}>
                 Inicio
               </Link>
             </li>
             <li aria-hidden="true">/</li>
             <li>
-              <Link href="/comparar" className="underline decoration-border underline-offset-4 hover:decoration-fg">
+              <Link href="/comparar" className={crumbClass}>
                 Comparar
               </Link>
             </li>
@@ -345,20 +401,24 @@ export default async function CompararParPage({ params }: { params: Promise<{ pa
           </ol>
         </nav>
 
-        <header className="mt-8 border-b border-border pb-8">
+        <header className="mt-6 border-b border-border pb-8">
           <p className="label">Comparación</p>
-          <h1 id="comparar-title" className="mt-2 text-3xl sm:text-4xl">
+          <h1 id="comparar-title" className="mt-3 text-3xl text-balance sm:text-4xl">
             {a.name} vs {b.name}
           </h1>
-          <p className="mt-4 max-w-2xl text-sm leading-relaxed text-fg-body sm:text-base">
+          <p className="mt-4 max-w-[62ch] text-lead text-fg-body">
             Dos activos lado a lado: cifras de la empresa según la SEC, precio del token y rendimiento relativo del
             último mes. Comparar no es recomendar.
           </p>
         </header>
 
-        <div className="mt-8 grid gap-4 sm:grid-cols-2">
-          <SideCard asset={a} />
-          <SideCard asset={b} />
+        <div className="mt-8 grid sm:grid-cols-2 sm:divide-x sm:divide-border">
+          <div className="border-b border-border py-5 sm:border-b-0 sm:pr-6 lg:pr-8">
+            <SideSummary asset={a} />
+          </div>
+          <div className="py-5 sm:pl-6 lg:pl-8">
+            <SideSummary asset={b} />
+          </div>
         </div>
 
         <CompareChart
@@ -368,54 +428,115 @@ export default async function CompararParPage({ params }: { params: Promise<{ pa
           path={canonical}
         />
 
-        <section aria-labelledby="comparar-datos" className="mt-10">
-          <h2 id="comparar-datos" className="text-xl sm:text-2xl">
+        <section aria-labelledby="comparar-datos" className="mt-12">
+          <h2 id="comparar-datos" className="text-2xl sm:text-3xl">
             Datos de la empresa
           </h2>
-          <p className="mt-2 max-w-2xl text-sm leading-relaxed text-fg-muted">
+          <p className="mt-2 max-w-[68ch] text-[13px] leading-relaxed text-fg-muted">
             Cifras de los últimos 12 meses según la SEC. Si la empresa no publica un dato, se muestra “Sin dato”: no se
             completa con cero.
           </p>
 
           {visibleRows.length > 0 ? (
-            <div className="mt-5 overflow-hidden rounded-3xl border border-border bg-surface-1">
-              <table className="w-full table-fixed border-collapse text-left text-[11px] sm:text-sm">
-                <caption className="sr-only">
-                  Comparación de datos de empresa de {a.name} y {b.name}
-                </caption>
-                <thead>
-                  <tr className="border-b border-border">
-                    <th scope="col" className="label w-[34%] px-3 py-3 font-normal sm:px-4">
-                      Dato
-                    </th>
-                    <th scope="col" className="px-3 py-3 font-medium text-fg sm:px-4">
-                      {a.ticker}
-                    </th>
-                    <th scope="col" className="px-3 py-3 font-medium text-fg sm:px-4">
-                      {b.ticker}
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {visibleRows.map((row) => (
-                    <tr key={row.label}>
-                      <th scope="row" className="px-3 py-3 align-top font-normal text-fg-muted sm:px-4">
-                        {row.label}
+            <>
+              {/* <sm: una fila por métrica, dos valores y la cifra mayor en palabras.
+                  Reemplaza la tabla de 3 columnas que a 390 px caía a 11 px. */}
+              <ul className="mt-5 border-t border-border sm:hidden">
+                {visibleRows.map((row) => {
+                  const winner = winnerLabel(row, a, b);
+                  return (
+                    <li key={row.label} className="border-b border-border py-4">
+                      <p className="text-[13px] font-medium text-fg-body">{row.label}</p>
+                      <dl className="mt-2 space-y-1.5">
+                        <div className="flex items-baseline justify-between gap-3">
+                          <dt className="font-mono text-[13px] text-fg-muted">{a.ticker}</dt>
+                          <dd
+                            className={cn(
+                              "text-right text-sm text-fg",
+                              row.numeric && row.left !== null && "num",
+                              row.left === null && "text-fg-muted",
+                            )}
+                          >
+                            {row.left ?? "Sin dato"}
+                          </dd>
+                        </div>
+                        <div className="flex items-baseline justify-between gap-3">
+                          <dt className="font-mono text-[13px] text-fg-muted">{b.ticker}</dt>
+                          <dd
+                            className={cn(
+                              "text-right text-sm text-fg",
+                              row.numeric && row.right !== null && "num",
+                              row.right === null && "text-fg-muted",
+                            )}
+                          >
+                            {row.right ?? "Sin dato"}
+                          </dd>
+                        </div>
+                      </dl>
+                      {winner ? <p className="mt-2 text-[13px] text-fg-muted">{winner}</p> : null}
+                    </li>
+                  );
+                })}
+              </ul>
+
+              <div className="mt-5 hidden max-w-3xl overflow-x-auto sm:block">
+                <table className="w-full border-collapse text-left text-[13px]">
+                  <caption className="sr-only">
+                    Comparación de datos de empresa de {a.name} y {b.name}
+                  </caption>
+                  <thead>
+                    <tr className="border-b border-border">
+                      <th scope="col" className="label w-[32%] py-2.5 pr-4 text-left">
+                        Dato
                       </th>
-                      <td className="num px-3 py-3 align-top text-fg sm:px-4">{row.left ?? "Sin dato"}</td>
-                      <td className="num px-3 py-3 align-top text-fg sm:px-4">{row.right ?? "Sin dato"}</td>
+                      <th scope="col" className="label whitespace-nowrap py-2.5 pr-4 pl-4 text-right text-fg">
+                        {a.ticker}
+                      </th>
+                      <th scope="col" className="label whitespace-nowrap py-2.5 pl-4 text-right text-fg">
+                        {b.ticker}
+                      </th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {visibleRows.map((row) => (
+                      <tr
+                        key={row.label}
+                        className="border-b border-border transition-colors hover:bg-surface-1 motion-reduce:transition-none"
+                      >
+                        <th scope="row" className="py-3 pr-4 align-baseline font-normal text-fg-body">
+                          {row.label}
+                        </th>
+                        <td
+                          className={cn(
+                            "whitespace-nowrap px-4 py-3 text-right align-baseline",
+                            row.numeric && "num",
+                            row.left === null ? "text-fg-muted" : "text-fg",
+                          )}
+                        >
+                          {row.left ?? "Sin dato"}
+                        </td>
+                        <td
+                          className={cn(
+                            "whitespace-nowrap py-3 pl-4 text-right align-baseline",
+                            row.numeric && "num",
+                            row.right === null ? "text-fg-muted" : "text-fg",
+                          )}
+                        >
+                          {row.right ?? "Sin dato"}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
           ) : (
-            <p className="mt-5 rounded-2xl border border-dashed border-border px-4 py-6 text-sm leading-relaxed text-fg-muted">
+            <p className="mt-4 border-t border-border py-5 text-[13px] leading-relaxed text-fg-muted">
               No hay datos de empresa publicados por la SEC para estos activos.
             </p>
           )}
 
-          <div className="mt-4 text-[11px] leading-relaxed text-fg-muted">
+          <div className="mt-4 text-[13px] leading-relaxed text-fg-muted">
             <p>
               Fuente: SEC EDGAR{snapshotDate ? `, datos al ${snapshotDate}` : ""}. Cifras de los últimos 12 meses cuando
               la empresa las publica.
@@ -452,18 +573,16 @@ export default async function CompararParPage({ params }: { params: Promise<{ pa
         </section>
 
         {metrics.length > 0 ? (
-          <section
-            aria-labelledby="comparar-tamano"
-            className="mt-10 rounded-3xl border border-border bg-surface-1 p-6 sm:p-8"
-          >
-            <h2 id="comparar-tamano" className="text-xl sm:text-2xl">
+          <section aria-labelledby="comparar-tamano" className="mt-12 border-t border-border pt-8">
+            <h2 id="comparar-tamano" className="text-2xl sm:text-3xl">
               Tamaño relativo
             </h2>
-            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-fg-muted">
-              Barras proporcionales al mayor valor de cada fila. Sirven para comparar magnitudes, no para medir
+            <p className="mt-2 max-w-2xl text-[13px] leading-relaxed text-fg-muted">
+              Barras proporcionales al mayor valor absoluto de cada fila, con la línea base al centro: a la derecha las
+              cifras positivas y a la izquierda las negativas. Sirven para comparar magnitudes, no para medir
               rendimiento.
             </p>
-            <div className="mt-6 space-y-6">
+            <div className="mt-6 max-w-2xl space-y-6">
               {metrics.map((metric) => (
                 <MetricBars
                   key={metric.label}
@@ -478,7 +597,10 @@ export default async function CompararParPage({ params }: { params: Promise<{ pa
           </section>
         ) : null}
 
-        <div className="mt-10 flex flex-wrap items-center gap-x-6 gap-y-2">
+        <div className="mt-12 flex flex-wrap items-center gap-x-6 gap-y-3">
+          <Link href="/acciones" className={buttonClasses({ variant: "primary" })}>
+            Ver el catálogo
+          </Link>
           <Link href={`/acciones/${a.slug}`} className={linkClass}>
             Ficha de {a.name}
           </Link>
@@ -488,12 +610,9 @@ export default async function CompararParPage({ params }: { params: Promise<{ pa
           <Link href="/comparar" className={linkClass}>
             Todas las comparaciones
           </Link>
-          <Link href="/acciones" className={linkClass}>
-            Ver el catálogo
-          </Link>
         </div>
 
-        <p className="mt-8 rounded-2xl border border-border bg-surface-1 px-5 py-4 text-xs leading-relaxed text-fg-body sm:text-sm">
+        <p className="mt-10 border-t border-border pt-6 text-[13px] leading-relaxed text-fg-body">
           Las cifras de la empresa son datos públicos de la SEC y los precios se mueven durante el día; fuera del
           horario regular de la bolsa de EE.UU. el precio puede variar más. Revisa la ficha de cada activo antes de
           operar. Información, no recomendación de inversión.

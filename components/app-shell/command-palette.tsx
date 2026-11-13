@@ -1,11 +1,14 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { TICKERS } from "@/config/tickers";
 import { TickerLogo } from "@/components/domain/ticker-logo";
-import { Badge } from "@/components/ui/badge";
+import { IconButton } from "@/components/ui/icon-button";
+import { IconClose, IconSearch } from "@/components/ui/icons";
 import { cn } from "@/lib/cn";
+import { useT } from "@/lib/hooks/use-t";
 
 export function openCommandPalette() {
   if (typeof window !== "undefined") {
@@ -28,24 +31,53 @@ const QUICK_COMMANDS: QuickCommand[] = [
   { id: "settings", label: "Ajustes de moneda e idioma", hint: "USD / CLP y preferencias", href: "/app/ajustes" },
 ];
 
+const KBD =
+  "inline-flex h-5 min-w-5 items-center justify-center rounded border border-border bg-surface-1 px-1 font-mono text-[10px] leading-none text-fg-muted";
+
+const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+function subscribe() {
+  return () => {};
+}
+
+function useMounted() {
+  return useSyncExternalStore(subscribe, () => true, () => false);
+}
+
+/**
+ * Paleta de comandos (⌘K / Ctrl+K). En móvil es el menú del shell: ocupa el
+ * ancho útil, nunca pasa del alto visible y sólo desplaza su lista. Mientras
+ * está abierta el foco no se escapa del panel, Escape cierra desde cualquier
+ * punto y al cerrar se devuelve el foco al control que la abrió.
+ */
+
 export function CommandPalette() {
   const router = useRouter();
+  const { t } = useT();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [activeIndex, setActiveIndex] = useState(0);
+  const panelRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const listId = useId();
+  const mounted = useMounted();
 
   const normalizedQuery = query.trim().toLowerCase();
 
+  const close = useCallback(() => {
+    setOpen(false);
+    setQuery("");
+  }, []);
+
   const matchingStocks = useMemo(() => {
-    const enabled = TICKERS.filter((t) => t.enabled);
+    const enabled = TICKERS.filter((item) => item.enabled);
     if (!normalizedQuery) return enabled.slice(0, 6);
     return enabled
       .filter(
-        (t) =>
-          t.symbol.toLowerCase().includes(normalizedQuery) ||
-          t.name.toLowerCase().includes(normalizedQuery) ||
-          t.category.toLowerCase().includes(normalizedQuery),
+        (item) =>
+          item.symbol.toLowerCase().includes(normalizedQuery) ||
+          item.name.toLowerCase().includes(normalizedQuery) ||
+          item.category.toLowerCase().includes(normalizedQuery),
       )
       .slice(0, 6);
   }, [normalizedQuery]);
@@ -54,12 +86,12 @@ export function CommandPalette() {
     if (!normalizedQuery) return QUICK_COMMANDS;
     return QUICK_COMMANDS.filter(
       (cmd) =>
-        cmd.label.toLowerCase().includes(normalizedQuery) ||
-        cmd.hint.toLowerCase().includes(normalizedQuery),
+        cmd.label.toLowerCase().includes(normalizedQuery) || cmd.hint.toLowerCase().includes(normalizedQuery),
     );
   }, [normalizedQuery]);
 
   const totalItems = matchingStocks.length + matchingCommands.length;
+  const selectedIndex = totalItems === 0 ? 0 : Math.min(activeIndex, totalItems - 1);
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -83,20 +115,73 @@ export function CommandPalette() {
     };
   }, []);
 
+  /** Foco al buscador al abrir; al cerrar, de vuelta al control que abrió. */
   useEffect(() => {
     if (!open) return;
+    const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const id = window.requestAnimationFrame(() => {
       inputRef.current?.focus();
     });
-    return () => window.cancelAnimationFrame(id);
+    return () => {
+      window.cancelAnimationFrame(id);
+      previous?.focus();
+    };
   }, [open]);
 
-  if (!open) return null;
+  /**
+   * La página no scrollea detrás del modal. Se compensa el ancho de la barra
+   * de scroll para que el contenido no salte ni al abrir ni al cerrar.
+   */
+  useEffect(() => {
+    if (!open) return;
+    const body = document.body;
+    const scrollbar = window.innerWidth - document.documentElement.clientWidth;
+    const overflow = body.style.overflow;
+    const paddingRight = body.style.paddingRight;
+    body.style.overflow = "hidden";
+    if (scrollbar > 0) body.style.paddingRight = `${scrollbar}px`;
+    return () => {
+      body.style.overflow = overflow;
+      body.style.paddingRight = paddingRight;
+    };
+  }, [open]);
 
-  const close = () => {
-    setOpen(false);
-    setQuery("");
-  };
+  /** Escape cierra aunque el foco se haya ido del campo; Tab no se escapa del panel. */
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        close();
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const panel = panelRef.current;
+      if (!panel) return;
+      const items = Array.from(panel.querySelectorAll<HTMLElement>(FOCUSABLE));
+      const first = items[0];
+      const last = items[items.length - 1];
+      if (!first || !last) return;
+      const active = document.activeElement;
+      if (event.shiftKey && (active === first || !panel.contains(active))) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && active === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [open, close]);
+
+  /** La fila activa por teclado siempre queda a la vista dentro de la lista. */
+  useEffect(() => {
+    if (!open || totalItems === 0) return;
+    document.getElementById(`${listId}-${selectedIndex}`)?.scrollIntoView({ block: "nearest" });
+  }, [open, listId, selectedIndex, totalItems]);
+
+  if (!mounted || !open) return null;
 
   const selectByIndex = (index: number) => {
     if (index < matchingStocks.length) {
@@ -115,28 +200,37 @@ export function CommandPalette() {
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Escape") {
-      e.preventDefault();
-      close();
-      return;
-    }
     if (e.key === "ArrowDown") {
       e.preventDefault();
-      setActiveIndex((prev) => (totalItems > 0 ? (prev + 1) % totalItems : 0));
+      setActiveIndex(totalItems > 0 ? (selectedIndex + 1) % totalItems : 0);
       return;
     }
     if (e.key === "ArrowUp") {
       e.preventDefault();
-      setActiveIndex((prev) => (totalItems > 0 ? (prev - 1 + totalItems) % totalItems : 0));
+      setActiveIndex(totalItems > 0 ? (selectedIndex - 1 + totalItems) % totalItems : 0);
+      return;
+    }
+    if (e.key === "Home") {
+      e.preventDefault();
+      setActiveIndex(0);
+      return;
+    }
+    if (e.key === "End") {
+      e.preventDefault();
+      setActiveIndex(Math.max(0, totalItems - 1));
       return;
     }
     if (e.key === "Enter" && totalItems > 0) {
       e.preventDefault();
-      selectByIndex(activeIndex);
+      selectByIndex(selectedIndex);
     }
   };
 
-  return (
+  const rowBase =
+    "flex min-h-11 w-full cursor-pointer touch-manipulation items-center gap-3 rounded-lg px-2.5 text-left transition-colors duration-100";
+  const rowState = (selected: boolean) => (selected ? "bg-surface-2 text-fg" : "text-fg-body hover:bg-surface-1");
+
+  return createPortal(
     <div
       role="dialog"
       aria-modal="true"
@@ -145,84 +239,101 @@ export function CommandPalette() {
         if (e.target === e.currentTarget) close();
       }}
       onKeyDown={handleKeyDown}
-      className="fixed inset-0 z-50 bg-fg/25 backdrop-blur-sm flex items-start justify-center pt-[12vh] px-4"
+      className="fixed inset-0 z-50 flex items-start justify-center overflow-hidden overscroll-contain bg-fg/25 px-3 pt-[max(0.75rem,8vh)] pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-[2px] sm:px-4 sm:pt-[max(1rem,12vh)]"
     >
-      <div className="w-full max-w-lg overflow-hidden rounded-[24px] border border-white/70 bg-white/88 backdrop-blur-2xl backdrop-saturate-180 shadow-[0_24px_64px_-16px_rgba(12,15,20,0.22),inset_0_1px_0_rgba(255,255,255,0.9)]">
-        <div className="flex items-center gap-3 border-b border-border/70 px-4 py-3.5">
-          <svg
-            aria-hidden="true"
-            viewBox="0 0 20 20"
-            fill="none"
-            className="size-5 shrink-0 text-fg-muted"
-          >
-            <circle cx="9" cy="9" r="5.75" stroke="currentColor" strokeWidth="1.6" />
-            <path d="M13.5 13.5L17 17" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-          </svg>
+      <div
+        ref={panelRef}
+        className="flex max-h-full w-full max-w-xl flex-col overflow-hidden rounded-xl border border-border bg-bg shadow-float"
+      >
+        <div className="flex shrink-0 items-center gap-2 border-b border-border px-3 transition-colors focus-within:border-fg sm:gap-3 sm:px-4">
+          <IconSearch className="size-4 shrink-0 text-fg-muted" />
           <input
             ref={inputRef}
-            type="search"
+            type="text"
             value={query}
             onChange={(e) => {
               setQuery(e.target.value);
               setActiveIndex(0);
             }}
-            placeholder="Buscar acción (AAPLx, NVDAx...) o ir a sección..."
-            className="min-w-0 flex-1 bg-transparent text-sm text-fg placeholder:text-fg-muted outline-none"
+            data-bare-input=""
+            role="combobox"
+            aria-label="Buscar acciones o secciones"
+            aria-expanded
+            aria-controls={listId}
+            aria-autocomplete="list"
+            aria-activedescendant={totalItems > 0 ? `${listId}-${selectedIndex}` : undefined}
+            placeholder="Buscar acción o sección"
+            autoComplete="off"
+            autoCorrect="off"
+            spellCheck={false}
+            enterKeyHint="go"
+            className="h-14 min-w-0 flex-1 bg-transparent text-base text-fg placeholder:text-fg-muted outline-none"
           />
-          <button
-            type="button"
-            onClick={close}
-            className="shrink-0 cursor-pointer rounded-full border border-border/80 bg-surface-1/80 px-2.5 py-1 text-[11px] font-medium tracking-wide text-fg-muted transition hover:bg-surface-2 hover:text-fg"
-          >
-            ESC
-          </button>
+          <kbd aria-hidden className={cn(KBD, "hidden sm:inline-flex")}>
+            esc
+          </kbd>
+          <IconButton label="Cerrar" size="sm" onClick={close} className="-mr-1">
+            <IconClose />
+          </IconButton>
         </div>
 
-        <div className="max-h-[62vh] overflow-y-auto p-2">
+        <div
+          id={listId}
+          role="listbox"
+          aria-label="Resultados"
+          className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-1 [scrollbar-width:thin] sm:p-1.5"
+        >
           {matchingStocks.length > 0 ? (
-            <div className="py-1">
-              <p className="px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-fg-muted">
+            <div role="group" aria-label="Acciones tokenizadas" className="pb-1">
+              <p className="px-2.5 pt-2 pb-1 font-mono text-[11px] uppercase tracking-[0.08em] text-fg-muted">
                 Acciones tokenizadas
               </p>
-              <ul className="flex flex-col gap-0.5">
-                {matchingStocks.map((t, idx) => {
-                  const isSelected = idx === activeIndex;
+              <ul role="presentation" className="flex flex-col gap-px">
+                {matchingStocks.map((stock, idx) => {
+                  const isSelected = idx === selectedIndex;
                   return (
-                    <li key={t.symbol}>
+                    <li key={stock.symbol} role="presentation">
                       <button
                         type="button"
+                        role="option"
+                        id={`${listId}-${idx}`}
+                        aria-selected={isSelected}
                         onMouseEnter={() => setActiveIndex(idx)}
                         onClick={() => {
                           close();
-                          router.push(`/app/accion/${t.symbol}`);
+                          router.push(`/app/accion/${stock.symbol}`);
                         }}
-                        className={cn(
-                          "flex w-full cursor-pointer items-center gap-3 rounded-2xl px-3 py-2.5 text-left transition duration-150",
-                          isSelected ? "bg-fg/[0.07] text-fg" : "text-fg-body hover:bg-fg/[0.04]",
-                        )}
+                        className={cn(rowBase, rowState(isSelected))}
                       >
-                        <TickerLogo symbol={t.symbol} size={32} />
+                        <TickerLogo symbol={stock.symbol} size={28} />
                         <span className="min-w-0 flex-1">
-                          <span className="block truncate text-sm font-semibold text-fg">{t.symbol}</span>
-                          <span className="block truncate text-xs text-fg-muted">{t.name}</span>
+                          <span className="flex min-w-0 items-baseline gap-2">
+                            <span className="shrink-0 font-mono text-[12px] font-medium uppercase tracking-[0.03em] text-fg">
+                              {stock.symbol}
+                            </span>
+                            <span className="truncate text-[13px] text-fg-muted">{stock.name}</span>
+                          </span>
                         </span>
-                        <Badge tone="neutral" className="shrink-0 text-[11px]">
-                          {t.category}
-                        </Badge>
-                        <svg
-                          aria-hidden="true"
-                          viewBox="0 0 16 16"
-                          fill="none"
-                          className="size-4 shrink-0 text-fg-muted"
+                        <span className="hidden shrink-0 text-[11px] text-fg-subtle sm:block">
+                          {t.market[stock.category]}
+                        </span>
+                        <span
+                          aria-hidden
+                          className={cn(
+                            "w-4 shrink-0 text-center text-fg-muted transition-opacity duration-100",
+                            isSelected ? "opacity-100" : "opacity-0",
+                          )}
                         >
-                          <path
-                            d="M6 3.5L10.5 8L6 12.5"
-                            stroke="currentColor"
-                            strokeWidth="1.5"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          />
-                        </svg>
+                          <svg viewBox="0 0 16 16" fill="none" className="inline size-3.5">
+                            <path
+                              d="M6.5 4l4 4-4 4"
+                              stroke="currentColor"
+                              strokeWidth="1.5"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            />
+                          </svg>
+                        </span>
                       </button>
                     </li>
                   );
@@ -232,46 +343,49 @@ export function CommandPalette() {
           ) : null}
 
           {matchingCommands.length > 0 ? (
-            <div className="py-1">
-              <p className="px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-fg-muted">
-                Accesos rápidos
+            <div role="group" aria-label="Accesos rápidos" className="pb-1">
+              <p className="px-2.5 pt-2 pb-1 font-mono text-[11px] uppercase tracking-[0.08em] text-fg-muted">
+                Ir a
               </p>
-              <ul className="flex flex-col gap-0.5">
+              <ul role="presentation" className="flex flex-col gap-px">
                 {matchingCommands.map((cmd, cmdIdx) => {
                   const index = matchingStocks.length + cmdIdx;
-                  const isSelected = index === activeIndex;
+                  const isSelected = index === selectedIndex;
                   return (
-                    <li key={cmd.id}>
+                    <li key={cmd.id} role="presentation">
                       <button
                         type="button"
+                        role="option"
+                        id={`${listId}-${index}`}
+                        aria-selected={isSelected}
                         onMouseEnter={() => setActiveIndex(index)}
                         onClick={() => {
                           close();
                           router.push(cmd.href);
                         }}
-                        className={cn(
-                          "flex w-full cursor-pointer items-center justify-between gap-3 rounded-2xl px-3 py-2.5 text-left transition duration-150",
-                          isSelected ? "bg-fg/[0.07] text-fg" : "text-fg-body hover:bg-fg/[0.04]",
-                        )}
+                        className={cn(rowBase, rowState(isSelected))}
                       >
                         <span className="min-w-0 flex-1">
-                          <span className="block truncate text-sm font-medium text-fg">{cmd.label}</span>
-                          <span className="block truncate text-xs text-fg-muted">{cmd.hint}</span>
+                          <span className="block truncate text-[13px] font-medium text-fg">{cmd.label}</span>
+                          <span className="block truncate text-[13px] text-fg-muted">{cmd.hint}</span>
                         </span>
-                        <svg
-                          aria-hidden="true"
-                          viewBox="0 0 16 16"
-                          fill="none"
-                          className="size-4 shrink-0 text-fg-muted"
+                        <span
+                          aria-hidden
+                          className={cn(
+                            "w-4 shrink-0 text-center text-fg-muted transition-opacity duration-100",
+                            isSelected ? "opacity-100" : "opacity-0",
+                          )}
                         >
-                          <path
-                            d="M6 3.5L10.5 8L6 12.5"
-                            stroke="currentColor"
-                            strokeWidth="1.5"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          />
-                        </svg>
+                          <svg viewBox="0 0 16 16" fill="none" className="inline size-3.5">
+                            <path
+                              d="M6.5 4l4 4-4 4"
+                              stroke="currentColor"
+                              strokeWidth="1.5"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            />
+                          </svg>
+                        </span>
                       </button>
                     </li>
                   );
@@ -281,12 +395,30 @@ export function CommandPalette() {
           ) : null}
 
           {totalItems === 0 ? (
-            <p className="px-4 py-8 text-center text-sm text-fg-muted">
-              No encontramos acciones ni secciones para «{query}».
-            </p>
+            <div className="flex flex-col items-center gap-2.5 px-6 py-12 text-center">
+              <IconSearch className="size-5 text-fg-muted" />
+              <p className="text-sm text-fg-muted">No encontramos acciones ni secciones para «{query}».</p>
+            </div>
           ) : null}
         </div>
+
+        <div className="hidden shrink-0 items-center gap-4 border-t border-border px-4 py-2.5 text-[11px] text-fg-muted sm:flex">
+          <span className="flex items-center gap-1.5">
+            <kbd className={KBD}>↑</kbd>
+            <kbd className={KBD}>↓</kbd>
+            navegar
+          </span>
+          <span className="flex items-center gap-1.5">
+            <kbd className={KBD}>↵</kbd>
+            abrir
+          </span>
+          <span className="ml-auto flex items-center gap-1.5">
+            <kbd className={KBD}>ctrl</kbd>
+            <kbd className={KBD}>K</kbd>
+          </span>
+        </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

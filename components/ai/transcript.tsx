@@ -50,9 +50,9 @@ type TextSegment =
 
 /** Botones de la burbuja del usuario; aparecen al pasar el cursor o al enfocar. */
 const USER_ACTION_BUTTON = cn(
-  "h-7 w-7 rounded-full text-zinc-500 hover:text-zinc-900 bg-white/90 backdrop-blur-xs shadow-xs border border-zinc-200/70",
+  "size-11 sm:size-8 rounded-full text-zinc-600 hover:text-zinc-900 bg-white/95 backdrop-blur-xs shadow-xs border border-control/50",
   "inline-flex items-center justify-center transition",
-  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900/20",
+  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900/30",
   "motion-reduce:transition-none",
 );
 
@@ -240,9 +240,9 @@ function UserBubble({
       data-user-msg-id={message.id}
       className="flex justify-end group/user-msg w-full scroll-mt-20"
     >
-      <div className="relative flex flex-col items-end max-w-[85%] md:max-w-[75%]">
+      <div className="relative flex flex-col items-end max-w-[min(85%,38rem)] md:max-w-[min(75%,42rem)]">
         {editing ? (
-          <div className="w-full min-w-[min(100%,280px)] sm:min-w-[340px] bg-white border border-zinc-200/70 rounded-3xl px-4 py-3 shadow-md transition-colors focus-within:border-zinc-400">
+          <div className="w-full min-w-[min(100%,280px)] sm:min-w-[340px] bg-white border border-control/50 rounded-3xl px-4 py-3 shadow-md transition-colors focus-within:border-fg/50">
             <textarea
               data-bare-input=""
               value={draft}
@@ -264,13 +264,13 @@ function UserBubble({
                   saveEditing();
                 }
               }}
-              className="w-full resize-none bg-transparent text-[15px] leading-relaxed text-zinc-900 outline-none placeholder:text-zinc-400 scrollbar-hide"
+              className="w-full resize-none bg-transparent text-[16px] leading-relaxed text-zinc-900 outline-none placeholder:text-fg-subtle scrollbar-hide sm:text-[15px]"
             />
             <div className="flex items-center justify-end gap-2 mt-2 pt-1 border-t border-zinc-200/60">
               <button
                 type="button"
                 onClick={cancelEditing}
-                className="h-7 px-3 rounded-full text-xs font-medium text-zinc-500 transition hover:text-zinc-900 focus-visible:ring-2 focus-visible:ring-zinc-900/20 focus-visible:outline-none motion-reduce:transition-none"
+                className="h-11 px-3 rounded-full text-xs font-medium text-zinc-600 transition hover:text-zinc-900 focus-visible:ring-2 focus-visible:ring-zinc-900/20 focus-visible:outline-none sm:h-8 motion-reduce:transition-none"
               >
                 Cancelar
               </button>
@@ -278,7 +278,7 @@ function UserBubble({
                 type="button"
                 onClick={saveEditing}
                 disabled={!draft.trim() || !onEditMessage}
-                className="rounded-full bg-zinc-900 text-white px-3.5 py-1.5 text-xs font-semibold transition hover:opacity-90 focus-visible:ring-2 focus-visible:ring-zinc-900/20 focus-visible:outline-none disabled:opacity-40 motion-reduce:transition-none"
+                className="min-h-11 rounded-full bg-zinc-900 text-white px-3.5 py-1.5 text-xs font-semibold transition hover:opacity-90 focus-visible:ring-2 focus-visible:ring-zinc-900/20 focus-visible:outline-none disabled:opacity-40 sm:min-h-8 motion-reduce:transition-none"
               >
                 Guardar y enviar
               </button>
@@ -286,14 +286,14 @@ function UserBubble({
           </div>
         ) : (
           <>
-            <div className="bg-zinc-100/90 text-zinc-900 text-[15px] relative overflow-hidden rounded-3xl px-5 py-3.5 shadow-2xs border border-zinc-200/60">
+            <div className="bg-zinc-100/90 text-zinc-900 text-[15px] relative overflow-hidden rounded-3xl px-4 py-3 shadow-2xs border border-zinc-200/60 sm:px-5 sm:py-3.5">
               <div
                 className={cn(
                   "relative transition-all duration-300 motion-reduce:transition-none",
                   isCollapsed && "max-h-[140px] overflow-hidden",
                 )}
               >
-                <p className="whitespace-pre-wrap leading-relaxed">{message.text}</p>
+                <p className="whitespace-pre-wrap leading-relaxed [overflow-wrap:anywhere]">{message.text}</p>
                 {isCollapsed ? (
                   <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-zinc-100 via-zinc-100/90 to-transparent pointer-events-none" />
                 ) : null}
@@ -304,7 +304,7 @@ function UserBubble({
                   <button
                     type="button"
                     onClick={() => setExpanded((previous) => !previous)}
-                    className="text-xs font-semibold text-zinc-900 hover:opacity-75 transition-all flex items-center gap-1 cursor-pointer select-none motion-reduce:transition-none"
+                    className="min-h-9 px-1 text-xs font-semibold text-zinc-900 hover:opacity-75 transition-all flex items-center gap-1 cursor-pointer select-none motion-reduce:transition-none"
                   >
                     {expanded ? "Ver menos ↑" : "Ver más →"}
                   </button>
@@ -316,7 +316,7 @@ function UserBubble({
               className={cn(
                 "flex items-center gap-1 z-10 transition-all duration-200 motion-reduce:transition-none",
                 "absolute top-full right-0 mt-1",
-                "opacity-0 pointer-events-none",
+                "opacity-0 pointer-events-none max-sm:opacity-100 max-sm:pointer-events-auto",
                 "group-hover/user-msg:opacity-100 group-hover/user-msg:pointer-events-auto",
                 "focus-within:opacity-100 focus-within:pointer-events-auto",
               )}
@@ -458,7 +458,7 @@ export function Transcript({
         >
           <ol
             aria-label={copy.transcript}
-            className="pt-14 pb-24 md:pb-8 space-y-6 max-w-3xl mx-auto w-full"
+            className="pt-16 pb-24 sm:pt-14 md:pb-8 space-y-6 max-w-3xl mx-auto w-full"
           >
             {messages.map((message, index) => {
               const extras = extrasOf(message);
@@ -517,7 +517,7 @@ export function Transcript({
                           </div>
                         ) : null}
 
-                        <div className="text-zinc-900 leading-relaxed text-[15px]">
+                        <div className="max-w-[68ch] text-zinc-900 leading-relaxed text-[15px]">
                           <AssistantText
                             text={message.text}
                             onFollowUp={followUpState?.index === index ? undefined : sendPrompt}
@@ -547,7 +547,7 @@ export function Transcript({
                           </div>
                         ) : null}
 
-                        <div className="mt-2.5 opacity-0 group-hover/assistant:opacity-100 focus-within:opacity-100 transition-opacity duration-200 motion-reduce:transition-none">
+                        <div className="mt-2.5 opacity-0 group-hover/assistant:opacity-100 focus-within:opacity-100 max-sm:opacity-100 transition-opacity duration-200 motion-reduce:transition-none">
                           <AssistantMessageActions
                             messageId={message.id}
                             content={message.text}
@@ -601,7 +601,7 @@ export function Transcript({
             onClick={scrollToEnd}
             aria-label="Ir al final"
             title="Ir al final"
-            className="absolute bottom-6 right-6 md:right-10 z-30 w-9 h-9 bg-zinc-900 text-white rounded-full shadow-lg flex items-center justify-center cursor-pointer border border-zinc-800 hover:opacity-90 active:scale-95"
+            className="absolute bottom-6 right-4 md:right-10 z-30 size-11 bg-zinc-900 text-white rounded-full shadow-lg flex items-center justify-center cursor-pointer border border-zinc-800 hover:opacity-90 active:scale-95"
           >
             <ArrowDownIcon />
           </motion.button>

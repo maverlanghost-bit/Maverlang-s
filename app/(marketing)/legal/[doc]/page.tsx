@@ -51,9 +51,9 @@ export default async function LegalPage({ params }: { params: Promise<{ doc: str
   ];
 
   return (
-    <LandingSection titleId="legal-title">
+    <LandingSection titleId="legal-title" density="compact">
       <JsonLd data={breadcrumbJsonLd(crumbs)} />
-      <article className="max-w-3xl">
+      <article className="max-w-5xl">
         <nav aria-label="Migas" className="mb-6 text-sm text-fg-muted">
           <ol className="flex flex-wrap items-center gap-x-2 gap-y-1">
             <li>
@@ -67,15 +67,22 @@ export default async function LegalPage({ params }: { params: Promise<{ doc: str
             </li>
           </ol>
         </nav>
-        <p role="note" className="rounded-xl bg-warn-bg px-4 py-3 text-sm font-medium text-warn">
-          Borrador — [REVISIÓN ABOGADO]
-        </p>
-        <h1 id="legal-title" className="mt-6 text-3xl sm:text-4xl">
-          {legal.title}
-        </h1>
-        <p className="mt-3 text-sm text-fg-muted">
-          Versión {legal.version} · Actualizado el {formatLegalDate(legal.updated)}
-        </p>
+
+        <header className="max-w-[68ch] border-b border-border pb-8">
+          <p
+            role="note"
+            className="border-l-2 border-warn pl-3 text-[13px] leading-relaxed font-medium text-warn"
+          >
+            Borrador — [REVISIÓN ABOGADO]
+          </p>
+          <h1 id="legal-title" className="mt-6 text-3xl sm:text-4xl">
+            {legal.title}
+          </h1>
+          <p className="mt-4 font-mono text-[13px] leading-snug text-fg-muted tabular-nums">
+            Versión {legal.version} · Actualizado el {formatLegalDate(legal.updated)}
+          </p>
+        </header>
+
         <LegalBody blocks={legal.blocks} />
         <LegalNav current={doc} />
       </article>

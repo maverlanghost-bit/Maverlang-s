@@ -7,6 +7,8 @@ import { useQueries } from "@tanstack/react-query";
 import { AlertButton } from "@/components/domain/alert-button";
 import { AlertsPanel } from "@/components/domain/alert-panel";
 import { FavoriteButton } from "@/components/domain/favorite-button";
+import { MarketSectionChips } from "@/components/domain/market-section-chips";
+import { PriceFreshness } from "@/components/domain/price-freshness";
 import { Sparkline } from "@/components/domain/sparkline";
 import { TickerLogo } from "@/components/domain/ticker-logo";
 import { ChangeBadge } from "@/components/domain/change-badge";
@@ -20,7 +22,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { alertasText, fillAlert } from "@/content/i18n/extra-alertas";
 import { getPrices } from "@/lib/api/client";
 import { isCatalogSymbol } from "@/lib/catalog/symbol";
-import { cn } from "@/lib/cn";
 import { useFavorites, useSyncFavorites } from "@/lib/hooks/use-favorites";
 import { PRICE_MS, priceQueryKey, useFx, useHistories } from "@/lib/hooks/queries";
 import { useT } from "@/lib/hooks/use-t";
@@ -158,6 +159,22 @@ export function FavoritasScreen() {
     return map;
   }, [priceQueries]);
 
+  /** Frescura de la lista: el `updatedAt` más reciente de las cotizaciones. */
+  const freshestAt = useMemo(() => {
+    let max: number | null = null;
+    for (const quote of quotes.values()) {
+      const ms = Date.parse(quote.updatedAt);
+      if (Number.isFinite(ms) && (max === null || ms > max)) max = ms;
+    }
+    return max;
+  }, [quotes]);
+  const anyStale = useMemo(() => {
+    for (const quote of quotes.values()) {
+      if (quote.stale === true) return true;
+    }
+    return false;
+  }, [quotes]);
+
   // Sparklines en paralelo con los precios: ya no esperan a que llegue la cotización.
   // El lote de historial admite hasta 50 símbolos por llamada.
   const sparkSymbols = useMemo(() => priceSymbols.slice(0, 50), [priceSymbols]);
@@ -214,7 +231,14 @@ export function FavoritasScreen() {
 
   return (
     <div className="flex min-w-0 flex-col gap-6">
-      <PageHeader title={copy.pageTitle} description={copy.pageLead} />
+      <div className="flex flex-col gap-2">
+        <PageHeader title={copy.pageTitle} description={copy.pageLead} />
+        <PriceFreshness at={freshestAt} stale={anyStale} />
+      </div>
+      {/* Mismo orden que el mercado: encabezado, secciones, datos. */}
+      <div className="-mx-5 min-w-0 px-5 sm:mx-0 sm:px-0">
+        <MarketSectionChips active="stocks" />
+      </div>
       {favoriteSymbols.length > 0 ? (
         <div className="flex max-w-full">
           <SegmentedControl
@@ -225,14 +249,14 @@ export function FavoritasScreen() {
               if (value === "change" || value === "name") setSort(value);
             }}
             options={[
-              { value: "change", label: copy.sortChange },
-              { value: "name", label: copy.sortName },
+              { value: "change", label: `${copy.sortChange} ↓` },
+              { value: "name", label: `${copy.sortName} A–Z` },
             ]}
           />
         </div>
       ) : null}
       {currency === "CLP" && !fxKnown && !fx.isPending && favoriteSymbols.length > 0 ? (
-        <p className="text-sm text-fg-muted">{t.detail.fxFallback}</p>
+        <p className="text-[13px] leading-5 text-fg-muted">{t.detail.fxFallback}</p>
       ) : null}
       {pendingFavorites || searching ? <ListSkeleton label={copy.loading} /> : null}
       {!pendingFavorites && searchFailed ? (
@@ -266,50 +290,39 @@ export function FavoritasScreen() {
         />
       ) : null}
       {!pendingFavorites && !searching && !searchFailed && rows.length > 0 ? (
-        <ul className="flex min-w-0 flex-col gap-1.5">
-          {rows.map((row) => {
-            const shown =
-              row.priceUsd != null ? displayPrice(row.priceUsd, shownCurrency, fxKnown ? rate : undefined) : null;
-            return (
-              <li key={row.symbol}>
-                <FavoriteRow
-                  row={row}
-                  shown={shown}
-                  currency={shownCurrency}
-                  noPrice={copy.noPrice}
-                  noChange={copy.noChange}
-                  lowLiquidityLabel={row.lowLiquidity ? t.market.lowLiquidity : null}
-                  reviewLabel={row.underReview ? t.market.underReview : null}
-                  reviewHint={row.underReview ? t.market.underReviewHint : null}
-                  favoriteLabel={fillAlert(t.market.favoriteOn, { name: row.name })}
-                  onToggle={() => toggle(storedSymbolByKey.get(row.symbol.toLowerCase()) ?? row.symbol)}
-                />
-              </li>
-            );
-          })}
-        </ul>
+        <div className="flex min-w-0 flex-col">
+          <div
+            aria-hidden
+            className="hidden items-center justify-end border-b border-border pb-2 pr-[5.75rem] sm:flex"
+          >
+            <span className="label-xs">Precio / Var. 24 h</span>
+          </div>
+          <ul className="flex min-w-0 flex-col divide-y divide-border">
+            {rows.map((row) => {
+              const shown =
+                row.priceUsd != null ? displayPrice(row.priceUsd, shownCurrency, fxKnown ? rate : undefined) : null;
+              return (
+                <li key={row.symbol}>
+                  <FavoriteRow
+                    row={row}
+                    shown={shown}
+                    currency={shownCurrency}
+                    noPrice={copy.noPrice}
+                    noChange={copy.noChange}
+                    lowLiquidityLabel={row.lowLiquidity ? t.market.lowLiquidity : null}
+                    reviewLabel={row.underReview ? t.market.underReview : null}
+                    reviewHint={row.underReview ? t.market.underReviewHint : null}
+                    favoriteLabel={fillAlert(t.market.favoriteOn, { name: row.name })}
+                    onToggle={() => toggle(storedSymbolByKey.get(row.symbol.toLowerCase()) ?? row.symbol)}
+                  />
+                </li>
+              );
+            })}
+          </ul>
+        </div>
       ) : null}
       <AlertsPanel />
     </div>
-  );
-}
-
-function AlertBell({ symbol, name, priceUsd }: { symbol: string; name: string; priceUsd: number | null }) {
-  return (
-    <span className="relative inline-flex size-11 shrink-0 items-center justify-center text-fg-muted">
-      <svg viewBox="0 0 16 16" className="pointer-events-none size-4" fill="none" aria-hidden>
-        <path
-          d="M8 2.5a3.5 3.5 0 0 0-3.5 3.5v2.1L3.2 10.2a.6.6 0 0 0 .5 1h8.6a.6.6 0 0 0 .5-1L11.5 8.1V6A3.5 3.5 0 0 0 8 2.5Z"
-          stroke="currentColor"
-          strokeWidth="1.5"
-          strokeLinejoin="round"
-        />
-        <path d="M6.6 11.8a1.4 1.4 0 0 0 2.8 0" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-      </svg>
-      <span className="absolute inset-0 [&_button]:absolute [&_button]:inset-0 [&_button]:size-11 [&_button]:h-11 [&_button]:min-h-0 [&_button]:w-11 [&_button]:overflow-hidden [&_button]:rounded-full [&_button]:border-0 [&_button]:bg-transparent [&_button]:p-0 [&_button]:text-transparent [&_button]:shadow-none [&_button]:hover:bg-surface-2 [&_button]:hover:text-transparent">
-        <AlertButton symbol={symbol} name={name} priceUsd={priceUsd} />
-      </span>
-    </span>
   );
 }
 
@@ -337,34 +350,36 @@ function FavoriteRow({
   onToggle: () => void;
 }) {
   return (
-    <div className="rounded-2xl border border-border/70 transition-colors duration-150 hover:bg-surface-1/80 sm:flex sm:min-h-14 sm:items-center">
+    <div className="flex min-h-16 items-center transition-colors duration-150 hover:bg-surface-1/70 active:bg-surface-1">
       <Link
         href={tickerHref(row.symbol)}
-        className="flex min-h-14 min-w-0 flex-1 items-center gap-2 rounded-2xl px-2 py-1 sm:gap-3 sm:px-3"
+        className="flex min-h-16 min-w-0 flex-1 items-center gap-3 py-3 pr-1 pl-1 sm:gap-4 sm:py-2"
       >
         <TickerLogo symbol={row.symbol} name={row.name} logoUrl={row.logoUrl} size={36} decorative loading="lazy" sizes="40px" />
         <span className="min-w-0 flex-1">
-          <span className="block truncate font-semibold tracking-tight text-fg">{row.symbol}</span>
-          <span className="block truncate text-sm text-fg-muted">
-            {row.name}
-            {lowLiquidityLabel ? <span> · {lowLiquidityLabel}</span> : null}
+          <span className="block font-mono text-sm leading-5 font-semibold tracking-tight text-fg">{row.symbol}</span>
+          <span className="mt-0.5 block text-[13px] leading-4 text-fg-muted">
+            <span className="break-words">{row.name}</span>
+            {lowLiquidityLabel ? <span className="whitespace-nowrap"> · {lowLiquidityLabel}</span> : null}
           </span>
           {reviewLabel ? (
-            <span
-              className="mt-1 inline-flex w-fit max-w-full items-center truncate rounded-full border border-border/70 bg-surface-2/60 px-2 py-0.5 text-xs leading-4 font-medium whitespace-nowrap text-fg-muted"
-              title={reviewHint ?? undefined}
-            >
+            <span className="mt-1 block text-[13px] leading-4 font-medium text-warn" title={reviewHint ?? undefined}>
               {reviewLabel}
             </span>
           ) : null}
         </span>
-        {row.sparkline ? <Sparkline data={row.sparkline} width={72} height={28} className="hidden sm:block" /> : null}
-        <span className="flex shrink-0 flex-col items-end gap-0.5 text-right font-medium tabular-nums">
+        {row.sparkline ? <Sparkline data={row.sparkline} width={72} height={28} className="hidden shrink-0 sm:block" /> : null}
+        <span className="flex shrink-0 flex-col items-end gap-0.5 pr-1 text-right font-medium tabular-nums">
           {shown == null ? (
             <span className="text-sm whitespace-nowrap text-fg-muted">{noPrice}</span>
           ) : (
             <>
-              <FlashPrice value={shown} currency={currency} size="sm" />
+              <span className="flex items-baseline gap-1">
+                <FlashPrice value={shown} currency={currency} size="sm" className="-mr-1" />
+                {currency === "CLP" ? (
+                  <span className="text-[11px] leading-none font-medium text-fg-muted">CLP</span>
+                ) : null}
+              </span>
               {row.change24hPct == null ? (
                 <span className="text-xs whitespace-nowrap text-fg-muted">{noChange}</span>
               ) : (
@@ -374,17 +389,11 @@ function FavoriteRow({
           )}
         </span>
       </Link>
-      <div
-        className={cn(
-          "flex items-center gap-2 px-2 pb-2 sm:shrink-0 sm:justify-end sm:px-0 sm:pr-1 sm:pb-0",
-          row.sparkline ? "justify-between" : "justify-end",
-        )}
-      >
-        {row.sparkline ? <Sparkline data={row.sparkline} width={72} height={28} className="block sm:hidden" /> : null}
-        <span className="inline-flex shrink-0 items-center">
-          <AlertBell symbol={row.symbol} name={row.name} priceUsd={row.priceUsd} />
-          <FavoriteButton pressed label={favoriteLabel} onToggle={onToggle} />
+      <div className="flex shrink-0 items-center gap-1 pr-1">
+        <span className="hidden sm:inline-flex">
+          <AlertButton symbol={row.symbol} name={row.name} priceUsd={row.priceUsd} iconOnly />
         </span>
+        <FavoriteButton pressed label={favoriteLabel} onToggle={onToggle} />
       </div>
     </div>
   );
@@ -407,11 +416,28 @@ function FavoritesEmptyArt() {
 
 function ListSkeleton({ label }: { label: string }) {
   return (
-    <div role="status" aria-live="polite" aria-busy="true" className="flex flex-col gap-1.5">
+    <div role="status" aria-live="polite" aria-busy="true" className="flex flex-col">
       <span className="sr-only">{label}</span>
-      {["a", "b", "c", "d"].map((key) => (
-        <Skeleton key={key} className="h-[6.75rem] w-full rounded-2xl sm:h-14" />
-      ))}
+      <div className="flex flex-col divide-y divide-border" aria-hidden>
+        {["a", "b", "c", "d"].map((key) => (
+          // Misma retícula que la fila real: logo, símbolo + nombre, precio y estrella.
+          <div key={key} className="flex min-h-16 items-center gap-3 px-1 py-2 sm:gap-4">
+            <Skeleton className="size-9 shrink-0 rounded-full" />
+            <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+              <Skeleton className="h-4 w-16" />
+              <Skeleton className="h-3 w-32 max-w-full" />
+            </div>
+            <Skeleton className="hidden h-7 w-[72px] shrink-0 sm:block" />
+            <div className="flex shrink-0 flex-col items-end gap-1">
+              <Skeleton className="h-4 w-16" />
+              <Skeleton className="h-5 w-12 rounded-full" />
+            </div>
+            <div className="flex size-11 shrink-0 items-center justify-center">
+              <Skeleton className="size-4 rounded-full" />
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

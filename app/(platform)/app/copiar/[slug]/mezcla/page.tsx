@@ -8,7 +8,7 @@ import { ExampleDataStrip, FeedBanner } from "@/components/copy/feed-banner";
 import { FraccionSeal } from "@/components/copy/fraccion-seal";
 import { MixCart } from "@/components/copy/mix-cart";
 import { Paywall } from "@/components/copy/paywall";
-import { PageHeader } from "@/components/ui/page-header";
+import { IconBack } from "@/components/ui/icons";
 import { COPY_DISCLAIMER, COPY_LEGAL_PENDING_LABEL } from "@/content/copy-legal";
 import { COPY_PAST_DUE_MESSAGE, getCopyEntitlement, hasCopyAccess } from "@/lib/copy/access";
 import { getCopyIndex, getCopyPortfolio, isCopyFrozenByFeed } from "@/lib/copy/feed";
@@ -49,6 +49,19 @@ async function currentUserId(): Promise<string> {
   }
 }
 
+/** Cabecera de la mezcla: rótulo, título y una línea de qué va a pasar. */
+function MezclaHeader({ description }: { description: string }) {
+  return (
+    <header className="flex flex-col gap-2">
+      <p className="font-mono text-[13px] leading-5 font-medium tracking-[0.045em] text-fg-muted uppercase">
+        Copiar cartera
+      </p>
+      <h1 className="text-3xl leading-[1.1] tracking-tight text-balance sm:text-4xl">Copiar esta mezcla</h1>
+      <p className="max-w-xl text-[15px] leading-6 text-fg-muted">{description}</p>
+    </header>
+  );
+}
+
 export default async function MezclaPage({
   params,
   searchParams,
@@ -64,8 +77,8 @@ export default async function MezclaPage({
 
   if (!(await isCopyEnabled())) {
     return (
-      <article className="flex flex-col gap-6 pb-6">
-        <PageHeader title="Copiar mezcla" />
+      <article className="flex min-w-0 flex-col gap-8 pb-6">
+        <MezclaHeader description="La mezcla se arma con la composición completa de la cartera." />
         <CopySoonState
           title="Pronto"
           description="Copiar carteras todavía no está disponible. Estamos afinando los últimos detalles con Fraccion.si."
@@ -82,8 +95,8 @@ export default async function MezclaPage({
   const { health } = await getCopyIndex();
   if (health.state === "none") {
     return (
-      <article className="flex flex-col gap-6 pb-6">
-        <PageHeader title="Copiar mezcla" />
+      <article className="flex min-w-0 flex-col gap-8 pb-6">
+        <MezclaHeader description="La mezcla se arma con la composición completa de la cartera." />
         <CopySoonState title="Pronto" description="Todavía no hay carteras publicadas para armar una mezcla." />
       </article>
     );
@@ -100,22 +113,21 @@ export default async function MezclaPage({
 
   if (!access) {
     return (
-      <article className="flex flex-col gap-6 pb-6">
+      <article className="flex min-w-0 flex-col gap-8 pb-6">
         <Link
           href={`/app/copiar/${encodeURIComponent(canonical)}`}
-          className="inline-flex min-h-11 w-fit items-center text-sm font-medium text-fg-muted underline underline-offset-4 outline-none hover:text-fg focus-visible:ring-4 focus-visible:ring-fg/20"
+          className="-ml-2 inline-flex min-h-11 w-fit items-center gap-1.5 rounded-full px-2 text-[13px] font-medium text-fg-muted transition-colors duration-150 hover:bg-surface-1 hover:text-fg"
         >
-          ← Volver a {meta.name}
+          <IconBack className="size-4" />
+          {meta.name}
         </Link>
-        <PageHeader
-          title="Copiar esta mezcla"
-          description="La mezcla se arma con la composición completa de la cartera."
-        />
+        <MezclaHeader description="La mezcla se arma con la composición completa de la cartera." />
         <FeedBanner health={health} />
         <Paywall
           title="Desbloquea la mezcla"
           description="Con Copiar carteras ves la composición, los movimientos y puedes armar la mezcla en demo con un clic. La cuenta con dinero real queda para después de la revisión legal."
         />
+        <FraccionSeal />
       </article>
     );
   }
@@ -142,24 +154,22 @@ export default async function MezclaPage({
   }
 
   return (
-    <article className="flex flex-col gap-6 pb-6">
-      <div className="flex flex-col gap-2">
+    <article className="flex min-w-0 flex-col gap-8 pb-6">
+      <div className="flex flex-col gap-4">
         <Link
           href={`/app/copiar/${encodeURIComponent(canonical)}`}
-          className="inline-flex min-h-11 w-fit items-center text-sm font-medium text-fg-muted underline underline-offset-4 outline-none hover:text-fg focus-visible:ring-4 focus-visible:ring-fg/20"
+          className="-ml-2 inline-flex min-h-11 w-fit items-center gap-1.5 rounded-full px-2 text-[13px] font-medium text-fg-muted transition-colors duration-150 hover:bg-surface-1 hover:text-fg"
         >
-          ← Volver a {meta.name}
+          <IconBack className="size-4" />
+          {meta.name}
         </Link>
-        <PageHeader
-          title="Copiar esta mezcla"
-          description="Elige el monto y la cuenta. Cada orden se confirma y se firma por separado; nada se ejecuta solo."
-        />
+        <MezclaHeader description="Elige el monto y la cuenta. Cada orden se confirma y se firma por separado; nada se ejecuta solo." />
       </div>
 
       <FeedBanner health={health} />
       {portfolio.example ? <ExampleDataStrip /> : null}
 
-      <div className="w-full max-w-2xl">
+      <div className="w-full max-w-xl">
         <MixCart
           slug={canonical}
           versionId={portfolio.versionId}
@@ -176,10 +186,10 @@ export default async function MezclaPage({
         />
       </div>
 
-      <div className="flex flex-col gap-3 border-t border-border pt-4">
+      <div className="flex max-w-xl flex-col gap-3 border-t border-border pt-6">
         <FraccionSeal />
-        <p className="text-xs leading-relaxed text-fg-muted">{COPY_DISCLAIMER}</p>
-        <p className="text-xs leading-relaxed text-fg-subtle">{COPY_LEGAL_PENDING_LABEL}</p>
+        <p className="text-[13px] leading-relaxed text-fg-muted">{COPY_DISCLAIMER}</p>
+        <p className="text-[13px] leading-relaxed text-fg-muted">{COPY_LEGAL_PENDING_LABEL}</p>
       </div>
     </article>
   );

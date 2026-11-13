@@ -21,8 +21,13 @@ export type AllocationItem = {
   color: string;
 };
 
-const CASH_COLOR = "#64748b";
+const CASH_COLOR = "#475569";
 
+/**
+ * Reparto de la cartera: una barra segmentada y, debajo, la leyenda con peso y
+ * valor por activo. Es data, no una tarjeta: no dibuja cáscara propia, sólo
+ * separadores hairline entre filas.
+ */
 export function AllocationBar({
   label,
   slices,
@@ -71,27 +76,12 @@ export function AllocationBar({
 
   const ariaHeading = label ?? (lang === "en" ? "Portfolio allocation" : "Distribución de tu cartera");
   const summary = normalizedSlices.map((slice) => `${slice.label} ${formatPortion(slice.pct)}`).join(", ");
-  const activeSlice = normalizedSlices.find((slice) => slice.key === activeKey) ?? normalizedSlices[0];
+  const activeSlice = normalizedSlices.find((slice) => slice.key === activeKey) ?? null;
 
   return (
-    <div className="rounded-2xl border border-border/80 bg-bg-elevated/90 p-4 shadow-[0_10px_30px_-16px_rgba(12,15,20,0.08)]">
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <p className="text-xs font-semibold tracking-wider text-fg-muted uppercase">
-          {lang === "en" ? "Portfolio allocation" : "Distribución de tu cartera"}
-        </p>
-        {activeSlice ? (
-          <p className="text-[12px] font-medium tabular-nums text-fg-muted">
-            <span className="font-semibold text-fg">{activeSlice.label}</span>
-            {" · "}
-            <span>{formatPortion(activeSlice.pct)}</span>
-            {" · "}
-            <span className="text-fg">{activeSlice.valueLabel}</span>
-          </p>
-        ) : null}
-      </div>
-
+    <div className="flex min-w-0 flex-col gap-4">
       <div
-        className="flex h-3.5 w-full gap-0.5 overflow-hidden rounded-full bg-surface-3 p-0.5"
+        className="flex h-2.5 w-full gap-[3px] overflow-hidden rounded-full bg-surface-3"
         role="img"
         aria-label={`${ariaHeading}: ${summary}`}
       >
@@ -99,18 +89,17 @@ export function AllocationBar({
           const isActive = activeKey === slice.key;
           const isDimmed = activeKey !== null && !isActive;
           const pctWidth = slice.pct <= 1 ? slice.pct * 100 : slice.pct;
+          // Decorativo: el resumen accesible vive en el `aria-label` del
+          // contenedor y la lectura real (nombre, %, monto) está en la lista.
           return (
-            <button
+            <span
               key={slice.key}
-              type="button"
-              tabIndex={-1}
               aria-hidden="true"
               onMouseEnter={() => setActiveKey(slice.key)}
               onMouseLeave={() => setActiveKey(null)}
-              onClick={() => setActiveKey((prev) => (prev === slice.key ? null : slice.key))}
               className={cn(
-                "h-full min-w-1 first:rounded-l-full last:rounded-r-full transition-all duration-200 hover:opacity-95",
-                isDimmed ? "opacity-45" : "opacity-100",
+                "h-full min-w-1 transition-opacity duration-200 first:rounded-l-full last:rounded-r-full",
+                isDimmed ? "opacity-40" : "opacity-100",
               )}
               style={{
                 flexGrow: Math.max(pctWidth, 2),
@@ -122,31 +111,38 @@ export function AllocationBar({
         })}
       </div>
 
-      <ul className="flex flex-wrap gap-1.5 pt-3">
-        {normalizedSlices.map((slice) => {
-          const isActive = activeKey === slice.key;
+      <ul className="flex flex-col">
+        {normalizedSlices.map((slice, index) => {
+          const isActive = activeSlice?.key === slice.key;
           return (
-            <li key={slice.key}>
+            <li key={slice.key} className={cn("border-border", index > 0 && "border-t")}>
               <button
                 type="button"
+                aria-pressed={isActive}
                 onMouseEnter={() => setActiveKey(slice.key)}
                 onMouseLeave={() => setActiveKey(null)}
                 onClick={() => setActiveKey((prev) => (prev === slice.key ? null : slice.key))}
                 className={cn(
-                  "inline-flex min-h-9 items-center gap-2 rounded-full border px-3 py-1 text-xs transition-all duration-200 outline-none focus-visible:ring-4 focus-visible:ring-fg/20",
-                  isActive
-                    ? "border-brand/50 bg-brand-soft/60 text-fg shadow-xs"
-                    : "border-border/75 bg-bg/80 text-fg hover:border-border-strong hover:bg-surface-2/70",
+                  "-mx-2 flex min-h-11 w-[calc(100%+1rem)] items-center gap-2.5 rounded-lg px-2 py-2.5 text-left transition-colors duration-150 sm:gap-3",
+                  isActive ? "bg-surface-1" : "hover:bg-surface-1/70",
                 )}
               >
                 <span
-                  className="size-2.5 shrink-0 rounded-full"
+                  className="size-2 shrink-0 rounded-full ring-1 ring-inset ring-black/10"
                   style={{ backgroundColor: slice.color }}
                   aria-hidden="true"
                 />
-                <span className="max-w-36 truncate font-medium text-fg">{slice.label}</span>
-                <span className="num font-semibold tabular-nums text-fg-muted">{formatPortion(slice.pct)}</span>
-                <span className="num tabular-nums text-fg">{slice.valueLabel}</span>
+                {/* El nombre envuelve en vez de cortarse; el monto nunca se
+                    trunca: si no cabe, cede ancho el nombre. */}
+                <span className="line-clamp-2 min-w-0 flex-1 text-[13px] leading-snug font-medium text-fg">
+                  {slice.label}
+                </span>
+                <span className="num w-10 shrink-0 text-right text-[13px] leading-tight tabular-nums text-fg-muted">
+                  {formatPortion(slice.pct)}
+                </span>
+                <span className="num shrink-0 text-right text-[13px] leading-tight font-medium tabular-nums whitespace-nowrap text-fg">
+                  {slice.valueLabel}
+                </span>
               </button>
             </li>
           );

@@ -38,11 +38,13 @@ export function Tabs({
   }
 
   return (
-    <div>
+    <div className="min-w-0">
       <div
         role="tablist"
         aria-label={label}
-        className="flex gap-1 overflow-x-auto border-b border-border"
+        /* Móvil: la tira se desplaza dentro de su caja (sin scrollbar visible y
+           sin desbordar la página); el borde inferior sigue marcando el eje. */
+        className="no-scrollbar flex min-w-0 max-w-full gap-1 overflow-x-auto overscroll-x-contain border-b border-border"
         onKeyDown={(event) => {
           if (indexFromKey(event.key, 0, enabled.length) === null) return;
           event.preventDefault();
@@ -67,7 +69,9 @@ export function Tabs({
               disabled={tab.disabled}
               onClick={() => select(tab.value)}
               className={cn(
-                "min-h-11 shrink-0 border-b-2 px-3 text-sm transition duration-[240ms] ease-spring active:scale-[0.98]",
+                /* 44 px de alto táctil; el activo se marca con barra de 2 px y
+                   fondo al presionar (escalar el botón cortaba la barra). */
+                "min-h-11 shrink-0 border-b-2 px-3 text-sm whitespace-nowrap transition duration-[140ms] ease-spring active:bg-surface-1 focus-visible:ring-2 focus-visible:ring-fg focus-visible:ring-inset focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-60",
                 active ? "border-fg text-fg" : "border-transparent text-fg-muted hover:text-fg",
               )}
             >

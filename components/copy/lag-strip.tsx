@@ -12,18 +12,18 @@ function agoLabel(iso: string): string | null {
 }
 
 /**
- * Franja de trazabilidad del dato: «Dato al … · Publicado el … · Actualizado
- * por Fraccion.si hace …». Sin fecha de publicación, no inventa el tramo.
+ * Trazabilidad del dato: cuándo se publicó y cuándo lo actualizó Fraccion.si.
+ * La fecha del dato (`asOf`) y su atraso viven en la línea de metadatos de la
+ * cabecera, así que aquí no se repiten. Sin fecha de publicación, no inventa
+ * el tramo.
  */
 export function LagStrip({
-  asOf,
   filedAt,
   publishedAt,
   generatedAt,
   lagNote,
   className,
 }: {
-  asOf: string;
   filedAt?: string | null;
   publishedAt?: string | null;
   generatedAt?: string | null;
@@ -32,15 +32,15 @@ export function LagStrip({
 }) {
   const published = publishedAt || filedAt || null;
   const updated = generatedAt || published;
-  const parts = [`Dato al ${formatFeedDate(asOf)}`];
-  if (published) parts.push(`Publicado el ${formatFeedDate(published)}`);
   const ago = updated ? agoLabel(updated) : null;
+  const parts: string[] = [];
+  if (published) parts.push(`Publicado el ${formatFeedDate(published)}`);
   parts.push(ago ? `Actualizado por Fraccion.si ${ago}` : "Actualizado por Fraccion.si");
 
   return (
-    <div className={cn("flex flex-col gap-1 text-xs leading-relaxed text-fg-muted", className)}>
+    <div className={cn("flex flex-col gap-1 text-[13px] leading-5 text-fg-muted", className)}>
       <p>{parts.join(" · ")}</p>
-      {lagNote ? <p className="text-[11px] text-fg-subtle">{lagNote}</p> : null}
+      {lagNote ? <p>{lagNote}</p> : null}
     </div>
   );
 }

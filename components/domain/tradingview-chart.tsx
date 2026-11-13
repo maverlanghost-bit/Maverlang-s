@@ -123,17 +123,32 @@ export function TradingViewChart({
           </span>
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          <span className="rounded-full bg-surface-3 px-2 py-0.5 font-mono text-[11px] tracking-[0.04em] text-fg-body">
+          <span className="rounded-full bg-surface-3 px-2 py-0.5 font-mono text-xs leading-4 tracking-[0.04em] text-fg-body tabular-nums">
             {INTERVAL_LABEL[range]}
           </span>
-          <button
-            type="button"
-            onClick={() => setTvStyle((current) => (current === "1" ? "3" : "1"))}
-            aria-pressed={tvStyle === "3"}
-            className="rounded-full border border-border bg-bg px-2.5 py-1 text-[11px] font-medium text-fg-body transition duration-[140ms] ease-spring hover:bg-surface-2 focus-visible:ring-4 focus-visible:ring-fg/20 focus-visible:outline-none active:scale-[0.98]"
+          <div
+            role="group"
+            aria-label="Estilo del gráfico"
+            className="inline-flex h-11 shrink-0 items-center rounded-full border border-border bg-bg p-0 sm:h-8 sm:p-0.5"
           >
-            Cambiar entre Velas / Área
-          </button>
+            {(["1", "3"] as const).map((style) => {
+              const selected = tvStyle === style;
+              return (
+                <button
+                  key={style}
+                  type="button"
+                  aria-pressed={selected}
+                  onClick={() => setTvStyle(style)}
+                  className={cn(
+                    "h-11 rounded-full px-3 text-xs font-medium whitespace-nowrap transition-colors duration-150 sm:h-7 sm:px-2.5",
+                    selected ? "bg-fg text-bg" : "text-fg-muted hover:text-fg",
+                  )}
+                >
+                  {style === "1" ? "Velas" : "Área"}
+                </button>
+              );
+            })}
+          </div>
         </div>
       </div>
       <div className={cn("relative w-full bg-surface-1", containerHeight)}>

@@ -10,5 +10,5 @@ import { ILLUSTRATIVE_NOTICE, type LandingQuote } from "@/lib/mocks/landing";
  */
 export function TickerMarquee({ quotes, live }: { quotes: LandingQuote[]; live: boolean }) {
   const notice = live ? `${landingNotice(true)}.` : `${ILLUSTRATIVE_NOTICE}. No son cotizaciones en vivo.`;
-  return <TickerTape quotes={quotes} notice={notice} />;
+  return <TickerTape quotes={quotes} notice={notice} live={live} />;
 }

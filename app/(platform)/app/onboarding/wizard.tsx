@@ -7,14 +7,17 @@ import { Controller, useForm, useWatch } from "react-hook-form";
 import { useRouter } from "next/navigation";
 
 import { Button, buttonClasses } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { AuthCard, authTitleClass } from "@/components/auth/auth-frame";
+import { FormAlert } from "@/components/auth/form-alert";
+import { WizardProgress } from "@/components/auth/wizard-progress";
 import { isOperationBlocked } from "@/config/compliance";
 import { ApiError, addConsent, updateMe } from "@/lib/api/client";
 import { US_RESIDENT_MESSAGE } from "@/lib/auth/registro-schema";
 import { useSession } from "@/lib/auth";
 import { writeClientCookie, readBrowserCookie } from "@/lib/auth/browser-cookies";
 import { MOCK_ONBOARDING_COOKIE, ONBOARDING_DONE } from "@/lib/auth/cookies";
+import { cn } from "@/lib/cn";
 
 import { countryOptions } from "./countries";
 import {
@@ -31,13 +34,12 @@ import {
 } from "./draft";
 import { LogoutButton } from "./logout-button";
 import {
-  BrandLink,
   CountryFields,
   DeclarationStep,
   DocumentsStep,
-  NationalityField,
   DoneStep,
-  StepProgress,
+  NationalityField,
+  shortAddress,
   UnavailableStep,
   WalletStep,
 } from "./panel";
@@ -93,12 +95,7 @@ function draftServerSnapshot(): OnboardingDraft | null {
 }
 
 function Shell({ children }: { children: ReactNode }) {
-  return (
-    <Card className="w-full max-w-md shadow-float">
-      <BrandLink />
-      {children}
-    </Card>
-  );
+  return <AuthCard>{children}</AuthCard>;
 }
 
 function LoadingCard() {
@@ -148,8 +145,8 @@ export function OnboardingWizard({
   if (status !== "authenticated" || !userId || !initial) {
     return (
       <Shell>
-        <h1 className="mt-6 text-3xl text-balance">Necesitas iniciar sesión</h1>
-        <p className="mt-3 text-sm leading-relaxed text-fg-body">El registro continúa después del ingreso.</p>
+        <h1 className={cn("mt-6", authTitleClass)}>Necesitas iniciar sesión</h1>
+        <p className="mt-3 max-w-[60ch] text-sm leading-relaxed text-pretty text-fg-body">El registro continúa después del ingreso.</p>
         <div className="mt-6">
           <Link href="/app/ingresar" className={buttonClasses({ size: "lg", className: "w-full" })}>
             Ingresar
@@ -437,12 +434,22 @@ function WizardBody({
   const title = unavailable ? "No disponible" : TITLES[step];
   const walletPhase = walletListed ? "ready" : walletFailed ? "error" : "creating";
   const canGoBack = step > 1 && !finished && !unavailable;
+  const countryName = (code: string | undefined) =>
+    (code ? countries.find((option) => option.value === code)?.label : undefined) ?? "";
+  const summary = [
+    { label: "Residencia", value: countryName(country) },
+    { label: "Nacionalidad", value: countryName(nationality) },
+    ...(walletAddress ? [{ label: "Billetera", value: shortAddress(walletAddress) }] : []),
+    { label: "Términos", value: versions.terminos },
+    { label: "Privacidad", value: versions.privacidad },
+    { label: "Riesgos", value: versions.riesgos },
+  ].filter((row) => row.value);
 
   return (
     <Shell>
-      <StepProgress step={step} />
+      <WizardProgress step={step} total={5} />
       <form className="mt-6" onSubmit={onSubmit} noValidate>
-        <h1 ref={headingRef} tabIndex={-1} className="text-3xl text-balance focus:shadow-none">
+        <h1 ref={headingRef} tabIndex={-1} className={authTitleClass}>
           {title}
         </h1>
         {step === 1 && !unavailable ? (
@@ -528,15 +535,12 @@ function WizardBody({
         {step === 5 ? (
           <DoneStep
             busyHref={busyHref}
+            summary={summary}
             onDeposit={() => void finish("/app/billetera/depositar")}
             onExplore={() => void finish("/app")}
           />
         ) : null}
-        {formError ? (
-          <p className="mt-4 text-sm text-down" role="alert">
-            {formError}
-          </p>
-        ) : null}
+        {formError ? <FormAlert>{formError}</FormAlert> : null}
         {step < 5 && !unavailable ? (
           <div className="mt-6">
             <Button type="submit" size="lg" className="w-full" loading={busy} disabled={step === 4 && !walletListed}>
@@ -544,15 +548,15 @@ function WizardBody({
             </Button>
           </div>
         ) : null}
-        {canGoBack ? (
-          <div className="mt-3">
-            <Button type="button" variant="ghost" size="lg" className="w-full" onClick={goBack} disabled={busy}>
+        <div className={`${step < 5 && !unavailable ? "mt-1" : "mt-6"} flex items-center justify-between gap-2`}>
+          {canGoBack ? (
+            <Button type="button" variant="ghost" size="md" className="px-2" onClick={goBack} disabled={busy}>
               Atrás
             </Button>
-          </div>
-        ) : null}
-        <div className={step < 5 && !unavailable ? "mt-3" : "mt-6"}>
-          <LogoutButton variant="ghost" size="md" className="w-full" />
+          ) : (
+            <span aria-hidden="true" />
+          )}
+          <LogoutButton variant="ghost" size="md" className="w-auto px-2" />
         </div>
       </form>
     </Shell>

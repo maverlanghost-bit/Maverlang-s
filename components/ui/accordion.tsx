@@ -27,7 +27,7 @@ export function Accordion({
   }
 
   return (
-    <div className="divide-y divide-border rounded-xl border border-border">
+    <div className="divide-y divide-border border-y border-border">
       {items.map((item) => {
         const open = openIds.includes(item.id);
         const buttonId = `${baseId}-${item.id}-button`;
@@ -41,10 +41,15 @@ export function Accordion({
                 aria-expanded={open}
                 aria-controls={panelId}
                 onClick={() => toggle(item.id)}
-                className="flex min-h-11 w-full items-center justify-between gap-3 px-4 py-3 text-left text-sm font-medium text-fg"
+                className="flex min-h-11 w-full items-center justify-between gap-3 py-3.5 text-left text-[15px] leading-6 font-medium text-fg"
               >
-                {item.title}
-                <IconChevron className={cn("shrink-0 text-fg-muted transition duration-[140ms]", open && "rotate-180")} />
+                <span className="min-w-0 text-pretty">{item.title}</span>
+                <IconChevron
+                  className={cn(
+                    "size-4 shrink-0 text-fg-muted transition-transform duration-200 ease-out motion-reduce:transition-none",
+                    open && "rotate-180",
+                  )}
+                />
               </button>
             </h3>
             <div
@@ -52,7 +57,7 @@ export function Accordion({
               role="region"
               aria-labelledby={buttonId}
               hidden={!open}
-              className="px-4 pb-4 text-sm leading-relaxed text-fg-body"
+              className="pb-4 text-[15px] leading-relaxed text-pretty text-fg-body"
             >
               {item.content}
             </div>

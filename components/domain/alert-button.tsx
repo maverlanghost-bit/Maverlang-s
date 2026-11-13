@@ -7,6 +7,7 @@ import { usePathname } from "next/navigation";
 import { createPriceAlert, formatAlertMoney, usePriceAlerts, useRefreshPriceAlerts } from "@/components/domain/alert-client";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
+import { IconButton } from "@/components/ui/icon-button";
 import { Input } from "@/components/ui/input";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -37,17 +38,21 @@ function IconBell() {
 /**
  * En la ficha (`labeled`) dice "Crear alerta de precio".
  * En una fila de favoritas queda el texto corto, para no aplastar el nombre.
+ * `iconOnly` es la campana sola, 44 px, para listas donde el texto no cabe:
+ * el nombre accesible sigue siendo el completo (`aria-label`).
  */
 export function AlertButton({
   symbol,
   name,
   priceUsd = null,
   labeled = false,
+  iconOnly = false,
 }: {
   symbol: string;
   name: string;
   priceUsd?: number | null;
   labeled?: boolean;
+  iconOnly?: boolean;
 }) {
   const { t, language } = useT();
   const copy = alertasText(language);
@@ -83,16 +88,23 @@ export function AlertButton({
 
   return (
     <>
-      <Button
-        variant="secondary"
-        size="sm"
-        className={cn(buttonClass, labeled && "whitespace-nowrap")}
-        aria-label={label}
-        onClick={() => setOpen(true)}
-      >
-        <IconBell />
-        {visible}
-      </Button>
+      {iconOnly ? (
+        <IconButton label={label} aria-haspopup="dialog" onClick={() => setOpen(true)}>
+          <IconBell />
+        </IconButton>
+      ) : (
+        <Button
+          variant="secondary"
+          size="sm"
+          className={cn(buttonClass, labeled && "whitespace-nowrap")}
+          aria-label={label}
+          aria-haspopup="dialog"
+          onClick={() => setOpen(true)}
+        >
+          <IconBell />
+          {visible}
+        </Button>
+      )}
       <Dialog open={open} onOpenChange={setOpen} title={copy.dialogTitle} description={fillAlert(copy.dialogBody, { name })}>
         <AlertForm symbol={symbol} name={name} priceUsd={priceUsd} copy={copy} onDone={() => setOpen(false)} />
       </Dialog>

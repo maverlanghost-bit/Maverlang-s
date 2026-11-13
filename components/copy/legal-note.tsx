@@ -8,6 +8,7 @@ import { cn } from "@/lib/cn";
  * pantallas que ya publican el descargo largo pasan `disclaimer`; las que
  * están junto a un botón de copiar pasan `cta`. Los textos son borrador de
  * `content/copy-legal.ts` y no prometen rentabilidad.
+ * Se lee como un dato más: hairline arriba, 13px y sin caja de color.
  */
 export function LegalNote({
   cta = false,
@@ -20,9 +21,7 @@ export function LegalNote({
 }) {
   if (!cta && !disclaimer) {
     return (
-      <p className={cn("text-[11px] leading-relaxed text-fg-subtle", className)}>
-        {COPY_LEGAL_PENDING_LABEL}
-      </p>
+      <p className={cn("text-[13px] leading-relaxed text-fg-muted", className)}>{COPY_LEGAL_PENDING_LABEL}</p>
     );
   }
 
@@ -30,13 +29,13 @@ export function LegalNote({
     <aside
       aria-label="Aviso legal"
       className={cn(
-        "flex flex-col gap-2 border-t border-border pt-4 text-xs leading-relaxed text-fg-muted",
+        "flex max-w-prose flex-col gap-3 border-t border-border pt-5 text-[13px] leading-relaxed text-fg-muted",
         className,
       )}
     >
       {cta ? <p className="text-fg-body">{COPY_CTA_NOTE}</p> : null}
       {disclaimer ? <p>{COPY_DISCLAIMER}</p> : null}
-      <p className="text-[11px] text-fg-subtle">{COPY_LEGAL_PENDING_LABEL}</p>
+      <p className="text-fg-muted">{COPY_LEGAL_PENDING_LABEL}</p>
     </aside>
   );
 }

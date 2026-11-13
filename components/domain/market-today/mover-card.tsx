@@ -3,15 +3,41 @@
 import { useRouter } from "next/navigation";
 import type { KeyboardEvent } from "react";
 
-import { ChangeBadge } from "@/components/domain/change-badge";
 import { Sparkline } from "@/components/domain/sparkline";
 import { TickerLogo } from "@/components/domain/ticker-logo";
 import { cn } from "@/lib/cn";
 import { formatPercent } from "@/lib/format";
 import type { MoverCard as MoverCardData } from "@/lib/market/movers";
 
+/**
+ * Fila de dato del ranking: el mismo relleno lateral que las filas de la tabla
+ * del mercado, sin cápsula ni sombra. El hairline lo pone el `divide-y` de la
+ * lista que la contiene.
+ */
 export const moverCardClass =
-  "flex w-full items-center gap-2.5 rounded-xl px-2 py-2.5 outline-none transition-colors duration-150 hover:bg-surface-1/90 focus-visible:ring-4 focus-visible:ring-fg/20 active:bg-surface-2/60 motion-reduce:transition-none";
+  "flex min-h-12 w-full items-center gap-3 px-2 py-2 transition-colors duration-150 hover:bg-surface-1/70 active:bg-surface-1 motion-reduce:transition-none sm:px-3";
+
+/**
+ * Variación como cifra tabular: signo y color, sin cápsula. 13px, el mismo
+ * cuerpo que las líneas de dato del mercado.
+ */
+export function ChangeText({ value, className }: { value: number; className?: string }) {
+  const finite = Number.isFinite(value);
+  const flat = !finite || value === 0;
+  const word = flat ? "Sin cambio" : value > 0 ? "Sube" : "Baja";
+  return (
+    <span
+      className={cn(
+        "num text-[13px] leading-5 font-medium tabular-nums",
+        flat ? "text-fg-muted" : value > 0 ? "text-up" : "text-down",
+        className,
+      )}
+    >
+      <span className="sr-only">{word}</span>
+      {finite ? formatPercent(value) : "—"}
+    </span>
+  );
+}
 
 function stockPath(symbol: string): string {
   return `/app/accion/${encodeURIComponent(symbol)}`;
@@ -50,7 +76,7 @@ export function MoverCard({
   return (
     <div role="link" tabIndex={0} aria-label={label} className={cn(moverCardClass, "cursor-pointer")} {...open}>
       {rank !== undefined ? (
-        <span aria-hidden className="w-4 shrink-0 text-xs font-semibold tabular-nums text-fg-muted">
+        <span aria-hidden className="num w-4 shrink-0 text-[13px] leading-5 tabular-nums text-fg-subtle">
           {rank}
         </span>
       ) : null}
@@ -63,25 +89,30 @@ export function MoverCard({
         loading="eager"
         sizes="28px"
       />
-      <span aria-hidden className="min-w-0 flex-1">
-        <span className="block truncate text-[13px] font-semibold leading-tight text-fg">{card.name}</span>
-        <span className="mt-0.5 block truncate text-[11px] text-fg-muted">{card.symbol}</span>
-      </span>
-      <Sparkline data={card.spark} change={card.changePct} width={52} height={20} className="hidden shrink-0 sm:block" />
-      <span aria-hidden className="shrink-0 text-right">
-        <span
-          className={cn(
-            "num text-[13px] font-bold tabular-nums",
-            card.changePct >= 0 ? "text-up" : "text-down",
-          )}
-        >
-          {formatPercent(card.changePct)}
+      <span aria-hidden className="flex min-w-0 flex-1 items-baseline gap-2">
+        <span className="num shrink-0 text-[13px] leading-5 font-semibold tracking-tight text-fg">{card.symbol}</span>
+        <span className="min-w-0 truncate text-[13px] leading-5 text-fg-muted" title={card.name}>
+          {card.name}
         </span>
+      </span>
+      <Sparkline
+        data={card.spark}
+        change={card.changePct}
+        width={48}
+        height={18}
+        className="hidden shrink-0 sm:block"
+      />
+      <span aria-hidden className="shrink-0 text-right">
+        <ChangeText value={card.changePct} />
       </span>
     </div>
   );
 }
 
+/**
+ * Índice del día (S&P 500 vía SPYx) como dato en línea: rótulo, símbolo y
+ * variación tabular. Vive en la banda de título de «Hoy»; no es una cápsula.
+ */
 export function SpyChip({
   card,
   name,
@@ -98,22 +129,22 @@ export function SpyChip({
       role="link"
       tabIndex={0}
       aria-label={label}
-      className="inline-flex min-h-9 max-w-full cursor-pointer items-center gap-2 rounded-full border border-border/80 bg-white/90 py-1 pr-2.5 pl-1.5 shadow-2xs outline-none transition hover:border-brand/35 hover:bg-white focus-visible:ring-4 focus-visible:ring-fg/20 motion-reduce:transition-none"
+      className="group inline-flex min-h-11 max-w-full cursor-pointer items-center sm:min-h-8"
       {...open}
     >
       <span aria-hidden className="inline-flex min-w-0 items-center gap-2">
-        <TickerLogo
-          symbol={card.symbol}
-          name={name}
-          logoUrl={card.logoUrl}
-          size={24}
-          decorative
-          loading="eager"
-          sizes="24px"
+        <span className="truncate text-[13px] leading-5 text-fg-muted">{name}</span>
+        <span className="num shrink-0 text-[13px] leading-5 font-medium text-fg group-hover:underline group-hover:underline-offset-4">
+          {card.symbol}
+        </span>
+        <Sparkline
+          data={card.spark}
+          change={card.changePct}
+          width={44}
+          height={16}
+          className="hidden min-[360px]:block"
         />
-        <span className="min-w-0 truncate text-xs font-semibold tracking-tight text-fg">{name}</span>
-        <ChangeBadge value={card.changePct} />
-        <Sparkline data={card.spark} change={card.changePct} width={48} height={18} className="hidden min-[360px]:block" />
+        <ChangeText value={card.changePct} />
       </span>
     </div>
   );

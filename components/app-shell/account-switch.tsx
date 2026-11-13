@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
-import { SegmentedControl } from "@/components/ui/segmented-control";
+import { indexFromKey } from "@/components/ui/keys";
 import { Tooltip } from "@/components/ui/tooltip";
 import type { AccountMode } from "@/lib/account/mode";
 import { useT } from "@/lib/hooks/use-t";
@@ -28,6 +28,14 @@ export function AccountSwitch({
   const { t } = useT();
   const router = useRouter();
   const [soonOpen, setSoonOpen] = useState(false);
+  const buttons = useRef<Record<string, HTMLButtonElement | null>>({});
+
+  /** La cuenta real todavía no opera: la demo queda marcada. */
+  const current: AccountMode = mode === "real" ? "demo" : mode;
+  const options = [
+    { value: "demo" as const, label: t.account.demo },
+    { value: "real" as const, label: t.account.real },
+  ];
 
   function pick(next: AccountMode) {
     if (next === "real") {
@@ -62,7 +70,7 @@ export function AccountSwitch({
             type="button"
             onClick={() => pick(next)}
             aria-label={`${t.account.typeLabel}: ${t.account[mode]}. ${label}`}
-            className="flex size-11 cursor-pointer items-center justify-center rounded-xl transition duration-200 ease-spring hover:bg-surface-2 active:scale-[0.98]"
+            className="flex size-11 cursor-pointer touch-manipulation items-center justify-center rounded-xl transition duration-200 ease-spring hover:bg-surface-2 active:scale-[0.98]"
           >
             <span
               aria-hidden
@@ -82,18 +90,45 @@ export function AccountSwitch({
 
   return (
     <div className="flex flex-col gap-2">
-      <SegmentedControl
-        label={t.account.typeLabel}
-        toggle
-        fullWidth
-        compact
-        value={mode === "real" ? "demo" : mode}
-        options={[
-          { value: "demo", label: t.account.demo },
-          { value: "real", label: t.account.real },
-        ]}
-        onChange={(value) => pick(value === "real" ? "real" : "demo")}
-      />
+      <div
+        role="group"
+        aria-label={t.account.typeLabel}
+        onKeyDown={(event) => {
+          const index = options.findIndex((option) => option.value === current);
+          const next = indexFromKey(event.key, index, options.length);
+          if (next === null) return;
+          const option = options[next];
+          if (!option) return;
+          event.preventDefault();
+          pick(option.value);
+          buttons.current[option.value]?.focus();
+        }}
+        className="grid w-full grid-cols-2 rounded-full border border-border-control bg-surface-1 p-0.5"
+      >
+        {options.map((option) => {
+          const active = option.value === current;
+          return (
+            <button
+              key={option.value}
+              ref={(node) => {
+                buttons.current[option.value] = node;
+              }}
+              type="button"
+              aria-pressed={active}
+              tabIndex={active ? 0 : -1}
+              onClick={() => pick(option.value)}
+              className={cn(
+                "min-h-11 min-w-0 cursor-pointer touch-manipulation rounded-full px-2 text-[12px] leading-tight transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-fg",
+                active
+                  ? "bg-bg font-medium text-fg shadow-raised ring-1 ring-border"
+                  : "text-fg-muted hover:text-fg",
+              )}
+            >
+              <span className="block truncate">{option.label}</span>
+            </button>
+          );
+        })}
+      </div>
       {notice}
     </div>
   );

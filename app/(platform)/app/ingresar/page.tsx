@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 
-import { Card } from "@/components/ui/card";
+import { AuthCard } from "@/components/auth/auth-frame";
+import { Skeleton } from "@/components/ui/skeleton";
 import { site } from "@/config/site";
 
 import { LoginCard } from "./login-card";
@@ -14,19 +15,22 @@ export const metadata: Metadata = {
 
 function LoginFallback() {
   return (
-    <Card className="w-full max-w-md" aria-hidden>
-      <div className="flex items-center gap-2">
-        <span className="size-2 rounded-full bg-brand" />
-        <span className="text-sm font-medium text-fg">{site.name}</span>
-      </div>
-      <h1 className="mt-6 text-3xl">Ingresa o crea tu cuenta</h1>
-    </Card>
+    <AuthCard aria-busy="true">
+      <span className="sr-only" role="status">
+        Cargando el ingreso
+      </span>
+      <Skeleton className="mt-2 h-3 w-24" />
+      <Skeleton className="mt-4 h-8 w-4/5" />
+      <Skeleton className="mt-3 h-4 w-full" />
+      <Skeleton className="mt-6 h-11 w-full" />
+      <Skeleton className="mt-2 h-11 w-full" />
+    </AuthCard>
   );
 }
 
 export default function IngresarPage() {
   return (
-    <main className="flex min-h-dvh items-center justify-center px-5 py-10">
+    <main className="flex min-h-dvh flex-col items-center px-4 py-8 sm:px-5 sm:py-12">
       <Suspense fallback={<LoginFallback />}>
         <LoginCard />
       </Suspense>

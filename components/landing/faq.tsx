@@ -1,13 +1,19 @@
 import Link from "next/link";
 import { LandingSection, SectionIntro } from "@/components/landing/section";
 import { Reveal } from "@/components/landing/reveal";
-import { Accordion, type AccordionItem } from "@/components/ui/accordion";
+import { DisclosureList, type DisclosureItem } from "@/components/ui/disclosure-list";
 import { site } from "@/config/site";
 import { getFaq, type FaqEntry, type FaqPart } from "@/lib/content/faq";
 import { REVEAL_STAGGER_MS } from "@/lib/hooks/reveal-motion";
 
+// Enlace dentro de una respuesta: va en línea con la prosa (un `inline-flex`
+// de 44 px abriría la línea del párrafo).
 const linkClass =
-  "inline-flex min-h-11 items-center font-medium text-fg underline decoration-border underline-offset-4 hover:decoration-fg";
+  "font-medium text-fg underline decoration-border underline-offset-4 hover:decoration-fg";
+
+// Enlace suelto fuera de la prosa: sí necesita 44 px táctiles.
+const actionLinkClass =
+  "inline-flex min-h-11 items-center text-sm font-medium text-fg underline decoration-border underline-offset-4 hover:decoration-fg";
 
 function FaqParts({ parts }: { parts: FaqPart[] }) {
   return (
@@ -31,12 +37,13 @@ function FaqParts({ parts }: { parts: FaqPart[] }) {
   );
 }
 
-function toAccordionItems(entries: FaqEntry[]): AccordionItem[] {
+/** Las respuestas se despliegan con `<details>`: sin JavaScript, varias abiertas. */
+function toDisclosureItems(entries: FaqEntry[]): DisclosureItem[] {
   return entries.map((entry) => ({
     id: entry.id,
     title: entry.question,
     content: (
-      <div className="space-y-3">
+      <div className="space-y-3 pr-6">
         {entry.paragraphs.map((paragraph, index) => (
           <p key={index}>
             <FaqParts parts={paragraph} />
@@ -47,8 +54,22 @@ function toAccordionItems(entries: FaqEntry[]): AccordionItem[] {
   }));
 }
 
+/**
+ * Acordeón nativo: la misma lista `<details>` del centro de ayuda
+ * (`DisclosureList`), sin JavaScript. La respuesta se mantiene íntegra en el
+ * DOM y el navegador resuelve apertura y foco.
+ */
+function FaqDisclosure({ entries }: { entries: FaqEntry[] }) {
+  return (
+    <DisclosureList
+      items={toDisclosureItems(entries)}
+      summaryClassName="text-[15px] leading-snug sm:text-base"
+    />
+  );
+}
+
 export function FaqSection() {
-  const items = toAccordionItems(getFaq(site.name).filter((entry) => entry.home));
+  const entries = getFaq(site.name).filter((entry) => entry.home);
 
   return (
     <LandingSection id="preguntas" titleId="preguntas-title">
@@ -58,9 +79,9 @@ export function FaqSection() {
         </SectionIntro>
       </Reveal>
       <Reveal delay={REVEAL_STAGGER_MS} className="mt-10 max-w-3xl md:mt-14">
-        <Accordion items={items} />
-        <p className="mt-6">
-          <Link href="/ayuda" className={linkClass}>
+        <FaqDisclosure entries={entries} />
+        <p className="mt-4">
+          <Link href="/ayuda" className={actionLinkClass}>
             Ver todas las preguntas
           </Link>
         </p>
@@ -69,6 +90,11 @@ export function FaqSection() {
   );
 }
 
-export function FaqList({ entries, type = "single" }: { entries: FaqEntry[]; type?: "single" | "multiple" }) {
-  return <Accordion items={toAccordionItems(entries)} type={type} />;
+export function FaqList({
+  entries,
+}: {
+  entries: FaqEntry[];
+  type?: "single" | "multiple";
+}) {
+  return <FaqDisclosure entries={entries} />;
 }

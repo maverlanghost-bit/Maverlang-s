@@ -3,27 +3,32 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState, type ComponentProps, type FormEvent, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { Controller, useForm, useWatch, type Control } from "react-hook-form";
 
 import { countryOptions } from "@/app/(platform)/app/onboarding/countries";
 import { LogoutButton } from "@/app/(platform)/app/onboarding/logout-button";
 import {
-  BrandLink,
   CheckField,
   CountryFields,
   DeclarationStep,
-  FieldError,
   NationalityField,
   RISK_POINTS,
   UnavailableStep,
 } from "@/app/(platform)/app/onboarding/panel";
+import {
+  AuthCard,
+  authLinkClass,
+  authTitleClass,
+  CredentialField,
+} from "@/components/auth/auth-frame";
+import { FormAlert } from "@/components/auth/form-alert";
 import { PasswordStrengthMeter } from "@/components/auth/password-strength-meter";
+import { WizardProgress } from "@/components/auth/wizard-progress";
 import { Button, buttonClasses } from "@/components/ui/button";
-import { isOperationBlocked } from "@/config/compliance";
-import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { isOperationBlocked } from "@/config/compliance";
+import { cn } from "@/lib/cn";
 import { useToast } from "@/components/ui/toast";
 import { ApiError, addConsent, updateMe } from "@/lib/api/client";
 import { useT } from "@/lib/hooks/use-t";
@@ -71,19 +76,10 @@ const TITLES: Record<Step, string> = {
   3: "Términos y riesgos",
 };
 
-const MILESTONES = ["Cuenta", "Tus datos", "Términos"] as const;
-
 function messageFrom(error: unknown): string {
   if (isProfileMigrationMessage(error)) return PROFILE_MIGRATION_MESSAGE;
   if (error instanceof ApiError) return error.message;
   return "No pudimos guardar este paso. Inténtalo otra vez.";
-}
-
-function passwordLabel(password: string): string | null {
-  if (!password) return null;
-  if (password.length < 8) return "Muy corta";
-  if (password.length >= 12 && /[A-Za-z]/.test(password) && /\d/.test(password)) return "Fuerte";
-  return "Aceptable";
 }
 
 function maxBirth(today: Date): string {
@@ -94,115 +90,7 @@ function maxBirth(today: Date): string {
 }
 
 function Shell({ children }: { children: ReactNode }) {
-  return (
-    <Card className="w-full max-w-md shadow-float">
-      <BrandLink />
-      {children}
-    </Card>
-  );
-}
-
-function StepBar({ index, total }: { index: number; total: number }) {
-  const current = index + 1;
-  return (
-    <div className="mt-6">
-      <p className="label">
-        Paso {current} de {total}
-      </p>
-      <ul className="mt-2 flex flex-wrap items-center gap-1.5" aria-hidden="true">
-        {MILESTONES.map((milestone, position) => {
-          const milestoneStep = position + 1;
-          const done = milestoneStep < current;
-          const active = milestoneStep === current;
-          return (
-            <li
-              key={milestone}
-              className={
-                active
-                  ? "rounded-full bg-fg px-2.5 py-1 text-[11px] font-semibold text-bg"
-                  : done
-                    ? "rounded-full border border-border/70 bg-surface-2 px-2.5 py-1 text-[11px] font-medium text-fg"
-                    : "rounded-full border border-border/60 px-2.5 py-1 text-[11px] text-fg-muted"
-              }
-            >
-              {milestoneStep}. {milestone}
-            </li>
-          );
-        })}
-      </ul>
-      <div
-        className="mt-2 h-2 overflow-hidden rounded-full bg-surface-3"
-        role="progressbar"
-        aria-valuemin={1}
-        aria-valuemax={total}
-        aria-valuenow={current}
-        aria-valuetext={`Paso ${current} de ${total}`}
-      >
-        <div
-          className="h-full rounded-full bg-fg transition-[width] duration-[240ms] ease-spring motion-reduce:transition-none"
-          style={{ width: `${(current / total) * 100}%` }}
-        />
-      </div>
-    </div>
-  );
-}
-
-function TextField({
-  id,
-  label,
-  error,
-  hint,
-  type,
-  ...props
-}: { id: string; label: string; error?: string; hint?: string } & ComponentProps<"input">) {
-  const errorId = `${id}-error`;
-  const hintId = `${id}-hint`;
-  const described = [hint ? hintId : null, error ? errorId : null].filter(Boolean).join(" ") || undefined;
-  const [visible, setVisible] = useState(false);
-  const isPassword = type === "password";
-  return (
-    <div className="mt-4">
-      <label htmlFor={id} className="text-sm font-medium text-fg">
-        {label}
-      </label>
-      {isPassword ? (
-        <div className="relative mt-2">
-          <Input
-            id={id}
-            type={visible ? "text" : "password"}
-            className="pr-20"
-            aria-invalid={error ? true : undefined}
-            aria-describedby={described}
-            {...props}
-          />
-          <button
-            type="button"
-            onClick={() => setVisible((value) => !value)}
-            aria-label={visible ? "Ocultar contraseña" : "Mostrar contraseña"}
-            aria-controls={id}
-            className="absolute top-1/2 right-2.5 -translate-y-1/2 rounded-md px-2 py-1 text-xs font-medium text-fg-muted transition-colors outline-none hover:bg-surface-2 hover:text-fg focus-visible:ring-4 focus-visible:ring-fg/20"
-          >
-            {visible ? "Ocultar" : "Mostrar"}
-          </button>
-        </div>
-      ) : (
-        <Input
-          id={id}
-          type={type}
-          className="mt-2"
-          aria-invalid={error ? true : undefined}
-          aria-describedby={described}
-          {...props}
-        />
-      )}
-      {hint ? (
-        <p id={hintId} className="mt-2 text-sm text-fg-muted">
-          {hint}
-        </p>
-      ) : null}
-      <FieldError id={errorId} message={error} />
-    </div>
-  );
+  return <AuthCard>{children}</AuthCard>;
 }
 
 function MailScreen({
@@ -245,40 +133,33 @@ function MailScreen({
 
   return (
     <Shell>
-      <h1 ref={headingRef} tabIndex={-1} className="mt-6 text-3xl text-balance focus:shadow-none">
+      <h1 ref={headingRef} tabIndex={-1} className={cn("mt-6", authTitleClass)}>
         Revisa tu correo
       </h1>
-      <p className="mt-3 text-sm leading-relaxed text-fg-body">
+      <p className="mt-3 text-sm leading-relaxed text-pretty text-fg-body">
         Te enviamos un enlace a <span className="font-medium break-all text-fg">{email}</span>. Ábrelo para confirmar la cuenta.
       </p>
       {realFlow ? (
-        <div className="mt-4 rounded-2xl bg-surface-2 p-4">
-          <p className="text-sm leading-relaxed text-fg-body">
+        <div className="mt-4 border-l-2 border-border pl-4">
+          <p className="max-w-[60ch] text-sm leading-relaxed text-pretty text-fg-body">
             Cuando confirmes el correo, completa tu registro para cuenta real antes de operar. Hasta entonces la
             cuenta queda en modo demo y no habilita operaciones reales.
           </p>
-          <p className="mt-2">
-            <Link
-              href="/app/onboarding"
-              className="inline-flex min-h-11 items-center rounded-sm px-1 font-medium text-fg underline decoration-border underline-offset-4 outline-none hover:decoration-fg focus-visible:ring-4 focus-visible:ring-fg/20"
-            >
+          <p>
+            <Link href="/app/onboarding" className={authLinkClass}>
               Completar mi registro
             </Link>
           </p>
         </div>
       ) : null}
-      {error ? (
-        <p className="mt-4 text-sm text-down" role="alert">
-          {error}
-        </p>
-      ) : null}
+      {error ? <FormAlert>{error}</FormAlert> : null}
       <div className="mt-6">
         <Button type="button" size="lg" className="w-full" loading={busy} disabled={left > 0} onClick={() => void resend()}>
           {left > 0 ? `Reenviar en ${left} s` : "Reenviar correo"}
         </Button>
       </div>
-      <p className="mt-4 text-center text-sm text-fg-muted">
-        <Link href={enter} className="inline-flex min-h-11 items-center justify-center rounded-sm px-2 font-medium text-fg underline decoration-border underline-offset-4 outline-none hover:decoration-fg focus-visible:ring-4 focus-visible:ring-fg/20">
+      <p className="mt-1 text-center text-[13px] leading-relaxed text-fg-muted">
+        <Link href={enter} className={authLinkClass}>
           Ingresar
         </Link>
       </p>
@@ -289,8 +170,8 @@ function MailScreen({
 function NeedSession() {
   return (
     <Shell>
-      <h1 className="mt-6 text-3xl text-balance">Necesitas iniciar sesión</h1>
-      <p className="mt-3 text-sm leading-relaxed text-fg-body">El registro continúa después del ingreso.</p>
+      <h1 className={cn("mt-6", authTitleClass)}>Necesitas iniciar sesión</h1>
+      <p className="mt-3 max-w-[60ch] text-sm leading-relaxed text-pretty text-fg-body">El registro continúa después del ingreso.</p>
       <div className="mt-6">
         <Link href="/app/ingresar" className={buttonClasses({ size: "lg", className: "w-full" })}>
           Ingresar
@@ -344,7 +225,7 @@ function DocCheck({
                 href={href}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="rounded-sm font-medium underline decoration-border underline-offset-4 outline-none hover:decoration-fg focus-visible:ring-4 focus-visible:ring-fg/20"
+                className="rounded-sm font-medium underline decoration-border underline-offset-4 hover:decoration-fg"
               >
                 {label}
               </Link>
@@ -468,7 +349,6 @@ function DemoRegistroForm({
   });
 
   const password = useWatch({ control, name: "password" });
-  const strength = passwordLabel(password ?? "");
   const enter = ingresarPath(next ?? "/app");
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
@@ -527,19 +407,12 @@ function DemoRegistroForm({
   return (
     <Shell>
       <form className="mt-6" onSubmit={(event) => void onSubmit(event)} noValidate>
-        <h1 className="text-3xl text-balance">Crea tu cuenta demo</h1>
-        <p className="mt-3 text-sm leading-relaxed text-fg-body">
+        <h1 className={authTitleClass}>Crea tu cuenta demo</h1>
+        <p className="mt-3 max-w-[60ch] text-sm leading-relaxed text-pretty text-fg-body">
           Te damos US$10.000 ficticios para practicar. Crea tu cuenta, explora el mercado y haz tu primera
           compra sin dinero real. La demo no habilita operaciones reales.
         </p>
-        {onUseReal ? (
-          <div className="mt-4">
-            <Button type="button" variant="secondary" size="lg" className="w-full" onClick={onUseReal}>
-              Crear una cuenta real
-            </Button>
-          </div>
-        ) : null}
-        <TextField
+        <CredentialField
           id="registro-email"
           label="Correo"
           type="email"
@@ -548,17 +421,16 @@ function DemoRegistroForm({
           error={errors.email?.message}
           {...register("email")}
         />
-        <TextField
+        <CredentialField
           id="registro-password"
           label="Contraseña"
           type="password"
           autoComplete="new-password"
-          hint={strength ? `Seguridad: ${strength}. Mínimo 8 caracteres. Recomendamos 12 o más.` : "Mínimo 8 caracteres. Recomendamos 12 o más."}
           error={errors.password?.message}
           {...register("password")}
         />
         <PasswordStrengthMeter password={password ?? ""} />
-        <TextField
+        <CredentialField
           id="registro-password-confirm"
           label="Repetir contraseña"
           type="password"
@@ -566,7 +438,7 @@ function DemoRegistroForm({
           error={errors.passwordConfirm?.message}
           {...register("passwordConfirm")}
         />
-        <div className="mt-4">
+        <div className="mt-5">
           <Controller
             name="aceptaLegal"
             control={control}
@@ -584,7 +456,7 @@ function DemoRegistroForm({
                       href="/legal/terminos"
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="rounded-sm font-medium underline decoration-border underline-offset-4 outline-none hover:decoration-fg focus-visible:ring-4 focus-visible:ring-fg/20"
+                      className="rounded-sm font-medium underline decoration-border underline-offset-4 hover:decoration-fg"
                     >
                       Términos y Condiciones
                     </Link>{" "}
@@ -593,7 +465,7 @@ function DemoRegistroForm({
                       href="/legal/privacidad"
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="rounded-sm font-medium underline decoration-border underline-offset-4 outline-none hover:decoration-fg focus-visible:ring-4 focus-visible:ring-fg/20"
+                      className="rounded-sm font-medium underline decoration-border underline-offset-4 hover:decoration-fg"
                     >
                       Política de Privacidad
                     </Link>
@@ -604,19 +476,22 @@ function DemoRegistroForm({
             )}
           />
         </div>
-        <p className="mt-4 text-sm leading-relaxed text-fg-muted">Borrador. [REVISIÓN ABOGADO]</p>
-        {formError ? (
-          <p className="mt-4 text-sm text-down" role="alert">
-            {formError}
-          </p>
-        ) : null}
+        <p className="mt-4 text-[13px] leading-relaxed text-fg-muted">Borrador. [REVISIÓN ABOGADO]</p>
+        {formError ? <FormAlert>{formError}</FormAlert> : null}
         <div className="mt-6">
           <Button type="submit" size="lg" className="w-full" loading={busy}>
             {t.auth.createDemoAccount}
           </Button>
         </div>
-        <p className="mt-4 text-center text-sm text-fg-muted">
-          <Link href={enter} className="inline-flex min-h-11 items-center justify-center rounded-sm px-2 font-medium text-fg underline decoration-border underline-offset-4 outline-none hover:decoration-fg focus-visible:ring-4 focus-visible:ring-fg/20">
+        {onUseReal ? (
+          <p className="mt-1 text-center text-[13px] leading-relaxed text-fg-muted">
+            <button type="button" onClick={onUseReal} className={authLinkClass}>
+              Crear una cuenta real
+            </button>
+          </p>
+        ) : null}
+        <p className="mt-1 text-center text-[13px] leading-relaxed text-fg-muted">
+          <Link href={enter} className={authLinkClass}>
             Ya tengo cuenta
           </Link>
         </p>
@@ -679,7 +554,6 @@ function RegistroForm({
   const password = useWatch({ control, name: "password" });
   const unavailable = step === 2 && (isOperationBlocked(pais) || isOperationBlocked(nacionalidad));
   const stepIndex = Math.max(0, steps.indexOf(step));
-  const strength = passwordLabel(password ?? "");
 
   useEffect(() => {
     if (skipFocus.current) {
@@ -822,14 +696,14 @@ function RegistroForm({
 
   return (
     <Shell>
-      <StepBar index={stepIndex} total={steps.length} />
+      <WizardProgress step={stepIndex + 1} total={steps.length} />
       <form className="mt-6" onSubmit={onSubmit} noValidate>
-        <h1 ref={headingRef} tabIndex={-1} className="text-3xl text-balance focus:shadow-none">
+        <h1 ref={headingRef} tabIndex={-1} className={authTitleClass}>
           {title}
         </h1>
         {step === 1 ? (
           <div>
-            <TextField
+            <CredentialField
               id="registro-email"
               label="Correo"
               type="email"
@@ -838,17 +712,16 @@ function RegistroForm({
               error={errors.email?.message}
               {...register("email")}
             />
-            <TextField
+            <CredentialField
               id="registro-password"
               label="Contraseña"
               type="password"
               autoComplete="new-password"
-              hint={strength ? `Seguridad: ${strength}` : undefined}
               error={errors.password?.message}
               {...register("password")}
             />
             <PasswordStrengthMeter password={password ?? ""} />
-            <TextField
+            <CredentialField
               id="registro-password-confirm"
               label="Confirmar contraseña"
               type="password"
@@ -856,19 +729,15 @@ function RegistroForm({
               error={errors.passwordConfirm?.message}
               {...register("passwordConfirm")}
             />
-            <p className="mt-4 text-center text-sm text-fg-muted">
-              <Link href={enter} className="inline-flex min-h-11 items-center justify-center rounded-sm px-2 font-medium text-fg underline decoration-border underline-offset-4 outline-none hover:decoration-fg focus-visible:ring-4 focus-visible:ring-fg/20">
+            <p className="mt-5 text-center text-[13px] leading-relaxed text-fg-muted">
+              <Link href={enter} className={authLinkClass}>
                 Ya tengo cuenta
               </Link>
             </p>
             {onUseDemo ? (
-              <p className="mt-2 text-center text-sm leading-relaxed text-fg-muted">
+              <p className="mt-1 text-center text-[13px] leading-relaxed text-fg-muted">
                 ¿Solo quieres probar?{" "}
-                <button
-                  type="button"
-                  onClick={onUseDemo}
-                  className="inline-flex min-h-11 items-center rounded-sm px-1 font-medium text-fg underline decoration-border underline-offset-4 outline-none hover:decoration-fg focus-visible:ring-4 focus-visible:ring-fg/20"
-                >
+                <button type="button" onClick={onUseDemo} className={authLinkClass}>
                   Usar la cuenta demo
                 </button>
               </p>
@@ -877,7 +746,7 @@ function RegistroForm({
         ) : null}
         {step === 2 && !unavailable ? (
           <div>
-            <TextField
+            <CredentialField
               id="registro-nombre"
               label="Nombre completo"
               autoComplete="name"
@@ -914,7 +783,7 @@ function RegistroForm({
                 name="rut"
                 control={control}
                 render={({ field, fieldState }) => (
-                  <TextField
+                  <CredentialField
                     id="registro-rut"
                     label="RUT"
                     autoComplete="off"
@@ -932,7 +801,7 @@ function RegistroForm({
                 )}
               />
             ) : null}
-            <TextField
+            <CredentialField
               id="registro-nacimiento"
               label="Fecha de nacimiento"
               type="date"
@@ -941,7 +810,7 @@ function RegistroForm({
               error={errors.fechaNacimiento?.message}
               {...register("fechaNacimiento")}
             />
-            <TextField
+            <CredentialField
               id="registro-telefono"
               label="Teléfono"
               type="tel"
@@ -951,22 +820,20 @@ function RegistroForm({
               error={errors.telefono?.message}
               {...register("telefono")}
             />
-            <div className="mt-4">
-              <Controller
-                name="usPersonDeclaration"
-                control={control}
-                render={({ field, fieldState }) => (
-                  <DeclarationStep
-                    value={field.value ?? null}
-                    onChange={field.onChange}
-                    onBlur={field.onBlur}
-                    inputRef={field.ref}
-                    error={fieldState.error?.message}
-                    onDeclareYes={leaveBlocked}
-                  />
-                )}
-              />
-            </div>
+            <Controller
+              name="usPersonDeclaration"
+              control={control}
+              render={({ field, fieldState }) => (
+                <DeclarationStep
+                  value={field.value ?? null}
+                  onChange={field.onChange}
+                  onBlur={field.onBlur}
+                  inputRef={field.ref}
+                  error={fieldState.error?.message}
+                  onDeclareYes={leaveBlocked}
+                />
+              )}
+            />
           </div>
         ) : null}
         {unavailable ? (
@@ -980,29 +847,31 @@ function RegistroForm({
           />
         ) : null}
         {step === 3 ? (
-          <div className="mt-4 flex flex-col gap-4">
-            <p className="text-sm leading-relaxed text-fg-body">
+          <div className="mt-5">
+            <p className="max-w-[60ch] text-sm leading-relaxed text-pretty text-fg-body">
               Resumen de riesgos. El texto completo está en cada documento. Al continuar queda registrada la versión que
               aceptas.
             </p>
-            <ul className="list-disc space-y-2 pl-5 text-sm leading-relaxed text-fg-body">
+            <ul className="mt-4 space-y-2 border-l-2 border-border pl-4 text-sm leading-relaxed text-fg-body">
               {RISK_POINTS.map((point) => (
                 <li key={point}>{point}</li>
               ))}
             </ul>
-            <div className="flex flex-col gap-3">
-              <DocCheck control={control} name="terminos" version={versions.terminos} href="/legal/terminos" label="Términos y condiciones" />
-              <DocCheck control={control} name="privacidad" version={versions.privacidad} href="/legal/privacidad" label="Política de privacidad" />
-              <DocCheck control={control} name="riesgos" version={versions.riesgos} href="/legal/riesgos" label="Divulgación de riesgos" />
+            <div className="mt-5 divide-y divide-border border-y border-border">
+              <div className="py-3">
+                <DocCheck control={control} name="terminos" version={versions.terminos} href="/legal/terminos" label="Términos y condiciones" />
+              </div>
+              <div className="py-3">
+                <DocCheck control={control} name="privacidad" version={versions.privacidad} href="/legal/privacidad" label="Política de privacidad" />
+              </div>
+              <div className="py-3">
+                <DocCheck control={control} name="riesgos" version={versions.riesgos} href="/legal/riesgos" label="Divulgación de riesgos" />
+              </div>
             </div>
-            <p className="text-sm leading-relaxed text-fg-muted">Borrador. [REVISIÓN ABOGADO]</p>
+            <p className="mt-4 text-[13px] leading-relaxed text-fg-muted">Borrador. [REVISIÓN ABOGADO]</p>
           </div>
         ) : null}
-        {formError ? (
-          <p className="mt-4 text-sm text-down" role="alert">
-            {formError}
-          </p>
-        ) : null}
+        {formError ? <FormAlert>{formError}</FormAlert> : null}
         {!unavailable ? (
           <div className="mt-6">
             <Button type="submit" size="lg" className="w-full" loading={busy}>
@@ -1010,16 +879,16 @@ function RegistroForm({
             </Button>
           </div>
         ) : null}
-        {canGoBack ? (
-          <div className="mt-3">
-            <Button type="button" variant="ghost" size="lg" className="w-full" onClick={goBack} disabled={busy}>
-              Atrás
-            </Button>
-          </div>
-        ) : null}
-        {mode === "completar" ? (
-          <div className={unavailable ? "mt-6" : "mt-3"}>
-            <LogoutButton variant="ghost" size="md" className="w-full" />
+        {canGoBack || mode === "completar" ? (
+          <div className={`${unavailable ? "mt-2" : "mt-1"} flex items-center justify-between gap-2`}>
+            {canGoBack ? (
+              <Button type="button" variant="ghost" size="md" className="px-2" onClick={goBack} disabled={busy}>
+                Atrás
+              </Button>
+            ) : (
+              <span aria-hidden="true" />
+            )}
+            {mode === "completar" ? <LogoutButton variant="ghost" size="md" className="w-auto px-2" /> : null}
           </div>
         ) : null}
       </form>

@@ -22,6 +22,14 @@ function formatUsdFee(value: number, decimals: number): string {
   return `US$${value.toFixed(decimals).replace(".", ",")}`;
 }
 
+/** Porcentaje es-CL: dos decimales y coma («100,00»). */
+const PERCENT_FORMAT = new Intl.NumberFormat("es-CL", {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
+
+/** Rótulo de dato: usa el token `.label`. */
+
 /**
  * Simulador de costos de una compra: comisión de plataforma, red Solana y
  * apertura de la cuenta del token. Ilustrativo: no incluye spread ni la
@@ -37,113 +45,125 @@ export function CostSimulator() {
     const capitalPct = ((amountUsd - totalFeesUsd) / amountUsd) * 100;
     return {
       tokenAccountUsd,
-      capitalPct: capitalPct.toFixed(2),
+      capitalPct: PERCENT_FORMAT.format(capitalPct),
     };
   }, [amountUsd, firstTime]);
 
   return (
-    <div className="flex flex-col gap-5">
-      <div role="group" aria-label="Monto de la orden" className="flex flex-col gap-3">
-        <p className="text-sm font-medium text-fg">Monto de la orden</p>
-        <div className="flex flex-wrap gap-2">
-          {AMOUNTS_USD.map((amount) => {
-            const selected = amount === amountUsd;
-            return (
-              <button
-                key={amount}
-                type="button"
-                aria-pressed={selected}
-                onClick={() => setAmountUsd(amount)}
-                className={cn(
-                  "num min-h-11 rounded-full border px-4 text-sm font-medium transition-colors duration-150 focus-visible:ring-4 focus-visible:ring-fg/20 focus-visible:outline-none",
-                  selected
-                    ? "border-fg/25 bg-surface-3 text-fg"
-                    : "border-border bg-white text-fg-muted hover:border-border-strong hover:text-fg",
-                )}
-              >
-                {formatAmount(amount)}
-              </button>
-            );
-          })}
+    <div>
+      <div className="border-t border-border">
+        <div className="border-b border-border py-5">
+          <div className="flex flex-wrap items-baseline justify-between gap-3">
+            <p className="text-sm font-medium text-fg">Monto de la orden</p>
+            <p className="num text-sm text-fg-muted">{formatAmount(amountUsd)}</p>
+          </div>
+          <div role="group" aria-label="Monto de la orden" className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+            {AMOUNTS_USD.map((amount) => {
+              const selected = amount === amountUsd;
+              return (
+                <button
+                  key={amount}
+                  type="button"
+                  aria-pressed={selected}
+                  onClick={() => setAmountUsd(amount)}
+                  className={cn(
+                    "num min-h-11 rounded-full border px-2 text-sm font-medium transition-colors duration-150",
+                    selected
+                      ? "border-fg bg-fg text-bg"
+                      : "border-control bg-bg text-fg hover:border-fg hover:bg-surface-1",
+                  )}
+                >
+                  {formatAmount(amount)}
+                </button>
+              );
+            })}
+          </div>
         </div>
+
+        <label className="flex min-h-16 cursor-pointer items-start justify-between gap-6 border-b border-border py-5">
+          <input
+            type="checkbox"
+            checked={firstTime}
+            onChange={(event) => setFirstTime(event.target.checked)}
+            className="peer sr-only"
+          />
+          <span className="flex min-w-0 flex-col gap-1">
+            <span className="text-sm font-medium text-fg">Primera compra de este activo</span>
+            <span className="text-xs leading-relaxed text-fg-muted">
+              Suma el costo de abrir la cuenta del token. Sólo ocurre una vez.
+            </span>
+          </span>
+          <span
+            aria-hidden="true"
+            className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-xs border border-control bg-bg transition-colors duration-150 peer-checked:border-fg peer-checked:bg-fg peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-fg"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              aria-hidden="true"
+              className={cn(
+                "size-3 text-bg transition-opacity duration-150",
+                firstTime ? "opacity-100" : "opacity-0",
+              )}
+            >
+              <path
+                d="m5 12.5 4.5 4.5L19 7.5"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </span>
+        </label>
       </div>
 
-      <button
-        type="button"
-        aria-pressed={firstTime}
-        onClick={() => setFirstTime((previous) => !previous)}
-        className={cn(
-          "flex min-h-14 w-full items-center justify-between gap-4 rounded-2xl border bg-white px-4 py-3 text-left transition-colors duration-150 focus-visible:ring-4 focus-visible:ring-fg/20 focus-visible:outline-none",
-          firstTime ? "border-fg/25" : "border-border hover:border-border-strong",
-        )}
-      >
-        <span className="flex min-w-0 flex-col gap-0.5">
-          <span className="text-sm font-medium text-fg">Primera compra de este activo</span>
-          <span className="text-xs leading-relaxed text-fg-muted">
-            Suma el costo de abrir la cuenta del token. Sólo ocurre una vez.
-          </span>
-        </span>
-        <span
-          aria-hidden="true"
-          className={cn(
-            "relative h-6 w-11 shrink-0 rounded-full transition-colors duration-150",
-            firstTime ? "bg-fg" : "bg-surface-3",
-          )}
-        >
-          <span
-            className={cn(
-              "absolute top-0.5 size-5 rounded-full bg-white transition-transform duration-150",
-              firstTime ? "translate-x-[1.375rem]" : "translate-x-0.5",
-            )}
-          />
-        </span>
-      </button>
-
-      <div className="rounded-3xl border border-border bg-white p-6 shadow-sm">
+      <div className="mt-8">
         <p className="label">Recibo estimado</p>
-
-        <dl className="mt-4 flex flex-col">
-          <div className="flex items-baseline justify-between gap-4 border-b border-border py-3 first:pt-0">
+        <dl className="mt-4 border-t border-border">
+          <div className="flex items-baseline justify-between gap-4 border-b border-border py-3">
             <dt className="text-sm text-fg-muted">Monto de la orden</dt>
-            <dd className="num text-sm font-medium text-fg">{formatAmount(amountUsd)}</dd>
+            <dd className="num shrink-0 text-right text-sm font-medium text-fg">{formatAmount(amountUsd)}</dd>
           </div>
 
           <div className="flex items-baseline justify-between gap-4 border-b border-border py-3">
             <dt className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-1 text-sm text-fg-muted">
               <span>Comisión {site.name}</span>
-              <span className="text-xs text-fg-subtle">(0% en lanzamiento)</span>
+              <span className="text-xs text-fg-muted">(0% en lanzamiento)</span>
             </dt>
-            <dd className="flex shrink-0 items-center gap-2">
+            <dd className="flex shrink-0 items-baseline gap-3">
               <span className="num text-sm font-medium text-fg">{formatUsdFee(0, 2)}</span>
-              <span className="rounded-full bg-up-bg px-2 py-0.5 text-[11px] font-semibold text-up">0%</span>
+              <span className="num text-xs text-fg-muted">0%</span>
             </dd>
           </div>
 
           <div className="flex items-baseline justify-between gap-4 border-b border-border py-3">
             <dt className="text-sm text-fg-muted">Costo estimado red Solana</dt>
-            <dd className="num text-sm font-medium text-fg">{formatUsdFee(NETWORK_FEE_USD, 3)}</dd>
+            <dd className="num shrink-0 text-right text-sm font-medium text-fg">{formatUsdFee(NETWORK_FEE_USD, 3)}</dd>
           </div>
 
           <div className="flex items-baseline justify-between gap-4 border-b border-border py-3">
-            <dt className="flex min-w-0 flex-col gap-0.5 text-sm text-fg-muted">
+            <dt className="flex min-w-0 flex-col gap-1 text-sm text-fg-muted">
               <span>Apertura de la cuenta del token</span>
-              <span className="text-xs text-fg-subtle">Sólo la primera vez</span>
+              <span className="text-xs text-fg-muted">Sólo la primera vez</span>
             </dt>
-            <dd className="num shrink-0 text-sm font-medium text-fg">
+            <dd className="num min-w-0 text-right text-sm font-medium text-fg">
               {firstTime ? formatUsdFee(costs.tokenAccountUsd, 2) : "US$0,00 (ya abierta)"}
             </dd>
           </div>
 
-          <div className="flex items-baseline justify-between gap-4 pt-4">
-            <dt className="text-sm font-medium text-fg">Capital efectivo estimado en el activo</dt>
-            <dd aria-live="polite" className="num text-lg font-semibold text-fg">
+          <div className="flex items-end justify-between gap-6 pt-5">
+            <dt className="max-w-[24ch] text-sm leading-snug text-fg-muted">
+              Capital efectivo estimado en el activo
+            </dt>
+            <dd aria-live="polite" className="num text-right text-4xl leading-none tracking-tight whitespace-nowrap text-fg sm:text-5xl">
               {costs.capitalPct}%
             </dd>
           </div>
         </dl>
       </div>
 
-      <p className="text-xs leading-relaxed text-pretty text-fg-muted">
+      <p className="mt-5 text-sm leading-relaxed text-pretty text-fg-muted">
         Simulación ilustrativa de costos de plataforma y red. La diferencia de precio (spread) y la
         comisión del proveedor de depósito dependen del mercado y medio elegido al operar.
       </p>

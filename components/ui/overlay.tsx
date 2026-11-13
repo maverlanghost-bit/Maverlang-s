@@ -11,18 +11,24 @@ const FOCUSABLE =
 
 let scrollLocks = 0;
 let scrollSnapshot = "";
+let paddingSnapshot = "";
 
 function lockScroll() {
   scrollLocks += 1;
-  if (scrollLocks === 1) {
-    scrollSnapshot = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-  }
+  if (scrollLocks !== 1) return;
+  // Sin compensar la barra, `overflow: hidden` corre el layout ~15 px al abrir.
+  const scrollbar = window.innerWidth - document.documentElement.clientWidth;
+  scrollSnapshot = document.body.style.overflow;
+  paddingSnapshot = document.body.style.paddingRight;
+  document.body.style.overflow = "hidden";
+  if (scrollbar > 0) document.body.style.paddingRight = `${scrollbar}px`;
 }
 
 function unlockScroll() {
   scrollLocks = Math.max(0, scrollLocks - 1);
-  if (scrollLocks === 0) document.body.style.overflow = scrollSnapshot;
+  if (scrollLocks !== 0) return;
+  document.body.style.overflow = scrollSnapshot;
+  document.body.style.paddingRight = paddingSnapshot;
 }
 
 function subscribe() {
@@ -37,6 +43,19 @@ function Portal({ children }: { children: ReactNode }) {
   const mounted = useMounted();
   if (!mounted) return null;
   return createPortal(children, document.body);
+}
+
+/**
+ * Un control dentro de `[hidden]`, `[inert]` o `aria-hidden` no recibe foco
+ * (paneles de pestañas cerrados, acciones ocultas en móvil). Sin este filtro
+ * el primer Tab podía caer en un elemento invisible y el foco se perdía.
+ */
+function isFocusable(element: HTMLElement): boolean {
+  if (element.closest('[hidden], [inert], [aria-hidden="true"]')) return false;
+  const style = window.getComputedStyle(element);
+  return (
+    style.display !== "none" && style.visibility !== "hidden" && element.getClientRects().length > 0
+  );
 }
 
 function useOverlay(open: boolean, onClose: () => void) {
@@ -55,7 +74,7 @@ function useOverlay(open: boolean, onClose: () => void) {
     function focusable() {
       if (!panel) return [];
       return Array.from(panel.querySelectorAll<HTMLElement>(FOCUSABLE)).filter(
-        (element) => !element.hasAttribute("disabled"),
+        (element) => !element.hasAttribute("disabled") && isFocusable(element),
       );
     }
 
@@ -128,7 +147,11 @@ export function OverlayPanel({
   return (
     <Portal>
       <div className={cn("fixed inset-0 z-50", frameClassName)}>
-        <div className="absolute inset-0 animate-fade-in bg-fg/40" onClick={onClose} aria-hidden />
+        <div
+          className="absolute inset-0 animate-fade-in touch-none bg-fg/50"
+          onClick={onClose}
+          aria-hidden
+        />
         <div
           ref={panelRef}
           role="dialog"
@@ -140,11 +163,11 @@ export function OverlayPanel({
           className={cn("relative z-10 outline-none", panelClassName)}
         >
           {grabber ? <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-surface-3 md:hidden" aria-hidden /> : null}
-          <h2 id={titleId} className="pr-16 text-lg font-medium text-fg">
+          <h2 id={titleId} className="pr-16 text-lg font-medium text-balance text-fg">
             {title}
           </h2>
           {description ? (
-            <p id={descriptionId} className="mt-1 text-sm leading-relaxed text-fg-muted">
+            <p id={descriptionId} className="mt-1 text-pretty text-sm leading-relaxed text-fg-muted">
               {description}
             </p>
           ) : null}

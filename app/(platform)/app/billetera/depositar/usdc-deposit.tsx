@@ -4,15 +4,23 @@ import { useQuery } from "@tanstack/react-query";
 
 import { DemoAddressNotice } from "@/components/domain/demo-address-notice";
 import { Card } from "@/components/ui/card";
-import { CopyButton } from "@/components/ui/copy-button";
+import { ErrorState } from "@/components/ui/error-state";
 import { LoadingState } from "@/components/ui/loading-state";
 import { QRCode } from "@/components/ui/qr-code";
 import { LinkWalletCard } from "@/components/wallet/link-wallet-card";
+import { WalletAddress } from "@/components/wallet/wallet-address";
 import { getWallets } from "@/lib/api/client";
 import { useSession } from "@/lib/auth";
 import { useAccountMode } from "@/lib/hooks/use-account-mode";
 import { useT } from "@/lib/hooks/use-t";
 import { receivableAddress } from "@/lib/wallet/receivable-address";
+
+/** Datos fijos de la red y del activo: se leen de un vistazo antes del QR. */
+const NETWORK_FACTS = [
+  { label: "Red", value: "Solana Mainnet (SPL)" },
+  { label: "Activo", value: "USDC oficial" },
+  { label: "Comisión de depósito", value: "0%" },
+] as const;
 
 export function UsdcDeposit({ depositEligible }: { depositEligible: boolean }) {
   const { t } = useT();
@@ -54,6 +62,20 @@ export function UsdcDeposit({ depositEligible }: { depositEligible: boolean }) {
 
   if (wallets.isPending) return <LoadingState label={t.states.loading} />;
 
+  // Un fallo de red no es “falta vincular”: se dice y se ofrece reintentar.
+  if (wallets.isError) {
+    return (
+      <ErrorState
+        title={t.wallet.loadError}
+        label={t.states.error}
+        retryLabel={t.states.retry}
+        onRetry={() => {
+          void wallets.refetch();
+        }}
+      />
+    );
+  }
+
   if (!address) {
     // Sin billetera vinculada y verificada no hay dirección ni QR: se ofrece
     // el flujo real (desafío + firma con Privy). No hay alternativa "confiar
@@ -62,39 +84,44 @@ export function UsdcDeposit({ depositEligible }: { depositEligible: boolean }) {
   }
 
   return (
-    <Card className="flex flex-col gap-5">
-      <div className="flex flex-wrap items-center gap-2" aria-label="Verificación del pasaporte de depósito">
-        <span className="inline-flex items-center gap-1.5 rounded-full border border-border/70 bg-surface-1/70 px-3 py-1 text-[11px] font-medium text-fg">
-          <span className="size-1.5 rounded-full bg-up" aria-hidden="true" />
-          Red: Solana Mainnet (SPL)
-        </span>
-        <span className="inline-flex items-center gap-1.5 rounded-full border border-border/70 bg-surface-1/70 px-3 py-1 text-[11px] font-medium text-fg">
-          <span className="size-1.5 rounded-full bg-up" aria-hidden="true" />
-          Activo: USDC Oficial
-        </span>
-        <span className="inline-flex items-center gap-1.5 rounded-full border border-brand/25 bg-brand-soft/40 px-3 py-1 text-[11px] font-medium text-fg">
-          <span className="size-1.5 rounded-full bg-up" aria-hidden="true" />
-          Comisión de depósito: 0%
-        </span>
+    <Card className="flex flex-col gap-6">
+      <div className="flex flex-col gap-2">
+        <h2 className="text-lg font-semibold tracking-tight">{t.wallet.address}</h2>
+        <p className="text-sm leading-relaxed text-fg-body">{t.wallet.depositUsdcLead}</p>
+        <dl className="mt-1 divide-y divide-border overflow-hidden rounded-xl border border-border">
+          {NETWORK_FACTS.map((fact) => (
+            <div key={fact.label} className="flex min-h-11 items-center justify-between gap-3 px-4 py-2.5">
+              <dt className="label-xs shrink-0">{fact.label}</dt>
+              <dd className="min-w-0 text-right text-[13px] leading-snug font-medium text-fg">{fact.value}</dd>
+            </div>
+          ))}
+        </dl>
       </div>
-      <p>{t.wallet.depositUsdcLead}</p>
-      <ol aria-label={t.wallet.depositUsdcSteps} className="flex list-decimal flex-col gap-2 pl-5">
-        {steps.map((step) => (
-          <li key={step}>{step}</li>
-        ))}
-      </ol>
-      <div className="rounded-2xl border border-border/80 bg-surface-1/60 p-5 shadow-xs">
-        <div className="flex flex-col items-center gap-4 text-center">
-          <QRCode value={address} size={196} label={t.wallet.depositQr} />
-          <p className="num max-w-full break-all text-sm text-fg">{address}</p>
-          <p className="text-sm leading-relaxed text-fg-muted">{t.wallet.verifiedOnly}</p>
-          <CopyButton value={address} label={t.wallet.copy} copiedLabel={t.wallet.copied} />
+
+      <div className="flex flex-col items-center gap-3">
+        <QRCode value={address} size={176} label={t.wallet.depositQr} />
+        <div className="w-full max-w-sm">
+          <WalletAddress address={address} copyLabel={t.wallet.copy} copiedLabel={t.wallet.copied} />
         </div>
+        <p className="text-center text-[13px] leading-relaxed text-fg-muted">{t.wallet.verifiedOnly}</p>
       </div>
-      <ul aria-label={t.wallet.warnings} className="flex flex-col gap-2">
-        <li className="rounded-xl bg-warn-bg px-4 py-3 font-medium leading-relaxed text-fg">{t.wallet.depositNetworkWarn}</li>
-        <li className="rounded-xl bg-warn-bg px-4 py-3 font-medium leading-relaxed text-fg">{t.wallet.depositUsdcOnly}</li>
-      </ul>
+
+      <div className="border-t border-border pt-4">
+        <h3 className="label">{t.wallet.depositUsdcSteps}</h3>
+        <ol aria-label={t.wallet.depositUsdcSteps} className="mt-2 flex list-decimal flex-col gap-1.5 pl-4 text-sm leading-relaxed text-fg-body marker:text-fg-muted">
+          {steps.map((step) => (
+            <li key={step}>{step}</li>
+          ))}
+        </ol>
+      </div>
+
+      <div className="rounded-xl bg-warn-bg px-4 py-3">
+        <p className="label text-fg">{t.wallet.warnings}</p>
+        <ul className="mt-2 flex list-disc flex-col gap-1 pl-4 text-[13px] leading-relaxed font-medium text-fg">
+          <li>{t.wallet.depositNetworkWarn}</li>
+          <li>{t.wallet.depositUsdcOnly}</li>
+        </ul>
+      </div>
     </Card>
   );
 }

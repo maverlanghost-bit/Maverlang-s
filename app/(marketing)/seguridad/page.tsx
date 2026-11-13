@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { ReactElement } from "react";
 import { SecuritySection } from "@/components/landing/security-section";
 import { LandingSection } from "@/components/landing/section";
+import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { site } from "@/config/site";
 import { brandShort, pageMetadata } from "@/lib/seo/metadata";
@@ -156,65 +157,59 @@ const framework: {
 ];
 
 const linkClass =
-  "inline-flex min-h-11 items-center rounded-sm text-sm font-medium text-fg underline decoration-border underline-offset-4 transition-colors hover:decoration-fg focus-visible:ring-4 focus-visible:ring-fg/20 motion-reduce:transition-none";
+  "inline-flex min-h-11 items-center text-sm font-medium text-fg underline decoration-border underline-offset-4 transition-colors hover:decoration-fg motion-reduce:transition-none";
 
 /** Página dedicada de seguridad: las tarjetas de la portada más el marco completo. */
 export default function SeguridadPage() {
   return (
     <>
-      <LandingSection titleId="seguridad-page-title">
-        <div className="max-w-2xl">
+      <LandingSection titleId="seguridad-page-title" density="compact" className="pb-6 md:pb-8">
+        <div className="max-w-3xl">
           <p className="label">Seguridad</p>
-          <h1 id="seguridad-page-title" className="mt-3 text-balance text-3xl sm:text-4xl">
+          <h1 id="seguridad-page-title" className="mt-3 text-3xl text-balance sm:text-4xl">
             Qué tienes y qué no
           </h1>
-          <p className="mt-4 text-sm leading-relaxed text-fg-body sm:text-base">
+          <p className="mt-4 max-w-[62ch] text-lead text-fg-body">
             {site.name} no es una corredora de EE.UU. El token es tuyo y queda en tu propia
             billetera, sin custodia de nuestra parte. Sigue el precio de la acción.
           </p>
         </div>
       </LandingSection>
 
-      <SecuritySection />
+      <SecuritySection showIntro={false} />
 
-      <LandingSection titleId="seguridad-demo">
+      <LandingSection titleId="seguridad-demo" density="compact">
         <div className="max-w-3xl">
           <p className="label">Demo</p>
-          <h2 id="seguridad-demo" className="mt-3 text-balance text-xl sm:text-2xl">
+          <h2 id="seguridad-demo" className="mt-3 text-balance text-2xl sm:text-3xl">
             La demo no es dinero real
           </h2>
-          <p className="mt-4 text-sm leading-relaxed text-fg-body sm:text-base">
+          <p className="mt-4 max-w-[62ch] text-lead text-fg-body">
             La demo parte con US$10.000 ficticios para practicar, con precios reales. En esta demo
             no se cobra dinero real.
           </p>
-          <p className="mt-6">
-            <Link
-              href="/app/registro"
-              className="inline-flex min-h-11 items-center justify-center rounded-full bg-fg px-5 text-sm font-medium text-bg transition-opacity hover:opacity-90 focus-visible:ring-4 focus-visible:ring-fg/20 motion-reduce:transition-none"
-            >
-              Probar la demo
-            </Link>
+          <p className="mt-8">
+            <Button asChild>
+              <Link href="/app/registro">Probar la demo</Link>
+            </Button>
           </p>
         </div>
       </LandingSection>
 
-      <LandingSection titleId="seguridad-practicas">
+      <LandingSection titleId="seguridad-practicas" density="compact">
         <div className="max-w-3xl">
           <p className="label">Prácticas</p>
-          <h2 id="seguridad-practicas" className="mt-3 text-balance text-xl sm:text-2xl">
+          <h2 id="seguridad-practicas" className="mt-3 text-balance text-2xl sm:text-3xl">
             Buenas prácticas
           </h2>
-          <div className="mt-6 grid grid-cols-1 gap-4 sm:mt-8 sm:grid-cols-2">
+          <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2">
             {practices.map((practice) => (
-              <Card
-                key={practice.title}
-                className="group flex h-full flex-col gap-4 p-5 shadow-none transition-colors hover:border-border-strong hover:bg-surface-2/60 motion-reduce:transition-none sm:p-6 md:p-6"
-              >
-                <span className="flex size-11 shrink-0 items-center justify-center rounded-2xl border border-border bg-bg text-fg transition-colors group-hover:border-border-strong motion-reduce:transition-none">
+              <Card key={practice.title} className="flex h-full flex-col gap-4 p-5 sm:p-6">
+                <span className="flex size-11 shrink-0 items-center justify-center rounded-xl border border-border bg-bg text-fg">
                   <practice.Icon />
                 </span>
                 <div>
-                  <p className="label">{practice.label}</p>
+                  <p className="eyebrow">{practice.label}</p>
                   <h3 className="mt-2 text-base leading-relaxed">{practice.title}</h3>
                 </div>
                 <p className="text-sm leading-relaxed text-fg-body">{practice.body}</p>
@@ -224,23 +219,20 @@ export default function SeguridadPage() {
         </div>
       </LandingSection>
 
-      <LandingSection titleId="seguridad-marco">
+      <LandingSection titleId="seguridad-marco" density="compact">
         <div className="max-w-3xl">
           <p className="label">Marco</p>
-          <h2 id="seguridad-marco" className="mt-3 text-balance text-xl sm:text-2xl">
+          <h2 id="seguridad-marco" className="mt-3 text-balance text-2xl sm:text-3xl">
             El marco completo
           </h2>
-          <ul className="mt-6 divide-y divide-border overflow-hidden rounded-3xl border border-border bg-bg sm:mt-8">
+          <ul className="mt-8 divide-y divide-border border-y border-border">
             {framework.map((item) => (
-              <li
-                key={item.label}
-                className="flex gap-4 p-5 transition-colors hover:bg-surface-1 motion-reduce:transition-none sm:gap-5 sm:p-6"
-              >
-                <span className="mt-0.5 flex size-11 shrink-0 items-center justify-center rounded-2xl border border-border bg-surface-1 text-fg">
+              <li key={item.label} className="flex gap-4 p-5 sm:gap-5 sm:p-6">
+                <span className="mt-0.5 flex size-11 shrink-0 items-center justify-center rounded-xl border border-border bg-bg text-fg">
                   <item.Icon />
                 </span>
                 <div className="min-w-0">
-                  <p className="label">{item.label}</p>
+                  <p className="eyebrow">{item.label}</p>
                   <p className="mt-2 text-sm leading-relaxed text-fg-body sm:text-base">
                     <strong className="font-medium text-fg">{item.lead}</strong> {item.body}
                   </p>

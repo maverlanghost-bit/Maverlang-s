@@ -5,8 +5,9 @@ import { useRouter } from "next/navigation";
 import { useRef, useState, type FormEvent } from "react";
 
 import { CheckField } from "@/app/(platform)/app/onboarding/panel";
+import { AuthCard, authTitleClass } from "@/components/auth/auth-frame";
+import { FormAlert } from "@/components/auth/form-alert";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { addConsent, ApiError } from "@/lib/api/client";
 import { DEMO_LEGAL_MESSAGE } from "@/lib/auth/registro-schema";
 import { publishDemoMetadata } from "@/lib/auth/registro-client";
@@ -66,13 +67,13 @@ export function AceptarForm({
   }
 
   return (
-    <Card className="w-full max-w-md shadow-float">
-      <form className="mt-6" onSubmit={(event) => void onSubmit(event)} noValidate>
-        <h1 className="text-3xl text-balance">Acepta los documentos</h1>
-        <p className="mt-3 text-sm leading-relaxed text-fg-body">
+    <AuthCard>
+      <form className="mt-6" aria-busy={busy} onSubmit={(event) => void onSubmit(event)} noValidate>
+        <h1 className={authTitleClass}>Acepta los documentos</h1>
+        <p className="mt-3 max-w-[60ch] text-sm leading-relaxed text-pretty text-fg-body">
           Para usar la demo tienes que aceptar los Términos y Condiciones y la Política de Privacidad.
         </p>
-        <div className="mt-4">
+        <div className="mt-5">
           <CheckField
             checked={checked}
             onChange={setChecked}
@@ -86,7 +87,7 @@ export function AceptarForm({
                   href="/legal/terminos"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="font-medium underline decoration-border underline-offset-4 hover:decoration-fg"
+                  className="font-medium underline decoration-border underline-offset-4 transition-colors hover:decoration-fg"
                 >
                   Términos y Condiciones
                 </Link>{" "}
@@ -95,7 +96,7 @@ export function AceptarForm({
                   href="/legal/privacidad"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="font-medium underline decoration-border underline-offset-4 hover:decoration-fg"
+                  className="font-medium underline decoration-border underline-offset-4 transition-colors hover:decoration-fg"
                 >
                   Política de Privacidad
                 </Link>
@@ -104,18 +105,14 @@ export function AceptarForm({
             }
           />
         </div>
-        <p className="mt-4 text-sm leading-relaxed text-fg-muted">Borrador. [REVISIÓN ABOGADO]</p>
-        {formError && checked ? (
-          <p className="mt-4 text-sm text-down" role="alert">
-            {formError}
-          </p>
-        ) : null}
+        <p className="mt-4 text-[13px] leading-relaxed text-fg-muted">Borrador. [REVISIÓN ABOGADO]</p>
+        {formError && checked ? <FormAlert>{formError}</FormAlert> : null}
         <div className="mt-6">
           <Button type="submit" size="lg" className="w-full" loading={busy}>
             Continuar
           </Button>
         </div>
       </form>
-    </Card>
+    </AuthCard>
   );
 }

@@ -18,10 +18,10 @@ export default function MarketingError({ error, reset }: { error: unknown; reset
     <section aria-labelledby="error-title" className="px-5 py-20 md:py-28">
       <div className="mx-auto w-full max-w-2xl">
         <p className="label">Error</p>
-        <h1 id="error-title" className="mt-3 text-3xl sm:text-4xl">
+        <h1 id="error-title" className="mt-3 text-3xl leading-[1.1] text-balance sm:text-4xl">
           No pudimos cargar esta página
         </h1>
-        <p className="mt-4 text-sm leading-relaxed text-fg-body sm:text-base">
+        <p className="mt-4 max-w-[46ch] text-base leading-relaxed text-fg-body">
           Puede ser un problema momentáneo. Reintenta; si sigue igual, vuelve al inicio.
         </p>
         <div className="mt-8 flex flex-wrap items-center gap-3">

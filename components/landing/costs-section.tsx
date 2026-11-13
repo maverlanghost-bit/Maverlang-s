@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { LandingSection, SectionIntro } from "@/components/landing/section";
 import { Reveal } from "@/components/landing/reveal";
-import { Card } from "@/components/ui/card";
 import { site } from "@/config/site";
 import { REVEAL_STAGGER_MS } from "@/lib/hooks/reveal-motion";
 
@@ -30,100 +29,137 @@ const rows: { concept: string; detail: string }[] = [
   },
 ];
 
-const badges: string[] = ["Desglose previo a firmar", "Red Solana ultrarrápida"];
+/** Afirmaciones cortas: antes eran píldoras; ahora una línea de tinta. */
+const notes: string[] = ["Desglose previo a firmar", "Red Solana ultrarrápida"];
 
-export function CostsSection() {
+const INTRO_TITLE = "Lo que pagas, antes de confirmar";
+
+/**
+ * Costos de la compra. `showIntro={false}` lo usa /costos, que ya trae ese
+ * texto como titular de página: no se repite a la vista, pero el ancla de la
+ * sección (`#costos-title`) se conserva para el `aria-labelledby`.
+ */
+export function CostsSection({ showIntro = true }: { showIntro?: boolean }) {
   return (
     <LandingSection id="costos" titleId="costos-title">
-      <Reveal>
-        <SectionIntro id="costos-title" title="Lo que pagas, antes de confirmar">
-          La comisión de lanzamiento es 0%. El resto depende del mercado, la red y el proveedor. Si hay
-          que crear la cuenta del activo, ese costo también aparece en el desglose.
-        </SectionIntro>
-      </Reveal>
-      <div className="mt-10 grid gap-4 md:mt-14 lg:grid-cols-5 lg:gap-6">
-        <Reveal delay={REVEAL_STAGGER_MS} className="lg:col-span-2">
-          <Card className="flex h-full flex-col gap-8 rounded-3xl p-6 md:p-8">
-            <div>
+      {showIntro ? (
+        <Reveal>
+          <SectionIntro id="costos-title" title={INTRO_TITLE}>
+            La comisión de lanzamiento es 0%. El resto depende del mercado, la red y el proveedor. Si hay
+            que crear la cuenta del activo, ese costo también aparece en el desglose.
+          </SectionIntro>
+        </Reveal>
+      ) : (
+        <h2 id="costos-title" className="sr-only">
+          {INTRO_TITLE}
+        </h2>
+      )}
+      <div className="mt-10 border-t border-border md:mt-14">
+        <div className="grid lg:grid-cols-12">
+          <Reveal className="lg:col-span-4 lg:border-r lg:border-border">
+            <div className="py-8 lg:py-10 lg:pr-10">
               <p className="label">Comisión de plataforma</p>
-              <p className="mt-4 font-mono text-5xl leading-none tracking-tight tabular-nums text-fg sm:text-6xl">
+              <p className="num mt-5 text-6xl leading-[0.9] tracking-[-0.04em] text-fg sm:text-7xl">
                 0%
               </p>
-              <p className="mt-4 text-sm font-medium leading-relaxed text-fg">
+              <p className="mt-5 text-sm font-medium leading-relaxed text-fg">
                 Comisión de plataforma en lanzamiento
               </p>
-              <p className="mt-2 text-sm leading-relaxed text-fg-body">
+              <p className="mt-2 max-w-[42ch] text-sm leading-relaxed text-fg-body">
                 No es un cobro nuestro sobre tu compra. Los demás costos vienen del mercado, la red y el
                 proveedor, y aparecen en el desglose antes de confirmar.
               </p>
+
+              <ul className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-border pt-4">
+                {notes.map((note) => (
+                  <li
+                    key={note}
+                    className="flex items-center gap-2 text-sm leading-snug text-fg-muted"
+                  >
+                    <span aria-hidden="true" className="size-1 shrink-0 rounded-full bg-border-strong" />
+                    {note}
+                  </li>
+                ))}
+              </ul>
+
+              <p className="mt-6 text-sm leading-relaxed text-fg-muted">
+                Los montos de red y de depósito dependen del proveedor. El desglose completo se muestra
+                antes de firmar, así que sabes qué pagas antes de confirmar.
+              </p>
             </div>
-            <ul className="flex flex-wrap gap-2">
-              {badges.map((badge) => (
-                <li
-                  key={badge}
-                  className="inline-flex items-center gap-2 rounded-full border border-border bg-bg px-3 py-1.5 text-xs font-medium text-fg-body"
-                >
-                  <span aria-hidden="true" className="size-1.5 shrink-0 rounded-full bg-fg" />
-                  {badge}
-                </li>
-              ))}
-            </ul>
-            <p className="mt-auto border-t border-border pt-4 text-xs leading-relaxed text-fg-muted">
-              Los montos de red y de depósito dependen del proveedor. El desglose completo se muestra
-              antes de firmar, así que sabes qué pagas antes de confirmar.
-            </p>
-          </Card>
-        </Reveal>
-        <Reveal delay={REVEAL_STAGGER_MS * 2} className="lg:col-span-3">
-          <Card className="flex h-full flex-col overflow-hidden rounded-3xl p-0 md:p-0">
-            <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b border-border px-5 py-4 md:px-7 md:py-5">
-              <p className="label">Desglose de costos</p>
-              <p className="text-xs text-fg-muted">Se muestra antes de confirmar</p>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[32rem] text-left text-sm">
-                <caption className="sr-only">Costos de {site.name}</caption>
-                <thead>
-                  <tr className="border-b border-border">
-                    <th scope="col" className="label px-5 py-3 font-medium md:px-7">
-                      Concepto
-                    </th>
-                    <th scope="col" className="label px-5 py-3 font-medium md:px-7">
-                      Qué pagas
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.map((row) => (
-                    <tr
-                      key={row.concept}
-                      className="border-b border-border transition-colors last:border-b-0 hover:bg-surface-2 motion-reduce:transition-none"
-                    >
-                      <th
-                        scope="row"
-                        className="w-[46%] px-5 py-4 align-top font-medium leading-relaxed text-fg md:w-2/5 md:px-7 md:py-5"
-                      >
-                        {row.concept}
-                      </th>
-                      <td className="px-5 py-4 align-top leading-relaxed text-fg-muted md:px-7 md:py-5">
-                        {row.detail}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <div className="mt-auto border-t border-border px-5 py-4 md:px-7">
-              <Link
-                href="/legal/comisiones"
-                className="inline-flex min-h-11 items-center gap-1.5 text-sm font-medium text-fg underline decoration-border underline-offset-4 transition-colors hover:decoration-fg motion-reduce:transition-none"
+          </Reveal>
+
+          <Reveal delay={REVEAL_STAGGER_MS * 2} className="lg:col-span-8">
+            <div className="py-8 lg:py-10 lg:pl-10">
+              <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1">
+                <p className="label">Desglose de costos</p>
+                <p className="text-sm text-fg-muted">Se muestra antes de confirmar</p>
+              </div>
+
+              {/* <sm: un bloque por concepto. La tabla de 512px no cabe en 390px. */}
+              <dl
+                aria-label="Desglose de costos"
+                className="mt-5 divide-y divide-border border-y border-border sm:hidden"
               >
-                Ver el detalle de comisiones
-                <span aria-hidden="true">→</span>
-              </Link>
+                {rows.map((row) => (
+                  <div key={row.concept} className="py-4">
+                    <dt className="text-sm font-medium leading-relaxed text-fg">{row.concept}</dt>
+                    <dd className="mt-2 text-sm leading-relaxed text-fg-body">{row.detail}</dd>
+                  </div>
+                ))}
+              </dl>
+
+              {/* ≥sm: la tabla de siempre. Con scroll horizontal de reserva si no cabe. */}
+              <div className="mt-5 hidden overflow-x-auto sm:block">
+                <table className="w-full border-y border-border text-left text-sm md:min-w-[32rem]">
+                  <caption className="sr-only">Costos de {site.name}</caption>
+                  <thead>
+                    <tr>
+                      <th
+                        scope="col"
+                        className="eyebrow border-b border-border py-3 pr-6 align-bottom"
+                      >
+                        Concepto
+                      </th>
+                      <th
+                        scope="col"
+                        className="eyebrow border-b border-border py-3 align-bottom"
+                      >
+                        Qué pagas
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rows.map((row) => (
+                      <tr
+                        key={row.concept}
+                        className="border-b border-border transition-colors last:border-b-0 hover:bg-surface-1 motion-reduce:transition-none"
+                      >
+                        <th
+                          scope="row"
+                          className="w-[44%] py-4 pr-6 align-top font-medium leading-relaxed text-fg"
+                        >
+                          {row.concept}
+                        </th>
+                        <td className="py-4 align-top leading-relaxed text-fg-body">{row.detail}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <p className="mt-6">
+                <Link
+                  href="/legal/comisiones"
+                  className="inline-flex min-h-11 items-center gap-2 text-sm font-medium text-fg underline decoration-border underline-offset-4 transition-colors hover:decoration-fg motion-reduce:transition-none"
+                >
+                  Ver el detalle de comisiones
+                  <span aria-hidden="true">→</span>
+                </Link>
+              </p>
             </div>
-          </Card>
-        </Reveal>
+          </Reveal>
+        </div>
       </div>
     </LandingSection>
   );

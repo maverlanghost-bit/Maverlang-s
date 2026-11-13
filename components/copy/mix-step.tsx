@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import { useQueryClient } from "@tanstack/react-query";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 
 import { Button } from "@/components/ui/button";
 import type { Messages } from "@/content/i18n/es-CL";
 import { ApiError, buildTrade, quoteTrade, submitTrade } from "@/lib/api/client";
 import { useSession } from "@/lib/auth";
 import { useSignTrade } from "@/lib/auth/sign-transaction";
+import { cn } from "@/lib/cn";
 import { formatShares, formatUsd } from "@/lib/format";
 import { useT } from "@/lib/hooks/use-t";
 import type { TradeQuote } from "@/lib/types";
@@ -32,6 +33,18 @@ function failureText(t: Messages, error: unknown): string {
   return t.trade.signFailed;
 }
 
+/** Fila de dato con hairline: rótulo a la izquierda, cifra tabular a la derecha. */
+function Row({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="flex items-baseline justify-between gap-4 border-b border-border/70 py-2.5 last:border-b-0">
+      <dt className="min-w-0 flex-1 text-[13px] leading-5 text-fg-muted">{label}</dt>
+      <dd className="num shrink-0 text-right text-[13px] leading-5 font-medium whitespace-nowrap tabular-nums text-fg">
+        {children}
+      </dd>
+    </div>
+  );
+}
+
 /**
  * Recorrido de la mezcla con DINERO REAL: una orden a la vez con las rutas de
  * siempre (`quoteTrade → buildTrade → firma → submitTrade`). Nada nuevo toca el
@@ -39,6 +52,7 @@ function failureText(t: Messages, error: unknown): string {
  *
  * Cada pierna se confirma y se firma por separado. Si falla, se reintenta una
  * vez; si vuelve a fallar se salta y el resto sigue. «Detener» corta el resto.
+ * Una sola CTA por paso; los motivos van siempre encima del botón.
  */
 export function MixStep({ planId, legs, totalUsd }: { planId: string; legs: MixLeg[]; totalUsd: number }) {
   const { t } = useT();
@@ -211,47 +225,69 @@ export function MixStep({ planId, legs, totalUsd }: { planId: string; legs: MixL
   if (phase === "done" || phase === "stopped") {
     const bought = outcomes.filter((item) => item.status === "bought");
     const skipped = outcomes.filter((item) => item.status === "skipped");
-    const pending = Math.max(0, legs.length - outcomes.length);
+    const left = Math.max(0, legs.length - outcomes.length);
     const spent = bought.reduce((sum, item) => sum + item.usd, 0);
     const leftUsdc = Math.max(0, totalUsd - spent);
     return (
-      <div role="status" aria-live="polite" className="flex flex-col gap-4 rounded-2xl border border-border/70 bg-surface-1 p-4">
-        <div className="flex flex-col gap-1">
-          <p className="text-lg font-medium text-fg">
+      <div role="status" aria-live="polite" className="flex min-w-0 flex-col gap-6">
+        <div className="flex flex-col gap-1.5">
+          <p className="font-mono text-[13px] leading-5 font-medium tracking-[0.045em] text-fg-muted uppercase">
             {phase === "done" ? "Mezcla terminada" : "Mezcla detenida"}
           </p>
-          <p className="text-sm text-fg-muted tabular-nums">
+          <p className="num text-[28px] leading-none font-medium tracking-tight tabular-nums text-fg sm:text-[32px]">
+            {formatUsd(spent)}
+          </p>
+          <p className="num text-[13px] leading-5 tabular-nums text-fg-muted">
             {bought.length} compradas · {skipped.length} saltadas
-            {pending > 0 ? ` · ${pending} pendientes` : ""}
+            {left > 0 ? ` · ${left} pendientes` : ""}
           </p>
         </div>
-        <div className="rounded-xl border border-border/70 bg-bg/60 p-3 text-sm tabular-nums">
-          <p className="text-fg">Compraste {formatUsd(spent)} en acciones.</p>
-          <p className="mt-1 text-fg-muted">Quedó en USDC: {formatUsd(leftUsdc)}.</p>
-        </div>
+
+        <dl className="border-t border-border/70">
+          <Row label="Compraste">{formatUsd(spent)}</Row>
+          <Row label="Quedó en USDC">{formatUsd(leftUsdc)}</Row>
+          <Row label="Plan">{planId.slice(0, 8).toUpperCase()}</Row>
+        </dl>
+
         {bought.length > 0 ? (
-          <ul className="flex flex-col gap-1.5">
-            {bought.map((item) => (
-              <li key={`b-${item.symbol}`} className="flex items-baseline justify-between gap-3 text-sm tabular-nums">
-                <span className="font-medium text-fg">{item.symbol}</span>
-                <span className="text-fg-muted">{formatUsd(item.usd)}</span>
+          <ul className="flex flex-col border-t border-border/70">
+            {bought.map((item, position) => (
+              <li
+                key={`b-${item.symbol}-${position}`}
+                className="flex items-baseline justify-between gap-4 border-b border-border/70 py-2.5 last:border-b-0"
+              >
+                <span className="min-w-0 font-mono text-[15px] leading-5 font-medium break-words text-fg">
+                  {item.symbol}
+                </span>
+                <span className="num shrink-0 text-[13px] leading-5 tabular-nums text-fg-muted">
+                  {formatUsd(item.usd)}
+                </span>
               </li>
             ))}
           </ul>
         ) : null}
+
         {skipped.length > 0 ? (
-          <div className="flex flex-col gap-1.5 border-t border-border/60 pt-3">
-            <p className="text-xs font-medium uppercase tracking-wide text-fg-muted">Saltadas</p>
-            <ul className="flex flex-col gap-1.5">
-              {skipped.map((item) => (
-                <li key={`s-${item.symbol}`} className="flex flex-col gap-0.5 text-sm">
-                  <span className="font-medium text-fg">{item.symbol}</span>
-                  {item.reason ? <span className="text-xs leading-relaxed text-fg-muted">{item.reason}</span> : null}
+          <div className="flex flex-col gap-2">
+            <h3 className="font-mono text-[13px] leading-5 font-medium tracking-[0.045em] text-fg-muted uppercase">
+              Saltadas
+            </h3>
+            <ul className="flex flex-col border-t border-border/70">
+              {skipped.map((item, position) => (
+                <li
+                  key={`s-${item.symbol}-${position}`}
+                  className="flex flex-col gap-0.5 border-b border-border/70 py-2.5 last:border-b-0"
+                >
+                  <span className="font-mono text-[15px] leading-5 font-medium text-fg">{item.symbol}</span>
+                  {item.reason ? (
+                    <span className="text-[13px] leading-relaxed text-fg-muted">{item.reason}</span>
+                  ) : null}
                 </li>
               ))}
             </ul>
           </div>
         ) : null}
+
         <Button asChild variant="secondary" size="lg" className="min-h-12 w-full touch-manipulation">
           <Link href="/app/cartera">Ver en cartera</Link>
         </Button>
@@ -266,82 +302,83 @@ export function MixStep({ planId, legs, totalUsd }: { planId: string; legs: MixL
   const retryAvailable = legState === "failed" && attempt === 0;
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex flex-col gap-1">
-        <p className="text-xs font-medium uppercase tracking-wide text-fg-muted tabular-nums">
-          {`Plan ${planId.slice(0, 8).toUpperCase()}`}
+    <div className="flex min-w-0 flex-col gap-5">
+      <div aria-live="polite" className="flex flex-col gap-1.5">
+        <p className="num text-[13px] leading-5 font-medium tracking-[0.045em] text-fg-muted uppercase">
+          Paso {index + 1} de {legs.length}
         </p>
-        <p className="text-base font-medium text-fg tabular-nums" aria-live="polite">
-          {leg ? `Orden ${index + 1} de ${legs.length} · ${leg.symbol} · ${formatUsd(leg.usd)}` : "Preparando la mezcla…"}
-        </p>
-        <div className="mt-1 h-1 w-full overflow-hidden rounded-full bg-surface-3" aria-hidden="true">
+        <div className="flex min-w-0 items-baseline justify-between gap-4">
+          <p className="min-w-0 font-mono text-[22px] leading-none font-medium tracking-tight break-words text-fg">
+            {leg ? leg.symbol : "Preparando…"}
+          </p>
+          {leg ? (
+            <p className="num shrink-0 text-[22px] leading-none font-medium tabular-nums text-fg">
+              {formatUsd(leg.usd)}
+            </p>
+          ) : null}
+        </div>
+        <div aria-hidden className="mt-1 h-px w-full bg-border">
           <div
-            className="h-full rounded-full bg-brand transition-[width] duration-300 motion-reduce:transition-none"
+            className="h-px bg-fg transition-[width] duration-300 motion-reduce:transition-none"
             style={{ width: `${Math.round((index / Math.max(legs.length, 1)) * 100)}%` }}
           />
         </div>
       </div>
 
-      {legState === "quoting" ? (
-        <p role="status" className="text-sm text-fg-muted">
-          {attempt === 1 ? "Reintentando: cotizando de nuevo…" : "Cotizando la orden…"}
-        </p>
-      ) : null}
-
       {quote && legState !== "quoting" ? (
-        <div className="rounded-xl border border-border/70 bg-bg/60 p-3 text-sm tabular-nums">
-          <div className="flex items-baseline justify-between gap-3">
-            <span className="text-fg-muted">Recibes ≈</span>
-            <span className="font-medium text-fg">{formatShares(quote.outAmountUi)}</span>
-          </div>
-          <div className="mt-1 flex items-baseline justify-between gap-3">
-            <span className="text-fg-muted">Precio por acción</span>
-            <span className="font-medium text-fg">{formatUsd(quote.pricePerShareUsd)}</span>
-          </div>
-          <div className="mt-1 flex items-baseline justify-between gap-3">
-            <span className="text-fg-muted">La cotización vence en</span>
-            <span className={remainingSeconds > 0 ? "font-medium text-fg" : "font-medium text-down"}>
+        <dl className="border-t border-border/70">
+          <Row label="Recibes ≈">{formatShares(quote.outAmountUi)}</Row>
+          <Row label="Precio por acción">{formatUsd(quote.pricePerShareUsd)}</Row>
+          <Row label="La cotización vence en">
+            <span className={cn(remainingSeconds > 0 ? "text-fg" : "text-down")}>
               {remainingSeconds > 0 ? `${remainingSeconds} s` : "vencida"}
             </span>
-          </div>
-        </div>
+          </Row>
+        </dl>
       ) : null}
 
-      {notice ? (
-        <p role="status" aria-live="polite" className="text-sm leading-relaxed text-fg-muted">
-          {notice}
-        </p>
-      ) : null}
-
-      {error ? (
-        <p role="alert" className="text-sm leading-relaxed text-down">
-          {error}
-        </p>
-      ) : null}
-
-      {session.status !== "loading" && !pubkey ? (
-        <p className="text-sm leading-relaxed text-warn">{t.trade.noWallet} Conecta tu billetera para firmar cada orden.</p>
-      ) : null}
-
-      {legState === "signing" ? (
-        <p role="status" className="text-sm text-fg-muted">
-          Firma la orden en tu billetera…
-        </p>
-      ) : null}
-      {legState === "submitting" ? (
-        <p role="status" className="text-sm text-fg-muted">
-          Enviando la orden…
-        </p>
-      ) : null}
+      {/* Estado y motivos, siempre encima del botón: el botón no se mueve solo. */}
+      <div className="flex flex-col gap-2">
+        {legState === "quoting" ? (
+          <p role="status" className="text-[13px] leading-relaxed text-fg-muted">
+            {attempt === 1 ? "Reintentando: cotizando de nuevo…" : "Cotizando la orden…"}
+          </p>
+        ) : null}
+        {legState === "signing" ? (
+          <p role="status" className="text-[13px] leading-relaxed text-fg-muted">
+            Firma la orden en tu billetera…
+          </p>
+        ) : null}
+        {legState === "submitting" ? (
+          <p role="status" className="text-[13px] leading-relaxed text-fg-muted">
+            Enviando la orden…
+          </p>
+        ) : null}
+        {notice ? (
+          <p role="status" aria-live="polite" className="text-[13px] leading-relaxed text-fg-muted">
+            {notice}
+          </p>
+        ) : null}
+        {session.status !== "loading" && !pubkey ? (
+          <p className="text-[13px] leading-relaxed text-fg-body">
+            {t.trade.noWallet} Conecta tu billetera para firmar cada orden.
+          </p>
+        ) : null}
+        {error ? (
+          <p role="alert" className="text-[13px] leading-relaxed text-down">
+            {error}
+          </p>
+        ) : null}
+      </div>
 
       {retryAvailable ? (
-        <Button size="lg" className="min-h-12 w-full touch-manipulation text-base" onClick={retry}>
+        <Button size="lg" className="min-h-12 w-full touch-manipulation text-[15px]" onClick={retry}>
           Reintentar
         </Button>
       ) : (
         <Button
           size="lg"
-          className="min-h-12 w-full touch-manipulation text-base"
+          className="min-h-12 w-full touch-manipulation text-[15px]"
           disabled={!canConfirm || !pubkey}
           loading={busy}
           onClick={() => void confirm()}
@@ -350,17 +387,23 @@ export function MixStep({ planId, legs, totalUsd }: { planId: string; legs: MixL
         </Button>
       )}
 
-      <div className="grid grid-cols-2 gap-2">
+      <div className="flex items-center justify-between gap-2">
         <Button
-          variant="secondary"
+          variant="ghost"
           size="lg"
-          className="min-h-12 w-full touch-manipulation"
+          className="min-h-11 px-2 text-[13px] font-medium"
           disabled={busy}
           onClick={skipCurrent}
         >
           Saltar esta
         </Button>
-        <Button variant="ghost" size="lg" className="min-h-12 w-full touch-manipulation" disabled={busy} onClick={stop}>
+        <Button
+          variant="ghost"
+          size="lg"
+          className="min-h-11 px-2 text-[13px] font-medium"
+          disabled={busy}
+          onClick={stop}
+        >
           Detener
         </Button>
       </div>

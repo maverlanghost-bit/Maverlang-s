@@ -14,10 +14,9 @@ import {
 import { ExampleDataStrip, FeedBanner } from "@/components/copy/feed-banner";
 import { FraccionSeal } from "@/components/copy/fraccion-seal";
 import { LegalNote } from "@/components/copy/legal-note";
-import { PortfolioCard } from "@/components/copy/portfolio-card";
+import { PortfolioCard, PORTFOLIO_HEADER_GRID } from "@/components/copy/portfolio-card";
 import { buttonClasses } from "@/components/ui/button";
 import { IconSearch } from "@/components/ui/icons";
-import { cn } from "@/lib/cn";
 import { getCopyIndex, getCopyPortfolio } from "@/lib/copy/feed";
 import { isCopyEnabled } from "@/lib/copy/flags";
 import { daysSince, lagChip, type LagChip } from "@/lib/copy/lag";
@@ -29,6 +28,7 @@ import {
   type CopyIndexEntry,
   type FeedHealth,
 } from "@/lib/copy/types";
+import { cn } from "@/lib/cn";
 
 export const metadata: Metadata = {
   title: "Copiar carteras",
@@ -82,27 +82,42 @@ function catalogHref(state: {
   return search ? `/app/copiar?${search}` : "/app/copiar";
 }
 
-function CatalogHeader() {
+const HEADER_CELL = "label-xs";
+
+/**
+ * Portada del hub: H1, una línea de alcance y una sola CTA primaria (planes).
+ * «Mis copias» queda como enlace discreto: es navegación, no la acción.
+ */
+function CatalogHeader({ cta = true }: { cta?: boolean }) {
   return (
-    <header className="flex flex-col gap-3">
-      <div className="flex flex-wrap items-end justify-between gap-4">
+    <header className="flex flex-col gap-4">
+      <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between sm:gap-10">
         <div className="min-w-0">
-          <h1 className="text-2xl font-semibold tracking-tight text-balance sm:text-3xl">
+          <h1 className="text-3xl leading-[1.1] tracking-tight text-balance sm:text-4xl">
             Copiar carteras
           </h1>
-          <p className="mt-2 max-w-2xl text-sm leading-relaxed text-fg-muted">
+          <p className="mt-3 max-w-2xl text-[15px] leading-6 text-pretty text-fg-muted">
             Carteras 13F y ETF para replicar con acciones de Maverlang, y corredoras chilenas, AFP y
-            temáticas para mirar. Cada tarjeta muestra la fecha del dato, el atraso y la cobertura.
+            temáticas para mirar. Cada fila muestra la fecha del dato, el atraso y la cobertura.
           </p>
         </div>
-        <Link
-          href="/app/copiar/planes"
-          className={buttonClasses({ variant: "secondary", size: "md", className: "shrink-0" })}
-        >
-          Ver planes
-        </Link>
+        {cta ? (
+          <div className="flex shrink-0 flex-wrap items-center gap-x-5 gap-y-1">
+            <Link
+              href="/app/copiar/mis-copias"
+              className="inline-flex min-h-11 items-center text-[13px] font-medium text-fg-muted underline decoration-border-control underline-offset-4 transition-colors duration-150 hover:text-fg"
+            >
+              Mis copias
+            </Link>
+            <Link
+              href="/app/copiar/planes"
+              className={buttonClasses({ variant: "primary", size: "md", className: "min-h-11" })}
+            >
+              Ver planes
+            </Link>
+          </div>
+        ) : null}
       </div>
-      <FraccionSeal />
     </header>
   );
 }
@@ -123,8 +138,8 @@ export default async function CopiarPage({
 
   if (!enabled) {
     return (
-      <div className="flex flex-col gap-6">
-        <CatalogHeader />
+      <div className="flex flex-col gap-8">
+        <CatalogHeader cta={false} />
         <CopySoonState />
       </div>
     );
@@ -140,7 +155,7 @@ export default async function CopiarPage({
 
   if (entries.length === 0) {
     return (
-      <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-8">
         <CatalogHeader />
         {health.state === "none" ? (
           <CopySoonState description="Todavía no hay datos del feed de Fraccion.si. Vuelve pronto." />
@@ -221,109 +236,131 @@ export default async function CopiarPage({
   });
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-10">
       <CatalogHeader />
-      <FeedBanner health={health} />
-      {health.source === "fixtures" ? <ExampleDataStrip /> : null}
+      <div className="flex flex-col gap-3">
+        <FeedBanner health={health} />
+        {health.source === "fixtures" ? <ExampleDataStrip /> : null}
+      </div>
 
-      <section aria-labelledby="carteras-titulo" className="flex flex-col gap-4">
+      <section aria-labelledby="carteras-titulo" className="flex flex-col gap-5">
         <h2 id="carteras-titulo" className="sr-only">
           Carteras disponibles
         </h2>
         <FamilyTabs items={tabItems} active={activeFamily} />
 
-        <form
-          action="/app/copiar"
-          method="get"
-          className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between"
-        >
-          <div className="flex w-full items-center gap-2 lg:max-w-md">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <form
+            action="/app/copiar"
+            method="get"
+            role="search"
+            className="flex w-full items-center gap-2 lg:max-w-md"
+          >
             <div className="relative min-w-0 flex-1">
-              <IconSearch className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-fg-muted" />
+              <IconSearch className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-fg-muted" />
               <input
                 type="search"
                 name="q"
                 defaultValue={q}
                 maxLength={80}
+                enterKeyHint="search"
                 placeholder="Buscar por cartera o gestor"
                 aria-label="Buscar carteras"
-                className="h-11 w-full rounded-full border border-border-strong bg-surface-1 pl-9 pr-3 text-sm text-fg placeholder:text-fg-subtle focus-visible:border-fg focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-fg/20"
+                className="h-11 w-full rounded-full border border-border-control bg-bg pr-3 pl-9 text-sm text-fg placeholder:text-fg-muted focus-visible:border-fg"
               />
             </div>
             {activeFamily !== "all" ? (
               <input type="hidden" name="familia" value={activeFamily} />
             ) : null}
             {order !== "cobertura" ? <input type="hidden" name="orden" value={order} /> : null}
+            {/* Desde sm se envía con Enter: sobra el botón. */}
             <button
               type="submit"
               className={buttonClasses({
                 variant: "secondary",
                 size: "md",
-                className: "shrink-0",
+                className: "shrink-0 sm:hidden",
               })}
             >
               Buscar
             </button>
-          </div>
+          </form>
 
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="font-mono text-[11px] uppercase tracking-[0.08em] text-fg-muted">
-              Orden
-            </span>
-            {ORDERS.map((option) => {
-              const current = order === option.value;
-              return (
-                <Link
-                  key={option.value}
-                  href={catalogHref({ q, family: activeFamily, order: option.value })}
-                  aria-current={current ? "true" : undefined}
-                  title={option.title}
-                  className={cn(
-                    "inline-flex min-h-11 items-center rounded-full px-3.5 text-[13px] font-medium outline-none transition-colors duration-150 focus-visible:ring-4 focus-visible:ring-fg/20",
-                    current
-                      ? "bg-surface-3 text-fg"
-                      : "text-fg-muted hover:bg-surface-2 hover:text-fg",
-                  )}
-                >
-                  {option.label}
-                </Link>
-              );
-            })}
-          </div>
-        </form>
+          <div className="flex flex-wrap items-center justify-between gap-x-5 gap-y-2 lg:justify-end">
+            <p className="text-[13px] leading-5 text-fg-muted">
+              {rows.length} {rows.length === 1 ? "cartera" : "carteras"}
+              {q ? ` para «${q}»` : ""}
+              {q ? (
+                <>
+                  {" · "}
+                  <Link
+                    href={catalogHref({ q: "", family: activeFamily, order })}
+                    className="text-fg underline decoration-border-control underline-offset-2 hover:decoration-fg"
+                  >
+                    Limpiar búsqueda
+                  </Link>
+                </>
+              ) : null}
+            </p>
 
-        <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-fg-muted">
-          <p>
-            {rows.length} {rows.length === 1 ? "cartera" : "carteras"}
-            {q ? ` para «${q}»` : ""}
-          </p>
-          {q ? (
-            <Link
-              href={catalogHref({ q: "", family: activeFamily, order })}
-              className="underline decoration-border-strong underline-offset-2 hover:text-fg"
-            >
-              Limpiar búsqueda
-            </Link>
-          ) : null}
+            <nav aria-label="Orden del catálogo" className="flex min-w-0 flex-wrap items-center gap-x-5">
+              <span className="label-xs">Orden</span>
+              {ORDERS.map((option) => {
+                const current = order === option.value;
+                return (
+                  <Link
+                    key={option.value}
+                    href={catalogHref({ q, family: activeFamily, order: option.value })}
+                    aria-current={current ? "true" : undefined}
+                    title={option.title}
+                    className={cn(
+                      "inline-flex min-h-11 items-center text-[13px] leading-5 font-medium whitespace-nowrap transition-colors duration-150 ease-spring",
+                      current ? "text-fg" : "text-fg-muted hover:text-fg",
+                    )}
+                  >
+                    <span className={cn(current && "underline decoration-2 underline-offset-[5px]")}>
+                      {option.label}
+                    </span>
+                  </Link>
+                );
+              })}
+            </nav>
+          </div>
         </div>
 
         {rows.length === 0 ? (
           <CopyNoResults resetHref={catalogHref({ q: "", family: "all", order })} />
         ) : (
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            {rows.map((row) => (
-              <PortfolioCard
-                key={row.entry.slug}
-                portfolio={row.entry}
-                lag={row.lag}
-                coveragePct={row.coveragePct}
-              />
-            ))}
+          <div className="flex flex-col">
+            <div className={PORTFOLIO_HEADER_GRID}>
+              <span className={HEADER_CELL}>Cartera</span>
+              <span className={HEADER_CELL}>Familia</span>
+              <span className={HEADER_CELL}>Dato</span>
+              <span className={HEADER_CELL}>Atraso</span>
+              <span className={`${HEADER_CELL} text-right`}>Cobertura</span>
+            </div>
+            <ul className="border-t border-border md:border-t-0">
+              {rows.map((row) => (
+                <PortfolioCard
+                  key={row.entry.slug}
+                  portfolio={row.entry}
+                  lag={row.lag}
+                  coveragePct={row.coveragePct}
+                />
+              ))}
+            </ul>
+            <p className="mt-3 max-w-prose text-[13px] leading-5 text-fg-muted">
+              Cobertura: parte del portafolio declarado que se puede replicar con el catálogo de
+              Maverlang.
+            </p>
           </div>
         )}
       </section>
 
-      <LegalNote cta disclaimer />
+      <div className="flex flex-col gap-3 border-t border-border pt-6">
+        <FraccionSeal />
+        <LegalNote cta disclaimer />
+      </div>
     </div>
   );
 }

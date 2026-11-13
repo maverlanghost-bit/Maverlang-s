@@ -119,36 +119,45 @@ export function DemoMixButton({
     const skipped = result.skipped;
     const spent = bought.reduce((sum, item) => sum + item.usd, 0);
     return (
-      <div role="status" aria-live="polite" className="flex flex-col gap-4 rounded-2xl border border-border/70 bg-surface-1 p-4">
+      <div role="status" aria-live="polite" className="flex flex-col gap-4 border-t border-border pt-5">
         <div className="flex flex-col gap-1">
-          <p className="text-base font-medium text-fg">
+          <p className="text-[15px] leading-6 font-medium text-fg">
             {result.boughtCount > 0
               ? `Compramos ${result.boughtCount} ${result.boughtCount === 1 ? "orden" : "órdenes"} de la mezcla.`
               : "No se compró ninguna orden."}
           </p>
-          <p className="text-sm text-fg-muted tabular-nums">
+          <p className="num text-[13px] leading-5 text-fg-muted tabular-nums">
             Total comprado: {formatUsd(spent)}
             {result.skippedCount > 0 ? ` · Saltamos ${result.skippedCount}` : ""}
           </p>
         </div>
         {bought.length > 0 ? (
-          <ul className="flex flex-col gap-1.5">
+          <ul className="flex flex-col border-t border-border/70">
             {bought.map((item) => (
-              <li key={`b-${item.symbol}`} className="flex items-baseline justify-between gap-3 text-sm tabular-nums">
-                <span className="font-medium text-fg">{item.symbol}</span>
-                <span className="text-fg-muted">{formatUsd(item.usd)}</span>
+              <li
+                key={`b-${item.symbol}`}
+                className="flex items-baseline justify-between gap-3 border-b border-border/70 py-2.5 last:border-b-0"
+              >
+                <span className="min-w-0 font-mono text-[15px] leading-5 font-medium break-words text-fg">
+                  {item.symbol}
+                </span>
+                <span className="num shrink-0 text-[13px] leading-5 tabular-nums text-fg-muted">
+                  {formatUsd(item.usd)}
+                </span>
               </li>
             ))}
           </ul>
         ) : null}
         {skipped.length > 0 ? (
-          <div className="flex flex-col gap-1.5 border-t border-border/60 pt-3">
-            <p className="text-xs font-medium uppercase tracking-wide text-fg-muted">Quedaron fuera</p>
-            <ul className="flex flex-col gap-1.5">
+          <div className="flex flex-col gap-2">
+            <p className="label-xs">Quedaron fuera</p>
+            <ul className="flex flex-col border-t border-border/70">
               {skipped.map((item) => (
-                <li key={`s-${item.symbol}`} className="flex flex-col gap-0.5 text-sm">
-                  <span className="font-medium text-fg">{item.symbol}</span>
-                  {item.reason ? <span className="text-xs leading-relaxed text-fg-muted">{item.reason}</span> : null}
+                <li key={`s-${item.symbol}`} className="flex flex-col gap-0.5 border-b border-border/70 py-2.5 last:border-b-0">
+                  <span className="font-mono text-[15px] leading-5 font-medium text-fg">{item.symbol}</span>
+                  {item.reason ? (
+                    <span className="text-[13px] leading-relaxed text-fg-muted">{item.reason}</span>
+                  ) : null}
                 </li>
               ))}
             </ul>
@@ -163,8 +172,8 @@ export function DemoMixButton({
 
   if (error) {
     return (
-      <div className="flex flex-col gap-3 rounded-2xl border border-down/30 bg-down-bg/50 p-3">
-        <p role="alert" className="text-sm leading-relaxed text-down">
+      <div className="flex flex-col gap-3 border-l-2 border-down pl-3">
+        <p role="alert" className="text-[13px] leading-relaxed text-down">
           {error}
         </p>
         {onReset ? (
@@ -180,14 +189,14 @@ export function DemoMixButton({
     <div className="flex flex-col gap-3">
       <Button
         size="lg"
-        className="min-h-12 w-full touch-manipulation text-base"
+        className="min-h-12 w-full touch-manipulation text-[15px]"
         loading={pending}
         disabled={pending}
         onClick={() => void buy()}
       >
         {pending ? "Comprando la mezcla…" : "Comprar mezcla (demo)"}
       </Button>
-      <p className="text-center text-xs leading-relaxed text-fg-muted tabular-nums">
+      <p className="text-[13px] leading-relaxed text-fg-muted tabular-nums">
         Se ejecuta en la cuenta demo con saldo ficticio. Total: {formatUsd(totalUsd)}.
       </p>
     </div>

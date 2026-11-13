@@ -173,18 +173,20 @@ export function InstallHint({ className }: { className?: string }) {
       role="note"
       aria-label={copy.region}
       className={cn(
-        "mb-4 flex max-w-full items-start gap-2 rounded-2xl border border-border/70 bg-surface-1/80 px-4 py-3 lg:hidden",
+        "mb-4 flex max-w-full items-start gap-2 rounded-xl bg-surface-1 p-4 shadow-card lg:hidden",
         className,
       )}
     >
       <div className="min-w-0 flex-1">
         <p className="text-sm font-medium text-fg">{copy.iosTitle}</p>
-        <p className="mt-0.5 text-xs leading-relaxed text-fg-muted">{prompt ? androidBody : copy.iosBody}</p>
+        <p className="mt-0.5 text-[13px] leading-relaxed text-fg-muted">
+          {prompt ? androidBody : copy.iosBody}
+        </p>
         {prompt ? (
           <Button
             type="button"
             variant="secondary"
-            className="mt-2.5 h-11 min-h-11 px-4"
+            className="mt-3 h-11 min-h-11 px-4"
             onClick={() => {
               void install();
             }}
@@ -193,7 +195,7 @@ export function InstallHint({ className }: { className?: string }) {
           </Button>
         ) : null}
       </div>
-      <IconButton label={copy.dismiss} size="md" className="-mt-1.5 -mr-2" onClick={dismiss}>
+      <IconButton label={copy.dismiss} size="md" className="-mt-2 -mr-2" onClick={dismiss}>
         <IconClose />
       </IconButton>
     </aside>

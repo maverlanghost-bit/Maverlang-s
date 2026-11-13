@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useEffect, useId, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent } from "react";
+import { memo, useEffect, useId, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type MouseEvent } from "react";
 
 import { cn } from "@/lib/cn";
 import { formatDateTime, formatUsd } from "@/lib/format";
@@ -498,6 +498,8 @@ function DrawnChart({
     lineMode && !reference && candleList === null && hoverPoint === undefined && lastPoint !== undefined;
   /** En 360px el tooltip no puede pegarse a los bordes: se mantiene al 22–78%. */
   const hoverLeft = hoverPoint ? Math.min(78, Math.max(22, (hoverPoint.x / CHART_W) * 100)) : 0;
+  /** En móvil el tooltip se ancla al borde más cercano: 215px no caben a 360px. */
+  const hoverOnRight = hoverPoint ? hoverPoint.x > CHART_W / 2 : false;
   const periodMove = hoverPoint && openPrice !== undefined ? changeFromOpen(openPrice, hoverPoint.usd) : null;
   const openY = openingPriceY(points);
   const rangeBand = showRangeBand ? quartileBand(points, scale) : null;
@@ -779,7 +781,7 @@ function DrawnChart({
           {gridTicks.map((tick, idx) => (
             <span
               key={idx}
-              className="num rounded bg-white/80 px-1.5 py-0.5 text-[10px] font-medium text-fg-muted backdrop-blur-xs"
+              className="num rounded bg-bg/95 px-1 py-0.5 text-[11px] leading-4 font-medium text-fg-muted"
               style={{
                 position: "absolute",
                 right: 0,
@@ -815,7 +817,7 @@ function DrawnChart({
         >
           <span className={cn("absolute -inset-2 rounded-full motion-safe:animate-ping", beaconHaloClass)} />
           <span className={cn("absolute -inset-1 rounded-full opacity-60", beaconHaloClass)} />
-          <span className={cn("absolute inset-0 rounded-full ring-2 ring-white", beaconCoreClass)} />
+          <span className={cn("absolute inset-0 rounded-full ring-2 ring-bg", beaconCoreClass)} />
         </span>
       ) : null}
       {extremes ? (
@@ -823,7 +825,7 @@ function DrawnChart({
           <span
             aria-hidden="true"
             data-chart-extreme="high"
-            className="pointer-events-none absolute -translate-x-1/2 -translate-y-full rounded-full bg-white/90 px-2 py-0.5 text-[10px] font-medium text-fg shadow-xs ring-1 ring-border/70 num"
+            className="pointer-events-none absolute -translate-x-1/2 -translate-y-full rounded-full bg-bg/95 px-2 py-0.5 text-[11px] leading-4 font-medium text-fg ring-1 ring-border num"
             style={{
               left: `${Math.min(86, Math.max(14, (extremes.high.x / CHART_W) * 100))}%`,
               top: `${Math.max(4, (extremes.high.y / CHART_H) * 100 - 6)}%`,
@@ -834,7 +836,7 @@ function DrawnChart({
           <span
             aria-hidden="true"
             data-chart-extreme="low"
-            className="pointer-events-none absolute -translate-x-1/2 rounded-full bg-white/90 px-2 py-0.5 text-[10px] font-medium text-fg-muted shadow-xs ring-1 ring-border/70 num"
+            className="pointer-events-none absolute -translate-x-1/2 rounded-full bg-bg/95 px-2 py-0.5 text-[11px] leading-4 font-medium text-fg-muted ring-1 ring-border num"
             style={{
               left: `${Math.min(86, Math.max(14, (extremes.low.x / CHART_W) * 100))}%`,
               top: `${Math.min(92, (extremes.low.y / CHART_H) * 100 + 6)}%`,
@@ -847,7 +849,7 @@ function DrawnChart({
       {hoverPoint ? (
         <>
           <span
-            className="pointer-events-none absolute size-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white shadow"
+            className="pointer-events-none absolute size-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-bg"
             style={{
               left: `${(hoverPoint.x / CHART_W) * 100}%`,
               top: `${(hoverPoint.y / CHART_H) * 100}%`,
@@ -855,8 +857,11 @@ function DrawnChart({
             }}
           />
           <div
-            className="pointer-events-none absolute top-0 z-10 -translate-x-1/2 rounded-xl bg-fg px-3 py-2 text-xs text-bg shadow-float max-w-[215px] sm:max-w-xs"
-            style={{ left: `${hoverLeft}%` }}
+            className={cn(
+              "pointer-events-none absolute top-0 z-10 max-w-[calc(100%-1rem)] rounded-xl bg-fg px-3 py-2 text-xs text-bg sm:max-w-[215px] sm:left-[var(--chart-hover-left)] sm:-translate-x-1/2",
+              hoverOnRight ? "right-2 sm:right-auto" : "left-2",
+            )}
+            style={{ "--chart-hover-left": `${hoverLeft}%` } as CSSProperties}
           >
             {reference ? <p>Referencia</p> : null}
             <p className="opacity-70">{hoverWhen(hoverPoint.t)}</p>
@@ -1013,7 +1018,7 @@ function SvgPriceChartBase({
           onHighlightLayer={onHighlightLayer}
         />
       ) : quiet ? null : (
-        <div className="absolute inset-0 flex flex-col items-center justify-center rounded-xl bg-neutral-50 px-4 text-center">
+        <div className="absolute inset-0 flex flex-col items-center justify-center rounded-xl bg-surface-1 px-4 text-center">
           <p className="text-[15px] font-medium text-fg">{emptyLabel}</p>
           {emptyHint ? <p className="mt-1 max-w-sm text-[13px] text-fg-muted">{emptyHint}</p> : null}
         </div>
@@ -1028,7 +1033,7 @@ function SvgPriceChartBase({
           }}
           aria-label={isFullscreen ? "Salir de pantalla completa" : "Pantalla completa"}
           title={isFullscreen ? "Salir de pantalla completa (Esc)" : "Expandir a pantalla completa"}
-          className="absolute right-2.5 top-2.5 z-20 inline-flex min-h-8 min-w-8 items-center justify-center gap-1.5 rounded-full border border-border/80 bg-white/90 px-2 py-1.5 text-[11px] font-medium text-fg shadow-sm backdrop-blur-md transition-all duration-150 opacity-95 sm:px-2.5 sm:opacity-0 sm:group-hover/chart:opacity-100 focus-visible:opacity-100 hover:bg-fg hover:text-bg hover:border-fg focus-visible:ring-2 focus-visible:ring-fg/30 outline-none"
+          className="absolute right-2.5 top-2.5 z-20 inline-flex min-h-11 min-w-11 items-center justify-center gap-1.5 rounded-full border border-border bg-bg/95 px-2.5 py-1.5 text-xs font-medium text-fg transition-colors duration-150 sm:min-h-8 sm:min-w-8 sm:opacity-0 sm:group-hover/chart:opacity-100 focus-visible:opacity-100 hover:border-fg hover:bg-fg hover:text-bg outline-none"
         >
           {isFullscreen ? (
             <svg

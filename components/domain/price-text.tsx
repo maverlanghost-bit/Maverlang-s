@@ -86,11 +86,11 @@ export function PriceText({
   }, [live, text]);
 
   if (!live) {
-    return <span className={cn("num", sizeClass[size], tone, className)}>{text}</span>;
+    return <span className={cn("num whitespace-nowrap", sizeClass[size], tone, className)}>{text}</span>;
   }
 
   return (
-    <span className={cn("num", sizeClass[size], tone, className)}>
+    <span className={cn("num whitespace-nowrap", sizeClass[size], tone, className)}>
       {/* Precio visible y accesible: se lee al navegar la página. */}
       <span>{text}</span>
       {/* Región viva oculta con throttle: el lector oye el precio cuando

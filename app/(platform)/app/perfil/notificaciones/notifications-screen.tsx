@@ -2,14 +2,13 @@
 
 import { ErrorState } from "@/components/ui/error-state";
 import { LoadingState } from "@/components/ui/loading-state";
-import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/components/ui/toast";
 import { usePrefs } from "@/lib/hooks/queries";
 import { useT } from "@/lib/hooks/use-t";
 import { useUpdatePrefs } from "@/lib/hooks/use-update-prefs";
 import type { Preferences } from "@/lib/types";
 
-import { SettingsFrame, SettingsPanel } from "../ui";
+import { SettingsFrame, SettingsItem, SettingsList, SettingsPanel, SettingsPanelBody, SettingsToggle } from "../ui";
 
 const ROWS = [
   { key: "notifyOrders", label: "notifyOrders", hint: "notifyOrdersHint" },
@@ -27,7 +26,11 @@ export function NotificationsScreen() {
   if (prefs.isPending) {
     return (
       <SettingsFrame title={t.profile.notifications} description={t.profile.notificationsLead}>
-        <LoadingState label={t.states.loading} />
+        <SettingsPanel>
+          <SettingsPanelBody>
+            <LoadingState variant="list" label={t.states.loading} />
+          </SettingsPanelBody>
+        </SettingsPanel>
       </SettingsFrame>
     );
   }
@@ -47,18 +50,20 @@ export function NotificationsScreen() {
   return (
     <SettingsFrame title={t.profile.notifications} description={t.profile.notificationsLead}>
       <SettingsPanel>
-        {ROWS.map((row) => (
-          <div key={row.key} className="border-b border-border px-4 py-3 last:border-b-0 md:px-6">
-            <Switch
-              label={t.profile[row.label]}
-              checked={data[row.key]}
-              onCheckedChange={(checked) => {
-                update({ [row.key]: checked }, () => toast({ title: t.profile.prefsError, tone: "down" }));
-              }}
-            />
-            <p className="pr-16 text-sm text-fg-muted">{t.profile[row.hint]}</p>
-          </div>
-        ))}
+        <SettingsList>
+          {ROWS.map((row) => (
+            <SettingsItem key={row.key}>
+              <SettingsToggle
+                label={t.profile[row.label]}
+                hint={t.profile[row.hint]}
+                checked={data[row.key]}
+                onCheckedChange={(checked) => {
+                  update({ [row.key]: checked }, () => toast({ title: t.profile.prefsError, tone: "down" }));
+                }}
+              />
+            </SettingsItem>
+          ))}
+        </SettingsList>
       </SettingsPanel>
     </SettingsFrame>
   );

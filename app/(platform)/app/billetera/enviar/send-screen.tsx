@@ -7,6 +7,7 @@ import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { CostBreakdown } from "@/components/domain/cost-breakdown";
 import { AmountInput } from "@/components/ui/amount-input";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { ErrorState } from "@/components/ui/error-state";
 import { Input } from "@/components/ui/input";
 import { LoadingState } from "@/components/ui/loading-state";
@@ -109,14 +110,18 @@ function Spinner() {
   );
 }
 
+const backLink =
+  "inline-flex min-h-11 w-fit items-center text-sm font-medium text-fg underline decoration-fg/40 underline-offset-4 hover:decoration-fg";
+
 export function SendScreen() {
-  const { t } = useT();
+  const { t, language } = useT();
   const session = useSession();
   const sign = useSignTrade();
   const balances = useBalances();
   const queryClient = useQueryClient();
   const destinationId = useId();
-  const hintId = useId();
+  const addressStatusId = useId();
+  const amountHintId = useId();
   const [mint, setMint] = useState<string | null>(null);
   const [destination, setDestination] = useState("");
   const [amountRaw, setAmountRaw] = useState("");
@@ -155,6 +160,7 @@ export function SendScreen() {
   const cost = addressOk && walletOk ? sendNetworkCost(trimmedTo, pubkey) : null;
   const solOk = cost ? solCoversFee(sol?.uiAmount ?? 0, cost) : false;
   const canReview = Boolean(selected && addressOk && walletOk && sending > 0 && !over && cost && solOk);
+  const amountHint = over ? t.wallet.overMax : cost && !solOk ? t.wallet.solShort : null;
 
   async function confirm() {
     if (confirming.current || phase !== "review" || !draft || !walletOk) return;
@@ -218,7 +224,7 @@ export function SendScreen() {
 
   const shell = (body: ReactNode) => (
     <div className="flex flex-col gap-6">
-      <Link href="/app/billetera" className="w-fit text-sm font-medium text-fg underline underline-offset-4">
+      <Link href="/app/billetera" className={backLink}>
         {t.wallet.back}
       </Link>
       <PageHeader title={t.wallet.sendTitle} description={t.wallet.sendLead} />
@@ -241,17 +247,25 @@ export function SendScreen() {
 
   if (phase === "signing" || phase === "submitting") {
     return shell(
-      <div role="status" aria-live="polite" className="flex flex-col items-center gap-3 py-10 text-center">
+      <div
+        role="status"
+        aria-live="polite"
+        className="mx-auto flex w-full max-w-sm flex-col items-center gap-4 rounded-xl bg-surface-1 px-6 py-10 text-center"
+      >
         <Spinner />
-        <p className="text-lg text-fg">{phase === "signing" ? t.trade.signing : t.trade.submitting}</p>
+        <p className="text-base font-medium text-fg">{phase === "signing" ? t.trade.signing : t.trade.submitting}</p>
       </div>,
     );
   }
 
   if (phase === "done" && draft) {
     return shell(
-      <div role="status" aria-live="polite" className="flex flex-col items-stretch gap-4 py-2 text-center">
-        <p className="text-2xl text-fg">{t.trade.done}</p>
+      <div
+        role="status"
+        aria-live="polite"
+        className="mx-auto flex w-full max-w-sm flex-col items-stretch gap-4 py-2 text-center"
+      >
+        <p className="text-2xl tracking-tight text-fg">{t.trade.done}</p>
         <p className="text-sm text-balance text-fg-body">
           {fill(t.wallet.doneBody, { amount: formatAssetAmount(draft.symbol, draft.amount), symbol: draft.symbol })}
         </p>
@@ -288,15 +302,18 @@ export function SendScreen() {
     const rows = [{ label: t.wallet.network, value: formatSol(draft.networkFeeSol) }];
     if (draft.tokenAccountRentSol > 0) rows.push({ label: t.wallet.rent, value: formatSol(draft.tokenAccountRentSol) });
     return shell(
-      <div className="flex flex-col gap-5">
-        <p className="text-center text-2xl text-balance text-fg">
+      <div className="mx-auto flex w-full max-w-md flex-col gap-5">
+        <p className="text-center text-2xl leading-tight tracking-tight text-balance text-fg tabular-nums">
           {fill(t.wallet.reviewLead, { amount: formatAssetAmount(draft.symbol, draft.amount), symbol: draft.symbol })}
         </p>
-        <p className="num break-all text-center text-sm text-fg-muted">{draft.to}</p>
+        <div className="flex min-w-0 flex-col gap-1.5 rounded-xl border border-border bg-bg px-4 py-3.5 text-center">
+          <p className="label">{t.wallet.destination}</p>
+          <p className="num text-[13px] leading-relaxed break-all text-fg">{draft.to}</p>
+        </div>
         {draft.own ? <p className="rounded-xl bg-warn-bg px-4 py-3 text-sm text-fg">{t.wallet.ownAddress}</p> : null}
         <CostBreakdown rows={rows} />
         {draft.tokenAccountRentSol > 0 ? <p className="text-sm leading-relaxed text-fg-muted">{t.wallet.rentNote}</p> : null}
-        <p className="rounded-xl bg-warn-bg px-4 py-3 text-sm font-medium leading-relaxed text-fg">{t.wallet.irreversible}</p>
+        <p className="rounded-xl bg-warn-bg px-4 py-3 text-sm leading-relaxed font-medium text-fg">{t.wallet.irreversible}</p>
         <Button size="lg" className="w-full" onClick={() => void confirm()}>
           {t.trade.confirm}
         </Button>
@@ -308,34 +325,29 @@ export function SendScreen() {
   }
 
   if (!walletOk) {
-    return shell(<p className="text-sm text-fg-muted">{t.wallet.noWallet}</p>);
+    return shell(
+      <Card className="mx-auto w-full max-w-md">
+        <p className="text-sm leading-relaxed text-fg-body">{t.wallet.noWallet}</p>
+      </Card>,
+    );
   }
 
   if (assets.length === 0) {
     return shell(
-      <div className="flex flex-col items-start gap-4">
-        <p className="text-sm text-fg-body">{t.wallet.noAssets}</p>
+      <Card className="mx-auto flex w-full max-w-md flex-col items-start gap-4">
+        <p className="text-sm leading-relaxed text-fg-body">{t.wallet.noAssets}</p>
         <Button asChild>
           <Link href={DEPOSIT_HREF}>{t.wallet.deposit}</Link>
         </Button>
-      </div>,
+      </Card>,
     );
   }
 
   const currency = selected?.symbol === "USDC" ? "USDC" : "SHARES";
-  const hint = !walletOk
-    ? t.wallet.noWallet
-    : showInvalid
-      ? t.wallet.invalidAddress
-      : over
-        ? t.wallet.overMax
-        : cost && !solOk
-          ? t.wallet.solShort
-          : null;
 
   return shell(
     <form
-      className="flex flex-col gap-6"
+      className="mx-auto flex w-full max-w-lg flex-col gap-6"
       onSubmit={(event) => {
         event.preventDefault();
         openReview();
@@ -354,6 +366,7 @@ export function SendScreen() {
           label: `${row.symbol} · ${formatAssetAmount(row.symbol, row.uiAmount)}`,
         }))}
       />
+
       <div className="flex flex-col gap-2">
         <label htmlFor={destinationId} className="text-sm font-medium text-fg">
           {t.wallet.destination}
@@ -367,19 +380,19 @@ export function SendScreen() {
           autoCapitalize="off"
           spellCheck={false}
           aria-invalid={showInvalid || undefined}
-          aria-describedby={hintId}
+          aria-describedby={trimmedTo ? addressStatusId : undefined}
           className="num"
         />
-        <AddressVerificationBadge address={destination} valid={addressOk} own={own} />
+        <AddressVerificationBadge id={addressStatusId} address={destination} valid={addressOk} />
+        {own ? <p className="text-[13px] leading-relaxed text-warn">{t.wallet.ownAddress}</p> : null}
         <SavedRecipientsBar
           currentRecipient={destination}
           onSelect={(addr) => {
             setDestination(addr);
           }}
         />
-        {own ? <p className="text-sm text-warn">{t.wallet.ownAddress}</p> : null}
       </div>
-      <WithdrawalLimitsCard />
+
       <AmountInput
         label={t.trade.amount}
         value={amountRaw}
@@ -389,37 +402,48 @@ export function SendScreen() {
         maxLabel={t.trade.max}
         suffix={currency === "SHARES" ? t.trade.shareSuffix : undefined}
         max={max}
-        describedBy={hintId}
+        chips={[]}
+        caption={
+          selected ? fill(t.wallet.available, { amount: formatAssetAmount(selected.symbol, selected.uiAmount) }) : undefined
+        }
+        describedBy={amountHint ? amountHintId : undefined}
         invalid={over}
       />
+
       {selected && max > 0 ? (
-        <div className="flex flex-wrap items-center justify-center gap-2">
-          {([
-            { pct: 0.25, label: "25%" },
-            { pct: 0.5, label: "50%" },
-            { pct: 0.75, label: "75%" },
-            { pct: 1, label: "100%" },
-          ] as const).map((preset) => (
+        <div
+          role="group"
+          aria-label={language === "en" ? "Share of balance" : "Porcentaje del saldo"}
+          className="grid grid-cols-4 gap-1.5"
+        >
+          {(
+            [
+              { pct: 0.25, label: "25%" },
+              { pct: 0.5, label: "50%" },
+              { pct: 0.75, label: "75%" },
+              { pct: 1, label: "100%" },
+            ] as const
+          ).map((preset) => (
             <button
               key={preset.label}
               type="button"
               onClick={() => setAmountRaw(String(Number((max * preset.pct).toFixed(6))))}
-              className="rounded-full border border-border/80 bg-surface-1/80 px-3 py-1 text-xs font-medium text-fg tabular-nums transition-colors hover:border-brand/40 hover:bg-brand-soft/50 hover:text-brand"
+              className="inline-flex min-h-11 items-center justify-center rounded-full border border-control bg-bg px-1 text-[13px] font-medium tabular-nums text-fg transition-colors hover:bg-surface-2"
             >
               {preset.label}
             </button>
           ))}
         </div>
       ) : null}
-      {selected ? (
-        <p className="text-center text-sm text-fg-muted">
-          {fill(t.wallet.available, { amount: formatAssetAmount(selected.symbol, selected.uiAmount) })}
+
+      {amountHint ? (
+        <p id={amountHintId} role="alert" className="text-sm text-down">
+          {amountHint}
         </p>
       ) : null}
-      <p id={hintId} role={hint ? "alert" : undefined} className={hint ? "text-center text-sm text-down" : "sr-only"}>
-        {hint ?? t.wallet.irreversible}
-      </p>
-      <p className="rounded-xl bg-warn-bg px-4 py-3 text-sm font-medium leading-relaxed text-fg">{t.wallet.irreversible}</p>
+
+      <WithdrawalLimitsCard />
+
       <Button type="submit" size="lg" className="w-full" disabled={!canReview}>
         {t.trade.review}
       </Button>

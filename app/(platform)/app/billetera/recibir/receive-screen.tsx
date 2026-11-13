@@ -7,12 +7,14 @@ import { useQuery } from "@tanstack/react-query";
 import { DemoAddressNotice } from "@/components/domain/demo-address-notice";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { CopyButton } from "@/components/ui/copy-button";
+import { ErrorState } from "@/components/ui/error-state";
+import { IconShare } from "@/components/ui/icons";
 import { LoadingState } from "@/components/ui/loading-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { QRCode } from "@/components/ui/qr-code";
 import { useToast } from "@/components/ui/toast";
 import { LinkWalletCard } from "@/components/wallet/link-wallet-card";
+import { WalletAddress } from "@/components/wallet/wallet-address";
 import { site } from "@/config/site";
 import { getWallets } from "@/lib/api/client";
 import { useSession } from "@/lib/auth";
@@ -25,6 +27,9 @@ function fill(template: string, values: Record<string, string>) {
   for (const [key, value] of Object.entries(values)) next = next.split(`{${key}}`).join(value);
   return next;
 }
+
+const backLink =
+  "inline-flex min-h-11 w-fit items-center text-sm font-medium text-fg underline decoration-fg/40 underline-offset-4 hover:decoration-fg";
 
 export function ReceiveScreen() {
   const { t } = useT();
@@ -63,7 +68,7 @@ export function ReceiveScreen() {
 
   return (
     <div className="flex flex-col gap-6">
-      <Link href="/app/billetera" className="w-fit text-sm font-medium text-fg underline underline-offset-4">
+      <Link href="/app/billetera" className={backLink}>
         {t.wallet.back}
       </Link>
       <PageHeader title={t.wallet.receiveTitle} description={t.wallet.receiveLead} />
@@ -76,63 +81,54 @@ export function ReceiveScreen() {
         <div className="flex flex-col gap-4">
           {wallets.isPending ? (
             <LoadingState label={t.states.loading} />
+          ) : wallets.isError ? (
+            <ErrorState
+              title={t.wallet.loadError}
+              label={t.states.error}
+              retryLabel={t.states.retry}
+              onRetry={() => {
+                void wallets.refetch();
+              }}
+            />
           ) : (
-            <Card className="flex flex-col items-center gap-5 text-center">
+            <Card className="flex w-full min-w-0 flex-col items-center gap-6">
               {address ? (
                 <>
-                  <div className="flex w-full flex-wrap items-center justify-center gap-2 border-b border-border/60 pb-4 text-[11px]">
-                    <span className="inline-flex items-center gap-1.5 rounded-full border border-border/70 bg-surface-1/70 px-2.5 py-1 font-medium text-fg">
-                      <span className="size-1.5 rounded-full bg-up" aria-hidden="true" />
-                      <span>Red: Solana Mainnet · SPL</span>
-                    </span>
-                    <span className="inline-flex items-center gap-1.5 rounded-full border border-brand/25 bg-brand-soft/40 px-2.5 py-1 font-medium text-fg">
-                      <span className="size-1.5 rounded-full bg-brand" aria-hidden="true" />
-                      <span>Activos compatibles: USDC y xStocks</span>
-                    </span>
-                  </div>
-                  <div className="relative w-full max-w-[260px] rounded-3xl border border-border/80 bg-white p-4 shadow-xs">
-                    <span
-                      aria-hidden="true"
-                      className="pointer-events-none absolute left-4 top-4 size-3 rounded-tl-md border-l-2 border-t-2 border-brand/40"
+                  <QRCode value={address} size={176} label={t.wallet.qrLabel} />
+
+                  <div className="flex w-full max-w-sm min-w-0 flex-col gap-3">
+                    <WalletAddress
+                      address={address}
+                      label={t.wallet.address}
+                      copyLabel={t.wallet.copy}
+                      copiedLabel={t.wallet.copied}
                     />
-                    <span
-                      aria-hidden="true"
-                      className="pointer-events-none absolute right-4 top-4 size-3 rounded-tr-md border-r-2 border-t-2 border-brand/40"
-                    />
-                    <span
-                      aria-hidden="true"
-                      className="pointer-events-none absolute bottom-4 left-4 size-3 rounded-bl-md border-b-2 border-l-2 border-brand/40"
-                    />
-                    <span
-                      aria-hidden="true"
-                      className="pointer-events-none absolute bottom-4 right-4 size-3 rounded-br-md border-b-2 border-r-2 border-brand/40"
-                    />
-                    <div className="flex items-center justify-center rounded-2xl bg-white">
-                      <QRCode value={address} size={196} label={t.wallet.qrLabel} />
-                    </div>
-                  </div>
-                  <p className="num max-w-full break-all text-sm text-fg">{address}</p>
-                  <p className="text-sm leading-relaxed text-fg-muted">{t.wallet.verifiedOnly}</p>
-                  <div className="flex flex-wrap justify-center gap-2">
-                    <CopyButton value={address} label={t.wallet.copy} copiedLabel={t.wallet.copied} />
-                    <Button variant="secondary" size="sm" onClick={() => void onShare()}>
+
+                    <Button variant="secondary" size="md" className="w-full" onClick={() => void onShare()}>
+                      <IconShare />
                       {t.wallet.share}
                     </Button>
+
+                    <p className="text-pretty text-[13px] leading-relaxed text-fg-muted">{t.wallet.verifiedOnly}</p>
                   </div>
-                  <ul aria-label={t.wallet.warnings} className="flex w-full flex-col gap-2 text-left">
-                    <li className="rounded-xl bg-warn-bg px-4 py-3 text-sm font-medium leading-relaxed text-fg">{t.wallet.onlySolana}</li>
-                    <li className="rounded-xl bg-warn-bg px-4 py-3 text-sm font-medium leading-relaxed text-fg">{t.wallet.onlyAssets}</li>
-                  </ul>
+
+                  <div className="w-full max-w-md rounded-xl bg-warn-bg px-4 py-3 text-left">
+                    <p className="label text-fg">{t.wallet.warnings}</p>
+                    <ul className="mt-2 flex list-disc flex-col gap-1 pl-4 text-[13px] leading-relaxed text-fg">
+                      <li>{t.wallet.onlySolana}</li>
+                      <li>{t.wallet.onlyAssets}</li>
+                    </ul>
+                  </div>
                 </>
               ) : (
-                <>
-                  <p className="text-sm text-fg-muted">{t.wallet.noWallet}</p>
+                <div className="flex flex-col gap-2">
+                  <p className="text-sm font-medium text-fg">{t.wallet.noWallet}</p>
                   <p className="text-sm leading-relaxed text-fg-muted">{t.wallet.noVerifiedWallet}</p>
-                </>
+                </div>
               )}
             </Card>
           )}
-          {mode === "real" && !address && !wallets.isPending ? <LinkWalletCard /> : null}
+          {mode === "real" && !address && !wallets.isPending && !wallets.isError ? <LinkWalletCard /> : null}
         </div>
       )}
     </div>

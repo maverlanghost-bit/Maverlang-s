@@ -7,57 +7,67 @@ import { ActivityItem } from "@/components/domain/activity-item";
 import { AllocationBar, type AllocationItem, type AllocationSlice } from "@/components/domain/allocation-bar";
 import { ChangeBadge } from "@/components/domain/change-badge";
 import { FlashPrice } from "@/components/domain/flash-price";
-import { InvestmentHistory } from "@/components/domain/investment-history";
-import { SvgPriceChart } from "@/components/domain/svg-price-chart";
 import { InfoTip } from "@/components/domain/info-tip";
-import { PriceFreshness } from "@/components/domain/price-freshness";
+import { InvestmentHistory } from "@/components/domain/investment-history";
 import { PortfolioDonut } from "@/components/domain/portfolio-donut";
-import { PortfolioValueChart, isPortfolioRange, usePortfolioValueSeries } from "@/components/domain/portfolio-value-chart";
-import { DividendMultiplierCard } from "@/components/domain/dividend-multiplier-card";
 import { PortfolioHealthCard } from "@/components/domain/portfolio-health-card";
 import { PortfolioTaxSummaryCard } from "@/components/domain/portfolio-tax-summary-card";
-import { TradeReceiptTrigger } from "@/components/domain/trade-receipt-modal";
-import { PositionRow } from "@/components/domain/position-row";
+import { PortfolioValueChart, isPortfolioRange, usePortfolioValueSeries } from "@/components/domain/portfolio-value-chart";
+import { DividendMultiplierCard } from "@/components/domain/dividend-multiplier-card";
+import { PositionRow, POSITION_ACTION_WIDTH, POSITION_ROW_GRID } from "@/components/domain/position-row";
+import { PriceFreshness } from "@/components/domain/price-freshness";
 import { RealAccountEmpty } from "@/components/domain/real-account-empty";
 import { ResetDemoButton } from "@/components/domain/reset-demo-button";
-import { carteraCopy, type CarteraExtra } from "@/content/i18n/extra-cartera";
-import { carteraUi } from "@/content/i18n/extra-cartera2";
-import type { BadgeTone } from "@/components/ui/badge";
-import { Badge } from "@/components/ui/badge";
+import { SvgPriceChart } from "@/components/domain/svg-price-chart";
+import { TradeReceiptTrigger } from "@/components/domain/trade-receipt-modal";
+import { Badge, type BadgeTone } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ErrorState } from "@/components/ui/error-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { Skeleton } from "@/components/ui/skeleton";
+import { carteraCopy, type CarteraExtra } from "@/content/i18n/extra-cartera";
+import { carteraUi } from "@/content/i18n/extra-cartera2";
 import { isRealAccountUiBlocked, isRealAccountUiEnabled } from "@/lib/account/real-ui-gate";
+import { logoPathFromSymbol } from "@/lib/catalog/logos";
+import { positionMeta } from "@/lib/catalog/position-meta";
+import { cn } from "@/lib/cn";
 import { formatDateTime, formatMoney, formatShares, type MoneyCurrency } from "@/lib/format";
 import { useAccountMode } from "@/lib/hooks/use-account-mode";
 import { useHideBalance } from "@/lib/hooks/use-hide-balance";
-import { DEMO_INITIAL_USD } from "@/lib/services/demo.logic";
-import { useActivity, useAssetStatuses, useFx, useHistories, useHistory, usePortfolio, useTickers } from "@/lib/hooks/queries";
+import {
+  useActivity,
+  useAssetStatuses,
+  useFx,
+  useHistories,
+  useHistory,
+  usePortfolio,
+  useTickers,
+} from "@/lib/hooks/queries";
 import { priceFlashDirection, type PriceFlash } from "@/lib/hooks/use-price-flash";
 import { useT } from "@/lib/hooks/use-t";
-import { logoPathFromSymbol } from "@/lib/catalog/logos";
-import { positionMeta } from "@/lib/catalog/position-meta";
 import { displayPrice } from "@/lib/market/browse";
 import type { AssetStatus } from "@/lib/market/asset-status.shared";
 import { DETAIL_RANGES, isDetailRange, isReferenceHistory, rangeMove, toneOf } from "@/lib/market/series";
-import { portfolioPerformance, type PortfolioPerformance, type RankedPosition } from "@/lib/portfolio/performance";
+import { portfolioPerformance, type PortfolioPerformance } from "@/lib/portfolio/performance";
 import { balancedPortions, sumUsd, sumsMatch, tradeActivity } from "@/lib/portfolio/series";
+import { DEMO_INITIAL_USD } from "@/lib/services/demo.logic";
 import type { Activity, Currency, OrderStatus, Position, Range, Ticker } from "@/lib/types";
 
 const DEPOSIT_HREF = "/app/billetera/depositar";
 const SEND_HREF = "/app/billetera/enviar";
 const MARKET_HREF = "/app";
 
-const SUMMARY_GRID = "grid grid-cols-2 gap-3";
-const SUMMARY_CARD = "flex min-h-28 sm:min-h-36 min-w-0 flex-col justify-between gap-1.5 p-3 sm:p-4 md:p-4";
-const VALUE_FIGURE = "text-base min-[400px]:text-lg tracking-tight truncate whitespace-nowrap sm:text-3xl";
-const GAIN_FIGURE = "text-sm min-[400px]:text-base tracking-tight truncate whitespace-nowrap sm:text-xl";
-
-const POSITION_COLORS = ["#059669", "#0ea5e9", "#8b5cf6", "#f59e0b", "#ec4899", "#14b8a6", "#10b981", "#6366f1"] as const;
-const CASH_COLOR = "#64748b";
+/**
+ * Paleta de las series de la cartera. Cada color pasa 3:1 sobre blanco (el
+ * mínimo de WCAG 1.4.11 para un objeto gráfico) y mantiene el orden de
+ * leyenda: verde, azul, violeta, ámbar, rosado, verde azulado, oliva, índigo.
+ * Los tonos claros que había antes (ámbar 2,1:1, celeste 2,8:1) desaparecían
+ * en el anillo y en la barra de reparto.
+ */
+const POSITION_COLORS = ["#047857", "#0369a1", "#6d28d9", "#b45309", "#be123c", "#0f766e", "#4d7c0f", "#4338ca"] as const;
+/** Efectivo: gris pizarra neutro, 7,6:1 sobre blanco. */
+const CASH_COLOR = "#475569";
 
 const STATUS_TONE: Record<OrderStatus, BadgeTone> = {
   pending: "warn",
@@ -127,22 +137,16 @@ function PositionSafetyNote({ status }: { status: AssetStatus | undefined }) {
     status?.safetyStatus === "hidden" ? "hidden" : status?.underReview ? "review" : null;
   if (notice === null) return null;
   if (notice === "hidden") {
-    return <p className="px-2 pb-2 text-sm leading-relaxed text-fg-muted">{t.portfolio.hiddenNotice}</p>;
+    return (
+      <p className="pb-3 pl-12 text-[13px] leading-relaxed text-fg-muted sm:pl-[3.25rem]">
+        {t.portfolio.hiddenNotice}
+      </p>
+    );
   }
   return (
-    <p className="px-2 pb-2">
+    <p className="pb-3 pl-12 sm:pl-[3.25rem]">
       <Badge tone="warn">{t.market.underReview}</Badge>
     </p>
-  );
-}
-
-function EmptyArt() {
-  return (
-    <svg viewBox="0 0 80 64" className="size-16 text-fg-muted" fill="none" aria-hidden>
-      <rect x="8.5" y="16.5" width="63" height="38" rx="8" stroke="currentColor" strokeWidth="1.5" />
-      <path d="M20 44.5 32 32.5l10 8 16-16" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-      <circle cx="58" cy="24.5" r="3" className="fill-brand" />
-    </svg>
   );
 }
 
@@ -181,7 +185,7 @@ function orderDetail(
 }
 
 function signClass(value: number, size: "sm" | "lg"): string {
-  const scale = size === "lg" ? "text-lg" : "text-sm";
+  const scale = size === "lg" ? "text-lg" : "text-[13px]";
   if (value > 0) return `num ${scale} text-up`;
   if (value < 0) return `num ${scale} text-down`;
   return `num ${scale} text-fg`;
@@ -204,64 +208,22 @@ function MoneyLine({
   hiddenLabel: string;
   size?: "sm" | "lg";
 }) {
-  if (masked) return <Masked label={hiddenLabel} className={size === "lg" ? "text-lg" : "text-sm"} />;
-  if (pendingFx) return <Skeleton className={size === "lg" ? "h-7 w-28" : "h-5 w-20"} />;
+  if (masked) return <Masked label={hiddenLabel} className={size === "lg" ? "text-lg" : "text-[13px]"} />;
+  if (pendingFx) return <Skeleton className={size === "lg" ? "h-7 w-28" : "h-4 w-20"} />;
   const view = moneyView(usd, currency, rate);
   return <span className={signClass(usd, size)}>{formatMoney(view.amount, view.currency)}</span>;
 }
 
-function FigureSlot({
-  pendingFx,
-  masked,
-  hiddenLabel,
-  className,
-  children,
-}: {
-  pendingFx: boolean;
-  masked: boolean;
-  hiddenLabel: string;
-  className: string;
-  children: ReactNode;
-}) {
-  if (masked) return <Masked label={hiddenLabel} className={className} />;
-  if (pendingFx) return <Skeleton className="h-8 w-full max-w-40 sm:h-10" />;
-  return children;
-}
-
-function RankLine({
-  label,
-  rank,
-  name,
-  masked,
-  hiddenLabel,
-  empty,
-}: {
-  label: string;
-  rank: RankedPosition | null;
-  name: string | null;
-  masked: boolean;
-  hiddenLabel: string;
-  empty: string;
-}) {
-  return (
-    <div className="min-w-0">
-      <p className="label">{label}</p>
-      {!rank || !name ? (
-        <p className="mt-1 truncate text-sm text-fg-muted">{empty}</p>
-      ) : (
-        <div className="mt-1 flex min-w-0 items-center justify-between gap-2">
-          <span className="min-w-0 truncate text-sm font-medium text-fg">{name}</span>
-          {masked ? <Masked label={hiddenLabel} className="shrink-0 text-sm" /> : <ChangeBadge value={rank.pnlPct} className="shrink-0" />}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function SummaryCards({
+/**
+ * Hero patrimonial: el valor total manda, la ganancia y lo invertido lo
+ * acompañan, y el saldo disponible queda como dato secundario junto al único
+ * CTA primario de la vista.
+ */
+function PatrimonyHero({
   copy,
   perf,
   shownUsd,
+  cashUsdc,
   hoverActive,
   hoverForce,
   currency,
@@ -269,14 +231,14 @@ function SummaryCards({
   pendingFx,
   masked,
   hiddenLabel,
-  bestName,
-  worstName,
   onChart,
   summaryTip,
+  freshnessAt,
 }: {
   copy: CarteraExtra;
   perf: PortfolioPerformance;
   shownUsd: number;
+  cashUsdc: number;
   hoverActive: boolean;
   hoverForce: PriceFlash | undefined;
   currency: Currency;
@@ -284,97 +246,129 @@ function SummaryCards({
   pendingFx: boolean;
   masked: boolean;
   hiddenLabel: string;
-  bestName: string | null;
-  worstName: string | null;
   onChart: string;
   summaryTip: string;
+  freshnessAt: string | number | undefined;
 }) {
+  const { t } = useT();
   const shown = moneyView(shownUsd, currency, rate);
   const gain = perf.gainUsd === null ? null : moneyView(perf.gainUsd, currency, rate);
   const invested = perf.investedUsd === null ? null : moneyView(perf.investedUsd, currency, rate);
-  const sameRank = perf.best !== null && perf.worst !== null && perf.best.symbol === perf.worst.symbol;
+  const cash = moneyView(cashUsdc, currency, rate);
+  const hasCash = cashUsdc > 0;
+
+  const primary = hasCash
+    ? { href: MARKET_HREF, label: t.portfolio.explore }
+    : { href: DEPOSIT_HREF, label: t.trade.deposit };
+  const secondary = hasCash
+    ? { href: DEPOSIT_HREF, label: t.trade.deposit }
+    : { href: MARKET_HREF, label: t.portfolio.explore };
 
   return (
-    <section aria-label={copy.summaryLabel} className="flex flex-col gap-3">
-      <div className="flex h-11 items-center justify-between gap-2">
-        <h2 className="min-w-0 truncate text-lg font-semibold tracking-tight">{copy.summaryLabel}</h2>
-        <InfoTip label={`${copy.whatIsThis}. ${copy.summaryLabel}`} text={summaryTip} />
+    <section aria-label={copy.summaryLabel} className="flex flex-col">
+      <div className="flex items-center gap-1.5">
+        <h2 className="label">{copy.currentValue}</h2>
+        <InfoTip label={`${copy.whatIsThis}. ${copy.summaryLabel}`} text={summaryTip} align="start" />
       </div>
-      <div className={SUMMARY_GRID}>
-        <Card className={SUMMARY_CARD}>
-          <p className="label">{copy.currentValue}</p>
-          <div className="flex min-w-0 flex-col gap-1">
-            <FigureSlot pendingFx={pendingFx} masked={masked} hiddenLabel={hiddenLabel} className={VALUE_FIGURE}>
-              <span className="block min-w-0 font-medium">
-                <FlashPrice
-                  value={shown.amount}
-                  currency={shown.currency}
-                  size="sm"
-                  live={!hoverActive}
-                  force={hoverForce}
-                  className={VALUE_FIGURE}
-                />
-              </span>
-            </FigureSlot>
-            <p className="h-4 truncate text-xs text-fg-muted">{hoverActive && !masked ? onChart : ""}</p>
-          </div>
-        </Card>
-        <Card className={SUMMARY_CARD}>
-          <p className="label">{copy.totalGain}</p>
-          <div className="flex min-w-0 flex-col items-start gap-1">
-            {gain === null ? (
-              <span className="text-sm text-fg-muted">{copy.emptyFigure}</span>
-            ) : (
-              <FigureSlot pendingFx={pendingFx} masked={masked} hiddenLabel={hiddenLabel} className={GAIN_FIGURE}>
-                <FlashPrice value={gain.amount} currency={gain.currency} size="sm" colorBySign className={GAIN_FIGURE} />
-              </FigureSlot>
-            )}
-            {perf.gainPct === null || masked ? null : <ChangeBadge value={perf.gainPct} />}
-          </div>
-        </Card>
-        <Card className={SUMMARY_CARD}>
-          <p className="label">{copy.invested}</p>
-          {invested === null ? (
-            <span className="text-sm text-fg-muted">{copy.emptyFigure}</span>
+
+      <div className="mt-3 flex flex-col gap-6 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between sm:gap-x-12">
+        {/* A 360 px manda la cifra: 28 px, tabular y sin partirse. El número
+            nunca se trunca; si no cabe, baja el tamaño antes que recortarlo. */}
+        <div className="min-w-0">
+          {masked ? (
+            <Masked label={hiddenLabel} className="num block text-[1.75rem] tracking-[0.14em] sm:text-[2.25rem]" />
+          ) : pendingFx ? (
+            <Skeleton className="h-7 w-52 max-w-full sm:h-9" />
           ) : (
-            <FigureSlot pendingFx={pendingFx} masked={masked} hiddenLabel={hiddenLabel} className="text-sm">
-              <span className="num text-sm font-medium whitespace-nowrap tabular-nums text-fg">
-                {formatMoney(invested.amount, invested.currency)}
-              </span>
-            </FigureSlot>
-          )}
-        </Card>
-        <Card className={SUMMARY_CARD}>
-          {perf.best === null && perf.worst === null ? (
-            <>
-              <p className="label">{copy.best}</p>
-              <span className="text-sm text-fg-muted">{copy.emptyFigure}</span>
-            </>
-          ) : (
-            <div className="flex min-w-0 flex-col gap-3">
-              <RankLine
-                label={copy.best}
-                rank={perf.best}
-                name={bestName}
-                masked={masked}
-                hiddenLabel={hiddenLabel}
-                empty={copy.emptyFigure}
+            <span className="-ml-1 block">
+              <FlashPrice
+                value={shown.amount}
+                currency={shown.currency}
+                size="lg"
+                live={!hoverActive}
+                force={hoverForce}
+                className="block text-[1.75rem] leading-[1.05] font-medium tracking-tight tabular-nums whitespace-nowrap sm:text-[2.25rem]"
               />
-              {sameRank ? null : (
-                <RankLine
-                  label={copy.worst}
-                  rank={perf.worst}
-                  name={worstName}
-                  masked={masked}
-                  hiddenLabel={hiddenLabel}
-                  empty={copy.emptyFigure}
+            </span>
+          )}
+          <p className="mt-2 h-4 text-xs text-fg-muted">{hoverActive && !masked ? onChart : ""}</p>
+        </div>
+
+        <dl className="flex flex-wrap items-end gap-x-10 gap-y-4">
+          <div className="min-w-0">
+            <dt className="label">{copy.totalGain}</dt>
+            <dd className="mt-1.5 flex flex-wrap items-center gap-2">
+              {gain === null ? (
+                <span className="text-sm text-fg-muted">{copy.emptyFigure}</span>
+              ) : masked ? (
+                <Masked label={hiddenLabel} className="num text-lg" />
+              ) : pendingFx ? (
+                <Skeleton className="h-6 w-28" />
+              ) : (
+                <FlashPrice
+                  value={gain.amount}
+                  currency={gain.currency}
+                  size="sm"
+                  colorBySign
+                  className="text-lg font-medium tracking-tight sm:text-xl"
                 />
               )}
-            </div>
-          )}
-        </Card>
+              {perf.gainPct === null || masked ? null : <ChangeBadge value={perf.gainPct} />}
+            </dd>
+          </div>
+
+          <div className="min-w-0">
+            <dt className="label">{copy.invested}</dt>
+            <dd className="num mt-1.5 text-[15px] font-medium tracking-tight whitespace-nowrap text-fg">
+              {invested === null ? (
+                copy.emptyFigure
+              ) : masked ? (
+                <Masked label={hiddenLabel} />
+              ) : pendingFx ? (
+                <Skeleton className="h-4 w-24" />
+              ) : (
+                formatMoney(invested.amount, invested.currency)
+              )}
+            </dd>
+          </div>
+        </dl>
       </div>
-      <p className="text-xs leading-relaxed text-fg-muted">{copy.disclaimer}</p>
+
+      <div className="mt-8 flex flex-col gap-5 border-t border-border pt-5 lg:flex-row lg:items-end lg:justify-between lg:gap-10">
+        <div className="min-w-0">
+          <h2 className="label">{t.portfolio.available}</h2>
+          <div className="mt-1.5 flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
+            {masked ? (
+              <Masked label={hiddenLabel} className="text-xl" />
+            ) : pendingFx ? (
+              <Skeleton className="h-6 w-24" />
+            ) : (
+              <span className="num text-xl font-medium tracking-tight tabular-nums text-fg">
+                {formatMoney(cash.amount, cash.currency)}
+              </span>
+            )}
+            <span className="text-[13px] text-fg-muted">{t.portfolio.availableNote}</span>
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <nav aria-label="Accesos rápidos" className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
+            <Button asChild size="lg" className="col-span-2 min-h-11 sm:col-span-1">
+              <Link href={primary.href}>{primary.label}</Link>
+            </Button>
+            <Button asChild variant="secondary" size="lg" className="min-h-11">
+              <Link href={secondary.href}>{secondary.label}</Link>
+            </Button>
+            <Link
+              href={SEND_HREF}
+              className="inline-flex min-h-11 items-center justify-center text-[13px] font-medium text-fg-muted underline-offset-4 transition-colors hover:text-fg hover:underline sm:px-3 lg:justify-start"
+            >
+              {t.wallet.send}
+            </Link>
+          </nav>
+          <PriceFreshness at={freshnessAt} delayedOnly />
+        </div>
+      </div>
     </section>
   );
 }
@@ -450,6 +444,7 @@ const ValueChart = memo(function ValueChart({
       }}
       points={points}
       formatValue={formatValue}
+      valueCurrency={currency}
       pendingFx={pendingFx}
       compare={{ active: compareSpy, onToggle: () => setCompareSpy((prev) => !prev) }}
       pending={pending}
@@ -465,9 +460,13 @@ const ValueChart = memo(function ValueChart({
         label={fill(t.portfolio.chartLabel, { range: t.detail.rangeCaption[range] })}
         emptyLabel={t.detail.chartEmpty}
         emptyHint={t.detail.chartEmptyHint}
+        heightClassName="h-56 sm:h-64 lg:h-[340px]"
         onHover={onHover}
         reference={reference}
         benchmark={benchmark}
+        /* Tres guías con su cifra: sin eje, una curva de valores no se puede
+           leer. Con comparación activa la escala pasa a % sola. */
+        showGrid
       />
     </PortfolioValueChart>
   );
@@ -533,27 +532,34 @@ export function PortfolioScreen() {
   let body: ReactNode;
   if (portfolio.isPending) {
     body = (
-      <div role="status" aria-live="polite" aria-busy="true" className="flex flex-col gap-8">
+      <div role="status" aria-live="polite" aria-busy="true" className="flex flex-col gap-10 sm:gap-12">
         <span className="sr-only">{t.states.loading}</span>
-        <div className="flex flex-col gap-3">
-          <Skeleton className="h-11 w-40" />
-          <div className={SUMMARY_GRID}>
-            {["valor", "ganancia", "invertido", "puestos"].map((key) => (
-              <Skeleton key={key} className="h-36 w-full rounded-2xl" />
+        <div className="flex flex-col">
+          <Skeleton className="h-3 w-24" />
+          <Skeleton className="mt-4 h-8 w-56 max-w-full sm:h-9" />
+          <div className="mt-8 flex flex-wrap gap-x-10 gap-y-5 border-t border-border pt-5">
+            {["ganancia", "invertido", "disponible"].map((key) => (
+              <div key={key} className="flex flex-col gap-2">
+                <Skeleton className="h-3 w-20" />
+                <Skeleton className="h-5 w-24 max-w-full" />
+              </div>
             ))}
           </div>
-          <Skeleton className="h-4 w-56 max-w-full" />
         </div>
-        <div className="flex flex-col gap-3">
-          <Skeleton className="h-11 w-full rounded-full" />
-          <Skeleton className="h-11 w-48 max-w-full" />
-          <Skeleton className="h-6 w-40" />
-          <Skeleton className="h-56 w-full rounded-xl lg:h-72" />
+        <div className="flex flex-col gap-2">
+          <Skeleton className="h-11 w-full rounded-full sm:w-48" />
+          <Skeleton className="h-3 w-32" />
         </div>
-        <Skeleton className="h-11 w-full max-w-lg" />
-        <Skeleton className="h-64 w-full rounded-2xl" />
-        <Skeleton className="h-48 w-full rounded-2xl sm:h-36" />
-        <Skeleton className="h-24 w-full rounded-2xl" />
+        <Skeleton className="h-56 w-full sm:h-64" />
+        <div className="flex flex-col gap-4 border-t border-border pt-8">
+          {["a", "b", "c", "d"].map((key) => (
+            <div key={key} className="flex items-center gap-3">
+              <Skeleton className="size-9 rounded-full" />
+              <Skeleton className="h-4 w-40 max-w-full" />
+              <Skeleton className="ml-auto h-4 w-20" />
+            </div>
+          ))}
+        </div>
       </div>
     );
   } else if (portfolio.isError || !loaded) {
@@ -611,60 +617,63 @@ export function PortfolioScreen() {
       }));
 
     const orders = tradeActivity(activity.data ?? []);
-    const cashView = moneyView(loaded.cashUsdc, currency, rate);
     const copy = carteraCopy(language);
     const ui = carteraUi(language);
     const perf = portfolioPerformance(loaded.positions, { pnlUsd: loaded.pnlUsd, pnlPct: loaded.pnlPct });
     const bestName = perf.best ? positionName(perf.best.symbol) : null;
     const worstName = perf.worst ? positionName(perf.worst.symbol) : null;
+    const sameRank = perf.best !== null && perf.worst !== null && perf.best.symbol === perf.worst.symbol;
     const hasPositions = loaded.positions.length > 0;
     // Sin USDC el primer paso es depositar; con saldo, explorar el mercado.
     const hasCash = loaded.cashUsdc > 0;
 
     body = (
       <div
-        className="flex flex-col gap-8"
+        className="flex flex-col gap-10 sm:gap-12"
         data-total={loaded.totalUsd}
         data-cash={loaded.cashUsdc}
         data-positions={positionSum}
         data-reconciled={sumsMatch(positionSum + loaded.cashUsdc, loaded.totalUsd) ? "1" : "0"}
       >
         {hasPositions ? (
-          <SummaryCards
-            copy={copy}
-            perf={perf}
-            shownUsd={shownUsd}
-            hoverActive={hoverUsd !== null}
-            hoverForce={hoverForce}
-            currency={currency}
-            rate={rate}
-            pendingFx={pendingFx}
-            masked={masked}
-            hiddenLabel={t.shell.balanceHidden}
-            bestName={bestName}
-            worstName={worstName}
-            onChart={ui.onChart}
-            summaryTip={ui.summaryTip}
-          />
-        ) : null}
-        {hasPositions ? <PriceFreshness at={portfolio.dataUpdatedAt || loaded.updatedAt} delayedOnly /> : null}
-        {showFxNote ? <p className="text-sm text-fg-muted">{t.detail.fxFallback}</p> : null}
+          <>
+            <PatrimonyHero
+              copy={copy}
+              perf={perf}
+              shownUsd={shownUsd}
+              cashUsdc={loaded.cashUsdc}
+              hoverActive={hoverUsd !== null}
+              hoverForce={hoverForce}
+              currency={currency}
+              rate={rate}
+              pendingFx={pendingFx}
+              masked={masked}
+              hiddenLabel={t.shell.balanceHidden}
+              onChart={ui.onChart}
+              summaryTip={ui.summaryTip}
+              freshnessAt={portfolio.dataUpdatedAt || loaded.updatedAt}
+            />
 
-        {hasPositions && !masked ? (
-          <ValueChart
-            positions={loaded.positions}
-            cashUsdc={loaded.cashUsdc}
-            totalUsd={loaded.totalUsd}
-            onHover={onHoverUsd}
-            currency={currency}
-            rate={rate}
-            pendingFx={pendingFx}
-          />
+            {masked ? null : (
+              <ValueChart
+                positions={loaded.positions}
+                cashUsdc={loaded.cashUsdc}
+                totalUsd={loaded.totalUsd}
+                onHover={onHoverUsd}
+                currency={currency}
+                rate={rate}
+                pendingFx={pendingFx}
+              />
+            )}
+          </>
+        ) : null}
+
+        {showFxNote ? (
+          <p className={cn("text-[13px] text-fg-muted", hasPositions && "-mt-4")}>{t.detail.fxFallback}</p>
         ) : null}
 
         {loaded.positions.length === 0 ? (
           <EmptyState
-            media={<EmptyArt />}
             title={t.portfolio.emptyTitle}
             description={t.portfolio.emptyBody}
             action={
@@ -686,21 +695,17 @@ export function PortfolioScreen() {
           />
         ) : (
           <>
-            <nav aria-label="Accesos rápidos" className="grid grid-cols-3 gap-2 sm:flex sm:flex-wrap">
-              <Button asChild size="lg" className="min-h-11 whitespace-normal px-2.5 text-center text-xs sm:whitespace-nowrap sm:px-4 sm:text-sm">
-                <Link href={MARKET_HREF}>{t.portfolio.explore}</Link>
-              </Button>
-              <Button asChild variant="secondary" size="lg" className="min-h-11 whitespace-normal px-2.5 text-center text-xs sm:whitespace-nowrap sm:px-4 sm:text-sm">
-                <Link href={DEPOSIT_HREF}>{t.trade.deposit}</Link>
-              </Button>
-              <Button asChild variant="secondary" size="lg" className="min-h-11 whitespace-normal px-2.5 text-center text-xs sm:whitespace-nowrap sm:px-4 sm:text-sm">
-                <Link href={SEND_HREF}>{t.wallet.send}</Link>
-              </Button>
-            </nav>
             {slices.length > 0 ? (
-              <Card>
-                <h2 className="text-lg font-semibold tracking-tight">{t.portfolio.allocation}</h2>
-                <div className="mt-4">
+              <section className="border-t border-border pt-8">
+                <div className="min-w-0">
+                  <h2 className="text-xl font-medium tracking-tight">{t.portfolio.allocation}</h2>
+                  <p className="mt-1 text-[13px] leading-relaxed text-fg-muted">{t.portfolio.allocationLabel}</p>
+                </div>
+
+                <div className="mt-5 grid gap-6 md:grid-cols-[200px_minmax(0,1fr)] md:items-center md:gap-12">
+                  <div className="hidden md:block">
+                    <PortfolioDonut slices={slices} />
+                  </div>
                   <AllocationBar
                     label={t.portfolio.allocationLabel}
                     slices={slices}
@@ -716,24 +721,79 @@ export function PortfolioScreen() {
                     lang={language}
                   />
                 </div>
-                {slices.length > 0 ? (
-                  <div className="mt-6 border-t border-border/60 pt-6">
-                    <PortfolioDonut slices={slices} />
-                  </div>
-                ) : null}
-              </Card>
+              </section>
             ) : null}
-            <Card className="p-4 md:p-6">
-              <div className="flex h-11 items-center justify-between gap-2">
-                <h2 className="min-w-0 truncate text-lg font-semibold tracking-tight">{t.portfolio.positions}</h2>
-                <InfoTip label={`${copy.whatIsThis}. ${copy.avgCost}`} text={ui.positionsTip} />
+
+            <section className="border-t border-border pt-8">
+              <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-3">
+                <div className="flex min-w-0 items-center gap-1.5">
+                  <h2 className="text-xl font-medium tracking-tight">{t.portfolio.positions}</h2>
+                  <InfoTip label={`${copy.whatIsThis}. ${copy.avgCost}`} text={ui.positionsTip} />
+                </div>
+
+                <dl className="flex w-full flex-col gap-1.5 sm:w-auto sm:flex-row sm:flex-wrap sm:items-baseline sm:gap-x-6 sm:gap-y-2">
+                  <div className="flex min-w-0 items-baseline gap-2">
+                    <dt className="label shrink-0">{copy.best}</dt>
+                    <dd className="flex min-w-0 items-center gap-2">
+                      {perf.best === null || !bestName ? (
+                        <span className="text-[13px] text-fg-muted">{copy.emptyFigure}</span>
+                      ) : (
+                        <>
+                          <span className="min-w-0 truncate text-[13px] font-medium text-fg">{bestName}</span>
+                          {masked ? (
+                            <Masked label={t.shell.balanceHidden} className="shrink-0 text-[13px]" />
+                          ) : (
+                            <ChangeBadge value={perf.best.pnlPct} className="shrink-0" />
+                          )}
+                        </>
+                      )}
+                    </dd>
+                  </div>
+
+                  {sameRank ? null : (
+                    <div className="flex min-w-0 items-baseline gap-2">
+                      <dt className="label shrink-0">{copy.worst}</dt>
+                      <dd className="flex min-w-0 items-center gap-2">
+                        {perf.worst === null || !worstName ? (
+                          <span className="text-[13px] text-fg-muted">{copy.emptyFigure}</span>
+                        ) : (
+                          <>
+                            <span className="min-w-0 truncate text-[13px] font-medium text-fg">{worstName}</span>
+                            {masked ? (
+                              <Masked label={t.shell.balanceHidden} className="shrink-0 text-[13px]" />
+                            ) : (
+                              <ChangeBadge value={perf.worst.pnlPct} className="shrink-0" />
+                            )}
+                          </>
+                        )}
+                      </dd>
+                    </div>
+                  )}
+                </dl>
               </div>
-              <ul className="mt-2 divide-y divide-border/60 tabular-nums">
+
+              <div className="mt-6 hidden items-center gap-4 pb-2 md:flex">
+                <div className={cn(POSITION_ROW_GRID, "flex-1")}>
+                  <span aria-hidden />
+                  <span className="label text-right">{t.detail.shares}</span>
+                  <span className="label text-right">
+                    {currency === "CLP" ? t.detail.priceClp : t.detail.priceUsd}
+                  </span>
+                  <span className="label text-right">{t.detail.value}</span>
+                  <span className="label text-right">{t.portfolio.pnl}</span>
+                </div>
+                <span aria-hidden className={cn("shrink-0", POSITION_ACTION_WIDTH)} />
+              </div>
+
+              <ul className="mt-6 divide-y divide-border border-t border-border md:mt-0">
                 {loaded.positions.map((position) => {
                   const ticker = tickerBySymbol.get(position.symbol);
                   const name = positionName(position.symbol);
                   const value = moneyView(position.valueUsd, currency, rate);
                   const pnlValue = position.pnlUsd === null ? null : moneyView(position.pnlUsd, currency, rate);
+                  const priceValue = Number.isFinite(position.priceUsd)
+                    ? moneyView(position.priceUsd, currency, rate)
+                    : null;
                   return (
                     <li key={position.symbol}>
                       <PositionRow
@@ -743,30 +803,35 @@ export function PortfolioScreen() {
                         logoUrl={ticker?.logo || logoPathFromSymbol(position.symbol)}
                         shares={position.shares}
                         shareHint={t.portfolio.shareHint}
+                        price={priceValue === null ? null : priceValue.amount}
                         value={value.amount}
                         currency={value.currency}
                         pnl={pnlValue === null ? null : pnlValue.amount}
                         pnlPct={position.pnlPct}
+                        weightPct={loaded.totalUsd > 0 ? position.valueUsd / loaded.totalUsd : null}
                         hidden={masked}
                         hiddenLabel={t.shell.balanceHidden}
                         pending={pendingFx}
                         action={
                           position.shares > 0 ? (
-                            <div className="flex shrink-0 justify-end px-2 pb-2 sm:items-center sm:px-1 sm:pb-0">
-                              <Button asChild variant="secondary" size="sm" className="min-h-11 whitespace-nowrap px-4">
-                                <Link
-                                  href={sellHref(position.symbol)}
-                                  aria-label={fill(t.detail.tradeSell, { name })}
-                                >
-                                  {t.detail.sell}
-                                </Link>
-                              </Button>
-                            </div>
+                            <Button
+                              asChild
+                              variant="ghost"
+                              size="sm"
+                              className="w-full whitespace-nowrap px-0 text-fg hover:bg-surface-2"
+                            >
+                              <Link
+                                href={sellHref(position.symbol)}
+                                aria-label={fill(t.detail.tradeSell, { name })}
+                              >
+                                {t.detail.sell}
+                              </Link>
+                            </Button>
                           ) : null
                         }
                       />
                       {position.avgCostUsd !== null && Number.isFinite(position.avgCostUsd) ? (
-                        <p className="flex min-w-0 items-baseline gap-2 px-2 pb-2 text-xs text-fg-muted tabular-nums">
+                        <p className="flex min-w-0 items-baseline gap-1.5 pb-3 pl-12 text-[13px] leading-4 text-fg-muted tabular-nums sm:pl-[3.25rem]">
                           <span className="shrink-0">{copy.avgCost}</span>
                           <MoneyLine
                             usd={position.avgCostUsd}
@@ -786,17 +851,18 @@ export function PortfolioScreen() {
                   );
                 })}
               </ul>
-            </Card>
-            <DividendMultiplierCard
-              positions={loaded.positions}
-              currency={currency}
-              rate={rate}
-              masked={masked}
-            />
+            </section>
+
             <PortfolioHealthCard
               positions={loaded.positions}
               cashUsdc={loaded.cashUsdc}
               totalUsd={loaded.totalUsd}
+              masked={masked}
+            />
+            <DividendMultiplierCard
+              positions={loaded.positions}
+              currency={currency}
+              rate={rate}
               masked={masked}
             />
             <PortfolioTaxSummaryCard
@@ -809,46 +875,13 @@ export function PortfolioScreen() {
           </>
         )}
 
-        <Card className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <section className="border-t border-border pt-8">
+          <h2 className="text-lg font-medium tracking-tight">{t.portfolio.history}</h2>
           <div>
-            <h2 className="text-lg font-semibold tracking-tight">{t.portfolio.available}</h2>
-            <div className="mt-2">
-              {masked ? (
-                <Masked label={t.shell.balanceHidden} className="text-2xl" />
-              ) : pendingFx ? (
-                <Skeleton className="h-8 w-36" />
-              ) : (
-                <span className="block font-medium">
-                  <FlashPrice value={cashView.amount} currency={cashView.currency} size="md" />
-                </span>
-              )}
-            </div>
-            <p className="mt-1 text-sm text-fg-muted">{t.portfolio.availableNote}</p>
-          </div>
-          <Button asChild className="min-h-11 px-6">
-            <Link href={DEPOSIT_HREF}>{t.trade.deposit}</Link>
-          </Button>
-        </Card>
-
-        <InvestmentHistory
-          items={activity.data ?? []}
-          loading={activity.isPending}
-          lang={language}
-          formatUsdValue={(usd) => formatMoney(usd, "USD")}
-          formatClpValue={(clp) => formatMoney(clp, "CLP")}
-          displayCurrency={currency}
-          fxRate={rate}
-          masked={masked}
-          tickersBySymbol={tickerBySymbol}
-        />
-
-        <Card>
-          <h2 className="text-lg font-semibold tracking-tight">{t.portfolio.history}</h2>
-          <div className="mt-2">
             {activity.isPending ? (
-              <div role="status" aria-live="polite" aria-busy="true">
+              <div role="status" aria-live="polite" aria-busy="true" className="mt-4">
                 <span className="sr-only">{t.states.loading}</span>
-                <Skeleton className="h-16 w-full" />
+                <Skeleton className="h-16 w-full rounded-xl" />
               </div>
             ) : activity.isError ? (
               <ErrorState
@@ -860,9 +893,9 @@ export function PortfolioScreen() {
                 }}
               />
             ) : orders.length === 0 ? (
-              <p className="py-4 text-sm text-fg-muted">{t.portfolio.historyEmpty}</p>
+              <p className="py-6 text-sm text-fg-muted">{t.portfolio.historyEmpty}</p>
             ) : (
-              <ul className="divide-y divide-border/60">
+              <ul className="divide-y divide-border">
                 {orders.map((row) => {
                   const name = positionMeta(row.symbol)?.name ?? tickerBySymbol.get(row.symbol)?.name ?? row.symbol;
                   const kind = row.kind === "buy" ? t.portfolio.buy : t.portfolio.sell;
@@ -879,7 +912,7 @@ export function PortfolioScreen() {
                         explorerLabel={t.trade.explorer}
                         explorerNew={t.trade.explorerNew}
                       />
-                      <div className="flex justify-end px-2 pb-3">
+                      <div className="flex justify-end pb-3">
                         <TradeReceiptTrigger
                           id={row.id}
                           kind={row.kind === "sell" ? "sell" : "buy"}
@@ -901,7 +934,40 @@ export function PortfolioScreen() {
               </ul>
             )}
           </div>
-        </Card>
+        </section>
+
+        <InvestmentHistory
+          items={activity.data ?? []}
+          loading={activity.isPending}
+          lang={language}
+          formatUsdValue={(usd) => formatMoney(usd, "USD")}
+          formatClpValue={(clp) => formatMoney(clp, "CLP")}
+          displayCurrency={currency}
+          fxRate={rate}
+          masked={masked}
+          tickersBySymbol={tickerBySymbol}
+        />
+
+        {mode === "demo" ? (
+          <div className="flex flex-col gap-2 border-t border-border pt-6">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <p className="flex items-center gap-2 text-xs leading-relaxed text-fg-muted">
+                <Badge tone="warn">{t.account.badge}</Badge>
+                <span>{t.account.note}</span>
+              </p>
+              <ResetDemoButton />
+            </div>
+            <p className="text-xs leading-relaxed text-fg-muted">
+              {currency === "CLP" && fxKnown && typeof rate === "number"
+                ? fill(t.account.demoBalanceClp, {
+                    amount: new Intl.NumberFormat("es-CL", { maximumFractionDigits: 0 }).format(
+                      DEMO_INITIAL_USD * rate,
+                    ),
+                  })
+                : t.account.demoBalance}
+            </p>
+          </div>
+        ) : null}
       </div>
     );
   }
@@ -909,26 +975,6 @@ export function PortfolioScreen() {
   return (
     <div className="flex flex-col gap-6">
       <PageHeader title={page.title} description={page.lead} />
-      {mode === "demo" ? (
-        <div className="flex flex-col gap-2">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className="flex items-center gap-2 text-xs leading-relaxed text-fg-muted">
-              <Badge tone="warn">{t.account.badge}</Badge>
-              <span>{t.account.note}</span>
-            </p>
-            <ResetDemoButton />
-          </div>
-          <p className="text-xs leading-relaxed text-fg-muted">
-            {currency === "CLP" && fxKnown && typeof rate === "number"
-              ? fill(t.account.demoBalanceClp, {
-                  amount: new Intl.NumberFormat("es-CL", { maximumFractionDigits: 0 }).format(
-                    DEMO_INITIAL_USD * rate,
-                  ),
-                })
-              : t.account.demoBalance}
-          </p>
-        </div>
-      ) : null}
       {body}
     </div>
   );

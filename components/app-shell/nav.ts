@@ -14,13 +14,15 @@ export type ShellSection = "market" | "portfolio" | "wallet" | "profile";
 
 export type ShellTabId = "market" | "portfolio" | "assistant" | "favorites" | "wallet";
 
+export type ShellNavId = ShellTabId | "profile";
+
 type IconType = ComponentType<SVGProps<SVGSVGElement>>;
 
 type Dest = {
   href: string;
-  id: ShellTabId | "profile";
+  id: ShellNavId;
   icon: IconType;
-  /** La barra inferior no lleva Perfil: queda en la barra superior. */
+  /** La barra inferior no lleva Perfil: queda en el menú de cuenta. */
   mobile: boolean;
 };
 
@@ -62,30 +64,55 @@ function IconFavorites({ className, ...props }: SVGProps<SVGSVGElement>) {
   return createElement(IconStar, { ...props, className: cn("size-4", className) });
 }
 
+/**
+ * Un solo origen de rutas. La barra inferior toma cinco destinos en este orden
+ * (Asistente al centro, la píldora se mueve por índice); el sidebar agrupa las
+ * mismas filas por jerarquía: producto arriba, utilidades después.
+ */
+const marketDest = { href: "/app", id: "market", icon: IconChart, mobile: true } as const satisfies Dest;
+const portfolioDest = {
+  href: "/app/cartera",
+  id: "portfolio",
+  icon: IconPortfolio,
+  mobile: true,
+} as const satisfies Dest;
+const assistantDest = {
+  href: "/app/asistente",
+  id: "assistant",
+  icon: IconAssistant,
+  mobile: true,
+} as const satisfies Dest;
+const favoritesDest = {
+  href: "/app/favoritas",
+  id: "favorites",
+  icon: IconFavorites,
+  mobile: true,
+} as const satisfies Dest;
+const walletDest = { href: "/app/billetera", id: "wallet", icon: IconWallet, mobile: true } as const satisfies Dest;
+const profileDest = { href: "/app/perfil", id: "profile", icon: IconUser, mobile: false } as const satisfies Dest;
+
 const destinations = [
-  { href: "/app", id: "market", icon: IconChart, mobile: true },
-  { href: "/app/cartera", id: "portfolio", icon: IconPortfolio, mobile: true },
-  { href: "/app/asistente", id: "assistant", icon: IconAssistant, mobile: true },
-  { href: "/app/favoritas", id: "favorites", icon: IconFavorites, mobile: true },
-  { href: "/app/billetera", id: "wallet", icon: IconWallet, mobile: true },
-  { href: "/app/perfil", id: "profile", icon: IconUser, mobile: false },
-] as const satisfies readonly Dest[];
+  marketDest,
+  portfolioDest,
+  assistantDest,
+  favoritesDest,
+  walletDest,
+  profileDest,
+] as const;
 
 type DestItem = (typeof destinations)[number];
 
-/**
- * Mismo arreglo que consume el sidebar. El tipo queda en las secciones que
- * `t.nav` ya tenía: Perfil se filtra allá, y Asistente entra por este arreglo.
- */
-export const shellNav = destinations as unknown as readonly {
-  href: string;
-  id: ShellSection;
-  icon: IconType;
-}[];
+/** Todas las rutas del shell, en orden canónico (Mercado → Perfil). */
+export const shellNav: readonly DestItem[] = destinations;
 
-export const mobileTabs = destinations.filter(
-  (item): item is Extract<DestItem, { mobile: true }> => item.mobile,
-);
+/** Columnas de la barra inferior: cinco destinos, Asistente al centro. */
+export const mobileTabs = [marketDest, portfolioDest, assistantDest, favoritesDest, walletDest] as const;
+
+/** Sidebar, grupo principal: el producto y el dinero. */
+export const sidebarPrimary = [marketDest, portfolioDest, walletDest] as const;
+
+/** Sidebar, utilidades: lo personal y el asistente. */
+export const sidebarUtility = [favoritesDest, assistantDest] as const;
 
 export function shellTabLabel(
   language: "es-CL" | "en",

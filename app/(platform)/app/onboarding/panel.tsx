@@ -10,7 +10,7 @@ import { site } from "@/config/site";
 import { BLOCKED_COUNTRY_MESSAGE } from "@/lib/auth/registro-schema";
 import { Button } from "@/components/ui/button";
 import { Select, type SelectOption } from "@/components/ui/select";
-import type { LegalVersions, OnboardingStep } from "./draft";
+import type { LegalVersions } from "./draft";
 import type { OnboardingInput, OnboardingOutput } from "./schema";
 
 type OnboardingControl = Control<OnboardingInput, unknown, OnboardingOutput>;
@@ -28,40 +28,10 @@ export const RISK_POINTS = [
   "El precio puede alejarse de la acción, sobre todo fuera del horario de la bolsa o con poca liquidez.",
 ] as const;
 
-export function BrandLink() {
-  return (
-    <Link href="/" className="flex w-fit items-center gap-2 rounded-full text-fg">
-      <span className="size-2 shrink-0 rounded-full bg-brand" aria-hidden />
-      <span className="text-sm font-medium">{site.name}</span>
-    </Link>
-  );
-}
-
-export function StepProgress({ step }: { step: OnboardingStep }) {
-  return (
-    <div className="mt-6">
-      <p className="label">Paso {step} de 5</p>
-      <div
-        className="mt-2 h-2 overflow-hidden rounded-full bg-surface-3"
-        role="progressbar"
-        aria-valuemin={1}
-        aria-valuemax={5}
-        aria-valuenow={step}
-        aria-valuetext={`Paso ${step} de 5`}
-      >
-        <div
-          className="h-full rounded-full bg-fg transition-[width] duration-[240ms] ease-spring motion-reduce:transition-none"
-          style={{ width: `${(step / 5) * 100}%` }}
-        />
-      </div>
-    </div>
-  );
-}
-
 export function FieldError({ id, message }: { id: string; message: string | undefined }) {
   if (!message) return null;
   return (
-    <p id={id} className="mt-2 text-sm text-down" role="alert">
+    <p id={id} className="mt-1.5 text-[13px] leading-snug text-pretty text-down" role="alert">
       {message}
     </p>
   );
@@ -86,7 +56,8 @@ export function CheckField({
   const errorId = `${id}-error`;
   return (
     <div>
-      <div className="flex min-h-11 items-start gap-3">
+      {/* La fila entera es la etiqueta: 44 px de alto y el texto también marca. */}
+      <label htmlFor={id} className="flex min-h-11 cursor-pointer items-start gap-3 py-1">
         <input
           ref={inputRef}
           id={id}
@@ -98,10 +69,8 @@ export function CheckField({
           aria-describedby={error ? errorId : undefined}
           className="mt-0.5 size-5 shrink-0 accent-fg"
         />
-        <label htmlFor={id} className="cursor-pointer text-sm leading-relaxed text-fg">
-          {label}
-        </label>
-      </div>
+        <span className="text-sm leading-relaxed text-fg">{label}</span>
+      </label>
       <FieldError id={errorId} message={error} />
     </div>
   );
@@ -120,8 +89,8 @@ export function CountryFields({
 }) {
   const errorId = useId();
   return (
-    <div className="mt-4">
-      <p className="text-sm leading-relaxed text-fg-body">
+    <div className="mt-5">
+      <p className="max-w-[60ch] text-[13px] leading-relaxed text-pretty text-fg-muted">
         Elige el país donde resides y tu nacionalidad. Si alguno está restringido, la cuenta no está disponible.
         [REVISIÓN ABOGADO]
       </p>
@@ -153,7 +122,7 @@ export function NationalityField({
 }) {
   const errorId = useId();
   return (
-    <div className="mt-4">
+    <div className="mt-5">
       <Select
         id="onboarding-nationality"
         label="Nacionalidad"
@@ -180,13 +149,13 @@ export function UnavailableStep({
 }) {
   return (
     <div className="mt-4">
-      <p className="text-sm leading-relaxed text-fg-body">{message}</p>
-      <div className="mt-6 flex flex-col gap-3">
-        <Button type="button" size="lg" className="w-full" onClick={onLeave}>
-          Entendido
-        </Button>
-        <Button type="button" variant="secondary" size="lg" className="w-full" onClick={onChooseAgain}>
+      <p className="max-w-[60ch] text-sm leading-relaxed text-pretty text-fg-body">{message}</p>
+      <div className="mt-6 flex flex-col gap-1">
+        <Button type="button" size="lg" className="w-full" onClick={onChooseAgain}>
           {chooseAgainLabel}
+        </Button>
+        <Button type="button" variant="ghost" size="md" className="w-full" onClick={onLeave}>
+          Entendido
         </Button>
       </div>
     </div>
@@ -215,21 +184,21 @@ export function DeclarationStep({
   const described = error ? errorId : undefined;
   return (
     <fieldset
-      className="mt-4 flex flex-col gap-4"
+      className="mt-5"
       role="radiogroup"
       aria-labelledby={legendId}
       aria-invalid={error ? true : undefined}
       aria-describedby={described}
     >
-      <legend id={legendId} className="text-sm font-medium text-fg">
+      <legend id={legendId} className="text-[13px] font-medium text-fg">
         {US_PERSON_QUESTION}
       </legend>
-      <p className="text-sm leading-relaxed text-fg-body">
+      <p className="mt-2 max-w-[60ch] text-[13px] leading-relaxed text-pretty text-fg-muted">
         Para usar {site.name} tienes que declarar que no eres persona de un país restringido. Si lo eres, la cuenta no
         está disponible. [REVISIÓN ABOGADO]
       </p>
-      <div className="flex flex-col gap-3">
-        <div className="flex min-h-11 items-start gap-3">
+      <div className="mt-3 divide-y divide-border border-y border-border">
+        <label htmlFor={`${id}-no`} className="flex min-h-11 cursor-pointer items-start gap-3 py-3">
           <input
             ref={inputRef}
             id={`${id}-no`}
@@ -241,11 +210,9 @@ export function DeclarationStep({
             onBlur={onBlur}
             className="mt-0.5 size-5 shrink-0 accent-fg"
           />
-          <label htmlFor={`${id}-no`} className="cursor-pointer text-sm leading-relaxed text-fg">
-            {US_PERSON_DECLARATION_TEXT}
-          </label>
-        </div>
-        <div className="flex min-h-11 items-start gap-3">
+          <span className="text-sm leading-relaxed text-fg">{US_PERSON_DECLARATION_TEXT}</span>
+        </label>
+        <label htmlFor={`${id}-yes`} className="flex min-h-11 cursor-pointer items-start gap-3 py-3">
           <input
             id={`${id}-yes`}
             type="radio"
@@ -259,10 +226,8 @@ export function DeclarationStep({
             onBlur={onBlur}
             className="mt-0.5 size-5 shrink-0 accent-fg"
           />
-          <label htmlFor={`${id}-yes`} className="cursor-pointer text-sm leading-relaxed text-fg">
-            {US_PERSON_YES_LABEL}
-          </label>
-        </div>
+          <span className="text-sm leading-relaxed text-fg">{US_PERSON_YES_LABEL}</span>
+        </label>
       </div>
       <FieldError id={errorId} message={error} />
     </fieldset>
@@ -291,7 +256,7 @@ function DocAccept({
   const link = DOC_LINKS[doc];
   return (
     <div>
-      <div className="flex min-h-11 items-start gap-3">
+      <label htmlFor={id} className="flex min-h-11 cursor-pointer items-start gap-3 py-1">
         <input
           ref={inputRef}
           id={id}
@@ -303,10 +268,8 @@ function DocAccept({
           aria-describedby={error ? errorId : undefined}
           className="mt-0.5 size-5 shrink-0 accent-fg"
         />
-        <p className="text-sm leading-relaxed text-fg">
-          <label htmlFor={id} className="cursor-pointer">
-            Acepto la versión {version} de{" "}
-          </label>
+        <span className="text-sm leading-relaxed text-fg">
+          Acepto la versión {version} de{" "}
           <Link
             href={link.href}
             target="_blank"
@@ -316,8 +279,8 @@ function DocAccept({
             {link.name}
           </Link>
           .
-        </p>
-      </div>
+        </span>
+      </label>
       <FieldError id={errorId} message={error} />
     </div>
   );
@@ -334,40 +297,41 @@ export function DocumentsStep({
 }) {
   const docs = ["terminos", "privacidad", "riesgos"] as const;
   return (
-    <div className="mt-4 flex flex-col gap-4">
-      <p className="text-sm leading-relaxed text-fg-body">
+    <div className="mt-5">
+      <p className="max-w-[60ch] text-sm leading-relaxed text-pretty text-fg-body">
         Resumen de riesgos. El texto completo está en cada documento. Al continuar queda registrada la versión que
         aceptas.
       </p>
-      <ul className="list-disc space-y-2 pl-5 text-sm leading-relaxed text-fg-body">
+      <ul className="mt-4 space-y-2 border-l-2 border-border pl-4 text-sm leading-relaxed text-fg-body">
         {RISK_POINTS.map((point) => (
           <li key={point}>{point}</li>
         ))}
       </ul>
-      <div className="flex flex-col gap-3">
+      <div className="mt-5 divide-y divide-border border-y border-border">
         {docs.map((doc) => (
-          <Controller
-            key={doc}
-            name={doc}
-            control={control}
-            render={({ field, fieldState }) => (
-              <DocAccept
-                doc={doc}
-                version={versions[doc]}
-                checked={field.value}
-                onChange={(checked) => {
-                  field.onChange(checked);
-                  if (!checked) onReject();
-                }}
-                onBlur={field.onBlur}
-                inputRef={field.ref}
-                error={fieldState.error?.message}
-              />
-            )}
-          />
+          <div key={doc} className="py-3">
+            <Controller
+              name={doc}
+              control={control}
+              render={({ field, fieldState }) => (
+                <DocAccept
+                  doc={doc}
+                  version={versions[doc]}
+                  checked={field.value}
+                  onChange={(checked) => {
+                    field.onChange(checked);
+                    if (!checked) onReject();
+                  }}
+                  onBlur={field.onBlur}
+                  inputRef={field.ref}
+                  error={fieldState.error?.message}
+                />
+              )}
+            />
+          </div>
         ))}
       </div>
-      <p className="text-sm leading-relaxed text-fg-muted">Borrador. [REVISIÓN ABOGADO]</p>
+      <p className="mt-4 text-[13px] leading-relaxed text-fg-muted">Borrador. [REVISIÓN ABOGADO]</p>
     </div>
   );
 }
@@ -397,20 +361,25 @@ export function WalletStep({
   onRetry: () => void;
 }) {
   return (
-    <div className="mt-4" aria-live="polite">
+    <div className="mt-5" aria-live="polite">
       {phase === "creating" ? (
-        <p className="flex min-h-11 items-center gap-2 text-sm text-fg">
+        <p className="flex min-h-11 items-center gap-2 text-[13px] text-fg-muted">
           <Spinner />
           Creando tu billetera…
         </p>
       ) : null}
       {phase === "ready" && address ? (
         <div>
-          <p className="text-sm font-medium text-up">Lista</p>
-          <p className="num mt-3 text-sm text-fg" aria-label={`Dirección ${address}`}>
-            {shortAddress(address)}
-          </p>
-          <p className="mt-3 text-sm leading-relaxed text-fg-body">
+          <p className="text-sm font-medium text-fg">Billetera lista</p>
+          <dl className="mt-3 divide-y divide-border border-y border-border text-sm">
+            <div className="flex items-baseline justify-between gap-4 py-2.5">
+              <dt className="text-fg-muted">Dirección</dt>
+              <dd className="num min-w-0 truncate text-fg" aria-label={`Dirección ${address}`}>
+                {shortAddress(address)}
+              </dd>
+            </div>
+          </dl>
+          <p className="mt-3 max-w-[60ch] text-sm leading-relaxed text-pretty text-fg-body">
             Queda asociada a tu cuenta. Lo que compres queda en esta billetera.
           </p>
         </div>
@@ -431,24 +400,40 @@ export function WalletStep({
   );
 }
 
+/**
+ * Cierre del onboarding: el resumen va en filas label/valor con hairline, no
+ * en tarjetas. Un solo CTA primario; el resto es secundario.
+ */
 export function DoneStep({
   busyHref,
   onDeposit,
   onExplore,
+  summary = [],
 }: {
   busyHref: string | null;
   onDeposit: () => void;
   onExplore: () => void;
+  summary?: { label: string; value: string }[];
 }) {
   const busy = busyHref !== null;
   return (
-    <div className="mt-4">
-      <p className="text-sm leading-relaxed text-fg-body">
+    <div className="mt-5">
+      <p className="max-w-[60ch] text-sm leading-relaxed text-pretty text-fg-body">
         {PESO_DEPOSITS_ENABLED
           ? "Tu registro quedó guardado. Puedes depositar pesos o explorar las acciones."
           : "Tu registro quedó guardado. Puedes explorar las acciones."}
       </p>
-      <div className="mt-6 flex flex-col gap-3">
+      {summary.length ? (
+        <dl className="mt-4 divide-y divide-border border-y border-border text-sm">
+          {summary.map((row) => (
+            <div key={row.label} className="flex items-baseline justify-between gap-4 py-2.5">
+              <dt className="shrink-0 text-fg-muted">{row.label}</dt>
+              <dd className="min-w-0 text-right font-medium break-words text-fg">{row.value}</dd>
+            </div>
+          ))}
+        </dl>
+      ) : null}
+      <div className="mt-6 flex flex-col gap-2">
         {/* Primera versión: sólo USDC por Solana. El acceso en pesos queda oculto, no borrado. */}
         {PESO_DEPOSITS_ENABLED ? (
           <Button
@@ -474,7 +459,7 @@ export function DoneStep({
           Explorar acciones
         </Button>
       </div>
-      <p className="mt-4 text-sm leading-relaxed text-fg-muted">
+      <p className="mt-4 text-[13px] leading-relaxed text-fg-muted">
         Las acciones tokenizadas no otorgan derechos de accionista. Invertir implica riesgos.
       </p>
     </div>

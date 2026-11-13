@@ -4,12 +4,22 @@ import { useEffect, useState, type FormEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import { AuthFrame, CredentialField } from "@/components/auth/auth-frame";
+import { FormAlert } from "@/components/auth/form-alert";
 import { Button } from "@/components/ui/button";
 import { isTotpCode, listTotp, mfaReturnPath, needsMfaStep, verifyTotp, type MfaErrorCode } from "@/lib/auth/mfa";
 import { useSession } from "@/lib/auth/session-context";
 import { useT } from "@/lib/hooks/use-t";
 
 type Phase = "loading" | "ready" | "error";
+
+function Spinner() {
+  return (
+    <svg className="size-4 shrink-0 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2" opacity="0.25" />
+      <path d="M21 12a9 9 0 0 0-9-9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  );
+}
 
 export function MfaVerifyForm() {
   const { t } = useT();
@@ -79,14 +89,15 @@ export function MfaVerifyForm() {
 
   return (
     <AuthFrame title={t.mfa.loginTitle} lead={t.mfa.loginLead}>
-      {phase === "loading" ? <p className="mt-6 text-sm text-fg-muted">{t.states.loading}</p> : null}
+      {phase === "loading" ? (
+        <p className="mt-6 flex min-h-11 items-center gap-2 text-sm text-fg-muted" role="status" aria-live="polite">
+          <Spinner />
+          {t.states.loading}
+        </p>
+      ) : null}
       {phase === "error" ? (
-        <div className="mt-6">
-          {alert ? (
-            <p className="text-center text-sm text-down" role="alert">
-              {alert}
-            </p>
-          ) : null}
+        <div className="mt-5">
+          {alert ? <FormAlert>{alert}</FormAlert> : null}
           <Button type="button" variant="secondary" size="lg" className="mt-4 w-full" onClick={() => {
             setErrorCode(null);
             setPhase("loading");
@@ -97,7 +108,7 @@ export function MfaVerifyForm() {
         </div>
       ) : null}
       {phase === "ready" ? (
-        <form className="mt-6" noValidate onSubmit={(event) => void submit(event)}>
+        <form className="mt-5" noValidate aria-busy={busy} onSubmit={(event) => void submit(event)}>
           <CredentialField
             id="mfa-login-code"
             label={t.mfa.codeLabel}
@@ -105,6 +116,8 @@ export function MfaVerifyForm() {
             autoComplete="one-time-code"
             autoCapitalize="off"
             spellCheck={false}
+            maxLength={6}
+            className="num text-center text-lg tracking-[0.35em]"
             value={code}
             error={alert ?? undefined}
             onChange={(event) => {
@@ -113,12 +126,12 @@ export function MfaVerifyForm() {
               setErrorCode(null);
             }}
           />
-          <Button type="submit" className="mt-6 w-full" size="lg" loading={busy}>
+          <Button type="submit" className="mt-5 w-full" size="lg" loading={busy}>
             {t.mfa.verify}
           </Button>
         </form>
       ) : null}
-      <Button type="button" variant="ghost" size="lg" className="mt-3 w-full" disabled={busy} onClick={() => void logout()}>
+      <Button type="button" variant="ghost" size="md" className="mt-1 w-full" disabled={busy} onClick={() => void logout()}>
         {t.mfa.leave}
       </Button>
     </AuthFrame>

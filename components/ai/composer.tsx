@@ -71,39 +71,6 @@ type TypewriterState = {
   index: number;
 };
 
-/**
- * Teclado en pantalla: `visualViewport` lo delata. Sirve para reservar el
- * `safe-area` inferior sólo mientras el teclado está abierto; con el teclado
- * cerrado ese espacio ya lo reserva la barra de pestañas de la app.
- */
-function useKeyboardOpen(): boolean {
-  const [open, setOpen] = useState(false);
-
-  useEffect(() => {
-    const viewport = window.visualViewport;
-    if (!viewport) return;
-    let frame = 0;
-    const apply = () => {
-      cancelAnimationFrame(frame);
-      frame = requestAnimationFrame(() => {
-        const height = viewport.height > 0 ? viewport.height : window.innerHeight;
-        const inset = window.innerHeight - viewport.offsetTop - height;
-        setOpen(inset > 80);
-      });
-    };
-    apply();
-    viewport.addEventListener("resize", apply);
-    viewport.addEventListener("scroll", apply);
-    return () => {
-      cancelAnimationFrame(frame);
-      viewport.removeEventListener("resize", apply);
-      viewport.removeEventListener("scroll", apply);
-    };
-  }, []);
-
-  return open;
-}
-
 export function Composer({
   copy,
   draft,
@@ -184,8 +151,6 @@ export function Composer({
   });
 
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
-  /** Reserva el `safe-area` inferior sólo con el teclado abierto (móvil). */
-  const keyboardOpen = useKeyboardOpen();
 
   // Montaje: habilita el typewriter del placeholder en el siguiente frame.
   const [mounted, setMounted] = useState(false);
@@ -352,11 +317,11 @@ export function Composer({
   const viewIsCharts = menuView === "charts";
 
   return (
-    // El teclado abierto tapa la barra de pestañas: aquí se reserva el safe-area.
+    // El safe-area inferior lo reserva el panel del chat (`--app-tabs-height`),
+    // también con el teclado abierto: aquí no se duplica.
     <form
       onSubmit={submit}
       aria-busy={typing || undefined}
-      style={keyboardOpen ? { paddingBottom: "env(safe-area-inset-bottom)" } : undefined}
       className="relative w-full min-w-0 max-w-full px-0 pt-0"
     >
       {/* Píldoras de herramientas activas, flotando sobre la caja. */}
@@ -398,7 +363,7 @@ export function Composer({
           id="ai-composer-error"
           role="alert"
           aria-live="polite"
-          className="mb-2 rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-[11.5px] leading-relaxed break-words text-red-700"
+          className="mb-2 rounded-lg border border-down/25 bg-down-bg px-3 py-2 text-xs leading-relaxed break-words text-down"
         >
           {photoError}
         </p>
@@ -408,7 +373,7 @@ export function Composer({
         <p
           id="ai-voice-error"
           role="alert"
-          className="mb-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 text-[11.5px] leading-relaxed break-words text-amber-800"
+          className="mb-2 rounded-lg border border-warn/25 bg-warn-bg px-3 py-2 text-xs leading-relaxed break-words text-warn"
         >
           {voiceError}
         </p>
@@ -417,10 +382,10 @@ export function Composer({
       {/* Caja contenedora del input. */}
       <div
         className={cn(
-          "relative rounded-xl border border-[#DBDBDB] bg-white p-2.5",
-          "shadow-[inset_0_0_1px_0_rgba(0,0,0,1),0_1px_2px_0_rgba(0,0,0,0.04),0_2px_12px_0_rgba(0,0,0,0.03)] transition-all duration-300 group focus-within:border-zinc-400",
+          "relative rounded-xl border border-control/80 bg-white p-2.5",
+          "shadow-[inset_0_0_1px_0_rgba(0,0,0,1),0_1px_2px_0_rgba(0,0,0,0.04),0_2px_12px_0_rgba(0,0,0,0.03)] transition-all duration-300 group focus-within:border-fg/60",
           "focus-within:shadow-[inset_0_0_1px_0_rgba(0,0,0,1),0_1px_2px_0_rgba(0,0,0,0.04),0_4px_16px_0_rgba(0,0,0,0.06)]",
-          listening && "border-red-500/50 shadow-[0_0_15px_rgba(239,68,68,0.15)]",
+          listening && "border-down/60 shadow-[0_0_15px_rgba(200,30,30,0.15)]",
         )}
       >
         {/* Previsualización de la foto pendiente y del código pegado. */}
@@ -505,7 +470,7 @@ export function Composer({
                   onClick={() => onRemoveContext?.(item.id)}
                   aria-label={`Quitar ${item.symbol} del contexto`}
                   title={`Quitar ${item.symbol} del contexto`}
-                  className="-mr-1 ml-0.5 inline-flex h-7 w-7 shrink-0 cursor-pointer touch-manipulation items-center justify-center rounded-full text-zinc-500 transition-colors hover:bg-zinc-200 hover:text-zinc-900 sm:mr-0 sm:h-4 sm:w-4"
+                  className="-my-2 -mr-1 ml-0.5 inline-flex h-11 w-11 shrink-0 cursor-pointer touch-manipulation items-center justify-center rounded-full text-zinc-600 transition-colors hover:bg-zinc-200 hover:text-zinc-900 sm:my-0 sm:mr-0 sm:h-5 sm:w-5"
                 >
                   <XGlyph className="h-3 w-3" />
                 </button>
@@ -540,7 +505,7 @@ export function Composer({
                 if (canSend) onSubmit();
               }
             }}
-            className="min-h-12 max-h-72 w-full resize-none overflow-y-auto border-0 bg-transparent px-2 py-2 text-[16px] text-zinc-900 outline-none placeholder:text-zinc-400 focus-visible:ring-0 sm:text-[15px]"
+            className="min-h-12 max-h-72 w-full resize-none overflow-y-auto border-0 bg-transparent px-2 py-2 text-[16px] text-zinc-900 outline-none placeholder:text-fg-subtle focus-visible:ring-0 sm:text-[15px]"
           />
         </div>
 
@@ -570,7 +535,7 @@ export function Composer({
                     exit={{ opacity: 0, y: openUpward ? 10 : -10, scale: 0.95 }}
                     transition={{ type: "spring", damping: 20, stiffness: 300 }}
                     className={cn(
-                      "absolute left-0 z-40 flex max-h-[min(350px,55dvh)] w-[min(16rem,calc(100vw-2rem))] flex-col overflow-hidden overscroll-contain rounded-2xl border border-gray-200/60 bg-white/95 p-2.5 shadow-2xl backdrop-blur-xl",
+                      "absolute left-0 z-40 flex max-h-[min(350px,55dvh)] w-[min(17rem,calc(100vw-2rem))] flex-col overflow-hidden overscroll-contain rounded-2xl border border-border bg-white p-2.5 shadow-2xl",
                       openUpward ? "bottom-12" : "top-12",
                     )}
                   >
@@ -586,7 +551,7 @@ export function Composer({
                             <button
                               type="button"
                               onClick={uploadFile}
-                              className="group/btn flex w-full cursor-pointer items-center gap-3 rounded-xl px-2.5 py-2.5 text-left text-sm font-semibold text-gray-700 transition-all duration-200 hover:bg-gray-50 hover:text-zinc-900 active:scale-[0.98]"
+                              className="group/btn flex min-h-11 w-full cursor-pointer items-center gap-3 rounded-xl px-2.5 py-2.5 text-left text-sm font-semibold text-zinc-700 transition-all duration-200 hover:bg-gray-50 hover:text-zinc-900 active:scale-[0.98]"
                             >
                               <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gray-100 text-zinc-900 transition-colors duration-200 group-hover/btn:bg-zinc-900 group-hover/btn:text-white">
                                 <PaperclipGlyph className="h-4 w-4" />
@@ -599,7 +564,7 @@ export function Composer({
                             <button
                               type="button"
                               onClick={() => setMenuView("charts")}
-                              className="group/btn flex w-full cursor-pointer items-center justify-between rounded-xl px-2.5 py-2.5 text-sm font-semibold text-gray-700 transition-all duration-200 hover:bg-gray-50 hover:text-zinc-900 active:scale-[0.98]"
+                              className="group/btn flex min-h-11 w-full cursor-pointer items-center justify-between rounded-xl px-2.5 py-2.5 text-sm font-semibold text-zinc-700 transition-all duration-200 hover:bg-gray-50 hover:text-zinc-900 active:scale-[0.98]"
                             >
                               <span className="flex items-center gap-3">
                                 <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gray-100 text-zinc-900 transition-colors duration-200 group-hover/btn:bg-zinc-900 group-hover/btn:text-white">
@@ -613,7 +578,7 @@ export function Composer({
                             <button
                               type="button"
                               onClick={() => setMenuView("analysis")}
-                              className="group/btn mt-1 flex w-full cursor-pointer items-center justify-between rounded-xl px-2.5 py-2.5 text-sm font-semibold text-gray-700 transition-all duration-200 hover:bg-gray-50 hover:text-zinc-900 active:scale-[0.98]"
+                              className="group/btn mt-1 flex min-h-11 w-full cursor-pointer items-center justify-between rounded-xl px-2.5 py-2.5 text-sm font-semibold text-zinc-700 transition-all duration-200 hover:bg-gray-50 hover:text-zinc-900 active:scale-[0.98]"
                             >
                               <span className="flex items-center gap-3">
                                 <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gray-100 text-zinc-900 transition-colors duration-200 group-hover/btn:bg-zinc-900 group-hover/btn:text-white">
@@ -635,14 +600,14 @@ export function Composer({
                           <button
                             type="button"
                             onClick={() => setMenuView("main")}
-                            className="mb-2 flex cursor-pointer items-center gap-1.5 px-2.5 py-1 text-[10px] font-black text-gray-500 transition-colors hover:text-gray-900"
+                            className="mb-2 flex min-h-9 cursor-pointer items-center gap-1.5 rounded-lg px-2.5 py-2 text-[11px] font-semibold text-fg-muted transition-colors hover:bg-zinc-100 hover:text-zinc-900"
                           >
                             <ChevronRightGlyph className="h-3.5 w-3.5 rotate-180" /> Volver
                           </button>
                           <div
                             className={cn(
-                              "mb-1 px-2.5 py-1 text-[9px] font-black tracking-widest uppercase opacity-80",
-                              viewIsCharts ? "text-[#1890FF]" : "text-purple-500",
+                              "mb-1 px-2.5 py-1 text-[11px] font-semibold tracking-[0.08em] uppercase",
+                              viewIsCharts ? "text-info" : "text-fg-muted",
                             )}
                           >
                             {viewIsCharts ? "Gráficos" : "Análisis"}
@@ -655,25 +620,25 @@ export function Composer({
                                 <div
                                   key={tool.id}
                                   className={cn(
-                                    "group flex w-full items-center justify-between rounded-xl border border-transparent px-2 py-1.5 transition-all duration-200",
+                                    "group flex min-h-11 w-full items-center justify-between rounded-xl border border-transparent px-2 py-1.5 transition-all duration-200",
                                     isActive &&
                                       (viewIsCharts
-                                        ? "border-blue-100/50 bg-blue-50/50"
-                                        : "border-purple-100/50 bg-purple-50/50"),
+                                        ? "border-info/20 bg-info-bg/60"
+                                        : "border-fg/10 bg-surface-2"),
                                   )}
                                 >
                                   <button
                                     type="button"
                                     onClick={() => pickTool(tool.id)}
                                     className={cn(
-                                      "flex flex-1 cursor-pointer items-center gap-3 text-left text-sm font-semibold transition-colors",
+                                      "flex flex-1 cursor-pointer items-center gap-3 py-1 text-left text-sm font-semibold transition-colors",
                                       isActive
                                         ? viewIsCharts
-                                          ? "text-[#1890FF]"
-                                          : "text-purple-600"
+                                          ? "text-info"
+                                          : "text-fg"
                                         : cn(
-                                            "text-gray-700",
-                                            viewIsCharts ? "hover:text-[#1890FF]" : "hover:text-purple-600",
+                                            "text-zinc-700",
+                                            viewIsCharts ? "hover:text-info" : "hover:text-fg",
                                           ),
                                     )}
                                   >
@@ -682,11 +647,11 @@ export function Composer({
                                         "flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-colors",
                                         isActive
                                           ? viewIsCharts
-                                            ? "bg-[#1890FF] text-white"
-                                            : "bg-purple-500 text-white"
+                                            ? "bg-info text-white"
+                                            : "bg-fg text-white"
                                           : viewIsCharts
-                                            ? "bg-blue-50 text-blue-600"
-                                            : "bg-purple-50 text-purple-600",
+                                            ? "bg-info-bg text-info"
+                                            : "bg-surface-2 text-fg-muted",
                                       )}
                                     >
                                       <ToolGlyph id={tool.id} className="h-4 w-4" />
@@ -703,14 +668,14 @@ export function Composer({
                                     }
                                     aria-pressed={isFavorite}
                                     className={cn(
-                                      "cursor-pointer p-1.5 transition-all",
+                                      "inline-flex size-11 shrink-0 cursor-pointer touch-manipulation items-center justify-center rounded-full transition-all sm:size-8",
                                       isFavorite
-                                        ? "text-amber-500"
-                                        : "text-gray-300 opacity-0 group-hover:opacity-100 hover:text-amber-500 focus-visible:opacity-100",
+                                        ? "text-warn"
+                                        : "text-zinc-500 opacity-0 group-hover:opacity-100 hover:text-warn focus-visible:opacity-100 max-sm:opacity-100",
                                     )}
                                   >
                                     <StarGlyph
-                                      className={cn("h-4 w-4", isFavorite && "fill-amber-500 text-amber-500")}
+                                      className={cn("h-4 w-4", isFavorite && "fill-warn text-warn")}
                                     />
                                   </button>
                                 </div>

@@ -45,11 +45,11 @@ export function InvestorPassportCard({
   const initials = getInitials(displayName || email);
 
   return (
-    <section className="rounded-3xl border border-border/80 bg-white p-5 shadow-xs sm:p-6">
+    <section className="rounded-3xl border border-border bg-white p-5 sm:p-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
+        <div className="flex min-w-0 items-center gap-3">
           <span
-            className="grid size-11 shrink-0 place-items-center rounded-full bg-brand-soft/60 text-sm font-semibold text-brand"
+            className="grid size-11 shrink-0 place-items-center rounded-full bg-surface-2 text-sm font-semibold text-fg"
             aria-hidden="true"
           >
             {initials}
@@ -62,30 +62,28 @@ export function InvestorPassportCard({
           </div>
         </div>
 
-        <span className="inline-flex items-center gap-1.5 rounded-full border border-brand/25 bg-brand-soft/40 px-2.5 py-0.5 text-[11px] font-medium text-brand">
+        <span className="inline-flex min-h-6 items-center gap-1.5 rounded-full border border-border bg-surface-1 px-2.5 py-0.5 text-[11px] font-medium text-fg-body">
           Elegibilidad Verificada · No US-Person
         </span>
       </div>
 
       <div className="mt-4 grid gap-3 text-xs sm:grid-cols-3">
         <div className="rounded-2xl border border-border/70 bg-surface-1/70 px-3 py-2.5">
-          <p className="text-[11px] uppercase tracking-wide text-fg-muted">Jurisdicción declarada</p>
-          <p className="mt-0.5 font-medium text-fg">
-            {`${country || "CL"} · Operación habilitada`}
-          </p>
+          <p className="label-xs">Jurisdicción declarada</p>
+          <p className="mt-1 font-medium text-fg">{`${country || "CL"} · Operación habilitada`}</p>
         </div>
         <div className="rounded-2xl border border-border/70 bg-surface-1/70 px-3 py-2.5">
-          <p className="text-[11px] uppercase tracking-wide text-fg-muted">Custodia de activos</p>
-          <p className="mt-0.5 font-medium text-fg">SPL 1:1 en billetera propia</p>
+          <p className="label-xs">Custodia de activos</p>
+          <p className="mt-1 font-medium text-fg">SPL 1:1 en billetera propia</p>
         </div>
         <div className="rounded-2xl border border-border/70 bg-surface-1/70 px-3 py-2.5">
-          <p className="text-[11px] uppercase tracking-wide text-fg-muted">Comisión de corretaje</p>
-          <p className="mt-0.5 font-medium text-fg">0% (Tarifa plana Maverlang)</p>
+          <p className="label-xs">Comisión de corretaje</p>
+          <p className="mt-1 font-medium text-fg">0% (Tarifa plana Maverlang)</p>
         </div>
       </div>
 
-      <p className="mt-3 truncate text-[11px] text-fg-muted">
-        ID de inversionista · <span className="num">{userId}</span>
+      <p className="mt-3 truncate text-[11px] text-fg-muted" title={userId}>
+        ID de inversionista · <span className="num tracking-tight">{userId}</span>
       </p>
     </section>
   );

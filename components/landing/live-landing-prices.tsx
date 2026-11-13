@@ -32,6 +32,8 @@ export interface LandingInitial {
 interface LandingLiveState {
   initialBySymbol: ReadonlyMap<string, LandingInitial>;
   liveBySymbol: ReadonlyMap<string, Quote>;
+  /** true cuando el último refetch falló: el número visible es el último conocido. */
+  stale: boolean;
 }
 
 const LandingLiveContext = createContext<LandingLiveState | null>(null);
@@ -68,8 +70,11 @@ export function LiveLandingPrices({
         initial.map((quote) => [quote.symbol, { priceUsd: quote.priceUsd, change: quote.change }]),
       ),
       liveBySymbol: new Map((query.data ?? []).map((quote) => [quote.symbol, quote])),
+      // El refetch que falla deja el último precio bueno en pantalla: se
+      // avisa como «último precio conocido» en vez de «en vivo».
+      stale: live && (query.isError || query.isRefetchError),
     }),
-    [initial, query.data],
+    [initial, query.data, live, query.isError, query.isRefetchError],
   );
   return <LandingLiveContext.Provider value={value}>{children}</LandingLiveContext.Provider>;
 }
@@ -91,6 +96,44 @@ export function useLandingQuote(symbol: string, initial?: LandingInitial): { pri
 }
 
 /**
+ * Estado del origen de los precios para la etiqueta de la portada. Fuera del
+ * provider devuelve `stale: false` (la etiqueta es presentacional; el dato
+ * sigue saliendo de `useLandingQuote`, que sí exige el provider).
+ */
+export function useLandingStatus(): { stale: boolean } {
+  const state = useContext(LandingLiveContext);
+  return { stale: state?.stale ?? false };
+}
+
+/**
+ * Etiqueta del origen de las cotizaciones. Sin `live` es una muestra; si el
+ * último refetch falló, el número en pantalla es el último bueno y se avisa
+ * con punto `warn` en vez de verde: nunca se dice «en vivo» sobre un dato
+ * viejo.
+ */
+export function LandingLiveBadge({ live }: { live: boolean }) {
+  const { stale } = useLandingStatus();
+  const state = !live ? "sample" : stale ? "stale" : "live";
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-2 text-xs font-medium whitespace-nowrap",
+        state === "stale" ? "text-warn" : state === "live" ? "text-up" : "text-fg-muted",
+      )}
+    >
+      <span
+        aria-hidden
+        className={cn(
+          "size-1.5 shrink-0 rounded-full",
+          state === "stale" ? "bg-warn" : state === "live" ? "bg-up" : "bg-fg-muted",
+        )}
+      />
+      {state === "stale" ? "Último precio conocido" : state === "live" ? "En vivo" : "Ejemplo"}
+    </span>
+  );
+}
+
+/**
  * Número de la portada en dólares (US$). `full` (filas y ficha) usa el
  * destello de M41; `tape` (cinta) es texto liviano con `formatUsd`.
  */
@@ -109,15 +152,15 @@ export function LandingPrice({
     const tone = change > 0 ? "text-up" : change < 0 ? "text-down" : "text-fg-muted";
     return (
       <span className="inline-flex items-center gap-2 px-4">
-        <span className="text-sm font-medium text-fg">{symbol}</span>
-        <span className="font-mono text-sm tabular-nums text-fg-muted">{formatUsd(priceUsd)}</span>
-        <span className={cn("font-mono text-sm tabular-nums", tone)}>{formatPercent(change)}</span>
+        <span className="text-sm font-medium whitespace-nowrap text-fg">{symbol}</span>
+        <span className="font-mono text-sm whitespace-nowrap tabular-nums text-fg-muted">{formatUsd(priceUsd)}</span>
+        <span className={cn("font-mono text-sm whitespace-nowrap tabular-nums", tone)}>{formatPercent(change)}</span>
       </span>
     );
   }
 
   return (
-    <span className="flex shrink-0 flex-col items-end gap-0.5">
+    <span className="flex shrink-0 flex-col items-end gap-1">
       <FlashPrice value={priceUsd} currency="USD" size="sm" />
       <ChangeBadge value={change} />
     </span>

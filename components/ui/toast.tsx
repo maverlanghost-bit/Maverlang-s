@@ -45,19 +45,23 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   return (
     <ToastContext.Provider value={{ toast, dismiss }}>
       {children}
-      <div className="pointer-events-none fixed inset-x-4 bottom-[calc(1rem+var(--app-chrome-bottom,0px))] z-[60] flex flex-col gap-2 md:inset-x-auto md:right-4 md:w-80">
+      <div className="pointer-events-none fixed inset-x-4 bottom-[calc(1rem+env(safe-area-inset-bottom)+var(--app-chrome-bottom,0px))] z-[60] flex flex-col gap-2 md:inset-x-auto md:right-4 md:w-80">
         <div aria-live="polite" aria-relevant="additions" className="flex flex-col gap-2">
           {items.map((item) => (
             <div
               key={item.id}
               className={cn(
-                "pointer-events-auto flex items-start gap-2 rounded-xl border border-border border-l-4 bg-bg p-3 shadow-float",
+                "pointer-events-auto flex items-start gap-3 rounded-xl border border-border border-l-4 bg-bg py-3 pr-2 pl-3.5 shadow-float",
                 toneClass[item.tone ?? "neutral"],
               )}
             >
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium text-fg">{item.title}</p>
-                {item.description ? <p className="mt-0.5 text-sm text-fg-muted">{item.description}</p> : null}
+                <p className="text-pretty text-sm font-medium break-words text-fg">{item.title}</p>
+                {item.description ? (
+                  <p className="mt-1 text-pretty text-sm leading-snug break-words text-fg-muted">
+                    {item.description}
+                  </p>
+                ) : null}
               </div>
               <IconButton label="Cerrar aviso" size="sm" onClick={() => dismiss(item.id)}>
                 <IconClose />

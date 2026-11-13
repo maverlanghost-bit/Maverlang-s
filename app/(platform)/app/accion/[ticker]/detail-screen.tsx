@@ -17,7 +17,6 @@ import { OnchainVerificationCard } from "@/components/domain/onchain-verificatio
 import { AlertButton } from "@/components/domain/alert-button";
 import { CompanyCard } from "@/components/domain/company-card";
 import { ExplainChartButton } from "@/components/domain/explain-chart-button";
-import { PriceRangeBar } from "@/components/domain/price-range-bar";
 import { WhatIfCalculator } from "@/components/domain/what-if-calculator";
 import { Accordion } from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
@@ -141,7 +140,36 @@ function shownMoney(usd: number, currency: Currency, rate: number | undefined) {
   return formatMoney(value, currency);
 }
 
-function PositionBlock({
+/**
+ * Rótulos y cifras de una misma familia en toda la ficha: 13px mono
+ * mayúsculas para el rótulo, 15px tabular para el dato. Nada informativo
+ * baja de 13px.
+ */
+const METRIC_LABEL = "font-mono text-[13px] leading-4 font-medium tracking-[0.06em] text-fg-muted uppercase";
+const NOTE = "text-[13px] leading-5 text-fg-muted";
+
+/**
+ * Fila de especificación: rótulo a la izquierda y valor a la derecha,
+ * separados por una hairline. En 360 px el valor puede bajar de línea sin
+ * empujar la página ni desbordar.
+ */
+function DataRow({ label, children, mono = true }: { label: string; children: ReactNode; mono?: boolean }) {
+  return (
+    <div className="flex min-w-0 items-baseline justify-between gap-4 border-b border-border py-3 last:border-b-0">
+      <dt className={cn(METRIC_LABEL, "min-w-0 flex-1")}>{label}</dt>
+      <dd
+        className={cn(
+          "min-w-0 max-w-[62%] text-right text-[15px] leading-5 font-medium text-fg tabular-nums [overflow-wrap:anywhere]",
+          mono ? "num" : "font-sans",
+        )}
+      >
+        {children}
+      </dd>
+    </div>
+  );
+}
+
+function PositionRows({
   position,
   pending,
   failed,
@@ -159,51 +187,49 @@ function PositionBlock({
   const { t } = useT();
   if (pending) {
     return (
-      <div role="status" aria-live="polite" aria-busy="true">
+      <div className="mt-5 border-t border-border pt-5" role="status" aria-live="polite" aria-busy="true">
         <span className="sr-only">{t.states.loading}</span>
-        <Skeleton className="h-28 w-full rounded-3xl" />
+        <Skeleton className="h-4 w-24" />
+        <Skeleton className="mt-3 h-4 w-full" />
+        <Skeleton className="mt-2 h-4 w-full" />
       </div>
     );
   }
   if (failed) {
     return (
-      <ErrorState title={t.detail.positionError} label={t.states.error} retryLabel={t.states.retry} onRetry={onRetry} />
+      <div className="mt-5 border-t border-border pt-5">
+        <ErrorState title={t.detail.positionError} label={t.states.error} retryLabel={t.states.retry} onRetry={onRetry} />
+      </div>
     );
   }
   if (!position || position.shares <= 0) return null;
 
   return (
-    <Card className="p-5 md:p-6">
-      <h2 className="text-lg font-semibold tracking-tight">{t.detail.position}</h2>
-      <dl className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3">
-        <div>
-          <dt className="label">{t.detail.shares}</dt>
-          <dd className="num mt-1 text-sm text-fg">{formatShares(position.shares)}</dd>
-        </div>
-        <div>
-          <dt className="label">{t.detail.value}</dt>
-          <dd className="num mt-1 text-sm text-fg">{shownMoney(position.valueUsd, currency, rate)}</dd>
-        </div>
-        <div className="col-span-2 sm:col-span-1">
-          <dt className="label">{t.detail.pnl}</dt>
-          <dd className="mt-1 flex flex-wrap items-center gap-2">
-            {position.pnlUsd === null ? (
-              <span className="text-sm text-fg-muted">{t.detail.pnlUnknown}</span>
-            ) : (
+    <div className="mt-5 border-t border-border pt-5">
+      <h3 className="label">{t.detail.position}</h3>
+      <dl className="mt-1">
+        <DataRow label={t.detail.shares}>{formatShares(position.shares)}</DataRow>
+        <DataRow label={t.detail.value}>{shownMoney(position.valueUsd, currency, rate)}</DataRow>
+        <DataRow label={t.detail.pnl}>
+          {position.pnlUsd === null ? (
+            <span className="text-fg-muted">{t.detail.pnlUnknown}</span>
+          ) : (
+            <span className="inline-flex items-center gap-2">
               <span
-                className={
-                  position.pnlUsd > 0 ? "num text-sm text-up" : position.pnlUsd < 0 ? "num text-sm text-down" : "num text-sm text-fg"
-                }
+                className={cn(
+                  "num tabular-nums",
+                  position.pnlUsd > 0 ? "text-up" : position.pnlUsd < 0 ? "text-down" : "text-fg",
+                )}
               >
                 {shownMoney(position.pnlUsd, currency, rate)}
               </span>
-            )}
-            {position.pnlPct === null ? null : <ChangeBadge value={position.pnlPct} />}
-          </dd>
-        </div>
+              {position.pnlPct === null ? null : <ChangeBadge value={position.pnlPct} size="sm" />}
+            </span>
+          )}
+        </DataRow>
       </dl>
-      <p className="mt-4 text-sm leading-relaxed text-fg-muted">{t.detail.positionNote}</p>
-    </Card>
+      <p className={cn("mt-2", NOTE)}>{t.detail.positionNote}</p>
+    </div>
   );
 }
 
@@ -248,25 +274,24 @@ function AccountActions({
   currency: Currency;
   rate: number | undefined;
 }) {
-  const wide = variant === "card";
   const barRef = useRef<HTMLDivElement>(null);
   useDetailCtaOffset(variant === "bar", barRef);
 
   const buttons = (
-    <div className={wide ? "flex flex-col gap-3" : "flex flex-col gap-2"}>
+    <div className="flex flex-col gap-1.5">
       <Button
         asChild
         size="lg"
-        className="h-auto min-h-11 w-full px-3 text-sm whitespace-nowrap sm:px-4 sm:text-base"
+        className="h-auto min-h-12 w-full px-3 text-[15px] font-semibold whitespace-nowrap sm:px-4"
       >
         <Link href={primary.href}>{primary.label}</Link>
       </Button>
       {secondary ? (
         <Button
           asChild
+          variant="ghost"
           size="lg"
-          variant="secondary"
-          className="h-auto min-h-11 w-full px-3 text-sm whitespace-nowrap sm:px-4 sm:text-base"
+          className="h-auto min-h-11 w-full px-3 text-[13px] font-medium whitespace-nowrap text-fg-muted hover:text-fg sm:px-4"
         >
           <Link href={secondary.href}>{secondary.label}</Link>
         </Button>
@@ -278,7 +303,7 @@ function AccountActions({
     return (
       <div
         ref={barRef}
-        className="fixed inset-x-0 z-20 border-t border-white/65 bg-white/82 px-4 pt-3 pb-1 backdrop-blur-xl backdrop-saturate-180 shadow-[0_-12px_32px_-12px_rgba(12,15,20,0.12),inset_0_1px_0_rgba(255,255,255,0.85)] min-[400px]:px-5 lg:hidden"
+        className="fixed inset-x-0 z-20 border-t border-border bg-bg/95 px-4 pt-3 backdrop-blur-xl lg:hidden"
         style={
           aboveTabs
             ? { bottom: "var(--app-tabs-height)" }
@@ -291,31 +316,38 @@ function AccountActions({
   }
 
   return (
-    <Card className="p-6 md:p-7">
-      <BuyPriceBox symbol={symbol} underlying={underlying} issuer={issuer} quote={quote} currency={currency} rate={rate} position={null} canSell={false} />
-      <div className="mt-5">{buttons}</div>
+    <Card className="border-border bg-bg p-5 lg:p-6">
+      <BuyPriceBox
+        divided={false}
+        symbol={symbol}
+        underlying={underlying}
+        issuer={issuer}
+        quote={quote}
+        currency={currency}
+        rate={rate}
+      />
+      <div className="mt-5 border-t border-border pt-5">{buttons}</div>
     </Card>
   );
 }
 
 function BuyPriceBox({
+  divided = true,
   symbol,
   underlying,
   issuer,
   quote,
   currency,
   rate,
-  position,
-  canSell,
 }: {
+  /** Hairline superior cuando la caja sigue a un encabezado dentro de la ficha. */
+  divided?: boolean;
   symbol: string;
   underlying: string;
   issuer: Ticker["issuer"];
   quote: Quote | null;
   currency: Currency;
   rate: number | undefined;
-  position: Position | null;
-  canSell: boolean;
 }) {
   const { t, language } = useT();
   const fxKnown = typeof rate === "number" && Number.isFinite(rate) && rate > 0;
@@ -330,41 +362,33 @@ function BuyPriceBox({
       : null;
 
   return (
-    <div className="mt-4 rounded-2xl border border-border/70 bg-surface-1/60 p-4">
-      <div className="flex items-center justify-between gap-2">
-        <p className="text-xs font-medium text-fg-muted">
-          {language === "en" ? `Buy price · 1 ${symbol}` : `Precio de compra · 1 ${symbol}`}
-        </p>
+    <div className={cn(divided && "mt-5 border-t border-border pt-5")}>
+      <p className="label">{language === "en" ? `Buy price · 1 ${symbol}` : `Precio de compra · 1 ${symbol}`}</p>
+      <div className="mt-2 flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
+        {primaryPrice ? (
+          <p className="num text-[27px] leading-none font-medium tracking-tight text-fg">{primaryPrice}</p>
+        ) : (
+          <Skeleton className="h-8 w-32" />
+        )}
         {quote && Number.isFinite(quote.change24hPct) ? <ChangeBadge value={quote.change24hPct} /> : null}
       </div>
-      {primaryPrice ? (
-        <p className="num mt-1.5 text-2xl font-semibold tracking-tight text-fg tabular-nums">{primaryPrice}</p>
-      ) : (
-        <Skeleton className="mt-1.5 h-8 w-32" />
-      )}
       {secondaryPrice ? (
-        <p className="num mt-0.5 text-xs text-fg-muted tabular-nums">
+        <p className={cn("num mt-2", NOTE)}>
           {language === "en" ? `Approx. ${secondaryPrice} per share (${underlying})` : `Equivale a ${secondaryPrice} por acción (${underlying})`}
         </p>
       ) : null}
-      <div className="mt-3 grid gap-2 border-t border-border/60 pt-3 text-xs">
-        <div className="flex items-center justify-between gap-2">
-          <span className="text-fg-muted">{language === "en" ? "Order type" : "Inversión mínima"}</span>
-          <span className="font-medium text-fg">{language === "en" ? "Fractional shares" : "Desde fracciones"}</span>
+      <dl className="mt-4 border-t border-border">
+        <div className="flex flex-col gap-0.5 border-b border-border py-2.5">
+          <dt className={METRIC_LABEL}>{language === "en" ? "Minimum" : "Inversión mínima"}</dt>
+          <dd className="text-[15px] leading-5 font-medium text-fg">
+            {language === "en" ? "Fractional shares" : "Desde fracciones"}
+          </dd>
         </div>
-        <div className="flex items-center justify-between gap-2">
-          <span className="text-fg-muted">{t.detail.issuer}</span>
-          <span className="font-medium text-fg">{issuer}</span>
+        <div className="flex flex-col gap-0.5 py-2.5">
+          <dt className={METRIC_LABEL}>{t.detail.issuer}</dt>
+          <dd className="text-[15px] leading-5 font-medium text-fg">{issuer}</dd>
         </div>
-        {canSell && position && position.shares > 0 ? (
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-fg-muted">{language === "en" ? "Your position" : "Disponible para vender"}</span>
-            <span className="num font-semibold text-fg tabular-nums">
-              {formatShares(position.shares)} · {shownMoney(position.valueUsd, shownCurrency, rate)}
-            </span>
-          </div>
-        ) : null}
-      </div>
+      </dl>
     </div>
   );
 }
@@ -381,7 +405,7 @@ function SellHelp({ hintId }: { hintId: string }) {
         aria-expanded={helpOpen}
         aria-describedby={hintId}
         onClick={() => setHelpOpen((v) => !v)}
-        className="inline-flex size-10 items-center justify-center rounded-full border border-border/80 bg-surface-1 text-sm font-semibold text-fg-muted transition-colors outline-none hover:border-fg/30 hover:bg-surface-2 hover:text-fg focus-visible:ring-4 focus-visible:ring-fg/20"
+        className="inline-flex size-11 items-center justify-center rounded-full text-[13px] font-medium text-fg-muted outline-none transition-colors hover:bg-surface-1 hover:text-fg focus-visible:ring-4 focus-visible:ring-fg/20 sm:size-9"
       >
         ?
       </button>
@@ -389,7 +413,7 @@ function SellHelp({ hintId }: { hintId: string }) {
         id={hintId}
         role="tooltip"
         className={cn(
-          "pointer-events-none absolute right-0 bottom-full z-30 mb-2.5 w-60 rounded-2xl border border-border/80 bg-fg px-3.5 py-2.5 text-left text-xs leading-relaxed font-medium text-bg shadow-lg transition-all duration-150",
+          "pointer-events-none absolute right-0 bottom-full z-30 mb-2 w-56 rounded-xl border border-border bg-fg px-3 py-2 text-left text-xs leading-relaxed font-medium text-bg shadow-float transition-all duration-150",
           "translate-y-1 opacity-0 group-hover/sell-help:pointer-events-auto group-hover/sell-help:translate-y-0 group-hover/sell-help:opacity-100 group-focus-within/sell-help:pointer-events-auto group-focus-within/sell-help:translate-y-0 group-focus-within/sell-help:opacity-100",
           helpOpen && "pointer-events-auto translate-y-0 opacity-100",
         )}
@@ -414,6 +438,9 @@ function TradeActions({
   currency,
   rate,
   position,
+  positionPending,
+  positionFailed,
+  onRetryPosition,
   chipText,
   chipDot,
 }: {
@@ -432,6 +459,9 @@ function TradeActions({
   currency: Currency;
   rate: number | undefined;
   position: Position | null;
+  positionPending: boolean;
+  positionFailed: boolean;
+  onRetryPosition: () => void;
   chipText: string;
   chipDot: string;
 }) {
@@ -459,7 +489,11 @@ function TradeActions({
   const buyButton = (
     <Button
       size="lg"
-      className={wide ? "min-h-12 w-full text-base font-semibold" : "h-auto min-h-11 w-full min-w-0 flex-1 whitespace-nowrap px-3 text-base md:h-auto md:px-5"}
+      className={
+        wide
+          ? "min-h-12 w-full text-[15px] font-semibold"
+          : "h-auto min-h-12 min-w-0 flex-[1.6] px-3 text-[15px] font-semibold"
+      }
       disabled={buyDisabled}
       aria-describedby={blockedReason ? blockedId : undefined}
       onClick={() => {
@@ -475,10 +509,10 @@ function TradeActions({
       size="lg"
       variant="secondary"
       className={cn(
-        "min-w-0 flex-1",
+        "min-w-0",
         wide
-          ? "min-h-12 w-full text-base font-semibold"
-          : "h-auto min-h-11 whitespace-nowrap px-3 text-base md:h-auto md:px-5",
+          ? "min-h-11 w-full text-[13px] font-medium"
+          : "h-auto min-h-12 flex-1 px-3 text-[13px] font-medium whitespace-nowrap",
       )}
       disabled={sellDisabled}
       aria-describedby={blockedReason ? blockedId : sellDisabled ? hintId : undefined}
@@ -494,11 +528,11 @@ function TradeActions({
     <div
       role="group"
       aria-label={language === "en" ? "Buy or sell" : "Comprar o vender"}
-      className={wide ? "flex flex-col gap-3" : "flex gap-2"}
+      className={wide ? "flex flex-col gap-1.5" : "flex gap-2"}
     >
       {buyButton}
       {sellDisabled && !blockedReason ? (
-        <div className={cn("flex items-center gap-2", wide ? "w-full" : "min-w-0 flex-1")}>
+        <div className={cn("flex items-center gap-1", wide ? "w-full" : "min-w-0 flex-1")}>
           {sellButton}
           <SellHelp hintId={hintId} />
         </div>
@@ -508,14 +542,30 @@ function TradeActions({
     </div>
   );
 
+  const positionLine =
+    position && position.shares > 0 ? (
+      <p className="num flex min-w-0 items-baseline justify-between gap-3 pb-2 text-xs leading-4 text-fg-muted">
+        <span className="min-w-0 truncate">
+          <span className="sr-only">{t.detail.position}: </span>
+          {formatShares(position.shares)} · {shownMoney(position.valueUsd, currency, rate)}
+        </span>
+        {position.pnlPct === null ? null : (
+          <span className="shrink-0">
+            <ChangeBadge value={position.pnlPct} size="sm" />
+          </span>
+        )}
+      </p>
+    ) : null;
+
   if (variant === "bar") {
     return (
       <div
         ref={barRef}
-        className="fixed inset-x-0 z-20 border-t border-white/65 bg-white/82 px-4 py-3 backdrop-blur-xl backdrop-saturate-180 shadow-[0_-12px_32px_-12px_rgba(12,15,20,0.12),inset_0_1px_0_rgba(255,255,255,0.85)] min-[400px]:px-5 lg:hidden"
+        className="fixed inset-x-0 z-20 border-t border-border bg-bg/95 px-4 pt-3 backdrop-blur-xl lg:hidden"
         style={{ bottom: "var(--app-tabs-height)" }}
       >
         <div className="mx-auto max-w-6xl">
+          {positionLine}
           {buttons}
           {blockedReason ? (
             <p id={blockedId} className="mt-2 text-center text-xs leading-relaxed text-fg-muted">
@@ -528,18 +578,26 @@ function TradeActions({
   }
 
   return (
-    <Card className="p-6 md:p-7">
-      <div className="flex items-center justify-between gap-2">
-        <h2 className="text-xl font-semibold tracking-tight text-fg">{t.detail.actions}</h2>
-        <span className="inline-flex items-center gap-1.5 rounded-full border border-border/70 bg-surface-1 px-2.5 py-1 text-xs font-medium text-fg-muted">
+    <Card className="border-border bg-bg p-5 lg:p-6">
+      <div className="flex flex-col gap-1">
+        <h2 className="text-lg font-medium tracking-tight text-fg">{t.detail.actions}</h2>
+        <span className="inline-flex items-center gap-1.5 text-xs leading-5 text-fg-muted">
           <span className={cn("size-1.5 shrink-0 rounded-full", chipDot)} aria-hidden />
           {chipText}
         </span>
       </div>
-      <BuyPriceBox symbol={symbol} underlying={underlying} issuer={issuer} quote={quote} currency={currency} rate={rate} position={position} canSell={canSell} />
-      <div className="mt-5">{buttons}</div>
+      <BuyPriceBox symbol={symbol} underlying={underlying} issuer={issuer} quote={quote} currency={currency} rate={rate} />
+      <PositionRows
+        position={position}
+        pending={positionPending}
+        failed={positionFailed}
+        onRetry={onRetryPosition}
+        currency={currency}
+        rate={rate}
+      />
+      <div className="mt-5 border-t border-border pt-5">{buttons}</div>
       {blockedReason ? (
-        <p id={blockedId} className="mt-3 text-sm leading-relaxed text-fg-muted">
+        <p id={blockedId} className={cn("mt-3", NOTE)}>
           {blockedReason}
         </p>
       ) : null}
@@ -554,39 +612,25 @@ function categoryName(
   return labels[category] ?? category;
 }
 
-function FactChip({ children }: { children: ReactNode }) {
+function ContextItem({ children, separator = false }: { children: ReactNode; separator?: boolean }) {
   return (
-    <li className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-border/70 bg-surface-1/60 px-2.5 py-1 text-xs leading-4 font-medium whitespace-nowrap text-fg-body">
-      {children}
+    <li className="inline-flex shrink-0 items-center gap-2.5">
+      {separator ? (
+        <span aria-hidden className="shrink-0 text-fg-muted">
+          ·
+        </span>
+      ) : null}
+      <span className="inline-flex items-center gap-1.5 whitespace-nowrap">{children}</span>
     </li>
-  );
-}
-
-function statLabelClass(label: string) {
-  return cn(
-    "block max-w-full font-medium leading-4 whitespace-nowrap text-fg-muted",
-    label.length > 24 ? "text-[11px] tracking-tighter" : "text-xs tracking-tight",
   );
 }
 
 function MissingFigure({ label }: { label: string }) {
   return (
-    <span className="num text-sm text-fg-muted">
+    <span className="text-fg-muted">
       <span aria-hidden>—</span>
       <span className="sr-only">{label}</span>
     </span>
-  );
-}
-
-function StatCell({ label, pending, children }: { label: string; pending: boolean; children: ReactNode }) {
-  return (
-    <div
-      className="min-w-0 max-w-full overflow-hidden rounded-2xl border border-border/70 bg-surface-1/50 px-2 py-3 sm:px-4 sm:py-3.5"
-      aria-busy={pending || undefined}
-    >
-      <dt className={statLabelClass(label)}>{label}</dt>
-      <dd className="mt-1 min-w-0 max-w-full break-words tabular-nums">{pending ? <Skeleton className="h-5 w-20" /> : children}</dd>
-    </div>
   );
 }
 
@@ -648,70 +692,68 @@ function KeyStats({
           : t.detail.operable;
 
   return (
-    <Card className="p-4 md:p-6">
-      <h2 className="text-lg font-semibold tracking-tight">{t.detail.stats}</h2>
-      <dl className="mt-4 grid grid-cols-2 gap-1.5 sm:gap-2.5 lg:grid-cols-4">
+    <section className="border-t border-border pt-8">
+      <h2 className="text-lg font-medium tracking-tight text-fg">{t.detail.stats}</h2>
+      <dl className="mt-3 grid grid-cols-1 gap-x-12 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
         {/* Precio actual: mismo `quote.priceUsd` del titular, en tu moneda. */}
-        <StatCell label={shownCurrency === "CLP" ? t.detail.priceClp : t.detail.priceUsd} pending={quoteCellPending}>
-          {priceNow === null ? (
+        <DataRow label={shownCurrency === "CLP" ? t.detail.priceClp : t.detail.priceUsd}>
+          {quoteCellPending ? (
+            <Skeleton className="ml-auto h-4 w-20" />
+          ) : priceNow === null ? (
             <MissingFigure label={t.detail.unavailable} />
           ) : (
-            <span className="num text-sm font-medium text-fg">{priceNow}</span>
+            priceNow
           )}
-        </StatCell>
+        </DataRow>
         {/* 24 h: quote.change24hPct. En vivo es Jupiter priceChange24h, igual que el mercado. */}
-        <StatCell label={t.detail.change24h} pending={quoteCellPending}>
-          {quote && Number.isFinite(quote.change24hPct) ? (
-            <ChangeBadge value={quote.change24hPct} />
+        <DataRow label={t.detail.change24h}>
+          {quoteCellPending ? (
+            <Skeleton className="ml-auto h-4 w-16" />
+          ) : quote && Number.isFinite(quote.change24hPct) ? (
+            <ChangeBadge value={quote.change24hPct} className="align-middle" />
           ) : (
             <MissingFigure label={t.detail.unavailable} />
           )}
-        </StatCell>
-        <StatCell label={fill(t.detail.rangeChange, { range: caption })} pending={historyPending}>
-          {move === null ? <MissingFigure label={rangeMissing} /> : <ChangeBadge value={move} />}
-        </StatCell>
-        <StatCell label={fill(t.detail.rangeHigh, { range: caption })} pending={historyPending}>
-          {high === null ? <MissingFigure label={rangeMissing} /> : <span className="num text-sm font-medium text-fg">{high}</span>}
-        </StatCell>
-        <StatCell label={fill(t.detail.rangeLow, { range: caption })} pending={historyPending}>
-          {low === null ? <MissingFigure label={rangeMissing} /> : <span className="num text-sm font-medium text-fg">{low}</span>}
-        </StatCell>
-        <StatCell label={t.detail.marketPrice} pending={quoteCellPending}>
-          {quote?.marketPriceUsd !== undefined && Number.isFinite(quote.marketPriceUsd) ? (
-            <span className="num text-sm font-medium text-fg">{moneyText(quote.marketPriceUsd, shownCurrency, rate)}</span>
+        </DataRow>
+        <DataRow label={fill(t.detail.rangeChange, { range: caption })}>
+          {historyPending ? (
+            <Skeleton className="ml-auto h-4 w-16" />
+          ) : move === null ? (
+            <MissingFigure label={rangeMissing} />
+          ) : (
+            <ChangeBadge value={move} className="align-middle" />
+          )}
+        </DataRow>
+        <DataRow label={fill(t.detail.rangeHigh, { range: caption })}>
+          {historyPending ? <Skeleton className="ml-auto h-4 w-20" /> : high === null ? <MissingFigure label={rangeMissing} /> : high}
+        </DataRow>
+        <DataRow label={fill(t.detail.rangeLow, { range: caption })}>
+          {historyPending ? <Skeleton className="ml-auto h-4 w-20" /> : low === null ? <MissingFigure label={rangeMissing} /> : low}
+        </DataRow>
+        <DataRow label={t.detail.marketPrice}>
+          {quoteCellPending ? (
+            <Skeleton className="ml-auto h-4 w-20" />
+          ) : quote?.marketPriceUsd !== undefined && Number.isFinite(quote.marketPriceUsd) ? (
+            moneyText(quote.marketPriceUsd, shownCurrency, rate)
           ) : (
             <MissingFigure label={t.detail.unavailable} />
           )}
-        </StatCell>
-        <StatCell label={t.detail.poolLiquidity} pending={quoteCellPending}>
-          {quote?.liquidityUsd !== undefined && Number.isFinite(quote.liquidityUsd) ? (
-            <span className="num text-sm font-medium text-fg">{formatMoney(quote.liquidityUsd, "USD")}</span>
+        </DataRow>
+        <DataRow label={t.detail.poolLiquidity}>
+          {quoteCellPending ? (
+            <Skeleton className="ml-auto h-4 w-20" />
+          ) : quote?.liquidityUsd !== undefined && Number.isFinite(quote.liquidityUsd) ? (
+            formatMoney(quote.liquidityUsd, "USD")
           ) : (
             <MissingFigure label={t.detail.unavailable} />
           )}
-        </StatCell>
+        </DataRow>
         {/* Ficha del activo: sólo campos que existen en `ticker` (sin cifras inventadas). */}
-        <StatCell label={t.detail.issuer} pending={false}>
-          <span className="text-sm font-medium text-fg">{issuer}</span>
-        </StatCell>
-        <StatCell label={t.detail.category} pending={false}>
-          <span className="text-sm font-medium text-fg">{categoryLabel}</span>
-        </StatCell>
-        <StatCell label={t.detail.status} pending={false}>
-          <span className="text-sm font-medium text-fg">{estadoText}</span>
-        </StatCell>
+        <DataRow label={t.detail.issuer} mono={false}>{issuer}</DataRow>
+        <DataRow label={t.detail.category} mono={false}>{categoryLabel}</DataRow>
+        <DataRow label={t.detail.status} mono={false}>{estadoText}</DataRow>
       </dl>
-      {bounds && quote && Number.isFinite(quote.priceUsd) ? (
-        <PriceRangeBar
-          lowUsd={bounds.low}
-          highUsd={bounds.high}
-          currentUsd={quote.priceUsd}
-          rangeLabel={caption}
-          currency={shownCurrency}
-          rate={rate}
-        />
-      ) : null}
-    </Card>
+    </section>
   );
 }
 
@@ -897,6 +939,11 @@ export function DetailScreen({
           currency={currency}
           rate={rate}
           position={position}
+          positionPending={portfolio.isPending}
+          positionFailed={portfolio.isError}
+          onRetryPosition={() => {
+            void portfolio.refetch();
+          }}
           chipText={chipText}
           chipDot={chipDot}
         />
@@ -939,105 +986,132 @@ export function DetailScreen({
     return <NotFoundView kind="ticker" />;
   }
 
+  const contextItems: { key: string; node: ReactNode }[] = [];
+  if (category) contextItems.push({ key: "category", node: category });
+  if (effectiveBlock !== null) contextItems.push({ key: "blocked", node: t.detail.tradeUnavailable });
+  contextItems.push({ key: "token", node: t.detail.tokenOnSolana });
+  if (scheduleText) contextItems.push({ key: "schedule", node: scheduleText });
+
   return (
     <>
     <motion.div
       data-ticker={ticker.symbol}
-      className="lg:grid lg:grid-cols-[minmax(0,1fr)_22rem] xl:grid-cols-[minmax(0,1fr)_24rem] lg:items-start lg:gap-8"
+      className="lg:grid lg:grid-cols-[minmax(0,1fr)_20rem] lg:gap-x-10 xl:grid-cols-[minmax(0,1fr)_23rem] xl:gap-x-16"
       initial={reduceMotion ? false : { opacity: 0, scale: 0.97 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={reduceMotion ? { duration: 0 } : { duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
     >
-      <div className="flex min-w-0 max-w-full flex-col gap-6">
-        <Link
-          href="/app"
-          className="-ml-2 flex min-h-9 w-fit items-center gap-1.5 rounded-full bg-surface-1 px-3 py-1.5 text-xs font-medium text-fg-muted outline-none transition-colors duration-150 hover:bg-surface-2 hover:text-fg focus-visible:ring-4 focus-visible:ring-fg/20"
-        >
-          <IconBack className="size-4" />
-          {t.detail.backToMarket}
-        </Link>
-        <header className="flex flex-col gap-2.5 sm:gap-3">
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-            <span className="shrink-0 rounded-full border border-border/70 p-0.5">
-              <TickerLogo symbol={ticker.symbol} name={ticker.name} logoUrl={ticker.logo} size={48} decorative loading="eager" sizes="64px" />
+      <div className="flex min-w-0 max-w-full flex-col gap-10 pb-36 lg:pb-0">
+        <div className="flex min-w-0 flex-col gap-4">
+          <Link
+            href="/app"
+            className="-ml-2 flex min-h-11 w-fit items-center gap-1.5 rounded-full px-2 text-[13px] font-medium text-fg-muted outline-none transition-colors duration-150 hover:bg-surface-1 hover:text-fg focus-visible:ring-4 focus-visible:ring-fg/20"
+          >
+            <IconBack className="size-4" />
+            {t.detail.backToMarket}
+          </Link>
+
+          <header className="flex flex-wrap items-center gap-x-4 gap-y-3">
+            <span className="shrink-0">
+              <TickerLogo
+                symbol={ticker.symbol}
+                name={ticker.name}
+                logoUrl={ticker.logo}
+                size={48}
+                decorative
+                loading="eager"
+                sizes="56px"
+              />
             </span>
-            <div className="min-w-0 flex-1 basis-48">
-              <h1 className="max-w-full text-2xl break-words text-balance">{ticker.name}</h1>
-              <p className="mt-1 max-w-full break-words text-sm text-fg-muted">
-                <span className="num font-medium text-fg">{ticker.symbol}</span>
+            <div className="min-w-0 flex-1 basis-44">
+              <h1 className="max-w-full text-[27px] leading-[1.08] break-words text-balance sm:text-[32px]">
+                {ticker.name}
+              </h1>
+              <p className="num mt-1.5 max-w-full text-xs leading-5 break-words text-fg-muted">
+                <span className="font-medium text-fg">{ticker.symbol}</span>
                 <span aria-hidden> · </span>
-                <span>
+                <span className="font-sans">
                   <span className="sr-only">{t.detail.underlying} </span>
                   {ticker.underlying}
                 </span>
               </p>
             </div>
-            <div className="flex w-full min-w-0 basis-full flex-nowrap items-center gap-1.5 overflow-x-auto pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:w-auto sm:basis-auto sm:flex-wrap sm:justify-end sm:pb-0">
-              <AskAiButton ticker={ticker.symbol} />
-              <AlertButton labeled symbol={ticker.symbol} name={ticker.name} priceUsd={quote?.priceUsd ?? null} />
+            <div className="flex w-full min-w-0 items-center justify-end gap-0.5 sm:w-auto sm:basis-auto">
+              <span className="mr-auto hidden sm:block">
+                <AskAiButton ticker={ticker.symbol} />
+              </span>
+              <AlertButton labeled={false} symbol={ticker.symbol} name={ticker.name} priceUsd={quote?.priceUsd ?? null} />
               <FavoriteButton pressed={saved} label={favoriteLabel} onToggle={() => toggle(ticker.symbol)} />
               <ShareButton name={ticker.name} />
             </div>
-          </div>
-          <ul className="flex min-w-0 max-w-full list-none gap-1.5 overflow-x-auto p-0 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" aria-label={t.detail.chips}>
-            {category ? <FactChip>{category}</FactChip> : null}
-            <li className="shrink-0">
+          </header>
+        </div>
+
+        {/* En móvil, precio primero: el precio y la única CTA caben en el
+            primer pliegue de 360 px. Desde lg el contexto vuelve sobre el gráfico. */}
+        <div className="order-1 min-w-0 lg:order-2">
+          <PricePanel
+            symbol={ticker.symbol}
+            name={ticker.name}
+            quote={quote}
+            pending={prices.isPending && quote === null}
+            onRetry={() => {
+              void prices.refetch();
+            }}
+            currency={currency}
+            rate={rate}
+            fxPending={fx.isPending}
+            range={range}
+            onRangeChange={setRange}
+            priceUpdatedAt={prices.dataUpdatedAt || quote?.updatedAt || null}
+            priceStale={quote?.stale === true}
+            underlying={ticker.underlying}
+            avgCostUsd={position?.avgCostUsd ?? null}
+          />
+        </div>
+
+        <div className="order-2 flex min-w-0 flex-col gap-3 lg:order-1">
+          <ul
+            className="flex min-w-0 max-w-full list-none flex-wrap items-center gap-x-2.5 gap-y-1 p-0 font-mono text-[13px] leading-4 tracking-[0.06em] text-fg-muted uppercase"
+            aria-label={t.detail.chips}
+          >
+            {contextItems.map((item, index) => (
+              <ContextItem key={item.key} separator={index > 0}>
+                {item.node}
+              </ContextItem>
+            ))}
+            {statusPending ? (
+              <li className="shrink-0">
+                <Skeleton className="h-4 w-28" />
+              </li>
+            ) : statusReady ? (
+              <ContextItem separator={contextItems.length > 0}>
+                <span className={cn("size-1.5 shrink-0 rounded-full", chipDot)} aria-hidden />
+                {chipText}
+              </ContextItem>
+            ) : null}
+            <li className="sm:hidden">
               <Link
                 href={`/app/asistente?ticker=${encodeURIComponent(ticker.symbol)}&q=${encodeURIComponent(`Analiza ${ticker.name} (${ticker.symbol}): desempeño, riesgos y contexto actual`)}`}
-                className="inline-flex items-center gap-1.5 rounded-full border border-brand/30 bg-brand-soft/60 px-3 py-1 text-[12px] leading-4 font-medium whitespace-nowrap text-brand transition-all hover:border-brand/50 hover:bg-brand-soft"
+                className="-mx-2 inline-flex min-h-11 items-center gap-1.5 rounded-full px-2 text-[13px] font-medium text-fg-muted transition-colors hover:text-fg focus-visible:ring-4 focus-visible:ring-fg/20 focus-visible:outline-none"
               >
                 <svg className="size-3.5 shrink-0" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
                   <path d="M8 1l1.65 4.35L14 7l-4.35 1.65L8 13l-1.65-4.35L2 7l4.35-1.65L8 1z" />
                 </svg>
-                {language === "en" ? `Ask AI about ${ticker.symbol}` : `Preguntar a la IA sobre ${ticker.symbol}`}
+                {language === "en" ? "Ask the AI" : "Preguntar a la IA"}
               </Link>
             </li>
-            <FactChip>{t.detail.tokenOnSolana}</FactChip>
-            {effectiveBlock !== null ? <FactChip>{t.detail.tradeUnavailable}</FactChip> : null}
-            {/* Horario real por acción (M39): suspendida, abierto, extendido, nocturno o cerrado. */}
-            {statusPending ? (
-              <li className="shrink-0">
-                <Skeleton className="h-6 w-28 rounded-full" />
-              </li>
-            ) : statusReady ? (
-              <FactChip>
-                <span className={cn("size-1.5 shrink-0 rounded-full", chipDot)} aria-hidden />
-                {chipText}
-              </FactChip>
-            ) : null}
           </ul>
-          {scheduleText ? <p className="text-xs leading-relaxed text-fg-muted">{scheduleText}</p> : null}
           {statusReady && chipNote ? (
-            <p className="text-xs leading-relaxed text-fg-muted">{chipNote}</p>
+            <p className="text-[13px] leading-5 text-fg-muted">{chipNote}</p>
           ) : null}
-        </header>
-
-        <PricePanel
-          symbol={ticker.symbol}
-          name={ticker.name}
-          quote={quote}
-          pending={prices.isPending && quote === null}
-          onRetry={() => {
-            void prices.refetch();
-          }}
-          currency={currency}
-          rate={rate}
-          fxPending={fx.isPending}
-          range={range}
-          onRangeChange={setRange}
-          priceUpdatedAt={prices.dataUpdatedAt || quote?.updatedAt || null}
-          priceStale={quote?.stale === true}
-          underlying={ticker.underlying}
-          avgCostUsd={position?.avgCostUsd ?? null}
-        />
+        </div>
 
         {/* Explicación del gráfico en el asistente y tarjeta para compartir: sin montos. */}
         <div className="flex flex-wrap items-center gap-2">
           <ExplainChartButton ticker={ticker.symbol} name={ticker.name} range={RANGE_QUESTION_LABEL[range]} />
           <ShareCardButton id={ticker.symbol} name={ticker.name} pct={position?.pnlPct ?? null} />
         </div>
-
-        <TokenGapCard symbol={ticker.symbol} quote={quote} />
 
         <KeyStats
           quote={quote}
@@ -1053,6 +1127,8 @@ export function DetailScreen({
           tradeBlock={effectiveBlock}
         />
 
+        <TokenGapCard symbol={ticker.symbol} quote={quote} />
+
         {/* Simulador "¿y si hubieras invertido?": se autodescarta sin historial o sin precio. */}
         <WhatIfCalculator
           symbol={ticker.symbol}
@@ -1064,7 +1140,60 @@ export function DetailScreen({
         />
 
         <CompanyCard symbol={ticker.symbol} />
-        <StockTokenGuide />
+
+        <section className="flex flex-col gap-3 border-t border-border pt-8">
+          <h2 className="text-lg font-medium tracking-tight text-fg">{t.detail.aboutTitle}</h2>
+          <p className={NOTE}>{t.detail.aboutNote}</p>
+          <p className="max-w-prose text-[15px] leading-relaxed text-pretty text-fg-body">
+            {aboutText ?? t.detail.aboutMissing}
+          </p>
+        </section>
+
+        <section className="flex flex-col gap-4 border-t border-border pt-8">
+          <h2 className="text-lg font-medium tracking-tight text-fg">{t.detail.tokenTitle}</h2>
+          <p className="max-w-prose text-sm leading-relaxed text-pretty text-fg-body">
+            {fill(t.detail.tokenLead, { issuer: ticker.issuer, brand: site.name, name: ticker.name })}
+          </p>
+          <dl className="min-w-0 max-w-full">
+            <DataRow label={t.detail.issuer} mono={false}>{ticker.issuer}</DataRow>
+            <DataRow label={t.detail.multiplier}>
+              {quote && Number.isFinite(quote.multiplier) ? (
+                formatMultiplier(quote.multiplier)
+              ) : (
+                <MissingFigure label={t.detail.unavailable} />
+              )}
+            </DataRow>
+            <div className="min-w-0 max-w-full border-b border-border py-3">
+              <dt className={METRIC_LABEL}>{t.detail.mint}</dt>
+              <dd className="mt-1.5">
+                <p className="num text-[13px] leading-5 break-all text-fg">{ticker.mint}</p>
+                <p className={cn("mt-1", NOTE)}>{t.detail.mintHint}</p>
+                <div className="mt-2 flex flex-wrap items-center gap-x-5 gap-y-1">
+                  <CopyButton value={ticker.mint} label={t.detail.copy} copiedLabel={t.detail.copied} />
+                  <a
+                    href={solscanMintUrl(ticker.mint)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex min-h-11 items-center rounded-sm text-[13px] font-medium text-fg underline underline-offset-4 outline-none focus-visible:ring-4 focus-visible:ring-fg/20"
+                  >
+                    {t.detail.explorer}
+                    <span className="sr-only">. {t.detail.explorerNew}</span>
+                  </a>
+                </div>
+              </dd>
+            </div>
+          </dl>
+          <p className={NOTE}>{t.detail.multiplierHint}</p>
+          <div className="mt-2 border-t border-border pt-5">
+            <p className="max-w-prose text-sm leading-relaxed text-pretty text-fg-body">{t.detail.risks}</p>
+            <Link
+              href="/legal/riesgos"
+              className="inline-flex min-h-11 w-fit items-center rounded-sm text-[13px] font-medium text-fg underline underline-offset-4 outline-none focus-visible:ring-4 focus-visible:ring-fg/20"
+            >
+              {t.detail.risksLink}
+            </Link>
+          </div>
+        </section>
 
         <OnchainVerificationCard
           symbol={ticker.symbol}
@@ -1075,76 +1204,11 @@ export function DetailScreen({
           multiplier={quote?.multiplier ?? null}
         />
 
-        {access === "guest" ? null : (
-          <PositionBlock
-            position={position}
-            pending={portfolio.isPending}
-            failed={portfolio.isError}
-            onRetry={() => {
-              void portfolio.refetch();
-            }}
-            currency={currency}
-            rate={rate}
-          />
-        )}
-
-        <section className="flex flex-col gap-3">
-          <h2 className="text-lg font-semibold tracking-tight">{t.detail.aboutTitle}</h2>
-          <p className="text-sm leading-relaxed text-fg-muted">{t.detail.aboutNote}</p>
-          <p className="text-sm leading-relaxed text-fg-body">{aboutText ?? t.detail.aboutMissing}</p>
-        </section>
-
-        <section className="flex flex-col gap-3">
-          <h2 className="text-lg font-semibold tracking-tight">{t.detail.tokenTitle}</h2>
-          <p className="text-sm leading-relaxed text-fg-body">
-            {fill(t.detail.tokenLead, { issuer: ticker.issuer, brand: site.name, name: ticker.name })}
-          </p>
-          <dl className="grid min-w-0 max-w-full gap-4 border-t border-border pt-4">
-            <div className="min-w-0 max-w-full">
-              <dt className="label">{t.detail.issuer}</dt>
-              <dd className="mt-1 text-sm text-fg">{ticker.issuer}</dd>
-            </div>
-            <div className="min-w-0 max-w-full">
-              <dt className="label">{t.detail.mint}</dt>
-              <dd className="mt-1">
-                <p className="text-sm text-fg-muted">{t.detail.mintHint}</p>
-                <p className="num mt-2 break-all text-sm text-fg">{ticker.mint}</p>
-                <div className="mt-3 flex flex-wrap items-center gap-3">
-                  <CopyButton value={ticker.mint} label={t.detail.copy} copiedLabel={t.detail.copied} />
-                  <a
-                    href={solscanMintUrl(ticker.mint)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="rounded-sm text-sm font-medium text-fg underline underline-offset-4 outline-none focus-visible:ring-4 focus-visible:ring-fg/20"
-                  >
-                    {t.detail.explorer}
-                    <span className="sr-only">. {t.detail.explorerNew}</span>
-                  </a>
-                </div>
-              </dd>
-            </div>
-            <div className="min-w-0 max-w-full">
-              <dt className="label">{t.detail.multiplier}</dt>
-              <dd className="mt-1 text-sm leading-relaxed text-fg-body">
-                {quote && Number.isFinite(quote.multiplier) ? (
-                  <span className="num text-fg">{formatMultiplier(quote.multiplier)}</span>
-                ) : (
-                  <MissingFigure label={t.detail.unavailable} />
-                )}
-                {". "}
-                {t.detail.multiplierHint}
-              </dd>
-            </div>
-          </dl>
-          <p className="text-sm leading-relaxed text-fg-body">{t.detail.risks}</p>
-          <Link href="/legal/riesgos" className="rounded-sm text-sm font-medium text-fg underline underline-offset-4 outline-none focus-visible:ring-4 focus-visible:ring-fg/20">
-            {t.detail.risksLink}
-          </Link>
-        </section>
+        <StockTokenGuide />
       </div>
 
       <aside className="hidden lg:block">
-        <div className="sticky top-8">{tradeSlot("card")}</div>
+        <div className="sticky top-6">{tradeSlot("card")}</div>
       </aside>
 
     </motion.div>

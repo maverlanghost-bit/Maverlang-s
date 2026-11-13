@@ -1,7 +1,7 @@
 "use client";
 
-import { Card } from "@/components/ui/card";
 import { CsvExportButton } from "@/components/domain/csv-export-button";
+import { cn } from "@/lib/cn";
 import { formatMoney } from "@/lib/format";
 import { displayPrice } from "@/lib/market/browse";
 import type { Activity, Currency, Position } from "@/lib/types";
@@ -14,6 +14,10 @@ export interface PortfolioTaxSummaryCardProps {
   masked?: boolean;
 }
 
+/**
+ * Resumen patrimonial y cartola. Datos para respaldo contable, sin cáscara de
+ * tarjeta: label, título, exportación y una grilla de cifras sobre hairlines.
+ */
 export function PortfolioTaxSummaryCard({
   positions,
   activities,
@@ -40,41 +44,59 @@ export function PortfolioTaxSummaryCard({
     return formatMoney(usd, "USD");
   }
 
+  const stats = [
+    { label: "Costo base en cartera", value: fmt(costBasisUsd), tone: "text-fg" },
+    {
+      label: "Resultado abierto (no realizado)",
+      value: fmt(unrealizedPnlUsd),
+      tone: masked || unrealizedPnlUsd === 0 ? "text-fg" : unrealizedPnlUsd > 0 ? "text-up" : "text-down",
+    },
+    { label: `Compras confirmadas (${confirmedBuys.length})`, value: fmt(buysUsd), tone: "text-fg" },
+    { label: `Ventas confirmadas (${confirmedSells.length})`, value: fmt(sellsUsd), tone: "text-fg" },
+  ];
+
   return (
-    <Card className="p-5 md:p-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-col gap-1">
-          <span className="inline-flex w-fit items-center gap-1.5 rounded-full border border-border/70 bg-surface-1 px-2.5 py-0.5 text-[11px] font-medium text-fg-muted">
-            Control Patrimonial y Cartola
-          </span>
-          <h2 className="text-lg font-semibold tracking-tight text-fg">Resumen Patrimonial y Cartola Anual</h2>
+    <section className="border-t border-border pt-8">
+      <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
+        <div className="min-w-0">
+          <p className="label">Respaldo contable</p>
+          <h2 className="mt-2 text-lg font-medium tracking-tight text-balance text-fg">
+            Resumen patrimonial y cartola anual
+          </h2>
         </div>
         {activities.length > 0 ? <CsvExportButton rows={activities} currency={currency} fxRate={rate} /> : null}
       </div>
 
-      <div className="mt-4 grid grid-cols-2 gap-3 tabular-nums lg:grid-cols-4">
-        <div className="rounded-xl border border-border/70 bg-surface-1/70 px-3 py-2.5">
-          <p className="text-[11px] uppercase tracking-wide text-fg-muted">Costo base en cartera</p>
-          <p className="mt-1 font-medium text-fg">{fmt(costBasisUsd)}</p>
-        </div>
-        <div className="rounded-xl border border-border/70 bg-surface-1/70 px-3 py-2.5">
-          <p className="text-[11px] uppercase tracking-wide text-fg-muted">Resultado abierto (no realizado)</p>
-          <p className="mt-1 font-medium text-fg">{fmt(unrealizedPnlUsd)}</p>
-        </div>
-        <div className="rounded-xl border border-border/70 bg-surface-1/70 px-3 py-2.5">
-          <p className="text-[11px] uppercase tracking-wide text-fg-muted">{`Compras confirmadas (${confirmedBuys.length})`}</p>
-          <p className="mt-1 font-medium text-fg">{fmt(buysUsd)}</p>
-        </div>
-        <div className="rounded-xl border border-border/70 bg-surface-1/70 px-3 py-2.5">
-          <p className="text-[11px] uppercase tracking-wide text-fg-muted">{`Ventas confirmadas (${confirmedSells.length})`}</p>
-          <p className="mt-1 font-medium text-fg">{fmt(sellsUsd)}</p>
-        </div>
-      </div>
+      {/* Móvil: una cifra por fila, etiqueta a la izquierda y monto a la
+          derecha sobre hairlines. En cuatro columnas de 360 px la etiqueta
+          "Resultado abierto (no realizado)" se partía en tres líneas. */}
+      <dl className="mt-5 grid grid-cols-1 divide-y divide-border border-t border-border sm:grid-cols-4 sm:gap-x-6 sm:divide-y-0 sm:pt-5">
+        {stats.map((stat, index) => (
+          <div
+            key={stat.label}
+            className={cn(
+              "flex min-w-0 items-baseline justify-between gap-4 py-3 sm:flex-col sm:items-start sm:gap-1.5 sm:py-0",
+              index > 0 && "sm:border-l sm:border-border sm:pl-6",
+            )}
+          >
+            <dt className="label leading-snug">{stat.label}</dt>
+            <dd
+              className={cn(
+                "num shrink-0 text-right text-[15px] leading-5 font-medium tracking-tight tabular-nums whitespace-nowrap sm:text-left",
+                stat.tone,
+              )}
+            >
+              {stat.value}
+              {masked ? <span className="sr-only"> Cifras ocultas</span> : null}
+            </dd>
+          </div>
+        ))}
+      </dl>
 
-      <p className="mt-4 text-xs leading-relaxed text-fg-muted">
-        Resumen informativo de tus posiciones abiertas y órdenes ejecutadas para respaldo contable personal. No
-        constituye declaración ni asesoría tributaria. [REVISIÓN ABOGADO]
+      <p className="mt-4 max-w-prose text-xs leading-relaxed text-fg-muted">
+        Resumen informativo de tus posiciones y órdenes ejecutadas para respaldo personal. No constituye
+        declaración ni asesoría tributaria. [REVISIÓN ABOGADO]
       </p>
-    </Card>
+    </section>
   );
 }

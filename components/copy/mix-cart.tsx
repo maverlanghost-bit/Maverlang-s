@@ -1,14 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { useId, useState } from "react";
+import { useId, useState, type ReactNode } from "react";
 
 import { COVERAGE_COPY_MIN, COVERAGE_FULL_MIN } from "@/components/copy/coverage";
 import { DemoMixButton } from "@/components/copy/demo-mix-button";
 import { MixStep, type MixLeg } from "@/components/copy/mix-step";
 import { Button } from "@/components/ui/button";
 import { COPY_CTA_NOTE, COPY_REAL_DISABLED } from "@/content/copy-legal";
-import { formatUsd } from "@/lib/format";
+import { cn } from "@/lib/cn";
+import { formatPortion, formatUsd } from "@/lib/format";
 
 type CartLeg = MixLeg & { weightOriginal: number | null };
 
@@ -32,8 +33,6 @@ class PlanRequestError extends Error {
     this.code = code;
   }
 }
-
-const percentFormat = new Intl.NumberFormat("es-CL", { maximumFractionDigits: 1 });
 
 function asRecord(value: unknown): Record<string, unknown> | null {
   return value !== null && typeof value === "object" && !Array.isArray(value)
@@ -90,10 +89,81 @@ function parseAmount(raw: string): number | null {
   return Number.isFinite(value) && value > 0 ? Math.round(value * 100) / 100 : null;
 }
 
+/** Fila de dato con hairline: rótulo a la izquierda, valor a la derecha. */
+function Row({ label, children, mono = true }: { label: string; children: ReactNode; mono?: boolean }) {
+  return (
+    <div className="flex items-baseline justify-between gap-4 border-b border-border/70 py-2.5 last:border-b-0">
+      <dt className="min-w-0 flex-1 text-[13px] leading-5 text-fg-muted">{label}</dt>
+      <dd
+        className={cn(
+          "min-w-0 text-right text-[13px] leading-5 font-medium break-words text-fg",
+          mono ? "num tabular-nums" : "font-sans",
+        )}
+      >
+        {children}
+      </dd>
+    </div>
+  );
+}
+
+const KICKER = "font-mono text-[13px] leading-5 font-medium tracking-[0.045em] text-fg-muted uppercase";
+
+const MIX_STEPS = ["Monto", "Cuenta", "Revisar"] as const;
+
+/** Paso actual de la mezcla. No es interactivo: sólo orienta dónde va la persona. */
+function StepRail({ stage }: { stage: 1 | 2 | 3 }) {
+  return (
+    <ol aria-label="Pasos de la mezcla" className="flex min-w-0 items-center gap-1.5 sm:gap-2">
+      {MIX_STEPS.map((label, position) => {
+        const step = (position + 1) as 1 | 2 | 3;
+        const current = step === stage;
+        const done = step < stage;
+        return (
+          <li
+            key={label}
+            aria-current={current ? "step" : undefined}
+            className={cn(
+              "flex min-w-0 items-center gap-1.5 sm:gap-2",
+              step < MIX_STEPS.length && "flex-1",
+            )}
+          >
+            <span
+              className={cn(
+                "num flex size-6 shrink-0 items-center justify-center rounded-full border text-[11px] leading-none font-medium tabular-nums",
+                current
+                  ? "border-fg bg-fg text-bg"
+                  : done
+                    ? "border-border bg-surface-2 text-fg-muted"
+                    : "border-border text-fg-subtle",
+              )}
+            >
+              {step}
+            </span>
+            <span
+              className={cn(
+                "min-w-0 truncate text-[13px] leading-5",
+                current ? "font-medium text-fg" : "text-fg-muted",
+              )}
+            >
+              {label}
+            </span>
+            {step < MIX_STEPS.length ? (
+              <span aria-hidden className="h-px min-w-2 flex-1 bg-border" />
+            ) : null}
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
 /**
  * Carrito de la mezcla. El monto y la cuenta los elige la persona, pero las
  * piernas y los pesos SIEMPRE vienen de `/api/copy/plan`: el cliente no manda
  * pesos propios, solo el monto total y el `versionId` que vio en la ficha.
+ *
+ * Se lee como un checkout: pasos numerados, el monto manda y hay una sola CTA
+ * por paso. Los motivos de bloqueo van SIEMPRE encima del botón.
  */
 export function MixCart({
   slug,
@@ -132,6 +202,9 @@ export function MixCart({
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [needsSubscription, setNeedsSubscription] = useState(false);
+
+  const amountValue = parseAmount(amountRaw);
+  const stage: 1 | 2 | 3 = plan ? 3 : amountValue !== null ? 2 : 1;
 
   const damaged = blockedReason !== null;
   const partial = coveragePct >= COVERAGE_COPY_MIN && coveragePct < COVERAGE_FULL_MIN;
@@ -210,85 +283,103 @@ export function MixCart({
     }
   }
 
+  const planPartial =
+    plan !== null && plan.coveragePct >= COVERAGE_COPY_MIN && plan.coveragePct < COVERAGE_FULL_MIN;
+
   return (
-    <div className="flex flex-col gap-4 rounded-3xl border border-border/70 bg-surface-1 p-4 shadow-card sm:p-6">
-      <div className="flex flex-col gap-1">
-        <p className="text-xs font-medium uppercase tracking-wide text-fg-muted">
-          {`Mezcla · ${account === "demo" ? "Demo" : "Dinero real"}`}
-        </p>
-        <h2 className="text-lg font-medium tracking-tight text-fg text-balance">{name}</h2>
-        <p className="text-sm text-fg-muted">
-          {manager} · Dato al {asOfLabel}
-        </p>
-        <p className="text-sm text-fg-muted tabular-nums">
-          Cobertura en Maverlang: {percentFormat.format(coveragePct)} % ·{" "}
-          {availableCount} de {totalCount} activos disponibles
-        </p>
-      </div>
+    <div className="flex min-w-0 flex-col gap-8">
+      {damaged ? null : <StepRail stage={stage} />}
+
+      <dl className="border-t border-border/70">
+        <Row label="Cartera" mono={false}>
+          {name}
+        </Row>
+        <Row label="Gestor" mono={false}>
+          {manager}
+        </Row>
+        <Row label="Dato al">{asOfLabel}</Row>
+        <Row label="Cobertura">
+          {formatPortion(coveragePct / 100)} · {availableCount} de {totalCount}
+        </Row>
+      </dl>
 
       {adjust ? (
-        <p className="rounded-xl border border-border/70 bg-surface-2/70 px-3 py-2 text-sm leading-relaxed text-fg-body">
-          Estás revisando un ajuste: aquí se arma un <strong className="font-medium text-fg">plan nuevo</strong> con la
-          composición actual. Nada se ejecuta hasta que lo confirmes, orden por orden.
+        <p className="text-[13px] leading-relaxed text-fg-body">
+          Estás revisando un ajuste: aquí se arma un{" "}
+          <strong className="font-medium text-fg">plan nuevo</strong> con la composición actual. Nada se
+          ejecuta hasta que lo confirmes, orden por orden.
         </p>
       ) : null}
 
       {damaged ? (
-        <div role="alert" className="flex flex-col gap-3 rounded-2xl border border-warn/40 bg-warn-bg/60 p-4">
-          <p className="text-sm leading-relaxed text-warn">{blockedReason}</p>
-          <Button asChild variant="secondary" size="lg" className="min-h-12 w-full touch-manipulation">
+        <div className="flex flex-col gap-4">
+          <p role="alert" className="text-[15px] leading-relaxed text-fg-body">
+            {blockedReason}
+          </p>
+          <Button asChild variant="secondary" size="lg" className="min-h-12 w-full">
             <Link href={`/app/copiar/${encodeURIComponent(slug)}`}>Volver a la ficha</Link>
           </Button>
         </div>
       ) : plan ? (
-        <div className="flex flex-col gap-4">
-          <div className="flex items-center justify-between gap-3">
-            <p className="text-sm font-medium text-fg">Piernas de la mezcla</p>
-            <p className="text-xs text-fg-muted tabular-nums">
-              {plan.legs.length} órdenes · Total {formatUsd(plan.totalUsd)}
+        <div className="flex flex-col gap-6">
+          <div className="flex flex-col gap-1.5">
+            <p className={KICKER}>Paso 3 · Revisar</p>
+            <p className="num text-[28px] leading-none font-medium tracking-tight tabular-nums text-fg sm:text-[32px]">
+              {formatUsd(plan.totalUsd)}
+            </p>
+            <p className="text-[13px] leading-5 text-fg-muted">
+              {account === "demo" ? "Mezcla en demo" : "Mezcla con dinero real"} · {plan.legs.length}{" "}
+              {plan.legs.length === 1 ? "orden" : "órdenes"} · cobertura{" "}
+              {formatPortion(plan.coveragePct / 100)}
             </p>
           </div>
-          <ol className="flex flex-col divide-y divide-border/60">
+
+          <ol className="flex flex-col border-t border-border/70">
             {plan.legs.map((leg, position) => (
-              <li key={`${leg.symbol}-${position}`} className="flex items-baseline justify-between gap-3 py-2">
+              <li
+                key={`${leg.symbol}-${position}`}
+                className="flex items-baseline justify-between gap-4 border-b border-border/70 py-3"
+              >
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-medium text-fg">{leg.symbol}</p>
-                  <p className="text-xs text-fg-muted tabular-nums">
-                    {leg.weightOriginal !== null ? `Peso original ${percentFormat.format(leg.weightOriginal)} % · ` : ""}
+                  <p className="font-mono text-[15px] leading-5 font-medium break-words text-fg">{leg.symbol}</p>
+                  <p className="num text-[13px] leading-5 tabular-nums text-fg-muted">
+                    {leg.weightOriginal !== null
+                      ? `Peso original ${formatPortion(leg.weightOriginal / 100)} · `
+                      : ""}
                     Orden {position + 1} de {plan.legs.length}
                   </p>
                 </div>
-                <p className="shrink-0 text-sm font-medium text-fg tabular-nums">{formatUsd(leg.usd)}</p>
+                <p className="num shrink-0 text-[15px] leading-5 font-medium tabular-nums text-fg">
+                  {formatUsd(leg.usd)}
+                </p>
               </li>
             ))}
           </ol>
 
-          <div className="flex flex-col gap-2 rounded-2xl border border-border/70 bg-bg/60 p-3">
-            <p className="text-sm text-fg tabular-nums">
-              Cobertura: replicas el {percentFormat.format(plan.coveragePct)} % del portafolio original
-            </p>
-            {plan.coveragePct >= COVERAGE_COPY_MIN && plan.coveragePct < COVERAGE_FULL_MIN ? (
-              <p className="inline-flex w-fit rounded-full bg-warn-bg px-2.5 py-0.5 text-xs font-medium text-warn">
-                Réplica parcial
+          <div className="flex flex-col gap-1.5">
+            {planPartial ? (
+              <p className="text-[13px] leading-relaxed text-fg-body">
+                Réplica parcial: parte del portafolio original no está en Maverlang. Lo que sí se puede comprar
+                se reparte según el peso declarado.
               </p>
             ) : null}
             {plan.unavailableUsd > 0 ? (
-              <p className="text-xs leading-relaxed text-fg-muted tabular-nums">
+              <p className="text-[13px] leading-relaxed text-fg-muted tabular-nums">
                 {noSpread
                   ? `Dejamos ${formatUsd(plan.unavailableUsd)} en USDC: es lo que no está disponible en Maverlang.`
                   : `Lo no disponible (${formatUsd(plan.unavailableUsd)}) se repartió entre lo comprable; no queda saldo sin invertir.`}
               </p>
             ) : null}
             {plan.warnings.length > 0 ? (
-              <ul className="flex flex-col gap-1">
+              <ul className="flex flex-col gap-1.5">
                 {plan.warnings.map((warning, position) => (
-                  <li key={`${position}-${warning}`} className="text-xs leading-relaxed text-fg-muted">
+                  <li key={`${position}-${warning}`} className="text-[13px] leading-relaxed text-fg-muted">
                     {warning}
                   </li>
                 ))}
               </ul>
             ) : null}
-            <p className="text-xs leading-relaxed text-fg-muted">
+            <p className="text-[13px] leading-relaxed text-fg-muted">
               El plan vence 10 minutos después de armarlo. Si vence, se arma uno nuevo con precios nuevos.
             </p>
           </div>
@@ -298,25 +389,28 @@ export function MixCart({
           ) : realBuyEnabled ? (
             <MixStep planId={plan.planId} legs={plan.legs} totalUsd={plan.totalUsd} />
           ) : (
-            <p className="rounded-xl border border-warn/40 bg-warn-bg/60 p-3 text-sm leading-relaxed text-warn">
-              {COPY_REAL_DISABLED}
-            </p>
+            <p className="text-[13px] leading-relaxed text-fg-muted">{COPY_REAL_DISABLED}</p>
           )}
 
-          <p className="text-center text-xs leading-relaxed text-fg-muted">{COPY_CTA_NOTE}</p>
-
-          <Button variant="ghost" size="lg" className="min-h-12 w-full touch-manipulation" onClick={resetPlan}>
+          <button
+            type="button"
+            onClick={resetPlan}
+            className="inline-flex min-h-11 items-center justify-center text-[13px] font-medium text-fg-muted underline underline-offset-4 transition-colors hover:text-fg"
+          >
             Cambiar monto o cuenta
-          </Button>
+          </button>
+
+          <p className="text-[13px] leading-relaxed text-fg-muted">{COPY_CTA_NOTE}</p>
         </div>
       ) : (
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-6">
           <div className="flex flex-col gap-2">
-            <label htmlFor={amountId} className="text-sm font-medium text-fg">
+            <p className={KICKER}>Paso 1 · Monto</p>
+            <label htmlFor={amountId} className="text-[15px] leading-6 font-medium text-fg">
               Monto total (US$)
             </label>
-            <div className="flex min-h-14 items-center gap-2 rounded-2xl border border-border bg-bg px-4 focus-within:border-brand focus-within:ring-4 focus-within:ring-brand/15">
-              <span className="font-mono text-lg text-fg-muted">US$</span>
+            <div className="flex min-h-16 items-center gap-2 rounded-2xl border border-border-control bg-bg px-4 focus-within:border-fg">
+              <span className="num shrink-0 text-lg text-fg-muted">US$</span>
               <input
                 id={amountId}
                 inputMode="decimal"
@@ -328,10 +422,15 @@ export function MixCart({
                   setAmountRaw(cleanAmount(event.target.value));
                   resetPlan();
                 }}
-                className="min-h-14 w-full min-w-0 bg-transparent font-mono text-2xl text-fg tabular-nums outline-none placeholder:text-fg-subtle"
+                className="num min-h-16 w-full min-w-0 bg-transparent text-[28px] leading-none text-fg tabular-nums outline-none placeholder:text-fg-subtle sm:text-[32px]"
               />
             </div>
-            <div className="flex flex-wrap gap-2">
+            {amountRaw.length > 0 && amountValue === null ? (
+              <p role="alert" className="text-[13px] leading-5 text-down">
+                Escribe un monto mayor a cero.
+              </p>
+            ) : null}
+            <div className="flex flex-wrap gap-1.5 sm:gap-2">
               {["50", "100", "250", "500"].map((preset) => (
                 <button
                   key={preset}
@@ -340,31 +439,32 @@ export function MixCart({
                     setAmountRaw(preset);
                     resetPlan();
                   }}
-                  className="inline-flex min-h-12 shrink-0 touch-manipulation items-center justify-center rounded-full border border-border/80 bg-surface-1 px-4 text-sm font-medium text-fg tabular-nums transition-colors hover:border-brand/40 hover:bg-brand-soft/50 hover:text-brand"
+                  className="num inline-flex min-h-11 shrink-0 items-center justify-center rounded-full border border-border-control bg-bg px-3 text-[13px] font-medium tabular-nums text-fg transition-colors hover:bg-surface-1 sm:px-4"
                 >
                   US$ {preset}
                 </button>
               ))}
             </div>
-            <p className="text-xs leading-relaxed text-fg-muted">
-              Mínimo US$1 por orden. Las piernas que queden bajo ese monto se descartan y su peso se reparte entre el
-              resto.
+            <p className="text-[13px] leading-relaxed text-fg-muted">
+              Mínimo US$1 por orden. Las piernas que queden bajo ese monto se descartan y su peso se reparte
+              entre el resto.
             </p>
           </div>
 
           <div className="flex flex-col gap-2">
-            <p className="text-sm font-medium text-fg">Cuenta</p>
+            <p className={KICKER}>Paso 2 · Cuenta</p>
             <div role="radiogroup" aria-label="Cuenta para la mezcla" className="grid grid-cols-2 gap-2">
               <button
                 type="button"
                 role="radio"
                 aria-checked={account === "demo"}
                 onClick={() => pickAccount("demo")}
-                className={`min-h-12 touch-manipulation rounded-2xl border px-3 text-sm font-medium transition-colors ${
+                className={cn(
+                  "min-h-12 rounded-full border px-4 text-[15px] font-medium transition-colors duration-150",
                   account === "demo"
-                    ? "border-brand/50 bg-brand-soft/60 text-brand"
-                    : "border-border/80 bg-surface-1 text-fg hover:border-brand/30"
-                }`}
+                    ? "border-fg bg-fg text-bg"
+                    : "border-border-control bg-bg text-fg hover:bg-surface-1",
+                )}
               >
                 Demo
               </button>
@@ -375,77 +475,92 @@ export function MixCart({
                 aria-disabled={!realBuyEnabled}
                 aria-describedby={realBuyEnabled ? undefined : realNoteId}
                 onClick={() => pickAccount("real")}
-                className={`min-h-12 touch-manipulation rounded-2xl border px-3 text-sm font-medium transition-colors aria-disabled:cursor-not-allowed aria-disabled:opacity-50 ${
+                className={cn(
+                  "min-h-12 rounded-full border px-4 text-[15px] font-medium transition-colors duration-150 aria-disabled:pointer-events-none aria-disabled:opacity-40",
                   account === "real"
-                    ? "border-brand/50 bg-brand-soft/60 text-brand"
-                    : "border-border/80 bg-surface-1 text-fg hover:border-brand/30"
-                }`}
+                    ? "border-fg bg-fg text-bg"
+                    : "border-border-control bg-bg text-fg hover:bg-surface-1",
+                )}
               >
                 Dinero real
               </button>
             </div>
             {realBuyEnabled ? null : (
-              <p id={realNoteId} className="text-xs leading-relaxed text-fg-muted">
+              <p id={realNoteId} className="text-[13px] leading-relaxed text-fg-muted">
                 {COPY_REAL_DISABLED}
               </p>
             )}
           </div>
 
-          <div className="flex flex-col gap-1">
-            <label htmlFor={spreadId} className="flex min-h-12 cursor-pointer items-start gap-3 py-2">
-              <input
-                id={spreadId}
-                type="checkbox"
-                checked={noSpread}
-                onChange={(event) => {
-                  setNoSpread(event.target.checked);
-                  resetPlan();
-                }}
-                className="mt-0.5 size-5 shrink-0 accent-brand"
-              />
-              <span className="flex flex-col gap-0.5">
-                <span className="text-sm font-medium text-fg">No repartir: dejar en USDC lo no disponible</span>
-                <span className="text-xs leading-relaxed text-fg-muted">
-                  Si lo dejas sin marcar, el peso de lo que no está en Maverlang se reparte entre lo comprable.
-                </span>
+          <label htmlFor={spreadId} className="flex min-h-12 cursor-pointer items-start gap-3 py-2">
+            <input
+              id={spreadId}
+              type="checkbox"
+              checked={noSpread}
+              onChange={(event) => {
+                setNoSpread(event.target.checked);
+                resetPlan();
+              }}
+              className="mt-0.5 size-5 shrink-0 accent-brand"
+            />
+            <span className="flex flex-col gap-0.5">
+              <span className="text-[15px] leading-6 font-medium text-fg">
+                No repartir: dejar en USDC lo no disponible
               </span>
-            </label>
-          </div>
+              <span className="text-[13px] leading-relaxed text-fg-muted">
+                Si lo dejas sin marcar, el peso de lo que no está en Maverlang se reparte entre lo comprable.
+              </span>
+            </span>
+          </label>
 
           {partial ? (
-            <p className="rounded-xl border border-warn/40 bg-warn-bg/60 px-3 py-2 text-xs leading-relaxed text-warn">
-              Réplica parcial: esta cartera se puede copiar, pero solo una parte del portafolio original está disponible
-              en Maverlang.
+            <p className="text-[13px] leading-relaxed text-fg-body">
+              Réplica parcial: esta cartera se puede copiar, pero solo una parte del portafolio original está
+              disponible en Maverlang.
             </p>
           ) : null}
 
-          <p className="text-xs leading-relaxed text-fg-muted tabular-nums">
+          <p className="text-[13px] leading-relaxed text-fg-muted">
             {account === "demo"
               ? "Hasta 25 órdenes por mezcla en demo."
               : "Hasta 10 órdenes por mezcla con dinero real."}
           </p>
 
           {error ? (
-            <div role="alert" className="flex flex-col gap-2 rounded-xl border border-down/30 bg-down-bg/50 p-3">
-              <p className="text-sm leading-relaxed text-down">{error}</p>
+            <div className="flex flex-col gap-2">
+              <p role="alert" className="text-[13px] leading-relaxed text-down">
+                {error}
+              </p>
               {needsSubscription ? (
-                <Button asChild variant="secondary" size="lg" className="min-h-12 w-full touch-manipulation">
-                  <Link href="/app/copiar/planes">Ver planes</Link>
-                </Button>
+                <Link
+                  href="/app/copiar/planes"
+                  className="inline-flex min-h-11 w-fit items-center text-[13px] font-medium text-fg underline underline-offset-4"
+                >
+                  Ver planes
+                </Link>
               ) : null}
             </div>
           ) : null}
 
+          {amountValue !== null ? (
+            <p className="text-[13px] leading-relaxed text-fg-muted">
+              Vas a armar una mezcla de{" "}
+              <span className="num font-medium tabular-nums text-fg-body">{formatUsd(amountValue)}</span> en{" "}
+              {account === "demo" ? "la cuenta demo" : "tu cuenta real"}.
+            </p>
+          ) : null}
+
           <Button
             size="lg"
-            className="min-h-12 w-full touch-manipulation text-base"
+            className="min-h-12 w-full touch-manipulation text-[15px]"
             loading={pending}
-            disabled={pending}
+            disabled={pending || amountValue === null}
             onClick={() => void armPlan()}
           >
             Armar mezcla
           </Button>
-          <p className="text-center text-xs leading-relaxed text-fg-muted">{COPY_CTA_NOTE}</p>
+
+          <p className="text-[13px] leading-relaxed text-fg-muted">{COPY_CTA_NOTE}</p>
         </div>
       )}
     </div>

@@ -1,8 +1,6 @@
 "use client";
 
 import { InfoTip } from "@/components/domain/info-tip";
-import { Badge } from "@/components/ui/badge";
-import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { carteraCopy } from "@/content/i18n/extra-cartera";
 import { formatDateTime, formatMoney, type MoneyCurrency } from "@/lib/format";
@@ -23,22 +21,18 @@ function shownMoney(usd: number, currency: Currency, rate: number | undefined): 
 function GapLine({ template, pct }: { template: string; pct: string }) {
   const marker = "{pct}";
   const index = template.indexOf(marker);
-  const badge = (
-    <Badge tone="neutral" className="mx-0.5 align-middle">
-      {pct}
-    </Badge>
-  );
+  const figure = <span className="num font-medium text-fg">{pct}</span>;
   if (index < 0) {
     return (
       <>
-        {template} {badge}
+        {template} {figure}
       </>
     );
   }
   return (
     <>
       {template.slice(0, index)}
-      {badge}
+      {figure}
       {template.slice(index + marker.length)}
     </>
   );
@@ -46,22 +40,20 @@ function GapLine({ template, pct }: { template: string; pct: string }) {
 
 function GapSkeleton({ label }: { label: string }) {
   return (
-    <Card className="flex flex-col gap-3 p-4" aria-busy="true">
+    <section className="border-t border-border pt-8" aria-busy="true">
       <span className="sr-only">{label}</span>
-      <Skeleton className="h-5 w-4/5 max-w-sm" />
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <Skeleton className="h-3 w-16" />
-          <Skeleton className="mt-1 h-5 w-24" />
-          <Skeleton className="mt-1 h-3 w-20" />
-        </div>
-        <div>
-          <Skeleton className="h-3 w-20" />
-          <Skeleton className="mt-1 h-5 w-24" />
-          <Skeleton className="mt-1 h-3 w-20" />
-        </div>
+      <Skeleton className="h-5 w-44 max-w-full" />
+      <Skeleton className="mt-3 h-4 w-4/5 max-w-sm" />
+      <div className="mt-5 grid grid-cols-2 gap-x-6 sm:gap-x-8">
+        {["a", "b"].map((key) => (
+          <div key={key} className="border-t border-border/70 py-3">
+            <Skeleton className="h-3 w-20" />
+            <Skeleton className="mt-2 h-5 w-24" />
+            <Skeleton className="mt-1.5 h-3 w-16" />
+          </div>
+        ))}
       </div>
-    </Card>
+    </section>
   );
 }
 
@@ -77,10 +69,12 @@ function PriceColumn({
   at: string | null;
 }) {
   return (
-    <div className="min-w-0">
-      <dt className="text-xs font-medium leading-4 tracking-tight whitespace-nowrap text-fg-muted">{label}</dt>
-      <dd className="num mt-0.5 text-sm text-fg">{pending ? <Skeleton className="h-5 w-24" /> : amount}</dd>
-      <dd className="mt-0.5 min-h-4 text-[11px] leading-4 text-fg-muted">{at ? formatDateTime(at) : null}</dd>
+    <div className="min-w-0 border-t border-border/70 py-3">
+      <dt className="label-xs">{label}</dt>
+      <dd className="num mt-1 text-base leading-6 font-medium text-fg">
+        {pending ? <Skeleton className="h-5 w-24" /> : amount}
+      </dd>
+      <dd className="num mt-0.5 min-h-4 text-xs leading-4 text-fg-muted">{at ? formatDateTime(at) : null}</dd>
     </div>
   );
 }
@@ -116,14 +110,15 @@ export function TokenGapCard({ symbol, quote }: { symbol: string; quote: Quote |
   const template = gap.side === "above" ? copy.gapAbove : gap.side === "below" ? copy.gapBelow : copy.gapEven;
 
   return (
-    <Card className="flex flex-col gap-3 p-4" data-token-gap={symbol}>
-      <div className="flex items-start gap-1">
-        <p className="min-w-0 flex-1 text-sm leading-5 text-pretty text-fg">
-          <GapLine template={template} pct={gapPercentText(gap.diffPct)} />
-        </p>
-        <InfoTip className="-mt-1.5 -mr-1.5 shrink-0" label={`${copy.whatIsThis}. ${copy.gapTitle}`} text={`${copy.gapTip} ${copy.gapWhy}`} />
+    <section className="border-t border-border pt-8" data-token-gap={symbol}>
+      <div className="flex items-start justify-between gap-3">
+        <h2 className="min-w-0 text-lg font-medium tracking-tight text-fg">{copy.gapTitle}</h2>
+        <InfoTip className="-mt-1 shrink-0" label={`${copy.whatIsThis}. ${copy.gapTitle}`} text={`${copy.gapTip} ${copy.gapWhy}`} />
       </div>
-      <dl className="grid grid-cols-2 gap-3">
+      <p className="mt-2 max-w-prose text-sm leading-relaxed text-pretty text-fg-body">
+        <GapLine template={template} pct={gapPercentText(gap.diffPct)} />
+      </p>
+      <dl className="mt-4 grid grid-cols-2 gap-x-6 sm:gap-x-8">
         <PriceColumn
           label={copy.gapToken}
           amount={formatMoney(tokenView.amount, tokenView.currency)}
@@ -137,6 +132,6 @@ export function TokenGapCard({ symbol, quote }: { symbol: string; quote: Quote |
           at={gap.closeAt}
         />
       </dl>
-    </Card>
+    </section>
   );
 }

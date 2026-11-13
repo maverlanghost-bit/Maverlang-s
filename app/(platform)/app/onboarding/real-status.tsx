@@ -4,8 +4,8 @@ import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
+import { AuthCard, authTitleClass } from "@/components/auth/auth-frame";
 import { Button, buttonClasses } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { site } from "@/config/site";
 import { getConsents, getMe } from "@/lib/api/client";
@@ -14,7 +14,6 @@ import type { RegistroVersions } from "@/lib/auth/registro-schema";
 
 import { RegistroWizard } from "../registro/wizard";
 import { LogoutButton } from "./logout-button";
-import { BrandLink } from "./panel";
 import {
   ONBOARDING_STATUS_COPY,
   onboardingProfileStatus,
@@ -24,13 +23,12 @@ import {
 
 function Frame({ children }: { children: ReactNode }) {
   return (
-    <Card className="w-full max-w-md shadow-float">
-      <BrandLink />
+    <AuthCard>
       {children}
-      <div className="mt-6">
+      <div className="mt-1">
         <LogoutButton variant="ghost" size="md" className="w-full" />
       </div>
-    </Card>
+    </AuthCard>
   );
 }
 
@@ -81,7 +79,7 @@ function StatusCard({ status }: { status: Exclude<OnboardingProfileStatus, { kin
 
   return (
     <Frame>
-      <h1 className="mt-6 text-3xl text-balance">{copy.title}</h1>
+      <h1 className={`mt-6 ${authTitleClass}`}>{copy.title}</h1>
       <p className="mt-3 text-sm leading-relaxed text-fg-body">{copy.body}</p>
       <div className="mt-6 flex flex-col gap-3">
         {status.kind === "complete" ? (
@@ -109,7 +107,7 @@ function StatusCard({ status }: { status: Exclude<OnboardingProfileStatus, { kin
 function ErrorCard({ onRetry }: { onRetry: () => void }) {
   return (
     <Frame>
-      <h1 className="mt-6 text-3xl text-balance">{ONBOARDING_STATUS_COPY.errorTitle}</h1>
+      <h1 className={`mt-6 ${authTitleClass}`}>{ONBOARDING_STATUS_COPY.errorTitle}</h1>
       <p className="mt-3 text-sm leading-relaxed text-fg-body">{ONBOARDING_STATUS_COPY.errorBody}</p>
       <div className="mt-6 flex flex-col gap-3">
         <Button type="button" size="lg" className="w-full" onClick={onRetry}>

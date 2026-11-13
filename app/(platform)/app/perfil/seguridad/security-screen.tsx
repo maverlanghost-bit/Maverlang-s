@@ -6,14 +6,29 @@ import { MfaSettings } from "@/components/auth/mfa-settings";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
+import { IconChevron } from "@/components/ui/icons";
 import { site } from "@/config/site";
 import { useSession } from "@/lib/auth";
 import { useExportKey } from "@/lib/auth/export-wallet";
 import { useT } from "@/lib/hooks/use-t";
 
-import { fill, SettingsFrame, SettingsPanel } from "../ui";
+import {
+  fill,
+  SettingsButton,
+  SettingsFrame,
+  SettingsItem,
+  SettingsList,
+  SettingsPanel,
+  SettingsRowText,
+} from "../ui";
 
 type ExportPhase = "warn" | "mock" | "privy" | "error";
+
+const CUSTODY = [
+  { title: "Billetera Autocustodiada", detail: "Privy + Solana Ed25519 · Activa" },
+  { title: "Libro Atómico de Retiros", detail: "Límites diarios y reserva previa" },
+  { title: "Transporte y Sesión", detail: "TLS 1.3 · Verificación de origen" },
+] as const;
 
 /**
  * Privy 3.47 no lista sesiones activas: esa fila queda en "Próximamente".
@@ -53,40 +68,33 @@ export function SecurityScreen() {
 
   return (
     <SettingsFrame title={t.profile.security} description={t.profile.securityLead}>
-      <div className="rounded-3xl border border-border/80 bg-white p-5 shadow-xs">
-        <div className="flex items-center gap-2">
-          <span className="size-2 rounded-full bg-emerald-500" aria-hidden="true" />
-          <h2 className="text-sm font-semibold text-fg">Arquitectura de Custodia y Protección Activa</h2>
-        </div>
-        <div className="mt-3 grid gap-2.5 text-xs sm:grid-cols-3">
-          <div className="rounded-2xl border border-border/70 bg-surface-1/70 px-3 py-2.5">
-            <p className="font-medium text-fg">Billetera Autocustodiada</p>
-            <p className="mt-0.5 text-fg-muted">Privy + Solana Ed25519 · Activa</p>
-          </div>
-          <div className="rounded-2xl border border-border/70 bg-surface-1/70 px-3 py-2.5">
-            <p className="font-medium text-fg">Libro Atómico de Retiros</p>
-            <p className="mt-0.5 text-fg-muted">Límites diarios y reserva previa</p>
-          </div>
-          <div className="rounded-2xl border border-border/70 bg-surface-1/70 px-3 py-2.5">
-            <p className="font-medium text-fg">Transporte y Sesión</p>
-            <p className="mt-0.5 text-fg-muted">TLS 1.3 · Verificación de origen</p>
-          </div>
-        </div>
-      </div>
+      <SettingsPanel label="Custodia">
+        <dl className="flex min-w-0 flex-col">
+          {CUSTODY.map((item) => (
+            <div key={item.title} className="min-w-0 border-t border-border px-4 py-3 first:border-t-0 md:px-5">
+              <dt className="text-[15px] leading-5 font-medium text-fg">{item.title}</dt>
+              <dd className="mt-0.5 text-[13px] leading-5 break-words text-fg-muted">{item.detail}</dd>
+            </div>
+          ))}
+        </dl>
+      </SettingsPanel>
 
       <SettingsPanel label={t.profile.methods}>
-        <h2 className="px-4 pt-4 text-sm text-fg-muted md:px-6">{t.profile.methods}</h2>
         {linkedLogins.length === 0 ? (
-          <p className="px-4 py-4 text-sm text-fg md:px-6">{t.profile.noMethods}</p>
+          <p className="px-4 py-3 text-[13px] leading-5 text-fg-muted md:px-5">{t.profile.noMethods}</p>
         ) : (
-          <ul>
+          <ul className="flex min-w-0 flex-col">
             {linkedLogins.map((row) => (
               <li
                 key={row.method}
-                className="flex min-h-11 items-center justify-between gap-3 border-b border-border px-4 py-3 last:border-b-0 md:px-6"
+                className="flex min-h-14 min-w-0 items-center justify-between gap-4 border-t border-border px-4 py-3 first:border-t-0 md:px-5"
               >
-                <span className="text-sm text-fg">{row.method === "email" ? t.profile.methodEmail : t.profile.methodGoogle}</span>
-                {row.detail ? <span className="truncate text-sm text-fg-muted">{row.detail}</span> : null}
+                <span className="shrink-0 text-[15px] leading-5 text-fg">
+                  {row.method === "email" ? t.profile.methodEmail : t.profile.methodGoogle}
+                </span>
+                {row.detail ? (
+                  <span className="min-w-0 text-right text-[13px] leading-5 break-words text-fg-muted">{row.detail}</span>
+                ) : null}
               </li>
             ))}
           </ul>
@@ -94,24 +102,26 @@ export function SecurityScreen() {
       </SettingsPanel>
 
       <SettingsPanel>
-        <div className="flex flex-col gap-3 px-4 py-4 md:px-6">
-          <Button type="button" variant="secondary" size="lg" className="w-full" onClick={() => onOpenChange(true)}>
-            {t.profile.export}
-          </Button>
-        </div>
+        <SettingsList>
+          <SettingsItem>
+            <SettingsButton onClick={() => onOpenChange(true)}>
+              <span className="min-w-0 flex-1">{t.profile.export}</span>
+              <IconChevron aria-hidden className="size-4 shrink-0 -rotate-90 text-fg-muted" />
+            </SettingsButton>
+          </SettingsItem>
+          <SettingsItem>
+            <div className="flex min-h-14 min-w-0 items-center justify-between gap-4 px-4 py-3 md:px-5">
+              <SettingsRowText label={t.profile.sessions} hint={t.profile.soonBody} />
+              <Badge className="shrink-0">{t.profile.soon}</Badge>
+            </div>
+          </SettingsItem>
+        </SettingsList>
       </SettingsPanel>
 
-      <SettingsPanel>
-        <div className="flex min-h-11 items-center justify-between gap-3 border-b border-border px-4 py-3 md:px-6">
-          <div className="min-w-0">
-            <p className="text-sm text-fg">{t.profile.sessions}</p>
-            <p className="text-sm text-fg-muted">{t.profile.soonBody}</p>
-          </div>
-          <Badge>{t.profile.soon}</Badge>
-        </div>
-      </SettingsPanel>
-
-      <MfaSettings />
+      {/* MfaSettings trae su propio borde y radio: se alinea al radio del sistema sin tocar el componente. */}
+      <div className="[&>section]:rounded-xl">
+        <MfaSettings />
+      </div>
 
       <Dialog open={open} onOpenChange={onOpenChange} title={t.profile.exportTitle} description={t.profile.exportWarn1}>
         <ul className="list-disc space-y-2 pl-5 text-sm leading-relaxed text-fg-body">
@@ -120,7 +130,7 @@ export function SecurityScreen() {
           <li>{t.profile.exportWarn4}</li>
         </ul>
         {result ? (
-          <p role="status" className="mt-4 text-sm text-fg">
+          <p role="status" className="mt-4 text-sm leading-relaxed text-fg">
             {result}
           </p>
         ) : null}

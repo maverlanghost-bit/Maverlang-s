@@ -1,5 +1,6 @@
 "use client";
 
+import { cn } from "@/lib/cn";
 import { formatMoney } from "@/lib/format";
 import { displayPrice } from "@/lib/market/browse";
 import type { Currency } from "@/lib/types";
@@ -52,49 +53,56 @@ export function PriceRangeBar({
   const positionText = Math.round(pct);
 
   return (
-    <div className="mt-4 rounded-2xl border border-border/70 bg-surface-1/60 p-4">
-      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5">
-        <p className="text-xs font-semibold tracking-wider text-fg-muted uppercase">
-          Termómetro del período ({rangeLabel})
+    <div className="mt-5 border-t border-border pt-4">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+        <p className="label">Termómetro del período ({rangeLabel})</p>
+        <p className="num text-[12px] leading-4 text-fg-muted">
+          Amplitud +{spreadText}% · Posición {positionText}% del rango
         </p>
-        <div className="flex flex-wrap items-center gap-2 text-[11px]">
-          <span className="num inline-flex items-center rounded-full border border-up/25 bg-up/10 px-2 py-0.5 font-medium text-up">
-            Amplitud +{spreadText}%
-          </span>
-          <span className="num text-fg-muted">Posición {positionText}% del rango</span>
-        </div>
       </div>
 
       <div
-        className="relative mt-3 h-2.5"
+        className="relative mt-3 h-1.5"
         role="img"
         aria-label={`Rango del período: mínimo ${lowText}, actual ${currentText}, máximo ${highText}. Posición ${positionText}% del rango.`}
       >
         <div className="h-full w-full overflow-hidden rounded-full bg-surface-3">
           <div
             aria-hidden="true"
-            className="h-full rounded-full bg-gradient-to-r from-down/70 via-warn/80 to-up transition-[width] duration-500 ease-out"
+            className="h-full rounded-full bg-fg/25 transition-[width] duration-500 ease-out"
             style={{ width: `${pct}%` }}
           />
         </div>
         <span
           aria-hidden="true"
-          className="absolute top-1/2 size-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-fg shadow-xs ring-1 ring-border/70"
+          className="absolute top-1/2 size-3 -translate-x-1/2 -translate-y-1/2 rounded-full bg-fg ring-2 ring-bg"
           style={{ left: `${pct}%` }}
         />
       </div>
 
-      <div className="mt-2.5 grid grid-cols-3 gap-2 text-[11px]">
-        <p className="num truncate text-left text-fg-muted">
-          Mín: <span className="font-medium text-fg">{lowText}</span>
-        </p>
-        <p className="num truncate text-center text-fg-muted">
-          Actual: <span className="font-semibold text-fg">{currentText}</span>
-        </p>
-        <p className="num truncate text-right text-fg-muted">
-          Máx: <span className="font-medium text-fg">{highText}</span>
-        </p>
-      </div>
+      <dl className="mt-3 grid grid-cols-3 gap-2">
+        {(
+          [
+            { key: "low", label: "Mín", value: lowText, align: "text-left", strong: false },
+            { key: "current", label: "Actual", value: currentText, align: "text-center", strong: true },
+            { key: "high", label: "Máx", value: highText, align: "text-right", strong: false },
+          ] as const
+        ).map((item) => (
+          <div key={item.key} className={cn("min-w-0", item.align)}>
+            <dt className="font-mono text-[12px] leading-4 font-medium tracking-[0.045em] text-fg-muted uppercase">
+              {item.label}
+            </dt>
+            <dd
+              className={cn(
+                "num mt-0.5 truncate text-[13px] leading-5",
+                item.strong ? "font-medium text-fg" : "text-fg-body",
+              )}
+            >
+              {item.value}
+            </dd>
+          </div>
+        ))}
+      </dl>
     </div>
   );
 }

@@ -3,9 +3,11 @@ import { cn } from "@/lib/cn";
 import { buttonBase, buttonVariantClass, type ButtonVariant } from "@/components/ui/button";
 
 const sizeClass = {
-  sm: "size-10",
-  md: "size-11 md:size-12",
-  lg: "size-12",
+  /* Misma escala que Button: 44 px táctiles; 36/44/48 con puntero.
+     `lg` baja a 44 en móvil para no quedar más alto que el Button lg. */
+  sm: "size-11 sm:size-9",
+  md: "size-11",
+  lg: "size-11 md:size-12",
 } as const;
 
 type IconButtonProps = ComponentProps<"button"> & {

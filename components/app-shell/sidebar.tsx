@@ -1,15 +1,18 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import Link from "next/link";
 import { BrandFavicon } from "@/components/app-shell/brand-image";
 import { usePathname } from "next/navigation";
 
 import { useAccountLabel } from "@/components/app-shell/account-label";
-import { openCommandPalette } from "@/components/app-shell/command-palette";
 import { CurrencySwitch } from "@/components/app-shell/currency-switch";
-import { isShellSectionActive, shellNav } from "@/components/app-shell/nav";
-import { StockSearchButton } from "@/components/app-shell/stock-search";
+import {
+  isShellSectionActive,
+  shellTabLabel,
+  sidebarPrimary,
+  sidebarUtility,
+} from "@/components/app-shell/nav";
 import { readChatSnapshot, resolveChatScope, type ChatMessage } from "@/components/ai/model";
 import { NavChatsHistory } from "@/components/ai/nav-chats";
 import { useSavedChats } from "@/components/ai/sessions-live";
@@ -21,7 +24,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip } from "@/components/ui/tooltip";
 import { AccountSwitch } from "@/components/app-shell/account-switch";
 import { site } from "@/config/site";
-import { shouldIgnoreSidebarShortcut, shouldToggleSidebarClick } from "@/lib/app-shell/sidebar";
+import { shouldIgnoreSidebarShortcut } from "@/lib/app-shell/sidebar";
 import type { AccountMode } from "@/lib/account/mode";
 import { useSession } from "@/lib/auth/session-context";
 import { cn } from "@/lib/cn";
@@ -31,6 +34,20 @@ const WIDTH_ANIMATION = "transition-[width] duration-200 ease-spring";
 
 const SELECT_EVENT = "maverlang:ai-select-chat";
 const ACTION_EVENT = "maverlang:ai-chat-action";
+
+/**
+ * Fila base del riel: 44px de alto. Sin íconos cuando hay texto: la jerarquía
+ * la hacen el peso, el color y el fondo; el ícono sólo aparece en el riel
+ * colapsado (con tooltip), donde no cabe la etiqueta.
+ *
+ * El estado activo es una píldora blanca con hairline de control: se distingue
+ * por forma y por borde, no por sombra (en modo claro la sombra casi no existe).
+ */
+const ROW_BASE =
+  "group relative flex cursor-pointer items-center rounded-lg transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fg";
+const ROW_EXPANDED = "min-h-11 w-full gap-2.5 px-3 text-sm";
+const ROW_HOVER = "hover:bg-fg/[0.055] hover:text-fg";
+const ROW_ACTIVE = "bg-bg font-medium text-fg ring-1 ring-border-strong/60";
 
 type SidebarChatAction =
   | { type: "rename"; chatId: string; title: string }
@@ -71,8 +88,8 @@ function matchChatId(chats: readonly SavedChatItem[], messages: readonly ChatMes
 
 function ArrowLeftIcon({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.75" className={className} aria-hidden>
-      <path d="M13 8H3m0 0 4-4M3 8l4 4" strokeLinecap="round" strokeLinejoin="round" />
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" className={className} aria-hidden>
+      <path d="M13 8H3m0 0 3.5-3.5M3 8l3.5 3.5" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
@@ -80,17 +97,17 @@ function ArrowLeftIcon({ className }: { className?: string }) {
 function PanelLeftIcon({ className }: { className?: string }) {
   return (
     <svg
-      viewBox="0 0 24 24"
+      viewBox="0 0 16 16"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.75"
+      strokeWidth="1.5"
       strokeLinecap="round"
       strokeLinejoin="round"
       className={className}
       aria-hidden
     >
-      <rect x="3" y="3" width="18" height="18" rx="2" />
-      <path d="M9 3v18" />
+      <rect x="2" y="2.75" width="12" height="10.5" rx="1.75" />
+      <path d="M6.25 3v10" />
     </svg>
   );
 }
@@ -98,18 +115,18 @@ function PanelLeftIcon({ className }: { className?: string }) {
 function PanelLeftCloseIcon({ className }: { className?: string }) {
   return (
     <svg
-      viewBox="0 0 24 24"
+      viewBox="0 0 16 16"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.75"
+      strokeWidth="1.5"
       strokeLinecap="round"
       strokeLinejoin="round"
       className={className}
       aria-hidden
     >
-      <rect x="3" y="3" width="18" height="18" rx="2" />
-      <path d="M9 3v18" />
-      <path d="m16 15-3-3 3-3" />
+      <rect x="2" y="2.75" width="12" height="10.5" rx="1.75" />
+      <path d="M6.25 3v10" />
+      <path d="M11.25 9.5 9.75 8l1.5-1.5" />
     </svg>
   );
 }
@@ -117,18 +134,17 @@ function PanelLeftCloseIcon({ className }: { className?: string }) {
 function MessageSquarePlusIcon({ className }: { className?: string }) {
   return (
     <svg
-      viewBox="0 0 24 24"
+      viewBox="0 0 16 16"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.75"
+      strokeWidth="1.5"
       strokeLinecap="round"
       strokeLinejoin="round"
       className={className}
       aria-hidden
     >
-      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h9" />
-      <path d="M18 2v6" />
-      <path d="M15 5h6" />
+      <path d="M13.5 9.2a1.6 1.6 0 0 1-1.6 1.6H5.6L3 13.2V3.9a1.6 1.6 0 0 1 1.6-1.6h5.3" />
+      <path d="M11.6 1.8v4M9.6 3.8h4" />
     </svg>
   );
 }
@@ -136,18 +152,122 @@ function MessageSquarePlusIcon({ className }: { className?: string }) {
 function SearchIcon({ className }: { className?: string }) {
   return (
     <svg
-      viewBox="0 0 24 24"
+      viewBox="0 0 16 16"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.75"
+      strokeWidth="1.5"
       strokeLinecap="round"
       strokeLinejoin="round"
       className={className}
       aria-hidden
     >
-      <circle cx="11" cy="11" r="7" />
-      <path d="m20 20-3.6-3.6" />
+      <circle cx="7.2" cy="7.2" r="4.45" />
+      <path d="m10.6 10.6 2.9 2.9" />
     </svg>
+  );
+}
+
+type AccountMenuLabels = {
+  account: string;
+  profile: string;
+  settings: string;
+  currency: string;
+  logout: string;
+};
+
+/**
+ * Menú del perfil: Perfil, Ajustes, moneda y salir.
+ * Se abre hacia arriba desde el pie del riel, alineado a su ancho.
+ */
+function AccountMenuPanel({
+  open,
+  onClose,
+  onLogout,
+  logoutDisabled,
+  labels,
+  panelRef,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onLogout: () => void;
+  logoutDisabled: boolean;
+  labels: AccountMenuLabels;
+  panelRef: RefObject<HTMLDivElement | null>;
+}) {
+  if (!open) return null;
+
+  const item =
+    "flex min-h-11 w-full items-center rounded-lg px-3 text-left text-sm text-fg-body transition-colors hover:bg-surface-1 hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-fg";
+
+  return (
+    <div
+      ref={panelRef}
+      role="menu"
+      aria-label={labels.account}
+      className="absolute inset-x-0 bottom-full z-40 mb-2 flex flex-col rounded-xl border border-border bg-bg p-1.5 shadow-float"
+    >
+      <Link role="menuitem" href="/app/perfil" onClick={onClose} className={item}>
+        {labels.profile}
+      </Link>
+      <Link role="menuitem" href="/app/ajustes" onClick={onClose} className={item}>
+        {labels.settings}
+      </Link>
+      <div role="presentation" className="my-1 h-px bg-border" />
+      <div className="flex min-h-11 items-center justify-between gap-2 pl-3 pr-1">
+        <span className="label-xs">{labels.currency}</span>
+        <CurrencySwitch compact />
+      </div>
+      <div role="presentation" className="my-1 h-px bg-border" />
+      <button
+        role="menuitem"
+        type="button"
+        onClick={onLogout}
+        disabled={logoutDisabled}
+        className={cn(item, "disabled:opacity-40")}
+      >
+        {labels.logout}
+      </button>
+    </div>
+  );
+}
+
+function AccountTrigger({
+  name,
+  email,
+  label,
+  open,
+  onClick,
+  triggerRef,
+}: {
+  name: string;
+  email: string | null;
+  label: string;
+  open: boolean;
+  onClick: () => void;
+  triggerRef: RefObject<HTMLButtonElement | null>;
+}) {
+  return (
+    <button
+      ref={triggerRef}
+      type="button"
+      aria-haspopup="menu"
+      aria-expanded={open}
+      aria-label={label}
+      onClick={onClick}
+      className="flex min-h-11 w-full items-center gap-2.5 rounded-lg px-1.5 py-1 text-left transition-colors hover:bg-fg/[0.04] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fg"
+    >
+      <Avatar alt="" fallback={name} size="sm" className="size-8" />
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-sm font-medium leading-5 text-fg">{name}</span>
+        {email ? <span className="block truncate text-xs leading-4 text-fg-muted">{email}</span> : null}
+      </span>
+      <IconChevron
+        className={cn(
+          "size-3.5 shrink-0 text-fg-muted transition-transform duration-200",
+          open && "rotate-180",
+        )}
+      />
+    </button>
   );
 }
 
@@ -173,6 +293,8 @@ export function Sidebar({
   /** Menú del perfil: Perfil, Ajustes, moneda y salir. */
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const accountTriggerRef = useRef<HTMLButtonElement>(null);
+  const accountPanelRef = useRef<HTMLDivElement>(null);
   const session = useSession();
   const userId = session.user?.id ?? null;
   const chatScope = useMemo(() => resolveChatScope(session.status, userId), [session.status, userId]);
@@ -184,6 +306,14 @@ export function Sidebar({
   });
   /** Nunca mostrar el estado de otra identidad, ni siquiera antes del efecto. */
   const activeChatId = activeChat.scopeKey === chatScopeKey ? activeChat.chatId : null;
+
+  const menuLabels: AccountMenuLabels = {
+    account: t.shell.account,
+    profile: t.nav.profile,
+    settings: t.nav.settings,
+    currency: t.shell.currencyLabel,
+    logout: t.profile.logout,
+  };
 
   useEffect(() => {
     if (!isAiRoute) return;
@@ -214,6 +344,44 @@ export function Sidebar({
     return () => document.removeEventListener("pointerdown", onPointerDown);
   }, [menuOpen]);
 
+  /**
+   * Menú del perfil con teclado: al abrir, el foco entra al primer ítem; las
+   * flechas recorren la lista, Escape cierra y devuelve el foco al disparador.
+   */
+  useEffect(() => {
+    if (!menuOpen) return;
+    const panel = accountPanelRef.current;
+    const items = (): HTMLElement[] => (panel ? Array.from(panel.querySelectorAll<HTMLElement>('[role="menuitem"]')) : []);
+    items()[0]?.focus();
+
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setMenuOpen(false);
+        accountTriggerRef.current?.focus();
+        return;
+      }
+      if (event.key !== "ArrowDown" && event.key !== "ArrowUp" && event.key !== "Home" && event.key !== "End") return;
+      const list = items();
+      if (list.length === 0) return;
+      event.preventDefault();
+      const active = document.activeElement;
+      const current = active instanceof HTMLElement ? list.indexOf(active) : -1;
+      const next =
+        event.key === "Home"
+          ? 0
+          : event.key === "End"
+            ? list.length - 1
+            : event.key === "ArrowDown"
+              ? (current + 1) % list.length
+              : (current - 1 + list.length) % list.length;
+      list[next]?.focus();
+    };
+
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [menuOpen]);
+
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (event.defaultPrevented) return;
@@ -227,398 +395,261 @@ export function Sidebar({
     return () => window.removeEventListener("keydown", onKey);
   }, [onToggle]);
 
+  /**
+   * Fila de navegación. Con el riel abierto es sólo texto: la jerarquía la
+   * marcan el peso, el color y el fondo, sin íconos decorativos. Colapsada
+   * pasa a ícono con tooltip, porque la etiqueta no cabe en 72px.
+   */
+  function navRow(
+    item: (typeof sidebarPrimary)[number] | (typeof sidebarUtility)[number],
+    utility: boolean,
+  ) {
+    const active = isShellSectionActive(pathname, item.id);
+    const label = shellTabLabel(language, item.id, t.nav);
+    const Icon = item.icon;
+    const link = (
+      <Link
+        href={item.href}
+        aria-label={collapsed ? label : undefined}
+        aria-current={active ? "page" : undefined}
+        className={cn(
+          ROW_BASE,
+          collapsed ? "size-11 justify-center" : ROW_EXPANDED,
+          active ? ROW_ACTIVE : cn(utility ? "text-fg-muted" : "text-fg-body", ROW_HOVER),
+        )}
+      >
+        {collapsed ? (
+          <Icon className={cn("size-4 shrink-0", active ? "text-fg" : "text-fg-muted group-hover:text-fg")} />
+        ) : null}
+        <span className={cn("min-w-0 truncate", collapsed && "sr-only")}>{label}</span>
+      </Link>
+    );
+    return collapsed ? (
+      <Tooltip content={label} side="right">
+        {link}
+      </Tooltip>
+    ) : (
+      link
+    );
+  }
+
   return (
     <aside
-      onClick={(event) => {
-        if (shouldToggleSidebarClick(event.target as Element | null)) onToggle();
-      }}
       className={cn(
-        "sticky top-0 z-30 hidden h-dvh shrink-0 flex-col overflow-visible border-r border-border/70 bg-surface-1/40 backdrop-blur-xl backdrop-saturate-180 lg:flex",
+        "sticky top-0 z-30 hidden h-dvh shrink-0 flex-col overflow-visible border-r border-border bg-surface-1 lg:flex",
         WIDTH_ANIMATION,
-        collapsed ? "w-[72px] cursor-e-resize" : "w-[220px] cursor-w-resize",
+        collapsed ? "w-[76px]" : "w-[240px]",
       )}
     >
-      {isAiRoute ? (
-        <>
-          <div className={cn("flex w-full gap-1", collapsed ? "flex-col items-center py-2" : "items-center py-2 pl-3 pr-2")}>
-            <Link
-              href="/app"
-              aria-label={t.detail.backToMarket}
-              className={cn(
-                "group flex min-w-0 cursor-pointer items-center gap-2 outline-none",
-                collapsed ? "flex-none justify-center" : "flex-1",
-              )}
-            >
-              <div className="relative flex size-7 shrink-0 items-center justify-center">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/assets/Maverlang Logo-2.png" alt={site.name} className="size-7 object-contain" />
-              </div>
-            </Link>
+      {/* Marca. El slot de 44px queda centrado en los 76px del riel colapsado
+          (16 + 44 + 16 = 76), así el isotipo no se mueve al colapsar. */}
+      <div
+        className={cn(
+          "flex shrink-0 items-center px-4 pt-3",
+          collapsed ? "justify-center pb-1" : "justify-between pb-1.5",
+        )}
+      >
+        <Link
+          href="/app"
+          aria-label={isAiRoute ? t.detail.backToMarket : site.name}
+          title={isAiRoute ? t.detail.backToMarket : site.name}
+          className="flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-lg transition-opacity hover:opacity-70 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fg"
+        >
+          {isAiRoute ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src="/assets/Maverlang Logo-2.png" alt={site.name} className="size-7 object-contain" />
+          ) : (
+            <BrandFavicon className="w-10" />
+          )}
+        </Link>
+        {!collapsed ? (
+          <button
+            type="button"
+            onClick={onToggle}
+            aria-label={t.shell.collapseSidebar}
+            title={`${t.shell.collapseSidebar} (Ctrl+B)`}
+            className="flex size-11 cursor-pointer items-center justify-center rounded-lg text-fg-muted transition-colors hover:bg-fg/[0.055] hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fg"
+          >
+            <PanelLeftCloseIcon className="size-4" />
+          </button>
+        ) : null}
+      </div>
+      {collapsed ? (
+        <div className="flex shrink-0 justify-center pb-1.5">
+          <Tooltip content={`${t.shell.expandSidebar} (Ctrl+B)`} side="right">
             <button
               type="button"
               onClick={onToggle}
-              aria-label={collapsed ? t.shell.expandSidebar : t.shell.collapseSidebar}
-              title={`${collapsed ? t.shell.expandSidebar : t.shell.collapseSidebar} (Ctrl+B)`}
-              className="inline-flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-lg text-zinc-500 outline-none transition hover:bg-zinc-200/60 hover:text-zinc-900 focus-visible:ring-4 focus-visible:ring-fg/20"
+              aria-label={t.shell.expandSidebar}
+              className="flex size-11 cursor-pointer items-center justify-center rounded-lg text-fg-muted transition-colors hover:bg-fg/[0.055] hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fg"
             >
-              {collapsed ? <PanelLeftIcon className="size-4" /> : <PanelLeftCloseIcon className="size-4" />}
+              <PanelLeftIcon className="size-4" />
             </button>
-          </div>
+          </Tooltip>
+        </div>
+      ) : null}
 
-          <nav aria-label={t.nav.label} className="flex-1 overflow-y-auto px-3.5 pb-2">
-            {collapsed ? (
-              <ul className="flex flex-col items-center gap-1">
+      <nav aria-label={t.nav.label} className="flex-1 overflow-y-auto overscroll-contain px-4 pt-1 pb-2">
+        {isAiRoute ? (
+          collapsed ? (
+            <ul className="flex flex-col items-center gap-0.5">
+              <li>
+                <Tooltip content={newChatLabel} side="right">
+                  <button
+                    type="button"
+                    aria-label={newChatLabel}
+                    onClick={() => dispatchAiCommand({ type: "clear" })}
+                    className={cn(ROW_BASE, ROW_HOVER, "size-11 justify-center text-fg-muted")}
+                  >
+                    <MessageSquarePlusIcon className="size-4" />
+                  </button>
+                </Tooltip>
+              </li>
+              <li>
+                <Tooltip content={t.shell.search} side="right">
+                  <button
+                    type="button"
+                    aria-label={t.shell.search}
+                    onClick={() => {
+                      if (typeof window === "undefined") return;
+                      window.dispatchEvent(new CustomEvent(ACTION_EVENT, { detail: { type: "search" } }));
+                    }}
+                    className={cn(ROW_BASE, ROW_HOVER, "size-11 justify-center text-fg-muted")}
+                  >
+                    <SearchIcon className="size-4" />
+                  </button>
+                </Tooltip>
+              </li>
+              <li>
+                <Tooltip content={t.detail.backToMarket} side="right">
+                  <Link
+                    href="/app"
+                    aria-label={t.detail.backToMarket}
+                    className={cn(ROW_BASE, ROW_HOVER, "size-11 justify-center text-fg-muted")}
+                  >
+                    <ArrowLeftIcon className="size-4" />
+                  </Link>
+                </Tooltip>
+              </li>
+            </ul>
+          ) : (
+            <>
+              <ul className="flex flex-col gap-0.5">
                 <li>
-                  <Tooltip content={newChatLabel} side="right">
-                    <button
-                      type="button"
-                      aria-label={newChatLabel}
-                      onClick={() => dispatchAiCommand({ type: "clear" })}
-                      className="flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-lg text-zinc-700 transition-colors hover:bg-zinc-200/60 hover:text-zinc-900"
-                    >
-                      <MessageSquarePlusIcon className="size-4" />
-                    </button>
-                  </Tooltip>
+                  <button
+                    type="button"
+                    onClick={() => dispatchAiCommand({ type: "clear" })}
+                    className={cn(ROW_BASE, ROW_EXPANDED, ROW_HOVER, "text-fg-body")}
+                  >
+                    <MessageSquarePlusIcon className="size-4 shrink-0 text-fg-muted" />
+                    <span className="truncate">{newChatLabel}</span>
+                  </button>
                 </li>
                 <li>
-                  <Tooltip content={t.shell.search} side="right">
-                    <button
-                      type="button"
-                      aria-label={t.shell.search}
-                      onClick={() => {
-                        if (typeof window === "undefined") return;
-                        window.dispatchEvent(new CustomEvent(ACTION_EVENT, { detail: { type: "search" } }));
-                      }}
-                      className="flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-lg text-zinc-700 transition-colors hover:bg-zinc-200/60 hover:text-zinc-900"
-                    >
-                      <SearchIcon className="size-4" />
-                    </button>
-                  </Tooltip>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (typeof window === "undefined") return;
+                      window.dispatchEvent(new CustomEvent(ACTION_EVENT, { detail: { type: "search" } }));
+                    }}
+                    className={cn(ROW_BASE, ROW_EXPANDED, ROW_HOVER, "text-fg-body")}
+                  >
+                    <SearchIcon className="size-4 shrink-0 text-fg-muted" />
+                    <span className="truncate">{t.shell.search}</span>
+                  </button>
                 </li>
                 <li>
-                  <Tooltip content={t.detail.backToMarket} side="right">
-                    <Link
-                      href="/app"
-                      aria-label={t.detail.backToMarket}
-                      className="flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-lg text-zinc-500 transition-colors hover:bg-zinc-200/60 hover:text-zinc-900"
-                    >
-                      <ArrowLeftIcon className="size-4" />
-                    </Link>
-                  </Tooltip>
+                  <Link href="/app" className={cn(ROW_BASE, ROW_EXPANDED, ROW_HOVER, "text-fg-body")}>
+                    <ArrowLeftIcon className="size-4 shrink-0 text-fg-muted" />
+                    <span className="truncate">{t.detail.backToMarket}</span>
+                  </Link>
                 </li>
               </ul>
-            ) : (
-              <>
-                <ul className="flex flex-col gap-1">
-                  <li>
-                    <button
-                      type="button"
-                      onClick={() => dispatchAiCommand({ type: "clear" })}
-                      className="flex h-9 w-full items-center gap-2 rounded-lg px-2.5 text-[13px] font-medium text-zinc-700 hover:bg-zinc-200/60 hover:text-zinc-900 transition-colors cursor-pointer"
-                    >
-                      <MessageSquarePlusIcon className="size-4 shrink-0" />
-                      <span className="truncate">{newChatLabel}</span>
-                    </button>
-                  </li>
-                  <li>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (typeof window === "undefined") return;
-                        window.dispatchEvent(new CustomEvent(ACTION_EVENT, { detail: { type: "search" } }));
-                      }}
-                      className="flex h-9 w-full items-center gap-2 rounded-lg px-2.5 text-[13px] font-medium text-zinc-700 hover:bg-zinc-200/60 hover:text-zinc-900 transition-colors cursor-pointer"
-                    >
-                      <SearchIcon className="size-4 shrink-0" />
-                      <span className="truncate">{t.shell.search}</span>
-                    </button>
-                  </li>
-                  <li>
-                    <Link
-                      href="/app"
-                      className="flex h-9 w-full items-center gap-2 rounded-lg px-2.5 text-[13px] text-zinc-500 hover:bg-zinc-200/60 hover:text-zinc-900 transition-colors cursor-pointer"
-                    >
-                      <ArrowLeftIcon className="size-4 shrink-0" />
-                      <span className="truncate">{t.detail.backToMarket}</span>
-                    </Link>
-                  </li>
-                </ul>
 
-                <div className="mt-4 border-t border-border/60 pt-3">
-                  <NavChatsHistory
-                    chats={savedChats}
-                    activeChatId={activeChatId}
-                    onSelectChat={(chatId) => {
-                      if (typeof window === "undefined") return;
-                      window.dispatchEvent(new CustomEvent(SELECT_EVENT, { detail: { chatId } }));
-                    }}
-                    onNewChat={() => dispatchAiCommand({ type: "clear" })}
-                    onRenameChat={(chatId, title) => dispatchAiAction({ type: "rename", chatId, title })}
-                    onTogglePinChat={(chatId) => dispatchAiAction({ type: "pin", chatId })}
-                    onDeleteChat={(chatId) => dispatchAiAction({ type: "delete", chatId })}
-                    onShareChat={(chatId) => dispatchAiAction({ type: "share", chatId })}
-                  />
-                </div>
-              </>
-            )}
-          </nav>
-
-          <div className="border-t border-border/70 px-3.5 py-3">
-            <div
-              ref={menuRef}
-              className="relative"
-              onKeyDown={(event) => {
-                if (event.key === "Escape") setMenuOpen(false);
-              }}
-            >
-              {menuOpen && !collapsed && !loading ? (
-                <div
-                  role="menu"
-                  aria-label={t.shell.account}
-                  className="absolute inset-x-0 bottom-full mb-2 flex flex-col gap-1 rounded-xl border border-border/70 bg-bg p-2 shadow-float"
-                >
-                  <Link
-                    role="menuitem"
-                    href="/app/perfil"
-                    onClick={() => setMenuOpen(false)}
-                    className="flex min-h-11 cursor-pointer items-center rounded-xl px-3 text-sm text-fg-body outline-none hover:bg-surface-2 focus-visible:ring-4 focus-visible:ring-fg/20"
-                  >
-                    {t.nav.profile}
-                  </Link>
-                  <Link
-                    role="menuitem"
-                    href="/app/ajustes"
-                    onClick={() => setMenuOpen(false)}
-                    className="flex min-h-11 cursor-pointer items-center rounded-xl px-3 text-sm text-fg-body outline-none hover:bg-surface-2 focus-visible:ring-4 focus-visible:ring-fg/20"
-                  >
-                    {t.nav.settings}
-                  </Link>
-                  <div className="flex justify-start px-3 py-2">
-                    <CurrencySwitch />
-                  </div>
-                  <button
-                    role="menuitem"
-                    type="button"
-                    onClick={() => void account.logout()}
-                    disabled={account.status === "loading"}
-                    className="flex min-h-11 w-full cursor-pointer items-center rounded-xl px-3 text-left text-sm text-fg-body outline-none hover:bg-surface-2 focus-visible:ring-4 focus-visible:ring-fg/20 disabled:opacity-40"
-                  >
-                    {t.profile.logout}
-                  </button>
-                </div>
-              ) : null}
-              {loading ? (
-                <div className="flex min-h-11 items-center rounded-xl">
-                  <span className="flex size-11 shrink-0 items-center justify-center">
-                    <Skeleton className="size-10 rounded-full" />
-                  </span>
-                  {!collapsed ? <Skeleton className="h-4 w-24" /> : null}
-                </div>
-              ) : collapsed ? (
-                <Tooltip content={name || t.shell.account} side="right">
-                  <Link
-                    href="/app/perfil"
-                    aria-label={loading ? t.shell.account : `${name}. ${t.shell.account}`}
-                    title={loading ? t.shell.account : name}
-                    className="flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-xl outline-none hover:bg-surface-2 focus-visible:ring-4 focus-visible:ring-fg/20"
-                  >
-                    <span className="flex size-11 shrink-0 items-center justify-center">
-                      <Avatar alt="" fallback={name} size="md" className="size-10" />
-                    </span>
-                  </Link>
-                </Tooltip>
-              ) : (
-                <button
-                  type="button"
-                  aria-haspopup="menu"
-                  aria-expanded={menuOpen}
-                  aria-label={`${name}. ${t.shell.account}`}
-                  onClick={() => setMenuOpen((open) => !open)}
-                  className="flex min-h-11 w-full cursor-pointer items-center gap-1.5 rounded-xl text-left outline-none hover:bg-surface-2 focus-visible:ring-4 focus-visible:ring-fg/20"
-                >
-                  <span className="flex size-11 shrink-0 items-center justify-center">
-                    <Avatar alt="" fallback={name} size="md" className="size-10" />
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-medium text-fg">{name}</span>
-                    {account.email ? <span className="block truncate text-xs text-fg-muted">{account.email}</span> : null}
-                  </span>
-                  <IconChevron className={cn("size-4 shrink-0 text-fg-muted transition duration-200", menuOpen && "rotate-180")} />
-                </button>
-              )}
-            </div>
-          </div>
-        </>
-      ) : (
-        <>
-          {/* Marca: padding izquierdo fijo (px-3.5 = 14px) para que el slot size-11 (44px)
-              quede clavado exactamente en el centro de los 72px colapsados (14+44+14=72)
-              y jamás se desplace de derecha a izquierda al colapsar o expandir. */}
-          <div className="flex items-center justify-between px-3.5 py-3">
-            <Link
-              href="/app"
-              aria-label={site.name}
-              title={site.name}
-              className="flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-xl outline-none focus-visible:ring-4 focus-visible:ring-fg/20"
-            >
-              <span className="flex size-11 shrink-0 items-center justify-center">
-                <BrandFavicon className="w-10" />
-              </span>
-            </Link>
-            {!collapsed ? (
-              <button
-                type="button"
-                onClick={() => openCommandPalette()}
-                aria-label="Abrir paleta de comandos ⌘K"
-                className="inline-flex shrink-0 cursor-pointer items-center gap-1 rounded-full border border-border/70 bg-white/80 px-2.5 py-1 text-[11px] font-medium text-fg-muted shadow-[0_1px_2px_rgba(12,15,20,0.04)] transition hover:bg-surface-2 hover:text-fg"
-              >
-                <span>⌘K</span>
-              </button>
-            ) : null}
-          </div>
-          <nav aria-label={t.nav.label} className="flex-1 px-3.5">
-            <ul className="flex flex-col gap-1">
-              <li>
-                <StockSearchButton collapsed={collapsed} />
-              </li>
-              {shellNav.filter((item) => item.id !== "profile").map((item) => {
-                const active = isShellSectionActive(pathname, item.id);
-                const Icon = item.icon;
-                const link = (
-                  <Link
-                    href={item.href}
-                    aria-label={collapsed ? t.nav[item.id] : undefined}
-                    aria-current={active ? "page" : undefined}
-                    className={cn(
-                      "flex min-h-11 cursor-pointer items-center rounded-xl text-sm outline-none transition-colors duration-150 focus-visible:ring-4 focus-visible:ring-fg/20 active:scale-[0.98]",
-                      collapsed ? "size-11 justify-start gap-0 px-0" : "w-full justify-start gap-1.5 pr-2 pl-0",
-                      active
-                        ? "bg-fg/[0.06] font-medium text-fg shadow-[inset_0_1px_0_rgba(255,255,255,0.85),0_1px_3px_rgba(12,15,20,0.05)] ring-1 ring-border/60"
-                        : "text-fg-body hover:bg-fg/[0.04] hover:text-fg",
-                    )}
-                  >
-                    <span className="flex size-11 shrink-0 items-center justify-center">
-                      <Icon className="size-4" />
-                    </span>
-                    <span
-                      className={cn(
-                        "overflow-hidden whitespace-nowrap",
-                        collapsed ? "sr-only" : "truncate",
-                      )}
-                    >
-                      {t.nav[item.id]}
-                    </span>
-                  </Link>
-                );
-                return (
-                  <li key={item.id}>
-                    {collapsed ? (
-                      <Tooltip content={t.nav[item.id]} side="right">
-                        {link}
-                      </Tooltip>
-                    ) : (
-                      link
-                    )}
-                  </li>
-                );
-              })}
+              <div className="mt-3 border-t border-border pt-2">
+                <NavChatsHistory
+                  chats={savedChats}
+                  activeChatId={activeChatId}
+                  onSelectChat={(chatId) => {
+                    if (typeof window === "undefined") return;
+                    window.dispatchEvent(new CustomEvent(SELECT_EVENT, { detail: { chatId } }));
+                  }}
+                  onNewChat={() => dispatchAiCommand({ type: "clear" })}
+                  onRenameChat={(chatId, title) => dispatchAiAction({ type: "rename", chatId, title })}
+                  onTogglePinChat={(chatId) => dispatchAiAction({ type: "pin", chatId })}
+                  onDeleteChat={(chatId) => dispatchAiAction({ type: "delete", chatId })}
+                  onShareChat={(chatId) => dispatchAiAction({ type: "share", chatId })}
+                />
+              </div>
+            </>
+          )
+        ) : (
+          <>
+            <ul className="flex flex-col gap-0.5">
+              {sidebarPrimary.map((item) => (
+                <li key={item.id}>{navRow(item, false)}</li>
+              ))}
             </ul>
-          </nav>
-          <div className="border-t border-border/70 px-3.5 py-3">
-            {!collapsed ? (
-              <>
-                <BalanceHeader variant="sidebar" />
-                <div className="mt-2.5">
-                  <AccountSwitch mode={accountMode} onChange={onAccountChange ?? (() => {})} />
-                </div>
-              </>
-            ) : null}
-            <div
-              ref={menuRef}
-              className={cn("relative", !collapsed && "mt-2.5")}
-              onKeyDown={(event) => {
-                if (event.key === "Escape") setMenuOpen(false);
-              }}
-            >
-              {menuOpen && !collapsed && !loading ? (
-                <div
-                  role="menu"
-                  aria-label={t.shell.account}
-                  className="absolute inset-x-0 bottom-full mb-2 flex flex-col gap-1 rounded-xl border border-border/70 bg-bg p-2 shadow-float"
-                >
-                  <Link
-                    role="menuitem"
-                    href="/app/perfil"
-                    onClick={() => setMenuOpen(false)}
-                    className="flex min-h-11 cursor-pointer items-center rounded-xl px-3 text-sm text-fg-body outline-none hover:bg-surface-2 focus-visible:ring-4 focus-visible:ring-fg/20"
-                  >
-                    {t.nav.profile}
-                  </Link>
-                  <Link
-                    role="menuitem"
-                    href="/app/ajustes"
-                    onClick={() => setMenuOpen(false)}
-                    className="flex min-h-11 cursor-pointer items-center rounded-xl px-3 text-sm text-fg-body outline-none hover:bg-surface-2 focus-visible:ring-4 focus-visible:ring-fg/20"
-                  >
-                    {t.nav.settings}
-                  </Link>
-                  <div className="flex justify-start px-3 py-2">
-                    <CurrencySwitch />
-                  </div>
-                  <button
-                    role="menuitem"
-                    type="button"
-                    onClick={() => void account.logout()}
-                    disabled={account.status === "loading"}
-                    className="flex min-h-11 w-full cursor-pointer items-center rounded-xl px-3 text-left text-sm text-fg-body outline-none hover:bg-surface-2 focus-visible:ring-4 focus-visible:ring-fg/20 disabled:opacity-40"
-                  >
-                    {t.profile.logout}
-                  </button>
-                </div>
-              ) : null}
-              {loading ? (
-                <div className="flex min-h-11 items-center rounded-xl">
-                  <span className="flex size-11 shrink-0 items-center justify-center">
-                    <Skeleton className="size-10 rounded-full" />
-                  </span>
-                  {!collapsed ? <Skeleton className="h-4 w-24" /> : null}
-                </div>
-              ) : collapsed ? (
-                <Tooltip content={name || t.shell.account} side="right">
-                  <Link
-                    href="/app/perfil"
-                    aria-label={loading ? t.shell.account : `${name}. ${t.shell.account}`}
-                    title={loading ? t.shell.account : name}
-                    className="flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-xl outline-none hover:bg-surface-2 focus-visible:ring-4 focus-visible:ring-fg/20"
-                  >
-                    <span className="flex size-11 shrink-0 items-center justify-center">
-                      <Avatar alt="" fallback={name} size="md" className="size-10" />
-                    </span>
-                  </Link>
-                </Tooltip>
-              ) : (
-                <button
-                  type="button"
-                  aria-haspopup="menu"
-                  aria-expanded={menuOpen}
-                  aria-label={`${name}. ${t.shell.account}`}
-                  onClick={() => setMenuOpen((open) => !open)}
-                  className="flex min-h-11 w-full cursor-pointer items-center gap-1.5 rounded-xl text-left outline-none hover:bg-surface-2 focus-visible:ring-4 focus-visible:ring-fg/20"
-                >
-                  <span className="flex size-11 shrink-0 items-center justify-center">
-                    <Avatar alt="" fallback={name} size="md" className="size-10" />
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-medium text-fg">{name}</span>
-                    {account.email ? <span className="block truncate text-xs text-fg-muted">{account.email}</span> : null}
-                  </span>
-                  <IconChevron className={cn("size-4 shrink-0 text-fg-muted transition duration-200", menuOpen && "rotate-180")} />
-                </button>
-              )}
+            <div aria-hidden className="mx-1 my-2 h-px bg-border" />
+            <ul className="flex flex-col gap-0.5">
+              {sidebarUtility.map((item) => (
+                <li key={item.id}>{navRow(item, true)}</li>
+              ))}
+            </ul>
+          </>
+        )}
+      </nav>
+
+      <footer className="shrink-0 border-t border-border px-4 py-3">
+        {!isAiRoute && !collapsed ? (
+          <>
+            <BalanceHeader variant="sidebar" className="bg-bg" />
+            <div className="mt-2">
+              <AccountSwitch mode={accountMode} onChange={onAccountChange ?? (() => {})} />
             </div>
-          </div>
-        </>
-      )}
+          </>
+        ) : null}
+
+        <div
+          ref={menuRef}
+          className={cn("relative", !isAiRoute && !collapsed && "mt-2")}
+        >
+          <AccountMenuPanel
+            open={menuOpen && !collapsed && !loading}
+            onClose={() => setMenuOpen(false)}
+            onLogout={() => void account.logout()}
+            logoutDisabled={account.status === "loading"}
+            labels={menuLabels}
+            panelRef={accountPanelRef}
+          />
+          {loading ? (
+            <div className="flex min-h-11 items-center rounded-lg px-1.5">
+              <Skeleton className="size-8 shrink-0 rounded-full" />
+              {!collapsed ? <Skeleton className="ml-2.5 h-3.5 w-24" /> : null}
+            </div>
+          ) : collapsed ? (
+            <Tooltip content={name || t.shell.account} side="right">
+              <Link
+                href="/app/perfil"
+                aria-label={loading ? t.shell.account : `${name}. ${t.shell.account}`}
+                title={loading ? t.shell.account : name}
+                className="flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-lg hover:bg-fg/[0.055] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fg"
+              >
+                <Avatar alt="" fallback={name} size="sm" className="size-8" />
+              </Link>
+            </Tooltip>
+          ) : (
+            <AccountTrigger
+              name={name}
+              email={account.email}
+              label={`${name}. ${t.shell.account}`}
+              open={menuOpen}
+              onClick={() => setMenuOpen((open) => !open)}
+              triggerRef={accountTriggerRef}
+            />
+          )}
+        </div>
+      </footer>
     </aside>
   );
 }

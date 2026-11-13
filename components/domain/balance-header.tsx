@@ -90,7 +90,7 @@ export function BalanceHeader({
   return (
     <div
       className={cn(
-        "rounded-xl border border-border/75 bg-white/80 px-3 py-2.5 shadow-[0_4px_14px_-6px_rgba(12,15,20,0.06)] backdrop-blur-md tabular-nums tracking-tight",
+        "rounded-xl border border-border bg-bg px-3 py-2.5 tabular-nums tracking-tight",
         className,
       )}
     >

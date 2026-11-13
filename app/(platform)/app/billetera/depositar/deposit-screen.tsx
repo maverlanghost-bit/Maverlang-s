@@ -19,7 +19,10 @@ export function DepositScreen({
 
   return (
     <div className="flex flex-col gap-6">
-      <Link href="/app/billetera" className="w-fit text-sm font-medium text-fg underline underline-offset-4">
+      <Link
+        href="/app/billetera"
+        className="inline-flex min-h-11 w-fit items-center text-sm font-medium text-fg underline decoration-fg/40 underline-offset-4 hover:decoration-fg"
+      >
         {t.wallet.back}
       </Link>
       <PageHeader title={t.wallet.depositTitle} description={t.wallet.depositLead} />

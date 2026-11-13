@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { LandingSection } from "@/components/landing/section";
+import { buttonClasses } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
 import {
   assetsInCategory,
   CATEGORIES,
@@ -9,7 +11,7 @@ import {
 } from "@/lib/seo/categories";
 import { breadcrumbJsonLd, itemListJsonLd, JsonLd } from "@/lib/seo/jsonld";
 import { brandShort, pageMetadata } from "@/lib/seo/metadata";
-import { listPublicAssets } from "@/lib/seo/public-catalog";
+import { listPublicAssets, type PublicAsset } from "@/lib/seo/public-catalog";
 
 export const revalidate = 3600;
 
@@ -26,32 +28,68 @@ export const metadata: Metadata = pageMetadata({
   absolute: true,
 });
 
-/** Etiqueta corta y literal: no insinúa popularidad ni rendimiento. */
-function kindLabel(category: CatalogCategory): string {
-  if (category.kind === "sector") return "Sector";
-  return category.editorial ? "Selección editorial" : "Selección por dato de la SEC";
-}
+/** Nombre, conteo real y ejemplos de cada categoría publicable. */
+type PublishedCategory = {
+  category: CatalogCategory;
+  /** Activos reales de la categoría: de acá salen el conteo y los ejemplos. */
+  members: readonly PublicAsset[];
+};
 
-function CategoryCard({ category, count }: { category: CatalogCategory; count: number }) {
+const linkClass =
+  "inline-flex min-h-11 items-center text-sm text-fg-body underline decoration-border underline-offset-4 hover:text-fg hover:decoration-fg";
+
+/**
+ * Fila de índice: nombre, hasta tres tickers de ejemplo y el conteo real.
+ * Sin tarjeta ni sombra: una hairline separa cada entrada.
+ */
+function CategoryRow({ category, members }: PublishedCategory) {
+  const count = members.length;
+  const examples = members.slice(0, 3).map((asset) => asset.ticker);
+
   return (
     <Link
       href={`/categorias/${category.slug}`}
-      className="group flex min-h-24 flex-col justify-between gap-4 rounded-2xl border border-border/80 bg-white p-5 transition hover:-translate-y-0.5 hover:border-fg/25 hover:shadow-md focus-visible:ring-4 focus-visible:ring-fg/20 focus-visible:outline-none"
+      className="group grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-4 gap-y-1 border-b border-border py-4 sm:grid-cols-[minmax(0,14rem)_minmax(0,1fr)_auto] sm:gap-x-6"
     >
-      <div>
-        <p className="label">{kindLabel(category)}</p>
-        <p className="mt-2 text-base font-medium text-fg">{category.name}</p>
-      </div>
-      <div className="flex items-center justify-between gap-3 text-xs text-fg-muted">
-        <span>
-          <span className="num font-medium text-fg-body">{count}</span>{" "}
-          {count === 1 ? "activo" : "activos"}
-        </span>
-        <span className="font-medium text-brand transition-transform group-hover:translate-x-0.5">
-          Ver categoría →
-        </span>
-      </div>
+      <span className="text-base leading-snug font-medium text-fg underline decoration-transparent underline-offset-4 transition-colors group-hover:decoration-border-strong">
+        {category.name}
+      </span>
+      <span className="num col-span-2 row-start-2 truncate text-[13px] leading-relaxed text-fg-muted sm:col-span-1 sm:col-start-2 sm:row-start-1">
+        <span className="sr-only">Ejemplos: </span>
+        {examples.join(" · ")}
+      </span>
+      <span className="num col-start-2 row-start-1 text-right text-[13px] leading-snug whitespace-nowrap text-fg-muted sm:col-start-3">
+        <span className="font-medium text-fg">{count}</span> {count === 1 ? "activo" : "activos"}
+      </span>
     </Link>
+  );
+}
+
+function CategoryGroup({
+  id,
+  title,
+  intro,
+  items,
+}: {
+  id: string;
+  title: string;
+  intro?: string;
+  items: readonly PublishedCategory[];
+}) {
+  return (
+    <section aria-labelledby={id} className="mt-10">
+      <h2 id={id} className="text-xl sm:text-2xl">
+        {title}
+      </h2>
+      {intro ? <p className="mt-2 max-w-[62ch] text-[13px] leading-relaxed text-pretty text-fg-muted">{intro}</p> : null}
+      <ul className="mt-5 border-t border-border">
+        {items.map((item) => (
+          <li key={item.category.slug}>
+            <CategoryRow {...item} />
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 
@@ -59,16 +97,16 @@ function CategoryCard({ category, count }: { category: CatalogCategory; count: n
 export default async function CategoriasPage() {
   const assets = await listPublicAssets();
   /** Mismo umbral que las páginas de categoría: nunca se enlaza un 404. */
-  const published = CATEGORIES.map((category) => ({
+  const published: PublishedCategory[] = CATEGORIES.map((category) => ({
     category,
-    count: assetsInCategory(category.slug, assets).length,
-  })).filter(({ count }) => count >= MIN_CATEGORY_SIZE);
+    members: assetsInCategory(category.slug, assets),
+  })).filter(({ members }) => members.length >= MIN_CATEGORY_SIZE);
 
   const sectors = published.filter(({ category }) => category.kind === "sector");
   const lists = published.filter(({ category }) => category.kind === "lista");
 
   return (
-    <LandingSection titleId="categorias-title">
+    <LandingSection titleId="categorias-title" density="compact">
       <JsonLd
         data={breadcrumbJsonLd([
           { name: "Inicio", path: "/" },
@@ -86,7 +124,7 @@ export default async function CategoriasPage() {
         })}
       />
 
-      <nav aria-label="Migas" className="text-sm text-fg-muted">
+      <nav aria-label="Migas" className="text-[13px] text-fg-muted">
         <ol className="flex flex-wrap items-center gap-x-2 gap-y-1">
           <li>
             <Link href="/" className="underline decoration-border underline-offset-4 hover:decoration-fg">
@@ -100,12 +138,12 @@ export default async function CategoriasPage() {
         </ol>
       </nav>
 
-      <header className="mt-8 max-w-2xl">
-        <p className="label">Categorías</p>
+      <header className="mt-8 max-w-3xl">
+        <p className="label text-[13px]">Categorías</p>
         <h1 id="categorias-title" className="mt-3 text-3xl sm:text-4xl">
           Categorías de acciones
         </h1>
-        <p className="mt-4 text-sm leading-relaxed text-fg-body sm:text-base">
+        <p className="mt-4 max-w-[62ch] text-lead text-pretty text-fg-body">
           Los sectores salen de la clasificación SIC que la SEC registra para cada empresa; las
           selecciones agrupan activos por tema o por un dato publicado en la SEC. Cada categoría
           enlaza a las fichas públicas y no es una recomendación de inversión.
@@ -113,56 +151,39 @@ export default async function CategoriasPage() {
       </header>
 
       {published.length === 0 ? (
-        <p className="mt-10 text-sm text-fg-muted">Las categorías no están disponibles ahora.</p>
+        <div className="mt-10">
+          <EmptyState
+            title="Las categorías no están disponibles ahora."
+            description="No pudimos cargar los sectores ni las selecciones. Recarga la página en unos minutos."
+            action={
+              <Link href="/acciones" className={buttonClasses({ variant: "secondary" })}>
+                Ver el catálogo completo
+              </Link>
+            }
+          />
+        </div>
       ) : (
         <>
           {sectors.length > 0 ? (
-            <section aria-labelledby="categorias-sectores" className="mt-12">
-              <h2 id="categorias-sectores" className="text-xl sm:text-2xl">
-                Sectores
-              </h2>
-              <ul className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {sectors.map(({ category, count }) => (
-                  <li key={category.slug}>
-                    <CategoryCard category={category} count={count} />
-                  </li>
-                ))}
-              </ul>
-            </section>
+            <CategoryGroup id="categorias-sectores" title="Sectores" items={sectors} />
           ) : null}
 
           {lists.length > 0 ? (
-            <section aria-labelledby="categorias-selecciones" className="mt-12">
-              <h2 id="categorias-selecciones" className="text-xl sm:text-2xl">
-                Selecciones
-              </h2>
-              <p className="mt-2 max-w-2xl text-sm leading-relaxed text-fg-muted">
-                Agrupaciones por tema o por un dato de la SEC. Las de criterio editorial son una
-                selección de {brandShort()}, no una recomendación.
-              </p>
-              <ul className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {lists.map(({ category, count }) => (
-                  <li key={category.slug}>
-                    <CategoryCard category={category} count={count} />
-                  </li>
-                ))}
-              </ul>
-            </section>
+            <CategoryGroup
+              id="categorias-selecciones"
+              title="Selecciones"
+              intro={`Agrupaciones por tema o por un dato de la SEC. Las de criterio editorial son una selección de ${brandShort()}, no una recomendación.`}
+              items={lists}
+            />
           ) : null}
         </>
       )}
 
-      <p className="mt-12 flex flex-wrap items-center gap-x-6 gap-y-3 text-sm">
-        <Link
-          href="/acciones"
-          className="inline-flex min-h-11 items-center font-medium text-fg underline decoration-border underline-offset-4 hover:decoration-fg"
-        >
+      <p className="mt-12 flex flex-wrap items-center gap-x-6 gap-y-3">
+        <Link href="/acciones" className={linkClass}>
           Ver el catálogo completo
         </Link>
-        <Link
-          href="/como-funciona"
-          className="inline-flex min-h-11 items-center text-fg-body underline decoration-border underline-offset-4 hover:text-fg hover:decoration-fg"
-        >
+        <Link href="/como-funciona" className={linkClass}>
           Cómo funciona
         </Link>
       </p>

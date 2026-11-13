@@ -1,9 +1,10 @@
 "use client";
 
-import type { ChangeEvent } from "react";
+import { useId, type ChangeEvent, type ReactNode } from "react";
+
+import { indexFromKey } from "@/components/ui/keys";
 import { cn } from "@/lib/cn";
 import type { MoneyCurrency } from "@/lib/format";
-import { SegmentedControl } from "@/components/ui/segmented-control";
 
 /** CLP y USD son dinero. USDC se muestra como dólar. SHARES es la cantidad de la acción. */
 export type AmountCurrency = MoneyCurrency | "USDC" | "SHARES";
@@ -89,6 +90,7 @@ export function AmountInput({
   describedBy,
   invalid = false,
   chips,
+  caption,
   inputClassName,
   chipClassName,
   chipsClassName,
@@ -110,18 +112,33 @@ export function AmountInput({
   invalid?: boolean;
   /** Si no se pasa, los atajos son los de la moneda. */
   chips?: readonly { label: string; value: number | "max" }[];
+  /** Línea bajo la cifra (equivalencia, nota del paso). Reserva alto fijo. */
+  caption?: ReactNode;
   /** Ajustes sólo visuales (móvil) del campo y los atajos, sin tocar lógica. */
   inputClassName?: string;
   chipClassName?: string;
   chipsClassName?: string;
 }) {
+  const baseId = useId();
+  const fieldId = id ?? `${baseId}-amount`;
   const places = placesOf(currency);
   const display = places === 0 ? groupClp(value.replace(/\D/g, "")) : decimalToDisplay(value);
-  const symbol = currency === "CLP" ? "$" : currency === "SHARES" ? "" : "US$";
   const choices = currencies ?? (["CLP", "USD"] as const);
   const shownChips = (chips ?? quickAmounts[currency]).map((chip) =>
     chip.value === "max" && maxLabel ? { ...chip, label: maxLabel } : chip,
   );
+  // La unidad va pegada a la cifra: «12.345 CLP» no deja dudas de moneda.
+  const unit =
+    currency === "SHARES"
+      ? (suffix ?? labels?.SHARES ?? defaultLabels.SHARES)
+      : (labels?.[currency] ?? defaultLabels[currency]);
+  // La cifra protagonista baja de tamaño sólo cuando el número es largo: nunca desborda a 360 px.
+  const sizeClass =
+    display.length > 11
+      ? "text-[1.75rem] sm:text-[2rem]"
+      : display.length > 8
+        ? "text-[2rem] sm:text-[2.25rem]"
+        : "text-[2.5rem] sm:text-[2.75rem]";
 
   function onInput(event: ChangeEvent<HTMLInputElement>) {
     if (places === 0) {
@@ -145,29 +162,43 @@ export function AmountInput({
   }
 
   return (
-    <div className="flex flex-col items-center gap-4">
-      <span className="text-sm font-medium text-fg">{label}</span>
-      {onCurrencyChange ? (
-        <SegmentedControl
-          label={currencyLabel}
-          value={currency}
-          onChange={(next) => {
-            const match = choices.find((choice) => choice === next);
-            if (match) onCurrencyChange(match);
-          }}
-          options={choices.map((choice) => ({ value: choice, label: labels?.[choice] ?? defaultLabels[choice] }))}
-        />
-      ) : (
-        <span className="text-sm text-fg-muted">{labels?.[currency] ?? defaultLabels[currency]}</span>
-      )}
-      <div className="flex min-w-0 max-w-full items-baseline justify-center gap-2">
-        {symbol ? <span className="font-mono text-2xl text-fg-muted tabular-nums">{symbol}</span> : null}
+    <div className="flex w-full min-w-0 flex-col">
+      <div className="flex min-h-9 flex-wrap items-center justify-between gap-x-3 gap-y-1">
+        <label htmlFor={fieldId} className="label cursor-default">
+          {label}
+        </label>
+        {onCurrencyChange ? (
+          <CurrencySwitch
+            label={currencyLabel}
+            value={currency}
+            options={choices}
+            labels={labels}
+            onChange={(next) => {
+              if (next !== currency) onCurrencyChange(next);
+            }}
+          />
+        ) : null}
+      </div>
+
+      <div
+        className={cn(
+          /* El subrayado ES el borde del control: `border-control` da 3,74:1
+             (con /45 se quedaba en 1,8:1, casi blanco). El foco suma 1 px
+             interior sobre el borde: 2 px de tinta legibles a 390 px. */
+          "mt-2 flex min-w-0 items-baseline gap-2 border-b pb-2.5 transition duration-150",
+          invalid
+            ? "border-down"
+            : "border-border-control hover:border-fg focus-within:border-fg focus-within:shadow-[inset_0_-2px_0_var(--color-fg)]",
+        )}
+      >
         <input
-          id={id}
+          id={fieldId}
+          data-bare-input
           inputMode={places === 0 ? "numeric" : "decimal"}
+          enterKeyHint="done"
           autoComplete="off"
           spellCheck={false}
-          aria-label={`${label} en ${labels?.[currency] ?? defaultLabels[currency]}`}
+          aria-label={`${label} en ${unit}`}
           aria-invalid={invalid || undefined}
           aria-describedby={describedBy}
           placeholder="0"
@@ -175,13 +206,21 @@ export function AmountInput({
           onChange={onInput}
           style={{ width: `${Math.max(display.length, 1) + 1}ch` }}
           className={cn(
-            "min-w-0 max-w-full overflow-x-auto rounded-lg bg-transparent text-center font-mono text-4xl text-fg tabular-nums placeholder:text-fg-subtle sm:text-5xl",
+            "min-w-0 max-w-full rounded-none bg-transparent text-left font-mono leading-none tracking-[-0.02em] text-fg tabular-nums caret-fg outline-none placeholder:text-fg-subtle",
+            sizeClass,
             inputClassName,
           )}
         />
-        {suffix ? <span className="text-sm text-fg-muted">{suffix}</span> : null}
+        <span className="shrink-0 font-mono text-[12px] leading-none font-medium tracking-[0.045em] text-fg-muted uppercase">
+          {unit}
+        </span>
       </div>
-      <div className={cn("flex flex-wrap justify-center gap-2", chipsClassName)}>
+
+      {caption !== undefined ? (
+        <div className="mt-2.5 min-h-5 text-[13px] leading-5 text-fg-muted">{caption}</div>
+      ) : null}
+
+      <div className={cn("mt-2 flex flex-wrap items-center gap-x-1", chipsClassName)}>
         {shownChips.map((chip) => {
           const target = chip.value === "max" ? (max === undefined ? null : asRaw(max, currency)) : asRaw(chip.value, currency);
           const pressed = target !== null && value === target;
@@ -193,8 +232,10 @@ export function AmountInput({
               disabled={chip.value === "max" && max === undefined}
               onClick={() => applyQuick(chip.value)}
               className={cn(
-                "min-h-11 rounded-full px-3 text-sm transition duration-[140ms] ease-spring active:scale-[0.98] disabled:opacity-40",
-                pressed ? "bg-surface-3 text-fg" : "bg-surface-2 text-fg hover:bg-surface-3",
+                "inline-flex min-h-11 min-w-11 touch-manipulation items-center justify-center rounded-md px-2 text-[12px] leading-none font-medium tracking-[0.01em] tabular-nums transition-colors duration-150 hover:bg-surface-1 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50 sm:min-h-9",
+                pressed
+                  ? "text-fg underline decoration-fg decoration-1 underline-offset-4"
+                  : "text-fg-muted hover:text-fg",
                 chipClassName,
               )}
             >
@@ -203,6 +244,71 @@ export function AmountInput({
           );
         })}
       </div>
+    </div>
+  );
+}
+
+/** Conmutador de moneda: pista hairline + píldora blanca. Alto táctil de 44 px. */
+function CurrencySwitch({
+  label,
+  value,
+  options,
+  labels,
+  onChange,
+}: {
+  label: string;
+  value: AmountCurrency;
+  options: readonly AmountCurrency[];
+  labels?: Partial<Record<AmountCurrency, string>>;
+  onChange: (currency: AmountCurrency) => void;
+}) {
+  const baseId = useId();
+
+  function move(key: string) {
+    const current = Math.max(0, options.indexOf(value));
+    const next = indexFromKey(key, current, options.length);
+    if (next === null) return;
+    const option = options[next];
+    if (!option) return;
+    onChange(option);
+    document.getElementById(`${baseId}-${option}`)?.focus();
+  }
+
+  return (
+    <div
+      role="radiogroup"
+      aria-label={label}
+      onKeyDown={(event) => {
+        if (indexFromKey(event.key, 0, options.length) === null) return;
+        event.preventDefault();
+        move(event.key);
+      }}
+      className="inline-flex shrink-0 items-center rounded-full border border-border-control bg-bg p-0.5"
+    >
+      {options.map((option) => {
+        const selected = option === value;
+        return (
+          <button
+            key={option}
+            id={`${baseId}-${option}`}
+            type="button"
+            role="radio"
+            aria-checked={selected}
+            tabIndex={selected ? 0 : -1}
+            onClick={() => onChange(option)}
+            className={cn(
+              "min-h-11 cursor-pointer touch-manipulation rounded-full px-3 text-xs font-medium tracking-[0.01em] transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-fg sm:min-h-9",
+              /* Seleccionado sin depender del color: el anillo de 1 px aparece
+                 sólo en la opción activa (la píldora gris sola daba 1,1:1). */
+              selected
+                ? "bg-surface-2 text-fg shadow-[inset_0_0_0_1px_#0a0a0a]"
+                : "text-fg-muted hover:bg-surface-1 hover:text-fg",
+            )}
+          >
+            {labels?.[option] ?? defaultLabels[option]}
+          </button>
+        );
+      })}
     </div>
   );
 }

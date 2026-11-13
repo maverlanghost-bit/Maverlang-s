@@ -57,11 +57,11 @@ function SyncToastOffset({ includeTabs }: { includeTabs: boolean }) {
 }
 
 /**
- * Ancho real de la barra lateral en escritorio (debe coincidir con `w-[72px]` /
- * `w-[220px]` de sidebar.tsx). Se publica como `--app-sidebar-width` para que
+ * Ancho real de la barra lateral en escritorio (debe coincidir con `w-[76px]` /
+ * `w-[240px]` de sidebar.tsx). Se publica como `--app-sidebar-width` para que
  * las capas fijas —el chat de IA— sepan cuánto espacio tienen a la derecha.
  */
-const SIDEBAR_WIDTH = { collapsed: 72, expanded: 220 } as const;
+const SIDEBAR_WIDTH = { collapsed: 76, expanded: 240 } as const;
 
 /** Sin tabs privadas, la barra de la ficha queda al borde de la pantalla. */
 function ClearPrivateTabs() {
@@ -73,6 +73,17 @@ function ClearPrivateTabs() {
     };
   }, []);
   return null;
+}
+
+function SkipLink({ label }: { label: string }) {
+  return (
+    <a
+      href="#contenido"
+      className="sr-only focus:not-sr-only focus:fixed focus:top-[max(0.75rem,env(safe-area-inset-top))] focus:left-4 focus:z-[60] focus:inline-flex focus:min-h-11 focus:items-center focus:rounded-full focus:bg-fg focus:px-5 focus:text-sm focus:font-medium focus:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border-strong"
+    >
+      {label}
+    </a>
+  );
 }
 
 function ShellFrame({
@@ -108,23 +119,23 @@ function ShellFrame({
     >
       <SyncDocumentLanguage language={language} />
       <SyncToastOffset includeTabs />
-      <a
-        href="#contenido"
-        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-full focus:bg-fg focus:px-4 focus:py-2 focus:text-sm focus:text-white"
-      >
-        {t.shell.skip}
-      </a>
+      <SkipLink label={t.shell.skip} />
       <StockSearchRoot>
         <div className="min-h-dvh lg:grid lg:grid-cols-[auto_minmax(0,1fr)]">
           <Sidebar collapsed={collapsed} onToggle={toggleSidebar} accountMode={account.mode} onAccountChange={account.select} />
           <div className="flex min-h-dvh min-w-0 flex-col">
             <TopBar accountMode={account.mode} hideMobileCluster={assistantRoute} />
-            <div className={cn("mx-auto flex w-full max-w-6xl flex-1 flex-col px-4 pb-[var(--app-tabs-height)] sm:px-5 lg:px-8 lg:pb-0 lg:pt-8", assistantRoute ? "pt-0" : "pt-[calc(env(safe-area-inset-top)+4.25rem)]")}>
-              <main id="contenido" tabIndex={-1} className="flex-1 scroll-mt-16 outline-none">
+            <div
+              className={cn(
+                "mx-auto flex w-full max-w-6xl min-w-0 flex-1 flex-col px-5 pb-[var(--app-tabs-height)] lg:px-8 lg:pb-0 lg:pt-8",
+                assistantRoute ? "pt-0" : "pt-[calc(env(safe-area-inset-top)+4.5rem)]",
+              )}
+            >
+              <main id="contenido" tabIndex={-1} className="min-w-0 flex-1 scroll-mt-16 outline-none">
                 {children}
               </main>
               <footer className="pb-[calc(1rem+var(--app-detail-cta))] pt-8 lg:pb-8">
-                <p className="border-t border-border pt-4 text-sm leading-relaxed text-fg-muted">{t.disclaimer}</p>
+                <p className="border-t border-border pt-4 text-[13px] leading-relaxed text-fg-muted">{t.disclaimer}</p>
               </footer>
             </div>
           </div>
@@ -146,20 +157,15 @@ function PublicFrame({ children }: { children: ReactNode }) {
       <SyncDocumentLanguage language={language} />
       <ClearPrivateTabs />
       <SyncToastOffset includeTabs={false} />
-      <a
-        href="#contenido"
-        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-full focus:bg-fg focus:px-4 focus:py-2 focus:text-sm focus:text-white"
-      >
-        {t.shell.skip}
-      </a>
+      <SkipLink label={t.shell.skip} />
       <StockSearchRoot>
         <PublicHeader />
-        <div className="mx-auto flex min-h-[calc(100dvh-3.5rem)] w-full max-w-6xl flex-col px-4 pt-4 sm:px-5 sm:pt-6 lg:px-8 lg:pt-8">
-          <main id="contenido" tabIndex={-1} className="flex-1 scroll-mt-16 outline-none">
+        <div className="mx-auto flex min-h-[calc(100dvh-4rem)] w-full max-w-6xl flex-col px-5 pt-4 sm:pt-6 lg:px-8 lg:pt-10">
+          <main id="contenido" tabIndex={-1} className="min-w-0 flex-1 scroll-mt-16 outline-none">
             {children}
           </main>
-          <footer className="pb-[calc(1rem+var(--app-detail-cta))] pt-8 lg:pb-8">
-            <p className="border-t border-border pt-4 text-sm leading-relaxed text-fg-muted">{t.disclaimer}</p>
+          <footer className="pb-[calc(1rem+var(--app-detail-cta)+env(safe-area-inset-bottom))] pt-8 lg:pb-8">
+            <p className="border-t border-border pt-4 text-[13px] leading-relaxed text-fg-muted">{t.disclaimer}</p>
           </footer>
         </div>
       </StockSearchRoot>

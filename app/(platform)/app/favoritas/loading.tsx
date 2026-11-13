@@ -1,32 +1,61 @@
 import { Skeleton } from "@/components/ui/skeleton";
 
-/** Esqueleto de favoritas: encabezado, orden y la lista de acciones guardadas. */
+const ROWS = ["a", "b", "c", "d"] as const;
+const SECTION_CHIPS = ["a", "b", "c"] as const;
+
+/**
+ * Esqueleto de favoritas con la retícula real: secciones del mercado,
+ * encabezado con frescura, orden y la lista de acciones seguidas. Sin precios
+ * ni cifras hasta que lleguen, y sin cápsulas donde la pantalla usa texto.
+ */
 export default function FavoritasLoading() {
   return (
-    <div role="status" aria-live="polite" aria-busy="true" className="flex flex-col gap-6">
+    <div role="status" aria-live="polite" aria-busy="true" className="flex min-w-0 flex-col gap-6">
       <span className="sr-only">Cargando las favoritas</span>
 
       <div className="flex flex-col gap-2">
-        <Skeleton className="h-8 w-40" />
+        <Skeleton className="h-9 w-40 max-w-full sm:h-10 sm:w-44" />
         <Skeleton className="h-4 w-72 max-w-full" />
+        <Skeleton className="mt-1 h-3.5 w-44 max-w-full" />
       </div>
 
-      <Skeleton className="h-11 w-full max-w-sm rounded-full" />
+      <div className="no-scrollbar -mx-5 flex items-center gap-x-6 overflow-x-auto px-5 sm:mx-0 sm:px-0">
+        {SECTION_CHIPS.map((key) => (
+          <span key={key} className="flex min-h-11 shrink-0 items-center sm:min-h-8">
+            <Skeleton className="h-3.5 w-16" />
+          </span>
+        ))}
+      </div>
 
-      <div className="flex flex-col gap-1.5">
-        {["a", "b", "c", "d"].map((key) => (
-          <div key={key} className="flex min-h-[6.75rem] items-center gap-3 rounded-2xl border border-border/70 px-3 py-2 sm:min-h-14">
+      <div className="inline-flex w-fit max-w-full rounded-full border border-border bg-surface-2 p-1">
+        <Skeleton className="h-11 w-28 rounded-full" />
+        <Skeleton className="ml-1 h-11 w-24 rounded-full" />
+      </div>
+
+      <div className="flex min-w-0 flex-col divide-y divide-border">
+        {ROWS.map((key) => (
+          <div key={key} className="flex min-h-16 items-center gap-3 px-1 py-2 sm:gap-4">
             <Skeleton className="size-9 shrink-0 rounded-full" />
-            <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-              <Skeleton className="h-4 w-24" />
-              <Skeleton className="h-3 w-40 max-w-full" />
+            <div className="flex min-w-0 flex-1 flex-col gap-2">
+              <Skeleton className="h-4 w-20 max-w-[40%]" />
+              <Skeleton className="h-3 w-40 max-w-[70%]" />
             </div>
-            <div className="flex shrink-0 flex-col items-end gap-1.5">
+            <Skeleton className="hidden h-7 w-[72px] shrink-0 sm:block" />
+            <div className="flex shrink-0 flex-col items-end gap-2">
               <Skeleton className="h-4 w-16" />
-              <Skeleton className="h-3 w-12" />
+              <Skeleton className="h-3 w-10" />
             </div>
+            <Skeleton className="size-11 shrink-0 rounded-full" />
           </div>
         ))}
+      </div>
+
+      <div className="flex flex-col gap-3">
+        <div className="flex items-center justify-between gap-2">
+          <Skeleton className="h-6 w-32 max-w-full" />
+          <Skeleton className="size-5 shrink-0 rounded-full" />
+        </div>
+        <Skeleton className="h-20 w-full rounded-2xl sm:h-16" />
       </div>
     </div>
   );
