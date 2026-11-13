@@ -129,7 +129,7 @@ export function PublicCatalogGrid({ assets }: { assets: readonly PublicCatalogIt
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Buscar por nombre o ticker (Apple, NVDA, S&P 500)..."
-            className="min-h-11 w-full rounded-md border border-border-control bg-bg px-3 text-sm text-fg transition placeholder:text-fg-subtle hover:border-fg/60"
+            className="min-h-11 w-full rounded-md border border-border-control bg-bg px-3 text-base text-fg transition placeholder:text-fg-subtle hover:border-fg/60"
           />
         </div>
 
@@ -212,7 +212,7 @@ export function PublicCatalogGrid({ assets }: { assets: readonly PublicCatalogIt
             aria-label="Índice por letra"
             className="sticky top-16 z-20 -mx-5 mt-2 border-b border-border bg-bg/95 px-5 backdrop-blur-sm"
           >
-            <ul className="no-scrollbar flex items-center gap-1 overflow-x-auto">
+            <ul className="no-scrollbar flex items-center gap-1 overflow-x-auto overscroll-x-contain">
               {groups.map((group) => (
                 <li key={`indice-${group.letter}`}>
                   <a

@@ -46,15 +46,18 @@ export function ContentTable({
 }) {
   return (
     <div className={cn("min-w-0", className)}>
-      <dl className="flex flex-col divide-y divide-border border-y border-border sm:hidden">
+      <dl
+        aria-label={caption}
+        className="flex flex-col divide-y divide-border border-y border-border sm:hidden"
+      >
         {rows.map((row, index) => (
           <div key={row.id ?? index} className="flex flex-col gap-1.5 py-3">
             {columns.map((column) => (
               <div key={column.key} className="flex items-baseline justify-between gap-4">
-                <dt className="label-xs shrink-0">{column.header}</dt>
+                <dt className="label-xs max-w-[45%] shrink-0 break-words">{column.header}</dt>
                 <dd
                   className={cn(
-                    "min-w-0 text-right text-sm leading-snug break-words text-fg-body tabular-nums",
+                    "min-w-0 text-right text-sm leading-snug break-words text-fg-body tabular-nums [overflow-wrap:anywhere]",
                     (column.align ?? "left") === "left" && "text-left",
                     column.className,
                   )}

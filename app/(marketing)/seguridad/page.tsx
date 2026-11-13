@@ -205,7 +205,7 @@ export default function SeguridadPage() {
           <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2">
             {practices.map((practice) => (
               <Card key={practice.title} className="flex h-full flex-col gap-4 p-5 sm:p-6">
-                <span className="flex size-11 shrink-0 items-center justify-center rounded-2xl border border-border bg-bg text-fg">
+                <span className="flex size-11 shrink-0 items-center justify-center rounded-xl border border-border bg-bg text-fg">
                   <practice.Icon />
                 </span>
                 <div>
@@ -228,7 +228,7 @@ export default function SeguridadPage() {
           <ul className="mt-8 divide-y divide-border border-y border-border">
             {framework.map((item) => (
               <li key={item.label} className="flex gap-4 p-5 sm:gap-5 sm:p-6">
-                <span className="mt-0.5 flex size-11 shrink-0 items-center justify-center rounded-2xl border border-border bg-bg text-fg">
+                <span className="mt-0.5 flex size-11 shrink-0 items-center justify-center rounded-xl border border-border bg-bg text-fg">
                   <item.Icon />
                 </span>
                 <div className="min-w-0">

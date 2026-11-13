@@ -66,7 +66,7 @@ export function SiteFooter() {
   const columns = buildColumns(mailto);
 
   return (
-    <footer className="border-t border-border px-5 py-12 lg:py-14">
+    <footer className="border-t border-border px-5 pt-12 pb-[max(3rem,env(safe-area-inset-bottom))] lg:pt-14 lg:pb-14">
       <div className="mx-auto w-full max-w-7xl">
         {/* Franja superior: marca a la izquierda, estado del sistema y arquitectura
             a la derecha. Con flex-wrap se apila sin romper en móvil. */}

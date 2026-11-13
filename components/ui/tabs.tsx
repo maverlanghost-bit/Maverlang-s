@@ -71,7 +71,7 @@ export function Tabs({
               className={cn(
                 /* 44 px de alto táctil; el activo se marca con barra de 2 px y
                    fondo al presionar (escalar el botón cortaba la barra). */
-                "min-h-11 shrink-0 border-b-2 px-3 text-sm whitespace-nowrap transition duration-[140ms] ease-spring active:bg-surface-1 focus-visible:ring-2 focus-visible:ring-fg focus-visible:ring-inset focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50",
+                "min-h-11 shrink-0 border-b-2 px-3 text-sm whitespace-nowrap transition duration-[140ms] ease-spring active:bg-surface-1 focus-visible:ring-2 focus-visible:ring-fg focus-visible:ring-inset focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-60",
                 active ? "border-fg text-fg" : "border-transparent text-fg-muted hover:text-fg",
               )}
             >

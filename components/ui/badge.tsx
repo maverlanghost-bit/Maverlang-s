@@ -7,7 +7,7 @@ const toneClass = {
   up: "bg-up-bg text-up",
   down: "bg-down-bg text-down",
   warn: "bg-warn-bg text-warn",
-  brand: "bg-fg text-white",
+  brand: "bg-fg text-bg",
 } as const;
 
 export type BadgeTone = keyof typeof toneClass;

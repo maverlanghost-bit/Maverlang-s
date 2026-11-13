@@ -38,7 +38,7 @@ export function EmptyState({
         ) : null}
       </div>
       {action ? (
-        <div className="mt-1 flex w-full flex-col items-center [&_a]:inline-flex [&_a]:min-h-11 [&_a]:items-center sm:w-auto">
+        <div className="mt-1 flex w-full flex-col items-center [&_a]:inline-flex [&_a]:min-h-11 [&_a]:items-center [&_a]:justify-center sm:w-auto">
           {action}
         </div>
       ) : null}

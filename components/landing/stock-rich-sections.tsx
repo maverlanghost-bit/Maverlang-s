@@ -265,7 +265,7 @@ function compareTarget(asset: PublicAsset, assets: readonly PublicAsset[]): Comp
 }
 
 const learnCardClass =
-  "group flex h-full flex-col rounded-2xl bg-surface-1 p-5 transition hover:bg-surface-2";
+  "group flex h-full flex-col rounded-xl bg-surface-1 p-5 transition hover:bg-surface-2";
 
 /** Enlaces educativos: guía base, comparación con un par y categorías del activo. */
 export function StockExploreSection({

@@ -38,7 +38,7 @@ export function Hero({ quotes, live }: { quotes: LandingQuote[]; live: boolean }
 
         <h1
           id="hero-title"
-          className="mx-auto mt-4 max-w-[46rem] text-[2rem] leading-[1.06] tracking-tight text-balance sm:text-[2.5rem] lg:text-5xl"
+          className="mx-auto mt-4 max-w-[46rem] text-[2rem] leading-[1.06] tracking-tight break-words text-balance sm:text-[2.5rem] lg:text-5xl"
         >
           Acciones de EE.UU. tokenizadas, en tu billetera
         </h1>

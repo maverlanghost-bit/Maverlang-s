@@ -24,7 +24,7 @@ export function NotFoundView({ kind }: { kind: "page" | "ticker" }) {
       </div>
       <Link
         href={ticker ? "/app" : "/"}
-        className={buttonClasses({ variant: "primary", className: "min-h-11" })}
+        className={buttonClasses({ variant: "primary", className: "min-h-11 w-full sm:w-auto" })}
       >
         {ticker ? t.notFound.tickerAction : t.notFound.pageAction}
       </Link>

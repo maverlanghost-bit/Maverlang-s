@@ -13,7 +13,7 @@ export default function MarketingLayout({ children }: { children: ReactNode }) {
           Visible mide 44px (target táctil) y usa el negro de `fg` (21:1). */}
       <a
         href="#contenido"
-        className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:inline-flex focus:min-h-11 focus:items-center focus:rounded-full focus:bg-fg focus:px-4 focus:text-sm focus:text-white"
+        className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:inline-flex focus:min-h-11 focus:items-center focus:rounded-full focus:bg-fg focus:px-4 focus:text-sm focus:text-bg"
       >
         {esCL.shell.skip}
       </a>

@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { ChangeBadge } from "@/components/domain/change-badge";
 import { PriceText } from "@/components/domain/price-text";
 import { getPrices } from "@/lib/api/client";
+import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/cn";
 
 /**
@@ -240,13 +241,9 @@ export function StockLivePrice({
     return (
       <div aria-live="polite" className={cn("flex flex-col", sizeFrame[size], className)}>
         <div className="flex items-center">
-          <span
-            aria-hidden
-            className={cn(
-              "block rounded-lg bg-surface-2 motion-safe:animate-pulse",
-              size === "lg" ? "h-8 w-40" : "h-5 w-24",
-            )}
-          />
+          {/* Mismo esqueleto del sistema: radio, tono y `prefers-reduced-motion`
+              salen de `Skeleton`, no de un bloque a mano. */}
+          <Skeleton className={size === "lg" ? "h-8 w-40" : "h-5 w-24"} />
           <span className="sr-only">Cargando precio…</span>
         </div>
         {/* Reserva el alto de la línea de estado: el hero no salta al llegar el dato. */}

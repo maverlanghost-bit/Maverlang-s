@@ -135,7 +135,7 @@ export function LegalBody({ blocks }: { blocks: Block[] }) {
             return (
               <figure key={index} className="min-w-0 py-1">
                 {/* <sm: una fila por concepto; la tabla de 544 px no cabe en 390 px. */}
-                <dl className="divide-y divide-border rounded-2xl border border-border bg-bg sm:hidden">
+                <dl className="divide-y divide-border rounded-xl border border-border bg-bg sm:hidden">
                   {block.rows.map((row, rowIndex) => {
                     const [leading, ...rest] = row;
                     return (
@@ -153,7 +153,7 @@ export function LegalBody({ blocks }: { blocks: Block[] }) {
                   })}
                 </dl>
                 {/* ≥sm: la tabla completa, con scroll y un fundido que avisa que sigue. */}
-                <div className="hidden overflow-x-auto rounded-2xl border border-border bg-bg sm:block sm:[mask-image:linear-gradient(90deg,transparent,#000_1.5%,#000_96%,transparent)]">
+                <div className="hidden overflow-x-auto rounded-xl border border-border bg-bg sm:block sm:[mask-image:linear-gradient(90deg,transparent,black_1.5%,black_96%,transparent)]">
                   <table className="w-full min-w-[34rem] text-left text-[0.9375rem]">
                     <thead>
                       <tr className="border-b border-border">
@@ -225,7 +225,7 @@ export function LegalNav({ current }: { current: string }) {
           <Link
             key={item.slug}
             href={`/legal/${item.slug}`}
-            className="group flex min-h-24 flex-col justify-between gap-3 rounded-2xl border border-border p-4 transition-colors hover:border-border-strong hover:bg-surface-1"
+            className="group flex min-h-24 flex-col justify-between gap-3 rounded-xl border border-border p-4 transition-colors hover:border-border-strong hover:bg-surface-1"
           >
             <span className="text-sm font-medium text-balance text-fg">{item.label}</span>
             <span className="inline-flex items-center gap-1 text-[13px] font-medium text-fg-muted transition-colors group-hover:text-fg">

@@ -104,7 +104,7 @@ export function WaitlistForm({
       >
         <span
           aria-hidden="true"
-          className="mx-auto flex size-10 items-center justify-center rounded-full bg-fg text-white"
+          className="mx-auto flex size-10 items-center justify-center rounded-full bg-fg text-bg"
         >
           <svg viewBox="0 0 24 24" fill="none" className="size-4" aria-hidden="true">
             <path
@@ -147,7 +147,7 @@ export function WaitlistForm({
         disabled={busy}
         aria-invalid={error ? true : undefined}
         aria-describedby={error ? errorId : undefined}
-        className="mt-2 rounded-none border-border-control bg-bg"
+        className="mt-2 border-border-control bg-bg"
       />
       <div className="mt-4 flex min-h-11 items-start gap-3">
         <input

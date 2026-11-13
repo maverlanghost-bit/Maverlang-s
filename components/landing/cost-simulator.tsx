@@ -69,7 +69,7 @@ export function CostSimulator() {
                   className={cn(
                     "num min-h-11 rounded-full border px-2 text-sm font-medium transition-colors duration-150",
                     selected
-                      ? "border-fg bg-fg text-white"
+                      ? "border-fg bg-fg text-bg"
                       : "border-control bg-bg text-fg hover:border-fg hover:bg-surface-1",
                   )}
                 >
@@ -102,7 +102,7 @@ export function CostSimulator() {
               fill="none"
               aria-hidden="true"
               className={cn(
-                "size-3 text-white transition-opacity duration-150",
+                "size-3 text-bg transition-opacity duration-150",
                 firstTime ? "opacity-100" : "opacity-0",
               )}
             >

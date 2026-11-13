@@ -47,7 +47,7 @@ export function CopyButton({
           />
         </span>
         {/* Los dos rótulos ocupan la misma celda: el ancho no se mueve al copiar. */}
-        <span className="grid text-left">
+        <span className="grid text-left whitespace-nowrap">
           <span className={cn("col-start-1 row-start-1", copied && "invisible")}>{label}</span>
           <span className={cn("col-start-1 row-start-1", !copied && "invisible")}>{copiedLabel}</span>
         </span>

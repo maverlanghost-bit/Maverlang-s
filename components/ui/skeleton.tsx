@@ -8,8 +8,9 @@ export function Skeleton({ className, ...props }: ComponentProps<"div">) {
       className={cn(
         /* D1: con `prefers-reduced-motion` el pulso no debe existir.
            El tono es `surface-2`: sobre blanco se lee como ausencia de
-           contenido, no como un destello. */
-        "motion-safe:animate-pulse motion-reduce:animate-none rounded-md bg-surface-2",
+           contenido, no como un destello. Radio `xs`: una línea de texto no
+           es una píldora; los consumidores pasan `rounded-full` al avatar. */
+        "motion-safe:animate-pulse motion-reduce:animate-none rounded-xs bg-surface-2",
         className,
       )}
       {...props}

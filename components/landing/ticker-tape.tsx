@@ -18,10 +18,10 @@ const SCHEDULE_NOTE =
 
 /** Fundido en los bordes: la cinta se apaga en vez de cortar un activo en seco. */
 const EDGE_MASK =
-  "[mask-image:linear-gradient(90deg,transparent_0,#000_6%,#000_94%,transparent_100%)]";
+  "[mask-image:linear-gradient(90deg,transparent_0,black_6%,black_94%,transparent_100%)]";
 
 /** En pausa el contenido es un scroller: se apaga sólo el borde derecho (hay más). */
-const EDGE_MASK_RIGHT = "[mask-image:linear-gradient(90deg,#000_92%,transparent_100%)]";
+const EDGE_MASK_RIGHT = "[mask-image:linear-gradient(90deg,black_92%,transparent_100%)]";
 
 /** Alto único de fila: la cinta mide lo mismo en marcha y en pausa. */
 const TAPE_ROW_HEIGHT = "h-14";
@@ -96,7 +96,7 @@ export function TickerTape({
           completo; a la derecha queda el fundido de «hay más». */}
       <ul
         className={cn(
-          "ticker-marquee-static mt-2 flex-nowrap items-center gap-x-2 overflow-x-auto px-5 no-scrollbar",
+          "ticker-marquee-static mt-2 flex-nowrap items-center gap-x-2 overflow-x-auto overscroll-x-contain px-5 no-scrollbar",
           TAPE_ROW_HEIGHT,
           EDGE_MASK_RIGHT,
         )}

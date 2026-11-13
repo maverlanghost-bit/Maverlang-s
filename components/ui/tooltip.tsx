@@ -41,7 +41,7 @@ export function Tooltip({
           role="tooltip"
           id={id}
           className={cn(
-            "pointer-events-none absolute z-50 w-max max-w-[min(16rem,calc(100vw-2.5rem))] rounded-lg border border-border bg-bg px-2.5 py-1.5 text-left text-[13px] leading-snug text-pretty text-fg shadow-float",
+            "pointer-events-none absolute z-50 w-max max-w-[min(16rem,calc(100vw-2.5rem))] rounded-xl border border-border bg-bg px-2.5 py-1.5 text-left text-[13px] leading-snug break-words text-pretty text-fg shadow-float",
             side === "right"
               ? "top-1/2 left-full ml-3 -translate-y-1/2"
               : side === "top"

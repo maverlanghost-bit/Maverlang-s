@@ -57,7 +57,7 @@ export function Accordion({
               role="region"
               aria-labelledby={buttonId}
               hidden={!open}
-              className="pb-4 text-[15px] leading-relaxed text-fg-body"
+              className="pb-4 text-[15px] leading-relaxed text-pretty text-fg-body"
             >
               {item.content}
             </div>

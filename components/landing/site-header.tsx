@@ -84,7 +84,7 @@ function isCurrent(pathname: string | null, href: string): boolean {
 }
 
 const linkClass =
-  "whitespace-nowrap rounded-full px-2 py-2 text-sm text-fg-body transition duration-[140ms] ease-spring hover:text-fg active:scale-[0.98]";
+  "inline-flex min-h-11 items-center whitespace-nowrap rounded-full px-2 text-sm text-fg-body transition duration-[140ms] ease-spring hover:text-fg active:scale-[0.98]";
 
 const mobileLinkClass =
   "flex h-12 items-center rounded-xl px-3 text-base text-fg transition duration-[140ms] ease-spring hover:bg-surface-2 active:scale-[0.98]";
@@ -204,7 +204,7 @@ function ExploreMenu() {
         <div
           ref={panelRef}
           id={panelId}
-          className="absolute top-full left-0 z-10 mt-4 w-56 rounded-2xl border border-border bg-bg p-1.5 shadow-float motion-safe:animate-pop-in motion-reduce:animate-none"
+          className="absolute top-full left-0 z-10 mt-4 w-56 rounded-xl border border-border bg-bg p-1.5 shadow-float motion-safe:animate-pop-in motion-reduce:animate-none"
         >
           <ul>
             {NAV_EXPLORE.map((item) => (
@@ -355,7 +355,12 @@ export function SiteHeader() {
 
       <Sheet open={open} onOpenChange={setOpen} title="Menú">
         <nav aria-label="Móvil" className="flex flex-col">
-          <Link href={NAV_LEAD.href} className={mobileLinkClass} onClick={() => setOpen(false)}>
+          <Link
+            href={NAV_LEAD.href}
+            aria-current={isCurrent(pathname, NAV_LEAD.href) ? "page" : undefined}
+            className={mobileLinkClass}
+            onClick={() => setOpen(false)}
+          >
             {NAV_LEAD.label}
           </Link>
 
@@ -391,7 +396,7 @@ export function SiteHeader() {
           </div>
 
           {/* Único CTA de la vista pública: ghost, nunca negro (D1). */}
-          <Button asChild variant="ghost" size="md" className="mt-4 min-h-11 w-full border border-border">
+          <Button asChild variant="ghost" size="md" className="mt-4 min-h-11 w-full border border-control">
             <Link href="/app/ingresar" onClick={() => setOpen(false)}>
               Entrar
             </Link>

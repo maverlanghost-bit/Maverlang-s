@@ -38,7 +38,7 @@ export function DisclosureList({
             <span className="min-w-0">{item.title}</span>
             <IconChevron className="disclosure-chevron mt-1 size-4 shrink-0 text-fg-muted transition-transform duration-200 ease-out motion-reduce:transition-none" />
           </summary>
-          <div className="pb-4 text-[15px] leading-relaxed text-fg-body">{item.content}</div>
+          <div className="pb-4 text-[15px] leading-relaxed text-pretty text-fg-body">{item.content}</div>
         </details>
       ))}
     </div>

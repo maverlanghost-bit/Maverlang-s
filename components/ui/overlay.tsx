@@ -45,6 +45,19 @@ function Portal({ children }: { children: ReactNode }) {
   return createPortal(children, document.body);
 }
 
+/**
+ * Un control dentro de `[hidden]`, `[inert]` o `aria-hidden` no recibe foco
+ * (paneles de pestañas cerrados, acciones ocultas en móvil). Sin este filtro
+ * el primer Tab podía caer en un elemento invisible y el foco se perdía.
+ */
+function isFocusable(element: HTMLElement): boolean {
+  if (element.closest('[hidden], [inert], [aria-hidden="true"]')) return false;
+  const style = window.getComputedStyle(element);
+  return (
+    style.display !== "none" && style.visibility !== "hidden" && element.getClientRects().length > 0
+  );
+}
+
 function useOverlay(open: boolean, onClose: () => void) {
   const panelRef = useRef<HTMLDivElement>(null);
   const onCloseRef = useRef(onClose);
@@ -61,7 +74,7 @@ function useOverlay(open: boolean, onClose: () => void) {
     function focusable() {
       if (!panel) return [];
       return Array.from(panel.querySelectorAll<HTMLElement>(FOCUSABLE)).filter(
-        (element) => !element.hasAttribute("disabled"),
+        (element) => !element.hasAttribute("disabled") && isFocusable(element),
       );
     }
 
@@ -150,7 +163,7 @@ export function OverlayPanel({
           className={cn("relative z-10 outline-none", panelClassName)}
         >
           {grabber ? <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-surface-3 md:hidden" aria-hidden /> : null}
-          <h2 id={titleId} className="pr-16 text-lg font-medium text-fg">
+          <h2 id={titleId} className="pr-16 text-lg font-medium text-balance text-fg">
             {title}
           </h2>
           {description ? (

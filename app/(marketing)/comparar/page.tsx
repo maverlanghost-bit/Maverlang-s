@@ -76,7 +76,7 @@ function PairRow({ a, b }: { a: PublicAsset; b: PublicAsset }) {
     >
       <span className="flex min-w-0 flex-1 flex-col gap-1 sm:flex-row sm:items-center sm:gap-3">
         <AssetRow asset={a} />
-        <span aria-hidden className="hidden font-mono text-[13px] text-fg-muted sm:inline">
+        <span aria-hidden className="font-mono text-[13px] leading-none text-fg-muted">
           vs
         </span>
         <AssetRow asset={b} />
