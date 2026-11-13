@@ -51,7 +51,7 @@ export default function CopiarLoading() {
             {["a", "b", "c", "d", "e", "f", "g", "h"].map((key) => (
               <div
                 key={key}
-                className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-4 gap-y-2 border-b border-border px-3 py-4 md:grid-cols-[minmax(0,1fr)_6rem_6rem_6.5rem_4.5rem] md:items-center md:gap-x-4 md:py-3.5 lg:gap-x-6"
+                className="grid grid-cols-[minmax(0,1fr)_4.5rem] items-start gap-x-4 gap-y-2 border-b border-border px-3 py-4 md:grid-cols-[minmax(0,1fr)_6rem_6rem_6.5rem_4.5rem] md:items-center md:gap-x-4 md:gap-y-0 md:py-3.5 lg:gap-x-6"
               >
                 <div className="flex min-w-0 flex-col gap-2">
                   <Skeleton className="h-4 w-2/3 max-w-56" />
@@ -61,6 +61,7 @@ export default function CopiarLoading() {
                 <Skeleton className="hidden h-4 w-20 md:block" />
                 <Skeleton className="hidden h-4 w-16 md:block" />
                 <Skeleton className="ml-auto h-4 w-12" />
+                <Skeleton className="col-span-2 h-3 w-40 max-w-full md:hidden" />
               </div>
             ))}
           </div>

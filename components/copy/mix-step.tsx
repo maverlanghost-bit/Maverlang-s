@@ -234,7 +234,7 @@ export function MixStep({ planId, legs, totalUsd }: { planId: string; legs: MixL
           <p className="font-mono text-[13px] leading-5 font-medium tracking-[0.045em] text-fg-muted uppercase">
             {phase === "done" ? "Mezcla terminada" : "Mezcla detenida"}
           </p>
-          <p className="num text-[32px] leading-none font-medium tracking-tight tabular-nums text-fg">
+          <p className="num text-[28px] leading-none font-medium tracking-tight tabular-nums text-fg sm:text-[32px]">
             {formatUsd(spent)}
           </p>
           <p className="num text-[13px] leading-5 tabular-nums text-fg-muted">
@@ -256,7 +256,7 @@ export function MixStep({ planId, legs, totalUsd }: { planId: string; legs: MixL
                 key={`b-${item.symbol}-${position}`}
                 className="flex items-baseline justify-between gap-4 border-b border-border/70 py-2.5 last:border-b-0"
               >
-                <span className="min-w-0 truncate font-mono text-[15px] leading-5 font-medium text-fg">
+                <span className="min-w-0 font-mono text-[15px] leading-5 font-medium break-words text-fg">
                   {item.symbol}
                 </span>
                 <span className="num shrink-0 text-[13px] leading-5 tabular-nums text-fg-muted">
@@ -308,7 +308,7 @@ export function MixStep({ planId, legs, totalUsd }: { planId: string; legs: MixL
           Paso {index + 1} de {legs.length}
         </p>
         <div className="flex min-w-0 items-baseline justify-between gap-4">
-          <p className="min-w-0 truncate font-mono text-[22px] leading-none font-medium tracking-tight text-fg">
+          <p className="min-w-0 font-mono text-[22px] leading-none font-medium tracking-tight break-words text-fg">
             {leg ? leg.symbol : "Preparando…"}
           </p>
           {leg ? (

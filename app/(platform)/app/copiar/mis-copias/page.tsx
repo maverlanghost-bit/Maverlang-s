@@ -203,7 +203,9 @@ function CopiasHeader({
     <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between sm:gap-10">
       <div className="min-w-0">
         <h1 className="text-3xl leading-[1.1] tracking-tight text-balance sm:text-4xl">{title}</h1>
-        {description ? <p className="mt-3 max-w-xl text-[15px] leading-6 text-fg-muted">{description}</p> : null}
+        {description ? (
+          <p className="mt-3 max-w-xl text-[15px] leading-6 text-pretty text-fg-muted">{description}</p>
+        ) : null}
       </div>
       {action ? <div className="shrink-0">{action}</div> : null}
     </header>

@@ -113,7 +113,7 @@ const MIX_STEPS = ["Monto", "Cuenta", "Revisar"] as const;
 /** Paso actual de la mezcla. No es interactivo: sólo orienta dónde va la persona. */
 function StepRail({ stage }: { stage: 1 | 2 | 3 }) {
   return (
-    <ol aria-label="Pasos de la mezcla" className="flex min-w-0 items-center gap-2">
+    <ol aria-label="Pasos de la mezcla" className="flex min-w-0 items-center gap-1.5 sm:gap-2">
       {MIX_STEPS.map((label, position) => {
         const step = (position + 1) as 1 | 2 | 3;
         const current = step === stage;
@@ -122,7 +122,10 @@ function StepRail({ stage }: { stage: 1 | 2 | 3 }) {
           <li
             key={label}
             aria-current={current ? "step" : undefined}
-            className={cn("flex min-w-0 items-center gap-2", step < MIX_STEPS.length && "flex-1")}
+            className={cn(
+              "flex min-w-0 items-center gap-1.5 sm:gap-2",
+              step < MIX_STEPS.length && "flex-1",
+            )}
           >
             <span
               className={cn(
@@ -138,14 +141,14 @@ function StepRail({ stage }: { stage: 1 | 2 | 3 }) {
             </span>
             <span
               className={cn(
-                "truncate text-[13px] leading-5",
+                "min-w-0 truncate text-[13px] leading-5",
                 current ? "font-medium text-fg" : "text-fg-muted",
               )}
             >
               {label}
             </span>
             {step < MIX_STEPS.length ? (
-              <span aria-hidden className="h-px min-w-3 flex-1 bg-border" />
+              <span aria-hidden className="h-px min-w-2 flex-1 bg-border" />
             ) : null}
           </li>
         );
@@ -321,7 +324,7 @@ export function MixCart({
         <div className="flex flex-col gap-6">
           <div className="flex flex-col gap-1.5">
             <p className={KICKER}>Paso 3 · Revisar</p>
-            <p className="num text-[32px] leading-none font-medium tracking-tight tabular-nums text-fg">
+            <p className="num text-[28px] leading-none font-medium tracking-tight tabular-nums text-fg sm:text-[32px]">
               {formatUsd(plan.totalUsd)}
             </p>
             <p className="text-[13px] leading-5 text-fg-muted">
@@ -338,7 +341,7 @@ export function MixCart({
                 className="flex items-baseline justify-between gap-4 border-b border-border/70 py-3"
               >
                 <div className="min-w-0">
-                  <p className="truncate font-mono text-[15px] leading-5 font-medium text-fg">{leg.symbol}</p>
+                  <p className="font-mono text-[15px] leading-5 font-medium break-words text-fg">{leg.symbol}</p>
                   <p className="num text-[13px] leading-5 tabular-nums text-fg-muted">
                     {leg.weightOriginal !== null
                       ? `Peso original ${formatPortion(leg.weightOriginal / 100)} · `
@@ -407,7 +410,7 @@ export function MixCart({
               Monto total (US$)
             </label>
             <div className="flex min-h-16 items-center gap-2 rounded-2xl border border-border-control bg-bg px-4 focus-within:border-fg">
-              <span className="num text-lg text-fg-muted">US$</span>
+              <span className="num shrink-0 text-lg text-fg-muted">US$</span>
               <input
                 id={amountId}
                 inputMode="decimal"
@@ -419,7 +422,7 @@ export function MixCart({
                   setAmountRaw(cleanAmount(event.target.value));
                   resetPlan();
                 }}
-                className="num min-h-16 w-full min-w-0 bg-transparent text-[32px] leading-none text-fg tabular-nums outline-none placeholder:text-fg-subtle"
+                className="num min-h-16 w-full min-w-0 bg-transparent text-[28px] leading-none text-fg tabular-nums outline-none placeholder:text-fg-subtle sm:text-[32px]"
               />
             </div>
             {amountRaw.length > 0 && amountValue === null ? (
@@ -427,7 +430,7 @@ export function MixCart({
                 Escribe un monto mayor a cero.
               </p>
             ) : null}
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-1.5 sm:gap-2">
               {["50", "100", "250", "500"].map((preset) => (
                 <button
                   key={preset}
@@ -436,7 +439,7 @@ export function MixCart({
                     setAmountRaw(preset);
                     resetPlan();
                   }}
-                  className="num inline-flex min-h-11 shrink-0 items-center justify-center rounded-full border border-border-control bg-bg px-4 text-[13px] font-medium tabular-nums text-fg transition-colors hover:bg-surface-1"
+                  className="num inline-flex min-h-11 shrink-0 items-center justify-center rounded-full border border-border-control bg-bg px-3 text-[13px] font-medium tabular-nums text-fg transition-colors hover:bg-surface-1 sm:px-4"
                 >
                   US$ {preset}
                 </button>

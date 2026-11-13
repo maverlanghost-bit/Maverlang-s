@@ -197,7 +197,7 @@ export default async function CopyPositionsPage({
       </header>
 
       <div className="grid min-w-0 items-start gap-10 lg:grid-cols-[minmax(0,1fr)_20rem] xl:grid-cols-[minmax(0,1fr)_22rem]">
-        <div className="flex min-w-0 flex-col gap-10">
+        <div className="order-2 flex min-w-0 flex-col gap-10 lg:order-1">
           {showPositions ? (
             <section
               aria-labelledby="posiciones-titulo"
@@ -276,7 +276,7 @@ export default async function CopyPositionsPage({
           </div>
         </div>
 
-        <aside className="flex min-w-0 flex-col gap-8 lg:sticky lg:top-6">
+        <aside className="order-1 flex min-w-0 flex-col gap-8 lg:order-2 lg:sticky lg:top-6">
           <Coverage
             coveragePct={coveragePct}
             mappedCount={mapped.filter((position) => position.status === "available").length}

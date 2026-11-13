@@ -381,9 +381,8 @@ export function PlansPanel({ billingEnabled, billingSoon, returned = false }: Pl
               <li
                 key={plan}
                 className={cn(
-                  "flex flex-col rounded-3xl border p-5 sm:p-6",
-                  current ? "border-fg" : "border-border",
-                  primary ? "bg-surface-1" : "bg-bg",
+                  "flex flex-col rounded-3xl border bg-bg p-5 sm:p-6",
+                  current || primary ? "border-fg" : "border-border",
                 )}
               >
                 <div className="flex min-w-0 items-baseline justify-between gap-3">
@@ -395,8 +394,8 @@ export function PlansPanel({ billingEnabled, billingSoon, returned = false }: Pl
                   </p>
                 </div>
 
-                <p className="mt-4 flex items-baseline gap-x-1.5">
-                  <span className="num text-[32px] leading-none font-medium tracking-tight tabular-nums text-fg">
+                <p className="mt-4 flex flex-wrap items-baseline gap-x-1.5">
+                  <span className="num text-[30px] leading-none font-medium tracking-tight tabular-nums text-fg sm:text-[32px]">
                     {formatClp(BILLING_PLAN_CATALOG[plan].amountClp)}
                   </span>
                   <span className="text-[13px] leading-5 text-fg-muted">/ {PLAN_PERIOD[plan]}</span>

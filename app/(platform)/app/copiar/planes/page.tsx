@@ -6,6 +6,7 @@ import { FraccionProLink } from "@/components/copy/fraccion-pro-link";
 import { FraccionSeal } from "@/components/copy/fraccion-seal";
 import { LegalNote } from "@/components/copy/legal-note";
 import { PlansPanel } from "@/components/copy/plan-card";
+import { IconBack } from "@/components/ui/icons";
 import { COPY_BILLING_SOON, COPY_LEGAL_PENDING_LABEL, COPY_TERMS_DRAFT } from "@/content/copy-legal";
 import { isCopyBillingEnabled, isCopyEnabled } from "@/lib/copy/flags";
 
@@ -38,7 +39,7 @@ function PageHeader() {
           <h1 className="text-3xl leading-[1.1] tracking-tight text-balance sm:text-4xl">
             Planes de Copiar carteras
           </h1>
-          <p className="mt-3 max-w-2xl text-[15px] leading-6 text-fg-muted">
+          <p className="mt-3 max-w-2xl text-[15px] leading-6 text-pretty text-fg-muted">
             Carteras reconstruidas por Fraccion.si, con la fecha del dato y su atraso a la vista. La
             suscripción abre la composición completa, los movimientos y la mezcla de compra; cada orden
             la confirmas y la firmas tú.
@@ -46,9 +47,10 @@ function PageHeader() {
         </div>
         <Link
           href="/app/copiar"
-          className="inline-flex min-h-11 shrink-0 items-center text-[13px] font-medium text-fg-muted underline decoration-border-control underline-offset-4 transition-colors duration-150 hover:text-fg sm:mb-1"
+          className="-ml-2 inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full px-2 text-[13px] font-medium text-fg-muted transition-colors duration-150 hover:bg-surface-1 hover:text-fg sm:mb-1"
         >
-          ← Volver al catálogo
+          <IconBack className="size-4" />
+          Volver al catálogo
         </Link>
       </div>
     </header>

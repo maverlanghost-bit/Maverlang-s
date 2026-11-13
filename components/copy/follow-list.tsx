@@ -94,32 +94,32 @@ export function FollowList({ items }: { items: FollowCard[] }) {
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                   {item.missing ? (
-                    <span className="text-[15px] leading-tight font-medium tracking-tight text-fg">
+                    <span className="text-[15px] leading-tight font-medium tracking-tight break-words text-fg">
                       {item.name}
                     </span>
                   ) : (
                     <Link
                       href={`/app/copiar/${encodeURIComponent(item.slug)}`}
-                      className="inline-flex min-h-11 items-center text-[15px] leading-tight font-medium tracking-tight text-fg underline-offset-4 transition-colors duration-150 hover:underline"
+                      className="inline-flex min-h-11 items-center text-[15px] leading-tight font-medium tracking-tight break-words text-fg underline-offset-4 transition-colors duration-150 hover:underline"
                     >
                       {item.name}
                     </Link>
                   )}
                   {state.review ? (
-                    <span className="text-[13px] leading-5 font-medium text-warn">
+                    <span className="text-[13px] leading-5 font-medium whitespace-nowrap text-warn">
                       La cartera cambió
                     </span>
                   ) : null}
                 </div>
 
-                <p className="text-[13px] leading-5 text-fg-muted">{meta}</p>
+                <p className="text-[13px] leading-5 break-words text-fg-muted">{meta}</p>
 
-                <p className="mt-2 max-w-prose text-[13px] leading-relaxed text-fg-body">
+                <p className="mt-2 max-w-prose text-[13px] leading-relaxed text-pretty text-fg-body">
                   {state.text}
                 </p>
 
                 {versionsDiffer ? (
-                  <p className="num mt-1 text-[13px] leading-5 text-fg-muted">
+                  <p className="num mt-1 text-[13px] leading-5 break-words text-fg-muted">
                     Copiada {shortVersion(item.copiedVersionId)} · actual{" "}
                     {shortVersion(item.currentVersionId)}
                   </p>

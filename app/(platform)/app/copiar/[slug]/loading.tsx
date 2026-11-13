@@ -54,18 +54,23 @@ export default function CopyPortfolioLoading() {
         </div>
 
         <div className="order-1 flex min-w-0 flex-col gap-8 lg:order-2">
-          <div className="flex flex-col gap-4 rounded-3xl border border-border p-5">
-            <Skeleton className="h-5 w-40" />
-            <div className="flex items-baseline justify-between gap-4">
-              <Skeleton className="h-4 w-24" />
+          <div className="flex flex-col gap-3">
+            <div className="flex items-baseline justify-between gap-4 border-b border-border/70 pb-2.5">
+              <Skeleton className="h-3 w-20" />
               <Skeleton className="h-4 w-12" />
             </div>
             <Skeleton className="h-px w-full" />
-            <Skeleton className="h-4 w-full" />
-            <div className="flex items-baseline justify-between gap-4">
+            <Skeleton className="h-4 w-3/4" />
+            <Skeleton className="h-4 w-1/2" />
+          </div>
+
+          <div className="flex flex-col gap-4 rounded-3xl border border-border p-5 sm:p-6">
+            <Skeleton className="h-5 w-40" />
+            <div className="flex items-baseline justify-between gap-4 border-t border-border/70 pt-3">
               <Skeleton className="h-4 w-24" />
               <Skeleton className="h-4 w-16" />
             </div>
+            <Skeleton className="h-4 w-full" />
             <Skeleton className="h-12 w-full" />
             <Skeleton className="h-4 w-3/4" />
           </div>

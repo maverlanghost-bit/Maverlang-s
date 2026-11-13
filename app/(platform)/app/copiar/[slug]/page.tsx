@@ -303,7 +303,7 @@ export default async function CopyPortfolioPage({
         <h1 className="text-3xl leading-[1.1] tracking-tight text-balance break-words sm:text-4xl">
           {meta.name}
         </h1>
-        <p className="text-[15px] leading-6 text-fg-muted">
+        <p className="text-[15px] leading-6 break-words text-pretty text-fg-muted">
           {meta.manager}
           {meta.country ? ` · ${meta.country}` : ""}
         </p>
@@ -409,21 +409,20 @@ export default async function CopyPortfolioPage({
           </div>
         </div>
 
-        <aside className="order-1 flex min-w-0 flex-col gap-4 lg:order-2 lg:sticky lg:top-6">
+        <aside className="order-1 flex min-w-0 flex-col gap-8 lg:order-2 lg:sticky lg:top-6">
+          <Coverage
+            coveragePct={coveragePct}
+            mappedCount={available}
+            totalCount={mapped.length}
+          />
+
           <section
             aria-labelledby="cta-titulo"
-            className="flex flex-col gap-4 rounded-3xl border border-border bg-bg p-5"
+            className="flex flex-col gap-4 rounded-3xl border border-border bg-bg p-5 sm:p-6"
           >
             <h2 id="cta-titulo" className="text-lg font-medium tracking-tight text-fg">
               Copiar esta cartera
             </h2>
-
-            <Coverage
-              coveragePct={coveragePct}
-              mappedCount={available}
-              totalCount={mapped.length}
-              className="border-t border-border/70 pt-4"
-            />
 
             <dl className="border-t border-border/70 pt-1">
               <DataRow label="Composición" mono={false}>

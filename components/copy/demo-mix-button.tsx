@@ -138,7 +138,7 @@ export function DemoMixButton({
                 key={`b-${item.symbol}`}
                 className="flex items-baseline justify-between gap-3 border-b border-border/70 py-2.5 last:border-b-0"
               >
-                <span className="min-w-0 truncate font-mono text-[15px] leading-5 font-medium text-fg">
+                <span className="min-w-0 font-mono text-[15px] leading-5 font-medium break-words text-fg">
                   {item.symbol}
                 </span>
                 <span className="num shrink-0 text-[13px] leading-5 tabular-nums text-fg-muted">

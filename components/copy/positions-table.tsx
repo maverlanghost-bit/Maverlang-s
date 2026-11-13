@@ -64,11 +64,11 @@ export function PositionsTable({
 
   return (
     <div className={cn("flex min-w-0 flex-col", className)}>
-      {/* Cabecera de columnas sólo desde sm: en móvil nada se corta ni se
-          aprieta a 360 px. */}
+      {/* Cabecera de columnas sólo desde sm, con el dato a la vista mientras
+          se recorre la lista: en móvil nada se corta ni se aprieta a 360 px. */}
       <div
         className={cn(
-          "label-xs hidden items-center gap-x-3 border-b border-border pb-2 sm:grid",
+          "label-xs sticky top-[calc(3.5rem+env(safe-area-inset-top))] z-10 hidden items-center gap-x-3 border-b border-border bg-bg pt-1 pb-2 sm:grid lg:top-16",
           columns(showMaverlang),
         )}
       >
@@ -88,11 +88,13 @@ export function PositionsTable({
               )}
             >
               <div className="col-span-2 flex min-w-0 flex-col sm:col-span-1">
-                <span className="truncate font-mono text-[15px] leading-5 font-medium text-fg" title={row.symbol}>
+                <span className="font-mono text-[15px] leading-5 font-medium break-words text-fg">
                   {row.symbol}
                 </span>
                 {row.name ? (
-                  <span className="truncate text-[13px] leading-5 text-fg-muted">{row.name}</span>
+                  <span className="text-[13px] leading-5 break-words text-pretty text-fg-muted">
+                    {row.name}
+                  </span>
                 ) : null}
               </div>
 

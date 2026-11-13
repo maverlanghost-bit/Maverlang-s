@@ -110,7 +110,7 @@ export function MovementsList({
             className="flex flex-col gap-1 border-b border-border/70 py-3 last:border-b-0"
           >
             <div className="flex items-baseline justify-between gap-4">
-              <span className="min-w-0 truncate font-mono text-[15px] leading-5 font-medium text-fg">
+              <span className="min-w-0 font-mono text-[15px] leading-5 font-medium break-words text-fg">
                 {row.symbol ?? "—"}
               </span>
               {detail.delta !== null && detail.delta !== 0 ? (
@@ -125,9 +125,11 @@ export function MovementsList({
               ) : null}
             </div>
             <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-              <span className="min-w-0 text-[13px] leading-5 text-fg-body">{detail.text}</span>
+              <span className="min-w-0 text-[13px] leading-5 break-words text-pretty text-fg-body">
+                {detail.text}
+              </span>
               {date ? (
-                <span className="num shrink-0 text-[13px] leading-5 tabular-nums text-fg-muted">
+                <span className="num shrink-0 text-[13px] leading-5 whitespace-nowrap tabular-nums text-fg-muted">
                   Publicado {formatFeedDate(date)}
                 </span>
               ) : null}

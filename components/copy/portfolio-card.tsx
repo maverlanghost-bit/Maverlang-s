@@ -19,14 +19,16 @@ export type PortfolioCardData = {
 
 /**
  * Retícula compartida por la fila y la cabecera de columnas del catálogo.
- * Móvil: cartera + cobertura. Escritorio: cartera · familia · dato · atraso ·
- * cobertura, con las cifras en mono tabular.
+ * Móvil: nombre y cobertura en el primer renglón, y familia · dato · atraso a
+ * todo el ancho en el segundo. Escritorio: cartera · familia · dato · atraso ·
+ * cobertura, con las cifras en mono tabular. La columna de cobertura tiene
+ * ancho fijo para que las cifras no bailen entre filas.
  */
 export const PORTFOLIO_COLUMNS =
-  "grid-cols-[minmax(0,1fr)_auto] md:grid-cols-[minmax(0,1fr)_6rem_6rem_6.5rem_4.5rem]";
+  "grid-cols-[minmax(0,1fr)_4.5rem] md:grid-cols-[minmax(0,1fr)_6rem_6rem_6.5rem_4.5rem]";
 
 export const PORTFOLIO_ROW_GRID = cn(
-  "grid items-start gap-x-4 gap-y-1 md:items-center md:gap-x-4 lg:gap-x-6",
+  "grid items-start gap-x-4 gap-y-1.5 md:items-center md:gap-x-4 md:gap-y-0 lg:gap-x-6",
   PORTFOLIO_COLUMNS,
 );
 
@@ -92,20 +94,11 @@ export function PortfolioCard({
         )}
       >
         <span className="min-w-0">
-          <span className="block truncate text-[15px] leading-tight font-medium tracking-tight text-fg">
+          <span className="block text-[15px] leading-snug font-medium tracking-tight break-words text-pretty text-fg">
             {portfolio.name}
           </span>
-          <span className="mt-1 block text-[13px] leading-5 text-fg-muted md:truncate">{subline}</span>
-          <span className="mt-0.5 flex flex-wrap items-baseline gap-x-1.5 text-[13px] leading-5 text-fg-muted md:hidden">
-            <span>{COPY_FAMILY_LABELS[portfolio.family]}</span>
-            <span aria-hidden className="text-fg-subtle">
-              ·
-            </span>
-            <span className="num whitespace-nowrap">{asOf || "sin fecha"}</span>
-            <span aria-hidden className="text-fg-subtle">
-              ·
-            </span>
-            <span className={cn("whitespace-nowrap", lagClass)}>{lagLabel}</span>
+          <span className="mt-1 block text-[13px] leading-5 break-words text-pretty text-fg-muted">
+            {subline}
           </span>
         </span>
 
@@ -121,7 +114,7 @@ export function PortfolioCard({
           {lagLabel}
         </span>
 
-        <span className="text-right">
+        <span className="flex min-w-0 flex-col items-end text-right">
           <span className="label-xs block md:hidden">Cobertura</span>
           <span
             className={cn(
@@ -131,6 +124,20 @@ export function PortfolioCard({
           >
             {pct === null ? "—" : `${pct} %`}
           </span>
+        </span>
+
+        {/* Segundo renglón móvil: familia, fecha del dato y atraso a todo el
+            ancho. Desde md cada dato vuelve a su columna. */}
+        <span className="col-span-2 flex flex-wrap items-baseline gap-x-1.5 text-[13px] leading-5 text-fg-muted md:hidden">
+          <span>{COPY_FAMILY_LABELS[portfolio.family]}</span>
+          <span aria-hidden className="text-fg-subtle">
+            ·
+          </span>
+          <span className="num whitespace-nowrap">{asOf || "sin fecha"}</span>
+          <span aria-hidden className="text-fg-subtle">
+            ·
+          </span>
+          <span className={cn("whitespace-nowrap", lagClass)}>{lagLabel}</span>
         </span>
       </Link>
     </li>
