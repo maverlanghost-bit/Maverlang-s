@@ -1,7 +1,7 @@
 "use client";
 
 import { useQueryClient } from "@tanstack/react-query";
-import { useState, type ReactNode } from "react";
+import { useState } from "react";
 
 import { InvestorPassportCard } from "@/components/domain/investor-passport-card";
 import { Button } from "@/components/ui/button";
@@ -17,37 +17,20 @@ import { useDeletionStatus, useMe } from "@/lib/hooks/queries";
 import { useT } from "@/lib/hooks/use-t";
 import { isProfileMigrationMessage } from "@/lib/profile/migration";
 
-import { fill, formatWhen, regionName, SettingsFrame, SettingsPanel } from "../ui";
-
-const ROW =
-  "flex min-h-12 w-full items-center gap-3 px-4 py-3.5 text-left text-[15px] leading-5 outline-none transition-colors duration-[140ms] focus-visible:ring-4 focus-visible:ring-fg/20 focus-visible:ring-inset md:px-5";
-
-/** Fila de formulario: rótulo mono, valor y, si hace falta, una ayuda corta. */
-function Field({
-  label,
-  hint,
-  htmlFor,
-  children,
-}: {
-  label: string;
-  hint?: string;
-  htmlFor?: string;
-  children: ReactNode;
-}) {
-  return (
-    <div className="flex flex-col gap-2 border-t border-border/70 px-4 py-4 first:border-t-0 md:px-5">
-      {htmlFor ? (
-        <label htmlFor={htmlFor} className="label">
-          {label}
-        </label>
-      ) : (
-        <p className="label">{label}</p>
-      )}
-      {children}
-      {hint ? <p className="text-[13px] leading-5 text-fg-muted">{hint}</p> : null}
-    </div>
-  );
-}
+import {
+  fill,
+  formatWhen,
+  regionName,
+  SettingsButton,
+  SettingsField,
+  SettingsFrame,
+  SettingsItem,
+  SettingsList,
+  SettingsNote,
+  SettingsPanel,
+  SettingsPanelBody,
+  SettingsValue,
+} from "../ui";
 
 export function AccountScreen() {
   const { t, language } = useT();
@@ -69,9 +52,7 @@ export function AccountScreen() {
   if (isProfileMigrationMessage(me.error)) {
     return (
       <SettingsFrame title={t.profile.account} description={t.profile.accountLead}>
-        <p role="status" className="rounded-2xl bg-surface-1 px-4 py-3 text-[13px] leading-5 text-fg-muted shadow-card">
-          {t.profile.schemaMissing}
-        </p>
+        <SettingsNote role="status">{t.profile.schemaMissing}</SettingsNote>
         <Button type="button" variant="secondary" size="lg" className="w-full" disabled={status === "loading"} onClick={() => void logout()}>
           {t.profile.logout}
         </Button>
@@ -83,9 +64,9 @@ export function AccountScreen() {
     return (
       <SettingsFrame title={t.profile.account} description={t.profile.accountLead}>
         <SettingsPanel>
-          <div className="px-4 py-4 md:px-5">
+          <SettingsPanelBody>
             <LoadingState variant="list" label={t.states.loading} />
-          </div>
+          </SettingsPanelBody>
         </SettingsPanel>
       </SettingsFrame>
     );
@@ -148,7 +129,7 @@ export function AccountScreen() {
         userId={profile.id}
       />
       <SettingsPanel>
-        <Field label={t.profile.name} hint={t.profile.nameHint} htmlFor="display-name">
+        <SettingsField label={t.profile.name} hint={t.profile.nameHint} htmlFor="display-name">
           <form
             className="flex flex-col gap-3 sm:flex-row"
             onSubmit={(event) => {
@@ -182,37 +163,34 @@ export function AccountScreen() {
               {nameError}
             </p>
           ) : null}
-        </Field>
-        <Field label={t.profile.email} hint={t.profile.emailReadonly}>
-          <p className="text-[15px] leading-6 break-all text-fg">{profile.email ?? t.profile.noEmail}</p>
-        </Field>
-        <Field label={t.profile.country}>
-          <p className="text-[15px] leading-6 text-fg">{regionName(profile.country, language, t.profile.noCountry)}</p>
-        </Field>
-        <Field label={t.profile.userId}>
+        </SettingsField>
+        <SettingsField label={t.profile.email} hint={t.profile.emailReadonly}>
+          <SettingsValue className="break-all">{profile.email ?? t.profile.noEmail}</SettingsValue>
+        </SettingsField>
+        <SettingsField label={t.profile.country}>
+          <SettingsValue>{regionName(profile.country, language, t.profile.noCountry)}</SettingsValue>
+        </SettingsField>
+        <SettingsField label={t.profile.userId}>
           <div className="flex flex-wrap items-center gap-2">
             <p className="num min-w-0 flex-1 text-[13px] leading-5 break-all text-fg">{profile.id}</p>
             <CopyButton value={profile.id} label={t.profile.copy} copiedLabel={t.profile.copied} />
           </div>
-        </Field>
+        </SettingsField>
       </SettingsPanel>
 
       <SettingsPanel>
-        <button
-          type="button"
-          className={`${ROW} text-fg hover:bg-surface-2 disabled:pointer-events-none disabled:opacity-50`}
-          disabled={status === "loading"}
-          onClick={() => void logout()}
-        >
-          {t.profile.logout}
-        </button>
-        <button
-          type="button"
-          className={`${ROW} border-t border-border/70 text-down hover:bg-surface-2`}
-          onClick={() => setOpen(true)}
-        >
-          {t.profile.delete}
-        </button>
+        <SettingsList>
+          <SettingsItem>
+            <SettingsButton disabled={status === "loading"} onClick={() => void logout()}>
+              {t.profile.logout}
+            </SettingsButton>
+          </SettingsItem>
+          <SettingsItem>
+            <SettingsButton tone="danger" onClick={() => setOpen(true)}>
+              {t.profile.delete}
+            </SettingsButton>
+          </SettingsItem>
+        </SettingsList>
       </SettingsPanel>
 
       <Dialog

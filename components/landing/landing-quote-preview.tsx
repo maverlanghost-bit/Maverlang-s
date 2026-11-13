@@ -103,15 +103,15 @@ export function LandingQuotePreview({ quote, live }: { quote: LandingQuote; live
               sizes="40px"
             />
             <div className="min-w-0">
-              <p title={quote.name} className="truncate text-[17px] leading-snug font-medium text-fg">{quote.name}</p>
-              <p className="mt-0.5 truncate text-[13px] leading-snug text-fg-muted">
+              <p title={quote.name} className="truncate text-base leading-snug font-medium text-fg">{quote.name}</p>
+              <p className="mt-0.5 truncate text-sm leading-snug text-fg-muted">
                 {quote.symbol} · {quote.underlying}
               </p>
             </div>
           </div>
 
           <div className="mt-8">
-            <p className="text-[13px] leading-none text-fg-muted">Precio por acción</p>
+            <p className="text-sm leading-none text-fg-muted">Precio por acción</p>
             <PriceText
               value={priceUsd}
               currency="USD"
@@ -122,7 +122,7 @@ export function LandingQuotePreview({ quote, live }: { quote: LandingQuote; live
             <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1">
               <span
                 className={cn(
-                  "num text-[13px] font-medium",
+                  "num text-sm font-medium",
                   change > 0 ? "text-up" : change < 0 ? "text-down" : "text-fg-muted",
                 )}
               >
@@ -131,22 +131,22 @@ export function LandingQuotePreview({ quote, live }: { quote: LandingQuote; live
                 </span>
                 {formatPercent(change)}
               </span>
-              <span className="text-[13px] text-fg-muted">24 h</span>
-              <span aria-hidden className="text-[13px] text-fg-muted">
+              <span className="text-sm text-fg-muted">24 h</span>
+              <span aria-hidden className="text-sm text-fg-muted">
                 ·
               </span>
-              <span className="text-[13px] text-fg-muted">{priceState}</span>
+              <span className="text-sm text-fg-muted">{priceState}</span>
             </div>
           </div>
 
           <div className="mt-8 border-t border-border pt-4">
             <p className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-              <span className="text-[13px] text-fg-muted">Con US${LANDING_MIN_ORDER_USD}</span>
-              <span className="num text-[13px] text-fg">
+              <span className="text-sm text-fg-muted">Con US${LANDING_MIN_ORDER_USD}</span>
+              <span className="num text-sm text-fg">
                 {fraction} {quote.symbol}
               </span>
             </p>
-            <p className="mt-2 text-[13px] leading-relaxed text-fg-muted">
+            <p className="mt-2 text-sm leading-relaxed text-fg-muted">
               Cálculo referencial al precio mostrado.
             </p>
           </div>
@@ -162,12 +162,12 @@ export function LandingQuotePreview({ quote, live }: { quote: LandingQuote; live
         </div>
 
         <div className="min-w-0 lg:border-l lg:border-border lg:pl-12 xl:pl-16">
-          <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b border-border pb-1">
-            <p className="text-[13px] text-fg-muted">
+          <div className="flex flex-col gap-2 border-b border-border pb-1 sm:flex-row sm:flex-wrap sm:items-baseline sm:justify-between sm:gap-x-4">
+            <p className="text-sm text-fg-muted">
               Historial · {rangeName}
               {historyIsReference ? " · referencia" : ""}
             </p>
-            <div role="group" aria-label="Rango del gráfico" className="flex items-center gap-1">
+            <div role="group" aria-label="Rango del gráfico" className="-ml-2 flex items-center gap-0.5 sm:ml-0">
               {RANGE_OPTIONS.map((option) => {
                 const active = option.value === range;
                 return (
@@ -177,7 +177,7 @@ export function LandingQuotePreview({ quote, live }: { quote: LandingQuote; live
                     aria-pressed={active}
                     onClick={() => setRange(option.value)}
                     className={cn(
-                      "inline-flex min-h-11 items-center px-2 text-[13px] font-medium transition-colors",
+                      "inline-flex min-h-11 min-w-11 items-center justify-center px-2 text-sm font-medium transition-colors",
                       active
                         ? "text-fg underline decoration-fg underline-offset-4"
                         : "text-fg-muted hover:text-fg",
@@ -208,19 +208,19 @@ export function LandingQuotePreview({ quote, live }: { quote: LandingQuote; live
           {stats.open !== null && stats.high !== null && stats.low !== null ? (
             <dl
               aria-label="Métricas del período"
-              className="mt-4 grid grid-cols-3 gap-3 border-t border-border pt-4"
+              className="mt-4 grid grid-cols-2 gap-x-4 gap-y-4 border-t border-border pt-4 sm:grid-cols-3"
             >
               <div className="min-w-0">
-                <dt className="text-[13px] leading-none text-fg-muted">Apertura</dt>
-                <dd className="num mt-1 text-[13px] whitespace-nowrap text-fg">{formatMoney(stats.open, "USD")}</dd>
+                <dt className="text-sm leading-none text-fg-muted">Apertura</dt>
+                <dd className="num mt-1.5 text-sm text-fg">{formatMoney(stats.open, "USD")}</dd>
               </div>
               <div className="min-w-0">
-                <dt className="text-[13px] leading-none text-fg-muted">Máximo</dt>
-                <dd className="num mt-1 text-[13px] whitespace-nowrap text-fg">{formatMoney(stats.high, "USD")}</dd>
+                <dt className="text-sm leading-none text-fg-muted">Máximo</dt>
+                <dd className="num mt-1.5 text-sm text-fg">{formatMoney(stats.high, "USD")}</dd>
               </div>
               <div className="min-w-0">
-                <dt className="text-[13px] leading-none text-fg-muted">Mínimo</dt>
-                <dd className="num mt-1 text-[13px] whitespace-nowrap text-fg">{formatMoney(stats.low, "USD")}</dd>
+                <dt className="text-sm leading-none text-fg-muted">Mínimo</dt>
+                <dd className="num mt-1.5 text-sm text-fg">{formatMoney(stats.low, "USD")}</dd>
               </div>
             </dl>
           ) : null}

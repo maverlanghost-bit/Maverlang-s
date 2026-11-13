@@ -42,7 +42,7 @@ export function TopBar({
   return (
     <>
       {hideMobileCluster ? null : (
-        <div className="fixed inset-x-0 top-0 z-30 border-b border-border bg-bg/90 pt-[env(safe-area-inset-top)] backdrop-blur-xl lg:hidden">
+        <div className="fixed inset-x-0 top-0 z-30 overflow-x-clip border-b border-border bg-bg/90 pt-[env(safe-area-inset-top)] backdrop-blur-xl lg:hidden">
           <div className="mx-auto flex h-14 w-full max-w-6xl items-center gap-2 px-5">
             <div className="min-w-0 flex-1">
               <StockSearchButton />

@@ -3,6 +3,7 @@ import { PublicCatalogGrid, type PublicCatalogItem } from "@/components/landing/
 import { LandingSection } from "@/components/landing/section";
 import { buttonClasses } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
+import { LANDING_MIN_ORDER_USD } from "@/lib/market/asset-status.shared";
 import { HUB_DESCRIPTION, HUB_TITLE } from "@/lib/seo/copy";
 import { assetsInCategory, CATEGORIES, MIN_CATEGORY_SIZE, sectorFor } from "@/lib/seo/categories";
 import { pageMetadata } from "@/lib/seo/metadata";
@@ -44,46 +45,39 @@ export default async function AccionesPage() {
 
   return (
     <LandingSection titleId="acciones-title" density="compact">
-      <div className="max-w-2xl">
+      <div className="max-w-3xl">
         <p className="label">Acciones</p>
         <h1 id="acciones-title" className="mt-3 text-3xl sm:text-4xl">
           Acciones de EE.UU.
         </h1>
-        <p className="mt-4 text-base leading-relaxed text-fg-body">
+        <p className="mt-4 max-w-[62ch] text-base leading-relaxed text-pretty text-fg-body">
           Fracciones de acciones tokenizadas de EE.UU., desde Chile. Cada ficha describe un token que
           sigue el precio. La demo usa saldo ficticio y se opera 24/7.
         </p>
-        <p className="mt-5 flex flex-wrap items-baseline gap-x-2 gap-y-1 text-sm text-fg-body">
+        {/* Una sola línea de datos: cada hecho lleva su separador dentro del
+            propio `span`, así ninguno queda huérfano al envolver a 360 px. */}
+        <p className="mt-5 flex max-w-[62ch] flex-wrap items-baseline gap-x-3 gap-y-1 text-sm tabular-nums text-fg-body [&>span+span]:before:mr-3 [&>span+span]:before:text-fg-subtle [&>span+span]:before:content-['·']">
           <span>
             <span className="num font-medium text-fg">{assets.length}</span> activos disponibles
           </span>
-          <span aria-hidden className="text-fg-subtle">
-            ·
-          </span>
-          <span>Fracciones desde US$10</span>
-          <span aria-hidden className="text-fg-subtle">
-            ·
-          </span>
+          <span>Fracciones desde US${LANDING_MIN_ORDER_USD}</span>
           <span>Horario 24/7 (xStocks)</span>
-          <span aria-hidden className="text-fg-subtle">
-            ·
-          </span>
           <span>Autocustodia en Solana SPL</span>
         </p>
-        <p className="mt-1 text-sm">
+        <p className="mt-2 text-sm">
           <Link
             href="/comparar"
             className="inline-flex min-h-11 items-center font-medium text-fg underline decoration-border underline-offset-4 hover:decoration-fg"
           >
-            Comparar activos →
+            Comparar activos <span aria-hidden="true">→</span>
           </Link>
         </p>
       </div>
 
       {categoryLinks.length > 0 ? (
-        <nav aria-label="Categorías de acciones" className="mt-8 border-t border-border pt-4">
+        <nav aria-label="Categorías de acciones" className="mt-8 border-t border-border pt-5">
           <p className="label">Explorar por categoría</p>
-          <ul className="mt-1 flex flex-wrap gap-x-6 gap-y-0">
+          <ul className="mt-2 flex flex-wrap gap-x-6 gap-y-0">
             {categoryLinks.map(({ category, count }) => (
               <li key={category.slug}>
                 <Link
@@ -114,9 +108,9 @@ export default async function AccionesPage() {
       ) : (
         <div className="mt-8 max-w-5xl">
           <PublicCatalogGrid assets={catalog} />
-          <aside className="mt-14 max-w-2xl border-t border-border pt-8">
+          <aside className="mt-12 max-w-2xl border-t border-border pt-8">
             <h2 className="text-2xl sm:text-3xl">Prueba la demo con US$10.000 ficticios</h2>
-            <p className="mt-2 max-w-2xl text-base leading-relaxed text-fg-body">
+            <p className="mt-2 max-w-[62ch] text-base leading-relaxed text-pretty text-fg-body">
               Saldo de mentira, precios reales: compra y vende fracciones sin plata de por medio. El
               token queda en tu propia billetera, no en la nuestra.
             </p>

@@ -15,7 +15,7 @@ export const metadata: Metadata = {
 
 function LoginFallback() {
   return (
-    <Card className="w-full max-w-md" aria-busy="true">
+    <Card className="my-auto w-full max-w-md" aria-busy="true">
       <span className="sr-only" role="status">
         Cargando el ingreso
       </span>
@@ -33,7 +33,7 @@ function LoginFallback() {
 
 export default function IngresarPage() {
   return (
-    <main className="flex min-h-dvh flex-col items-center justify-start px-5 py-8 sm:justify-center sm:py-12">
+    <main className="flex min-h-dvh flex-col items-center px-5 py-8 sm:py-12">
       <Suspense fallback={<LoginFallback />}>
         <LoginCard />
       </Suspense>

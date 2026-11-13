@@ -8,11 +8,11 @@ import { CopySoonState } from "@/components/copy/empty-states";
 import { COPY_FAMILY_LABELS } from "@/components/copy/family-tabs";
 import { ExampleDataStrip, FeedBanner } from "@/components/copy/feed-banner";
 import { FraccionSeal } from "@/components/copy/fraccion-seal";
+import { LegalNote } from "@/components/copy/legal-note";
 import { MovementsList } from "@/components/copy/movements-list";
 import { Paywall } from "@/components/copy/paywall";
 import { PositionsTable, type PositionRow } from "@/components/copy/positions-table";
 import { IconBack } from "@/components/ui/icons";
-import { COPY_DISCLAIMER, COPY_LEGAL_PENDING_LABEL } from "@/content/copy-legal";
 import { getCopyEntitlement, hasCopyAccess, redactPortfolio } from "@/lib/copy/access";
 import { getCopyIndex, getCopyPortfolio } from "@/lib/copy/feed";
 import { isCopyEnabled } from "@/lib/copy/flags";
@@ -270,10 +270,9 @@ export default async function CopyPositionsPage({
             </section>
           ) : null}
 
-          <div className="flex flex-col gap-2 border-t border-border pt-6">
+          <div className="flex flex-col gap-3 border-t border-border pt-6">
             <FraccionSeal />
-            <p className="text-[13px] leading-relaxed text-fg-body">{COPY_DISCLAIMER}</p>
-            <p className="text-[13px] leading-relaxed text-fg-muted">{COPY_LEGAL_PENDING_LABEL}</p>
+            <LegalNote disclaimer className="border-0 pt-0" />
           </div>
         </div>
 

@@ -22,8 +22,8 @@ export function Dialog({
       onClose={() => onOpenChange(false)}
       title={title}
       description={description}
-      frameClassName="flex items-center justify-center p-4"
-      panelClassName="max-h-[85dvh] w-full max-w-md overflow-y-auto overscroll-contain rounded-xl bg-bg p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-card animate-pop-in sm:p-6"
+      frameClassName="flex items-center justify-center p-4 sm:p-6"
+      panelClassName="max-h-[85dvh] w-full max-w-md overflow-y-auto overscroll-contain [scrollbar-width:thin] rounded-xl bg-bg p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-float animate-pop-in sm:p-6"
     >
       {children}
     </OverlayPanel>

@@ -11,18 +11,24 @@ const FOCUSABLE =
 
 let scrollLocks = 0;
 let scrollSnapshot = "";
+let paddingSnapshot = "";
 
 function lockScroll() {
   scrollLocks += 1;
-  if (scrollLocks === 1) {
-    scrollSnapshot = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-  }
+  if (scrollLocks !== 1) return;
+  // Sin compensar la barra, `overflow: hidden` corre el layout ~15 px al abrir.
+  const scrollbar = window.innerWidth - document.documentElement.clientWidth;
+  scrollSnapshot = document.body.style.overflow;
+  paddingSnapshot = document.body.style.paddingRight;
+  document.body.style.overflow = "hidden";
+  if (scrollbar > 0) document.body.style.paddingRight = `${scrollbar}px`;
 }
 
 function unlockScroll() {
   scrollLocks = Math.max(0, scrollLocks - 1);
-  if (scrollLocks === 0) document.body.style.overflow = scrollSnapshot;
+  if (scrollLocks !== 0) return;
+  document.body.style.overflow = scrollSnapshot;
+  document.body.style.paddingRight = paddingSnapshot;
 }
 
 function subscribe() {
@@ -128,7 +134,11 @@ export function OverlayPanel({
   return (
     <Portal>
       <div className={cn("fixed inset-0 z-50", frameClassName)}>
-        <div className="absolute inset-0 animate-fade-in bg-fg/40" onClick={onClose} aria-hidden />
+        <div
+          className="absolute inset-0 animate-fade-in touch-none bg-fg/50"
+          onClick={onClose}
+          aria-hidden
+        />
         <div
           ref={panelRef}
           role="dialog"
@@ -144,7 +154,7 @@ export function OverlayPanel({
             {title}
           </h2>
           {description ? (
-            <p id={descriptionId} className="mt-1 text-sm leading-relaxed text-fg-muted">
+            <p id={descriptionId} className="mt-1 text-pretty text-sm leading-relaxed text-fg-muted">
               {description}
             </p>
           ) : null}

@@ -106,6 +106,54 @@ function Row({ label, children, mono = true }: { label: string; children: ReactN
   );
 }
 
+const KICKER = "font-mono text-[13px] leading-5 font-medium tracking-[0.045em] text-fg-muted uppercase";
+
+const MIX_STEPS = ["Monto", "Cuenta", "Revisar"] as const;
+
+/** Paso actual de la mezcla. No es interactivo: sólo orienta dónde va la persona. */
+function StepRail({ stage }: { stage: 1 | 2 | 3 }) {
+  return (
+    <ol aria-label="Pasos de la mezcla" className="flex min-w-0 items-center gap-2">
+      {MIX_STEPS.map((label, position) => {
+        const step = (position + 1) as 1 | 2 | 3;
+        const current = step === stage;
+        const done = step < stage;
+        return (
+          <li
+            key={label}
+            aria-current={current ? "step" : undefined}
+            className={cn("flex min-w-0 items-center gap-2", step < MIX_STEPS.length && "flex-1")}
+          >
+            <span
+              className={cn(
+                "num flex size-6 shrink-0 items-center justify-center rounded-full border text-[11px] leading-none font-medium tabular-nums",
+                current
+                  ? "border-fg bg-fg text-bg"
+                  : done
+                    ? "border-border bg-surface-2 text-fg-muted"
+                    : "border-border text-fg-subtle",
+              )}
+            >
+              {step}
+            </span>
+            <span
+              className={cn(
+                "truncate text-[13px] leading-5",
+                current ? "font-medium text-fg" : "text-fg-muted",
+              )}
+            >
+              {label}
+            </span>
+            {step < MIX_STEPS.length ? (
+              <span aria-hidden className="h-px min-w-3 flex-1 bg-border" />
+            ) : null}
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
 /**
  * Carrito de la mezcla. El monto y la cuenta los elige la persona, pero las
  * piernas y los pesos SIEMPRE vienen de `/api/copy/plan`: el cliente no manda
@@ -151,6 +199,9 @@ export function MixCart({
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [needsSubscription, setNeedsSubscription] = useState(false);
+
+  const amountValue = parseAmount(amountRaw);
+  const stage: 1 | 2 | 3 = plan ? 3 : amountValue !== null ? 2 : 1;
 
   const damaged = blockedReason !== null;
   const partial = coveragePct >= COVERAGE_COPY_MIN && coveragePct < COVERAGE_FULL_MIN;
@@ -234,6 +285,8 @@ export function MixCart({
 
   return (
     <div className="flex min-w-0 flex-col gap-8">
+      {damaged ? null : <StepRail stage={stage} />}
+
       <dl className="border-t border-border/70">
         <Row label="Cartera" mono={false}>
           {name}
@@ -267,14 +320,13 @@ export function MixCart({
       ) : plan ? (
         <div className="flex flex-col gap-6">
           <div className="flex flex-col gap-1.5">
-            <p className="font-mono text-[13px] leading-5 font-medium tracking-[0.045em] text-fg-muted uppercase">
-              {account === "demo" ? "Mezcla en demo" : "Mezcla con dinero real"}
-            </p>
+            <p className={KICKER}>Paso 3 · Revisar</p>
             <p className="num text-[32px] leading-none font-medium tracking-tight tabular-nums text-fg">
               {formatUsd(plan.totalUsd)}
             </p>
             <p className="text-[13px] leading-5 text-fg-muted">
-              {plan.legs.length} {plan.legs.length === 1 ? "orden" : "órdenes"} · cobertura{" "}
+              {account === "demo" ? "Mezcla en demo" : "Mezcla con dinero real"} · {plan.legs.length}{" "}
+              {plan.legs.length === 1 ? "orden" : "órdenes"} · cobertura{" "}
               {formatPortion(plan.coveragePct / 100)}
             </p>
           </div>
@@ -350,9 +402,7 @@ export function MixCart({
       ) : (
         <div className="flex flex-col gap-6">
           <div className="flex flex-col gap-2">
-            <p className="font-mono text-[13px] leading-5 font-medium tracking-[0.045em] text-fg-muted uppercase">
-              Paso 1 · Monto
-            </p>
+            <p className={KICKER}>Paso 1 · Monto</p>
             <label htmlFor={amountId} className="text-[15px] leading-6 font-medium text-fg">
               Monto total (US$)
             </label>
@@ -372,6 +422,11 @@ export function MixCart({
                 className="num min-h-16 w-full min-w-0 bg-transparent text-[32px] leading-none text-fg tabular-nums outline-none placeholder:text-fg-subtle"
               />
             </div>
+            {amountRaw.length > 0 && amountValue === null ? (
+              <p role="alert" className="text-[13px] leading-5 text-down">
+                Escribe un monto mayor a cero.
+              </p>
+            ) : null}
             <div className="flex flex-wrap gap-2">
               {["50", "100", "250", "500"].map((preset) => (
                 <button
@@ -394,9 +449,7 @@ export function MixCart({
           </div>
 
           <div className="flex flex-col gap-2">
-            <p className="font-mono text-[13px] leading-5 font-medium tracking-[0.045em] text-fg-muted uppercase">
-              Paso 2 · Cuenta
-            </p>
+            <p className={KICKER}>Paso 2 · Cuenta</p>
             <div role="radiogroup" aria-label="Cuenta para la mezcla" className="grid grid-cols-2 gap-2">
               <button
                 type="button"
@@ -486,11 +539,19 @@ export function MixCart({
             </div>
           ) : null}
 
+          {amountValue !== null ? (
+            <p className="text-[13px] leading-relaxed text-fg-muted">
+              Vas a armar una mezcla de{" "}
+              <span className="num font-medium tabular-nums text-fg-body">{formatUsd(amountValue)}</span> en{" "}
+              {account === "demo" ? "la cuenta demo" : "tu cuenta real"}.
+            </p>
+          ) : null}
+
           <Button
             size="lg"
             className="min-h-12 w-full touch-manipulation text-[15px]"
             loading={pending}
-            disabled={pending}
+            disabled={pending || amountValue === null}
             onClick={() => void armPlan()}
           >
             Armar mezcla

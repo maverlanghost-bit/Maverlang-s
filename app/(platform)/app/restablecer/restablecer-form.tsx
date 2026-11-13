@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import { AuthFrame, CredentialField } from "@/components/auth/auth-frame";
+import { PasswordStrengthMeter } from "@/components/auth/password-strength-meter";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
 import { useSession } from "@/lib/auth";
@@ -96,6 +97,7 @@ export function RestablecerForm() {
           error={fields.password}
           onChange={(event) => setPassword(event.target.value)}
         />
+        <PasswordStrengthMeter password={password} />
         <CredentialField
           id="clave2"
           label="Confirmar contraseña"
@@ -111,11 +113,11 @@ export function RestablecerForm() {
       </form>
       {formError ? (
         <div className="mt-4">
-          <p className="break-words rounded-lg border border-down/20 bg-down-bg px-3 py-2.5 text-center text-sm leading-relaxed text-down" role="alert">
+          <p className="break-words rounded-lg border border-down/20 bg-down-bg px-3 py-2.5 text-sm leading-relaxed text-down" role="alert">
             {formError}
           </p>
           {formError === loginErrorMessage("expired") ? (
-            <p className="mt-2 text-center text-sm">
+            <p className="mt-2 text-sm">
               <Link
                 href="/app/recuperar"
                 className="inline-flex min-h-11 items-center justify-center rounded-sm px-2 font-medium text-fg underline decoration-border underline-offset-4 transition-colors hover:decoration-fg"

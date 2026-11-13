@@ -42,7 +42,7 @@ export function SegmentedControl({
     <div
       role={toggle ? "group" : "radiogroup"}
       aria-label={label}
-      className={cn("inline-flex max-w-full rounded-full border border-border bg-surface-2 p-1", fullWidth && "flex w-full")}
+      className={cn("inline-flex min-w-0 max-w-full rounded-full border border-control bg-surface-2 p-1", fullWidth && "flex w-full")}
       onKeyDown={(event) => {
         if (indexFromKey(event.key, 0, enabled.length) === null) return;
         event.preventDefault();
@@ -63,12 +63,14 @@ export function SegmentedControl({
             tabIndex={toggle || selected ? 0 : -1}
             onClick={() => onChange(option.value)}
             className={cn(
-              "min-h-11 rounded-full px-3 text-sm transition duration-[140ms] ease-spring active:scale-[0.98] focus-visible:relative focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fg focus-visible:ring-inset",
+              "min-h-11 min-w-11 rounded-full border px-3 text-sm whitespace-nowrap transition duration-[140ms] ease-spring active:scale-[0.98] focus-visible:relative focus-visible:z-10 focus-visible:ring-2 focus-visible:ring-fg focus-visible:ring-inset focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-45",
               fullWidth && "min-w-0 flex-1 px-1 sm:px-3",
-              compact && "whitespace-nowrap px-1 text-[13px] sm:px-1",
+              compact && "px-1 text-[13px] sm:px-1",
+              /* Seleccionado sin depender del color: borde `fg` de 1px (el no
+                 seleccionado lo lleva transparente) y peso medio en el texto. */
               selected
-                ? "bg-bg text-fg shadow-card"
-                : "text-fg-muted hover:text-fg",
+                ? "border-fg bg-bg font-medium text-fg"
+                : "border-transparent text-fg-muted hover:bg-bg/60 hover:text-fg",
             )}
           >
             {option.label}

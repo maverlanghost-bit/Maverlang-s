@@ -10,13 +10,14 @@ import { COPY_FAMILY_LABELS } from "@/components/copy/family-tabs";
 import { ExampleDataStrip, FeedBanner } from "@/components/copy/feed-banner";
 import { FraccionSeal } from "@/components/copy/fraccion-seal";
 import { LagStrip } from "@/components/copy/lag-strip";
+import { LegalNote } from "@/components/copy/legal-note";
 import { MovementsList } from "@/components/copy/movements-list";
 import { Paywall } from "@/components/copy/paywall";
 import { PositionsTable, type PositionRow } from "@/components/copy/positions-table";
 import { buttonClasses } from "@/components/ui/button";
 import { IconBack } from "@/components/ui/icons";
 import { Skeleton } from "@/components/ui/skeleton";
-import { COPY_CTA_NOTE, COPY_DISCLAIMER, COPY_LEGAL_PENDING_LABEL } from "@/content/copy-legal";
+import { COPY_CTA_NOTE } from "@/content/copy-legal";
 import {
   COPY_PAST_DUE_MESSAGE,
   getCopyEntitlement,
@@ -398,14 +399,13 @@ export default async function CopyPortfolioPage({
             </section>
           ) : null}
 
-          <div className="flex flex-col gap-2 border-t border-border pt-6">
+          <div className="flex flex-col gap-3 border-t border-border pt-6">
             <FraccionSeal />
             <p className="text-[13px] leading-relaxed text-fg-muted">
               Atribución: {meta.attribution}
               {meta.license ? ` · ${meta.license}` : ""}
             </p>
-            <p className="text-[13px] leading-relaxed text-fg-body">{COPY_DISCLAIMER}</p>
-            <p className="text-[13px] leading-relaxed text-fg-muted">{COPY_LEGAL_PENDING_LABEL}</p>
+            <LegalNote disclaimer className="border-0 pt-0" />
           </div>
         </div>
 

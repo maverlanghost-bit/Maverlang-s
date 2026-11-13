@@ -58,7 +58,7 @@ function CategoryRow({ category, members }: PublishedCategory) {
         <span className="sr-only">Ejemplos: </span>
         {examples.join(" · ")}
       </span>
-      <span className="num col-start-2 row-start-1 text-right text-[13px] leading-snug text-fg-muted sm:col-start-3">
+      <span className="num col-start-2 row-start-1 text-right text-[13px] leading-snug whitespace-nowrap text-fg-muted sm:col-start-3">
         <span className="font-medium text-fg">{count}</span> {count === 1 ? "activo" : "activos"}
       </span>
     </Link>
@@ -81,7 +81,7 @@ function CategoryGroup({
       <h2 id={id} className="text-xl sm:text-2xl">
         {title}
       </h2>
-      {intro ? <p className="mt-2 max-w-[62ch] text-[13px] leading-relaxed text-fg-muted">{intro}</p> : null}
+      {intro ? <p className="mt-2 max-w-[62ch] text-[13px] leading-relaxed text-pretty text-fg-muted">{intro}</p> : null}
       <ul className="mt-5 border-t border-border">
         {items.map((item) => (
           <li key={item.category.slug}>
@@ -143,7 +143,7 @@ export default async function CategoriasPage() {
         <h1 id="categorias-title" className="mt-3 text-3xl sm:text-4xl">
           Categorías de acciones
         </h1>
-        <p className="mt-4 max-w-[62ch] text-lead text-fg-body">
+        <p className="mt-4 max-w-[62ch] text-lead text-pretty text-fg-body">
           Los sectores salen de la clasificación SIC que la SEC registra para cada empresa; las
           selecciones agrupan activos por tema o por un dato publicado en la SEC. Cada categoría
           enlaza a las fichas públicas y no es una recomendación de inversión.

@@ -12,7 +12,14 @@ export function Separator({
       role={decorative ? "none" : "separator"}
       aria-orientation={decorative ? undefined : orientation}
       aria-hidden={decorative ? true : undefined}
-      className={cn("bg-border", orientation === "horizontal" ? "h-px w-full" : "h-full w-px", className)}
+      className={cn(
+        /* Mismo token que Card (`border`): una sola línea de 1px en todo el
+           sistema. `shrink-0` evita que el separador vertical colapse a 0px
+           dentro de un flex con contenido ancho. */
+        "shrink-0 bg-border",
+        orientation === "horizontal" ? "h-px w-full" : "h-full w-px",
+        className,
+      )}
       {...props}
     />
   );

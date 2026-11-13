@@ -38,7 +38,7 @@ function PageHeader() {
           <h1 className="text-3xl leading-[1.1] tracking-tight text-balance sm:text-4xl">
             Planes de Copiar carteras
           </h1>
-          <p className="mt-3 max-w-2xl text-[15px] leading-relaxed text-fg-muted">
+          <p className="mt-3 max-w-2xl text-[15px] leading-6 text-fg-muted">
             Carteras reconstruidas por Fraccion.si, con la fecha del dato y su atraso a la vista. La
             suscripción abre la composición completa, los movimientos y la mezcla de compra; cada orden
             la confirmas y la firmas tú.
@@ -106,7 +106,7 @@ export default async function PlanesPage({
         aria-labelledby="terminos-titulo"
         className="flex flex-col gap-2 border-t border-border pt-6"
       >
-        <h2 id="terminos-titulo" className="text-base font-medium tracking-tight">
+        <h2 id="terminos-titulo" className="text-lg font-medium tracking-tight">
           Términos de la suscripción
         </h2>
         <p className="text-[13px] leading-5 text-fg-muted">{COPY_LEGAL_PENDING_LABEL}</p>

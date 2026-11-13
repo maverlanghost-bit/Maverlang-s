@@ -174,12 +174,14 @@ function AssetRow({
         {hidden && (symbol === "USDC" || symbol === "SOL") ? (
           <Masked label={hiddenLabel} />
         ) : (
-          <span className="num max-w-full text-sm break-words text-fg tabular-nums">{amount}</span>
+          <span className="num max-w-full truncate text-[15px] leading-tight font-medium text-fg tabular-nums" title={amount}>
+            {amount}
+          </span>
         )}
         {hidden ? null : pending ? (
           <Skeleton className="h-5 w-16" />
         ) : symbol === "USDC" && currency === "USD" ? null : (
-          <PriceText value={value} currency={currency} size="sm" />
+          <PriceText value={value} currency={currency} size="sm" className="text-fg-muted" />
         )}
       </span>
     </>
@@ -322,21 +324,21 @@ export function WalletScreen() {
           </Button>
         </div>
 
-        <div className="mt-6 border-t border-border pt-4">
-          <p className="label">{t.wallet.solLabel}</p>
-          {sol ? (
-            <>
-              <p className="mt-2 max-w-full text-lg break-words text-fg">{masked ? <Masked label={t.shell.balanceHidden} /> : <span className="num font-medium tabular-nums">{formatSol(solUi)}</span>}</p>
-              <p className="mt-1 max-w-xl text-sm leading-relaxed text-fg-muted">{t.wallet.solExplain}</p>
-              {lowSol ? (
-                <p role="status" className="mt-3 rounded-xl bg-warn-bg px-4 py-3 text-sm leading-relaxed text-fg">
-                  {t.wallet.solLow}
-                </p>
-              ) : null}
-            </>
-          ) : (
-            <p className="mt-1 max-w-xl text-sm leading-relaxed text-fg-muted">{t.wallet.solExplain}</p>
-          )}
+        <div className="mt-6 flex flex-col gap-1.5 border-t border-border pt-4">
+          <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+            <p className="label">{t.wallet.solLabel}</p>
+            {sol ? (
+              <p className="num text-[15px] leading-tight font-medium text-fg tabular-nums">
+                {masked ? <Masked label={t.shell.balanceHidden} /> : formatSol(solUi)}
+              </p>
+            ) : null}
+          </div>
+          <p className="max-w-xl text-sm leading-relaxed text-fg-muted">{t.wallet.solExplain}</p>
+          {sol && lowSol ? (
+            <p role="status" className="mt-1.5 rounded-xl bg-warn-bg px-4 py-3 text-sm leading-relaxed text-fg">
+              {t.wallet.solLow}
+            </p>
+          ) : null}
         </div>
       </Card>
 
@@ -349,19 +351,9 @@ export function WalletScreen() {
               title={copy.assetsTitle}
               description={t.wallet.assetsEmpty}
               action={
-                <div className="flex w-full flex-col items-center gap-2 sm:w-auto sm:flex-row">
-                  <Button asChild size="lg" className="min-h-11 w-full whitespace-nowrap sm:w-auto">
-                    <Link href={DEPOSIT_HREF}>{copy.depositUsdc}</Link>
-                  </Button>
-                  <Button
-                    asChild
-                    variant="secondary"
-                    size="lg"
-                    className="min-h-11 w-full whitespace-nowrap sm:w-auto"
-                  >
-                    <Link href={MARKET_HREF}>{copy.exploreStocks}</Link>
-                  </Button>
-                </div>
+                <Button asChild variant="secondary" size="lg" className="min-h-11 w-full whitespace-nowrap sm:w-auto">
+                  <Link href={MARKET_HREF}>{copy.exploreStocks}</Link>
+                </Button>
               }
             />
           </div>
@@ -577,7 +569,7 @@ function ActivityList({
             title={copy.historyTitle}
             description={t.wallet.activityEmpty}
             action={
-              <Button asChild size="lg" className="min-h-11 w-full whitespace-nowrap sm:w-auto">
+              <Button asChild variant="secondary" size="lg" className="min-h-11 w-full whitespace-nowrap sm:w-auto">
                 <Link href={MARKET_HREF}>{copy.exploreStocks}</Link>
               </Button>
             }

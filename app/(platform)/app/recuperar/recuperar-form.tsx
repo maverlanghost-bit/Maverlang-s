@@ -38,10 +38,10 @@ export function RecuperarForm() {
   if (sent) {
     return (
       <AuthFrame title="Revisa tu correo" lead="Te enviamos un correo con un enlace.">
-        <p className="mt-6 text-sm break-words leading-relaxed text-fg-body">
+        <p className="mt-6 max-w-[60ch] text-sm break-words leading-relaxed text-pretty text-fg-body">
           Si ese correo tiene cuenta, el enlace ya va en camino. Ábrelo para elegir una contraseña nueva. Si no llega, revisa el correo no deseado.
         </p>
-        <div className="mt-4 rounded-lg border border-border bg-surface-2 px-3.5 py-3 text-sm leading-relaxed text-fg-body">
+        <div className="mt-4 rounded-lg border border-border bg-surface-2 px-3.5 py-3 text-sm leading-relaxed text-pretty text-fg-body">
           Enlace de un solo uso con expiración automática. Nunca compartas este enlace con terceros.
         </div>
         <Button asChild className="mt-6 w-full" size="lg">
@@ -53,13 +53,6 @@ export function RecuperarForm() {
 
   return (
     <AuthFrame title="Recuperar contraseña" lead="Escribe tu correo y te enviamos un enlace para elegir una contraseña nueva.">
-      <ol className="mt-6 grid grid-cols-3 gap-2 text-[11px] leading-snug text-fg-muted">
-        {["1. Tu correo", "2. Enlace cifrado", "3. Nueva clave"].map((step) => (
-          <li key={step} className="flex min-h-12 items-center justify-center rounded-lg border border-border bg-bg px-1.5 py-2 text-center">
-            {step}
-          </li>
-        ))}
-      </ol>
       <form className="mt-6" noValidate aria-busy={busy} onSubmit={(event) => void submit(event)}>
         <CredentialField
           id="correo"
@@ -76,7 +69,7 @@ export function RecuperarForm() {
         </Button>
       </form>
       {formError ? (
-        <p className="mt-4 break-words rounded-lg border border-down/20 bg-down-bg px-3 py-2.5 text-center text-sm leading-relaxed text-down" role="alert">
+        <p className="mt-4 break-words rounded-lg border border-down/20 bg-down-bg px-3 py-2.5 text-sm leading-relaxed text-down" role="alert">
           {formError}
         </p>
       ) : null}

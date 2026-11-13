@@ -118,21 +118,21 @@ export function MockWidget({
       <dl className="mt-5 flex flex-col gap-2 text-sm">
         <div className="flex items-baseline justify-between gap-3">
           <dt className="text-fg-muted">{t.wallet.depositAmount}</dt>
-          <dd className="num text-fg">{formatClp(amountClp)}</dd>
+          <dd className="num text-right font-medium text-fg tabular-nums">{formatClp(amountClp)}</dd>
         </div>
         <div className="flex items-baseline justify-between gap-3">
           <dt className="text-fg-muted">{t.wallet.depositEstimate}</dt>
-          <dd className="num text-fg">{usdc}</dd>
+          <dd className="num text-right font-medium text-fg tabular-nums">{usdc}</dd>
         </div>
         <div className="flex items-baseline justify-between gap-3">
           <dt className="text-fg-muted">{t.wallet.depositFee}</dt>
-          <dd className="num text-fg">{formatClp(session.feeClp)}</dd>
+          <dd className="num text-right font-medium text-fg tabular-nums">{formatClp(session.feeClp)}</dd>
         </div>
       </dl>
 
       <div className="mt-5" aria-live="polite">
         {step === "pay" ? <p className="text-sm leading-relaxed text-fg-body">{t.wallet.depositPayLead}</p> : null}
-        {step === "processing" ? <p className="text-sm text-fg">{t.wallet.depositProcessing}</p> : null}
+        {step === "processing" ? <p className="sr-only">{t.wallet.depositProcessing}</p> : null}
         {step === "credited" ? (
           <div>
             <p className="font-medium text-fg">{t.wallet.depositCredited}</p>

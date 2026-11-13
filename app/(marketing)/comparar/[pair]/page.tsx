@@ -432,7 +432,7 @@ export default async function CompararParPage({ params }: { params: Promise<{ pa
           <h2 id="comparar-datos" className="text-2xl sm:text-3xl">
             Datos de la empresa
           </h2>
-          <p className="mt-2 max-w-2xl text-[13px] leading-relaxed text-fg-muted">
+          <p className="mt-2 max-w-[68ch] text-[13px] leading-relaxed text-fg-muted">
             Cifras de los últimos 12 meses según la SEC. Si la empresa no publica un dato, se muestra “Sin dato”: no se
             completa con cero.
           </p>

@@ -33,18 +33,20 @@ function Rows({ count }: { count: number }) {
 
 function Header() {
   return (
-    <div className="flex flex-col gap-3">
-      <Skeleton className="h-9 w-56 max-w-[80%] sm:h-10 sm:w-64" />
-      <Skeleton className="h-4 w-full max-w-md" />
+    <div className="flex flex-col gap-2">
+      <Skeleton className="h-9 w-52 max-w-[70%] sm:h-10 sm:w-64" />
+      <Skeleton className="h-[1.125rem] w-full max-w-md" />
     </div>
   );
 }
 
 /**
- * Carga con la forma real del contenido (D2): encabezado, hairlines y filas,
- * nunca cajas apiladas. `cards` es el defecto histórico, así que quien no
- * pasa `variant` ve un bloque equivalente. Los bloques usan `motion-safe`,
- * así que con `prefers-reduced-motion` quedan quietos.
+ * Carga con la forma real del contenido (D2): encabezado con el ritmo de
+ * `PageHeader` (H1 de 36/40px, bajada de 62ch, gap de 8px), hairlines y filas
+ * de 64px con logo de 36px y dos líneas de dato —nunca cajas apiladas—.
+ * `cards` es el defecto histórico, así que quien no pasa `variant` ve un
+ * bloque equivalente. Los bloques usan `motion-safe`, así que con
+ * `prefers-reduced-motion` quedan quietos.
  */
 export function LoadingState({
   label = "Cargando",
@@ -54,7 +56,7 @@ export function LoadingState({
   variant?: LoadingStateVariant;
 }) {
   return (
-    <div role="status" aria-live="polite" aria-busy="true" className="flex flex-col gap-8">
+    <div role="status" aria-live="polite" aria-busy="true" className="flex flex-col gap-6">
       <span className="sr-only">{label}</span>
       {variant === "list" ? (
         <Rows count={6} />

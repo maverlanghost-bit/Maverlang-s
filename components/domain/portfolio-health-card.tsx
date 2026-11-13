@@ -68,7 +68,7 @@ export function PortfolioHealthCard({
   const stats = [
     { label: "Activos distintos", value: String(positions.length) },
     { label: "Mayor posición", value: `${topPosition.symbol} (${masked ? MASK : `${topWeightPct}%`})` },
-    { label: "Caja disponible", value: masked ? MASK : `${cashLabel}%` },
+    { label: "Caja disponible (USDC)", value: masked ? MASK : formatUsd(cashUsdc) },
   ];
 
   return (
@@ -78,9 +78,9 @@ export function PortfolioHealthCard({
           <h2 className="text-xl font-medium tracking-tight text-balance text-fg">
             Salud y diversificación de cartera
           </h2>
-          <p className="mt-1 text-[13px] leading-relaxed text-fg-muted">
-            Cómo se reparte tu cartera hoy entre acciones tokenizadas y USDC disponible. Se calcula sólo con tus
-            posiciones actuales: no es una proyección ni una recomendación de inversión.
+          <p className="mt-1 max-w-prose text-[13px] leading-relaxed text-fg-muted">
+            Cómo se reparte tu cartera hoy entre acciones tokenizadas y USDC. Se calcula con tus posiciones
+            actuales: no es una proyección ni una recomendación.
           </p>
         </div>
         <Badge tone={level.tone} className="shrink-0">
@@ -94,10 +94,7 @@ export function PortfolioHealthCard({
             Invertido <span className="num font-medium text-fg">{investedLabel}%</span>
           </p>
           <p className="text-[13px] text-fg-muted">
-            Liquidez USDC{" "}
-            <span className="num font-medium text-fg">
-              {cashLabel}%{masked ? "" : ` · ${formatUsd(cashUsdc)}`}
-            </span>
+            Liquidez USDC <span className="num font-medium text-fg">{cashLabel}%</span>
           </p>
         </div>
         <div

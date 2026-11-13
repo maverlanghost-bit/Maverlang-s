@@ -84,11 +84,11 @@ export function FinalCTA() {
                     >
                       {row.market}
                     </p>
-                    <p className="mt-1 text-[13px] leading-relaxed text-fg-muted">{row.status}</p>
+                    <p className="mt-1 text-sm leading-relaxed text-fg-muted">{row.status}</p>
                   </div>
                   <p
                     className={cn(
-                      "num text-[13px] tabular-nums sm:text-right",
+                      "num text-sm tabular-nums sm:text-right",
                       row.highlight ? "font-medium text-fg" : "text-fg-muted",
                     )}
                   >
@@ -96,7 +96,7 @@ export function FinalCTA() {
                   </p>
                 </div>
               ))}
-              <p className="py-3 text-[13px] leading-relaxed text-fg-muted">
+              <p className="py-3 text-sm leading-relaxed text-fg-muted">
                 Fuera del horario regular de la bolsa de EE.UU. (9:30 a 16:00, hora de Nueva York, lunes a
                 viernes) hay menos liquidez y el precio puede variar más.
               </p>
@@ -106,7 +106,7 @@ export function FinalCTA() {
               {summaryItems.map((item) => (
                 <li
                   key={item}
-                  className="flex items-center gap-2 text-[13px] leading-snug text-fg-muted"
+                  className="flex items-center gap-2 text-sm leading-snug text-fg-muted"
                 >
                   <span aria-hidden="true" className="size-1 shrink-0 rounded-full bg-border-strong" />
                   {item}
@@ -140,7 +140,7 @@ export function FinalCTA() {
             <Card id="lista-de-espera" className="scroll-mt-24 bg-bg text-left">
               <div className="flex flex-col gap-1 sm:flex-row sm:flex-wrap sm:items-baseline sm:justify-between sm:gap-x-4">
                 <p className="label">Lista de espera</p>
-                <p className="text-[13px] text-fg-muted">Acceso prioritario · Cuenta Real</p>
+                <p className="text-sm text-fg-muted">Acceso prioritario · Cuenta Real</p>
               </div>
 
               <h3 className="mt-3 text-xl leading-snug tracking-tight text-fg sm:text-2xl">

@@ -30,12 +30,14 @@ export function ActivityItem({
   return (
     <div className="flex flex-col gap-2 py-4 transition-colors duration-150 sm:flex-row sm:items-center sm:gap-6">
       <div className="min-w-0 flex-1">
-        <p className="truncate text-[15px] leading-tight font-medium tracking-tight text-fg">{title}</p>
-        <p className="num mt-1 text-[13px] leading-none tabular-nums text-fg-muted">{detail}</p>
+        <p className="line-clamp-2 text-[15px] leading-tight font-medium tracking-tight text-balance text-fg sm:line-clamp-1">
+          {title}
+        </p>
+        <p className="num mt-1 text-[13px] leading-tight tabular-nums text-fg-muted">{detail}</p>
       </div>
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 sm:justify-end">
         <Badge tone={tone}>{status}</Badge>
-        <time dateTime={dateTime} className="text-[13px] tabular-nums text-fg-muted">
+        <time dateTime={dateTime} className="text-[13px] whitespace-nowrap tabular-nums text-fg-muted">
           {time}
         </time>
         {explorerHref ? (

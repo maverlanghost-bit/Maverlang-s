@@ -6,6 +6,7 @@ import { AmountInput } from "@/components/ui/amount-input";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { LoadingState } from "@/components/ui/loading-state";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/components/ui/toast";
 import {
   ONRAMP_CHIPS_CLP,
@@ -166,11 +167,6 @@ export function PesoDeposit() {
             usdc={live.session ? formatUsd(live.session.estimatedUsdc) : null}
             fee={live.session ? formatClp(live.session.feeClp) : null}
           />
-          {live.error ? (
-            <p role="alert" className="rounded-xl bg-down-bg px-4 py-3 text-sm leading-relaxed text-down">
-              {live.error}
-            </p>
-          ) : null}
           <div className="flex flex-col gap-2">
             <p className="label">{t.wallet.depositMethods}</p>
             <ul className="flex flex-wrap gap-1.5">
@@ -244,18 +240,28 @@ function Estimate({
   usdc: string | null;
   fee: string | null;
 }) {
-  const value = quoting ? quoting : error ? "—" : (usdc ?? "—");
-  const cost = quoting || error ? "—" : (fee ?? "—");
   return (
-    <dl className="flex flex-col gap-2 rounded-xl bg-surface-2 px-4 py-3 text-[13px]" aria-live="polite">
-      <div className="flex items-baseline justify-between gap-3">
-        <dt className="text-fg-muted">{label}</dt>
-        <dd className="num min-w-0 text-right font-medium break-words text-fg">{value}</dd>
-      </div>
-      <div className="flex items-baseline justify-between gap-3">
-        <dt className="text-fg-muted">{feeLabel}</dt>
-        <dd className="num min-w-0 text-right font-medium break-words text-fg">{cost}</dd>
-      </div>
-    </dl>
+    <div className="flex flex-col gap-2 rounded-xl bg-surface-2 px-4 py-3 text-[13px]" aria-live="polite">
+      <dl className="flex flex-col gap-2">
+        <div className="flex items-baseline justify-between gap-3">
+          <dt className="text-fg-muted">{label}</dt>
+          <dd className="num flex min-h-5 min-w-0 items-center justify-end text-right font-medium text-fg">
+            {quoting ? <Skeleton className="h-4 w-24" /> : error ? "—" : (usdc ?? "—")}
+          </dd>
+        </div>
+        <div className="flex items-baseline justify-between gap-3">
+          <dt className="text-fg-muted">{feeLabel}</dt>
+          <dd className="num flex min-h-5 min-w-0 items-center justify-end text-right font-medium text-fg">
+            {quoting ? <Skeleton className="h-4 w-20" /> : error ? "—" : (fee ?? "—")}
+          </dd>
+        </div>
+      </dl>
+      {quoting ? <span className="sr-only">{quoting}</span> : null}
+      {error ? (
+        <p role="alert" className="text-[13px] leading-relaxed text-down">
+          {error}
+        </p>
+      ) : null}
+    </div>
   );
 }

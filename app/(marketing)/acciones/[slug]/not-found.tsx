@@ -9,11 +9,11 @@ import { buttonClasses } from "@/components/ui/button";
  */
 export default function AccionNoEncontrada() {
   return (
-    <section className="px-5 py-20 md:py-28">
+    <section className="px-5 pt-10 pb-16 md:pt-12 md:pb-20">
       <div className="mx-auto w-full max-w-7xl">
         <p className="label">404</p>
         <h1 className="mt-3 text-3xl text-balance sm:text-4xl">No encontramos esa acción</h1>
-        <p className="mt-4 max-w-[46ch] text-base leading-relaxed text-fg-body">
+        <p className="mt-4 max-w-[62ch] text-base leading-relaxed text-pretty text-fg-body">
           La dirección no existe o cambió. En el catálogo está cada ficha pública, con el precio del token y los
           datos de la empresa según la SEC.
         </p>

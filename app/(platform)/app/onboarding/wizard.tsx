@@ -94,7 +94,7 @@ function draftServerSnapshot(): OnboardingDraft | null {
 
 function Shell({ children }: { children: ReactNode }) {
   return (
-    <Card className="w-full max-w-md shadow-float">
+    <Card className="my-auto w-full max-w-md">
       <BrandLink />
       {children}
     </Card>
@@ -149,7 +149,7 @@ export function OnboardingWizard({
     return (
       <Shell>
         <h1 className="mt-6 text-3xl text-balance">Necesitas iniciar sesión</h1>
-        <p className="mt-3 text-sm leading-relaxed text-fg-body">El registro continúa después del ingreso.</p>
+        <p className="mt-3 max-w-[60ch] text-sm leading-relaxed text-pretty text-fg-body">El registro continúa después del ingreso.</p>
         <div className="mt-6">
           <Link href="/app/ingresar" className={buttonClasses({ size: "lg", className: "w-full" })}>
             Ingresar
@@ -440,9 +440,9 @@ function WizardBody({
 
   return (
     <Shell>
-      <StepProgress step={step} />
+      <StepProgress step={step} title={title} />
       <form className="mt-6" onSubmit={onSubmit} noValidate>
-        <h1 ref={headingRef} tabIndex={-1} className="text-3xl text-balance focus:shadow-none">
+        <h1 ref={headingRef} tabIndex={-1} className="text-3xl text-balance outline-none">
           {title}
         </h1>
         {step === 1 && !unavailable ? (
@@ -533,7 +533,7 @@ function WizardBody({
           />
         ) : null}
         {formError ? (
-          <p className="mt-4 text-sm text-down" role="alert">
+          <p className="mt-4 text-sm leading-snug text-down" role="alert">
             {formError}
           </p>
         ) : null}

@@ -96,7 +96,7 @@ function CatalogHeader({ cta = true }: { cta?: boolean }) {
           <h1 className="text-3xl leading-[1.1] tracking-tight text-balance sm:text-4xl">
             Copiar carteras
           </h1>
-          <p className="mt-3 max-w-2xl text-[15px] leading-relaxed text-fg-muted">
+          <p className="mt-3 max-w-2xl text-[15px] leading-6 text-fg-muted">
             Carteras 13F y ETF para replicar con acciones de Maverlang, y corredoras chilenas, AFP y
             temáticas para mirar. Cada fila muestra la fecha del dato, el atraso y la cobertura.
           </p>

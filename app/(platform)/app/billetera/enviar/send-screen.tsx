@@ -114,7 +114,7 @@ const backLink =
   "inline-flex min-h-11 w-fit items-center text-sm font-medium text-fg underline decoration-fg/40 underline-offset-4 hover:decoration-fg";
 
 export function SendScreen() {
-  const { t } = useT();
+  const { t, language } = useT();
   const session = useSession();
   const sign = useSignTrade();
   const balances = useBalances();
@@ -247,17 +247,25 @@ export function SendScreen() {
 
   if (phase === "signing" || phase === "submitting") {
     return shell(
-      <div role="status" aria-live="polite" className="flex flex-col items-center gap-3 py-10 text-center">
+      <div
+        role="status"
+        aria-live="polite"
+        className="mx-auto flex w-full max-w-sm flex-col items-center gap-4 rounded-xl bg-surface-1 px-6 py-10 text-center"
+      >
         <Spinner />
-        <p className="text-lg text-fg">{phase === "signing" ? t.trade.signing : t.trade.submitting}</p>
+        <p className="text-base font-medium text-fg">{phase === "signing" ? t.trade.signing : t.trade.submitting}</p>
       </div>,
     );
   }
 
   if (phase === "done" && draft) {
     return shell(
-      <div role="status" aria-live="polite" className="flex flex-col items-stretch gap-4 py-2 text-center">
-        <p className="text-2xl text-fg">{t.trade.done}</p>
+      <div
+        role="status"
+        aria-live="polite"
+        className="mx-auto flex w-full max-w-sm flex-col items-stretch gap-4 py-2 text-center"
+      >
+        <p className="text-2xl tracking-tight text-fg">{t.trade.done}</p>
         <p className="text-sm text-balance text-fg-body">
           {fill(t.wallet.doneBody, { amount: formatAssetAmount(draft.symbol, draft.amount), symbol: draft.symbol })}
         </p>
@@ -294,13 +302,13 @@ export function SendScreen() {
     const rows = [{ label: t.wallet.network, value: formatSol(draft.networkFeeSol) }];
     if (draft.tokenAccountRentSol > 0) rows.push({ label: t.wallet.rent, value: formatSol(draft.tokenAccountRentSol) });
     return shell(
-      <div className="flex flex-col gap-5">
-        <p className="text-center text-2xl text-balance text-fg">
+      <div className="mx-auto flex w-full max-w-md flex-col gap-5">
+        <p className="text-center text-2xl leading-tight tracking-tight text-balance text-fg tabular-nums">
           {fill(t.wallet.reviewLead, { amount: formatAssetAmount(draft.symbol, draft.amount), symbol: draft.symbol })}
         </p>
-        <div className="flex flex-col gap-1 rounded-xl border border-border bg-surface-1 px-4 py-3 text-center">
+        <div className="flex flex-col gap-1.5 rounded-xl bg-surface-1 px-4 py-3.5 text-center">
           <p className="label">{t.wallet.destination}</p>
-          <p className="num text-[13px] leading-relaxed break-all text-fg">{draft.to}</p>
+          <p className="num text-[12px] leading-relaxed break-all text-fg">{draft.to}</p>
         </div>
         {draft.own ? <p className="rounded-xl bg-warn-bg px-4 py-3 text-sm text-fg">{t.wallet.ownAddress}</p> : null}
         <CostBreakdown rows={rows} />
@@ -318,7 +326,7 @@ export function SendScreen() {
 
   if (!walletOk) {
     return shell(
-      <Card>
+      <Card className="mx-auto w-full max-w-md">
         <p className="text-sm leading-relaxed text-fg-body">{t.wallet.noWallet}</p>
       </Card>,
     );
@@ -326,7 +334,7 @@ export function SendScreen() {
 
   if (assets.length === 0) {
     return shell(
-      <Card className="flex flex-col items-start gap-4">
+      <Card className="mx-auto flex w-full max-w-md flex-col items-start gap-4">
         <p className="text-sm leading-relaxed text-fg-body">{t.wallet.noAssets}</p>
         <Button asChild>
           <Link href={DEPOSIT_HREF}>{t.wallet.deposit}</Link>
@@ -339,7 +347,7 @@ export function SendScreen() {
 
   return shell(
     <form
-      className="flex flex-col gap-6"
+      className="mx-auto flex w-full max-w-lg flex-col gap-6"
       onSubmit={(event) => {
         event.preventDefault();
         openReview();
@@ -394,12 +402,20 @@ export function SendScreen() {
         maxLabel={t.trade.max}
         suffix={currency === "SHARES" ? t.trade.shareSuffix : undefined}
         max={max}
+        chips={[]}
+        caption={
+          selected ? fill(t.wallet.available, { amount: formatAssetAmount(selected.symbol, selected.uiAmount) }) : undefined
+        }
         describedBy={amountHint ? amountHintId : undefined}
         invalid={over}
       />
 
       {selected && max > 0 ? (
-        <div className="flex flex-wrap items-center gap-2">
+        <div
+          role="group"
+          aria-label={language === "en" ? "Share of balance" : "Porcentaje del saldo"}
+          className="grid grid-cols-4 gap-1.5"
+        >
           {(
             [
               { pct: 0.25, label: "25%" },
@@ -412,18 +428,12 @@ export function SendScreen() {
               key={preset.label}
               type="button"
               onClick={() => setAmountRaw(String(Number((max * preset.pct).toFixed(6))))}
-              className="inline-flex min-h-11 items-center rounded-full border border-control bg-bg px-3.5 text-[13px] font-medium tabular-nums text-fg transition-colors hover:bg-surface-2 sm:min-h-9"
+              className="inline-flex min-h-11 items-center justify-center rounded-full border border-control bg-bg px-1 text-[13px] font-medium tabular-nums text-fg transition-colors hover:bg-surface-2"
             >
               {preset.label}
             </button>
           ))}
         </div>
-      ) : null}
-
-      {selected ? (
-        <p className="text-sm text-fg-muted">
-          {fill(t.wallet.available, { amount: formatAssetAmount(selected.symbol, selected.uiAmount) })}
-        </p>
       ) : null}
 
       {amountHint ? (
@@ -433,8 +443,6 @@ export function SendScreen() {
       ) : null}
 
       <WithdrawalLimitsCard />
-
-      <p className="rounded-xl bg-warn-bg px-4 py-3 text-sm leading-relaxed font-medium text-fg">{t.wallet.irreversible}</p>
 
       <Button type="submit" size="lg" className="w-full" disabled={!canReview}>
         {t.trade.review}

@@ -37,7 +37,7 @@ export function CurrencySwitch({ className, compact = false }: { className?: str
               if (!active) setCurrency(option);
             }}
             className={cn(
-              "min-h-11 cursor-pointer rounded-full font-mono text-[11px] font-medium uppercase tracking-[0.06em] transition-colors duration-150",
+              "min-h-11 cursor-pointer rounded-full font-mono text-[12px] font-medium whitespace-nowrap uppercase tracking-[0.04em] transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-fg",
               compact ? "px-2" : "px-2.5",
               active
                 ? "bg-bg text-fg shadow-raised ring-1 ring-border"

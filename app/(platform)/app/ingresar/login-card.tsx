@@ -117,7 +117,7 @@ export function LoginCard() {
         </Button>
       </div>
       {demo ? (
-        <p className="mt-4 rounded-lg bg-surface-2 px-3 py-2.5 text-center text-sm leading-relaxed text-fg-muted">
+        <p className="mt-4 rounded-lg border border-border bg-surface-2 px-3 py-2.5 text-sm leading-relaxed text-fg-muted">
           En este entorno los dos botones abren la cuenta demo.
         </p>
       ) : null}
@@ -130,12 +130,12 @@ export function LoginCard() {
         </Link>
       </p>
       {params.get("error") === "enlace" ? (
-        <p className="mt-4 rounded-lg border border-down/20 bg-down-bg px-3 py-2.5 text-center text-sm leading-relaxed text-down" role="alert">
+        <p className="mt-4 rounded-lg border border-down/20 bg-down-bg px-3 py-2.5 text-sm leading-relaxed text-down" role="alert">
           Ese enlace no es válido o ya venció.
         </p>
       ) : null}
       {error ? (
-        <p className="mt-4 rounded-lg border border-down/20 bg-down-bg px-3 py-2.5 text-center text-sm leading-relaxed text-down" role="alert">
+        <p className="mt-4 rounded-lg border border-down/20 bg-down-bg px-3 py-2.5 text-sm leading-relaxed text-down" role="alert">
           {error}
         </p>
       ) : null}

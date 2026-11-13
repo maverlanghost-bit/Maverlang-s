@@ -23,7 +23,9 @@ export function ChangeBadge({
     <span
       className={cn(
         // Misma altura y misma caja que `Badge` (20 px): 12 px de texto mínimo.
-        "inline-flex items-center gap-1 rounded-full font-mono leading-4 tabular-nums",
+        // Contraste medido sobre su propio fondo: sube 4,87:1, baja 5,01:1,
+        // sin cambio 5,71:1 — los tres pasan AA para texto chico.
+        "inline-flex items-center gap-1 rounded-full font-mono leading-4 tabular-nums ring-1 ring-black/5",
         size === "md" ? "px-2 py-0.5 text-xs font-medium" : "px-1.5 py-0.5 text-xs font-medium",
         direction === "up" && "bg-up-bg text-up",
         direction === "down" && "bg-down-bg text-down",

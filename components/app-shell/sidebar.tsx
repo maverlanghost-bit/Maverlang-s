@@ -248,7 +248,7 @@ function AccountTrigger({
       aria-expanded={open}
       aria-label={label}
       onClick={onClick}
-      className="flex min-h-11 w-full items-center gap-2.5 rounded-lg px-1.5 py-1 text-left transition-colors hover:bg-fg/[0.04]"
+      className="flex min-h-11 w-full items-center gap-2.5 rounded-lg px-1.5 py-1 text-left transition-colors hover:bg-fg/[0.04] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fg"
     >
       <Avatar alt="" fallback={name} size="sm" className="size-8" />
       <span className="min-w-0 flex-1">
@@ -336,6 +336,16 @@ export function Sidebar({
     return () => document.removeEventListener("pointerdown", onPointerDown);
   }, [menuOpen]);
 
+  /** Escape cierra el menú aunque el foco se haya ido a otro control del riel. */
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setMenuOpen(false);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [menuOpen]);
+
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (event.defaultPrevented) return;
@@ -375,7 +385,7 @@ export function Sidebar({
         {collapsed ? (
           <Icon className={cn("size-4 shrink-0", active ? "text-fg" : "text-fg-muted group-hover:text-fg")} />
         ) : null}
-        <span className={cn("truncate", collapsed && "sr-only")}>{label}</span>
+        <span className={cn("min-w-0 truncate", collapsed && "sr-only")}>{label}</span>
       </Link>
     );
     return collapsed ? (
@@ -407,7 +417,7 @@ export function Sidebar({
           href="/app"
           aria-label={isAiRoute ? t.detail.backToMarket : site.name}
           title={isAiRoute ? t.detail.backToMarket : site.name}
-          className="flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-lg transition-opacity hover:opacity-70"
+          className="flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-lg transition-opacity hover:opacity-70 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fg"
         >
           {isAiRoute ? (
             // eslint-disable-next-line @next/next/no-img-element
@@ -422,7 +432,7 @@ export function Sidebar({
             onClick={onToggle}
             aria-label={t.shell.collapseSidebar}
             title={`${t.shell.collapseSidebar} (Ctrl+B)`}
-            className="flex size-11 cursor-pointer items-center justify-center rounded-lg text-fg-muted transition-colors hover:bg-fg/[0.055] hover:text-fg"
+            className="flex size-11 cursor-pointer items-center justify-center rounded-lg text-fg-muted transition-colors hover:bg-fg/[0.055] hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fg"
           >
             <PanelLeftCloseIcon className="size-4" />
           </button>
@@ -435,7 +445,7 @@ export function Sidebar({
               type="button"
               onClick={onToggle}
               aria-label={t.shell.expandSidebar}
-              className="flex size-11 cursor-pointer items-center justify-center rounded-lg text-fg-muted transition-colors hover:bg-fg/[0.055] hover:text-fg"
+              className="flex size-11 cursor-pointer items-center justify-center rounded-lg text-fg-muted transition-colors hover:bg-fg/[0.055] hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fg"
             >
               <PanelLeftIcon className="size-4" />
             </button>
@@ -567,9 +577,6 @@ export function Sidebar({
         <div
           ref={menuRef}
           className={cn("relative", !isAiRoute && !collapsed && "mt-2")}
-          onKeyDown={(event) => {
-            if (event.key === "Escape") setMenuOpen(false);
-          }}
         >
           <AccountMenuPanel
             open={menuOpen && !collapsed && !loading}
@@ -589,7 +596,7 @@ export function Sidebar({
                 href="/app/perfil"
                 aria-label={loading ? t.shell.account : `${name}. ${t.shell.account}`}
                 title={loading ? t.shell.account : name}
-                className="flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-lg hover:bg-fg/[0.055]"
+                className="flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-lg hover:bg-fg/[0.055] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fg"
               >
                 <Avatar alt="" fallback={name} size="sm" className="size-8" />
               </Link>

@@ -14,14 +14,15 @@ export const buttonVariantClass: Record<ButtonVariant, string> = {
 };
 
 const sizeClass: Record<ButtonSize, string> = {
-  /* D1: 44px táctiles en móvil; 36px sólo con puntero (sm+). */
+  /* Escala vertical única: 44 táctil en móvil y 36/44/48 con puntero.
+     `md` es la altura de referencia: Input y Select también miden 44 (min-h-11). */
   sm: "h-11 gap-1.5 px-3 text-sm sm:h-9",
   md: "h-11 gap-2 px-4 text-sm md:px-6",
   lg: "h-11 gap-2 px-5 text-base md:h-12 md:px-7",
 };
 
 export const buttonBase =
-  "inline-flex items-center justify-center rounded-full font-medium transition duration-[140ms] ease-spring active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fg focus-visible:ring-offset-2 focus-visible:ring-offset-bg disabled:pointer-events-none disabled:opacity-50";
+  "inline-flex touch-manipulation items-center justify-center rounded-full font-medium select-none transition duration-[140ms] ease-spring active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fg focus-visible:ring-offset-2 focus-visible:ring-offset-bg disabled:pointer-events-none disabled:opacity-50";
 
 export function buttonClasses({
   variant = "primary",

@@ -274,7 +274,7 @@ function PatrimonyHero({
       <div className="mt-3 flex flex-col gap-6 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between sm:gap-x-12">
         <div className="min-w-0">
           {masked ? (
-            <Masked label={hiddenLabel} className="num block text-[1.75rem] tracking-[0.14em] sm:text-[2rem]" />
+            <Masked label={hiddenLabel} className="num block text-[2rem] tracking-[0.14em] sm:text-[2.25rem]" />
           ) : pendingFx ? (
             <Skeleton className="h-8 w-56 max-w-full sm:h-9" />
           ) : (
@@ -285,7 +285,7 @@ function PatrimonyHero({
                 size="lg"
                 live={!hoverActive}
                 force={hoverForce}
-                className="block text-[1.75rem] leading-none font-medium tracking-tight tabular-nums sm:text-[2rem]"
+                className="block text-[2rem] leading-none font-medium tracking-tight tabular-nums sm:text-[2.25rem]"
               />
             </span>
           )}
@@ -318,13 +318,15 @@ function PatrimonyHero({
           <div className="min-w-0">
             <dt className="label">{copy.invested}</dt>
             <dd className="num mt-1.5 text-[15px] font-medium tracking-tight text-fg">
-              {invested === null
-                ? copy.emptyFigure
-                : masked
-                  ? "••••"
-                  : pendingFx
-                    ? "…"
-                    : formatMoney(invested.amount, invested.currency)}
+              {invested === null ? (
+                copy.emptyFigure
+              ) : masked ? (
+                <Masked label={hiddenLabel} />
+              ) : pendingFx ? (
+                <Skeleton className="h-4 w-24" />
+              ) : (
+                formatMoney(invested.amount, invested.currency)
+              )}
             </dd>
           </div>
         </dl>
@@ -334,9 +336,15 @@ function PatrimonyHero({
         <div className="min-w-0">
           <h2 className="label">{t.portfolio.available}</h2>
           <div className="mt-1.5 flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
-            <span className="num text-xl font-medium tracking-tight text-fg">
-              {masked ? "••••" : pendingFx ? "…" : formatMoney(cash.amount, cash.currency)}
-            </span>
+            {masked ? (
+              <Masked label={hiddenLabel} className="text-xl" />
+            ) : pendingFx ? (
+              <Skeleton className="h-6 w-24" />
+            ) : (
+              <span className="num text-xl font-medium tracking-tight tabular-nums text-fg">
+                {formatMoney(cash.amount, cash.currency)}
+              </span>
+            )}
             <span className="text-[13px] text-fg-muted">{t.portfolio.availableNote}</span>
           </div>
         </div>

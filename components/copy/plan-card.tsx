@@ -371,8 +371,9 @@ export function PlansPanel({ billingEnabled, billingSoon, returned = false }: Pl
           </p>
         ) : null}
 
-        {/* Dos planes comparables: misma estructura y mismas filas de dato. */}
-        <ul className="grid gap-3 md:grid-cols-2 md:gap-6">
+        {/* Dos planes comparables: misma estructura, mismas filas de dato y
+            una sola acción principal (el plan anual). */}
+        <ul className="grid items-stretch gap-3 md:grid-cols-2 md:gap-6">
           {BILLING_PLAN_IDS.map((plan) => {
             const current = currentPlan === plan;
             const primary = plan === "annual";
@@ -380,14 +381,22 @@ export function PlansPanel({ billingEnabled, billingSoon, returned = false }: Pl
               <li
                 key={plan}
                 className={cn(
-                  "flex flex-col rounded-3xl border p-5 md:p-6",
+                  "flex flex-col rounded-3xl border p-5 sm:p-6",
                   current ? "border-fg" : "border-border",
                   primary ? "bg-surface-1" : "bg-bg",
                 )}
               >
-                <h3 className="label">{BILLING_PLAN_CATALOG[plan].label}</h3>
-                <p className="mt-4 flex flex-wrap items-baseline gap-x-1.5">
-                  <span className="num text-3xl leading-none font-medium tracking-tight tabular-nums text-fg">
+                <div className="flex min-w-0 items-baseline justify-between gap-3">
+                  <h3 className="label">{BILLING_PLAN_CATALOG[plan].label}</h3>
+                  <p className="shrink-0 text-[13px] leading-5 text-fg-muted">
+                    {BILLING_PLAN_CATALOG[plan].months === 1
+                      ? "Cobro mensual"
+                      : `Cobro cada ${BILLING_PLAN_CATALOG[plan].months} meses`}
+                  </p>
+                </div>
+
+                <p className="mt-4 flex items-baseline gap-x-1.5">
+                  <span className="num text-[32px] leading-none font-medium tracking-tight tabular-nums text-fg">
                     {formatClp(BILLING_PLAN_CATALOG[plan].amountClp)}
                   </span>
                   <span className="text-[13px] leading-5 text-fg-muted">/ {PLAN_PERIOD[plan]}</span>
@@ -400,7 +409,7 @@ export function PlansPanel({ billingEnabled, billingSoon, returned = false }: Pl
                       className="flex items-baseline justify-between gap-4 border-b border-border/70 py-2.5 text-[13px] leading-5 last:border-b-0"
                     >
                       <dt className="text-fg-muted">{fact.label}</dt>
-                      <dd className="text-right font-medium text-fg-body">{fact.values[plan]}</dd>
+                      <dd className="text-right font-medium tabular-nums text-fg-body">{fact.values[plan]}</dd>
                     </div>
                   ))}
                 </dl>

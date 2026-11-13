@@ -80,10 +80,10 @@ export function PositionsTable({
 
       <ul aria-label="Posiciones de la cartera" className="flex flex-col">
         {rows.map((row, index) => (
-          <li key={`${row.symbol}-${index}`} className="border-b border-border/70 py-3.5 last:border-b-0">
+          <li key={`${row.symbol}-${index}`} className="border-b border-border/70 py-4 last:border-b-0 sm:py-3.5">
             <div
               className={cn(
-                "grid grid-cols-2 items-baseline gap-x-3 gap-y-2 sm:items-center",
+                "grid grid-cols-2 items-start gap-x-4 gap-y-3 sm:items-center sm:gap-x-3 sm:gap-y-2",
                 columns(showMaverlang),
               )}
             >
@@ -96,34 +96,38 @@ export function PositionsTable({
                 ) : null}
               </div>
 
+              {/* En móvil las cifras van en un bloque de dos columnas con su
+                  rótulo arriba; desde sm el bloque se disuelve en la retícula. */}
               <div
                 className={cn(
-                  "flex items-baseline justify-between gap-2 sm:block sm:text-right",
-                  !showMaverlang && "col-span-2 sm:col-span-1",
+                  "col-span-2 grid gap-x-4 gap-y-3 sm:contents",
+                  showMaverlang ? "grid-cols-2" : "grid-cols-1",
                 )}
               >
-                <span className="label-xs sm:hidden">Original</span>
-                <span className="num text-[15px] leading-5 whitespace-nowrap tabular-nums text-fg-body">
-                  {weight(row.weightOriginal)}
-                </span>
-              </div>
-
-              {showMaverlang ? (
-                <div className="flex items-baseline justify-between gap-2 sm:block sm:text-right">
-                  <span className="label-xs sm:hidden">En Maverlang</span>
-                  <span
-                    className={cn(
-                      "num text-[15px] leading-5 whitespace-nowrap tabular-nums",
-                      row.status === "available" ? "text-fg-body" : "text-fg-muted",
-                    )}
-                    title="Peso en la mezcla de Maverlang"
-                  >
-                    {row.status === "available" ? weight(row.weightMaverlang) : "—"}
+                <div className="flex min-w-0 flex-col gap-0.5 sm:block sm:text-right">
+                  <span className="label-xs sm:hidden">Original</span>
+                  <span className="num block text-[15px] leading-5 whitespace-nowrap tabular-nums text-fg-body">
+                    {weight(row.weightOriginal)}
                   </span>
                 </div>
-              ) : null}
 
-              <div className="col-span-2 flex items-baseline justify-between gap-2 sm:col-span-1 sm:block sm:text-right">
+                {showMaverlang ? (
+                  <div className="flex min-w-0 flex-col gap-0.5 sm:block sm:text-right">
+                    <span className="label-xs sm:hidden">En Maverlang</span>
+                    <span
+                      className={cn(
+                        "num block text-[15px] leading-5 whitespace-nowrap tabular-nums",
+                        row.status === "available" ? "text-fg-body" : "text-fg-muted",
+                      )}
+                      title="Peso en la mezcla de Maverlang"
+                    >
+                      {row.status === "available" ? weight(row.weightMaverlang) : "—"}
+                    </span>
+                  </div>
+                ) : null}
+              </div>
+
+              <div className="col-span-2 flex items-center justify-between gap-3 border-t border-border/70 pt-3 sm:col-span-1 sm:block sm:border-0 sm:pt-0 sm:text-right">
                 <span className="label-xs sm:hidden">Estado</span>
                 <span className="flex flex-col items-end">
                   <span className={cn("text-[13px] leading-5 font-medium", statusTone[row.status])}>

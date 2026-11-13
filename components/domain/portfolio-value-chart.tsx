@@ -209,7 +209,7 @@ export function PortfolioValueChart({
           <>
             <span
               className={cn(
-                "num text-2xl leading-none font-medium tracking-tight whitespace-nowrap sm:text-3xl",
+                "num text-xl leading-none font-medium tracking-tight whitespace-nowrap sm:text-2xl",
                 amountTone(period.deltaUsd),
               )}
             >

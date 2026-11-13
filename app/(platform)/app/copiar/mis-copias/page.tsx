@@ -1,14 +1,14 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import type { ReactNode } from "react";
 
 import { CopySoonState } from "@/components/copy/empty-states";
 import { FollowList, type FollowCard } from "@/components/copy/follow-list";
 import { FraccionSeal } from "@/components/copy/fraccion-seal";
+import { LegalNote } from "@/components/copy/legal-note";
 import { Paywall } from "@/components/copy/paywall";
 import { Button, buttonClasses } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
-import { PageHeader } from "@/components/ui/page-header";
-import { COPY_DISCLAIMER, COPY_LEGAL_PENDING_LABEL } from "@/content/copy-legal";
 import { getCopyEntitlement, hasCopyAccess } from "@/lib/copy/access";
 import { getCopyIndex, getCopyPortfolio } from "@/lib/copy/feed";
 import { isCopyEnabled } from "@/lib/copy/flags";
@@ -186,10 +186,34 @@ function orderCards(cards: FollowCard[]): FollowCard[] {
   return [...cards].sort((a, b) => rank(a) - rank(b));
 }
 
+/**
+ * Cabecera propia de la sección: misma escala que el catálogo y los planes
+ * (H1 3xl/4xl y entradilla de 15 px), para que las cuatro pantallas lean igual.
+ */
+function CopiasHeader({
+  title = "Mis copias",
+  description,
+  action,
+}: {
+  title?: string;
+  description?: string;
+  action?: ReactNode;
+}) {
+  return (
+    <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between sm:gap-10">
+      <div className="min-w-0">
+        <h1 className="text-3xl leading-[1.1] tracking-tight text-balance sm:text-4xl">{title}</h1>
+        {description ? <p className="mt-3 max-w-xl text-[15px] leading-6 text-fg-muted">{description}</p> : null}
+      </div>
+      {action ? <div className="shrink-0">{action}</div> : null}
+    </header>
+  );
+}
+
 function Soon() {
   return (
     <article className="flex flex-col gap-8 pb-6">
-      <PageHeader title="Mis copias" />
+      <CopiasHeader />
       <CopySoonState
         title="Pronto"
         description="Todavía no podemos mostrarte las carteras que sigues. Estamos afinando los últimos detalles con Fraccion.si."
@@ -208,7 +232,7 @@ export default async function MisCopiasPage() {
   if (!userId || !access) {
     return (
       <article className="flex flex-col gap-8 pb-6">
-        <PageHeader
+        <CopiasHeader
           title="Mis copias"
           description="Las carteras que sigues, la versión que copiaste y el aviso cuando cambian."
         />
@@ -237,7 +261,7 @@ export default async function MisCopiasPage() {
 
   return (
     <article className="flex flex-col gap-8 pb-6">
-      <PageHeader
+      <CopiasHeader
         title="Mis copias"
         description={`La versión que copiaste contra la actual. Hasta ${MAX_FOLLOWS} carteras.`}
         action={
@@ -279,10 +303,9 @@ export default async function MisCopiasPage() {
         </section>
       )}
 
-      <footer className="flex flex-col gap-3 border-t border-border pt-6">
+      <footer className="flex flex-col gap-3">
         <FraccionSeal />
-        <p className="max-w-prose text-[13px] leading-relaxed text-fg-muted">{COPY_DISCLAIMER}</p>
-        <p className="text-[13px] leading-relaxed text-fg-muted">{COPY_LEGAL_PENDING_LABEL}</p>
+        <LegalNote disclaimer />
       </footer>
     </article>
   );

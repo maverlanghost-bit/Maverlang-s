@@ -180,7 +180,7 @@ export default async function CategoriaPage({ params }: { params: Promise<{ slug
             <p
               key={paragraph}
               className={
-                index === 0 ? "text-lead text-fg-body" : "text-sm leading-relaxed text-fg-body"
+                index === 0 ? "text-lead text-pretty text-fg-body" : "text-sm leading-relaxed text-pretty text-fg-body"
               }
             >
               {paragraph}
@@ -216,7 +216,7 @@ export default async function CategoriaPage({ params }: { params: Promise<{ slug
 
         <ul className="mt-6 max-w-4xl divide-y divide-border">
           {rows.map(({ asset, dividend, sourceUrl }) => (
-            <li key={asset.slug} className="py-2">
+            <li key={asset.slug}>
               <PublicAssetCard
                 asset={{
                   slug: asset.slug,
@@ -227,11 +227,11 @@ export default async function CategoriaPage({ params }: { params: Promise<{ slug
                   // En una página de sector el subtítulo repetiría el título.
                   sector: category.kind === "sector" ? null : (sectorFor(asset)?.name ?? null),
                 }}
-                variant="card"
+                variant="table"
               />
 
               {dividend !== null ? (
-                <p className="px-1 pt-2 text-[13px] leading-snug text-fg-body">
+                <p className="px-1 pt-1 pb-3 text-[13px] leading-snug text-fg-body">
                   Dividendos por acción (12 meses, SEC):{" "}
                   <span className="num font-medium text-fg">{usdPerShare(dividend)}</span>
                 </p>
@@ -266,9 +266,6 @@ export default async function CategoriaPage({ params }: { params: Promise<{ slug
         </Link>
         <Link href="/comparar" className={textLinkClass}>
           Comparar activos
-        </Link>
-        <Link href="/categorias" className={textLinkClass}>
-          Todas las categorías
         </Link>
       </div>
     </LandingSection>

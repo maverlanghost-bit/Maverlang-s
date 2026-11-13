@@ -3,7 +3,8 @@ import { cn } from "@/lib/cn";
 
 /**
  * Estado vacío como contenido (D2): sin caja, sin fondo propio ni sombra.
- * Una sola columna de lectura, aire medido y un único paso siguiente.
+ * Anatomía compartida con `ErrorState`: marca opcional, título, descripción
+ * de 62ch y una sola acción de 44px. Un mismo ritmo (gap 16px, py 40/56).
  * `media` se respeta tal cual (las ilustraciones ya traen su tamaño); `icon`
  * es el atajo para el trazo del sistema.
  */
@@ -30,7 +31,7 @@ export function EmptyState({
             {icon}
           </span>
         ) : null)}
-      <div className="flex max-w-md flex-col gap-2">
+      <div className="flex max-w-[62ch] flex-col gap-2">
         <p className="text-[17px] leading-snug font-medium tracking-tight text-balance text-fg">{title}</p>
         {description ? (
           <p className="text-sm leading-relaxed text-pretty text-fg-muted">{description}</p>

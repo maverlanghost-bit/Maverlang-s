@@ -100,7 +100,7 @@ export function Hero({ quotes, live }: { quotes: LandingQuote[]; live: boolean }
           </p>
         )}
 
-        <p className="border-t border-border px-2 py-3 text-[13px] leading-relaxed text-fg-muted sm:px-3">
+        <p className="border-t border-border px-2 py-3 text-sm leading-relaxed text-fg-muted sm:px-3">
           Practica con US$10.000 ficticios y precios reales.{" "}
           {heroQuotes.length === 0 ? null : live ? "Precios en dólares (US$)." : `${landingNotice(false)}.`}
         </p>

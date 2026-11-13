@@ -68,11 +68,11 @@ function placeMenu(anchor: HTMLElement, viewport: { width: number; height: numbe
       box: { top, left: edge + 8, width, maxHeight: Math.min(maxHeight, viewport.height - top - margin) },
     };
   }
-  const top = Math.max(margin, rect.bottom + 8);
+  const top = Math.max(margin, Math.min(rect.bottom + 8, viewport.height - margin - 200));
   const left = Math.max(margin, Math.min(edge - width, viewport.width - margin - width));
   return {
     sheet: false,
-    box: { top, left, width, maxHeight: Math.max(240, viewport.height - top - margin) },
+    box: { top, left, width, maxHeight: Math.max(0, viewport.height - top - margin) },
   };
 }
 

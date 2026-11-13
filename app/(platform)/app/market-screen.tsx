@@ -190,22 +190,27 @@ function ChipGroup<T extends string>({
 }
 
 function ResultsSkeleton({ label }: { label: string }) {
-  // Placeholder estático (sin pulso): mismas filas que la lista, primer pintado
-  // más barato y sin saltos cuando llega el catálogo.
+  // Mismo esqueleto que `components/ui/skeleton`, con la retícula real:
+  // logo, símbolo + nombre, sparkline (desde sm), precio + variación y el
+  // área del favorito. Así las columnas no saltan al llegar el catálogo.
   return (
     <div role="status" aria-live="polite" aria-busy="true" className="flex flex-col gap-2">
       <span className="sr-only">{label}</span>
       <div className="flex flex-col divide-y divide-border" aria-hidden>
         {["a", "b", "c", "d", "e", "f", "g", "h"].map((key) => (
-          <div key={key} className="flex min-h-16 items-center gap-3 px-2 py-2 sm:px-3">
-            <div className="size-9 shrink-0 rounded-full bg-surface-2" />
+          <div key={key} className="flex min-h-16 items-center gap-2 px-2 py-2 sm:gap-3 sm:px-3">
+            <Skeleton className="size-9 shrink-0 rounded-full" />
             <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-              <div className="h-3 w-14 rounded-sm bg-surface-2" />
-              <div className="h-3 w-32 max-w-full rounded-sm bg-surface-2" />
+              <Skeleton className="h-3.5 w-14" />
+              <Skeleton className="h-3 w-32 max-w-full" />
             </div>
-            <div className="flex shrink-0 flex-col items-end gap-1.5">
-              <div className="h-3.5 w-16 rounded-sm bg-surface-2" />
-              <div className="h-3 w-12 rounded-sm bg-surface-2" />
+            <Skeleton className="hidden h-8 w-[88px] shrink-0 sm:block" />
+            <div className="flex shrink-0 flex-col items-end gap-1">
+              <Skeleton className="h-4 w-16" />
+              <Skeleton className="h-5 w-12 rounded-full" />
+            </div>
+            <div className="flex size-11 shrink-0 items-center justify-center md:size-12">
+              <Skeleton className="size-4 rounded-full" />
             </div>
           </div>
         ))}
@@ -217,8 +222,11 @@ function ResultsSkeleton({ label }: { label: string }) {
 /** Mismo aviso para catálogo, precios y paginación: un error no cambia de forma. */
 function LoadFailure({ message, retryLabel, onRetry }: { message: string; retryLabel: string; onRetry: () => void }) {
   return (
-    <div className="flex flex-wrap items-center gap-3">
-      <p className="text-sm leading-5 text-fg-muted">{message}</p>
+    <div role="alert" className="flex flex-wrap items-center gap-x-3 gap-y-2">
+      <p className="inline-flex items-center gap-2 text-[13px] leading-5 text-fg-muted">
+        <span aria-hidden className="size-1.5 shrink-0 rounded-full bg-down" />
+        {message}
+      </p>
       <Button variant="secondary" size="sm" onClick={onRetry}>
         {retryLabel}
       </Button>

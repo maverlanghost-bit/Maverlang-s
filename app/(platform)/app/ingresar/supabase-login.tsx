@@ -142,20 +142,13 @@ export function SupabaseLogin({
           Ingresar
         </Button>
       </form>
-      <Button
-        type="button"
-        variant="secondary"
-        size="lg"
-        className="mt-3 w-full"
-        disabled
-        aria-label="Continuar con Google. Próximamente"
-      >
+      <p className="mt-4 flex items-center gap-2 text-sm leading-snug text-fg-muted">
         <GoogleIcon />
-        Próximamente
-      </Button>
+        Ingreso con Google: próximamente
+      </p>
       {alert ? (
         <p
-          className={`mt-4 break-words rounded-lg border px-3 py-2.5 text-center text-sm leading-relaxed ${
+          className={`mt-4 rounded-lg border px-3 py-2.5 text-sm leading-relaxed ${
             alertIsError ? "border-down/20 bg-down-bg text-down" : "border-border bg-surface-2 text-fg-body"
           }`}
           role={alertIsError ? "alert" : "status"}

@@ -35,7 +35,7 @@ export function FamilyTabs({
   return (
     <nav
       aria-label="Familias de carteras"
-      className="flex min-w-0 flex-wrap items-center gap-x-6 border-b border-border"
+      className="flex min-w-0 flex-wrap items-center gap-x-4 border-b border-border sm:gap-x-6"
     >
       {items.map((item) => {
         const current = item.value === active;
@@ -45,7 +45,7 @@ export function FamilyTabs({
             href={item.href}
             aria-current={current ? "true" : undefined}
             className={cn(
-              "-mb-px inline-flex min-h-11 items-center gap-1.5 border-b-2 px-0.5 pt-1 pb-2.5 text-[13px] font-medium whitespace-nowrap transition-colors duration-150 ease-spring",
+              "-mb-px inline-flex min-h-11 min-w-11 items-center justify-center gap-1.5 border-b-2 px-1 pt-1 pb-2.5 text-[13px] font-medium whitespace-nowrap transition-colors duration-150 ease-spring",
               current
                 ? "border-fg text-fg"
                 : "border-transparent text-fg-muted hover:border-border-strong hover:text-fg",

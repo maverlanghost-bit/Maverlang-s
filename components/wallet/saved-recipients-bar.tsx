@@ -269,23 +269,25 @@ export function SavedRecipientsBar({
         <p className="text-[13px] leading-relaxed text-fg-muted">{copy.empty}</p>
       )}
 
-      <div className="mt-3 flex flex-col gap-1.5 sm:flex-row sm:items-end sm:gap-2">
-        <div className="flex min-w-0 flex-1 flex-col gap-1">
-          <label htmlFor={aliasId} className="text-[13px] font-medium text-fg">
-            {copy.aliasLabel}
-          </label>
-          <Input
-            id={aliasId}
-            value={alias}
-            onChange={(event) => setAlias(event.target.value)}
-            maxLength={24}
-            placeholder={copy.aliasPlaceholder}
-          />
+      {currentIsValid && !alreadySaved && !atLimit ? (
+        <div className="mt-3 flex flex-col gap-1.5 sm:flex-row sm:items-end sm:gap-2">
+          <div className="flex min-w-0 flex-1 flex-col gap-1">
+            <label htmlFor={aliasId} className="text-[13px] font-medium text-fg">
+              {copy.aliasLabel}
+            </label>
+            <Input
+              id={aliasId}
+              value={alias}
+              onChange={(event) => setAlias(event.target.value)}
+              maxLength={24}
+              placeholder={copy.aliasPlaceholder}
+            />
+          </div>
+          <Button variant="secondary" size="md" onClick={handleSave} disabled={!canSave} className="w-full shrink-0 whitespace-nowrap sm:w-auto">
+            {copy.save}
+          </Button>
         </div>
-        <Button variant="secondary" size="sm" onClick={handleSave} disabled={!canSave} className="shrink-0 whitespace-nowrap">
-          {copy.save}
-        </Button>
-      </div>
+      ) : null}
 
       <p role="status" aria-live="polite" className="mt-2 min-h-4 text-xs leading-relaxed text-fg-muted">
         {hint}

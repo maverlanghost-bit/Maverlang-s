@@ -37,10 +37,13 @@ export function BrandLink() {
   );
 }
 
-export function StepProgress({ step }: { step: OnboardingStep }) {
+export function StepProgress({ step, title }: { step: OnboardingStep; title?: string }) {
   return (
     <div className="mt-6">
-      <p className="label">Paso {step} de 5</p>
+      <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+        <p className="label">Paso {step} de 5</p>
+        {title ? <p className="text-xs leading-snug text-fg-muted">{title}</p> : null}
+      </div>
       <div
         className="mt-2 h-2 overflow-hidden rounded-full bg-surface-3"
         role="progressbar"
@@ -61,7 +64,7 @@ export function StepProgress({ step }: { step: OnboardingStep }) {
 export function FieldError({ id, message }: { id: string; message: string | undefined }) {
   if (!message) return null;
   return (
-    <p id={id} className="mt-2 text-sm text-down" role="alert">
+    <p id={id} className="mt-2 text-sm leading-snug text-down" role="alert">
       {message}
     </p>
   );
@@ -121,7 +124,7 @@ export function CountryFields({
   const errorId = useId();
   return (
     <div className="mt-4">
-      <p className="text-sm leading-relaxed text-fg-body">
+      <p className="max-w-[60ch] text-sm leading-relaxed text-pretty text-fg-body">
         Elige el país donde resides y tu nacionalidad. Si alguno está restringido, la cuenta no está disponible.
         [REVISIÓN ABOGADO]
       </p>
@@ -182,11 +185,11 @@ export function UnavailableStep({
     <div className="mt-4">
       <p className="text-sm leading-relaxed text-fg-body">{message}</p>
       <div className="mt-6 flex flex-col gap-3">
-        <Button type="button" size="lg" className="w-full" onClick={onLeave}>
-          Entendido
-        </Button>
-        <Button type="button" variant="secondary" size="lg" className="w-full" onClick={onChooseAgain}>
+        <Button type="button" size="lg" className="w-full" onClick={onChooseAgain}>
           {chooseAgainLabel}
+        </Button>
+        <Button type="button" variant="secondary" size="lg" className="w-full" onClick={onLeave}>
+          Entendido
         </Button>
       </div>
     </div>
@@ -224,7 +227,7 @@ export function DeclarationStep({
       <legend id={legendId} className="text-sm font-medium text-fg">
         {US_PERSON_QUESTION}
       </legend>
-      <p className="text-sm leading-relaxed text-fg-body">
+      <p className="max-w-[60ch] text-sm leading-relaxed text-pretty text-fg-body">
         Para usar {site.name} tienes que declarar que no eres persona de un país restringido. Si lo eres, la cuenta no
         está disponible. [REVISIÓN ABOGADO]
       </p>
@@ -335,7 +338,7 @@ export function DocumentsStep({
   const docs = ["terminos", "privacidad", "riesgos"] as const;
   return (
     <div className="mt-4 flex flex-col gap-4">
-      <p className="text-sm leading-relaxed text-fg-body">
+      <p className="max-w-[60ch] text-sm leading-relaxed text-pretty text-fg-body">
         Resumen de riesgos. El texto completo está en cada documento. Al continuar queda registrada la versión que
         aceptas.
       </p>
@@ -410,7 +413,7 @@ export function WalletStep({
           <p className="num mt-3 text-sm text-fg" aria-label={`Dirección ${address}`}>
             {shortAddress(address)}
           </p>
-          <p className="mt-3 text-sm leading-relaxed text-fg-body">
+          <p className="mt-3 max-w-[60ch] text-sm leading-relaxed text-pretty text-fg-body">
             Queda asociada a tu cuenta. Lo que compres queda en esta billetera.
           </p>
         </div>
@@ -443,7 +446,7 @@ export function DoneStep({
   const busy = busyHref !== null;
   return (
     <div className="mt-4">
-      <p className="text-sm leading-relaxed text-fg-body">
+      <p className="max-w-[60ch] text-sm leading-relaxed text-pretty text-fg-body">
         {PESO_DEPOSITS_ENABLED
           ? "Tu registro quedó guardado. Puedes depositar pesos o explorar las acciones."
           : "Tu registro quedó guardado. Puedes explorar las acciones."}

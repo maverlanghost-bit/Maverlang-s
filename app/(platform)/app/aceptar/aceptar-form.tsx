@@ -66,11 +66,11 @@ export function AceptarForm({
   }
 
   return (
-    <Card className="w-full max-w-md">
+    <Card className="my-auto w-full max-w-md">
       <BrandLink />
       <form className="mt-6" aria-busy={busy} onSubmit={(event) => void onSubmit(event)} noValidate>
         <h1 className="text-[1.75rem] leading-[1.15] text-balance sm:text-3xl">Acepta los documentos</h1>
-        <p className="mt-3 text-sm leading-relaxed text-fg-body">
+        <p className="mt-3 max-w-[60ch] text-sm leading-relaxed text-pretty text-fg-body">
           Para usar la demo tienes que aceptar los Términos y Condiciones y la Política de Privacidad.
         </p>
         <div className="mt-4">
@@ -107,7 +107,7 @@ export function AceptarForm({
         </div>
         <p className="mt-4 text-sm leading-relaxed text-fg-muted">Borrador. [REVISIÓN ABOGADO]</p>
         {formError && checked ? (
-          <p className="mt-4 break-words rounded-lg border border-down/20 bg-down-bg px-3 py-2.5 text-sm leading-relaxed text-down" role="alert">
+          <p className="mt-4 break-words rounded-lg border border-down/20 bg-down-bg px-3 py-2.5 text-sm leading-relaxed text-pretty text-down" role="alert">
             {formError}
           </p>
         ) : null}

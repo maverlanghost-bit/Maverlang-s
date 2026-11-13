@@ -4,16 +4,23 @@ import { useQuery } from "@tanstack/react-query";
 
 import { DemoAddressNotice } from "@/components/domain/demo-address-notice";
 import { Card } from "@/components/ui/card";
-import { CopyButton } from "@/components/ui/copy-button";
 import { ErrorState } from "@/components/ui/error-state";
 import { LoadingState } from "@/components/ui/loading-state";
 import { QRCode } from "@/components/ui/qr-code";
 import { LinkWalletCard } from "@/components/wallet/link-wallet-card";
+import { WalletAddress } from "@/components/wallet/wallet-address";
 import { getWallets } from "@/lib/api/client";
 import { useSession } from "@/lib/auth";
 import { useAccountMode } from "@/lib/hooks/use-account-mode";
 import { useT } from "@/lib/hooks/use-t";
 import { receivableAddress } from "@/lib/wallet/receivable-address";
+
+/** Datos fijos de la red y del activo: se leen de un vistazo antes del QR. */
+const NETWORK_FACTS = [
+  { label: "Red", value: "Solana Mainnet (SPL)" },
+  { label: "Activo", value: "USDC oficial" },
+  { label: "Comisión de depósito", value: "0%" },
+] as const;
 
 export function UsdcDeposit({ depositEligible }: { depositEligible: boolean }) {
   const { t } = useT();
@@ -77,24 +84,29 @@ export function UsdcDeposit({ depositEligible }: { depositEligible: boolean }) {
   }
 
   return (
-    <Card className="flex flex-col gap-5">
+    <Card className="flex flex-col gap-6">
       <div className="flex flex-col gap-2">
         <h2 className="text-lg font-semibold tracking-tight">{t.wallet.address}</h2>
         <p className="text-sm leading-relaxed text-fg-body">{t.wallet.depositUsdcLead}</p>
-        <p className="text-[13px] leading-relaxed text-fg-muted">
-          <span className="text-fg">Red: Solana Mainnet (SPL)</span>
-          {" · "}
-          <span className="text-fg">Activo: USDC Oficial</span>
-          {" · "}
-          <span className="text-fg">Comisión de depósito: 0%</span>
-        </p>
+        <dl className="mt-2 grid grid-cols-1 gap-px overflow-hidden rounded-xl border border-border bg-border sm:grid-cols-3">
+          {NETWORK_FACTS.map((fact) => (
+            <div
+              key={fact.label}
+              className="flex items-baseline justify-between gap-3 bg-bg px-3.5 py-2.5 sm:flex-col sm:items-start sm:gap-1"
+            >
+              <dt className="label-xs">{fact.label}</dt>
+              <dd className="text-right text-[13px] leading-snug font-medium text-fg sm:text-left">{fact.value}</dd>
+            </div>
+          ))}
+        </dl>
       </div>
 
       <div className="flex flex-col items-center gap-3">
         <QRCode value={address} size={196} label={t.wallet.depositQr} />
-        <p className="num w-full text-[13px] leading-relaxed break-all text-fg">{address}</p>
-        <p className="text-[13px] leading-relaxed text-fg-muted">{t.wallet.verifiedOnly}</p>
-        <CopyButton value={address} label={t.wallet.copy} copiedLabel={t.wallet.copied} />
+        <div className="w-full max-w-sm">
+          <WalletAddress address={address} copyLabel={t.wallet.copy} copiedLabel={t.wallet.copied} />
+        </div>
+        <p className="text-center text-[13px] leading-relaxed text-fg-muted">{t.wallet.verifiedOnly}</p>
       </div>
 
       <div className="border-t border-border pt-4">

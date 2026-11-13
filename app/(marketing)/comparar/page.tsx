@@ -166,7 +166,7 @@ export default async function CompararPage() {
         </Link>
       </div>
 
-      <p className="mt-10 max-w-2xl border-t border-border pt-6 text-[13px] leading-relaxed text-fg-muted">
+      <p className="mt-10 max-w-[68ch] border-t border-border pt-6 text-[13px] leading-relaxed text-fg-muted">
         Los datos de la empresa vienen de la SEC EDGAR y los precios se mueven durante el día. Fuera del horario
         regular de la bolsa de EE.UU. el precio puede variar más. No es una recomendación de inversión.
       </p>

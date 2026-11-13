@@ -15,7 +15,7 @@ export function ExampleDataStrip({ className }: { className?: string }) {
   return (
     <p
       className={cn(
-        "border-l border-border pl-3 text-[13px] leading-5 text-fg-muted",
+        "flex min-h-11 min-w-0 items-center border-l border-border pl-3 text-[13px] leading-5 text-pretty text-fg-muted",
         className,
       )}
     >
@@ -47,7 +47,10 @@ export function FeedBanner({
   health: FeedHealth;
   className?: string;
 }) {
-  const line = cn("min-w-0 border-t border-border pt-3 text-[13px] leading-5 text-fg-body", className);
+  const line = cn(
+    "min-h-11 min-w-0 border-t border-border pt-3 text-[13px] leading-5 text-pretty text-fg-body",
+    className,
+  );
 
   if (health.state === "expired" || health.state === "invalid") {
     const date = feedDate(health);

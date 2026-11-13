@@ -89,15 +89,14 @@ export function AllocationBar({
           const isActive = activeKey === slice.key;
           const isDimmed = activeKey !== null && !isActive;
           const pctWidth = slice.pct <= 1 ? slice.pct * 100 : slice.pct;
+          // Decorativo: el resumen accesible vive en el `aria-label` del
+          // contenedor y la lectura real (nombre, %, monto) está en la lista.
           return (
-            <button
+            <span
               key={slice.key}
-              type="button"
-              tabIndex={-1}
               aria-hidden="true"
               onMouseEnter={() => setActiveKey(slice.key)}
               onMouseLeave={() => setActiveKey(null)}
-              onClick={() => setActiveKey((prev) => (prev === slice.key ? null : slice.key))}
               className={cn(
                 "h-full min-w-1 transition-opacity duration-200 first:rounded-l-full last:rounded-r-full",
                 isDimmed ? "opacity-40" : "opacity-100",
@@ -129,15 +128,17 @@ export function AllocationBar({
                 )}
               >
                 <span
-                  className="size-2 shrink-0 rounded-full"
+                  className="size-2 shrink-0 rounded-full ring-1 ring-inset ring-black/10"
                   style={{ backgroundColor: slice.color }}
                   aria-hidden="true"
                 />
-                <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-fg">{slice.label}</span>
-                <span className="num w-12 shrink-0 text-right text-[13px] tabular-nums text-fg-muted">
+                <span className="min-w-0 flex-1 truncate text-[13px] leading-tight font-medium text-fg">
+                  {slice.label}
+                </span>
+                <span className="num w-11 shrink-0 text-right text-[13px] leading-tight tabular-nums text-fg-muted">
                   {formatPortion(slice.pct)}
                 </span>
-                <span className="num w-28 shrink-0 truncate text-right text-[13px] font-medium tabular-nums text-fg sm:w-32">
+                <span className="num w-24 shrink-0 truncate text-right text-[13px] leading-tight font-medium tabular-nums text-fg sm:w-32">
                   {slice.valueLabel}
                 </span>
               </button>

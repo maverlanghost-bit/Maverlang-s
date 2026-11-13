@@ -9,7 +9,7 @@
  */
 export function AnnouncementPill() {
   return (
-    <p className="max-w-full text-center text-[13px] leading-5 text-pretty text-fg-muted">
+    <p className="max-w-full text-center text-sm leading-5 text-pretty text-fg-muted">
       <span className="font-medium whitespace-nowrap text-fg">Comisión 0%</span> en el lanzamiento
     </p>
   );

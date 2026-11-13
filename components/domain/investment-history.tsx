@@ -304,10 +304,23 @@ export function InvestmentHistory({
                           {ticker?.name ?? item.symbol}
                         </span>
                       </div>
-                      <p className="mt-1 truncate text-xs tabular-nums text-fg-muted">
-                        {isStock ? `${formatShares(shares)} ${item.symbol} · ` : ""}
-                        <time dateTime={ts}>{formatDateTime(ts)}</time>
-                      </p>
+                      {/* Móvil: cantidad arriba y fecha en su propia línea, para
+                          que la fecha no se corte. Desde sm vuelven a una línea. */}
+                      <div className="mt-1 flex min-w-0 flex-col gap-0.5 text-[13px] leading-tight tabular-nums text-fg-muted sm:flex-row sm:flex-wrap sm:items-baseline sm:gap-x-1.5 sm:gap-y-0">
+                        {isStock ? (
+                          <span className="num truncate">
+                            {formatShares(shares)} {item.symbol}
+                          </span>
+                        ) : null}
+                        {isStock ? (
+                          <span aria-hidden="true" className="hidden sm:inline">
+                            ·
+                          </span>
+                        ) : null}
+                        <time dateTime={ts} className="whitespace-nowrap">
+                          {formatDateTime(ts)}
+                        </time>
+                      </div>
                     </div>
                   </div>
 

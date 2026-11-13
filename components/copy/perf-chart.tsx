@@ -121,7 +121,7 @@ export function PerfChart({
       <div className="flex flex-col gap-1.5">
         <p
           className={cn(
-            "num text-[40px] leading-none font-medium tracking-tight tabular-nums sm:text-[44px]",
+            "num text-[36px] leading-none font-medium tracking-tight tabular-nums sm:text-[40px]",
             periodPct > 0 ? "text-up" : periodPct < 0 ? "text-down" : "text-fg",
           )}
         >
@@ -187,7 +187,7 @@ export function PerfChart({
         <DataRow label="Mínimo del período">{formatPercent(bottomPct)}</DataRow>
       </dl>
 
-      <figcaption className="mt-3 text-[13px] leading-relaxed text-fg-muted">
+      <figcaption className="mt-3 text-[13px] leading-relaxed text-pretty text-fg-muted">
         Estimado: composición actual hacia atrás, con precios de Maverlang. Línea punteada.
       </figcaption>
     </figure>

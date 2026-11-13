@@ -3,9 +3,10 @@ import { cn } from "@/lib/cn";
 import { buttonBase, buttonVariantClass, type ButtonVariant } from "@/components/ui/button";
 
 const sizeClass = {
-  /* 44 px táctiles; el escritorio se queda compacto. */
+  /* Misma escala que Button: 44 px táctiles; 36/44/48 con puntero.
+     `md` era 48 en escritorio y quedaba más alto que el botón de al lado. */
   sm: "size-11 sm:size-9",
-  md: "size-11 md:size-12",
+  md: "size-11",
   lg: "size-12",
 } as const;
 

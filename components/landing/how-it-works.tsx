@@ -21,7 +21,7 @@ function BalanceMock() {
       <p className="num mt-3 text-xl leading-none text-fg sm:text-2xl">
         {formatMoney(10000, "USD")}
       </p>
-      <p className="mt-3 text-[13px] leading-relaxed text-fg-muted">
+      <p className="mt-3 text-sm leading-relaxed text-fg-muted">
         Dólares ficticios. No es dinero depositado.
       </p>
     </div>
@@ -43,15 +43,15 @@ function PickMock({ quote }: { quote: LandingQuote }) {
             sizes="32px"
           />
           <div className="min-w-0">
-            <p className="num text-[13px] leading-none text-fg">{quote.symbol}</p>
-            <p className="mt-1 truncate text-[13px] leading-snug text-fg-muted">{quote.name}</p>
+            <p className="num text-xs leading-none text-fg">{quote.symbol}</p>
+            <p className="mt-1 truncate text-xs leading-snug text-fg-muted">{quote.name}</p>
           </div>
         </div>
         <div className="text-right">
           <p className="num text-sm leading-none text-fg">{formatMoney(quote.priceUsd, "USD")}</p>
           <p
             className={cn(
-              "num mt-1 text-[13px] leading-none",
+              "num mt-1 text-sm leading-none",
               quote.change > 0 ? "text-up" : quote.change < 0 ? "text-down" : "text-fg-muted",
             )}
           >
@@ -74,7 +74,7 @@ function OwnedMock({ quote }: { quote: LandingQuote }) {
           {formatMoney(shares * quote.priceUsd, "USD")}
         </span>
       </div>
-      <p className="mt-3 text-[13px] leading-relaxed text-fg-muted">
+      <p className="mt-3 text-sm leading-relaxed text-fg-muted">
         {quote.symbol} en tu billetera, con el precio de la acción.
       </p>
     </div>

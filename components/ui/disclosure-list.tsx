@@ -31,14 +31,14 @@ export function DisclosureList({
         <details key={item.id ?? index} className="group" open={item.defaultOpen || undefined}>
           <summary
             className={cn(
-              "flex min-h-11 cursor-pointer list-none items-start justify-between gap-4 rounded-xl py-3.5 text-left text-base font-medium text-fg [&::-webkit-details-marker]:hidden",
+              "flex min-h-11 cursor-pointer list-none items-start justify-between gap-4 py-3.5 text-left text-[15px] leading-6 font-medium text-pretty text-fg [&::-webkit-details-marker]:hidden",
               summaryClassName,
             )}
           >
             <span className="min-w-0">{item.title}</span>
-            <IconChevron className="disclosure-chevron mt-0.5 size-4 shrink-0 text-fg-muted transition-transform duration-200 motion-reduce:transition-none" />
+            <IconChevron className="disclosure-chevron mt-1 size-4 shrink-0 text-fg-muted transition-transform duration-200 ease-out motion-reduce:transition-none" />
           </summary>
-          <div className="pb-4 text-sm leading-relaxed text-fg-body">{item.content}</div>
+          <div className="pb-4 text-[15px] leading-relaxed text-fg-body">{item.content}</div>
         </details>
       ))}
     </div>

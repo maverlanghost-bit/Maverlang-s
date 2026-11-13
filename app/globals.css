@@ -1,4 +1,4 @@
-/* Maverlang — tokens de diseño (Tailwind v4). Copiar a app/globals.css */
+/* Maverlang — tokens de diseño (Tailwind v4). Fuente única: este archivo. */
 @import "tailwindcss";
 
 @theme {
@@ -9,11 +9,13 @@
   --color-bg: #ffffff;
   --color-fg: #0a0a0a;
   --color-fg-body: #1f1f1f;
-  /* D1 (WCAG AA): dos grises de texto. `fg-muted` da 6,5:1 en blanco para
-     cuerpo secundario; `fg-subtle` da 4,56:1 para notas y placeholders.
+  /* AA medido sobre las tres superficies claras (blanco / surface-1 / surface-2):
+     `fg-muted` #5b5e63 → 6,51 / 6,02 / 5,71:1.
+     `fg-subtle` #6a6d72 → 5,19 / 4,81 / 4,56:1. Antes #73767b daba
+     4,56 / 4,22 / 4,00: pasaba sólo en blanco y fallaba AA en toda superficie.
      #8a8a8a (3,45:1) queda sólo para `disabled` y decoración. */
   --color-fg-muted: #5b5e63;
-  --color-fg-subtle: #73767b;
+  --color-fg-subtle: #6a6d72;
   --color-surface-1: #f6f6f6;
   --color-surface-2: #f0f0f0;
   --color-surface-3: #e6e6e6;
@@ -47,12 +49,12 @@
   --radius-3xl: 1.5rem;
 
   --shadow-float: 0 8px 30px rgb(0 0 0 / 0.08);
-  /* Sombra hairline estilo x.ai light: elevación de 1px + borde que se dibuja
-     solo. Para cards, píldoras de segmented y superficies sobre track gris. */
-  --shadow-card: 0 0 0 1px #e6e6e6;
-  /* D1: hairline explícito para quien no quiere la sombra de card,
-     y elevación de 1px para píldoras y menús. */
-  --shadow-hairline: 0 0 0 1px #e6e6e6;
+  /* Hairline único del sistema: el filo sale de `--color-border`, nunca de un
+     hex suelto. `shadow-card` es la forma canónica (píldoras de segmented,
+     popovers, selects, sheets). `shadow-hairline` queda como alias del mismo
+     valor para no romper consumidores previos. */
+  --shadow-card: 0 0 0 1px var(--color-border);
+  --shadow-hairline: var(--shadow-card);
   --shadow-raised: 0 1px 3px rgb(12 15 20 / 0.05);
 
   --ease-spring: cubic-bezier(0.25, 1, 0.5, 1);
@@ -116,8 +118,8 @@
   .eyebrow { @apply text-[13px] font-medium text-fg-muted; }
   /* D1: rótulo mono de 11px. Sólo tablas densas y tablas de datos. */
   .label-xs { @apply font-mono text-[11px] uppercase tracking-[0.045em] font-medium text-fg-muted; }
-  :focus-visible { outline: 2px solid #0a0a0a; outline-offset: 2px; }
-  ::selection { background: #0a0a0a; color: #fff; }
+  :focus-visible { outline: 2px solid var(--color-fg); outline-offset: 2px; }
+  ::selection { background: var(--color-fg); color: var(--color-bg); }
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after {
       animation-duration: 1ms !important;
@@ -155,7 +157,7 @@
 }
 
 /* C-07: `outline-none` vive en la capa de utilidades y tapa el anillo de @layer base.
-   Esta regla queda fuera de capa para que el foco de teclado sea 2px #0a0a0a (incluye la cápsula de rango).
+   Esta regla queda fuera de capa para que el foco de teclado sea 2px de `--color-fg` (incluye la cápsula de rango).
    D1: se suma `a[href]` — los enlaces del sidebar y del header también anulaban el foco. */
 button.outline-none:focus-visible,
 a[href].outline-none:focus-visible,
@@ -163,7 +165,7 @@ input.outline-none:focus-visible,
 textarea.outline-none:focus-visible,
 select.outline-none:focus-visible,
 [role="tab"].outline-none:focus-visible {
-  outline: 2px solid #0a0a0a;
+  outline: 2px solid var(--color-fg);
   outline-offset: 2px;
 }
 
@@ -171,7 +173,7 @@ select.outline-none:focus-visible,
    nativos (div con tabindex, summary, etc.). Fuera de capa para que ninguna
    utilidad `outline-none` lo tape. */
 .focus-ring:focus-visible {
-  outline: 2px solid #0a0a0a;
+  outline: 2px solid var(--color-fg);
   outline-offset: 2px;
 }
 
@@ -193,11 +195,11 @@ input[data-bare-input].outline-none:focus-visible {
 
 /* C-08: decoration-border es #e6e6e6 (1,25:1). El subrayado de prosa tiene que verse. */
 .decoration-border {
-  text-decoration-color: #0a0a0a;
+  text-decoration-color: var(--color-fg);
 }
 footer nav a {
   text-decoration-line: underline;
-  text-decoration-color: #0a0a0a;
+  text-decoration-color: var(--color-fg);
   text-underline-offset: 0.25em;
 }
 

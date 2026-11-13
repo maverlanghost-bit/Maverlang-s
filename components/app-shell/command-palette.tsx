@@ -175,10 +175,10 @@ export function CommandPalette() {
         if (e.target === e.currentTarget) close();
       }}
       onKeyDown={handleKeyDown}
-      className="fixed inset-0 z-50 flex items-start justify-center bg-fg/25 px-4 pt-[12vh] backdrop-blur-[2px]"
+      className="fixed inset-0 z-50 flex items-start justify-center overflow-hidden bg-fg/25 px-4 pt-[max(0.75rem,12vh)] pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-[2px]"
     >
-      <div className="w-full max-w-xl overflow-hidden rounded-2xl border border-border bg-bg shadow-[0_24px_60px_-20px_rgba(10,10,10,0.38),0_2px_6px_rgba(10,10,10,0.04)]">
-        <div className="flex items-center gap-3 border-b border-border px-4 transition-colors focus-within:border-fg">
+      <div className="flex max-h-[calc(100dvh-12vh-1.5rem-env(safe-area-inset-bottom))] w-full max-w-xl flex-col overflow-hidden rounded-2xl border border-border bg-bg shadow-[0_24px_60px_-20px_rgba(10,10,10,0.38),0_2px_6px_rgba(10,10,10,0.04)]">
+        <div className="flex shrink-0 items-center gap-3 border-b border-border px-4 transition-colors focus-within:border-fg">
           <IconSearch className="size-4 shrink-0 text-fg-subtle" />
           <input
             ref={inputRef}
@@ -207,7 +207,7 @@ export function CommandPalette() {
           </button>
         </div>
 
-        <div id={listId} role="listbox" aria-label="Resultados" className="max-h-[min(60vh,32rem)] overflow-y-auto p-1.5">
+        <div id={listId} role="listbox" aria-label="Resultados" className="min-h-0 max-h-[min(60vh,32rem)] flex-1 overflow-y-auto overscroll-contain p-1.5">
           {matchingStocks.length > 0 ? (
             <div role="group" aria-label="Acciones tokenizadas" className="pb-1">
               <p className="px-2.5 pb-1 pt-2 font-mono text-[10px] uppercase tracking-[0.08em] text-fg-subtle">
@@ -327,7 +327,7 @@ export function CommandPalette() {
           ) : null}
         </div>
 
-        <div className="flex items-center gap-4 border-t border-border px-4 py-2.5 text-[11px] text-fg-subtle">
+        <div className="flex shrink-0 items-center gap-4 border-t border-border px-4 py-2.5 text-[11px] text-fg-subtle">
           <span className="flex items-center gap-1.5">
             <kbd className={KBD}>↑</kbd>
             <kbd className={KBD}>↓</kbd>

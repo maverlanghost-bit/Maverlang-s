@@ -31,13 +31,15 @@ export function Avatar({
   className?: string;
 }) {
   const [failedSrc, setFailedSrc] = useState<string | null>(null);
-  const showImage = Boolean(src) && failedSrc !== src;
-  const letters = initials(fallback ?? alt);
+  const hasSrc = Boolean(src?.trim());
+  const showImage = hasSrc && failedSrc !== src;
+  // `fallback` vacío no debe ganarle al nombre: siempre hay iniciales legibles.
+  const letters = initials(fallback?.trim() || alt) || "?";
 
   return (
     <span
       className={cn(
-        "inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-surface-3 font-medium text-fg",
+        "inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-surface-2 font-medium text-fg-body ring-1 ring-border",
         sizeClass[size],
         className,
       )}

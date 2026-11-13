@@ -101,8 +101,9 @@ export function PositionRow({
           </span>
         </span>
 
-        {/* Valor actual: la cifra que se mira primero, siempre a la derecha. */}
-        <span className="text-right md:col-start-4 md:row-start-1">
+        {/* Valor actual: la cifra que se mira primero, siempre a la derecha.
+            Es un div (no span) porque el estado de carga es un bloque. */}
+        <div className="min-w-0 text-right md:col-start-4 md:row-start-1">
           {hidden ? (
             <MaskedFigures label={hiddenLabel} />
           ) : pending ? (
@@ -115,16 +116,16 @@ export function PositionRow({
               className="text-[15px] font-medium tracking-tight text-fg"
             />
           )}
-        </span>
+        </div>
 
         {/* Cantidad: bajo el nombre en móvil, columna propia en escritorio. */}
-        <span className="num min-w-0 truncate text-[13px] leading-none text-fg-muted max-md:col-span-2 md:col-start-2 md:row-start-1 md:text-right">
+        <span className="num min-w-0 truncate text-[13px] leading-none text-fg-muted max-md:col-span-2 max-md:pl-12 md:col-start-2 md:row-start-1 md:text-right">
           {formatShares(shares)}
           <span className="sr-only">. {shareHint}</span>
         </span>
 
         {/* Precio por acción: sólo escritorio (en móvil mandan cantidad y valor). */}
-        <span className="num text-right text-[13px] text-fg-muted max-md:hidden md:col-start-3 md:row-start-1">
+        <div className="num text-right text-[13px] text-fg-muted max-md:hidden md:col-start-3 md:row-start-1">
           {hidden ? (
             <span className="tracking-[0.16em]" aria-hidden>
               ••••
@@ -136,9 +137,9 @@ export function PositionRow({
           ) : (
             formatMoney(price, currency)
           )}
-        </span>
+        </div>
 
-        <span className="flex items-center justify-end gap-2 max-md:col-start-3 md:col-start-5 md:row-start-1 md:flex-col md:items-end md:gap-1">
+        <div className="flex items-center justify-end gap-2 max-md:col-start-3 md:col-start-5 md:row-start-1 md:flex-col md:items-end md:gap-1">
           {hidden ? null : pending ? (
             <Skeleton className="ml-auto h-4 w-16" />
           ) : pnl === null ? (
@@ -155,7 +156,7 @@ export function PositionRow({
           {hidden ? null : !pending && pnlPct !== null ? (
             <ChangeBadge value={pnlPct} className="shrink-0" />
           ) : null}
-        </span>
+        </div>
       </Link>
 
       <div className={cn("hidden shrink-0 items-center justify-end md:flex", POSITION_ACTION_WIDTH)}>

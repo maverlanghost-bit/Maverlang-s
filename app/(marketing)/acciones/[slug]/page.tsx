@@ -30,8 +30,6 @@ export const dynamicParams = true;
 /** CTA primaria de la ficha: una sola en toda la página (el hero). */
 const primaryCtaClass = buttonClasses({ variant: "primary", size: "lg" });
 
-const secondaryCtaClass = buttonClasses({ variant: "secondary", size: "lg", className: "w-full" });
-
 /** Especificaciones técnicas del instrumento: mismo contenido de siempre. */
 function specRows(asset: { symbol: string; ticker: string; etf: boolean }) {
   return [
@@ -111,7 +109,7 @@ export default async function AccionPublicaPage({ params }: { params: Promise<{ 
       {faq.length > 0 ? <JsonLd data={simpleFaqJsonLd(faq)} /> : null}
       <article>
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <nav aria-label="Migas" className="text-sm text-fg-muted">
+          <nav aria-label="Migas" className="text-[13px] text-fg-muted">
             <ol className="flex flex-wrap items-center gap-x-2 gap-y-1">
               <li>
                 <Link href="/" className="underline decoration-border underline-offset-4 hover:decoration-fg">
@@ -146,7 +144,7 @@ export default async function AccionPublicaPage({ params }: { params: Promise<{ 
             />
             <div className="min-w-0">
               <p className="label">{asset.ticker} · {kind}</p>
-              <h1 id="accion-title" className="mt-2 text-4xl text-balance md:text-5xl">
+              <h1 id="accion-title" className="mt-2 text-3xl break-words text-balance sm:text-4xl md:text-5xl">
                 {asset.name}
               </h1>
             </div>
@@ -211,8 +209,11 @@ export default async function AccionPublicaPage({ params }: { params: Promise<{ 
                   </div>
                 </dl>
 
-                <Link href="/acciones" className={cn(secondaryCtaClass, "mt-5")}>
-                  Ver todo el catálogo
+                <Link
+                  href="/acciones"
+                  className="mt-5 inline-flex min-h-11 items-center gap-2 text-sm font-medium text-fg underline decoration-border underline-offset-4 hover:decoration-fg"
+                >
+                  Ver todo el catálogo <span aria-hidden="true">→</span>
                 </Link>
 
                 <p className="mt-4 text-xs leading-relaxed text-fg-muted">

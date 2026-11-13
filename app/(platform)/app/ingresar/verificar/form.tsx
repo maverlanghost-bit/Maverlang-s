@@ -97,7 +97,7 @@ export function MfaVerifyForm() {
       {phase === "error" ? (
         <div className="mt-6">
           {alert ? (
-            <p className="rounded-lg border border-down/20 bg-down-bg px-3 py-2.5 text-center text-sm leading-relaxed text-down" role="alert">
+            <p className="rounded-lg border border-down/20 bg-down-bg px-3 py-2.5 text-sm leading-relaxed text-down" role="alert">
               {alert}
             </p>
           ) : null}

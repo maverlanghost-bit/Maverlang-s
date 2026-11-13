@@ -41,12 +41,12 @@ export function Tooltip({
           role="tooltip"
           id={id}
           className={cn(
-            "absolute pointer-events-none rounded-lg border border-white/15 bg-fg px-2.5 py-1.5 text-xs leading-snug text-white shadow-float",
+            "pointer-events-none absolute z-50 w-max max-w-[min(16rem,calc(100vw-2.5rem))] rounded-lg border border-border bg-bg px-2.5 py-1.5 text-left text-[13px] leading-snug text-pretty text-fg shadow-float",
             side === "right"
-              ? "top-1/2 left-full z-50 ml-3 w-max max-w-[min(16rem,calc(100vw-2.5rem))] -translate-y-1/2"
+              ? "top-1/2 left-full ml-3 -translate-y-1/2"
               : side === "top"
-                ? "bottom-full left-0 z-30 mb-2 w-max max-w-[min(16rem,calc(100vw-2.5rem))]"
-                : "top-full left-0 z-30 mt-2 w-max max-w-[min(16rem,calc(100vw-2.5rem))]",
+                ? "bottom-full left-0 mb-2"
+                : "top-full left-0 mt-2",
           )}
         >
           {content}

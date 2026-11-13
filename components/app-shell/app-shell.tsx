@@ -164,7 +164,7 @@ function PublicFrame({ children }: { children: ReactNode }) {
           <main id="contenido" tabIndex={-1} className="min-w-0 flex-1 scroll-mt-16 outline-none">
             {children}
           </main>
-          <footer className="pb-[calc(1rem+var(--app-detail-cta))] pt-8 lg:pb-8">
+          <footer className="pb-[calc(1rem+var(--app-detail-cta)+env(safe-area-inset-bottom))] pt-8 lg:pb-8">
             <p className="border-t border-border pt-4 text-[13px] leading-relaxed text-fg-muted">{t.disclaimer}</p>
           </footer>
         </div>

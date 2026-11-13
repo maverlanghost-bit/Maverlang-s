@@ -7,13 +7,14 @@ import { useQuery } from "@tanstack/react-query";
 import { DemoAddressNotice } from "@/components/domain/demo-address-notice";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { CopyButton } from "@/components/ui/copy-button";
 import { ErrorState } from "@/components/ui/error-state";
+import { IconShare } from "@/components/ui/icons";
 import { LoadingState } from "@/components/ui/loading-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { QRCode } from "@/components/ui/qr-code";
 import { useToast } from "@/components/ui/toast";
 import { LinkWalletCard } from "@/components/wallet/link-wallet-card";
+import { WalletAddress } from "@/components/wallet/wallet-address";
 import { site } from "@/config/site";
 import { getWallets } from "@/lib/api/client";
 import { useSession } from "@/lib/auth";
@@ -90,26 +91,28 @@ export function ReceiveScreen() {
               }}
             />
           ) : (
-            <Card className="flex flex-col items-center gap-5 text-center">
+            <Card className="flex flex-col items-center gap-6">
               {address ? (
                 <>
                   <QRCode value={address} size={196} label={t.wallet.qrLabel} />
 
-                  <div className="flex w-full min-w-0 flex-col items-center gap-1">
-                    <p className="label">{t.wallet.address}</p>
-                    <p className="num text-[13px] leading-relaxed break-all text-fg">{address}</p>
-                  </div>
+                  <div className="flex w-full max-w-sm flex-col gap-3">
+                    <WalletAddress
+                      address={address}
+                      label={t.wallet.address}
+                      copyLabel={t.wallet.copy}
+                      copiedLabel={t.wallet.copied}
+                    />
 
-                  <div className="flex flex-wrap justify-center gap-2">
-                    <CopyButton value={address} label={t.wallet.copy} copiedLabel={t.wallet.copied} />
-                    <Button variant="secondary" size="sm" onClick={() => void onShare()}>
+                    <Button variant="secondary" size="md" className="w-full" onClick={() => void onShare()}>
+                      <IconShare />
                       {t.wallet.share}
                     </Button>
+
+                    <p className="text-pretty text-[13px] leading-relaxed text-fg-muted">{t.wallet.verifiedOnly}</p>
                   </div>
 
-                  <p className="text-[13px] leading-relaxed text-fg-muted">{t.wallet.verifiedOnly}</p>
-
-                  <div className="w-full rounded-xl bg-warn-bg px-4 py-3 text-left">
+                  <div className="w-full max-w-md rounded-xl bg-warn-bg px-4 py-3 text-left">
                     <p className="label text-fg">{t.wallet.warnings}</p>
                     <ul className="mt-2 flex list-disc flex-col gap-1 pl-4 text-[13px] leading-relaxed text-fg">
                       <li>{t.wallet.onlySolana}</li>

@@ -74,7 +74,7 @@ export function CostsSection({ showIntro = true }: { showIntro?: boolean }) {
                 {notes.map((note) => (
                   <li
                     key={note}
-                    className="flex items-center gap-2 text-[13px] leading-snug text-fg-muted"
+                    className="flex items-center gap-2 text-sm leading-snug text-fg-muted"
                   >
                     <span aria-hidden="true" className="size-1 shrink-0 rounded-full bg-border-strong" />
                     {note}
@@ -82,7 +82,7 @@ export function CostsSection({ showIntro = true }: { showIntro?: boolean }) {
                 ))}
               </ul>
 
-              <p className="mt-6 text-[13px] leading-relaxed text-fg-muted">
+              <p className="mt-6 text-sm leading-relaxed text-fg-muted">
                 Los montos de red y de depósito dependen del proveedor. El desglose completo se muestra
                 antes de firmar, así que sabes qué pagas antes de confirmar.
               </p>
@@ -93,7 +93,7 @@ export function CostsSection({ showIntro = true }: { showIntro?: boolean }) {
             <div className="py-8 lg:py-10 lg:pl-10">
               <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1">
                 <p className="label">Desglose de costos</p>
-                <p className="text-[13px] text-fg-muted">Se muestra antes de confirmar</p>
+                <p className="text-sm text-fg-muted">Se muestra antes de confirmar</p>
               </div>
 
               {/* <sm: un bloque por concepto. La tabla de 512px no cabe en 390px. */}

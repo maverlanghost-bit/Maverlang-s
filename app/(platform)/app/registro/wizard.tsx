@@ -3,7 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState, type ComponentProps, type FormEvent, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { Controller, useForm, useWatch, type Control } from "react-hook-form";
 
 import { countryOptions } from "@/app/(platform)/app/onboarding/countries";
@@ -13,16 +13,15 @@ import {
   CheckField,
   CountryFields,
   DeclarationStep,
-  FieldError,
   NationalityField,
   RISK_POINTS,
   UnavailableStep,
 } from "@/app/(platform)/app/onboarding/panel";
+import { CredentialField } from "@/components/auth/auth-frame";
 import { PasswordStrengthMeter } from "@/components/auth/password-strength-meter";
 import { Button, buttonClasses } from "@/components/ui/button";
 import { isOperationBlocked } from "@/config/compliance";
 import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/components/ui/toast";
 import { ApiError, addConsent, updateMe } from "@/lib/api/client";
@@ -71,19 +70,16 @@ const TITLES: Record<Step, string> = {
   3: "Términos y riesgos",
 };
 
-const MILESTONES = ["Cuenta", "Tus datos", "Términos"] as const;
+const STEP_LABELS: Record<Step, string> = {
+  1: "Cuenta",
+  2: "Tus datos",
+  3: "Términos",
+};
 
 function messageFrom(error: unknown): string {
   if (isProfileMigrationMessage(error)) return PROFILE_MIGRATION_MESSAGE;
   if (error instanceof ApiError) return error.message;
   return "No pudimos guardar este paso. Inténtalo otra vez.";
-}
-
-function passwordLabel(password: string): string | null {
-  if (!password) return null;
-  if (password.length < 8) return "Muy corta";
-  if (password.length >= 12 && /[A-Za-z]/.test(password) && /\d/.test(password)) return "Fuerte";
-  return "Aceptable";
 }
 
 function maxBirth(today: Date): string {
@@ -95,37 +91,38 @@ function maxBirth(today: Date): string {
 
 function Shell({ children }: { children: ReactNode }) {
   return (
-    <Card className="w-full max-w-md shadow-float">
+    <Card className="my-auto w-full max-w-md">
       <BrandLink />
       {children}
     </Card>
   );
 }
 
-function StepBar({ index, total }: { index: number; total: number }) {
+function StepBar({ index, total, labels }: { index: number; total: number; labels: string[] }) {
   const current = index + 1;
   return (
     <div className="mt-6">
       <p className="label">
         Paso {current} de {total}
       </p>
-      <ul className="mt-2 flex flex-wrap items-center gap-1.5" aria-hidden="true">
-        {MILESTONES.map((milestone, position) => {
+      <ul className="mt-2 flex flex-wrap items-center gap-1.5">
+        {labels.map((label, position) => {
           const milestoneStep = position + 1;
           const done = milestoneStep < current;
           const active = milestoneStep === current;
           return (
             <li
-              key={milestone}
+              key={label}
+              aria-current={active ? "step" : undefined}
               className={
                 active
-                  ? "rounded-full bg-fg px-2.5 py-1 text-[11px] font-semibold text-bg"
+                  ? "rounded-full bg-fg px-2.5 py-1 text-xs font-medium text-bg"
                   : done
-                    ? "rounded-full border border-border/70 bg-surface-2 px-2.5 py-1 text-[11px] font-medium text-fg"
-                    : "rounded-full border border-border/60 px-2.5 py-1 text-[11px] text-fg-muted"
+                    ? "rounded-full border border-border bg-surface-2 px-2.5 py-1 text-xs text-fg"
+                    : "rounded-full border border-border px-2.5 py-1 text-xs text-fg-muted"
               }
             >
-              {milestoneStep}. {milestone}
+              {milestoneStep}. {label}
             </li>
           );
         })}
@@ -143,64 +140,6 @@ function StepBar({ index, total }: { index: number; total: number }) {
           style={{ width: `${(current / total) * 100}%` }}
         />
       </div>
-    </div>
-  );
-}
-
-function TextField({
-  id,
-  label,
-  error,
-  hint,
-  type,
-  ...props
-}: { id: string; label: string; error?: string; hint?: string } & ComponentProps<"input">) {
-  const errorId = `${id}-error`;
-  const hintId = `${id}-hint`;
-  const described = [hint ? hintId : null, error ? errorId : null].filter(Boolean).join(" ") || undefined;
-  const [visible, setVisible] = useState(false);
-  const isPassword = type === "password";
-  return (
-    <div className="mt-4">
-      <label htmlFor={id} className="text-sm font-medium text-fg">
-        {label}
-      </label>
-      {isPassword ? (
-        <div className="relative mt-2">
-          <Input
-            id={id}
-            type={visible ? "text" : "password"}
-            className="pr-20"
-            aria-invalid={error ? true : undefined}
-            aria-describedby={described}
-            {...props}
-          />
-          <button
-            type="button"
-            onClick={() => setVisible((value) => !value)}
-            aria-label={visible ? "Ocultar contraseña" : "Mostrar contraseña"}
-            aria-controls={id}
-            className="absolute top-1/2 right-2.5 -translate-y-1/2 rounded-md px-2 py-1 text-xs font-medium text-fg-muted transition-colors outline-none hover:bg-surface-2 hover:text-fg focus-visible:ring-4 focus-visible:ring-fg/20"
-          >
-            {visible ? "Ocultar" : "Mostrar"}
-          </button>
-        </div>
-      ) : (
-        <Input
-          id={id}
-          type={type}
-          className="mt-2"
-          aria-invalid={error ? true : undefined}
-          aria-describedby={described}
-          {...props}
-        />
-      )}
-      {hint ? (
-        <p id={hintId} className="mt-2 text-sm text-fg-muted">
-          {hint}
-        </p>
-      ) : null}
-      <FieldError id={errorId} message={error} />
     </div>
   );
 }
@@ -245,7 +184,7 @@ function MailScreen({
 
   return (
     <Shell>
-      <h1 ref={headingRef} tabIndex={-1} className="mt-6 text-3xl text-balance focus:shadow-none">
+      <h1 ref={headingRef} tabIndex={-1} className="mt-6 text-3xl text-balance outline-none">
         Revisa tu correo
       </h1>
       <p className="mt-3 text-sm leading-relaxed text-fg-body">
@@ -253,14 +192,14 @@ function MailScreen({
       </p>
       {realFlow ? (
         <div className="mt-4 rounded-2xl bg-surface-2 p-4">
-          <p className="text-sm leading-relaxed text-fg-body">
+          <p className="max-w-[60ch] text-sm leading-relaxed text-pretty text-fg-body">
             Cuando confirmes el correo, completa tu registro para cuenta real antes de operar. Hasta entonces la
             cuenta queda en modo demo y no habilita operaciones reales.
           </p>
           <p className="mt-2">
             <Link
               href="/app/onboarding"
-              className="inline-flex min-h-11 items-center rounded-sm px-1 font-medium text-fg underline decoration-border underline-offset-4 outline-none hover:decoration-fg focus-visible:ring-4 focus-visible:ring-fg/20"
+              className="inline-flex min-h-11 items-center rounded-sm px-1 font-medium text-fg underline decoration-border underline-offset-4 hover:decoration-fg"
             >
               Completar mi registro
             </Link>
@@ -268,7 +207,7 @@ function MailScreen({
         </div>
       ) : null}
       {error ? (
-        <p className="mt-4 text-sm text-down" role="alert">
+        <p className="mt-4 text-sm leading-snug text-down" role="alert">
           {error}
         </p>
       ) : null}
@@ -278,7 +217,7 @@ function MailScreen({
         </Button>
       </div>
       <p className="mt-4 text-center text-sm text-fg-muted">
-        <Link href={enter} className="inline-flex min-h-11 items-center justify-center rounded-sm px-2 font-medium text-fg underline decoration-border underline-offset-4 outline-none hover:decoration-fg focus-visible:ring-4 focus-visible:ring-fg/20">
+        <Link href={enter} className="inline-flex min-h-11 items-center justify-center rounded-sm px-2 font-medium text-fg underline decoration-border underline-offset-4 hover:decoration-fg">
           Ingresar
         </Link>
       </p>
@@ -290,7 +229,7 @@ function NeedSession() {
   return (
     <Shell>
       <h1 className="mt-6 text-3xl text-balance">Necesitas iniciar sesión</h1>
-      <p className="mt-3 text-sm leading-relaxed text-fg-body">El registro continúa después del ingreso.</p>
+      <p className="mt-3 max-w-[60ch] text-sm leading-relaxed text-pretty text-fg-body">El registro continúa después del ingreso.</p>
       <div className="mt-6">
         <Link href="/app/ingresar" className={buttonClasses({ size: "lg", className: "w-full" })}>
           Ingresar
@@ -344,7 +283,7 @@ function DocCheck({
                 href={href}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="rounded-sm font-medium underline decoration-border underline-offset-4 outline-none hover:decoration-fg focus-visible:ring-4 focus-visible:ring-fg/20"
+                className="rounded-sm font-medium underline decoration-border underline-offset-4 hover:decoration-fg"
               >
                 {label}
               </Link>
@@ -468,7 +407,6 @@ function DemoRegistroForm({
   });
 
   const password = useWatch({ control, name: "password" });
-  const strength = passwordLabel(password ?? "");
   const enter = ingresarPath(next ?? "/app");
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
@@ -528,18 +466,11 @@ function DemoRegistroForm({
     <Shell>
       <form className="mt-6" onSubmit={(event) => void onSubmit(event)} noValidate>
         <h1 className="text-3xl text-balance">Crea tu cuenta demo</h1>
-        <p className="mt-3 text-sm leading-relaxed text-fg-body">
+        <p className="mt-3 max-w-[60ch] text-sm leading-relaxed text-pretty text-fg-body">
           Te damos US$10.000 ficticios para practicar. Crea tu cuenta, explora el mercado y haz tu primera
           compra sin dinero real. La demo no habilita operaciones reales.
         </p>
-        {onUseReal ? (
-          <div className="mt-4">
-            <Button type="button" variant="secondary" size="lg" className="w-full" onClick={onUseReal}>
-              Crear una cuenta real
-            </Button>
-          </div>
-        ) : null}
-        <TextField
+        <CredentialField
           id="registro-email"
           label="Correo"
           type="email"
@@ -548,17 +479,17 @@ function DemoRegistroForm({
           error={errors.email?.message}
           {...register("email")}
         />
-        <TextField
+        <CredentialField
           id="registro-password"
           label="Contraseña"
           type="password"
           autoComplete="new-password"
-          hint={strength ? `Seguridad: ${strength}. Mínimo 8 caracteres. Recomendamos 12 o más.` : "Mínimo 8 caracteres. Recomendamos 12 o más."}
+          hint="Mínimo 8 caracteres. Recomendamos 12 o más."
           error={errors.password?.message}
           {...register("password")}
         />
         <PasswordStrengthMeter password={password ?? ""} />
-        <TextField
+        <CredentialField
           id="registro-password-confirm"
           label="Repetir contraseña"
           type="password"
@@ -584,7 +515,7 @@ function DemoRegistroForm({
                       href="/legal/terminos"
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="rounded-sm font-medium underline decoration-border underline-offset-4 outline-none hover:decoration-fg focus-visible:ring-4 focus-visible:ring-fg/20"
+                      className="rounded-sm font-medium underline decoration-border underline-offset-4 hover:decoration-fg"
                     >
                       Términos y Condiciones
                     </Link>{" "}
@@ -593,7 +524,7 @@ function DemoRegistroForm({
                       href="/legal/privacidad"
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="rounded-sm font-medium underline decoration-border underline-offset-4 outline-none hover:decoration-fg focus-visible:ring-4 focus-visible:ring-fg/20"
+                      className="rounded-sm font-medium underline decoration-border underline-offset-4 hover:decoration-fg"
                     >
                       Política de Privacidad
                     </Link>
@@ -606,7 +537,7 @@ function DemoRegistroForm({
         </div>
         <p className="mt-4 text-sm leading-relaxed text-fg-muted">Borrador. [REVISIÓN ABOGADO]</p>
         {formError ? (
-          <p className="mt-4 text-sm text-down" role="alert">
+          <p className="mt-4 text-sm leading-snug text-down" role="alert">
             {formError}
           </p>
         ) : null}
@@ -615,8 +546,21 @@ function DemoRegistroForm({
             {t.auth.createDemoAccount}
           </Button>
         </div>
-        <p className="mt-4 text-center text-sm text-fg-muted">
-          <Link href={enter} className="inline-flex min-h-11 items-center justify-center rounded-sm px-2 font-medium text-fg underline decoration-border underline-offset-4 outline-none hover:decoration-fg focus-visible:ring-4 focus-visible:ring-fg/20">
+        {onUseReal ? (
+          <p className="mt-3 text-sm leading-relaxed text-fg-muted">
+            También puedes{" "}
+            <button
+              type="button"
+              onClick={onUseReal}
+              className="inline-flex min-h-11 items-center rounded-sm px-1 font-medium text-fg underline decoration-border underline-offset-4 hover:decoration-fg"
+            >
+              crear una cuenta real
+            </button>
+            .
+          </p>
+        ) : null}
+        <p className="mt-1 text-center text-sm text-fg-muted">
+          <Link href={enter} className="inline-flex min-h-11 items-center justify-center rounded-sm px-2 font-medium text-fg underline decoration-border underline-offset-4 hover:decoration-fg">
             Ya tengo cuenta
           </Link>
         </p>
@@ -679,7 +623,6 @@ function RegistroForm({
   const password = useWatch({ control, name: "password" });
   const unavailable = step === 2 && (isOperationBlocked(pais) || isOperationBlocked(nacionalidad));
   const stepIndex = Math.max(0, steps.indexOf(step));
-  const strength = passwordLabel(password ?? "");
 
   useEffect(() => {
     if (skipFocus.current) {
@@ -822,14 +765,14 @@ function RegistroForm({
 
   return (
     <Shell>
-      <StepBar index={stepIndex} total={steps.length} />
+      <StepBar index={stepIndex} total={steps.length} labels={steps.map((item) => STEP_LABELS[item])} />
       <form className="mt-6" onSubmit={onSubmit} noValidate>
-        <h1 ref={headingRef} tabIndex={-1} className="text-3xl text-balance focus:shadow-none">
+        <h1 ref={headingRef} tabIndex={-1} className="text-3xl text-balance outline-none">
           {title}
         </h1>
         {step === 1 ? (
           <div>
-            <TextField
+            <CredentialField
               id="registro-email"
               label="Correo"
               type="email"
@@ -838,17 +781,16 @@ function RegistroForm({
               error={errors.email?.message}
               {...register("email")}
             />
-            <TextField
+            <CredentialField
               id="registro-password"
               label="Contraseña"
               type="password"
               autoComplete="new-password"
-              hint={strength ? `Seguridad: ${strength}` : undefined}
               error={errors.password?.message}
               {...register("password")}
             />
             <PasswordStrengthMeter password={password ?? ""} />
-            <TextField
+            <CredentialField
               id="registro-password-confirm"
               label="Confirmar contraseña"
               type="password"
@@ -857,7 +799,7 @@ function RegistroForm({
               {...register("passwordConfirm")}
             />
             <p className="mt-4 text-center text-sm text-fg-muted">
-              <Link href={enter} className="inline-flex min-h-11 items-center justify-center rounded-sm px-2 font-medium text-fg underline decoration-border underline-offset-4 outline-none hover:decoration-fg focus-visible:ring-4 focus-visible:ring-fg/20">
+              <Link href={enter} className="inline-flex min-h-11 items-center justify-center rounded-sm px-2 font-medium text-fg underline decoration-border underline-offset-4 hover:decoration-fg">
                 Ya tengo cuenta
               </Link>
             </p>
@@ -867,7 +809,7 @@ function RegistroForm({
                 <button
                   type="button"
                   onClick={onUseDemo}
-                  className="inline-flex min-h-11 items-center rounded-sm px-1 font-medium text-fg underline decoration-border underline-offset-4 outline-none hover:decoration-fg focus-visible:ring-4 focus-visible:ring-fg/20"
+                  className="inline-flex min-h-11 items-center rounded-sm px-1 font-medium text-fg underline decoration-border underline-offset-4 hover:decoration-fg"
                 >
                   Usar la cuenta demo
                 </button>
@@ -877,7 +819,7 @@ function RegistroForm({
         ) : null}
         {step === 2 && !unavailable ? (
           <div>
-            <TextField
+            <CredentialField
               id="registro-nombre"
               label="Nombre completo"
               autoComplete="name"
@@ -914,7 +856,7 @@ function RegistroForm({
                 name="rut"
                 control={control}
                 render={({ field, fieldState }) => (
-                  <TextField
+                  <CredentialField
                     id="registro-rut"
                     label="RUT"
                     autoComplete="off"
@@ -932,7 +874,7 @@ function RegistroForm({
                 )}
               />
             ) : null}
-            <TextField
+            <CredentialField
               id="registro-nacimiento"
               label="Fecha de nacimiento"
               type="date"
@@ -941,7 +883,7 @@ function RegistroForm({
               error={errors.fechaNacimiento?.message}
               {...register("fechaNacimiento")}
             />
-            <TextField
+            <CredentialField
               id="registro-telefono"
               label="Teléfono"
               type="tel"
@@ -981,7 +923,7 @@ function RegistroForm({
         ) : null}
         {step === 3 ? (
           <div className="mt-4 flex flex-col gap-4">
-            <p className="text-sm leading-relaxed text-fg-body">
+            <p className="max-w-[60ch] text-sm leading-relaxed text-pretty text-fg-body">
               Resumen de riesgos. El texto completo está en cada documento. Al continuar queda registrada la versión que
               aceptas.
             </p>
@@ -999,7 +941,7 @@ function RegistroForm({
           </div>
         ) : null}
         {formError ? (
-          <p className="mt-4 text-sm text-down" role="alert">
+          <p className="mt-4 text-sm leading-snug text-down" role="alert">
             {formError}
           </p>
         ) : null}

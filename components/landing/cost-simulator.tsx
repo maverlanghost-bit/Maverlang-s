@@ -28,8 +28,7 @@ const PERCENT_FORMAT = new Intl.NumberFormat("es-CL", {
   maximumFractionDigits: 2,
 });
 
-/** Rótulo de dato a 13px: el mínimo de lectura del rediseño. */
-const MICRO = "font-mono text-[13px] font-medium uppercase tracking-[0.045em] text-fg-muted";
+/** Rótulo de dato: usa el token `.label`. */
 
 /**
  * Simulador de costos de una compra: comisión de plataforma, red Solana y
@@ -68,7 +67,7 @@ export function CostSimulator() {
                   aria-pressed={selected}
                   onClick={() => setAmountUsd(amount)}
                   className={cn(
-                    "num min-h-11 rounded-full border px-2 text-[13px] font-medium transition-colors duration-150",
+                    "num min-h-11 rounded-full border px-2 text-sm font-medium transition-colors duration-150",
                     selected
                       ? "border-fg bg-fg text-white"
                       : "border-control bg-bg text-fg hover:border-fg hover:bg-surface-1",
@@ -90,7 +89,7 @@ export function CostSimulator() {
           />
           <span className="flex min-w-0 flex-col gap-1">
             <span className="text-sm font-medium text-fg">Primera compra de este activo</span>
-            <span className="text-[13px] leading-relaxed text-fg-muted">
+            <span className="text-xs leading-relaxed text-fg-muted">
               Suma el costo de abrir la cuenta del token. Sólo ocurre una vez.
             </span>
           </span>
@@ -120,7 +119,7 @@ export function CostSimulator() {
       </div>
 
       <div className="mt-8">
-        <p className={MICRO}>Recibo estimado</p>
+        <p className="label">Recibo estimado</p>
         <dl className="mt-4 border-t border-border">
           <div className="flex items-baseline justify-between gap-4 border-b border-border py-3">
             <dt className="text-sm text-fg-muted">Monto de la orden</dt>
@@ -130,11 +129,11 @@ export function CostSimulator() {
           <div className="flex items-baseline justify-between gap-4 border-b border-border py-3">
             <dt className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-1 text-sm text-fg-muted">
               <span>Comisión {site.name}</span>
-              <span className="text-[13px] text-fg-muted">(0% en lanzamiento)</span>
+              <span className="text-xs text-fg-muted">(0% en lanzamiento)</span>
             </dt>
             <dd className="flex shrink-0 items-baseline gap-3">
               <span className="num text-sm font-medium text-fg">{formatUsdFee(0, 2)}</span>
-              <span className="num text-[13px] text-fg-muted">0%</span>
+              <span className="num text-xs text-fg-muted">0%</span>
             </dd>
           </div>
 
@@ -146,7 +145,7 @@ export function CostSimulator() {
           <div className="flex items-baseline justify-between gap-4 border-b border-border py-3">
             <dt className="flex min-w-0 flex-col gap-1 text-sm text-fg-muted">
               <span>Apertura de la cuenta del token</span>
-              <span className="text-[13px] text-fg-muted">Sólo la primera vez</span>
+              <span className="text-xs text-fg-muted">Sólo la primera vez</span>
             </dt>
             <dd className="num min-w-0 text-right text-sm font-medium text-fg">
               {firstTime ? formatUsdFee(costs.tokenAccountUsd, 2) : "US$0,00 (ya abierta)"}
@@ -164,7 +163,7 @@ export function CostSimulator() {
         </dl>
       </div>
 
-      <p className="mt-5 text-[13px] leading-relaxed text-pretty text-fg-muted">
+      <p className="mt-5 text-sm leading-relaxed text-pretty text-fg-muted">
         Simulación ilustrativa de costos de plataforma y red. La diferencia de precio (spread) y la
         comisión del proveedor de depósito dependen del mercado y medio elegido al operar.
       </p>

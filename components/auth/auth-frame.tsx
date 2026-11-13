@@ -8,6 +8,7 @@ import { BrandLogoImage } from "@/components/app-shell/brand-image";
 import { site } from "@/config/site";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/cn";
 
 export function AuthFrame({
   title,
@@ -19,18 +20,15 @@ export function AuthFrame({
   children: ReactNode;
 }) {
   return (
-    <Card className="w-full max-w-md">
+    <Card className="my-auto w-full max-w-md">
       <Link href="/" aria-label={site.name} className="flex min-h-11 w-fit items-center rounded-sm text-fg">
         <BrandLogoImage />
       </Link>
-      <div className="mt-4 inline-flex max-w-full items-center gap-2 rounded-full border border-border bg-bg px-3 py-1.5 text-xs font-medium leading-snug text-fg-muted">
-        <span className="size-1.5 shrink-0 rounded-full bg-up" aria-hidden="true" />
-        <span>Conexión cifrada · Autocustodia en Solana</span>
-      </div>
-      <h1 className="mt-5 text-[1.75rem] leading-[1.15] text-balance sm:text-3xl">{title}</h1>
-      {lead ? <p className="mt-3 text-sm leading-relaxed text-fg-muted">{lead}</p> : null}
+      <p className="mt-3 text-xs leading-snug text-fg-muted">Conexión cifrada · Autocustodia en Solana</p>
+      <h1 className="mt-4 text-[1.75rem] leading-[1.15] text-balance sm:text-3xl">{title}</h1>
+      {lead ? <p className="mt-3 max-w-[60ch] text-sm leading-relaxed text-pretty text-fg-muted">{lead}</p> : null}
       {children}
-      <div className="mt-6 flex flex-wrap items-center justify-center gap-x-2 gap-y-1 border-t border-border pt-4 text-xs text-fg-muted">
+      <div className="mt-6 flex flex-wrap items-center gap-x-2 gap-y-1 border-t border-border pt-4 text-xs leading-snug text-fg-muted">
         <span>Respaldo 1:1 xStocks</span>
         <span aria-hidden="true">·</span>
         <span>0% comisión</span>
@@ -45,11 +43,16 @@ export function CredentialField({
   id,
   label,
   error,
+  hint,
   type,
+  className,
   ...props
-}: { id: string; label: string; error?: string } & ComponentProps<"input">) {
+}: { id: string; label: string; error?: string; hint?: string } & ComponentProps<"input">) {
   const errorId = `${id}-error`;
+  const hintId = `${id}-hint`;
+  const described = [hint ? hintId : null, error ? errorId : null].filter(Boolean).join(" ") || undefined;
   const [visible, setVisible] = useState(false);
+  const fieldClass = cn(error && "border-down", className);
   return (
     <div className="mt-4">
       <label htmlFor={id} className="block text-sm font-medium text-fg">
@@ -60,9 +63,9 @@ export function CredentialField({
           <Input
             id={id}
             type={visible ? "text" : "password"}
-            className="pr-20"
+            className={cn(fieldClass, "pr-[4.5rem]")}
             aria-invalid={error ? true : undefined}
-            aria-describedby={error ? errorId : undefined}
+            aria-describedby={described}
             {...props}
           />
           <button
@@ -79,14 +82,19 @@ export function CredentialField({
         <Input
           id={id}
           type={type}
-          className="mt-2"
+          className={cn("mt-2", fieldClass)}
           aria-invalid={error ? true : undefined}
-          aria-describedby={error ? errorId : undefined}
+          aria-describedby={described}
           {...props}
         />
       )}
+      {hint ? (
+        <p id={hintId} className="mt-2 text-sm leading-snug text-fg-muted">
+          {hint}
+        </p>
+      ) : null}
       {error ? (
-        <p id={errorId} className="mt-2 break-words text-sm leading-relaxed text-down" role="alert">
+        <p id={errorId} className="mt-2 text-sm leading-snug text-down" role="alert">
           {error}
         </p>
       ) : null}
@@ -96,7 +104,7 @@ export function CredentialField({
 
 export function AuthLegal() {
   return (
-    <p className="mt-6 text-center text-sm leading-relaxed text-fg-muted">
+    <p className="mt-6 max-w-[60ch] text-sm leading-relaxed text-pretty text-fg-muted">
       Al continuar aceptas los{" "}
       <Link
         href="/legal/terminos"

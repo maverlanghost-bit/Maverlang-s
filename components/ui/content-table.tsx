@@ -54,7 +54,7 @@ export function ContentTable({
                 <dt className="label-xs shrink-0">{column.header}</dt>
                 <dd
                   className={cn(
-                    "min-w-0 text-right text-sm leading-snug break-words text-fg-body",
+                    "min-w-0 text-right text-sm leading-snug break-words text-fg-body tabular-nums",
                     (column.align ?? "left") === "left" && "text-left",
                     column.className,
                   )}
@@ -67,8 +67,8 @@ export function ContentTable({
         ))}
       </dl>
 
-      <div className="hidden overflow-x-auto sm:block">
-        <table className={cn("w-full border-collapse text-sm", minWidthClassName)}>
+      <div className="hidden overflow-x-auto overscroll-x-contain [scrollbar-width:thin] sm:block">
+        <table className={cn("w-full border-collapse text-sm tabular-nums", minWidthClassName)}>
           {caption ? <caption className="sr-only">{caption}</caption> : null}
           <thead>
             <tr className="border-b border-border">
@@ -77,7 +77,7 @@ export function ContentTable({
                   key={column.key}
                   scope="col"
                   className={cn(
-                    "label-xs py-2 pr-4 align-bottom whitespace-nowrap",
+                    "label-xs py-2 pr-4 align-bottom whitespace-nowrap last:pr-0",
                     alignClass[column.align ?? "left"],
                     column.className,
                   )}
@@ -94,7 +94,7 @@ export function ContentTable({
                   <td
                     key={column.key}
                     className={cn(
-                      "py-2.5 pr-4 align-top text-fg-body",
+                      "py-2.5 pr-4 align-top text-fg-body last:pr-0",
                       alignClass[column.align ?? "left"],
                       /* Cifras: nunca parten el número en dos líneas. */
                       (column.align ?? "left") === "right" && "whitespace-nowrap tabular-nums",

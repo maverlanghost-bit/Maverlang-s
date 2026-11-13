@@ -182,10 +182,13 @@ export function AmountInput({
 
       <div
         className={cn(
-          "mt-2 flex min-w-0 items-baseline gap-2 border-b pb-2.5 transition-colors duration-150",
+          /* El subrayado ES el borde del control: `border-control` da 3,74:1
+             (con /45 se quedaba en 1,8:1, casi blanco). El foco suma 1 px
+             interior sobre el borde: 2 px de tinta legibles a 390 px. */
+          "mt-2 flex min-w-0 items-baseline gap-2 border-b pb-2.5 transition duration-150",
           invalid
             ? "border-down"
-            : "border-border-control/45 hover:border-border-control focus-within:border-fg",
+            : "border-border-control hover:border-fg focus-within:border-fg focus-within:shadow-[inset_0_-1px_0_#0a0a0a]",
         )}
       >
         <input
@@ -229,7 +232,7 @@ export function AmountInput({
               disabled={chip.value === "max" && max === undefined}
               onClick={() => applyQuick(chip.value)}
               className={cn(
-                "inline-flex min-h-11 items-center justify-center rounded-md px-2 text-[12px] leading-none font-medium tracking-[0.01em] tabular-nums transition-colors duration-150 hover:bg-surface-1 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50 sm:min-h-9",
+                "inline-flex min-h-11 min-w-11 items-center justify-center rounded-md px-2 text-[12px] leading-none font-medium tracking-[0.01em] tabular-nums transition-colors duration-150 hover:bg-surface-1 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50 sm:min-h-9",
                 pressed
                   ? "text-fg underline decoration-fg decoration-1 underline-offset-4"
                   : "text-fg-muted hover:text-fg",
@@ -280,7 +283,7 @@ function CurrencySwitch({
         event.preventDefault();
         move(event.key);
       }}
-      className="inline-flex shrink-0 items-center rounded-full border border-border-control/45 bg-bg p-0.5"
+      className="inline-flex shrink-0 items-center rounded-full border border-border-control bg-bg p-0.5"
     >
       {options.map((option) => {
         const selected = option === value;
@@ -295,9 +298,11 @@ function CurrencySwitch({
             onClick={() => onChange(option)}
             className={cn(
               "min-h-11 rounded-full px-3 text-xs font-medium tracking-[0.01em] transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fg focus-visible:ring-inset sm:min-h-9",
+              /* Seleccionado sin depender del color: el anillo de 1 px aparece
+                 sólo en la opción activa (la píldora gris sola daba 1,1:1). */
               selected
-                ? "bg-surface-2 text-fg shadow-[inset_0_0_0_1px_rgba(10,10,10,0.05)]"
-                : "text-fg-muted hover:text-fg",
+                ? "bg-surface-2 text-fg shadow-[inset_0_0_0_1px_#0a0a0a]"
+                : "text-fg-muted hover:bg-surface-1 hover:text-fg",
             )}
           >
             {labels?.[option] ?? defaultLabels[option]}

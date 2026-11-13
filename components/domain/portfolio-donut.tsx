@@ -3,6 +3,7 @@
 import { useState, useSyncExternalStore, type PointerEvent } from "react";
 
 import type { AllocationSlice } from "@/components/domain/allocation-bar";
+import { cn } from "@/lib/cn";
 import { formatPortion } from "@/lib/format";
 import { useT } from "@/lib/hooks/use-t";
 
@@ -108,7 +109,9 @@ export function PortfolioDonut({ slices }: { slices: readonly AllocationSlice[] 
 
   const eyebrow = active ? active.label : en ? "Largest weight" : "Mayor peso";
   const main = focus ? formatPortion(focus.fraction) : formatPortion(0);
-  const sub = active ? active.valueLabel : focus ? `${focus.label} · ${focus.valueLabel}` : "";
+  // Sin interacción, el centro nombra al mayor peso; con un arco activo, su
+  // monto. El nombre nunca aparece dos veces en el mismo bloque.
+  const sub = active ? active.valueLabel : focus ? focus.label : "";
 
   const handleEnter = (event: PointerEvent<SVGCircleElement>, key: string) => {
     // En táctil no fijamos el hover: se resuelve con el toque (onClick).
@@ -174,7 +177,10 @@ export function PortfolioDonut({ slices }: { slices: readonly AllocationSlice[] 
           <p className="num mt-1 text-xl leading-none font-medium tracking-tight text-fg" aria-hidden="true">
             {main}
           </p>
-          <p className="num mt-1.5 w-full truncate text-xs text-fg-muted" aria-hidden="true">
+          <p
+            className={cn("mt-1.5 w-full truncate text-xs text-fg-muted", active && "num")}
+            aria-hidden="true"
+          >
             {sub}
           </p>
         </div>
