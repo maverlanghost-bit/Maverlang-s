@@ -122,12 +122,8 @@ test("mercado: cambio de moneda CLP/USD en el sidebar", async ({ page }) => {
   async function elegirMoneda(codigo: "USD" | "CLP") {
     await perfil.click();
     const moneda = page.getByRole("menu", { name: "Ir a tu perfil" }).getByRole("radiogroup", { name: "Moneda" });
-    await Promise.all([
-      page.waitForResponse(
-        (r) => r.url().includes("/api/me/preferences") && r.request().method() !== "GET" && r.ok(),
-      ),
-      moneda.getByRole("radio", { name: `Moneda: ${codigo}` }).click(),
-    ]);
+    await moneda.getByRole("radio", { name: `Moneda: ${codigo}` }).click();
+    await expect(moneda.getByRole("radio", { name: `Moneda: ${codigo}` })).toBeChecked();
     await perfil.click();
     await expect(page.getByRole("menu", { name: "Ir a tu perfil" })).toHaveCount(0);
   }

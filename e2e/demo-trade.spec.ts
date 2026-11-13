@@ -102,8 +102,9 @@ test("demo: el historial de órdenes registra la compra", async ({ page }) => {
 
   // La actividad de la billetera también la registra.
   await page.goto("/app/billetera");
-  const actividad = page.getByRole("heading", { name: "Actividad", exact: true }).locator("xpath=following-sibling::*").first();
-  await expect(actividad.getByText(/Compra/).first()).toBeVisible();
+  // La sección (encabezado + lista) es el padre del encabezado "Actividad".
+  const actividad = page.getByRole("heading", { name: "Actividad", exact: true }).locator("xpath=..");
+  await expect(actividad.getByText(/^Compra · NVDAx$/).first()).toBeVisible();
   void actividad;
 });
 
@@ -131,7 +132,7 @@ test("demo: venta parcial desde la cartera", async ({ page }) => {
   const sheetVenta = page.getByRole("dialog", { name: "Vender NVIDIA" });
   await expect(sheetVenta).toBeVisible();
   // Vender la mitad: 0,5 acciones.
-  await sheetVenta.getByLabel("Monto en Acciones").fill("0,5");
+  await sheetVenta.getByLabel(/^Monto en (Acciones|acc\.)$/).fill("0,5");
   const reviewVenta = sheetVenta.getByRole("button", { name: "Revisar" });
   await expect(reviewVenta).toBeEnabled();
   await reviewVenta.click();
