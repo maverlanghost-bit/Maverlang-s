@@ -66,11 +66,11 @@ const PROVIDER_OPTIONS = [
 const CHART_SURFACE = "rounded-2xl bg-bg p-5 shadow-float ring-1 ring-border";
 
 /**
- * Un solo tamaño por rol dentro de la ficha: nota 12px en `fg-muted`,
- * rótulo de métrica 12px mayúsculas y cifra 15px tabular.
+ * Un solo tamaño por rol dentro de la ficha: nota 13px en `fg-muted`,
+ * rótulo de métrica 13px mayúsculas y cifra 15px tabular.
  */
-const NOTE = "text-xs leading-5 text-fg-muted";
-const METRIC_LABEL = "font-mono text-xs leading-4 font-medium tracking-[0.08em] text-fg-muted uppercase";
+const NOTE = "text-[13px] leading-5 text-fg-muted";
+const METRIC_LABEL = "font-mono text-[13px] leading-4 font-medium tracking-[0.06em] text-fg-muted uppercase";
 const METRIC_VALUE = "num text-[15px] leading-5 font-medium text-fg tabular-nums";
 
 function studyQueryOptions(enabled: boolean) {

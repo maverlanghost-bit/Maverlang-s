@@ -1,16 +1,19 @@
 "use client";
 
-import { useEffect, useId, useMemo, useState, type ReactNode } from "react";
+import { memo, useEffect, useId, useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useQueries } from "@tanstack/react-query";
 
+import { ChangeBadge } from "@/components/domain/change-badge";
 import { FavoriteButton } from "@/components/domain/favorite-button";
+import { FlashPrice } from "@/components/domain/flash-price";
 import { MarketHeatmap } from "@/components/domain/market-heatmap";
 import { MarketToday } from "@/components/domain/market-today/market-today";
 import { FloatingMarketOrb } from "@/components/domain/market-status-pill";
 import { PriceFreshness } from "@/components/domain/price-freshness";
-import { TickerRow } from "@/components/domain/ticker-row";
+import { Sparkline } from "@/components/domain/sparkline";
+import { TickerLogo } from "@/components/domain/ticker-logo";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ErrorState } from "@/components/ui/error-state";
@@ -125,10 +128,11 @@ function moversOfPriced(rows: readonly PricedItem[], limit = 3): PricedItem[] {
 /**
  * Criterio de filtro y orden como texto: sin cápsula ni relleno. El activo
  * toma tinta y subrayado (2px); el resto queda en gris y sólo oscurece al
- * pasar el puntero. 44px de alto en móvil; 32px con puntero.
+ * pasar el puntero. 44px de alto en móvil; 32px con puntero. El foco se ve
+ * como anillo, no sólo como color.
  */
 const chipClass =
-  "inline-flex min-h-11 shrink-0 cursor-pointer items-center text-[13px] leading-5 font-medium whitespace-nowrap transition-colors duration-150 ease-spring sm:min-h-8";
+  "inline-flex min-h-11 min-w-11 shrink-0 cursor-pointer snap-start items-center justify-center rounded-xs text-[13px] leading-5 font-medium whitespace-nowrap transition-colors duration-150 ease-spring outline-none focus-visible:ring-2 focus-visible:ring-fg focus-visible:ring-offset-2 focus-visible:ring-offset-bg sm:min-h-8";
 const chipActiveClass = "text-fg";
 const chipIdleClass = "text-fg-muted hover:text-fg";
 /** Subrayado en el rótulo (no en el flex): siempre se dibuja bajo el texto. */
@@ -161,7 +165,12 @@ function ChipGroup<T extends string>({
     <div
       role="radiogroup"
       aria-label={ariaLabel}
-      className="flex min-w-0 flex-wrap items-center gap-x-6 gap-y-0.5"
+      className={cn(
+        // Un solo carril en móvil: los chips no envuelven ni empujan la página,
+        // se desplazan dentro de su propio scroll con snap. Desde sm envuelven.
+        "no-scrollbar -mx-5 flex min-w-0 snap-x snap-mandatory items-center gap-x-5 overflow-x-auto overscroll-x-contain px-5 py-0.5",
+        "sm:mx-0 sm:flex-wrap sm:gap-x-6 sm:overflow-visible sm:px-0 sm:py-0",
+      )}
       onKeyDown={(event) => {
         if (indexFromKey(event.key, 0, options.length) === null) return;
         event.preventDefault();
@@ -189,6 +198,176 @@ function ChipGroup<T extends string>({
   );
 }
 
+type MarketRowStatus = { kind: "open" | "closed" | "halted"; label: string };
+
+type MarketListRowProps = {
+  href: string;
+  symbol: string;
+  name: string;
+  logoUrl?: string | null;
+  /** Precio ya resuelto a la moneda que se muestra. `null` si aún no hay cotización. */
+  price: number | null;
+  currency: Currency;
+  /** Variación 24 h; `null` si la cotización no la trae. */
+  change: number | null;
+  /** Todavía no llega ningún precio: se muestra un marcador, no un cero. */
+  pricePending: boolean;
+  sparkline?: number[];
+  lowLiquidityLabel?: string | null;
+  reviewLabel?: string | null;
+  reviewHint?: string | null;
+  status?: MarketRowStatus | null;
+  favoritePressed: boolean;
+  favoriteLabel: string;
+  /** Estable (`useFavorites`): permite memoizar la fila por contenido. */
+  onToggleFavorite: (symbol: string) => void;
+  noPriceLabel: string;
+  unavailableLabel: string;
+};
+
+/** Marca de estado del catálogo: círculo abierta, rombo suspendida, cuadrado cerrada. */
+function StatusMark({ kind }: { kind: MarketRowStatus["kind"] }) {
+  return (
+    <span
+      aria-hidden
+      className={cn(
+        "size-1.5 shrink-0",
+        kind === "open" ? "rounded-full bg-up" : kind === "halted" ? "rotate-45 bg-down" : "rounded-[1px] bg-warn",
+      )}
+    />
+  );
+}
+
+/**
+ * Fila del mercado: dato, no tarjeta. Ticker en mono, nombre que envuelve
+ * (nunca se corta), precio y variación a la derecha con cifras tabulares y la
+ * estrella fuera del enlace. En 360 px no hay scroll horizontal: el nombre
+ * cede ancho y la cifra conserva su columna.
+ */
+function MarketListRowBase({
+  href,
+  symbol,
+  name,
+  logoUrl,
+  price,
+  currency,
+  change,
+  pricePending,
+  sparkline,
+  lowLiquidityLabel = null,
+  reviewLabel = null,
+  reviewHint = null,
+  status = null,
+  favoritePressed,
+  favoriteLabel,
+  onToggleFavorite,
+  noPriceLabel,
+  unavailableLabel,
+}: MarketListRowProps) {
+  return (
+    <div className="flex min-h-16 items-center transition-colors duration-150 hover:bg-surface-1/70 active:bg-surface-1">
+      <Link
+        href={href}
+        className="flex min-h-16 min-w-0 flex-1 items-center gap-3 py-3 pr-1 pl-1 sm:gap-4 sm:py-2"
+      >
+        <TickerLogo symbol={symbol} name={name} logoUrl={logoUrl} size={36} decorative loading="lazy" sizes="40px" />
+        <span className="min-w-0 flex-1">
+          <span className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5">
+            <span className="font-mono text-sm leading-5 font-semibold tracking-tight text-fg">{symbol}</span>
+            {status ? (
+              <span
+                className="inline-flex shrink-0 items-center gap-1 text-[13px] leading-4 text-fg-muted"
+                title={status.label}
+              >
+                <StatusMark kind={status.kind} />
+                <span className="sr-only">{status.label}</span>
+              </span>
+            ) : null}
+          </span>
+          <span className="mt-0.5 block text-[13px] leading-4 text-fg-muted">
+            <span className="break-words">{name}</span>
+            {lowLiquidityLabel ? <span className="whitespace-nowrap"> · {lowLiquidityLabel}</span> : null}
+            {reviewLabel ? (
+              <span className="whitespace-nowrap text-warn" title={reviewHint ?? undefined}>
+                {" · "}
+                {reviewLabel}
+              </span>
+            ) : null}
+          </span>
+        </span>
+        {sparkline ? (
+          <Sparkline data={sparkline} change={change ?? 0} width={88} height={32} className="hidden shrink-0 sm:block" />
+        ) : null}
+        <span className="flex shrink-0 flex-col items-end gap-1 pl-1 text-right">
+          {price === null ? (
+            pricePending ? (
+              <>
+                <span aria-hidden className="block h-5 w-16 rounded-sm bg-surface-2" />
+                <span aria-hidden className="block h-4 w-12 rounded-full bg-surface-2" />
+              </>
+            ) : (
+              <>
+                <span className="text-[13px] leading-5 whitespace-nowrap text-fg-muted">{noPriceLabel}</span>
+                <span className="text-xs leading-4 text-fg-muted">
+                  <span aria-hidden>—</span>
+                  <span className="sr-only">{unavailableLabel}</span>
+                </span>
+              </>
+            )
+          ) : (
+            <>
+              <span className="flex items-baseline gap-1 whitespace-nowrap">
+                <FlashPrice value={price} currency={currency} size="sm" className="-mr-1 font-medium" />
+                {currency === "CLP" ? (
+                  <span className="text-[11px] leading-none font-medium text-fg-muted">CLP</span>
+                ) : null}
+              </span>
+              {change === null ? (
+                <span className="text-xs leading-4 text-fg-muted">
+                  <span aria-hidden>—</span>
+                  <span className="sr-only">{unavailableLabel}</span>
+                </span>
+              ) : (
+                <ChangeBadge value={change} size="sm" />
+              )}
+            </>
+          )}
+        </span>
+      </Link>
+      <div className="flex shrink-0 items-center pr-1">
+        <FavoriteButton pressed={favoritePressed} label={favoriteLabel} onToggle={() => onToggleFavorite(symbol)} />
+      </div>
+    </div>
+  );
+}
+
+/** Sólo re-pinta la fila si cambia lo que se ve: la lista llega cada 15 s. */
+function sameMarketListRow(prev: MarketListRowProps, next: MarketListRowProps): boolean {
+  return (
+    prev.href === next.href &&
+    prev.symbol === next.symbol &&
+    prev.name === next.name &&
+    prev.logoUrl === next.logoUrl &&
+    prev.price === next.price &&
+    prev.currency === next.currency &&
+    prev.change === next.change &&
+    prev.pricePending === next.pricePending &&
+    prev.sparkline === next.sparkline &&
+    prev.lowLiquidityLabel === next.lowLiquidityLabel &&
+    prev.reviewLabel === next.reviewLabel &&
+    prev.reviewHint === next.reviewHint &&
+    prev.status?.kind === next.status?.kind &&
+    prev.status?.label === next.status?.label &&
+    prev.favoritePressed === next.favoritePressed &&
+    prev.favoriteLabel === next.favoriteLabel &&
+    prev.noPriceLabel === next.noPriceLabel &&
+    prev.unavailableLabel === next.unavailableLabel &&
+    prev.onToggleFavorite === next.onToggleFavorite
+  );
+}
+
+const MarketListRow = memo(MarketListRowBase, sameMarketListRow);
+
 function ResultsSkeleton({ label }: { label: string }) {
   // Mismo esqueleto que `components/ui/skeleton`, con la retícula real:
   // logo, símbolo + nombre, sparkline (desde sm), precio + variación y el
@@ -198,7 +377,7 @@ function ResultsSkeleton({ label }: { label: string }) {
       <span className="sr-only">{label}</span>
       <div className="flex flex-col divide-y divide-border" aria-hidden>
         {["a", "b", "c", "d", "e", "f", "g", "h"].map((key) => (
-          <div key={key} className="flex min-h-16 items-center gap-2 px-2 py-2 sm:gap-3 sm:px-3">
+          <div key={key} className="flex min-h-16 items-center gap-3 px-1 py-2 sm:gap-4">
             <Skeleton className="size-9 shrink-0 rounded-full" />
             <div className="flex min-w-0 flex-1 flex-col gap-1.5">
               <Skeleton className="h-3.5 w-14" />
@@ -209,7 +388,7 @@ function ResultsSkeleton({ label }: { label: string }) {
               <Skeleton className="h-4 w-16" />
               <Skeleton className="h-5 w-12 rounded-full" />
             </div>
-            <div className="flex size-11 shrink-0 items-center justify-center md:size-12">
+            <div className="flex size-11 shrink-0 items-center justify-center">
               <Skeleton className="size-4 rounded-full" />
             </div>
           </div>
@@ -544,22 +723,28 @@ export function MarketScreen({
   }
 
   const emptyTitle = `${t.market.emptyFor} «${t.market[filter]}»`;
+  /** Ningún precio del lote todavía: la fila muestra marcador, nunca un cero. */
+  const pricePending = quotesBySymbol.size === 0 && (firstPrices?.isPending ?? true);
+  const noPriceLabel = language === "en" ? "No price" : "Sin precio";
 
   return (
     <div className="flex min-w-0 flex-col gap-8 lg:gap-10">
       <div className="flex min-w-0 flex-col gap-5">
         <PageHeader title={t.pages.market.title} description={t.pages.market.lead} />
-        {sections ? <div className="min-w-0">{sections}</div> : null}
+        {sections ? <div className="-mx-5 min-w-0 px-5 sm:mx-0 sm:px-0">{sections}</div> : null}
       </div>
 
       <MarketToday />
 
-      <section aria-labelledby={listTitleId} className="flex min-w-0 flex-col gap-4">
-        <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
-          <h2 id={listTitleId} className="text-xl leading-tight tracking-tight text-fg">
-            {t.market.list}
-          </h2>
-          {/* Vista: mismo criterio de texto que el orden y las categorías. */}
+      <section
+        aria-labelledby={listTitleId}
+        className="flex min-w-0 flex-wrap items-center gap-x-6 gap-y-4"
+      >
+        <h2 id={listTitleId} className="min-w-0 flex-1 text-xl leading-tight tracking-tight text-fg">
+          {t.market.list}
+        </h2>
+        {/* Vista: mismo criterio de texto que el orden y las categorías. */}
+        <div className="min-w-0 max-w-full shrink-0">
           <ChipGroup
             ariaLabel={language === "en" ? "Market view" : "Vista del mercado"}
             value={view}
@@ -570,7 +755,7 @@ export function MarketScreen({
 
         {/* Conteo real y frescura en una sola línea de dato. Sin cifras hasta
             que el catálogo llegue. */}
-        <div className="flex min-w-0 flex-wrap items-center gap-x-2.5 gap-y-1 border-t border-border pt-4 text-[13px] leading-5 text-fg-muted">
+        <div className="flex w-full min-w-0 flex-wrap items-center gap-x-2.5 gap-y-1 border-t border-border pt-4 text-[13px] leading-5 text-fg-muted">
           {total > 0 ? (
             <>
               <span
@@ -596,8 +781,9 @@ export function MarketScreen({
         </div>
 
         {/* Ordenar y categoría: dos grupos con rótulo, en texto. En móvil las
-            categorías quedan detrás de «Todas ▾»; abiertas, envuelven. */}
-        <div className="flex min-w-0 flex-col gap-2">
+            categorías quedan detrás de «Categoría · Todas ▾»; abiertas, se
+            deslizan en un solo carril con snap. */}
+        <div className="flex w-full min-w-0 flex-col gap-2">
           <div className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-0.5">
             <p id={sortLabelId} className="eyebrow w-full shrink-0 sm:w-20">
               {t.market.sortLabel}
@@ -616,7 +802,7 @@ export function MarketScreen({
                 aria-controls={filtersPanelId}
                 aria-label={`${filtersTitle}: ${activeFilterLabel}`}
                 onClick={() => setFiltersOpen((value) => !value)}
-                className="inline-flex min-h-11 cursor-pointer items-center gap-1.5 text-[13px] font-medium text-fg transition-colors hover:text-fg-body sm:hidden"
+                className="inline-flex min-h-11 cursor-pointer items-center gap-1.5 rounded-xs text-[13px] font-medium text-fg outline-none transition-colors hover:text-fg-body focus-visible:ring-2 focus-visible:ring-fg focus-visible:ring-offset-2 focus-visible:ring-offset-bg sm:hidden"
               >
                 {activeFilterLabel}
                 <span aria-hidden className="text-fg-muted">
@@ -635,7 +821,7 @@ export function MarketScreen({
 
         {currencyNote ? (
           <p
-            className="text-[13px] leading-5 text-fg-muted"
+            className="w-full text-[13px] leading-5 text-fg-muted"
             title={currency === "CLP" && !fxKnown ? t.detail.fxFallback : undefined}
           >
             {currencyNote}
@@ -643,101 +829,104 @@ export function MarketScreen({
         ) : null}
 
         {currency === "CLP" && !fxKnown && !fx.isPending && !waiting && !failed ? (
-          <p className="text-[13px] leading-relaxed text-fg-muted">{t.detail.fxFallback}</p>
+          <p className="w-full text-[13px] leading-relaxed text-fg-muted">{t.detail.fxFallback}</p>
         ) : null}
 
-        {waiting ? <ResultsSkeleton label={t.states.loading} /> : null}
+        {waiting ? (
+          <div className="w-full">
+            <ResultsSkeleton label={t.states.loading} />
+          </div>
+        ) : null}
 
         {!waiting && failed ? (
-          <ErrorState
-            title={t.market.loadError}
-            description={failureDetail && failureDetail !== t.market.loadError ? failureDetail : undefined}
-            onRetry={retry}
-            retryLabel={t.states.retry}
-            label={t.states.error}
-          />
+          <div className="w-full">
+            <ErrorState
+              title={t.market.loadError}
+              description={failureDetail && failureDetail !== t.market.loadError ? failureDetail : undefined}
+              onRetry={retry}
+              retryLabel={t.states.retry}
+              label={t.states.error}
+            />
+          </div>
         ) : null}
 
         {!waiting && !failed && listRows.length === 0 ? (
-          filter === "favorites" ? (
-            <EmptyState
-              title={t.market.emptyFavoritesTitle}
-              description={t.market.emptyFavoritesHint}
-              action={
-                <Button variant="secondary" onClick={() => onFilterChange("all")}>
-                  {t.market.emptyFavoritesAction}
-                </Button>
-              }
-            />
-          ) : (
-            <EmptyState title={emptyTitle} description={t.market.emptyHint} />
-          )
+          <div className="w-full">
+            {filter === "favorites" ? (
+              <EmptyState
+                title={t.market.emptyFavoritesTitle}
+                description={t.market.emptyFavoritesHint}
+                action={
+                  <Button variant="secondary" onClick={() => onFilterChange("all")}>
+                    {t.market.emptyFavoritesAction}
+                  </Button>
+                }
+              />
+            ) : (
+              <EmptyState title={emptyTitle} description={t.market.emptyHint} />
+            )}
+          </div>
         ) : null}
 
         {view === "list" && !waiting && !failed && listRows.length > 0 ? (
           <>
             {quotesFailed ? (
-              <LoadFailure message={t.market.loadError} retryLabel={t.states.retry} onRetry={retry} />
+              <div className="w-full">
+                <LoadFailure message={t.market.loadError} retryLabel={t.states.retry} onRetry={retry} />
+              </div>
             ) : null}
 
-            {/* Encabezado y filas en un mismo bloque: la hairline del
-                encabezado queda pegada a la primera fila, como en una tabla. */}
-            <div className="flex min-w-0 flex-col">
-              <div
-                aria-hidden
-                className="hidden items-center justify-end border-b border-border pb-2 pl-3 pr-[3.75rem] sm:flex md:pr-16"
-              >
-                <span className="label-xs">Precio / Var. 24 h</span>
-              </div>
-
-              <ul className="flex min-w-0 flex-col divide-y divide-border">
-                {listRows.map((entry) => {
-                  const shownPrice = entry.quote
-                    ? priceRows([{ item: entry.item, quote: entry.quote, index: entry.index }], currency, rate)[0]
-                    : undefined;
-                  return (
-                    <li key={entry.item.symbol}>
-                      <TickerRow
-                        href={tickerHref(entry.item.symbol)}
-                        symbol={entry.item.symbol}
-                        name={entry.item.name}
-                        logoUrl={entry.item.logoUrl}
-                        price={shownPrice?.price ?? 0}
-                        currency={shownPrice?.currency ?? "USD"}
-                        change={entry.quote?.change24hPct ?? 0}
-                        sparkline={sparkBySymbol.get(entry.item.symbol)}
-                        lowLiquidityLabel={entry.item.lowLiquidity ? t.market.lowLiquidity : null}
-                        reviewLabel={entry.item.underReview ? t.market.underReview : null}
-                        reviewHint={entry.item.underReview ? t.market.underReviewHint : null}
-                        statusDot={dotFor(entry.item)}
-                        priceSlot={
-                          shownPrice ? null : (
-                            <span className="block h-8 w-16 shrink-0 rounded-md bg-surface-2" aria-hidden />
-                          )
-                        }
-                        action={
-                          <FavoriteButton
-                            pressed={favoriteSet.has(entry.item.symbol)}
-                            label={withName(
-                              favoriteSet.has(entry.item.symbol) ? t.market.favoriteOn : t.market.favoriteOff,
-                              entry.item.name,
-                            )}
-                            onToggle={() => toggle(entry.item.symbol)}
-                          />
-                        }
-                      />
-                    </li>
-                  );
-                })}
-              </ul>
+            {/* Rótulo de la columna de cifras; la hairline la pone la lista. */}
+            <div
+              aria-hidden
+              className="hidden w-full items-center justify-end pr-12 sm:flex"
+            >
+              <span className="label-xs">Precio / Var. 24 h</span>
             </div>
 
+            <ul className="flex w-full min-w-0 flex-col divide-y divide-border border-t border-border">
+              {listRows.map((entry) => {
+                const shownPrice = entry.quote
+                  ? priceRows([{ item: entry.item, quote: entry.quote, index: entry.index }], currency, rate)[0]
+                  : undefined;
+                const favorite = favoriteSet.has(entry.item.symbol);
+                const change =
+                  entry.quote && Number.isFinite(entry.quote.change24hPct) ? entry.quote.change24hPct : null;
+                return (
+                  <li key={entry.item.symbol}>
+                    <MarketListRow
+                      href={tickerHref(entry.item.symbol)}
+                      symbol={entry.item.symbol}
+                      name={entry.item.name}
+                      logoUrl={entry.item.logoUrl}
+                      price={shownPrice?.price ?? null}
+                      currency={shownPrice?.currency ?? "USD"}
+                      change={change}
+                      pricePending={pricePending}
+                      sparkline={sparkBySymbol.get(entry.item.symbol)}
+                      lowLiquidityLabel={entry.item.lowLiquidity ? t.market.lowLiquidity : null}
+                      reviewLabel={entry.item.underReview ? t.market.underReview : null}
+                      reviewHint={entry.item.underReview ? t.market.underReviewHint : null}
+                      status={dotFor(entry.item)}
+                      favoritePressed={favorite}
+                      favoriteLabel={withName(favorite ? t.market.favoriteOn : t.market.favoriteOff, entry.item.name)}
+                      onToggleFavorite={toggle}
+                      noPriceLabel={noPriceLabel}
+                      unavailableLabel={t.detail.unavailable}
+                    />
+                  </li>
+                );
+              })}
+            </ul>
+
             {pageFailed ? (
-              <LoadFailure message={t.market.loadError} retryLabel={t.states.retry} onRetry={retry} />
+              <div className="w-full">
+                <LoadFailure message={t.market.loadError} retryLabel={t.states.retry} onRetry={retry} />
+              </div>
             ) : null}
 
             {hasMore && !pageFailed ? (
-              <div className="flex flex-col items-start gap-3 border-t border-border pt-5">
+              <div className="flex w-full flex-col items-start gap-3 border-t border-border pt-5">
                 <Button variant="secondary" onClick={() => setPage((value) => value + 1)} disabled={loadingMore}>
                   {loadMoreLabel}
                 </Button>
@@ -761,13 +950,15 @@ export function MarketScreen({
         {/* Vista de mapa de calor: reemplaza sólo la lista; el resto sigue igual.
             Sin cotizaciones no se pinta ninguna celda y se dice tal cual. */}
         {view === "heatmap" && !waiting && !failed && listRows.length > 0 ? (
-          quotesFailed && heatmapRows.length === 0 ? (
-            <LoadFailure message={t.market.loadError} retryLabel={t.states.retry} onRetry={retry} />
-          ) : heatmapRows.length === 0 && (firstPrices?.isPending ?? false) ? (
-            <ResultsSkeleton label={t.states.loading} />
-          ) : (
-            <MarketHeatmap rows={heatmapRows} />
-          )
+          <div className="w-full">
+            {quotesFailed && heatmapRows.length === 0 ? (
+              <LoadFailure message={t.market.loadError} retryLabel={t.states.retry} onRetry={retry} />
+            ) : heatmapRows.length === 0 && (firstPrices?.isPending ?? false) ? (
+              <ResultsSkeleton label={t.states.loading} />
+            ) : (
+              <MarketHeatmap rows={heatmapRows} />
+            )}
+          </div>
         ) : null}
       </section>
 

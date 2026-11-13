@@ -231,10 +231,13 @@ export function FavoritasScreen() {
 
   return (
     <div className="flex min-w-0 flex-col gap-6">
-      <MarketSectionChips active="stocks" />
       <div className="flex flex-col gap-2">
         <PageHeader title={copy.pageTitle} description={copy.pageLead} />
         <PriceFreshness at={freshestAt} stale={anyStale} />
+      </div>
+      {/* Mismo orden que el mercado: encabezado, secciones, datos. */}
+      <div className="-mx-5 min-w-0 px-5 sm:mx-0 sm:px-0">
+        <MarketSectionChips active="stocks" />
       </div>
       {favoriteSymbols.length > 0 ? (
         <div className="flex max-w-full">
@@ -253,7 +256,7 @@ export function FavoritasScreen() {
         </div>
       ) : null}
       {currency === "CLP" && !fxKnown && !fx.isPending && favoriteSymbols.length > 0 ? (
-        <p className="text-sm text-fg-muted">{t.detail.fxFallback}</p>
+        <p className="text-[13px] leading-5 text-fg-muted">{t.detail.fxFallback}</p>
       ) : null}
       {pendingFavorites || searching ? <ListSkeleton label={copy.loading} /> : null}
       {!pendingFavorites && searchFailed ? (
@@ -287,28 +290,36 @@ export function FavoritasScreen() {
         />
       ) : null}
       {!pendingFavorites && !searching && !searchFailed && rows.length > 0 ? (
-        <ul className="flex min-w-0 flex-col divide-y divide-border">
-          {rows.map((row) => {
-            const shown =
-              row.priceUsd != null ? displayPrice(row.priceUsd, shownCurrency, fxKnown ? rate : undefined) : null;
-            return (
-              <li key={row.symbol}>
-                <FavoriteRow
-                  row={row}
-                  shown={shown}
-                  currency={shownCurrency}
-                  noPrice={copy.noPrice}
-                  noChange={copy.noChange}
-                  lowLiquidityLabel={row.lowLiquidity ? t.market.lowLiquidity : null}
-                  reviewLabel={row.underReview ? t.market.underReview : null}
-                  reviewHint={row.underReview ? t.market.underReviewHint : null}
-                  favoriteLabel={fillAlert(t.market.favoriteOn, { name: row.name })}
-                  onToggle={() => toggle(storedSymbolByKey.get(row.symbol.toLowerCase()) ?? row.symbol)}
-                />
-              </li>
-            );
-          })}
-        </ul>
+        <div className="flex min-w-0 flex-col">
+          <div
+            aria-hidden
+            className="hidden items-center justify-end border-b border-border pb-2 pr-[5.75rem] sm:flex"
+          >
+            <span className="label-xs">Precio / Var. 24 h</span>
+          </div>
+          <ul className="flex min-w-0 flex-col divide-y divide-border">
+            {rows.map((row) => {
+              const shown =
+                row.priceUsd != null ? displayPrice(row.priceUsd, shownCurrency, fxKnown ? rate : undefined) : null;
+              return (
+                <li key={row.symbol}>
+                  <FavoriteRow
+                    row={row}
+                    shown={shown}
+                    currency={shownCurrency}
+                    noPrice={copy.noPrice}
+                    noChange={copy.noChange}
+                    lowLiquidityLabel={row.lowLiquidity ? t.market.lowLiquidity : null}
+                    reviewLabel={row.underReview ? t.market.underReview : null}
+                    reviewHint={row.underReview ? t.market.underReviewHint : null}
+                    favoriteLabel={fillAlert(t.market.favoriteOn, { name: row.name })}
+                    onToggle={() => toggle(storedSymbolByKey.get(row.symbol.toLowerCase()) ?? row.symbol)}
+                  />
+                </li>
+              );
+            })}
+          </ul>
+        </div>
       ) : null}
       <AlertsPanel />
     </div>
@@ -342,22 +353,17 @@ function FavoriteRow({
     <div className="flex min-h-16 items-center transition-colors duration-150 hover:bg-surface-1/70 active:bg-surface-1">
       <Link
         href={tickerHref(row.symbol)}
-        className="flex min-h-16 min-w-0 flex-1 items-center gap-2 px-2 py-2 sm:gap-3 sm:px-3"
+        className="flex min-h-16 min-w-0 flex-1 items-center gap-3 py-3 pr-1 pl-1 sm:gap-4 sm:py-2"
       >
         <TickerLogo symbol={row.symbol} name={row.name} logoUrl={row.logoUrl} size={36} decorative loading="lazy" sizes="40px" />
         <span className="min-w-0 flex-1">
-          <span className="block truncate font-mono text-sm font-semibold tracking-tight text-fg" title={row.symbol}>
-            {row.symbol}
-          </span>
-          <span className="mt-0.5 block truncate text-[13px] leading-4 text-fg-muted" title={row.name}>
-            {row.name}
-            {lowLiquidityLabel ? <span className="hidden sm:inline"> · {lowLiquidityLabel}</span> : null}
+          <span className="block font-mono text-sm leading-5 font-semibold tracking-tight text-fg">{row.symbol}</span>
+          <span className="mt-0.5 block text-[13px] leading-4 text-fg-muted">
+            <span className="break-words">{row.name}</span>
+            {lowLiquidityLabel ? <span className="whitespace-nowrap"> · {lowLiquidityLabel}</span> : null}
           </span>
           {reviewLabel ? (
-            <span
-              className="mt-1 block w-fit max-w-full truncate text-[13px] leading-4 font-medium text-warn"
-              title={reviewHint ?? undefined}
-            >
+            <span className="mt-1 block text-[13px] leading-4 font-medium text-warn" title={reviewHint ?? undefined}>
               {reviewLabel}
             </span>
           ) : null}
@@ -410,13 +416,28 @@ function FavoritesEmptyArt() {
 
 function ListSkeleton({ label }: { label: string }) {
   return (
-    <div role="status" aria-live="polite" aria-busy="true" className="flex flex-col gap-1.5">
+    <div role="status" aria-live="polite" aria-busy="true" className="flex flex-col">
       <span className="sr-only">{label}</span>
-      {["a", "b", "c", "d"].map((key) => (
-        // Se conserva la clase histórica del placeholder y se limita a una
-        // fila (h-16) para que no quede un hueco de dos líneas.
-        <Skeleton key={key} className="h-[6.75rem] w-full rounded-2xl sm:h-14 max-h-16" />
-      ))}
+      <div className="flex flex-col divide-y divide-border" aria-hidden>
+        {["a", "b", "c", "d"].map((key) => (
+          // Misma retícula que la fila real: logo, símbolo + nombre, precio y estrella.
+          <div key={key} className="flex min-h-16 items-center gap-3 px-1 py-2 sm:gap-4">
+            <Skeleton className="size-9 shrink-0 rounded-full" />
+            <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+              <Skeleton className="h-4 w-16" />
+              <Skeleton className="h-3 w-32 max-w-full" />
+            </div>
+            <Skeleton className="hidden h-7 w-[72px] shrink-0 sm:block" />
+            <div className="flex shrink-0 flex-col items-end gap-1">
+              <Skeleton className="h-4 w-16" />
+              <Skeleton className="h-5 w-12 rounded-full" />
+            </div>
+            <div className="flex size-11 shrink-0 items-center justify-center">
+              <Skeleton className="size-4 rounded-full" />
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

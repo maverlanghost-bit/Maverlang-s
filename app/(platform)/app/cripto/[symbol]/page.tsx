@@ -107,15 +107,17 @@ function MetaItem({ children, separator = false }: { children: ReactNode; separa
   );
 }
 
-/** Fila de dato con hairline: rótulo a la izquierda, valor a la derecha. */
+/** Fila de especificación: rótulo mono a la izquierda, valor tabular a la derecha. */
 function DataRow({ label, children, mono = true }: { label: string; children: ReactNode; mono?: boolean }) {
   return (
-    <div className="flex items-baseline justify-between gap-6 border-b border-border/70 py-3 last:border-b-0">
-      <dt className="min-w-0 flex-1 text-[13px] leading-5 text-fg-muted">{label}</dt>
+    <div className="flex min-w-0 items-baseline justify-between gap-4 border-b border-border py-3 last:border-b-0">
+      <dt className="min-w-0 flex-1 font-mono text-[13px] leading-4 font-medium tracking-[0.06em] text-fg-muted uppercase">
+        {label}
+      </dt>
       <dd
         className={cn(
-          "min-w-0 text-right text-[13px] leading-5 font-medium text-fg",
-          mono ? "num shrink-0 whitespace-nowrap" : "font-sans",
+          "min-w-0 max-w-[62%] text-right text-[15px] leading-5 font-medium text-fg tabular-nums [overflow-wrap:anywhere]",
+          mono ? "num" : "font-sans",
         )}
       >
         {children}
@@ -223,7 +225,7 @@ export default async function CriptoFichaPage({ params }: { params: Promise<{ sy
             <h2 id="datos-token" className="text-lg font-medium tracking-tight text-fg">
               Datos del token
             </h2>
-            <dl className="mt-2">
+            <dl className="mt-3">
               <DataRow label="Red">Solana</DataRow>
               <DataRow label="Versión y origen" mono={false}>
                 {asset.originLabel}
@@ -235,9 +237,11 @@ export default async function CriptoFichaPage({ params }: { params: Promise<{ sy
               ) : null}
               <DataRow label="Decimales">{asset.decimals ?? "Sin dato"}</DataRow>
               <DataRow label="Tope por orden">{formatMoney(asset.maxOrderUsd, "USD")}</DataRow>
-              <div className="py-3">
-                <dt className="text-[13px] leading-5 text-fg-muted">Mint</dt>
-                <dd className="mt-1.5">
+              <div className="min-w-0 py-3">
+                <dt className="font-mono text-[13px] leading-4 font-medium tracking-[0.06em] text-fg-muted uppercase">
+                  Mint
+                </dt>
+                <dd className="mt-2">
                   <p className="num text-[13px] leading-5 break-all text-fg">{asset.mint}</p>
                   <div className="mt-2 flex flex-wrap items-center gap-x-5 gap-y-1">
                     <CopyButton value={asset.mint} label="Copiar mint" copiedLabel="Copiado" />

@@ -13,18 +13,18 @@ export default function FavoritasLoading() {
     <div role="status" aria-live="polite" aria-busy="true" className="flex min-w-0 flex-col gap-6">
       <span className="sr-only">Cargando las favoritas</span>
 
-      <div className="flex flex-wrap items-center gap-x-6 gap-y-0.5">
-        {SECTION_CHIPS.map((key) => (
-          <span key={key} className="flex min-h-11 items-center sm:min-h-8">
-            <Skeleton className="h-3.5 w-16" />
-          </span>
-        ))}
-      </div>
-
       <div className="flex flex-col gap-2">
         <Skeleton className="h-9 w-40 max-w-full sm:h-10 sm:w-44" />
         <Skeleton className="h-4 w-72 max-w-full" />
         <Skeleton className="mt-1 h-3.5 w-44 max-w-full" />
+      </div>
+
+      <div className="no-scrollbar -mx-5 flex items-center gap-x-6 overflow-x-auto px-5 sm:mx-0 sm:px-0">
+        {SECTION_CHIPS.map((key) => (
+          <span key={key} className="flex min-h-11 shrink-0 items-center sm:min-h-8">
+            <Skeleton className="h-3.5 w-16" />
+          </span>
+        ))}
       </div>
 
       <div className="inline-flex w-fit max-w-full rounded-full border border-border bg-surface-2 p-1">
@@ -34,13 +34,13 @@ export default function FavoritasLoading() {
 
       <div className="flex min-w-0 flex-col divide-y divide-border">
         {ROWS.map((key) => (
-          <div key={key} className="flex min-h-16 items-center gap-3 px-2 py-2 sm:px-3">
+          <div key={key} className="flex min-h-16 items-center gap-3 px-1 py-2 sm:gap-4">
             <Skeleton className="size-9 shrink-0 rounded-full" />
             <div className="flex min-w-0 flex-1 flex-col gap-2">
               <Skeleton className="h-4 w-20 max-w-[40%]" />
               <Skeleton className="h-3 w-40 max-w-[70%]" />
             </div>
-            <Skeleton className="hidden h-7 w-16 shrink-0 sm:block" />
+            <Skeleton className="hidden h-7 w-[72px] shrink-0 sm:block" />
             <div className="flex shrink-0 flex-col items-end gap-2">
               <Skeleton className="h-4 w-16" />
               <Skeleton className="h-3 w-10" />

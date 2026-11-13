@@ -26,15 +26,10 @@ export default function AccionLoading() {
               <Skeleton className="size-10 rounded-full" />
             </div>
           </div>
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-            <Skeleton className="h-3.5 w-20" />
-            <Skeleton className="h-3.5 w-24" />
-            <Skeleton className="h-3.5 w-24" />
-          </div>
         </div>
 
-        {/* Héroe: precio, variación, pestañas de rango y gráfico sin marco. */}
-        <div className="flex min-w-0 flex-col">
+        {/* Mismo orden que la pantalla: en móvil el precio va antes que el contexto. */}
+        <div className="order-1 flex min-w-0 flex-col lg:order-2">
           <Skeleton className="-ml-1 h-14 w-56 max-w-full bg-surface-2" />
           <Skeleton className="mt-3 h-4 w-40" />
 
@@ -64,6 +59,13 @@ export default function AccionLoading() {
               <Skeleton className="h-3.5 w-24" />
             </div>
           </div>
+        </div>
+
+        {/* Contexto del activo: en móvil va después del precio. */}
+        <div className="order-2 flex flex-wrap items-center gap-x-3 gap-y-2 lg:order-1">
+          <Skeleton className="h-4 w-20" />
+          <Skeleton className="h-4 w-24" />
+          <Skeleton className="h-4 w-24" />
         </div>
 
         <div className="flex flex-wrap gap-2">

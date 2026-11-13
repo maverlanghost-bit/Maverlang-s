@@ -141,20 +141,25 @@ function shownMoney(usd: number, currency: Currency, rate: number | undefined) {
 }
 
 /**
- * Rótulos y cifras de una misma familia en toda la ficha: 12px mayúsculas
- * para el rótulo, 15px tabular para el dato. Nada informativo baja de 12px.
+ * Rótulos y cifras de una misma familia en toda la ficha: 13px mono
+ * mayúsculas para el rótulo, 15px tabular para el dato. Nada informativo
+ * baja de 13px.
  */
-const METRIC_LABEL = "font-mono text-xs leading-4 font-medium tracking-[0.08em] text-fg-muted uppercase";
-const NOTE = "text-xs leading-5 text-fg-muted";
+const METRIC_LABEL = "font-mono text-[13px] leading-4 font-medium tracking-[0.06em] text-fg-muted uppercase";
+const NOTE = "text-[13px] leading-5 text-fg-muted";
 
-/** Fila de dato con hairline: rótulo arriba en móvil; rótulo y cifra en línea desde sm. */
+/**
+ * Fila de especificación: rótulo a la izquierda y valor a la derecha,
+ * separados por una hairline. En 360 px el valor puede bajar de línea sin
+ * empujar la página ni desbordar.
+ */
 function DataRow({ label, children, mono = true }: { label: string; children: ReactNode; mono?: boolean }) {
   return (
-    <div className="flex min-w-0 flex-col gap-1 border-b border-border py-3 last:border-b-0 sm:flex-row sm:items-baseline sm:justify-between sm:gap-6">
-      <dt className={cn(METRIC_LABEL, "min-w-0 sm:flex-1")}>{label}</dt>
+    <div className="flex min-w-0 items-baseline justify-between gap-4 border-b border-border py-3 last:border-b-0">
+      <dt className={cn(METRIC_LABEL, "min-w-0 flex-1")}>{label}</dt>
       <dd
         className={cn(
-          "min-w-0 text-[15px] leading-5 font-medium break-words text-fg tabular-nums sm:shrink-0 sm:text-right sm:whitespace-nowrap",
+          "min-w-0 max-w-[62%] text-right text-[15px] leading-5 font-medium text-fg tabular-nums [overflow-wrap:anywhere]",
           mono ? "num" : "font-sans",
         )}
       >
@@ -996,7 +1001,7 @@ export function DetailScreen({
       animate={{ opacity: 1, scale: 1 }}
       transition={reduceMotion ? { duration: 0 } : { duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
     >
-      <div className="flex min-w-0 max-w-full flex-col gap-10">
+      <div className="flex min-w-0 max-w-full flex-col gap-10 pb-36 lg:pb-0">
         <div className="flex min-w-0 flex-col gap-4">
           <Link
             href="/app"
@@ -1040,9 +1045,34 @@ export function DetailScreen({
               <ShareButton name={ticker.name} />
             </div>
           </header>
+        </div>
 
+        {/* En móvil, precio primero: el precio y la única CTA caben en el
+            primer pliegue de 360 px. Desde lg el contexto vuelve sobre el gráfico. */}
+        <div className="order-1 min-w-0 lg:order-2">
+          <PricePanel
+            symbol={ticker.symbol}
+            name={ticker.name}
+            quote={quote}
+            pending={prices.isPending && quote === null}
+            onRetry={() => {
+              void prices.refetch();
+            }}
+            currency={currency}
+            rate={rate}
+            fxPending={fx.isPending}
+            range={range}
+            onRangeChange={setRange}
+            priceUpdatedAt={prices.dataUpdatedAt || quote?.updatedAt || null}
+            priceStale={quote?.stale === true}
+            underlying={ticker.underlying}
+            avgCostUsd={position?.avgCostUsd ?? null}
+          />
+        </div>
+
+        <div className="order-2 flex min-w-0 flex-col gap-3 lg:order-1">
           <ul
-            className="flex min-w-0 max-w-full list-none flex-wrap items-center gap-x-2.5 gap-y-1 p-0 font-mono text-xs leading-4 tracking-[0.08em] text-fg-muted uppercase"
+            className="flex min-w-0 max-w-full list-none flex-wrap items-center gap-x-2.5 gap-y-1 p-0 font-mono text-[13px] leading-4 tracking-[0.06em] text-fg-muted uppercase"
             aria-label={t.detail.chips}
           >
             {contextItems.map((item, index) => (
@@ -1063,7 +1093,7 @@ export function DetailScreen({
             <li className="sm:hidden">
               <Link
                 href={`/app/asistente?ticker=${encodeURIComponent(ticker.symbol)}&q=${encodeURIComponent(`Analiza ${ticker.name} (${ticker.symbol}): desempeño, riesgos y contexto actual`)}`}
-                className="-mx-2 inline-flex min-h-11 items-center gap-1.5 rounded-full px-2 text-xs font-medium text-fg-muted transition-colors hover:text-fg focus-visible:ring-4 focus-visible:ring-fg/20 focus-visible:outline-none"
+                className="-mx-2 inline-flex min-h-11 items-center gap-1.5 rounded-full px-2 text-[13px] font-medium text-fg-muted transition-colors hover:text-fg focus-visible:ring-4 focus-visible:ring-fg/20 focus-visible:outline-none"
               >
                 <svg className="size-3.5 shrink-0" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
                   <path d="M8 1l1.65 4.35L14 7l-4.35 1.65L8 13l-1.65-4.35L2 7l4.35-1.65L8 1z" />
@@ -1073,28 +1103,9 @@ export function DetailScreen({
             </li>
           </ul>
           {statusReady && chipNote ? (
-            <p className="text-xs leading-5 text-fg-muted">{chipNote}</p>
+            <p className="text-[13px] leading-5 text-fg-muted">{chipNote}</p>
           ) : null}
         </div>
-
-        <PricePanel
-          symbol={ticker.symbol}
-          name={ticker.name}
-          quote={quote}
-          pending={prices.isPending && quote === null}
-          onRetry={() => {
-            void prices.refetch();
-          }}
-          currency={currency}
-          rate={rate}
-          fxPending={fx.isPending}
-          range={range}
-          onRangeChange={setRange}
-          priceUpdatedAt={prices.dataUpdatedAt || quote?.updatedAt || null}
-          priceStale={quote?.stale === true}
-          underlying={ticker.underlying}
-          avgCostUsd={position?.avgCostUsd ?? null}
-        />
 
         {/* Explicación del gráfico en el asistente y tarjeta para compartir: sin montos. */}
         <div className="flex flex-wrap items-center gap-2">
