@@ -4,6 +4,8 @@ import { ONDO_MINTS, ONDO_TICKERS } from "@/config/ondo.generated";
 import { TICKERS } from "@/config/tickers";
 import { DomainError } from "@/lib/api/result";
 import { findAssetByMint, findAssetBySymbol } from "@/lib/catalog/assets";
+import { CRYPTO_ASSETS } from "@/lib/catalog/crypto";
+import { LST_ASSETS } from "@/lib/catalog/lst";
 
 /**
  * Allowlist dinámica (M54/M52b, sólo servidor). La COMPRA exige que el activo
@@ -17,6 +19,10 @@ import { findAssetByMint, findAssetBySymbol } from "@/lib/catalog/assets";
  * Si Supabase falla, el catálogo cae al snapshot estático
  * (`config/tickers.generated.ts`): nunca se permite un mint desconocido.
  * Un mint Ondo en `watch` no se compra aunque el cliente lo mande a mano.
+ * Cripto y LST de Ganar (K1/K2) son un catálogo APARTE: se aceptan por símbolo
+ * o por mint EXACTO de `lib/catalog/crypto.ts` / `lib/catalog/lst.ts`, en
+ * compra y en venta, sin tocar la regla xStocks/Ondo ni `public.assets`; el
+ * resto de lo desconocido sigue dando `MINT_NOT_ALLOWED`.
  * `lib/solana/allowlist.ts` sigue existiendo para el cliente (es puro);
  * ningún archivo cliente importa este módulo.
  */
@@ -32,11 +38,38 @@ function hasXstocksMintShape(mint: string): boolean {
   return true;
 }
 
+export interface TradableAsset {
+  symbol: string;
+  mint: string;
+}
+
+/**
+ * Cripto y LST de Ganar: allowlist cerrada de K1/K2, en memoria y sin I/O. El
+ * símbolo y el mint se comparan EXACTOS (los canónicos son `BTC`, `USDe`,
+ * `JitoSOL`…) y lo que se devuelve es siempre el mint del catálogo, nunca el
+ * texto que mandó el cliente.
+ */
+const CRYPTO_AND_LST: readonly TradableAsset[] = [...CRYPTO_ASSETS, ...LST_ASSETS];
+
+function catalogAssetBySymbol(symbol: string): TradableAsset | null {
+  const wanted = symbol.trim();
+  if (!wanted) return null;
+  const asset = CRYPTO_AND_LST.find((row) => row.symbol === wanted);
+  return asset ? { symbol: asset.symbol, mint: asset.mint } : null;
+}
+
+function catalogAssetByMint(mint: string): TradableAsset | null {
+  const asset = CRYPTO_AND_LST.find((row) => row.mint === mint);
+  return asset ? { symbol: asset.symbol, mint: asset.mint } : null;
+}
+
 /** true si el mint es operable hoy (catálogo + emisor). Nunca "permitir todo". */
 export async function isTradableMint(
   mint: string,
   deps?: { fetchImpl?: typeof fetch; now?: () => number },
 ): Promise<boolean> {
+  // Cripto/LST (K1/K2): el mint EXACTO del catálogo, sin consultar Supabase.
+  if (catalogAssetByMint(mint)) return true;
   // El registro Ondo manda primero: exacto por mint, sin forma `Xs`.
   if (ONDO_MINTS.has(mint)) {
     const asset = await findAssetByMint(mint, deps);
@@ -50,11 +83,6 @@ export async function isTradableMint(
   return asset.mint === mint;
 }
 
-export interface TradableAsset {
-  symbol: string;
-  mint: string;
-}
-
 /** Activo operable por símbolo, o null si no se puede operar (watch/hidden/desconocido). */
 export async function tradableBySymbol(
   symbol: string,
@@ -62,6 +90,9 @@ export async function tradableBySymbol(
 ): Promise<TradableAsset | null> {
   const wanted = symbol.trim();
   if (!wanted) return null;
+  // Cripto/LST (K1/K2): símbolo exacto del catálogo, sin tocar Supabase.
+  const listed = catalogAssetBySymbol(wanted);
+  if (listed) return listed;
   // Fila exacta, sin ficha elegida: lo pedido a mano en `watch` no se opera.
   const asset = await findAssetBySymbol(wanted, { scope: "all", noListing: true, ...deps });
   if (!asset || !asset.tradable) return null;
@@ -95,6 +126,8 @@ export type TradeSide = "buy" | "sell";
  * mint/símbolo desconocido da `MINT_NOT_ALLOWED` en ambos lados: nunca se
  * permite todo. Que el usuario tenga acciones suficientes se valida después,
  * en el servicio, como siempre.
+ * Cripto y LST (K1/K2) pasan por los DOS lados con el símbolo exacto y el mint
+ * del catálogo; el bloqueo de dinero real para criptos/staking vive en G4.
  */
 export async function requireOperable(
   symbol: string,
@@ -103,6 +136,9 @@ export async function requireOperable(
 ): Promise<TradableAsset> {
   const wanted = symbol.trim();
   if (!wanted) throw new DomainError("MINT_NOT_ALLOWED");
+  // Cripto/LST (K1/K2): compra y venta por símbolo exacto, sin I/O.
+  const listed = catalogAssetBySymbol(wanted);
+  if (listed) return listed;
   if (side === "buy") {
     const asset = await tradableBySymbol(wanted, deps);
     if (!asset) throw new DomainError("MINT_NOT_ALLOWED");

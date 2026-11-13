@@ -20,6 +20,8 @@ import { serverEnv } from "@/lib/env";
 import { isCatalogSymbol } from "@/lib/catalog/symbol";
 import { requireOperable, requireTradableSymbol, type TradeSide } from "@/lib/catalog/tradable";
 import { findAssetBySymbol } from "@/lib/catalog/assets";
+import { CRYPTO_ASSETS } from "@/lib/catalog/crypto";
+import { LST_ASSETS } from "@/lib/catalog/lst";
 import { withMockError } from "@/lib/mocks/latency";
 import type { Services } from "@/lib/services";
 import { isOfficialMint } from "@/lib/solana/allowlist";
@@ -411,14 +413,35 @@ export async function requireSymbolForSide(symbol: string, side: TradeSide): Pro
 }
 
 /**
+ * Cripto y LST de Ganar (K1/K2): catálogo propio y cerrado, en memoria. El
+ * símbolo se compara EXACTO y se devuelve el canónico del catálogo, nunca el
+ * texto del cliente. USDY está en ambos catálogos y resuelve igual.
+ */
+function cryptoOrLstSymbol(symbol: string): string | null {
+  const wanted = symbol.trim();
+  if (!wanted) return null;
+  const asset =
+    CRYPTO_ASSETS.find((row) => row.symbol === wanted) ??
+    LST_ASSETS.find((row) => row.symbol === wanted);
+  return asset?.symbol ?? null;
+}
+
+/**
  * Símbolo visible del catálogo (M54): `listed`, `watch` o en transición;
  * `hidden` y lo desconocido → MINT_NOT_ALLOWED. Lo usan precios e historial,
  * que también cubren filas no operables. En mock se acepta un símbolo de
  * catálogo bien formado (`AAPLx` u `ABNBon`): la ancla cubre todo, así el
  * e2e puede usar un fixture amplio.
+ * Cripto y LST de Ganar (K1/K2): símbolo EXACTO del catálogo propio (BTC, SOL,
+ * USDe, JitoSOL…), también para precios e historial. No amplía a símbolos
+ * arbitrarios: lo que no esté en K1/K2 sigue el camino de acciones.
  */
 export async function requireVisibleSymbol(symbol: string): Promise<string> {
   const wanted = symbol.trim();
+  // Cripto/LST primero: es memoria pura y evita una consulta a Supabase por
+  // cada precio de cripto. Devuelve el símbolo canónico, no el del cliente.
+  const listed = cryptoOrLstSymbol(wanted);
+  if (listed) return listed;
   const asset = await findAssetBySymbol(wanted, { scope: "all" });
   if (asset) return asset.symbol;
   if (serverEnv.DATA_MODE !== "live" && isCatalogSymbol(wanted)) return wanted;
@@ -426,6 +449,8 @@ export async function requireVisibleSymbol(symbol: string): Promise<string> {
 }
 
 export function requireMint(mint: string): string {
+  // Sólo la salida de dinero real (Enviar) usa esto: cripto/LST NO se aceptan
+  // acá, el dinero real de criptos sigue bloqueado (CRIPTO_F1, decisión §1.1).
   if (!isOfficialMint(mint)) throw new DomainError("MINT_NOT_ALLOWED");
   return mint;
 }

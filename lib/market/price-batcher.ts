@@ -1,6 +1,8 @@
 import { tickerBySymbol } from "@/config/tickers";
 import { DomainError } from "@/lib/api/result";
 import { findAssetBySymbol, toTicker } from "@/lib/catalog/assets";
+import { cryptoBySymbol } from "@/lib/catalog/crypto";
+import { lstBySymbol } from "@/lib/catalog/lst";
 import { parseJupiterPrices } from "@/lib/market/live-quotes";
 import { cachedUnderlyingChanges } from "@/lib/market/underlying-move";
 import { roundDigits } from "@/lib/mocks/number";
@@ -11,8 +13,10 @@ import type { Quote, Ticker } from "@/lib/types";
  * Precios en lote (M38). Agrupa mints en lotes de hasta 50 (límite de
  * Jupiter Price v3), junta pedidos iguales en vuelo, guarda cada mint 15 s y,
  * ante un 429 o un error, devuelve el último valor guardado marcado `stale`
- * (o la referencia si nunca hubo precio). Reintenta con espera (backoff).
+ * (o queda sin cotización si nunca hubo precio). Reintenta con espera (backoff).
  * `usdPrice` de Jupiter ya es precio por acción: no se divide (regla M34).
+ * Cripto y LST (catálogos K1/K2) se resuelven aquí; si Price v3 omite su
+ * mint quedan sin precio, sin ancla ni `reference: true`.
  */
 
 export const PRICE_BATCH_MAX_IDS = 50;
@@ -125,7 +129,8 @@ async function fetchChunkWithRetry(
  * Precios por mint. Los frescos (< 15 s) no tocan la red. Los demás se piden
  * en lotes de 50; dos llamadas iguales en vuelo comparten la misma promesa.
  * Si un lote falla tras los reintentos, cada mint vuelve al último valor
- * guardado (`stale: true`) o queda ausente (el caller usa la referencia).
+ * guardado (`stale: true`) o queda ausente (las acciones usan la referencia;
+ * cripto y LST quedan sin precio).
  */
 export async function fetchMintBatch(
   mints: readonly string[],
@@ -223,18 +228,94 @@ export interface BatchedQuoteOptions extends MintBatchOptions {
   underlyingBudgetMs?: number;
 }
 
-async function resolveTickers(symbols: readonly string[]): Promise<Ticker[]> {
-  const out: Ticker[] = [];
+/** Lo que el batcher necesita de cada símbolo además del `Ticker` resuelto. */
+interface ResolvedTicker {
+  ticker: Ticker;
+  /**
+   * Cripto o LST: si Price v3 omite el mint, el activo queda sin precio.
+   * Nunca se rellena con el ancla del demo ni con `reference: true`.
+   */
+  digital: boolean;
+  /** Token-2022: único caso en que se lee el multiplicador escalado. */
+  scaledUi: boolean;
+}
+
+/**
+ * Busca por símbolo canónico y, si el caller viene en otra caja (la UI a
+ * veces pasa minúsculas), por su forma en minúsculas. El `Map.get` exacto va
+ * primero: es el caso normal y no recorre nada.
+ */
+function catalogLookup<T>(catalog: ReadonlyMap<string, T>, symbol: string): T | undefined {
+  const direct = catalog.get(symbol);
+  if (direct !== undefined) return direct;
+  const wanted = symbol.trim().toLowerCase();
+  for (const [key, row] of catalog) {
+    if (key.toLowerCase() === wanted) return row;
+  }
+  return undefined;
+}
+
+/**
+ * `Ticker` tipa como acciones (emisor xStocks/Ondo y 8 decimales), pero el
+ * batcher sólo usa `symbol`, `mint` y `underlying`. Cripto y LST llevan su
+ * decimal real —nunca 8 inventado— y un emisor que nombra el origen del
+ * token, jamás uno de acciones. Esos dos campos salen del tipo de acciones
+ * con un cast puntual; el resto queda comprobado.
+ */
+function digitalTicker(
+  asset: { symbol: string; name: string; mint: string },
+  decimals: number,
+  issuer: string,
+): Ticker {
+  return {
+    symbol: asset.symbol,
+    underlying: "",
+    name: asset.name,
+    mint: asset.mint,
+    decimals: decimals as Ticker["decimals"],
+    issuer: issuer as Ticker["issuer"],
+    category: "other",
+    logo: "",
+    enabled: true,
+  };
+}
+
+async function resolveTickers(symbols: readonly string[]): Promise<ResolvedTicker[]> {
+  const out: ResolvedTicker[] = [];
   for (const symbol of symbols) {
     const ticker = tickerBySymbol(symbol);
     if (ticker) {
-      out.push(ticker);
+      out.push({ ticker, digital: false, scaledUi: false });
+      continue;
+    }
+    // Cripto (K1) y LST (K2): catálogo propio, fuera de `public.assets` y del
+    // emisor de acciones. Se mira antes de la búsqueda en la base porque sus
+    // símbolos no viven en `public.assets` y no hace falta una consulta.
+    const crypto = catalogLookup(cryptoBySymbol, symbol);
+    if (crypto) {
+      // Sin decimales no se cotiza (NEAR hasta confirmar metadata): no se
+      // inventa un decimal y el símbolo queda sin precio.
+      if (crypto.decimals === null) continue;
+      out.push({
+        ticker: digitalTicker(crypto, crypto.decimals, crypto.originLabel),
+        digital: true,
+        scaledUi: crypto.tokenProgram === "token-2022",
+      });
+      continue;
+    }
+    const lst = catalogLookup(lstBySymbol, symbol);
+    if (lst) {
+      out.push({
+        ticker: digitalTicker(lst, lst.decimals, lst.issuerName),
+        digital: true,
+        scaledUi: false,
+      });
       continue;
     }
     // Activos nuevos del catálogo (M54): el mint sale de la fila, no del snapshot.
     const asset = await findAssetBySymbol(symbol, { scope: "all" });
-    if (!asset || !asset.mint) throw new DomainError("NOT_FOUND", "No encontramos esa acción.");
-    out.push(toTicker(asset));
+    if (!asset || !asset.mint) throw new DomainError("NOT_FOUND", "No encontramos ese activo.");
+    out.push({ ticker: toTicker(asset), digital: false, scaledUi: false });
   }
   return out;
 }
@@ -261,6 +342,8 @@ async function underlyingMoves(
 /**
  * Cotizaciones por símbolo vía el batcher. Misma regla que M34: `usdPrice`
  * tal cual, `reference: true` con la ancla si el mint no trajo precio.
+ * Cripto y LST son la excepción: si Price v3 omite el mint, la cotización no
+ * se emite (el caller muestra "sin precio"), nunca una ancla ni `reference`.
  * Si Jupiter no manda `priceChange24h`, el titular sigue el precio del
  * subyacente (`stockData.price`) y la variación la pone `underlyingChange`.
  * El valor `stale` avisa que el precio es el último guardado tras un 429/error.
@@ -269,10 +352,17 @@ export async function listBatchedQuotes(
   symbols: readonly string[],
   options: BatchedQuoteOptions,
 ): Promise<Quote[]> {
-  const tickers = await resolveTickers(symbols);
+  const resolved = await resolveTickers(symbols);
+  const tickers = resolved.map((entry) => entry.ticker);
   const now = options.now?.() ?? Date.now();
+  // El multiplicador escalado sólo se lee en acciones y en un mint
+  // Token-2022 que lo exija (p. ej. PYUSD). El resto de cripto/LST usa 1
+  // sin gastar una lectura de RPC.
+  const multiplierTickers = resolved
+    .filter((entry) => !entry.digital || entry.scaledUi)
+    .map((entry) => entry.ticker);
   const [multipliers, prices] = await Promise.all([
-    (options.prepareMultipliers?.(tickers) ?? Promise.resolve(new Map<string, number>())).catch(
+    (options.prepareMultipliers?.(multiplierTickers) ?? Promise.resolve(new Map<string, number>())).catch(
       () => new Map<string, number>(),
     ),
     fetchMintBatch(
@@ -291,19 +381,28 @@ export async function listBatchedQuotes(
     ),
   ];
   const moves = await underlyingMoves(missingChange, options, now);
-  return tickers.map((ticker) => {
+  const quotes: Quote[] = [];
+  for (const { ticker, digital } of resolved) {
     const row = prices.get(ticker.mint);
-    if (!row) return { ...quoteFor(ticker.symbol, now), reference: true };
+    if (!row) {
+      // Cripto/LST sin precio en Price v3: queda sin precio. No se usa el
+      // ancla del demo ni `reference: true`.
+      if (digital) continue;
+      quotes.push({ ...quoteFor(ticker.symbol, now), reference: true });
+      continue;
+    }
     const multiplier = multipliers.get(ticker.symbol) ?? options.multiplierOf?.(ticker.symbol) ?? 1;
     const safeMultiplier = Number.isFinite(multiplier) && multiplier > 0 ? multiplier : 1;
     const priceUsd = roundDigits(shownMintPrice(row), 6);
     if (!Number.isFinite(priceUsd) || priceUsd <= 0) {
-      return { ...quoteFor(ticker.symbol, now), reference: true };
+      if (digital) continue;
+      quotes.push({ ...quoteFor(ticker.symbol, now), reference: true });
+      continue;
     }
     const fromUnderlying = row.changeKnown === false ? moves.get(ticker.underlying) : undefined;
     const changeRatio =
       fromUnderlying !== undefined && Number.isFinite(fromUnderlying) ? fromUnderlying : row.changeRatio;
-    return {
+    quotes.push({
       symbol: ticker.symbol,
       priceUsd,
       change24hPct: roundDigits(changeRatio, 6),
@@ -313,6 +412,7 @@ export async function listBatchedQuotes(
       ...(row.stale ? { stale: true } : {}),
       ...(row.marketPriceUsd !== undefined ? { marketPriceUsd: roundDigits(row.marketPriceUsd, 6) } : {}),
       ...(row.liquidityUsd !== undefined ? { liquidityUsd: roundDigits(row.liquidityUsd, 2) } : {}),
-    };
-  });
+    });
+  }
+  return quotes;
 }

@@ -39,6 +39,7 @@ import { useActivity, useAssetStatuses, useFx, useHistories, useHistory, usePort
 import { priceFlashDirection, type PriceFlash } from "@/lib/hooks/use-price-flash";
 import { useT } from "@/lib/hooks/use-t";
 import { logoPathFromSymbol } from "@/lib/catalog/logos";
+import { positionMeta } from "@/lib/catalog/position-meta";
 import { displayPrice } from "@/lib/market/browse";
 import type { AssetStatus } from "@/lib/market/asset-status.shared";
 import { DETAIL_RANGES, isDetailRange, isReferenceHistory, rangeMove, toneOf } from "@/lib/market/series";
@@ -92,11 +93,12 @@ function fill(template: string, values: Record<string, string>) {
 }
 
 function tickerHref(symbol: string) {
-  return `/app/accion/${encodeURIComponent(symbol)}`;
+  const base = positionMeta(symbol) ? "/app/cripto" : "/app/accion";
+  return `${base}/${encodeURIComponent(symbol)}`;
 }
 
 function sellHref(symbol: string) {
-  return `/app/accion/${encodeURIComponent(symbol)}?operar=vender`;
+  return `${tickerHref(symbol)}?operar=vender`;
 }
 
 function explorerTxUrl(signature: string) {
@@ -492,6 +494,13 @@ export function PortfolioScreen() {
     return map;
   }, [tickers.data]);
 
+  // Las criptos y los LST no viven en `useTickers` (catálogo de acciones): su
+  // nombre sale de los catálogos K1/K2 y, si el símbolo no está ahí, se sigue
+  // con el mapa de acciones de siempre. Sin esto una posición BTC o JitoSOL
+  // se vería con el símbolo crudo.
+  const positionName = (symbol: string) =>
+    positionMeta(symbol)?.name ?? tickerBySymbol.get(symbol)?.name ?? symbol;
+
   // Una sola petición de estado para todas las posiciones de la cartera.
   // `useTickers` no reemplaza estos datos: el catálogo no trae `safetyStatus`,
   // `period` ni `halted`, así que usarlo para el aviso inventaría estado.
@@ -569,7 +578,7 @@ export function PortfolioScreen() {
       if (!(position.valueUsd > 0)) continue;
       sliceInputs.push({
         key: position.symbol,
-        label: tickerBySymbol.get(position.symbol)?.name ?? position.symbol,
+        label: positionName(position.symbol),
         valueUsd: position.valueUsd,
         color: POSITION_COLORS[sliceInputs.length % POSITION_COLORS.length] ?? "#059669",
       });
@@ -595,7 +604,7 @@ export function PortfolioScreen() {
       .filter((position) => position.valueUsd > 0)
       .map((position, index) => ({
         symbol: position.symbol,
-        name: tickerBySymbol.get(position.symbol)?.name ?? position.symbol,
+        name: positionName(position.symbol),
         valueUsd: position.valueUsd,
         pct: loaded.totalUsd > 0 ? position.valueUsd / loaded.totalUsd : 0,
         color: POSITION_COLORS[index % POSITION_COLORS.length] ?? "#059669",
@@ -606,8 +615,8 @@ export function PortfolioScreen() {
     const copy = carteraCopy(language);
     const ui = carteraUi(language);
     const perf = portfolioPerformance(loaded.positions, { pnlUsd: loaded.pnlUsd, pnlPct: loaded.pnlPct });
-    const bestName = perf.best ? (tickerBySymbol.get(perf.best.symbol)?.name ?? perf.best.symbol) : null;
-    const worstName = perf.worst ? (tickerBySymbol.get(perf.worst.symbol)?.name ?? perf.worst.symbol) : null;
+    const bestName = perf.best ? positionName(perf.best.symbol) : null;
+    const worstName = perf.worst ? positionName(perf.worst.symbol) : null;
     const hasPositions = loaded.positions.length > 0;
     // Sin USDC el primer paso es depositar; con saldo, explorar el mercado.
     const hasCash = loaded.cashUsdc > 0;
@@ -722,6 +731,7 @@ export function PortfolioScreen() {
               <ul className="mt-2 divide-y divide-border/60 tabular-nums">
                 {loaded.positions.map((position) => {
                   const ticker = tickerBySymbol.get(position.symbol);
+                  const name = positionName(position.symbol);
                   const value = moneyView(position.valueUsd, currency, rate);
                   const pnlValue = position.pnlUsd === null ? null : moneyView(position.pnlUsd, currency, rate);
                   return (
@@ -729,7 +739,7 @@ export function PortfolioScreen() {
                       <PositionRow
                         href={tickerHref(position.symbol)}
                         symbol={position.symbol}
-                        name={ticker?.name ?? position.symbol}
+                        name={name}
                         logoUrl={ticker?.logo || logoPathFromSymbol(position.symbol)}
                         shares={position.shares}
                         shareHint={t.portfolio.shareHint}
@@ -746,7 +756,7 @@ export function PortfolioScreen() {
                               <Button asChild variant="secondary" size="sm" className="min-h-11 whitespace-nowrap px-4">
                                 <Link
                                   href={sellHref(position.symbol)}
-                                  aria-label={fill(t.detail.tradeSell, { name: ticker?.name ?? position.symbol })}
+                                  aria-label={fill(t.detail.tradeSell, { name })}
                                 >
                                   {t.detail.sell}
                                 </Link>
@@ -854,7 +864,7 @@ export function PortfolioScreen() {
             ) : (
               <ul className="divide-y divide-border/60">
                 {orders.map((row) => {
-                  const name = tickerBySymbol.get(row.symbol)?.name ?? row.symbol;
+                  const name = positionMeta(row.symbol)?.name ?? tickerBySymbol.get(row.symbol)?.name ?? row.symbol;
                   const kind = row.kind === "buy" ? t.portfolio.buy : t.portfolio.sell;
                   return (
                     <li key={row.id}>

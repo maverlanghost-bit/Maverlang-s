@@ -25,6 +25,7 @@ import {
   assertLiveEngineAccess,
   releaseRealTradeReservations,
 } from "@/lib/trade/real-guards";
+import { assertCryptoDemoOnly } from "@/lib/trade/crypto-real-block";
 import { assertQuoteIntegrity } from "@/lib/trade/integrity";
 import type { TradeQuote, TradeQuoteRequest } from "@/lib/types";
 
@@ -126,6 +127,13 @@ export function POST(req: Request) {
     const symbol = await requireSymbolForBuyGuard(body.symbol, body.side);
     let realOwnerId: string | null = null;
     if (realAccount) {
+      // Criptos y staking sólo en la demo (decisión §1.1): la cuenta real se
+      // rechaza ANTES de valorar, reservar cupo o cotizar. Se mira el símbolo
+      // ya resuelto por la allowlist (canónico), no el texto crudo del
+      // cliente. No depende de los flags `REAL_*`: aunque mañana se abra la
+      // compra real de acciones, criptos y LST siguen cerrados. La rama demo
+      // no pasa por acá.
+      assertCryptoDemoOnly(symbol, realAccount);
       // El camino real se apaga (503 REAL_DISABLED) hasta que
       // REAL_TRADING_READY=true. Cotizar no mueve dinero, pero se mantiene
       // coherente con build/submit: apagado hasta encender el flag.

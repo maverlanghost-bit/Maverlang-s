@@ -8,6 +8,8 @@ import { DomainError } from "@/lib/api/result";
 import { findAssetBySymbol } from "@/lib/catalog/assets";
 import { requireOperable } from "@/lib/catalog/tradable";
 import { getServices } from "@/lib/services";
+import { demoCryptoAsset, quoteDemoCrypto } from "@/lib/services/demo-crypto-quote";
+import type { DemoCryptoAsset } from "@/lib/services/demo-crypto-quote";
 import { DEMO_INITIAL_USD, totalUsdOf, validateDemoFunds, validateDemoTradeInput } from "@/lib/services/demo.logic";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { roundDigits } from "@/lib/mocks/number";
@@ -173,8 +175,24 @@ async function requireTradable(symbol: string, side: "buy" | "sell") {
   return requireOperable(symbol, side);
 }
 
-/** Mint y decimales para mostrar saldos: snapshot primero, catálogo después (M54). */
-async function mintForBalances(symbol: string): Promise<{ mint: string; decimals: 8 } | null> {
+/**
+ * Mint y decimales reales para mostrar saldos: cripto/LST primero (catálogo
+ * curado), snapshot después y catálogo de acciones al final (M54). Antes se
+ * asumían 8 decimales; con cripto/LST eso dejaba la posición fuera de los
+ * saldos (SOL tiene 9, PEPE 4…).
+ *
+ * Se exporta para que la cartera y las pruebas comprueben la resolución sin
+ * pasar por Supabase.
+ */
+export async function mintForBalances(
+  symbol: string,
+): Promise<{ mint: string; decimals: number } | null> {
+  const crypto = demoCryptoAsset(symbol);
+  if (crypto) {
+    // Sin decimales confirmados no se puede armar el crudo: no se muestra.
+    if (crypto.decimals === null) return null;
+    return { mint: crypto.mint, decimals: crypto.decimals };
+  }
   const ticker = tickerBySymbol(symbol);
   if (ticker) return { mint: ticker.mint, decimals: ticker.decimals };
   const asset = await findAssetBySymbol(symbol, { scope: "all" }).catch(() => null);
@@ -430,6 +448,144 @@ export function createDemoUserService(deps: DemoDeps) {
     return { account, positions: held, spots };
   }
 
+  /**
+   * Cotización demo de una cripto o un LST: una orden REAL de Jupiter
+   * (`/swap/v2/order` sin `taker`, USDC↔mint y decimales del catálogo). El
+   * asiento sigue siendo `demo_trade` sobre plata ficticia. Sin precio u orden
+   * inválida → UPSTREAM con el mismo mensaje de precio que las acciones.
+   * Aplica el mínimo `MIN_TRADE_USD` y el tope del sello dentro del módulo.
+   */
+  async function cryptoQuote(
+    userId: string,
+    request: TradeQuoteRequest,
+    asset: DemoCryptoAsset,
+  ): Promise<TradeQuote> {
+    if (feeConfig.bps > 0 && !feeConfig.wallet) {
+      throw new DomainError("INTERNAL", "Falta la billetera de comisión.");
+    }
+    // El dólar sólo se usa para montos en CLP por API, igual que en acciones.
+    let fx: number | null = null;
+    if (request.amountCurrency === "CLP") {
+      try {
+        fx = await deps.getFx();
+      } catch {
+        throw new DomainError("VALIDATION", FX_CLP_MESSAGE);
+      }
+      if (!(fx > 0) || !Number.isFinite(fx)) {
+        throw new DomainError("VALIDATION", FX_CLP_MESSAGE);
+      }
+    }
+
+    // Precio de referencia SÓLO para convertir un monto pedido en unidades del
+    // token (o en USDC al vender) al monto crudo del swap. El precio de la
+    // operación siempre sale de la orden de Jupiter, nunca de acá.
+    const needsReference =
+      (request.side === "buy" && request.amountCurrency === "SHARES") ||
+      (request.side === "sell" && request.amountCurrency !== "SHARES");
+    let referencePriceUsd: number | null = null;
+    if (needsReference) {
+      const spot = await deps.getSpot(asset.symbol).catch(() => null);
+      if (!spot || !(spot.priceUsd > 0) || !Number.isFinite(spot.priceUsd)) {
+        throw new DomainError("UPSTREAM", PRICE_MESSAGE);
+      }
+      referencePriceUsd = spot.priceUsd;
+    }
+
+    const [account, positions] = await Promise.all([ensureAccount(userId), deps.listPositions(userId)]);
+    const held = positions.find((row) => row.symbol === asset.symbol)?.shares ?? 0;
+
+    const quoted = await quoteDemoCrypto({
+      symbol: asset.symbol,
+      side: request.side,
+      amount: request.amount,
+      amountCurrency: request.amountCurrency,
+      fxRate: fx,
+      referencePriceUsd,
+    });
+
+    const tokenAmount = roundDigits(quoted.tokenAmount, 8);
+    const usdcAmount = roundDigits(quoted.usdcAmount, 6);
+    if (!(tokenAmount > 0) || !(usdcAmount > 0)) {
+      throw new DomainError("UPSTREAM", PRICE_MESSAGE);
+    }
+    // Sin redondear: PEPE vale ~US$ 0,00001 y redondear a 6 decimales lo
+    // dejaría en cero (o falsearía el total de la orden).
+    const price = usdcAmount / tokenAmount;
+    if (!(price > 0) || !Number.isFinite(price)) {
+      throw new DomainError("UPSTREAM", PRICE_MESSAGE);
+    }
+
+    // Comisión propia sobre el nocional del cruce (0 bps al lanzar), igual
+    // que el motor live: no se descuenta del monto cotizado en Jupiter.
+    const feeUsd = roundDigits((usdcAmount * feeConfig.bps) / 10_000, 6);
+    if (request.side === "buy") {
+      const funds = validateDemoFunds({
+        side: "buy",
+        totalUsd: roundDigits(usdcAmount + feeUsd, 2),
+        cashUsd: account.cashUsd,
+        shares: tokenAmount,
+        positionShares: held,
+      });
+      if (funds === "saldo_insuficiente") throw new DomainError("INSUFFICIENT_FUNDS");
+    } else {
+      const funds = validateDemoFunds({
+        side: "sell",
+        totalUsd: 0,
+        cashUsd: account.cashUsd,
+        shares: tokenAmount,
+        positionShares: held,
+      });
+      if (funds === "acciones_insuficientes") throw new DomainError("INSUFFICIENT_FUNDS");
+    }
+
+    // Desviación contra el precio de referencia (0 si no hubo referencia: la
+    // orden de Jupiter ES el precio). No se inventa un desvío de juguete.
+    const deviation =
+      referencePriceUsd && referencePriceUsd > 0
+        ? Math.round((Math.abs(price - referencePriceUsd) / referencePriceUsd) * 10_000)
+        : 0;
+
+    const opensAccount = request.side === "buy" && held <= 0;
+    const baseQuote: TradeQuote = {
+      id: nextId("quote"),
+      side: request.side,
+      symbol: asset.symbol,
+      inAmountUi: request.side === "buy" ? usdcAmount : tokenAmount,
+      outAmountUi: request.side === "buy" ? tokenAmount : usdcAmount,
+      pricePerShareUsd: price,
+      costs: {
+        platformFeeUsd: feeUsd,
+        platformFeeBps: feeConfig.bps,
+        networkFeeSol: NETWORK_FEE_SOL,
+        tokenAccountRentSol: opensAccount ? TOKEN_ACCOUNT_RENT_SOL : 0,
+        priceImpactPct: quoted.priceImpactPct,
+        slippageBps: quoted.slippageBps,
+      },
+      priceDeviationBps: deviation,
+      expiresAt: new Date(Date.now() + QUOTE_TTL_MS).toISOString(),
+      route: "jupiter",
+    };
+    const signedQuoteId = encodeSignedToken<StoredQuote>("q1", {
+      quote: baseQuote,
+      shares: tokenAmount,
+      usdc: usdcAmount,
+      userId,
+      priceUsd: price,
+      fx,
+    });
+    const quote: TradeQuote = { ...baseQuote, id: signedQuoteId };
+    const stored: StoredQuote = {
+      quote,
+      shares: tokenAmount,
+      usdc: usdcAmount,
+      userId,
+      priceUsd: price,
+      fx,
+    };
+    quotes.set(quote.id, stored);
+    return quote;
+  }
+
   return {
     async getAccount(userId: string): Promise<DemoAccountRow> {
       return ensureAccount(userId);
@@ -514,6 +670,10 @@ export function createDemoUserService(deps: DemoDeps) {
         if (!(request.amount > 0) || !Number.isFinite(request.amount)) {
           throw new DomainError("VALIDATION", "El monto tiene que ser mayor que cero.");
         }
+        // Cripto o LST: cotización real de Jupiter (impacto y ruta reales).
+        // Las acciones siguen exactamente el camino de siempre.
+        const cryptoAsset = demoCryptoAsset(request.symbol);
+        if (cryptoAsset) return cryptoQuote(userId, request, cryptoAsset);
         const ticker = await requireTradable(request.symbol, request.side);
         if (feeConfig.bps > 0 && !feeConfig.wallet) {
           throw new DomainError("INTERNAL", "Falta la billetera de comisión.");
