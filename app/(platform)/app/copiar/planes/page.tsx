@@ -39,11 +39,6 @@ function PageHeader() {
           <h1 className="text-3xl leading-[1.1] tracking-tight text-balance sm:text-4xl">
             Planes de Copiar carteras
           </h1>
-          <p className="mt-3 max-w-2xl text-[15px] leading-6 text-pretty text-fg-muted">
-            Carteras reconstruidas por Fraccion.si, con la fecha del dato y su atraso a la vista. La
-            suscripción abre la composición completa, los movimientos y la mezcla de compra; cada orden
-            la confirmas y la firmas tú.
-          </p>
         </div>
         <Link
           href="/app/copiar"

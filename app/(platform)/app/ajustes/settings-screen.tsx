@@ -1,7 +1,6 @@
 "use client";
 
 import { MfaSettings } from "@/components/auth/mfa-settings";
-import { PageHeader } from "@/components/ui/page-header";
 import { PreferencesForm } from "@/components/domain/preferences-form";
 import { useT } from "@/lib/hooks/use-t";
 
@@ -47,7 +46,7 @@ export function SettingsScreen() {
   const { t } = useT();
   return (
     <div className="flex w-full max-w-2xl min-w-0 flex-col gap-6">
-      <PageHeader title={t.pages.settings.title} description={t.pages.settings.lead} />
+      <h1 className="sr-only">{t.pages.settings.title}</h1>
 
       <SettingsPanel label={t.profile.language}>
         <PreferencesForm currencyFirst />

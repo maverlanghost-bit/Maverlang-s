@@ -2,18 +2,26 @@ import Link from "next/link";
 
 import { cn } from "@/lib/cn";
 
-type MarketSectionId = "stocks" | "crypto" | "earn" | "copy";
+export type MarketSectionId = "stocks" | "crypto" | "copy";
 
 type MarketSection = { id: MarketSectionId; href: string; label: string };
 
 const SECTIONS: readonly MarketSection[] = [
   { id: "stocks", href: "/app", label: "Acciones" },
   { id: "crypto", href: "/app/cripto", label: "Cripto" },
-  { id: "earn", href: "/app/ganar", label: "Ganar" },
 ];
 
 /** Chip de «Copiar carteras»: no es una pestaña nueva, vive dentro de Mercado. */
 const COPY_SECTION: MarketSection = { id: "copy", href: "/app/copiar", label: "Copiar" };
+
+type CryptoSubTabId = "tokens" | "earn";
+
+type CryptoSubTab = { id: CryptoSubTabId; href: string; label: string };
+
+const CRYPTO_SUB_TABS: readonly CryptoSubTab[] = [
+  { id: "tokens", href: "/app/cripto", label: "Tokens" },
+  { id: "earn", href: "/app/ganar", label: "Ganar" },
+];
 
 /**
  * Chips de sección del mercado: navegación entre páginas, no un filtro.
@@ -57,6 +65,35 @@ export function MarketSectionChips({
             )}
           >
             <span className={cn(current && "underline decoration-2 underline-offset-[5px]")}>{section.label}</span>
+          </Link>
+        );
+      })}
+    </nav>
+  );
+}
+
+/**
+ * Subnavegación segmentada dentro de Cripto para alternar entre Tokens y Ganar.
+ */
+export function CryptoSubTabs({ active }: { active: CryptoSubTabId }) {
+  return (
+    <nav
+      aria-label="Subsecciones de cripto"
+      className="inline-flex w-fit items-center gap-1 rounded-full border border-border bg-surface-1 p-1"
+    >
+      {CRYPTO_SUB_TABS.map((tab) => {
+        const current = tab.id === active;
+        return (
+          <Link
+            key={tab.id}
+            href={tab.href}
+            aria-current={current ? "page" : undefined}
+            className={cn(
+              "inline-flex min-h-9 cursor-pointer items-center justify-center rounded-full px-4 text-[13px] font-medium whitespace-nowrap transition-colors duration-150 focus-visible:ring-4 focus-visible:ring-fg/20 focus-visible:outline-none",
+              current ? "bg-bg text-fg shadow-xs ring-1 ring-border/60" : "text-fg-muted hover:text-fg",
+            )}
+          >
+            {tab.label}
           </Link>
         );
       })}

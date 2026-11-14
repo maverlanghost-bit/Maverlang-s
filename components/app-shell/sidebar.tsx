@@ -23,8 +23,9 @@ import { IconChevron } from "@/components/ui/icons";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip } from "@/components/ui/tooltip";
 import { AccountSwitch } from "@/components/app-shell/account-switch";
+import { StockSearchButton } from "@/components/app-shell/stock-search";
 import { site } from "@/config/site";
-import { shouldIgnoreSidebarShortcut } from "@/lib/app-shell/sidebar";
+import { shouldIgnoreSidebarShortcut, shouldToggleSidebarClick } from "@/lib/app-shell/sidebar";
 import type { AccountMode } from "@/lib/account/mode";
 import { useSession } from "@/lib/auth/session-context";
 import { cn } from "@/lib/cn";
@@ -90,43 +91,6 @@ function ArrowLeftIcon({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" className={className} aria-hidden>
       <path d="M13 8H3m0 0 3.5-3.5M3 8l3.5 3.5" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
-function PanelLeftIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      viewBox="0 0 16 16"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-      aria-hidden
-    >
-      <rect x="2" y="2.75" width="12" height="10.5" rx="1.75" />
-      <path d="M6.25 3v10" />
-    </svg>
-  );
-}
-
-function PanelLeftCloseIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      viewBox="0 0 16 16"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-      aria-hidden
-    >
-      <rect x="2" y="2.75" width="12" height="10.5" rx="1.75" />
-      <path d="M6.25 3v10" />
-      <path d="M11.25 9.5 9.75 8l1.5-1.5" />
     </svg>
   );
 }
@@ -197,14 +161,14 @@ function AccountMenuPanel({
   if (!open) return null;
 
   const item =
-    "flex min-h-11 w-full items-center rounded-lg px-3 text-left text-sm text-fg-body transition-colors hover:bg-surface-1 hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-fg";
+    "flex min-h-11 w-full cursor-pointer items-center rounded-lg px-3 text-left text-sm text-fg-body transition-colors hover:bg-surface-1 hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-fg";
 
   return (
     <div
       ref={panelRef}
       role="menu"
       aria-label={labels.account}
-      className="absolute inset-x-0 bottom-full z-40 mb-2 flex flex-col rounded-xl border border-border bg-bg p-1.5 shadow-float"
+      className="absolute inset-x-0 bottom-full z-40 mb-2 flex cursor-default flex-col rounded-xl border border-border bg-bg p-1.5 shadow-float"
     >
       <Link role="menuitem" href="/app/perfil" onClick={onClose} className={item}>
         {labels.profile}
@@ -254,7 +218,7 @@ function AccountTrigger({
       aria-expanded={open}
       aria-label={label}
       onClick={onClick}
-      className="flex min-h-11 w-full items-center gap-2.5 rounded-lg px-1.5 py-1 text-left transition-colors hover:bg-fg/[0.04] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fg"
+      className="flex min-h-11 w-full cursor-pointer items-center gap-2.5 rounded-lg px-1.5 py-1 text-left transition-colors hover:bg-fg/[0.04] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fg"
     >
       <Avatar alt="" fallback={name} size="sm" className="size-8" />
       <span className="min-w-0 flex-1">
@@ -285,8 +249,9 @@ export function Sidebar({
   const pathname = usePathname();
   const isAiRoute = pathname.startsWith("/app/asistente");
   const { t, language } = useT();
-  /** Mismo texto que usa NavChatsHistory para estrenar conversación. */
+  /** Mismo texto que usa NavChatsHistory para estrenar conversación y buscar chats. */
   const newChatLabel = language === "en" ? "New chat" : "Nuevo chat";
+  const searchChatsLabel = language === "en" ? "Search chats" : "Buscar en chats";
   const account = useAccountLabel();
   const name = account.name;
   const loading = account.loading;
@@ -398,7 +363,7 @@ export function Sidebar({
   /**
    * Fila de navegación. Con el riel abierto es sólo texto: la jerarquía la
    * marcan el peso, el color y el fondo, sin íconos decorativos. Colapsada
-   * pasa a ícono con tooltip, porque la etiqueta no cabe en 72px.
+   * pasa a ícono con tooltip, porque la etiqueta no cabe en 68px.
    */
   function navRow(
     item: (typeof sidebarPrimary)[number] | (typeof sidebarUtility)[number],
@@ -433,19 +398,29 @@ export function Sidebar({
     );
   }
 
+  const searchButton = (
+    <Tooltip content={`${t.shell.search} (⌘K)`} side={collapsed ? "right" : "bottom"}>
+      <StockSearchButton variant="icon" />
+    </Tooltip>
+  );
+
   return (
     <aside
+      onClick={(event) => {
+        if (event.target instanceof Node && !event.currentTarget.contains(event.target)) return;
+        if (shouldToggleSidebarClick(event.target as Element | null)) onToggle();
+      }}
       className={cn(
-        "sticky top-0 z-30 hidden h-dvh shrink-0 flex-col overflow-visible border-r border-border bg-surface-1 lg:flex",
+        "sticky top-0 z-30 hidden h-dvh shrink-0 cursor-ew-resize flex-col overflow-visible border-r border-border bg-surface-1 lg:flex",
         WIDTH_ANIMATION,
-        collapsed ? "w-[76px]" : "w-[240px]",
+        collapsed ? "w-[68px]" : "w-[212px]",
       )}
     >
-      {/* Marca. El slot de 44px queda centrado en los 76px del riel colapsado
-          (16 + 44 + 16 = 76), así el isotipo no se mueve al colapsar. */}
+      {/* Marca. El slot de 44px queda centrado en los 68px del riel colapsado
+          (12 + 44 + 12 = 68), así el isotipo no se mueve al colapsar. */}
       <div
         className={cn(
-          "flex shrink-0 items-center px-4 pt-3",
+          "flex shrink-0 items-center px-3 pt-3",
           collapsed ? "justify-center pb-1" : "justify-between pb-1.5",
         )}
       >
@@ -462,34 +437,13 @@ export function Sidebar({
             <BrandFavicon className="w-10" />
           )}
         </Link>
-        {!collapsed ? (
-          <button
-            type="button"
-            onClick={onToggle}
-            aria-label={t.shell.collapseSidebar}
-            title={`${t.shell.collapseSidebar} (Ctrl+B)`}
-            className="flex size-11 cursor-pointer items-center justify-center rounded-lg text-fg-muted transition-colors hover:bg-fg/[0.055] hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fg"
-          >
-            <PanelLeftCloseIcon className="size-4" />
-          </button>
-        ) : null}
+        {!collapsed ? searchButton : null}
       </div>
       {collapsed ? (
-        <div className="flex shrink-0 justify-center pb-1.5">
-          <Tooltip content={`${t.shell.expandSidebar} (Ctrl+B)`} side="right">
-            <button
-              type="button"
-              onClick={onToggle}
-              aria-label={t.shell.expandSidebar}
-              className="flex size-11 cursor-pointer items-center justify-center rounded-lg text-fg-muted transition-colors hover:bg-fg/[0.055] hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fg"
-            >
-              <PanelLeftIcon className="size-4" />
-            </button>
-          </Tooltip>
-        </div>
+        <div className="flex shrink-0 justify-center px-3 pb-1.5">{searchButton}</div>
       ) : null}
 
-      <nav aria-label={t.nav.label} className="flex-1 overflow-y-auto overscroll-contain px-4 pt-1 pb-2">
+      <nav aria-label={t.nav.label} className="flex-1 overflow-y-auto overscroll-contain px-3 pt-1 pb-2">
         {isAiRoute ? (
           collapsed ? (
             <ul className="flex flex-col items-center gap-0.5">
@@ -506,10 +460,10 @@ export function Sidebar({
                 </Tooltip>
               </li>
               <li>
-                <Tooltip content={t.shell.search} side="right">
+                <Tooltip content={searchChatsLabel} side="right">
                   <button
                     type="button"
-                    aria-label={t.shell.search}
+                    aria-label={searchChatsLabel}
                     onClick={() => {
                       if (typeof window === "undefined") return;
                       window.dispatchEvent(new CustomEvent(ACTION_EVENT, { detail: { type: "search" } }));
@@ -555,7 +509,7 @@ export function Sidebar({
                     className={cn(ROW_BASE, ROW_EXPANDED, ROW_HOVER, "text-fg-body")}
                   >
                     <SearchIcon className="size-4 shrink-0 text-fg-muted" />
-                    <span className="truncate">{t.shell.search}</span>
+                    <span className="truncate">{searchChatsLabel}</span>
                   </button>
                 </li>
                 <li>
@@ -566,7 +520,7 @@ export function Sidebar({
                 </li>
               </ul>
 
-              <div className="mt-3 border-t border-border pt-2">
+              <div data-sidebar-static="" className="mt-3 cursor-default border-t border-border pt-2">
                 <NavChatsHistory
                   chats={savedChats}
                   activeChatId={activeChatId}
@@ -585,13 +539,13 @@ export function Sidebar({
           )
         ) : (
           <>
-            <ul className="flex flex-col gap-0.5">
+            <ul className={cn("flex flex-col gap-0.5", collapsed && "items-center")}>
               {sidebarPrimary.map((item) => (
                 <li key={item.id}>{navRow(item, false)}</li>
               ))}
             </ul>
             <div aria-hidden className="mx-1 my-2 h-px bg-border" />
-            <ul className="flex flex-col gap-0.5">
+            <ul className={cn("flex flex-col gap-0.5", collapsed && "items-center")}>
               {sidebarUtility.map((item) => (
                 <li key={item.id}>{navRow(item, true)}</li>
               ))}
@@ -600,11 +554,13 @@ export function Sidebar({
         )}
       </nav>
 
-      <footer className="shrink-0 border-t border-border px-4 py-3">
+      <footer className="shrink-0 border-t border-border px-3 py-3">
         {!isAiRoute && !collapsed ? (
           <>
-            <BalanceHeader variant="sidebar" className="bg-bg" />
-            <div className="mt-2">
+            <div data-sidebar-static="" className="cursor-default">
+              <BalanceHeader variant="sidebar" className="bg-bg" />
+            </div>
+            <div data-sidebar-static="" className="mt-2 cursor-default">
               <AccountSwitch mode={accountMode} onChange={onAccountChange ?? (() => {})} />
             </div>
           </>
@@ -612,7 +568,7 @@ export function Sidebar({
 
         <div
           ref={menuRef}
-          className={cn("relative", !isAiRoute && !collapsed && "mt-2")}
+          className={cn("relative", collapsed && "flex justify-center", !isAiRoute && !collapsed && "mt-2")}
         >
           <AccountMenuPanel
             open={menuOpen && !collapsed && !loading}
@@ -623,7 +579,13 @@ export function Sidebar({
             panelRef={accountPanelRef}
           />
           {loading ? (
-            <div className="flex min-h-11 items-center rounded-lg px-1.5">
+            <div
+              data-sidebar-static=""
+              className={cn(
+                "flex min-h-11 cursor-default items-center rounded-lg",
+                collapsed ? "justify-center" : "px-1.5",
+              )}
+            >
               <Skeleton className="size-8 shrink-0 rounded-full" />
               {!collapsed ? <Skeleton className="ml-2.5 h-3.5 w-24" /> : null}
             </div>

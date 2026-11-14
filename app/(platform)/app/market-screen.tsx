@@ -18,7 +18,6 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ErrorState } from "@/components/ui/error-state";
 import { indexFromKey } from "@/components/ui/keys";
-import { PageHeader } from "@/components/ui/page-header";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/cn";
 import { formatMoney, formatPercent } from "@/lib/format";
@@ -729,10 +728,8 @@ export function MarketScreen({
 
   return (
     <div className="flex min-w-0 flex-col gap-8 lg:gap-10">
-      <div className="flex min-w-0 flex-col gap-5">
-        <PageHeader title={t.pages.market.title} description={t.pages.market.lead} />
-        {sections ? <div className="-mx-5 min-w-0 px-5 sm:mx-0 sm:px-0">{sections}</div> : null}
-      </div>
+      <h1 className="sr-only">{t.pages.market.title}</h1>
+      {sections ? <div className="-mx-5 min-w-0 px-5 sm:mx-0 sm:px-0">{sections}</div> : null}
 
       <MarketToday />
 

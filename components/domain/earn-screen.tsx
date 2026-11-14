@@ -1,20 +1,20 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 import { CryptoTradeSheet } from "@/components/domain/crypto-trade-sheet";
+import { CryptoSubTabs } from "@/components/domain/market-section-chips";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { PageHeader } from "@/components/ui/page-header";
 import {
   LEGAL_REVIEW_NOTICE,
   LST_YIELD_NOTICE,
   NON_CUSTODY_LINE,
   USDY_YIELD_NOTICE,
 } from "@/content/crypto-legal";
-import { LST_ASSETS, type LstAsset } from "@/lib/catalog/lst";
+import { EARN_ASSETS, type LstAsset } from "@/lib/catalog/lst";
 import { formatDateTime, formatUsd } from "@/lib/format";
 import { usePrices } from "@/lib/hooks/queries";
 import type { Quote } from "@/lib/types";
@@ -26,15 +26,15 @@ import type { Quote } from "@/lib/types";
  * staking (o a USDY), NO un depósito en custodia de Maverlang. La posición
  * sigue el precio vivo del token: no se simula ningún goteo de rendimiento.
  * El APY solo se muestra si la fuente oficial lo entrega; si falta, es 0, es
- * negativo o no es numérico, se muestra "sin dato".
+ * negativo o no es numérico, se muestra "Sin dato".
  */
 
 const APY_REFRESH_MS = 5 * 60_000;
 const PRICE_REFRESH_MS = 30_000;
 
-const STAKING_ASSETS = LST_ASSETS.filter((asset) => asset.yieldUnit === "SOL");
-const DOLLAR_ASSETS = LST_ASSETS.filter((asset) => asset.yieldUnit === "USD");
-const EARN_SYMBOLS = LST_ASSETS.map((asset) => asset.symbol);
+const STAKING_ASSETS = EARN_ASSETS.filter((asset) => asset.yieldUnit === "SOL");
+const DOLLAR_ASSETS = EARN_ASSETS.filter((asset) => asset.yieldUnit === "USD");
+const EARN_SYMBOLS = EARN_ASSETS.map((asset) => asset.symbol);
 
 const SOURCE_LABEL: Record<LstAsset["apySource"], string> = {
   jito: "Jito Stake Pool",
@@ -79,7 +79,7 @@ function itemsOf(payload: unknown): unknown[] {
 /**
  * Cliente de la ruta propia: el APY se pide al servidor, nunca a la API del
  * emisor desde el navegador. Cualquier forma inesperada se descarta y queda
- * como "sin dato", sin inventar cifras.
+ * como "Sin dato", sin inventar cifras.
  */
 async function fetchEarnApy(): Promise<EarnApyItem[]> {
   const response = await fetch("/api/earn/apy", {
@@ -106,7 +106,7 @@ async function fetchEarnApy(): Promise<EarnApyItem[]> {
   return items;
 }
 
-/** APY utilizable: número finito y mayor que 0. Cualquier otra cosa es "sin dato". */
+/** APY utilizable: número finito y mayor que 0. Cualquier otra cosa es "Sin dato". */
 function usableApy(item: EarnApyItem | undefined): number | null {
   const apy = item?.apy;
   return typeof apy === "number" && Number.isFinite(apy) && apy > 0 ? apy : null;
@@ -127,6 +127,7 @@ function EarnCard({
   apy,
   apyPending,
   price,
+  pricesPending,
   onBuy,
   onSell,
 }: {
@@ -134,92 +135,95 @@ function EarnCard({
   apy: EarnApyItem | undefined;
   apyPending: boolean;
   price: Quote | undefined;
+  pricesPending: boolean;
   onBuy: () => void;
   onSell: () => void;
 }) {
-  const isDollar = asset.yieldUnit === "USD";
-  // Sin fuente oficial sin clave (JupSOL, INF, dSOL y USDY) siempre es "sin dato",
+  // Sin fuente oficial sin clave (JupSOL, INF, dSOL y USDY) siempre es "Sin dato",
   // aunque la ruta devolviera otra cosa: nunca se inventa un porcentaje.
   const hasSource = asset.apySource !== "none";
   const value = hasSource ? usableApy(apy) : null;
   const source = SOURCE_LABEL[apy?.source ?? asset.apySource];
   const updated = hasSource ? updatedAt(apy) : null;
+  const sourceLine = `Fuente: ${source}${updated ? ` · ${updated}` : ""}`;
 
   return (
-    <Card className="flex min-w-0 flex-col gap-4">
+    <Card className="flex min-w-0 flex-col gap-4 p-5 md:p-6">
       <div className="flex items-start gap-3">
         <span
           aria-hidden
-          className="flex size-10 shrink-0 items-center justify-center rounded-full bg-surface-3 font-mono text-xs font-medium text-fg"
+          className="flex size-10 shrink-0 items-center justify-center rounded-full bg-surface-2 font-mono text-xs font-medium text-fg ring-1 ring-inset ring-border select-none"
         >
           {monogram(asset.symbol)}
         </span>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <h3 className="text-base font-medium tracking-tight text-balance">
+            <h3 className="text-base leading-snug font-medium tracking-tight text-fg">
               {asset.name}
             </h3>
-            <Badge tone="neutral">{asset.symbol}</Badge>
+            <span className="inline-flex items-center rounded-md bg-surface-2 px-2 py-0.5 font-mono text-[11px] font-medium tracking-tight text-fg-body ring-1 ring-inset ring-border">
+              {asset.symbol}
+            </span>
+            {asset.usPersonBlocked ? (
+              <Badge tone="warn" className="shrink-0">
+                No disponible EE.UU.
+              </Badge>
+            ) : null}
           </div>
-          <p className="mt-0.5 text-[13px] leading-5 text-fg-muted">
-            {isDollar ? "Dólares" : "Staking"} · Emite {asset.issuerName}
+          <p className="mt-1 truncate text-xs leading-5 text-fg-muted">
+            Emite {asset.issuerName} · En {asset.yieldUnit}
           </p>
         </div>
       </div>
 
-      <dl className="grid grid-cols-2 gap-x-6 border-y border-border py-3">
+      <dl className="grid grid-cols-2 gap-x-4 border-y border-border py-3.5">
         <div className="min-w-0">
-          <dt className="label-xs">APY</dt>
-          <dd className="mt-1 min-h-7">
-            <span className="num block text-lg leading-7 tracking-tight text-fg tabular-nums">
-              {hasSource && apyPending ? (
-                <span className="text-sm text-fg-muted">consultando…</span>
-              ) : value !== null ? (
-                <>
-                  {apyFormatter.format(value)}
-                  <span className="text-xs"> %</span>
-                </>
-              ) : (
-                <span className="text-sm text-fg-muted">sin dato</span>
-              )}
-            </span>
+          <dt className="font-mono text-[11px] font-medium tracking-[0.045em] text-fg-muted uppercase">
+            APY estimado
+          </dt>
+          <dd className="mt-1 flex min-h-7 items-center">
+            {hasSource && apyPending ? (
+              <span className="text-sm text-fg-muted">Consultando…</span>
+            ) : value !== null ? (
+              <span className="inline-flex items-center gap-2">
+                <span aria-hidden className="size-1.5 shrink-0 rounded-full bg-up" />
+                <span className="num text-lg leading-7 font-semibold tracking-tight tabular-nums text-fg">
+                  {apyFormatter.format(value)}%
+                </span>
+              </span>
+            ) : (
+              <span className="text-sm font-medium text-fg-muted">Sin dato</span>
+            )}
           </dd>
         </div>
         <div className="min-w-0 text-right">
-          <dt className="label-xs">Precio</dt>
-          <dd className="mt-1 min-h-7">
-            <span className="num block text-lg leading-7 tracking-tight text-fg tabular-nums">
-              {price ? (
-                formatUsd(price.priceUsd)
-              ) : (
-                <span className="text-sm text-fg-muted">sin precio</span>
-              )}
-            </span>
-            <span className="block text-xs leading-4 text-fg-muted">USD por token</span>
+          <dt className="font-mono text-[11px] font-medium tracking-[0.045em] text-fg-muted uppercase">
+            Precio
+          </dt>
+          <dd className="mt-1 flex min-h-7 items-center justify-end">
+            {price ? (
+              <span className="num text-lg leading-7 font-semibold tracking-tight tabular-nums text-fg">
+                {formatUsd(price.priceUsd)}
+              </span>
+            ) : pricesPending ? (
+              <span aria-hidden className="h-5 w-20 rounded-sm bg-surface-2" />
+            ) : (
+              <span className="text-sm text-fg-muted">Sin precio</span>
+            )}
           </dd>
         </div>
       </dl>
 
-      <p className="text-xs leading-relaxed text-fg-muted">
-        {asset.yieldUnit === "SOL" ? "Rendimiento en SOL" : "Rendimiento en USD"} · Fuente: {source}
-        {updated ? ` · ${updated}` : ""}
+      <p className="truncate text-xs leading-5 text-fg-muted" title={sourceLine}>
+        {sourceLine}
       </p>
 
-      {asset.usPersonBlocked ? (
-        <Badge tone="warn" className="w-fit whitespace-normal">
-          No disponible para personas de EE.UU.
-        </Badge>
-      ) : null}
-
-      <p className="text-xs leading-relaxed text-fg-body">
-        {isDollar ? USDY_YIELD_NOTICE : LST_YIELD_NOTICE}
-      </p>
-
-      <div className="mt-auto flex flex-wrap gap-2">
-        <Button className="flex-1" aria-label={`Comprar ${asset.name}`} onClick={onBuy}>
+      <div className="mt-auto flex gap-2 pt-1">
+        <Button size="sm" className="flex-1" aria-label={`Comprar ${asset.name}`} onClick={onBuy}>
           Comprar
         </Button>
         <Button
+          size="sm"
           className="flex-1"
           variant="secondary"
           aria-label={`Vender ${asset.name}`}
@@ -232,7 +236,7 @@ function EarnCard({
   );
 }
 
-export function EarnScreen() {
+export function EarnScreen({ sections }: { sections?: ReactNode }) {
   const [trade, setTrade] = useState<{ symbol: string; mode: "buy" | "sell" } | null>(null);
 
   const apyQuery = useQuery({
@@ -252,44 +256,31 @@ export function EarnScreen() {
 
   const priceBySymbol = useMemo(() => {
     const map = new Map<string, Quote>();
-    for (const quote of pricesQuery.data ?? []) map.set(quote.symbol.toUpperCase(), quote);
+    for (const quote of pricesQuery.data ?? []) {
+      if (!Number.isFinite(quote.priceUsd) || quote.priceUsd <= 0) continue;
+      map.set(quote.symbol.toUpperCase(), quote);
+    }
     return map;
   }, [pricesQuery.data]);
 
   return (
-    <div className="flex min-w-0 flex-col gap-8">
-      <PageHeader
-        title="Ganar"
-        description="Tokens de staking de Solana y USDY con tu saldo demo. Comprar es un swap en Jupiter: la posición queda registrada en tu billetera de la demo y su valor sigue el precio vivo."
-      />
+    <div className="flex min-w-0 flex-col gap-6">
+      <h1 className="sr-only">Ganar</h1>
 
-      <section
-        aria-labelledby="ganar-antes"
-        className="flex flex-col gap-3 border-y border-border py-5"
-      >
-        <h2 id="ganar-antes" className="text-base font-medium tracking-tight">
-          Antes de comprar
-        </h2>
-        <ul className="flex list-disc flex-col gap-2 pl-5 text-sm leading-relaxed text-fg-body">
-          <li>Comprar en Ganar es un swap a un token de staking en Jupiter, no un depósito custodiado.</li>
-          <li>La posición queda en tu billetera de la demo. {NON_CUSTODY_LINE}</li>
-          <li>El valor de tu posición sigue el precio vivo del token. No simulamos un goteo de rendimiento.</li>
-        </ul>
-        <div className="flex flex-col gap-1.5 border-t border-border pt-3">
-          <p className="label">Tokens de staking (LST)</p>
-          <p className="text-[13px] leading-relaxed text-fg-body">{LST_YIELD_NOTICE}</p>
-        </div>
-        <p className="text-xs leading-relaxed text-fg-muted">{LEGAL_REVIEW_NOTICE}</p>
-      </section>
+      {sections ? <div className="-mx-5 min-w-0 px-5 sm:mx-0 sm:px-0">{sections}</div> : null}
+
+      <div className="flex min-w-0 flex-wrap items-center justify-between gap-x-6 gap-y-2 border-b border-border pb-3">
+        <CryptoSubTabs active="earn" />
+        <p className="text-xs leading-5 text-fg-muted">Swaps en Jupiter · Demo</p>
+      </div>
 
       <section aria-labelledby="ganar-staking" className="flex flex-col gap-4">
         <div>
-          <h2 id="ganar-staking" className="text-xl font-medium tracking-tight">
-            Tokens de staking
+          <h2 id="ganar-staking" className="text-lg leading-tight font-medium tracking-tight text-fg">
+            Staking líquido
           </h2>
-          <p className="mt-1 max-w-2xl text-sm leading-relaxed text-fg-muted">
-            Seis LST de Solana. El APY es el que publica el emisor; si la fuente no responde, entrega
-            0 o un valor que no es un número, mostramos «sin dato».
+          <p className="mt-1 text-[13px] leading-5 text-fg-muted">
+            Tokens de staking en Solana. El APY refleja el dato público del emisor o «Sin dato».
           </p>
         </div>
         <div className="grid gap-4 md:grid-cols-2">
@@ -300,6 +291,7 @@ export function EarnScreen() {
               apy={apyBySymbol.get(asset.symbol.toUpperCase())}
               apyPending={apyQuery.isPending}
               price={priceBySymbol.get(asset.symbol.toUpperCase())}
+              pricesPending={pricesQuery.isPending}
               onBuy={() => setTrade({ symbol: asset.symbol, mode: "buy" })}
               onSell={() => setTrade({ symbol: asset.symbol, mode: "sell" })}
             />
@@ -308,14 +300,13 @@ export function EarnScreen() {
       </section>
 
       {DOLLAR_ASSETS.length > 0 ? (
-        <section aria-labelledby="ganar-dolares" className="flex flex-col gap-4">
+        <section aria-labelledby="ganar-dolares" className="flex flex-col gap-4 pt-2">
           <div>
-            <h2 id="ganar-dolares" className="text-xl font-medium tracking-tight">
+            <h2 id="ganar-dolares" className="text-lg leading-tight font-medium tracking-tight text-fg">
               Dólares
             </h2>
-            <p className="mt-1 max-w-2xl text-sm leading-relaxed text-fg-muted">
-              USDY es una opción en dólares dentro de Ganar, con su propio aviso y su restricción
-              para personas de EE.UU.
+            <p className="mt-1 text-[13px] leading-5 text-fg-muted">
+              Bono tokenizado en dólares emitido por Ondo, con restricción para personas de EE.UU.
             </p>
           </div>
           <div className="grid gap-4 md:grid-cols-2">
@@ -326,6 +317,7 @@ export function EarnScreen() {
                 apy={apyBySymbol.get(asset.symbol.toUpperCase())}
                 apyPending={apyQuery.isPending}
                 price={priceBySymbol.get(asset.symbol.toUpperCase())}
+                pricesPending={pricesQuery.isPending}
                 onBuy={() => setTrade({ symbol: asset.symbol, mode: "buy" })}
                 onSell={() => setTrade({ symbol: asset.symbol, mode: "sell" })}
               />
@@ -334,9 +326,20 @@ export function EarnScreen() {
         </section>
       ) : null}
 
-      <p className="text-xs leading-relaxed text-fg-muted">
-        {NON_CUSTODY_LINE} {LEGAL_REVIEW_NOTICE}
-      </p>
+      <footer
+        aria-label="Notas y avisos legales"
+        className="flex flex-col gap-2 border-t border-border pt-6 text-xs leading-relaxed text-fg-muted"
+      >
+        <p>
+          Comprar o vender aquí ejecuta un swap en Jupiter que sigue el precio vivo del token; no es un
+          depósito de ahorro en custodia.
+        </p>
+        <p>{LST_YIELD_NOTICE}</p>
+        <p>{USDY_YIELD_NOTICE}</p>
+        <p>
+          {NON_CUSTODY_LINE} {LEGAL_REVIEW_NOTICE}
+        </p>
+      </footer>
 
       {trade ? (
         <CryptoTradeSheet

@@ -227,7 +227,7 @@ export function SendScreen() {
       <Link href="/app/billetera" className={backLink}>
         {t.wallet.back}
       </Link>
-      <PageHeader title={t.wallet.sendTitle} description={t.wallet.sendLead} />
+      <PageHeader title={t.wallet.sendTitle} />
       {body}
     </div>
   );

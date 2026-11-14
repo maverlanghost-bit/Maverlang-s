@@ -192,20 +192,15 @@ function orderCards(cards: FollowCard[]): FollowCard[] {
  */
 function CopiasHeader({
   title = "Mis copias",
-  description,
   action,
 }: {
   title?: string;
-  description?: string;
   action?: ReactNode;
 }) {
   return (
     <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between sm:gap-10">
       <div className="min-w-0">
         <h1 className="text-3xl leading-[1.1] tracking-tight text-balance sm:text-4xl">{title}</h1>
-        {description ? (
-          <p className="mt-3 max-w-xl text-[15px] leading-6 text-pretty text-fg-muted">{description}</p>
-        ) : null}
       </div>
       {action ? <div className="shrink-0">{action}</div> : null}
     </header>
@@ -234,10 +229,7 @@ export default async function MisCopiasPage() {
   if (!userId || !access) {
     return (
       <article className="flex flex-col gap-8 pb-6">
-        <CopiasHeader
-          title="Mis copias"
-          description="Las carteras que sigues, la versión que copiaste y el aviso cuando cambian."
-        />
+        <CopiasHeader title="Mis copias" />
         <p className="max-w-prose text-[13px] leading-relaxed text-fg-muted">
           {userId
             ? "Tu cuenta todavía no tiene una suscripción activa a Copiar carteras."
@@ -265,7 +257,6 @@ export default async function MisCopiasPage() {
     <article className="flex flex-col gap-8 pb-6">
       <CopiasHeader
         title="Mis copias"
-        description={`La versión que copiaste contra la actual. Hasta ${MAX_FOLLOWS} carteras.`}
         action={
           cards.length > 0 ? (
             <Link

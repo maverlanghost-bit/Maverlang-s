@@ -24,7 +24,6 @@ import { Badge, type BadgeTone } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ErrorState } from "@/components/ui/error-state";
-import { PageHeader } from "@/components/ui/page-header";
 import { Skeleton } from "@/components/ui/skeleton";
 import { carteraCopy, type CarteraExtra } from "@/content/i18n/extra-cartera";
 import { carteraUi } from "@/content/i18n/extra-cartera2";
@@ -523,7 +522,7 @@ export function PortfolioScreen() {
   if (isRealAccountUiBlocked(mode)) {
     return (
       <div className="flex flex-col gap-6">
-        <PageHeader title={page.title} description={page.lead} />
+        <h1 className="sr-only">{page.title}</h1>
         <RealAccountEmpty />
       </div>
     );
@@ -973,7 +972,7 @@ export function PortfolioScreen() {
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader title={page.title} description={page.lead} />
+      <h1 className="sr-only">{page.title}</h1>
       {mode === "demo" ? (
         <div className="flex flex-col gap-2">
           <div className="flex flex-wrap items-center justify-between gap-3">

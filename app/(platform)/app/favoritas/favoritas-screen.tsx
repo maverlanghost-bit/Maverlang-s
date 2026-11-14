@@ -7,7 +7,6 @@ import { useQueries } from "@tanstack/react-query";
 import { AlertButton } from "@/components/domain/alert-button";
 import { AlertsPanel } from "@/components/domain/alert-panel";
 import { FavoriteButton } from "@/components/domain/favorite-button";
-import { MarketSectionChips } from "@/components/domain/market-section-chips";
 import { PriceFreshness } from "@/components/domain/price-freshness";
 import { Sparkline } from "@/components/domain/sparkline";
 import { TickerLogo } from "@/components/domain/ticker-logo";
@@ -16,7 +15,6 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ErrorState } from "@/components/ui/error-state";
 import { FlashPrice } from "@/components/domain/flash-price";
-import { PageHeader } from "@/components/ui/page-header";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { Skeleton } from "@/components/ui/skeleton";
 import { alertasText, fillAlert } from "@/content/i18n/extra-alertas";
@@ -231,14 +229,8 @@ export function FavoritasScreen() {
 
   return (
     <div className="flex min-w-0 flex-col gap-6">
-      <div className="flex flex-col gap-2">
-        <PageHeader title={copy.pageTitle} description={copy.pageLead} />
-        <PriceFreshness at={freshestAt} stale={anyStale} />
-      </div>
-      {/* Mismo orden que el mercado: encabezado, secciones, datos. */}
-      <div className="-mx-5 min-w-0 px-5 sm:mx-0 sm:px-0">
-        <MarketSectionChips active="stocks" />
-      </div>
+      <h1 className="sr-only">{copy.pageTitle}</h1>
+      <PriceFreshness at={freshestAt} stale={anyStale} />
       {favoriteSymbols.length > 0 ? (
         <div className="flex max-w-full">
           <SegmentedControl

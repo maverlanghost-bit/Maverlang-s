@@ -40,6 +40,14 @@ describe("shouldToggleSidebarClick", () => {
     const interactive = { closest: () => ({}) };
     expect(shouldToggleSidebarClick(interactive)).toBe(false);
   });
+
+  it("sobre menús ([role='menu']) y superficies estáticas ([data-sidebar-static]) no alterna", () => {
+    const matching = (attr: string) => ({
+      closest: (selector: string) => (selector.includes(attr) ? {} : null),
+    });
+    expect(shouldToggleSidebarClick(matching("[role='menu']"))).toBe(false);
+    expect(shouldToggleSidebarClick(matching("[data-sidebar-static]"))).toBe(false);
+  });
 });
 
 describe("shouldIgnoreSidebarShortcut", () => {

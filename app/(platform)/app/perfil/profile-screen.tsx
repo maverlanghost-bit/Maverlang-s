@@ -5,7 +5,6 @@ import { CurrencySwitch } from "@/components/app-shell/currency-switch";
 import { Avatar } from "@/components/ui/avatar";
 import { ErrorState } from "@/components/ui/error-state";
 import { LoadingState } from "@/components/ui/loading-state";
-import { PageHeader } from "@/components/ui/page-header";
 import { AchievementsCard } from "@/components/domain/achievements-card";
 import { ResetDemoButton } from "@/components/domain/reset-demo-button";
 import { SecurityShieldCard } from "@/components/domain/security-shield-card";
@@ -113,7 +112,7 @@ export function ProfileScreen({ version }: { version: string }) {
   if (me.isPending) {
     return (
       <div className={SHELL}>
-        <PageHeader title={t.pages.profile.title} description={t.pages.profile.lead} />
+        <h1 className="sr-only">{t.pages.profile.title}</h1>
         <LoadingState variant="list" label={t.states.loading} />
       </div>
     );
@@ -122,7 +121,7 @@ export function ProfileScreen({ version }: { version: string }) {
     const heading = user?.displayName ?? user?.email ?? t.profile.noEmail;
     return (
       <div className={SHELL}>
-        <PageHeader title={t.pages.profile.title} description={t.pages.profile.lead} />
+        <h1 className="sr-only">{t.pages.profile.title}</h1>
         <SettingsNote role="status">{t.profile.schemaMissing}</SettingsNote>
         <Identity heading={heading} />
         <ProfileNav t={t} />
@@ -133,7 +132,7 @@ export function ProfileScreen({ version }: { version: string }) {
   if (me.isError || !profile) {
     return (
       <div className={SHELL}>
-        <PageHeader title={t.pages.profile.title} description={t.pages.profile.lead} />
+        <h1 className="sr-only">{t.pages.profile.title}</h1>
         <ErrorState
           label={t.states.error}
           title={t.profile.loadError}
@@ -150,7 +149,7 @@ export function ProfileScreen({ version }: { version: string }) {
 
   return (
     <div className={SHELL}>
-      <PageHeader title={t.pages.profile.title} description={t.pages.profile.lead} />
+      <h1 className="sr-only">{t.pages.profile.title}</h1>
       <Identity heading={heading} email={profile.displayName ? email : undefined} country={country} />
       <ProfileNav t={t} />
       <SettingsPanel>

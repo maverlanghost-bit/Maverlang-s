@@ -64,7 +64,6 @@ const HAIRLINE = "border-t border-border first:border-t-0";
 
 export function SettingsFrame({
   title,
-  description,
   back = true,
   children,
 }: {
@@ -88,7 +87,7 @@ export function SettingsFrame({
             {t.profile.back}
           </Link>
         ) : null}
-        <PageHeader title={title} description={description} />
+        <PageHeader title={title} />
       </div>
       {children}
     </div>

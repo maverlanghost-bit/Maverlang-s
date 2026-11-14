@@ -1,5 +1,14 @@
 # PROGRESO — Maverlang
 
+## DISEÑO_APP_02 — Shell compacto, cabeceras limpias, Cripto/Ganar y gráfico en ficha (2026-11-14, main)
+- Alcance: 30 archivos modificados en app-shell, vistas autenticadas (`/app/*`), dominio (`market-section-chips.tsx`, `crypto-market.tsx`, `earn-screen.tsx`) y 2 tests unitarios; sin dependencias nuevas, sin migraciones ni cambios en `app/api/` o `lib/services/`.
+- Shell y búsqueda: `sidebar.tsx`, `app-shell.tsx`, `top-bar.tsx`, `stock-search.tsx`, `command-palette.tsx`, `lib/app-shell/sidebar.ts` y `settings-screen.tsx` (barra lateral más angosta, toggle por espacio vacío, lupa hacia paleta unificada, divisa trasladada a Ajustes).
+- Cabeceras limpias y secciones de Mercado: `market-screen.tsx`, `wallet-screen.tsx` (+ `depositar/enviar/recibir`), `portfolio-screen.tsx`, `favoritas-screen.tsx`, `perfil/{profile-screen,ui}.tsx`, `copiar/{page,mis-copias/page,planes/page}.tsx` y `market-section-chips.tsx` (`Acciones · Cripto · Copiar` + subpestañas en Cripto/Ganar).
+- Cripto, Ganar y ficha de acción: rediseño de `cripto/{page,loading}.tsx`, `ganar/{page,loading}.tsx`, `crypto-market.tsx` y `earn-screen.tsx`; ajuste de orden en `accion/[ticker]/{detail-screen,loading}.tsx` para ubicar precio y gráfico arriba de Datos.
+- Tests unitarios: actualizados `tests/unit/sidebar.test.ts` y `tests/unit/ui-shell-mobile.test.ts`.
+- Verificación: `npm test` 189 archivos / 1.931 tests OK · `npm run lint` 0 errores (26 warnings previos en `wallet-withdrawals-d02.test.ts`) · `npm run build` 543/543 páginas OK (excluyendo temporalmente `scratch_fin/` local no trackeada, `tsconfig.json` revertido antes del commit) · `scan:secrets -- --require-bundle` 265 archivos limpio.
+- Pendiente: no se corrió Playwright `npm run e2e` ni se aceptó/parcheó el advisory preexistente `GHSA-mrhx-c7xc-m3w5` (`zod`) en `npm run audit:deps`.
+
 ## MEJORA_CONTINUA_04 — Pulido de modo claro, consistencia y mobile (2026-11-13, rama mejora/diseno)
 - Alcance: se completó y comiteó el intento previo (105 archivos) y se encadenó una ronda de 8 sub-bots (`deepseek-v4.1-flash`) sobre archivos disjuntos. Sin dependencias nuevas, sin build, tests, servidor, push ni merge; cero migraciones, cero `.env*`, cero cambios en `content/`, `app/api/`, `lib/`, `supabase/`, flags, aviso de demo o logos.
 - Base (`024cbb5`): `--color-fg-subtle #6a6d72` (5,19/4,81/4,56:1 en blanco/surface-1/surface-2), `--shadow-card` desde `--color-border` (`shadow-hairline` alias), foco y selección desde `--color-fg`/`--color-bg`; `WalletAddress` nuevo (dirección recortada por el centro + copiar 44 px) y `LegalNote` reutilizado en posiciones; se quitó un bloque duplicado en `mix-cart.tsx` que rompía `tsc`.

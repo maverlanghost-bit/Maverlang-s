@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 
 import { EarnScreen } from "@/components/domain/earn-screen";
+import { MarketSectionChips } from "@/components/domain/market-section-chips";
+import { isCopyEnabled } from "@/lib/copy/flags";
 
 export const metadata: Metadata = {
   title: "Ganar",
@@ -9,6 +11,7 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-export default function GanarPage() {
-  return <EarnScreen />;
+export default async function GanarPage() {
+  const showCopy = await isCopyEnabled();
+  return <EarnScreen sections={<MarketSectionChips active="crypto" showCopy={showCopy} />} />;
 }

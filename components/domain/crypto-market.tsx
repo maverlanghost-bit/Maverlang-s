@@ -1,15 +1,17 @@
 "use client";
 
-import { useMemo } from "react";
+import { useId, useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { z } from "zod";
 
+import { CryptoSubTabs } from "@/components/domain/market-section-chips";
 import { PriceFreshness } from "@/components/domain/price-freshness";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ErrorState } from "@/components/ui/error-state";
-import { PageHeader } from "@/components/ui/page-header";
+import { IconChevron } from "@/components/ui/icons";
+import { indexFromKey } from "@/components/ui/keys";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BRIDGED_TOKEN_NOTICE, LEGAL_REVIEW_NOTICE, NON_CUSTODY_LINE } from "@/content/crypto-legal";
 import { apiResultSchema } from "@/lib/api/contracts";
@@ -22,20 +24,17 @@ import type { Quote } from "@/lib/types";
 /** La lista cambia poco: se refresca al volver a entrar, no en cada tick. */
 const LIST_STALE_MS = 5 * 60_000;
 
-/** Retícula de la tabla: activo · sello · tope · precio. Sólo desde sm. */
-const ROW_COLUMNS = "sm:grid-cols-[minmax(0,1fr)_5rem_6.5rem_8rem]";
+/** Retícula de la tabla: activo · verificación · tope · precio · acción. Sólo desde sm. */
+const ROW_COLUMNS = "sm:grid-cols-[minmax(0,1fr)_8.25rem_6.5rem_7.5rem_1.25rem]";
 
-/** Grupos del catálogo, en el orden en que se leen. */
-const GROUPS = [
-  { key: "crypto", id: "grupo-cripto", title: "Cripto", note: "Tokens de Solana." },
-  { key: "dollar", id: "grupo-dolar", title: "Dólar", note: "Dólares tokenizados." },
-  { key: "gold", id: "grupo-oro", title: "Oro", note: "Oro tokenizado en Solana." },
-] as const satisfies readonly {
-  key: CryptoAsset["group"];
-  id: string;
-  title: string;
-  note: string;
-}[];
+type CryptoCategoryFilter = "all" | CryptoAsset["group"];
+
+const CATEGORY_FILTERS: readonly { value: CryptoCategoryFilter; label: string }[] = [
+  { value: "all", label: "Todas" },
+  { value: "crypto", label: "Cripto" },
+  { value: "dollar", label: "Dólar" },
+  { value: "gold", label: "Oro" },
+];
 
 /**
  * Contrato de `GET /api/crypto/list` (A1). Se valida en el borde para no
@@ -170,13 +169,14 @@ function CryptoRow({
   pricesLoading: boolean;
 }) {
   const warning = asset.seal === "AMARILLO";
+  const verificationLabel = warning ? "Tope propio" : "Estándar";
 
   return (
     <li>
       <Link
         href={`/app/cripto/${encodeURIComponent(asset.symbol)}`}
         className={cn(
-          "flex min-h-14 flex-wrap items-center gap-x-3 gap-y-1 px-2 py-2.5 transition-colors duration-150 hover:bg-surface-1 sm:grid sm:min-h-16 sm:flex-nowrap sm:gap-y-0 sm:py-3",
+          "group flex min-h-14 flex-wrap items-center gap-x-3 gap-y-1.5 px-2 py-3 transition-colors duration-150 hover:bg-surface-1 focus-visible:bg-surface-1 focus-visible:ring-2 focus-visible:ring-fg focus-visible:outline-none focus-visible:ring-inset sm:grid sm:min-h-16 sm:flex-nowrap sm:gap-y-0",
           ROW_COLUMNS,
         )}
       >
@@ -195,21 +195,23 @@ function CryptoRow({
           </span>
         </span>
 
-        <span
-          className={cn(
-            "hidden text-[13px] leading-5 sm:block",
-            warning ? "font-medium text-warn" : "text-fg-muted",
-          )}
-        >
-          <span className="sr-only">Sello </span>
-          {asset.seal}
+        <span className="hidden items-center gap-2 text-[13px] leading-5 sm:inline-flex">
+          <span
+            aria-hidden
+            className={cn("size-1.5 shrink-0 rounded-full", warning ? "bg-warn" : "bg-up")}
+          />
+          <span className={warning ? "font-medium text-fg-body" : "text-fg-muted"}>
+            <span className="sr-only">Sello {asset.seal}: </span>
+            {verificationLabel}
+          </span>
         </span>
+
         <span className="num hidden text-right text-[13px] leading-5 tabular-nums text-fg-muted sm:block">
           <span className="sr-only">Tope por orden </span>
           {topeLabel(asset.maxOrderUsd)}
         </span>
 
-        <span className="shrink-0 text-right">
+        <span className="ml-auto shrink-0 text-right sm:ml-0">
           {priceUsd !== null ? (
             <span className="num block text-sm font-medium tracking-tight tabular-nums text-fg">
               <span className="sr-only">Precio </span>
@@ -225,149 +227,93 @@ function CryptoRow({
           )}
         </span>
 
-        {/* Móvil: sello y tope como dato, sin cápsulas. */}
-        <span className="w-full pl-12 text-[13px] leading-5 text-fg-muted sm:hidden">
-          Sello <span className={warning ? "font-medium text-warn" : undefined}>{asset.seal}</span>
-          <span aria-hidden> · </span>
-          Tope <span className="num tabular-nums">{topeLabel(asset.maxOrderUsd)}</span>
+        <span
+          aria-hidden
+          className="hidden shrink-0 items-center justify-end text-fg-muted transition-transform duration-150 group-hover:translate-x-0.5 group-hover:text-fg motion-reduce:transform-none sm:flex"
+        >
+          <IconChevron className="size-4 -rotate-90" />
+        </span>
+
+        {/* Móvil: estado de verificación, tope por orden y chevron compacto bajo el activo. */}
+        <span className="flex w-full items-center justify-between gap-2 pl-12 text-xs leading-5 text-fg-muted sm:hidden">
+          <span className="inline-flex min-w-0 items-center gap-1.5">
+            <span
+              aria-hidden
+              className={cn("size-1.5 shrink-0 rounded-full", warning ? "bg-warn" : "bg-up")}
+            />
+            <span className={warning ? "font-medium text-fg-body" : undefined}>{verificationLabel}</span>
+            <span aria-hidden>·</span>
+            <span>
+              Tope <span className="num tabular-nums">{topeLabel(asset.maxOrderUsd)}</span>
+            </span>
+          </span>
+          <IconChevron
+            aria-hidden
+            className="size-3.5 shrink-0 -rotate-90 text-fg-muted transition-colors group-hover:text-fg"
+          />
         </span>
       </Link>
     </li>
   );
 }
 
-function AssetGroup({
-  id,
-  title,
-  note,
-  assets,
-  prices,
-  pricesLoading,
-}: {
-  id: string;
-  title: string;
-  note: string;
-  assets: readonly CryptoAsset[];
-  prices: ReadonlyMap<string, number>;
-  pricesLoading: boolean;
-}) {
-  return (
-    <section id={id} aria-labelledby={`${id}-title`} className="flex min-w-0 scroll-mt-24 flex-col gap-3">
-      <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1">
-        <div className="flex min-w-0 flex-wrap items-baseline gap-x-2.5 gap-y-0.5">
-          <h2 id={`${id}-title`} className="text-lg leading-tight font-medium tracking-tight text-fg">
-            {title}
-          </h2>
-          <p className="text-[13px] leading-5 text-fg-muted">{note}</p>
-        </div>
-        <p className="num shrink-0 pr-2 text-[13px] leading-5 tabular-nums text-fg-muted">{assetCount(assets.length)}</p>
-      </div>
-
-      <div className="flex min-w-0 flex-col">
-        <div
-          aria-hidden
-          className={cn("hidden items-baseline gap-x-3 border-b border-border px-2 pb-2 sm:grid", ROW_COLUMNS)}
-        >
-          <span className="eyebrow">Activo</span>
-          <span className="eyebrow">Sello</span>
-          <span className="eyebrow text-right">Tope por orden</span>
-          <span className="eyebrow text-right">Precio</span>
-        </div>
-
-        <ul className="flex min-w-0 flex-col divide-y divide-border border-t border-border sm:border-t-0">
-          {assets.map((asset) => (
-            <CryptoRow
-              key={asset.symbol}
-              asset={asset}
-              priceUsd={prices.get(asset.symbol.toLowerCase()) ?? null}
-              pricesLoading={pricesLoading}
-            />
-          ))}
-        </ul>
-      </div>
-    </section>
-  );
-}
-
 function ListSkeleton() {
   return (
-    <div role="status" aria-live="polite" aria-busy="true" className="flex flex-col gap-10">
+    <div role="status" aria-live="polite" aria-busy="true" className="flex flex-col gap-5">
       <span className="sr-only">Cargando la lista de criptos</span>
-      <div aria-hidden className="flex flex-col gap-6">
-        <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border pb-3">
-          <Skeleton className="h-4 w-44" />
-          <Skeleton className="h-4 w-28" />
+
+      <div aria-hidden className="flex items-center gap-2 overflow-hidden">
+        {["Todas", "Cripto", "Dólar", "Oro"].map((key) => (
+          <Skeleton key={key} className="h-11 w-20 shrink-0 rounded-full sm:h-10" />
+        ))}
+      </div>
+
+      <div aria-hidden className="flex flex-col">
+        <div
+          className={cn("hidden items-center gap-x-3 border-b border-border px-2 pb-2 sm:grid", ROW_COLUMNS)}
+        >
+          <Skeleton className="h-3.5 w-12" />
+          <Skeleton className="h-3.5 w-20" />
+          <Skeleton className="ml-auto h-3.5 w-16" />
+          <Skeleton className="ml-auto h-3.5 w-12" />
+          <span />
         </div>
 
-        <div className="flex flex-wrap items-center gap-x-5 gap-y-1">
-          <div className="flex min-h-5 items-center">
-            <Skeleton className="h-4 w-24" />
-          </div>
-          {["Cripto", "Dólar", "Oro"].map((key) => (
-            <div key={key} className="flex min-h-11 items-center">
-              <Skeleton className="h-4 w-14" />
-            </div>
-          ))}
-        </div>
-
-        <Skeleton className="h-4 w-80 max-w-full" />
-
-        <div className="flex flex-col gap-3">
-          <div className="flex items-baseline justify-between gap-4">
-            <Skeleton className="h-5 w-28" />
-            <Skeleton className="h-4 w-20" />
-          </div>
-          <div className="flex flex-col">
-            <div
-              className={cn("hidden items-center gap-x-3 border-b border-border px-2 pb-2 sm:grid", ROW_COLUMNS)}
+        <ul className="flex flex-col divide-y divide-border border-t border-border sm:border-t-0">
+          {["a", "b", "c", "d", "e", "f", "g", "h"].map((key) => (
+            <li
+              key={key}
+              className={cn(
+                "flex min-h-14 flex-wrap items-center gap-x-3 gap-y-1.5 px-2 py-3 sm:grid sm:min-h-16 sm:flex-nowrap sm:gap-y-0",
+                ROW_COLUMNS,
+              )}
             >
-              <Skeleton className="h-4 w-12" />
-              <Skeleton className="h-4 w-14" />
-              <Skeleton className="ml-auto h-4 w-12" />
-              <Skeleton className="ml-auto h-4 w-14" />
-            </div>
-            <ul className="flex flex-col divide-y divide-border border-t border-border sm:border-t-0">
-              {["a", "b", "c", "d", "e", "f", "g", "h"].map((key) => (
-                <li
-                  key={key}
-                  className={cn(
-                    "flex min-h-14 flex-wrap items-center gap-x-3 gap-y-1 px-2 py-2.5 sm:grid sm:min-h-16 sm:flex-nowrap sm:gap-y-0 sm:py-3",
-                    ROW_COLUMNS,
-                  )}
-                >
-                  <div className="flex min-w-0 flex-1 items-center gap-3 sm:flex-none">
-                    <Skeleton className="size-9 shrink-0 rounded-full" />
-                    <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-                      <Skeleton className="h-3.5 w-12" />
-                      <Skeleton className="h-3.5 w-24 max-w-full" />
-                    </div>
-                  </div>
-                  <Skeleton className="hidden h-4 w-14 sm:block" />
-                  <Skeleton className="ml-auto hidden h-4 w-16 sm:block" />
-                  <Skeleton className="ml-auto h-4 w-20 shrink-0 sm:ml-0" />
-                  <div className="w-full pl-12 sm:hidden">
-                    <Skeleton className="h-3 w-40 max-w-full" />
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </div>
+              <div className="flex min-w-0 flex-1 items-center gap-3 sm:flex-none">
+                <Skeleton className="size-9 shrink-0 rounded-full" />
+                <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+                  <Skeleton className="h-3.5 w-12" />
+                  <Skeleton className="h-3.5 w-24 max-w-full" />
+                </div>
+              </div>
+              <Skeleton className="hidden h-4 w-20 sm:block" />
+              <Skeleton className="ml-auto hidden h-4 w-16 sm:block" />
+              <Skeleton className="ml-auto h-4 w-20 shrink-0 sm:ml-0" />
+              <span className="hidden sm:block" />
+              <div className="w-full pl-12 sm:hidden">
+                <Skeleton className="h-3 w-40 max-w-full" />
+              </div>
+            </li>
+          ))}
+        </ul>
       </div>
     </div>
   );
 }
 
-/** Avisos que no caben arriba: al pie, en el mismo cuerpo que la prosa. */
-function BridgedNotice() {
-  return (
-    <section aria-label="Aviso de token puenteado" className="border-t border-border pt-4">
-      <p className="max-w-prose text-[13px] leading-relaxed text-fg-body">{BRIDGED_TOKEN_NOTICE}</p>
-    </section>
-  );
-}
+export function CryptoMarket({ sections }: { sections?: ReactNode }) {
+  const [filter, setFilter] = useState<CryptoCategoryFilter>("all");
+  const filterId = useId();
 
-export function CryptoMarket() {
   const listQuery = useQuery({
     queryKey: ["crypto-list"],
     queryFn: fetchCryptoList,
@@ -381,17 +327,10 @@ export function CryptoMarket() {
   const prices = useMemo(() => usablePrices(pricesQuery.data), [pricesQuery.data]);
   const pricesLoading = pricesQuery.isPending && symbols.length > 0;
 
-  const groups = useMemo(() => {
-    const buckets: Record<CryptoAsset["group"], CryptoAsset[]> = {
-      crypto: [],
-      dollar: [],
-      gold: [],
-    };
-    for (const asset of assets) buckets[asset.group].push(asset);
-    return GROUPS.map((group) => ({ ...group, assets: buckets[group.key] })).filter(
-      (group) => group.assets.length > 0,
-    );
-  }, [assets]);
+  const filteredAssets = useMemo(() => {
+    if (filter === "all") return assets;
+    return assets.filter((asset) => asset.group === filter);
+  }, [assets, filter]);
 
   // Frescura de los precios que la tabla realmente muestra: el `updatedAt` más
   // reciente de esas cotizaciones; si no viene, la hora del lote.
@@ -413,6 +352,16 @@ export function CryptoMarket() {
   const failed = listQuery.isError;
   const failure = listQuery.error;
 
+  function moveFilter(key: string) {
+    const currentIndex = Math.max(0, CATEGORY_FILTERS.findIndex((option) => option.value === filter));
+    const nextIndex = indexFromKey(key, currentIndex, CATEGORY_FILTERS.length);
+    if (nextIndex === null) return;
+    const next = CATEGORY_FILTERS[nextIndex];
+    if (!next) return;
+    setFilter(next.value);
+    document.getElementById(`${filterId}-${next.value}`)?.focus();
+  }
+
   function retry() {
     void listQuery.refetch();
     if (symbols.length > 0) void pricesQuery.refetch();
@@ -420,21 +369,30 @@ export function CryptoMarket() {
 
   return (
     <div className="flex min-w-0 flex-col gap-6">
-      <PageHeader
-        title="Cripto"
-        description="Cripto, dólares y oro tokenizados que viven en Solana. Precio de mercado en vivo; si falta la cotización, verás «Sin precio»."
-      />
+      <h1 className="sr-only">Cripto</h1>
 
-      {/* Los dos avisos que no se pueden perder de vista; el resto queda al pie. */}
-      <section
-        aria-label="Avisos de custodia y revisión legal"
-        className="flex flex-col gap-1 border-y border-border py-3 text-[13px] leading-relaxed text-fg-body"
-      >
-        <p>{NON_CUSTODY_LINE}</p>
-        <p>{LEGAL_REVIEW_NOTICE}</p>
-      </section>
+      {sections ? <div className="-mx-5 min-w-0 px-5 sm:mx-0 sm:px-0">{sections}</div> : null}
 
-      <p className="text-[13px] leading-5 font-medium text-fg-body">Tokens de Solana · no son acciones xStocks</p>
+      <div className="flex min-w-0 flex-wrap items-center justify-between gap-x-6 gap-y-2 border-b border-border pb-3">
+        <CryptoSubTabs active="tokens" />
+        <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs leading-5 text-fg-muted">
+          <span>Tokens en Solana</span>
+          {!listQuery.isPending && !failed && assets.length > 0 ? (
+            <>
+              <span aria-hidden>·</span>
+              <span className="num font-medium tabular-nums text-fg-body">
+                {assetCount(filteredAssets.length)}
+              </span>
+            </>
+          ) : null}
+          {freshestAt !== null ? (
+            <>
+              <span aria-hidden>·</span>
+              <PriceFreshness at={freshestAt} stale={anyStale} className="text-xs" />
+            </>
+          ) : null}
+        </div>
+      </div>
 
       {listQuery.isPending ? <ListSkeleton /> : null}
 
@@ -461,31 +419,42 @@ export function CryptoMarket() {
       ) : null}
 
       {!listQuery.isPending && !failed && assets.length > 0 ? (
-        <section aria-label="Listado de criptos" className="flex min-w-0 flex-col gap-6">
-          <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2 border-b border-border pb-3">
-            <p className="text-[13px] leading-5 text-fg-muted">
-              <span className="num font-medium tabular-nums text-fg-body">{assets.length}</span>{" "}
-              {assets.length === 1 ? "activo" : "activos"} · Precio de mercado en vivo
-            </p>
-            <PriceFreshness at={freshestAt} stale={anyStale} className="text-[13px]" />
+        <section aria-label="Listado de criptos" className="flex min-w-0 flex-col gap-5">
+          <div className="no-scrollbar -mx-5 flex min-w-0 overflow-x-auto overscroll-x-contain px-5 sm:mx-0 sm:px-0">
+            <div
+              role="radiogroup"
+              aria-label="Categoría de activos"
+              className="inline-flex min-w-0 shrink-0 items-center gap-2"
+              onKeyDown={(event) => {
+                if (indexFromKey(event.key, 0, CATEGORY_FILTERS.length) === null) return;
+                event.preventDefault();
+                moveFilter(event.key);
+              }}
+            >
+              {CATEGORY_FILTERS.map((option) => {
+                const selected = filter === option.value;
+                return (
+                  <button
+                    key={option.value}
+                    id={`${filterId}-${option.value}`}
+                    type="button"
+                    role="radio"
+                    aria-checked={selected}
+                    tabIndex={selected ? 0 : -1}
+                    onClick={() => setFilter(option.value)}
+                    className={cn(
+                      "inline-flex min-h-11 min-w-11 shrink-0 cursor-pointer items-center justify-center rounded-full border px-3.5 text-[13px] leading-5 font-medium whitespace-nowrap transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-fg focus-visible:outline-none sm:min-h-10",
+                      selected
+                        ? "border-fg bg-surface-1 text-fg"
+                        : "border-border bg-bg text-fg-muted hover:border-border-strong hover:text-fg",
+                    )}
+                  >
+                    {option.label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
-
-          <nav aria-label="Secciones de cripto" className="flex flex-wrap items-center gap-x-5 gap-y-1">
-            <span className="eyebrow">En esta página</span>
-            {groups.map((group) => (
-              <a
-                key={group.id}
-                href={`#${group.id}`}
-                className="inline-flex min-h-11 items-center text-[13px] leading-5 font-medium text-fg-body underline decoration-border underline-offset-4 transition-colors hover:text-fg hover:decoration-fg motion-reduce:transition-none"
-              >
-                {group.title}
-              </a>
-            ))}
-          </nav>
-
-          <p className="max-w-prose text-[13px] leading-relaxed text-fg-muted">
-            Sello VERDE: tope estándar por orden. Sello AMARILLO: tope propio del token, indicado en cada fila.
-          </p>
 
           {pricesQuery.isError ? (
             <div className="flex flex-wrap items-center gap-3">
@@ -498,23 +467,60 @@ export function CryptoMarket() {
             </div>
           ) : null}
 
-          <div className="flex min-w-0 flex-col gap-10">
-            {groups.map((group) => (
-              <AssetGroup
-                key={group.id}
-                id={group.id}
-                title={group.title}
-                note={group.note}
-                assets={group.assets}
-                prices={prices}
-                pricesLoading={pricesLoading}
-              />
-            ))}
-          </div>
+          {filteredAssets.length === 0 ? (
+            <EmptyState
+              title="No hay activos en esta categoría"
+              description="Prueba seleccionando otra categoría."
+              action={
+                <Button variant="secondary" size="sm" onClick={() => setFilter("all")}>
+                  Ver todas
+                </Button>
+              }
+            />
+          ) : (
+            <div className="flex min-w-0 flex-col">
+              <div
+                aria-hidden
+                className={cn(
+                  "hidden items-center gap-x-3 border-b border-border px-2 pb-2 font-mono text-[11px] font-medium tracking-[0.06em] text-fg-muted uppercase sm:grid",
+                  ROW_COLUMNS,
+                )}
+              >
+                <span>Activo</span>
+                <span>Verificación</span>
+                <span className="text-right">Tope / orden</span>
+                <span className="text-right">Precio</span>
+                <span />
+              </div>
+
+              <ul className="flex min-w-0 flex-col divide-y divide-border border-t border-border sm:border-t-0">
+                {filteredAssets.map((asset) => (
+                  <CryptoRow
+                    key={asset.symbol}
+                    asset={asset}
+                    priceUsd={prices.get(asset.symbol.toLowerCase()) ?? null}
+                    pricesLoading={pricesLoading}
+                  />
+                ))}
+              </ul>
+            </div>
+          )}
         </section>
       ) : null}
 
-      <BridgedNotice />
+      <footer
+        aria-label="Notas y avisos legales"
+        className="flex flex-col gap-1.5 border-t border-border pt-6 text-xs leading-relaxed text-fg-muted"
+      >
+        <p>
+          {NON_CUSTODY_LINE} {LEGAL_REVIEW_NOTICE}
+        </p>
+        <p>{BRIDGED_TOKEN_NOTICE}</p>
+        <p>
+          Tokens de Solana, no son acciones xStocks. Sello VERDE («Estándar»): tope estándar por orden; sello
+          AMARILLO («Tope propio»): tope propio del token indicado en cada fila.
+        </p>
+      </footer>
     </div>
   );
 }

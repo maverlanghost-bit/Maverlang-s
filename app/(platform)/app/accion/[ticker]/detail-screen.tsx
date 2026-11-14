@@ -1047,64 +1047,66 @@ export function DetailScreen({
           </header>
         </div>
 
-        {/* En móvil, precio primero: el precio y la única CTA caben en el
-            primer pliegue de 360 px. Desde lg el contexto vuelve sobre el gráfico. */}
-        <div className="order-1 min-w-0 lg:order-2">
-          <PricePanel
-            symbol={ticker.symbol}
-            name={ticker.name}
-            quote={quote}
-            pending={prices.isPending && quote === null}
-            onRetry={() => {
-              void prices.refetch();
-            }}
-            currency={currency}
-            rate={rate}
-            fxPending={fx.isPending}
-            range={range}
-            onRangeChange={setRange}
-            priceUpdatedAt={prices.dataUpdatedAt || quote?.updatedAt || null}
-            priceStale={quote?.stale === true}
-            underlying={ticker.underlying}
-            avgCostUsd={position?.avgCostUsd ?? null}
-          />
-        </div>
+        <div className="flex min-w-0 flex-col gap-6">
+          {/* En móvil, precio primero: el precio y la única CTA caben en el
+              primer pliegue de 360 px. Desde lg el contexto vuelve sobre el gráfico. */}
+          <div className="order-1 min-w-0 lg:order-2">
+            <PricePanel
+              symbol={ticker.symbol}
+              name={ticker.name}
+              quote={quote}
+              pending={prices.isPending && quote === null}
+              onRetry={() => {
+                void prices.refetch();
+              }}
+              currency={currency}
+              rate={rate}
+              fxPending={fx.isPending}
+              range={range}
+              onRangeChange={setRange}
+              priceUpdatedAt={prices.dataUpdatedAt || quote?.updatedAt || null}
+              priceStale={quote?.stale === true}
+              underlying={ticker.underlying}
+              avgCostUsd={position?.avgCostUsd ?? null}
+            />
+          </div>
 
-        <div className="order-2 flex min-w-0 flex-col gap-3 lg:order-1">
-          <ul
-            className="flex min-w-0 max-w-full list-none flex-wrap items-center gap-x-2.5 gap-y-1 p-0 font-mono text-[13px] leading-4 tracking-[0.06em] text-fg-muted uppercase"
-            aria-label={t.detail.chips}
-          >
-            {contextItems.map((item, index) => (
-              <ContextItem key={item.key} separator={index > 0}>
-                {item.node}
-              </ContextItem>
-            ))}
-            {statusPending ? (
-              <li className="shrink-0">
-                <Skeleton className="h-4 w-28" />
+          <div className="order-2 flex min-w-0 flex-col gap-3 lg:order-1">
+            <ul
+              className="flex min-w-0 max-w-full list-none flex-wrap items-center gap-x-2.5 gap-y-1 p-0 font-mono text-[13px] leading-4 tracking-[0.06em] text-fg-muted uppercase"
+              aria-label={t.detail.chips}
+            >
+              {contextItems.map((item, index) => (
+                <ContextItem key={item.key} separator={index > 0}>
+                  {item.node}
+                </ContextItem>
+              ))}
+              {statusPending ? (
+                <li className="shrink-0">
+                  <Skeleton className="h-4 w-28" />
+                </li>
+              ) : statusReady ? (
+                <ContextItem separator={contextItems.length > 0}>
+                  <span className={cn("size-1.5 shrink-0 rounded-full", chipDot)} aria-hidden />
+                  {chipText}
+                </ContextItem>
+              ) : null}
+              <li className="sm:hidden">
+                <Link
+                  href={`/app/asistente?ticker=${encodeURIComponent(ticker.symbol)}&q=${encodeURIComponent(`Analiza ${ticker.name} (${ticker.symbol}): desempeño, riesgos y contexto actual`)}`}
+                  className="-mx-2 inline-flex min-h-11 items-center gap-1.5 rounded-full px-2 text-[13px] font-medium text-fg-muted transition-colors hover:text-fg focus-visible:ring-4 focus-visible:ring-fg/20 focus-visible:outline-none"
+                >
+                  <svg className="size-3.5 shrink-0" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                    <path d="M8 1l1.65 4.35L14 7l-4.35 1.65L8 13l-1.65-4.35L2 7l4.35-1.65L8 1z" />
+                  </svg>
+                  {language === "en" ? "Ask the AI" : "Preguntar a la IA"}
+                </Link>
               </li>
-            ) : statusReady ? (
-              <ContextItem separator={contextItems.length > 0}>
-                <span className={cn("size-1.5 shrink-0 rounded-full", chipDot)} aria-hidden />
-                {chipText}
-              </ContextItem>
+            </ul>
+            {statusReady && chipNote ? (
+              <p className="text-[13px] leading-5 text-fg-muted">{chipNote}</p>
             ) : null}
-            <li className="sm:hidden">
-              <Link
-                href={`/app/asistente?ticker=${encodeURIComponent(ticker.symbol)}&q=${encodeURIComponent(`Analiza ${ticker.name} (${ticker.symbol}): desempeño, riesgos y contexto actual`)}`}
-                className="-mx-2 inline-flex min-h-11 items-center gap-1.5 rounded-full px-2 text-[13px] font-medium text-fg-muted transition-colors hover:text-fg focus-visible:ring-4 focus-visible:ring-fg/20 focus-visible:outline-none"
-              >
-                <svg className="size-3.5 shrink-0" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
-                  <path d="M8 1l1.65 4.35L14 7l-4.35 1.65L8 13l-1.65-4.35L2 7l4.35-1.65L8 1z" />
-                </svg>
-                {language === "en" ? "Ask the AI" : "Preguntar a la IA"}
-              </Link>
-            </li>
-          </ul>
-          {statusReady && chipNote ? (
-            <p className="text-[13px] leading-5 text-fg-muted">{chipNote}</p>
-          ) : null}
+          </div>
         </div>
 
         {/* Explicación del gráfico en el asistente y tarjeta para compartir: sin montos. */}

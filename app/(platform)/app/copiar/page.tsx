@@ -15,6 +15,7 @@ import { ExampleDataStrip, FeedBanner } from "@/components/copy/feed-banner";
 import { FraccionSeal } from "@/components/copy/fraccion-seal";
 import { LegalNote } from "@/components/copy/legal-note";
 import { PortfolioCard, PORTFOLIO_HEADER_GRID } from "@/components/copy/portfolio-card";
+import { MarketSectionChips } from "@/components/domain/market-section-chips";
 import { buttonClasses } from "@/components/ui/button";
 import { IconSearch } from "@/components/ui/icons";
 import { getCopyIndex, getCopyPortfolio } from "@/lib/copy/feed";
@@ -88,37 +89,47 @@ const HEADER_CELL = "label-xs";
  * Portada del hub: H1, una línea de alcance y una sola CTA primaria (planes).
  * «Mis copias» queda como enlace discreto: es navegación, no la acción.
  */
-function CatalogHeader({ cta = true }: { cta?: boolean }) {
+function CatalogHeader({
+  cta = true,
+  showSections = false,
+}: {
+  cta?: boolean;
+  showSections?: boolean;
+}) {
   return (
-    <header className="flex flex-col gap-4">
-      <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between sm:gap-10">
-        <div className="min-w-0">
-          <h1 className="text-3xl leading-[1.1] tracking-tight text-balance sm:text-4xl">
-            Copiar carteras
-          </h1>
-          <p className="mt-3 max-w-2xl text-[15px] leading-6 text-pretty text-fg-muted">
-            Carteras 13F y ETF para replicar con acciones de Maverlang, y corredoras chilenas, AFP y
-            temáticas para mirar. Cada fila muestra la fecha del dato, el atraso y la cobertura.
-          </p>
+    <>
+      <h1 className="sr-only">Copiar carteras</h1>
+      {showSections || cta ? (
+        <div
+          className={cn(
+            "flex flex-col gap-4",
+            showSections && "sm:flex-row sm:items-center sm:justify-between",
+          )}
+        >
+          {showSections ? (
+            <div className="-mx-5 min-w-0 px-5 sm:mx-0 sm:px-0">
+              <MarketSectionChips active="copy" showCopy />
+            </div>
+          ) : null}
+          {cta ? (
+            <div className="flex flex-wrap items-center justify-end gap-x-5 gap-y-1 sm:ml-auto">
+              <Link
+                href="/app/copiar/mis-copias"
+                className="inline-flex min-h-11 items-center text-[13px] font-medium text-fg-muted underline decoration-border-control underline-offset-4 transition-colors duration-150 hover:text-fg"
+              >
+                Mis copias
+              </Link>
+              <Link
+                href="/app/copiar/planes"
+                className={buttonClasses({ variant: "primary", size: "md", className: "min-h-11" })}
+              >
+                Ver planes
+              </Link>
+            </div>
+          ) : null}
         </div>
-        {cta ? (
-          <div className="flex shrink-0 flex-wrap items-center gap-x-5 gap-y-1">
-            <Link
-              href="/app/copiar/mis-copias"
-              className="inline-flex min-h-11 items-center text-[13px] font-medium text-fg-muted underline decoration-border-control underline-offset-4 transition-colors duration-150 hover:text-fg"
-            >
-              Mis copias
-            </Link>
-            <Link
-              href="/app/copiar/planes"
-              className={buttonClasses({ variant: "primary", size: "md", className: "min-h-11" })}
-            >
-              Ver planes
-            </Link>
-          </div>
-        ) : null}
-      </div>
-    </header>
+      ) : null}
+    </>
   );
 }
 
@@ -156,7 +167,7 @@ export default async function CopiarPage({
   if (entries.length === 0) {
     return (
       <div className="flex flex-col gap-8">
-        <CatalogHeader />
+        <CatalogHeader showSections />
         {health.state === "none" ? (
           <CopySoonState description="Todavía no hay datos del feed de Fraccion.si. Vuelve pronto." />
         ) : (
@@ -236,8 +247,8 @@ export default async function CopiarPage({
   });
 
   return (
-    <div className="flex flex-col gap-10">
-      <CatalogHeader />
+    <div className="flex flex-col gap-6">
+      <CatalogHeader showSections />
       <div className="flex flex-col gap-3">
         <FeedBanner health={health} />
         {health.source === "fixtures" ? <ExampleDataStrip /> : null}

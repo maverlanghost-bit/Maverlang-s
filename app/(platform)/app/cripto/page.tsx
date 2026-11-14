@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 
 import { CryptoMarket } from "@/components/domain/crypto-market";
+import { MarketSectionChips } from "@/components/domain/market-section-chips";
+import { isCopyEnabled } from "@/lib/copy/flags";
 
 export const metadata: Metadata = {
   title: "Cripto",
@@ -10,6 +12,7 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-export default function CriptoPage() {
-  return <CryptoMarket />;
+export default async function CriptoPage() {
+  const showCopy = await isCopyEnabled();
+  return <CryptoMarket sections={<MarketSectionChips active="crypto" showCopy={showCopy} />} />;
 }

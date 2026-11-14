@@ -17,7 +17,6 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { ErrorState } from "@/components/ui/error-state";
 import { Input } from "@/components/ui/input";
 import { LoadingState } from "@/components/ui/loading-state";
-import { PageHeader } from "@/components/ui/page-header";
 import { Skeleton } from "@/components/ui/skeleton";
 import { isRealAccountUiBlocked } from "@/lib/account/real-ui-gate";
 import { useSession } from "@/lib/auth";
@@ -217,7 +216,7 @@ export function WalletScreen() {
   if (isRealAccountUiBlocked(mode)) {
     return (
       <div className="flex flex-col gap-6">
-        <PageHeader title={t.pages.wallet.title} description={t.wallet.lead} />
+        <h1 className="sr-only">{t.pages.wallet.title}</h1>
         <RealAccountEmpty />
       </div>
     );
@@ -226,7 +225,7 @@ export function WalletScreen() {
   if (balances.isError) {
     return (
       <div className="flex flex-col gap-6">
-        <PageHeader title={t.pages.wallet.title} description={t.wallet.lead} />
+        <h1 className="sr-only">{t.pages.wallet.title}</h1>
         <ErrorState
           title={t.wallet.loadError}
           label={t.states.error}
@@ -277,7 +276,7 @@ export function WalletScreen() {
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader title={t.pages.wallet.title} description={t.wallet.lead} />
+      <h1 className="sr-only">{t.pages.wallet.title}</h1>
 
       <Card>
         <WalletVaultHeader solUi={solUi} lowSol={lowSol} mode={mode} />

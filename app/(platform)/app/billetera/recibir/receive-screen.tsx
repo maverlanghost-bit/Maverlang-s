@@ -71,7 +71,7 @@ export function ReceiveScreen() {
       <Link href="/app/billetera" className={backLink}>
         {t.wallet.back}
       </Link>
-      <PageHeader title={t.wallet.receiveTitle} description={t.wallet.receiveLead} />
+      <PageHeader title={t.wallet.receiveTitle} />
       {session.status === "loading" ? (
         <LoadingState label={t.states.loading} />
       ) : mode !== "real" ? (

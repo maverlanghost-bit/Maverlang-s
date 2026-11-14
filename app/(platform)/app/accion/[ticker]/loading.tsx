@@ -28,44 +28,46 @@ export default function AccionLoading() {
           </div>
         </div>
 
-        {/* Mismo orden que la pantalla: en móvil el precio va antes que el contexto. */}
-        <div className="order-1 flex min-w-0 flex-col lg:order-2">
-          <Skeleton className="-ml-1 h-14 w-56 max-w-full bg-surface-2" />
-          <Skeleton className="mt-3 h-4 w-40" />
+        <div className="flex min-w-0 flex-col gap-6">
+          {/* Mismo orden que la pantalla: en móvil el precio va antes que el contexto. */}
+          <div className="order-1 flex min-w-0 flex-col lg:order-2">
+            <Skeleton className="-ml-1 h-14 w-56 max-w-full bg-surface-2" />
+            <Skeleton className="mt-3 h-4 w-40" />
 
-          <div className="mt-2 flex items-center justify-between gap-4 border-b border-border pb-2">
-            <div className="flex items-center gap-5">
-              <Skeleton className="h-4 w-8" />
-              <Skeleton className="h-4 w-8" />
-              <Skeleton className="h-4 w-8" />
-              <Skeleton className="h-4 w-8" />
-              <Skeleton className="h-4 w-10" />
+            <div className="mt-2 flex items-center justify-between gap-4 border-b border-border pb-2">
+              <div className="flex items-center gap-5">
+                <Skeleton className="h-4 w-8" />
+                <Skeleton className="h-4 w-8" />
+                <Skeleton className="h-4 w-8" />
+                <Skeleton className="h-4 w-8" />
+                <Skeleton className="h-4 w-10" />
+              </div>
+              <Skeleton className="h-4 w-24" />
             </div>
+
+            <Skeleton className="mt-4 h-64 w-full rounded-xl sm:h-80 md:h-[380px]" />
+
+            <div className="mt-2 flex items-center justify-between gap-4">
+              <Skeleton className="h-3.5 w-20" />
+              <Skeleton className="h-3.5 w-20" />
+            </div>
+            <div className="mt-5 border-t border-border pt-4">
+              <Skeleton className="h-4 w-3/4 max-w-sm" />
+              <Skeleton className="mt-3 h-1 w-full rounded-full" />
+              <div className="mt-3 flex items-center justify-between gap-4">
+                <Skeleton className="h-3.5 w-24" />
+                <Skeleton className="h-3.5 w-24" />
+                <Skeleton className="h-3.5 w-24" />
+              </div>
+            </div>
+          </div>
+
+          {/* Contexto del activo: en móvil va después del precio. */}
+          <div className="order-2 flex flex-wrap items-center gap-x-3 gap-y-2 lg:order-1">
+            <Skeleton className="h-4 w-20" />
+            <Skeleton className="h-4 w-24" />
             <Skeleton className="h-4 w-24" />
           </div>
-
-          <Skeleton className="mt-4 h-64 w-full rounded-xl sm:h-80 md:h-[380px]" />
-
-          <div className="mt-2 flex items-center justify-between gap-4">
-            <Skeleton className="h-3.5 w-20" />
-            <Skeleton className="h-3.5 w-20" />
-          </div>
-          <div className="mt-5 border-t border-border pt-4">
-            <Skeleton className="h-4 w-3/4 max-w-sm" />
-            <Skeleton className="mt-3 h-1 w-full rounded-full" />
-            <div className="mt-3 flex items-center justify-between gap-4">
-              <Skeleton className="h-3.5 w-24" />
-              <Skeleton className="h-3.5 w-24" />
-              <Skeleton className="h-3.5 w-24" />
-            </div>
-          </div>
-        </div>
-
-        {/* Contexto del activo: en móvil va después del precio. */}
-        <div className="order-2 flex flex-wrap items-center gap-x-3 gap-y-2 lg:order-1">
-          <Skeleton className="h-4 w-20" />
-          <Skeleton className="h-4 w-24" />
-          <Skeleton className="h-4 w-24" />
         </div>
 
         <div className="flex flex-wrap gap-2">

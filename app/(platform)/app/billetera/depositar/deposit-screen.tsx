@@ -25,7 +25,7 @@ export function DepositScreen({
       >
         {t.wallet.back}
       </Link>
-      <PageHeader title={t.wallet.depositTitle} description={t.wallet.depositLead} />
+      <PageHeader title={t.wallet.depositTitle} />
       {/* Primera versión: sólo USDC. El depósito en pesos sigue en el código, oculto. */}
       {PESO_DEPOSITS_ENABLED ? (
         <Tabs

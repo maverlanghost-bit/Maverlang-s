@@ -15,15 +15,16 @@ export function serializeSidebarCookie(state: SidebarState): string {
   return `${SIDEBAR_COOKIE}=${state}; path=/; max-age=${SIDEBAR_MAX_AGE}; SameSite=Lax`;
 }
 
-const SIDEBAR_INTERACTIVE_SELECTOR = "a, button, input, textarea, select, [contenteditable]";
+const SIDEBAR_INTERACTIVE_SELECTOR =
+  "a, button, input, textarea, select, [contenteditable], [role='menu'], [data-sidebar-static]";
 
 type ClosestLike = {
   closest: (selector: string) => unknown;
 };
 
 /**
- * Clic en el fondo del sidebar (no sobre links/botones/inputs) alterna el estado.
- * Recibe el target del evento; no captura clics de hijos interactivos.
+ * Clic en el fondo vacío del sidebar (no sobre controles, menús ni superficies estáticas)
+ * alterna el estado. Recibe el target del evento; no captura clics de hijos interactivos.
  */
 export function shouldToggleSidebarClick(target: ClosestLike | null | undefined): boolean {
   if (!target || typeof target.closest !== "function") return true;
