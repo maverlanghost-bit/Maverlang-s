@@ -1,4 +1,4 @@
-import { siteOrigin } from "@/config/site";
+import { authRedirectOrigin } from "@/lib/auth/callback-next";
 import { classifyAuthError, registroErrorMessage } from "@/lib/auth/registro-errors";
 import {
   registroDemoUserData,
@@ -13,7 +13,7 @@ import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
 export function registroRedirectTo(next: string | null): string {
   const safe = safeNextPath(next) ?? "/app";
-  const url = new URL("/auth/callback", siteOrigin());
+  const url = new URL("/auth/callback", authRedirectOrigin());
   url.searchParams.set("next", safe);
   return url.toString();
 }

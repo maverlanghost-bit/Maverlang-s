@@ -76,4 +76,16 @@ describe("login y recuperar", () => {
     expect(url.pathname).toBe("/auth/callback");
     expect(url.searchParams.get("next")).toBe("/app/restablecer");
   });
+  it("en el navegador vuelve al mismo dominio desde el que se pidió", () => {
+    const g = globalThis as { window?: unknown };
+    const original = g.window;
+    g.window = { location: { origin: "https://maverlang.vercel.app" } };
+    try {
+      const url = new URL(recoveryRedirectTo());
+      expect(url.origin).toBe("https://maverlang.vercel.app");
+      expect(url.pathname).toBe("/auth/callback");
+    } finally {
+      g.window = original;
+    }
+  });
 });
