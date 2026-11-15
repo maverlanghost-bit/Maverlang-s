@@ -14,7 +14,7 @@ export type ShellSection = "market" | "portfolio" | "wallet" | "profile";
 
 export type ShellTabId = "market" | "portfolio" | "assistant" | "favorites" | "wallet";
 
-export type ShellNavId = ShellTabId | "profile";
+export type ShellNavId = ShellTabId | "profile" | "crypto";
 
 type IconType = ComponentType<SVGProps<SVGSVGElement>>;
 
@@ -35,11 +35,40 @@ function publishShellLabels(): void {
   const enNav = en.nav as Record<string, string>;
   esNav.assistant = navExtra.esCL.assistant;
   esNav.favorites = navExtra.esCL.favorites;
+  esNav.crypto = "Cripto";
   enNav.assistant = navExtra.en.assistant;
   enNav.favorites = navExtra.en.favorites;
+  enNav.crypto = "Crypto";
 }
 
 publishShellLabels();
+
+function IconCrypto({ className, ...props }: SVGProps<SVGSVGElement>) {
+  return createElement(
+    "svg",
+    {
+      ...props,
+      viewBox: "0 0 16 16",
+      fill: "none",
+      "aria-hidden": true,
+      className: cn("size-4", className),
+    },
+    createElement("circle", {
+      cx: 8,
+      cy: 8,
+      r: 5.5,
+      stroke: "currentColor",
+      strokeWidth: 1.5,
+    }),
+    createElement("path", {
+      d: "M6.5 5.75h2.25a1.25 1.25 0 0 1 0 2.5H6.5m0 0h2.5a1.25 1.25 0 0 1 0 2.5H6.5m0-5v5",
+      stroke: "currentColor",
+      strokeWidth: 1.35,
+      strokeLinecap: "round",
+      strokeLinejoin: "round",
+    }),
+  );
+}
 
 function IconAssistant({ className, ...props }: SVGProps<SVGSVGElement>) {
   return createElement(
@@ -70,6 +99,7 @@ function IconFavorites({ className, ...props }: SVGProps<SVGSVGElement>) {
  * mismas filas por jerarquía: producto arriba, utilidades después.
  */
 const marketDest = { href: "/app", id: "market", icon: IconChart, mobile: true } as const satisfies Dest;
+const cryptoDest = { href: "/app/cripto", id: "crypto", icon: IconCrypto, mobile: false } as const satisfies Dest;
 const portfolioDest = {
   href: "/app/cartera",
   id: "portfolio",
@@ -109,27 +139,35 @@ export const shellNav: readonly DestItem[] = destinations;
 export const mobileTabs = [marketDest, portfolioDest, assistantDest, favoritesDest, walletDest] as const;
 
 /** Sidebar, grupo principal: el producto y el dinero. */
-export const sidebarPrimary = [marketDest, portfolioDest, walletDest] as const;
+export const sidebarPrimary = [marketDest, cryptoDest, portfolioDest, walletDest] as const;
 
 /** Sidebar, utilidades: lo personal y el asistente. */
 export const sidebarUtility = [favoritesDest, assistantDest] as const;
 
 export function shellTabLabel(
   language: "es-CL" | "en",
-  id: (typeof mobileTabs)[number]["id"],
-  nav: Pick<Messages["nav"], "market" | "portfolio" | "wallet">,
+  id: ShellNavId,
+  nav: Pick<Messages["nav"], "market" | "portfolio" | "wallet"> & { profile?: string },
 ): string {
   if (id === "assistant" || id === "favorites") return navExtraCopy(language)[id];
+  if (id === "crypto") return language === "en" ? "Crypto" : "Cripto";
+  if (id === "profile") return nav.profile ?? (language === "en" ? "Profile" : "Perfil");
   return nav[id];
 }
 
-/** Rutas que dependen de la pestaña Mercado (acciones, criptos, Ganar y Copiar). */
-const MARKET_PATHS = ["/app/accion", "/app/cripto", "/app/ganar", "/app/copiar"] as const;
+/** Rutas que dependen de la pestaña Mercado (acciones y Copiar). */
+const MARKET_PATHS = ["/app/accion", "/app/copiar"] as const;
+
+/** Rutas que dependen de la sección Cripto (Tokens y Ganar). */
+const CRYPTO_PATHS = ["/app/cripto", "/app/ganar"] as const;
 
 export function isShellSectionActive(pathname: string, id: string): boolean {
   if (id === "market") {
     if (pathname === "/app") return true;
     return MARKET_PATHS.some((base) => pathname === base || pathname.startsWith(`${base}/`));
+  }
+  if (id === "crypto") {
+    return CRYPTO_PATHS.some((base) => pathname === base || pathname.startsWith(`${base}/`));
   }
   const href = destinations.find((item) => item.id === id)?.href;
   if (!href) return false;

@@ -5,6 +5,7 @@ import {
   cryptoByMint,
   cryptoBySymbol,
   cryptoGroupOf,
+  cryptoSectorOf,
   isCryptoMint,
   isCryptoSymbol,
   maxOrderUsdFor,
@@ -20,8 +21,8 @@ import {
 } from "@/lib/catalog/lst";
 
 /**
- * Allowlist cerrada de §1.9: los 29 mints exactos. Si un token cambia de mint,
- * se cambia acá y en `lib/catalog/crypto.ts` en el mismo commit.
+ * Allowlist cerrada de §1.9 + Fase 2: los 45 mints exactos. Si un token cambia
+ * de mint, se cambia acá y en `lib/catalog/crypto.ts` en el mismo commit.
  */
 const MINTS: Record<string, string> = {
   BTC: "cbbtcf3aa214zXHbiAZQwf4122FBYbraNdFqgw4iMij",
@@ -35,6 +36,8 @@ const MINTS: Record<string, string> = {
   USDG: "2u1tszSeqZ3qBWF3uNGPFc8TzMk2tdiwknnRMWGWjGWH",
   XAUt0: "AymATz4TCL9sWNEEV9Kvyz45CHVhDZ6kUgjTJPzLpU9P",
   USDY: "A1KLoBrKBde8Ty9qtNQUtq3C2ortoC3u7twggz7sEto6",
+  JUP: "JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN",
+  RAY: "4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S5iCNLY3QrkX6R",
   ETH: "7vfCXTUXx5WJV5JADk17DUJ4ksgau7utNKj4b963voxs",
   BNB: "9gP2kCy3wA1ctvYWQk75guqXuHfrEomqydHLtcTCqiLa",
   TRX: "GbbesPbaYh5uiAZSYNXTc7w9jty1rpg3P9L4JeN4LkKc",
@@ -53,9 +56,23 @@ const MINTS: Record<string, string> = {
   AAVE: "AavE1kKKnesPw4MuRJmJ9jZs9QzEE8CPxQ3ViczUDfc1",
   PAXG: "5GgRAEmv8ZxF2PR5hY72Qs5x1bnQ6UK2RbTPoqJ3wSwW",
   ONDO: "ondohH8Vssxiqcy5u6Efi4AYN17KZrzQtv2a91dnrgW",
+  KMNO: "KMNo3nJsBXfcpJTVhZcXLW7RmTwTt4GVFE7suUBo9sS",
+  PYTH: "HZ1JovNiVvGrGNiiYvEozEVgZ58xaU3RKwX8eACQBCt3",
+  JTO: "jtojtomepa8beP8AuQc6eXt5FriJwfFMwQx2v2f9mCL",
+  ORCA: "orcaEKTdK7LKz57vaAYr9QeNsVEPfiu6QeMU1kektZE",
+  DRIFT: "DriFtupJYLTosbwoN8koMbEYSx54aFAVLddWsbksjwg7",
+  W: "85VBFQZC9TZkfaptBWjvUw7YbZjy52A6mjtPGjstQAmQ",
+  RENDER: "rndrizKT3MK1iimdxRdWabcF7Zg7AR5T4nud4EkHBof",
+  HNT: "hntyVP6YFm1Hg25TN9WGLqM12b8TQmcknKrdu1oxWux",
+  BONK: "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263",
+  WIF: "EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm",
+  POPCAT: "7GCihgDB8fe6KNjn2MYtkzZcRjQy3t9GHdC8uHYmW2hr",
+  PENGU: "2zMMhcVQEXDtdE6vsFS7S7D5oUodfJHE8vd1gnBouauv",
+  TRUMP: "6p6xgHyF7AeE6TZkSmFsko444wqoP15icUSqi2jfGiPN",
+  FARTCOIN: "9BB6NFEcjBCtnNLFko2FqVQBq8HHM13kCyYcdQbgpump",
 };
 
-/** Sellos VERDE de §1.9: tope US$1.000. */
+/** Sellos VERDE de §1.9 + Fase 2: tope US$1.000. */
 const VERDE = [
   "BTC",
   "SOL",
@@ -68,9 +85,11 @@ const VERDE = [
   "USDG",
   "XAUt0",
   "USDY",
+  "JUP",
+  "RAY",
 ];
 
-/** Sellos AMARILLO de §1.9 con su tope por token, más estricto que US$1.000. */
+/** Sellos AMARILLO de §1.9 + Fase 2 con su tope por token, más estricto que US$1.000. */
 const TOPES_AMARILLO: Record<string, number> = {
   ETH: 500,
   BNB: 1000,
@@ -90,9 +109,23 @@ const TOPES_AMARILLO: Record<string, number> = {
   AAVE: 100,
   PAXG: 500,
   ONDO: 500,
+  KMNO: 500,
+  PYTH: 500,
+  JTO: 500,
+  ORCA: 250,
+  DRIFT: 100,
+  W: 250,
+  RENDER: 500,
+  HNT: 250,
+  BONK: 500,
+  WIF: 500,
+  POPCAT: 500,
+  PENGU: 500,
+  TRUMP: 500,
+  FARTCOIN: 500,
 };
 
-/** Decimales medidos con Price v3 el 10 nov 2026. NEAR va aparte (sin precio esa noche). */
+/** Decimales medidos con Price v3 / Jupiter Tokens API v2. NEAR va aparte (sin precio esa noche). */
 const DECIMALES: Record<string, number> = {
   BTC: 8,
   SOL: 9,
@@ -105,6 +138,8 @@ const DECIMALES: Record<string, number> = {
   USDG: 6,
   XAUt0: 6,
   USDY: 6,
+  JUP: 6,
+  RAY: 6,
   ETH: 8,
   BNB: 8,
   TRX: 6,
@@ -122,6 +157,20 @@ const DECIMALES: Record<string, number> = {
   AAVE: 8,
   PAXG: 6,
   ONDO: 8,
+  KMNO: 6,
+  PYTH: 6,
+  JTO: 9,
+  ORCA: 6,
+  DRIFT: 6,
+  W: 6,
+  RENDER: 8,
+  HNT: 8,
+  BONK: 5,
+  WIF: 6,
+  POPCAT: 9,
+  PENGU: 6,
+  TRUMP: 6,
+  FARTCOIN: 6,
 };
 
 /** Decisión de Manu (10 nov 2026): dólares y oro van en grupos aparte. */
@@ -145,11 +194,11 @@ const LST_MINTS: Record<string, string> = {
   USDY: "A1KLoBrKBde8Ty9qtNQUtq3C2ortoC3u7twggz7sEto6",
 };
 
-describe("catálogo de cripto (§1.9)", () => {
-  it("tiene exactamente los 29 tokens, sin símbolos ni mints repetidos", () => {
-    expect(CRYPTO_ASSETS).toHaveLength(29);
-    expect(new Set(CRYPTO_ASSETS.map((asset) => asset.symbol)).size).toBe(29);
-    expect(new Set(CRYPTO_ASSETS.map((asset) => asset.mint)).size).toBe(29);
+describe("catálogo de cripto (§1.9 + Fase 2)", () => {
+  it("tiene exactamente los 45 tokens, sin símbolos ni mints repetidos", () => {
+    expect(CRYPTO_ASSETS).toHaveLength(45);
+    expect(new Set(CRYPTO_ASSETS.map((asset) => asset.symbol)).size).toBe(45);
+    expect(new Set(CRYPTO_ASSETS.map((asset) => asset.mint)).size).toBe(45);
     expect(CRYPTO_ASSETS.every((asset) => asset.mint.trim() !== "")).toBe(true);
     expect(CRYPTO_ASSETS.every((asset) => asset.name.trim() !== "")).toBe(true);
     expect(CRYPTO_ASSETS.every((asset) => asset.originLabel.trim() !== "")).toBe(true);
@@ -177,8 +226,8 @@ describe("catálogo de cripto (§1.9)", () => {
   });
 
   it("los VERDE topan en US$1.000 y los AMARILLO en el tope de su fila", () => {
-    expect(VERDE).toHaveLength(11);
-    expect(Object.keys(TOPES_AMARILLO)).toHaveLength(18);
+    expect(VERDE).toHaveLength(13);
+    expect(Object.keys(TOPES_AMARILLO)).toHaveLength(32);
     for (const symbol of VERDE) {
       expect(maxOrderUsdFor(symbol), symbol).toBe(1000);
       expect(cryptoBySymbol.get(symbol)?.maxOrderUsd, symbol).toBe(1000);
@@ -191,7 +240,7 @@ describe("catálogo de cripto (§1.9)", () => {
     }
   });
 
-  it("respeta los decimales de §1.9 y no inventa los de NEAR", () => {
+  it("respeta los decimales de §1.9 y Fase 2 sin inventar los de NEAR", () => {
     for (const [symbol, decimals] of Object.entries(DECIMALES)) {
       expect(cryptoBySymbol.get(symbol)?.decimals, symbol).toBe(decimals);
     }
@@ -209,7 +258,18 @@ describe("catálogo de cripto (§1.9)", () => {
     expect(cryptoGroupOf("LINK")).toBe("crypto");
     expect(CRYPTO_ASSETS.filter((asset) => asset.group === "dollar")).toHaveLength(7);
     expect(CRYPTO_ASSETS.filter((asset) => asset.group === "gold")).toHaveLength(2);
-    expect(CRYPTO_ASSETS.filter((asset) => asset.group === "crypto")).toHaveLength(20);
+    expect(CRYPTO_ASSETS.filter((asset) => asset.group === "crypto")).toHaveLength(36);
+  });
+
+  it("asigna el sector correcto a cada token vía cryptoSectorOf", () => {
+    expect(cryptoSectorOf("BTC")).toBe("bluechip");
+    expect(cryptoSectorOf("JUP")).toBe("solana-defi");
+    expect(cryptoSectorOf("RENDER")).toBe("ai-infra");
+    expect(cryptoSectorOf("BONK")).toBe("meme");
+    expect(cryptoSectorOf("USDT")).toBe("dollar");
+    expect(cryptoSectorOf("XAUt0")).toBe("gold");
+    expect(cryptoSectorOf("jup")).toBe("solana-defi");
+    expect(cryptoSectorOf("WBTC")).toBeNull();
   });
 });
 

@@ -50,7 +50,7 @@ const MAX_EARN_MATCHES = 6;
 const MAX_INSTANT_STOCKS = 8;
 
 const FEATURED_STOCK_SYMBOLS = ["NVDAx", "AAPLx", "TSLAx", "MSFTx", "SPYx"] as const;
-const FEATURED_CRYPTO_SYMBOLS = ["BTC", "ETH", "SOL"] as const;
+const FEATURED_CRYPTO_SYMBOLS = ["BTC", "SOL", "ETH", "XRP", "USDT", "XAUt0"] as const;
 
 const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])';
 const KBD_CLASS =

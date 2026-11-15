@@ -1,5 +1,14 @@
 # PROGRESO — Maverlang
 
+## DISEÑO_APP_04 — Precios unificados, sección Cripto separada y catálogo ampliado (2026-11-15, main)
+- Alcance: 19 archivos (15 de app/componentes/lib, 2 nuevos de UI cripto y 2 tests unitarios); sin dependencias nuevas, sin migraciones ni cambios en flujos de firma/ejecución.
+- Consistencia de precios: `components/domain/market-today/market-today.tsx` ahora consume `usePrices` (`/api/prices`), fija el precio titular en `spotUsd` (invariante al rango `1D`–`1A`, salvo hover), cierra la curva en el spot actual y siembra `["prices", [symbol]]` en caché. `app/(platform)/app/accion/[ticker]/price-panel.tsx` unifica `effectiveLivePoint` y compara la variación del período contra `spotEndUsd`.
+- Cripto separado en shell: `components/app-shell/nav.ts` mueve `/app/cripto` y `/app/ganar` a `cryptoDest` en `sidebarPrimary`, conservando `mobileTabs` (5 columnas) y `shellNav`; `market-section-chips.tsx`, `app/(platform)/app/{cripto,ganar}/page.tsx` y `stock-search.tsx` dejan Mercado enfocado en Acciones/Copiar.
+- Catálogo a 45 criptos: `lib/catalog/crypto{-types,}.ts` y `app/api/crypto/list/route.ts` incorporan 16 tokens nativos en Solana verificados en Jupiter (`JUP`, `RAY`, `KMNO`, `PYTH`, `JTO`, `ORCA`, `DRIFT`, `W`, `RENDER`, `HNT`, `BONK`, `WIF`, `POPCAT`, `PENGU`, `TRUMP`, `FARTCOIN`) con `CryptoSector`; `crypto-badge-icon.tsx` aporta avatares CSP-safe.
+- Exchange Cripto Pro e IA: `crypto-market.tsx`, `crypto-detail-chart.tsx`, `app/(platform)/app/cripto/[symbol]/page.tsx`, `crypto-trade-sheet.tsx` y `lib/ai/{resolve,tools}.ts` suman resumen de cartera cripto, destacadas, alzas 24h, compra rápida (`?monto=`), filtro/ordenamiento en USD/CLP, gráfico en ficha y resolución cripto en el Asistente.
+- Verificación: `eslint` (0 errores/warnings en los archivos tocados), `next build` 543/543 páginas OK (excluyendo `scratch_fin/` local no trackeada, `tsconfig.json` revertido antes del commit), `scan:secrets -- --require-bundle` (265 archivos limpio) y `npm test` (189 archivos / 1.935 tests OK).
+- Pendiente: prueba E2E Playwright (`npm run e2e`) tras desplegar.
+
 ## DISEÑO_APP_03 — Transiciones del shell y asistente interactivo con comandos `/` (2026-11-14, main)
 - Alcance: 13 archivos de código y 2 tests unitarios; sin dependencias nuevas, sin migraciones ni cambios en rutas de API/servicios de trading.
 - Shell y marca: `components/app-shell/sidebar.tsx` unifica el logo con `<BrandFavicon className="w-10" />` también en `/app/asistente`, bloquea las coordenadas del logo y avatar inferior al colapsar (`212px` ↔ `68px`), y suaviza búsqueda colapsada, saldo e historial con `grid-rows`. `components/ai/chat-view.tsx` sincroniza `lg:transition-[left]` (`280ms`).

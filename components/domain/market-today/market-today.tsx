@@ -17,7 +17,7 @@ import { ApiError, getHistory, searchMarket } from "@/lib/api/client";
 import { apiResultSchema } from "@/lib/api/contracts";
 import { cn } from "@/lib/cn";
 import { formatPercent } from "@/lib/format";
-import { useHistory } from "@/lib/hooks/queries";
+import { useHistory, usePrices } from "@/lib/hooks/queries";
 import { useFavorites } from "@/lib/hooks/use-favorites";
 import { useT } from "@/lib/hooks/use-t";
 import {
@@ -198,14 +198,31 @@ export function MarketToday() {
     () => buildFeaturedPool(board.data, catalog.data?.items),
     [board.data, catalog.data],
   );
+  const featuredSymbols = useMemo(() => featuredPool.map((card) => card.symbol), [featuredPool]);
+  const pricesQuery = usePrices(featuredSymbols);
   const safeSlideIndex = featuredPool.length > 0 ? slideIndex % featuredPool.length : 0;
   const activeCard = featuredPool[safeSlideIndex] ?? null;
+  const activeQuote = useMemo(
+    () => (activeCard ? pricesQuery.data?.find((item) => item.symbol === activeCard.symbol) ?? null : null),
+    [activeCard, pricesQuery.data],
+  );
+  const spotUsd =
+    activeQuote && Number.isFinite(activeQuote.priceUsd) && activeQuote.priceUsd > 0
+      ? activeQuote.priceUsd
+      : null;
 
   const historyQuery = useHistory(activeCard?.symbol ?? "", range);
   const dayNow = useSyncExternalStore(subscribeDayClock, dayClockSnapshot, dayClockServerSnapshot);
 
   /** Precarga los otros rangos de la acción activa una vez que el gráfico visible terminó de cargar. */
   const queryClient = useQueryClient();
+  useEffect(() => {
+    const rows = pricesQuery.data;
+    if (!rows || rows.length === 0) return;
+    for (const row of rows) {
+      queryClient.setQueryData(["prices", [row.symbol]], [row]);
+    }
+  }, [pricesQuery.data, queryClient]);
   useEffect(() => {
     const symbol = activeCard?.symbol.trim() ?? "";
     if (!symbol || !historyQuery.isSuccess) return;
@@ -228,28 +245,43 @@ export function MarketToday() {
    * - Si aún está cargando o `1D` no tiene ticks intradía, recorta `spark` a la ventana
    *   proporcional (`1D` = últimos 3 cierres, `1W` = últimos 6 cierres, `1M` = mes completo)
    *   para que cada pestaña muestre su propia curva y horizonte temporal.
+   * - Cuando existe precio spot en vivo (`spotUsd`), la curva siempre cierra en ese punto
+   *   para que el extremo derecho coincida con el precio titular y la variación del período.
    */
   const series = useMemo<{ p: number; t: number | null }[]>(() => {
     const pts = historyQuery.data?.points;
+    let base: { p: number; t: number | null }[] = [];
     if (pts && pts.length >= 2) {
-      return pts
+      base = pts
         .filter((pt) => Number.isFinite(pt.p) && pt.p > 0)
         .map((pt) => ({ p: pt.p, t: pt.t < 1e12 ? pt.t * 1000 : pt.t }));
+    } else {
+      const cleanSpark = (activeCard?.spark ?? []).filter((p) => Number.isFinite(p) && p > 0);
+      if (cleanSpark.length >= 2) {
+        if (range === "1D") {
+          base = cleanSpark.slice(-3).map((p) => ({ p, t: null }));
+        } else if (range === "1W" && historyQuery.isPending) {
+          base = cleanSpark.slice(-6).map((p) => ({ p, t: null }));
+        } else if (range === "1M" && historyQuery.isPending) {
+          base = cleanSpark.map((p) => ({ p, t: null }));
+        }
+      }
     }
-    const cleanSpark = (activeCard?.spark ?? []).filter((p) => Number.isFinite(p) && p > 0);
-    if (cleanSpark.length >= 2) {
-      if (range === "1D") {
-        return cleanSpark.slice(-3).map((p) => ({ p, t: null }));
-      }
-      if (range === "1W" && historyQuery.isPending) {
-        return cleanSpark.slice(-6).map((p) => ({ p, t: null }));
-      }
-      if (range === "1M" && historyQuery.isPending) {
-        return cleanSpark.map((p) => ({ p, t: null }));
+    if (base.length >= 1 && spotUsd !== null) {
+      const last = base[base.length - 1]!;
+      const updatedMs = activeQuote?.updatedAt ? Date.parse(activeQuote.updatedAt) : Number.NaN;
+      const spotTime =
+        Number.isFinite(updatedMs) && updatedMs > 0
+          ? updatedMs
+          : last.t !== null
+            ? last.t + 1_000
+            : null;
+      if (last.t === null || (spotTime !== null && spotTime > last.t) || Math.abs(last.p - spotUsd) > 1e-6) {
+        return [...base, { p: spotUsd, t: spotTime }];
       }
     }
-    return [];
-  }, [activeCard, historyQuery.data, historyQuery.isPending, range]);
+    return base;
+  }, [activeCard, activeQuote, historyQuery.data, historyQuery.isPending, range, spotUsd]);
   const hasHistory = (historyQuery.data?.points?.length ?? 0) >= 2;
   const chartLoading = historyQuery.isPending && series.length < 2;
 
@@ -296,9 +328,11 @@ export function MarketToday() {
    */
   const basePct = useMemo<number | null>(() => {
     if (!activeCard) return null;
-    // 1D conserva la variación del día que ya calculó el tablero. Una ficha que
-    // sólo viene del catálogo (sin tablero) usa la serie real de 1D.
+    // 1D prioriza la variación 24h en vivo de `/api/prices`, igual que la tabla y la ficha.
     if (range === "1D") {
+      if (activeQuote && Number.isFinite(activeQuote.change24hPct)) {
+        return activeQuote.change24hPct;
+      }
       if (activeCard.changePct !== null && Number.isFinite(activeCard.changePct)) {
         return activeCard.changePct;
       }
@@ -306,11 +340,11 @@ export function MarketToday() {
     }
     if (series.length >= 2) {
       const first = series[0]!.p;
-      const last = series[series.length - 1]!.p;
+      const last = spotUsd ?? series[series.length - 1]!.p;
       if (first > 0) return (last - first) / first;
     }
     return null;
-  }, [activeCard, dayChangePct, range, series]);
+  }, [activeCard, activeQuote, dayChangePct, range, series, spotUsd]);
 
   const displayPct = useMemo<number | null>(() => {
     const first = series[0]?.p ?? 0;
@@ -319,11 +353,11 @@ export function MarketToday() {
   }, [basePct, hoverPoint, series]);
 
   /**
-   * Precio grande de la destacada: el último punto real de la serie (o el
-   * punto bajo el cursor). Sin serie no se pinta una cifra inventada.
+   * Precio grande de la destacada: siempre el precio spot en vivo (`spotUsd`)
+   * cuando no hay hover, para que no salte al cambiar entre rangos del gráfico.
    */
   const lastPoint = series.length > 0 ? series[series.length - 1] : undefined;
-  const shownPriceUsd = hoverPoint?.p ?? lastPoint?.p ?? null;
+  const shownPriceUsd = hoverPoint?.p ?? spotUsd ?? lastPoint?.p ?? null;
 
   const chartValues = useMemo(() => series.map((pt) => pt.p), [series]);
   const chartShape = useMemo(() => sparklineSmoothPath(chartValues, CHART_W, CHART_H), [chartValues]);

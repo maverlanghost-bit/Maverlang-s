@@ -13,6 +13,15 @@ export type CryptoSeal = "VERDE" | "AMARILLO";
  */
 export type CryptoGroup = "crypto" | "dollar" | "gold";
 
+/** Sector temático del catálogo cripto (Fase 2). */
+export type CryptoSector =
+  | "bluechip"
+  | "solana-defi"
+  | "ai-infra"
+  | "meme"
+  | "dollar"
+  | "gold";
+
 export interface CryptoAsset {
   /** Símbolo canónico de Maverlang (BTC, USDe, XAUt0, …). */
   symbol: string;
@@ -23,6 +32,7 @@ export interface CryptoAsset {
   decimals: number | null;
   seal: CryptoSeal;
   group: CryptoGroup;
+  sector: CryptoSector;
   /** Versión / origen en Solana (p. ej. "cbBTC (Coinbase)", "SOL nativo"). */
   originLabel: string;
   /** Tope por orden en USD, en el nocional de la compra. */

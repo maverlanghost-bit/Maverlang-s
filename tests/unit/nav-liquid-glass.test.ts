@@ -13,6 +13,7 @@ import {
   nextTabBarHidden,
   shellNav,
   shellTabLabel,
+  sidebarPrimary,
 } from "@/components/app-shell/nav";
 
 const ROOT = process.cwd();
@@ -69,6 +70,17 @@ describe("barra inferior liquid glass", () => {
     expect(activeMobileTab("/app/ajustes")).toBe(-1);
   });
 
+  it("separa Cripto de Mercado en sidebarPrimary e isShellSectionActive", () => {
+    const primaryIds = sidebarPrimary.map((item) => item.id);
+    expect(primaryIds).toContain("market");
+    expect(primaryIds).toContain("crypto");
+    expect(isShellSectionActive("/app/cripto", "crypto")).toBe(true);
+    expect(isShellSectionActive("/app/cripto/BTC", "crypto")).toBe(true);
+    expect(isShellSectionActive("/app/ganar", "crypto")).toBe(true);
+    expect(isShellSectionActive("/app/cripto", "market")).toBe(false);
+    expect(isShellSectionActive("/app/ganar", "market")).toBe(false);
+  });
+
   it("esconde al bajar, muestra al subir y no se mueve con un temblor", () => {
     expect(nextTabBarHidden(false, 0, 4)).toBe(false);
     expect(nextTabBarHidden(true, 80, 4)).toBe(false);
@@ -90,11 +102,15 @@ describe("barra inferior liquid glass", () => {
     const enNav = en.nav as Record<string, string>;
     expect(es.assistant).toBe("Asistente");
     expect(es.favorites).toBe("Favoritas");
+    expect(es.crypto).toBe("Cripto");
     expect(enNav.assistant).toBe("Assistant");
     expect(enNav.favorites).toBe("Favorites");
+    expect(enNav.crypto).toBe("Crypto");
     expect(shellTabLabel("es-CL", "assistant", esCL.nav)).toBe("Asistente");
     expect(shellTabLabel("en", "wallet", en.nav)).toBe("Wallet");
     expect(shellTabLabel("es-CL", "market", esCL.nav)).toBe("Mercado");
+    expect(shellTabLabel("es-CL", "crypto", esCL.nav)).toBe("Cripto");
+    expect(shellTabLabel("en", "crypto", en.nav)).toBe("Crypto");
   });
 
   it("el JSX declara navegación, foco, vidrio y el alto que no tapa el contenido", () => {

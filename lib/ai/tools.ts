@@ -4,6 +4,8 @@ import { tickerBySymbol } from "@/config/tickers";
 import { aiMessages } from "@/content/i18n/extra-b";
 import { COPY_TOOLS, executeCopyTool } from "@/lib/ai/copy-tools";
 import { findAssetBySymbol, searchCatalog } from "@/lib/catalog/assets";
+import { findCryptoBySymbol } from "@/lib/catalog/crypto";
+import { findEarnBySymbol } from "@/lib/catalog/lst";
 import { fold } from "@/lib/market/browse";
 import { loadTodayBoard, type MoverCard, type OfferedName, type TodayBoard } from "@/lib/market/movers";
 import { yahooSymbol } from "@/lib/market/underlying-move";
@@ -302,12 +304,17 @@ export function toWeightPcts(allocations: readonly number[]): (number | null)[] 
   });
 }
 
-/** Enlace a la hoja que ya abre `?operar=comprar`. No envía la orden. */
+/** Enlace a la ficha de compra (cripto o acción con `?operar=comprar`). No envía la orden. */
 export function buyHref(ticker: string): string {
+  if (findCryptoBySymbol(ticker) || findEarnBySymbol(ticker)) {
+    return `/app/cripto/${encodeURIComponent(ticker)}`;
+  }
   return `/app/accion/${encodeURIComponent(ticker)}?operar=comprar`;
 }
 
 async function displayName(symbol: string): Promise<string> {
+  const digital = findCryptoBySymbol(symbol) ?? findEarnBySymbol(symbol);
+  if (digital) return digital.name;
   try {
     const asset = await findAssetBySymbol(symbol);
     if (asset?.name) return asset.name;

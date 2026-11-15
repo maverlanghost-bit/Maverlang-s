@@ -249,7 +249,11 @@ function CryptoFlow({
   const portfolio = usePortfolio();
   const prices = usePrices([symbol], true, SPOT_MS);
   const statusId = useId();
-  const [amountRaw, setAmountRaw] = useState("");
+  const [amountRaw, setAmountRaw] = useState(() => {
+    if (typeof window === "undefined" || mode !== "buy") return "";
+    const raw = new URLSearchParams(window.location.search).get("monto")?.trim() ?? "";
+    return /^[0-9]+(?:[.,][0-9]+)?$/.test(raw) ? raw : "";
+  });
   const [phase, setPhase] = useState<Phase>("form");
   const [quoteState, setQuoteState] = useState<LiveQuote>(idleQuote);
   const [flowError, setFlowError] = useState<string | null>(null);

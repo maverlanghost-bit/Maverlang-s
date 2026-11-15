@@ -351,10 +351,28 @@ export function PricePanel({
   const polledAt = pollChart && liveQuote.dataUpdatedAt > 0 ? liveQuote.dataUpdatedAt : 0;
   const livePoint = useMemo(() => livePricePoint(polledRow, polledAt), [polledRow, polledAt]);
   const points = history.data?.points ?? NO_POINTS;
+  const quoteUpdatedMs = quote?.updatedAt ? Date.parse(quote.updatedAt) : 0;
+  const effectiveLivePoint = useMemo(() => {
+    if (livePoint) return livePoint;
+    if (!quote || !Number.isFinite(quote.priceUsd) || quote.priceUsd <= 0) return undefined;
+    const lastPt = points[points.length - 1];
+    const fallbackAt =
+      Number.isFinite(quoteUpdatedMs) && quoteUpdatedMs > 0
+        ? quoteUpdatedMs
+        : lastPt && Number.isFinite(lastPt.t)
+          ? lastPt.t + 1_000
+          : 0;
+    return livePricePoint(quote, fallbackAt);
+  }, [livePoint, points, quote, quoteUpdatedMs]);
   // Sin dos puntos el SVG no puede dibujar: se cae a TradingView y se avisa.
   const autoTradingView = !history.isPending && points.length < 2;
-  const period = periodBounds(points, livePoint);
-  const move = rangeMove(points);
+  const period = periodBounds(points, effectiveLivePoint);
+  const openPointUsd = points.length >= 2 && Number.isFinite(points[0]?.p) && (points[0]?.p ?? 0) > 0 ? points[0]!.p : null;
+  const spotEndUsd = effectiveLivePoint?.p ?? (quote && Number.isFinite(quote.priceUsd) && quote.priceUsd > 0 ? quote.priceUsd : null);
+  const move =
+    openPointUsd !== null && spotEndUsd !== null && openPointUsd > 0
+      ? (spotEndUsd - openPointUsd) / openPointUsd
+      : rangeMove(points);
   const stats = !history.isPending && !history.isError ? rangeBounds(points) : null;
   const illustrative =
     !history.isPending && !history.isError && points.length >= 2 && isReferenceHistory(history.data);
@@ -476,7 +494,7 @@ export function PricePanel({
       }
     }
     // Comparados: sólo entran si su serie tiene >= 2 puntos en la ventana del período.
-    const bounds = periodBounds(points, livePoint);
+    const bounds = periodBounds(points, effectiveLivePoint);
     if (bounds) {
       comparedSymbols.forEach((compared, index) => {
         const rows = compareQueries[index]?.data?.points;
@@ -500,7 +518,7 @@ export function PricePanel({
     studies,
     copy,
     points,
-    livePoint,
+    effectiveLivePoint,
     comparedSymbols,
     compareQueries,
   ]);
@@ -513,7 +531,7 @@ export function PricePanel({
       key.toUpperCase() !== symbol.trim().toUpperCase();
     if (enabled && isReferenceHistory(compareHistory.data) === illustrative) {
       const rows = compareHistory.data?.points ?? NO_POINTS;
-      const bounds = periodBounds(points, livePoint);
+      const bounds = periodBounds(points, effectiveLivePoint);
       if (bounds && rows.length >= 2) {
         const inWindow = rows.filter(
           (row) =>
@@ -535,7 +553,7 @@ export function PricePanel({
     compareSymbol,
     compareHistory.data,
     points,
-    livePoint,
+    effectiveLivePoint,
     illustrative,
     symbol,
     studies.spyPoints,
@@ -574,7 +592,7 @@ export function PricePanel({
   // Sin memoización manual: las deps derivadas de props no se pueden preservar y el
   // compilador de React ya memoiza el resultado.
   const comparisonItems: ActiveComparisonItem[] = (() => {
-    const bounds = periodBounds(points, livePoint);
+    const bounds = periodBounds(points, effectiveLivePoint);
     const items: ActiveComparisonItem[] = [
       {
         id: "asset",
@@ -668,7 +686,8 @@ export function PricePanel({
     }
     return count >= 2 ? sum / count : null;
   }, [points]);
-  const activeEndUsd = point?.usd ?? (points.length >= 2 ? points[points.length - 1]?.p ?? null : null);
+  const activeEndUsd =
+    point?.usd ?? spotEndUsd ?? (points.length >= 2 ? points[points.length - 1]?.p ?? null : null);
   const deltaUsd = openUsd !== null && activeEndUsd !== null ? activeEndUsd - openUsd : null;
   const deltaShown = deltaUsd !== null ? displayPrice(Math.abs(deltaUsd), priceCurrency, rate) : null;
   const deltaFormatted =
@@ -1023,7 +1042,7 @@ export function PricePanel({
             <SvgPriceChart
               points={points}
               tone={tone}
-              livePoint={livePoint}
+              livePoint={effectiveLivePoint}
               quiet={history.isPending || history.isError}
               label={fill(t.detail.chartLabel, { name, range: t.detail.rangeCaption[range] })}
               emptyLabel={t.detail.chartEmpty}

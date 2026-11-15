@@ -1,6 +1,8 @@
 import "server-only";
 
 import { findAssetBySymbol, searchCatalog, type CatalogAsset } from "@/lib/catalog/assets";
+import { CRYPTO_ASSETS, findCryptoBySymbol, type CryptoAsset } from "@/lib/catalog/crypto";
+import { EARN_ASSETS, findEarnBySymbol } from "@/lib/catalog/lst";
 import { fold } from "@/lib/market/browse";
 
 export interface ResolvedTicker {
@@ -100,9 +102,41 @@ function toResolved(asset: CatalogAsset): ResolvedTicker {
   return { ticker: asset.symbol, name: asset.name, tradable: asset.tradable };
 }
 
+function resolveDigitalAsset(raw: string): ResolvedTicker | null {
+  const exactCrypto = findCryptoBySymbol(raw);
+  if (exactCrypto) return { ticker: exactCrypto.symbol, name: exactCrypto.name, tradable: true };
+  const exactEarn = findEarnBySymbol(raw);
+  if (exactEarn) return { ticker: exactEarn.symbol, name: exactEarn.name, tradable: true };
+
+  const q = fold(raw);
+  if (!q || q.length < 3) return null;
+  const pool: readonly Pick<CryptoAsset, "symbol" | "name">[] = [...CRYPTO_ASSETS, ...EARN_ASSETS];
+  let best: { asset: Pick<CryptoAsset, "symbol" | "name">; score: number } | null = null;
+  for (const item of pool) {
+    const score = scoreAsset({ symbol: item.symbol, underlying: item.symbol, name: item.name }, q);
+    if (score < 650) continue;
+    if (!best || score > best.score) best = { asset: item, score };
+  }
+  return best ? { ticker: best.asset.symbol, name: best.asset.name, tradable: true } : null;
+}
+
+function searchDigitalAssets(raw: string): ResolvedTicker[] {
+  const q = fold(raw);
+  if (!q) return [];
+  const pool: readonly Pick<CryptoAsset, "symbol" | "name">[] = [...CRYPTO_ASSETS, ...EARN_ASSETS];
+  const scored: { ticker: string; name: string; score: number }[] = [];
+  for (const item of pool) {
+    const score = scoreAsset({ symbol: item.symbol, underlying: item.symbol, name: item.name }, q);
+    if (score >= 400) scored.push({ ticker: item.symbol, name: item.name, score });
+  }
+  scored.sort((a, b) => b.score - a.score || a.ticker.localeCompare(b.ticker));
+  return scored.slice(0, 6).map((item) => ({ ticker: item.ticker, name: item.name, tradable: true }));
+}
+
 /**
- * Resuelve "tesla" o "TSLA" al símbolo visible del catálogo (p. ej. TSLAx).
- * Sólo activos que el mercado ya muestra. Si hay empate débil, null.
+ * Resuelve "tesla", "TSLA", "bitcoin" o "SOL" al símbolo visible del catálogo.
+ * Prioriza acciones del mercado y, si coincide por símbolo o nombre con cripto/LST,
+ * devuelve el token verificado de Solana.
  */
 export async function resolveTicker(query: string, deps?: ResolveDeps): Promise<ResolvedTicker | null> {
   const raw = cleanQuery(query);
@@ -114,15 +148,20 @@ export async function resolveTicker(query: string, deps?: ResolveDeps): Promise<
   } catch {
     console.error("ai chat resolve");
   }
+  const exactDigital = findCryptoBySymbol(raw) ?? findEarnBySymbol(raw);
+  if (exactDigital && fold(exactDigital.symbol) === fold(raw)) {
+    return { ticker: exactDigital.symbol, name: exactDigital.name, tradable: true };
+  }
   let matches: CatalogAsset[] = [];
   try {
     matches = await matchesFor(raw, deps);
   } catch {
     console.error("ai chat resolve");
-    return null;
+    return resolveDigitalAsset(raw);
   }
   const best = pickBest(matches, raw);
-  return best ? toResolved(best) : null;
+  if (best) return toResolved(best);
+  return resolveDigitalAsset(raw);
 }
 
 /** Hasta 8 coincidencias del catálogo visible, de mayor a menor puntaje. */
@@ -134,7 +173,7 @@ export async function searchTickers(query: string, deps?: ResolveDeps): Promise<
     matches = await matchesFor(raw, deps);
   } catch {
     console.error("ai chat resolve");
-    return [];
+    matches = [];
   }
   const ranked = matches
     .map((asset) => ({ asset, score: scoreAsset(asset, raw) }))
@@ -148,6 +187,13 @@ export async function searchTickers(query: string, deps?: ResolveDeps): Promise<
     seen.add(key);
     out.push(toResolved(row.asset));
     if (out.length >= 8) break;
+  }
+  for (const digital of searchDigitalAssets(raw)) {
+    if (out.length >= 8) break;
+    const key = digital.ticker.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(digital);
   }
   return out;
 }

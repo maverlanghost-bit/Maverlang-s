@@ -3,6 +3,8 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import type { ReactNode } from "react";
 
+import { CryptoBadgeIcon } from "@/components/domain/crypto-badge-icon";
+import { CryptoDetailChart } from "@/components/domain/crypto-detail-chart";
 import { CryptoBuyPanel } from "@/components/domain/crypto-trade-sheet";
 import { CopyButton } from "@/components/ui/copy-button";
 import { IconBack } from "@/components/ui/icons";
@@ -17,6 +19,7 @@ import {
 } from "@/content/crypto-legal";
 import { readAccountMode } from "@/lib/account/server";
 import { findCryptoBySymbol } from "@/lib/catalog/crypto";
+import type { CryptoSector } from "@/lib/catalog/crypto-types";
 import { findEarnBySymbol } from "@/lib/catalog/lst";
 import { cn } from "@/lib/cn";
 import { formatMoney } from "@/lib/format";
@@ -30,6 +33,7 @@ type Ficha = {
   decimals: number | null;
   seal: "VERDE" | "AMARILLO" | null;
   group: FichaGroup;
+  sector?: CryptoSector;
   originLabel: string;
   maxOrderUsd: number;
 };
@@ -59,6 +63,7 @@ function fichaFor(raw: string): Ficha | null {
       decimals: crypto.decimals ?? null,
       seal: crypto.seal,
       group: crypto.group,
+      sector: crypto.sector,
       originLabel: crypto.originLabel,
       maxOrderUsd: crypto.maxOrderUsd,
     };
@@ -83,18 +88,6 @@ function fichaFor(raw: string): Ficha | null {
 
 function solscanMintUrl(mint: string) {
   return `https://solscan.io/token/${encodeURIComponent(mint)}`;
-}
-
-function Monogram({ symbol }: { symbol: string }) {
-  const letters = symbol.replace(/[^A-Za-z0-9]/g, "");
-  return (
-    <span
-      aria-hidden
-      className="flex size-12 shrink-0 items-center justify-center rounded-full bg-surface-2 font-mono text-[13px] leading-none font-medium tracking-tight text-fg-body"
-    >
-      {(letters.slice(0, 3) || "?").toUpperCase()}
-    </span>
-  );
 }
 
 /** Rótulo de contexto en mono, separado por un punto: sin cápsulas de color. */
@@ -167,7 +160,12 @@ export default async function CriptoFichaPage({ params }: { params: Promise<{ sy
 
       <div className="flex min-w-0 flex-col gap-4">
         <header className="flex flex-wrap items-center gap-x-4 gap-y-3">
-          <Monogram symbol={asset.symbol} />
+          <CryptoBadgeIcon
+            symbol={asset.symbol}
+            group={asset.group === "lst" ? "crypto" : asset.group}
+            sector={asset.sector}
+            size={48}
+          />
           <div className="min-w-0 flex-1 basis-44">
             <h1 className="max-w-full text-[27px] leading-[1.08] break-words text-balance sm:text-[32px]">
               {asset.name}
@@ -260,15 +258,7 @@ export default async function CriptoFichaPage({ params }: { params: Promise<{ sy
             </dl>
           </section>
 
-          <section aria-labelledby="historial-precio" className="border-t border-border pt-8">
-            <h2 id="historial-precio" className="text-lg font-medium tracking-tight text-fg">
-              Historial de precio
-            </h2>
-            <p className="mt-2 max-w-prose text-[13px] leading-relaxed text-fg-body">
-              Sin historial en esta demo: todavía no guardamos series de {asset.symbol} y no rellenamos el gráfico
-              con datos inventados.
-            </p>
-          </section>
+          <CryptoDetailChart symbol={asset.symbol} name={asset.name} />
 
           <section aria-labelledby="avisos-cripto" className="border-t border-border pt-8">
             <h2 id="avisos-cripto" className="text-lg font-medium tracking-tight text-fg">

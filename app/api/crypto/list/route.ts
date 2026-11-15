@@ -7,9 +7,9 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /**
- * Lista pública del catálogo cripto (29 tokens, MODO DEMO). Sin datos de
- * usuario y sin precios: sólo identidad, sello, origen, grupo y tope por
- * orden. El catálogo cambia con el código, no con la sesión, así que el CDN
+ * Lista pública del catálogo cripto (45 tokens, MODO DEMO). Sin datos de
+ * usuario y sin precios: sólo identidad, sello, origen, grupo, sector y tope
+ * por orden. El catálogo cambia con el código, no con la sesión, así que el CDN
  * puede servirlo unos minutos.
  */
 const LIST_CACHE = "public, max-age=60, s-maxage=300, stale-while-revalidate=300";
@@ -25,6 +25,7 @@ export async function GET(req: Request) {
     decimals: asset.decimals,
     seal: asset.seal,
     group: asset.group,
+    sector: asset.sector,
     originLabel: asset.originLabel,
     maxOrderUsd: asset.maxOrderUsd,
   }));

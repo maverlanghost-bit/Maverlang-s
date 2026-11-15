@@ -2,14 +2,11 @@ import Link from "next/link";
 
 import { cn } from "@/lib/cn";
 
-export type MarketSectionId = "stocks" | "crypto" | "copy";
+export type MarketSectionId = "stocks" | "copy";
 
 type MarketSection = { id: MarketSectionId; href: string; label: string };
 
-const SECTIONS: readonly MarketSection[] = [
-  { id: "stocks", href: "/app", label: "Acciones" },
-  { id: "crypto", href: "/app/cripto", label: "Cripto" },
-];
+const SECTIONS: readonly MarketSection[] = [{ id: "stocks", href: "/app", label: "Acciones" }];
 
 /** Chip de «Copiar carteras»: no es una pestaña nueva, vive dentro de Mercado. */
 const COPY_SECTION: MarketSection = { id: "copy", href: "/app/copiar", label: "Copiar" };
@@ -25,12 +22,13 @@ const CRYPTO_SUB_TABS: readonly CryptoSubTab[] = [
 
 /**
  * Chips de sección del mercado: navegación entre páginas, no un filtro.
- * Se montan sólo arriba de la portada (`MarketScreen`); la barra inferior
- * sigue con sus cinco pestañas y Mercado activo en las secciones.
+ * Se montan arriba de Mercado (`MarketScreen`) y Copiar (`CopiarPage`); la barra
+ * inferior sigue con sus cinco pestañas y Mercado activo en las secciones.
  *
  * `showCopy` lo decide el servidor con `isCopyEnabled()`: con la sección
- * apagada el chip no aparece (ni se puede llegar por el menú). Con la sección
- * encendida, `/app/copiar/**` queda activo dentro de Mercado.
+ * apagada habría sólo un chip ("Acciones"), así que se devuelve `null`. Con la
+ * sección encendida, muestra `Acciones · Copiar` y `/app/copiar/**` queda
+ * activo dentro de Mercado.
  *
  * En móvil la fila no envuelve ni empuja la página: se desplaza dentro de su
  * propio carril (`overflow-x-auto`). Cada chip conserva 44 px de alto y 44 px
@@ -43,7 +41,8 @@ export function MarketSectionChips({
   active: MarketSectionId;
   showCopy?: boolean;
 }) {
-  const sections: readonly MarketSection[] = showCopy ? [...SECTIONS, COPY_SECTION] : SECTIONS;
+  if (!showCopy) return null;
+  const sections: readonly MarketSection[] = [...SECTIONS, COPY_SECTION];
   return (
     <nav
       aria-label="Secciones del mercado"
