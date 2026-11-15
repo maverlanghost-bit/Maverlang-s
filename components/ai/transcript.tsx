@@ -48,6 +48,8 @@ type TextSegment =
   | { kind: "text"; text: string }
   | { kind: "code"; code: string; language: string };
 
+const EASE_OUT = [0.22, 1, 0.36, 1] as const;
+
 /** Botones de la burbuja del usuario; aparecen al pasar el cursor o al enfocar. */
 const USER_ACTION_BUTTON = cn(
   "size-11 sm:size-8 rounded-full text-zinc-600 hover:text-zinc-900 bg-white/95 backdrop-blur-xs shadow-xs border border-control/50",
@@ -137,14 +139,16 @@ function splitAssistantText(text: string): TextSegment[] {
 function AssistantText({
   text,
   onFollowUp,
+  cursor,
 }: {
   text: string;
   onFollowUp?: (prompt: string) => void;
+  cursor?: ReactNode;
 }) {
   const segments = splitAssistantText(text);
 
   if (segments.length === 1 && segments[0]?.kind === "text") {
-    return <RichAssistantMessage text={text} onFollowUp={onFollowUp} />;
+    return <RichAssistantMessage text={text} onFollowUp={onFollowUp} cursor={cursor} />;
   }
 
   let lastProse = -1;
@@ -167,6 +171,7 @@ function AssistantText({
             key={`text-${index}`}
             text={segment.text}
             onFollowUp={index === lastProse ? onFollowUp : undefined}
+            cursor={index === lastProse ? cursor : undefined}
           />
         ) : null,
       )}
@@ -286,7 +291,7 @@ function UserBubble({
           </div>
         ) : (
           <>
-            <div className="bg-zinc-100/90 text-zinc-900 text-[15px] relative overflow-hidden rounded-3xl px-4 py-3 shadow-2xs border border-zinc-200/60 sm:px-5 sm:py-3.5">
+            <div className="bg-zinc-100/90 text-zinc-900 text-[15px] relative overflow-hidden rounded-2xl px-4 py-3 shadow-2xs border border-zinc-200/70 sm:px-5 sm:py-3.5">
               <div
                 className={cn(
                   "relative transition-all duration-300 motion-reduce:transition-none",
@@ -416,9 +421,9 @@ export function Transcript({
         <div onScroll={handleScroll} className="flex-1 flex flex-col items-center justify-start px-4 pt-[16vh] sm:pt-[20vh] pb-6 relative min-h-full overflow-x-hidden overflow-y-auto scrollbar-hide">
           <div className="w-full max-w-4xl mx-auto flex flex-col items-center justify-start">
             <motion.div
-              initial={{ opacity: 0, y: -10, scale: 0.98 }}
+              initial={prefersReducedMotion() ? false : { opacity: 0, y: -10, scale: 0.98 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
-              transition={{ duration: 0.5, ease: "easeOut" }}
+              transition={{ duration: 0.45, ease: EASE_OUT }}
               className="text-center mb-8"
             >
               <div className="flex items-center justify-center">
@@ -432,18 +437,18 @@ export function Transcript({
             </motion.div>
 
             <motion.div
-              initial={{ opacity: 0, y: 10, scale: 0.98 }}
+              initial={prefersReducedMotion() ? false : { opacity: 0, y: 10, scale: 0.98 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
-              transition={{ duration: 0.5, ease: "easeOut", delay: 0.1 }}
+              transition={{ duration: 0.45, ease: EASE_OUT, delay: 0.08 }}
               className="w-full max-w-3xl"
             >
               {landingComposer}
             </motion.div>
 
             <motion.div
-              initial={{ opacity: 0, y: 12 }}
+              initial={prefersReducedMotion() ? false : { opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, ease: "easeOut", delay: 0.2 }}
+              transition={{ duration: 0.45, ease: EASE_OUT, delay: 0.16 }}
               className="w-full mt-3 flex justify-center"
             >
               <WelcomeChips onSendMessage={sendPrompt} />
@@ -464,6 +469,8 @@ export function Transcript({
               const extras = extrasOf(message);
               const reasoning = extras.reasoningText ?? extras.reasoning ?? null;
               const sources = extras.sources;
+              const isLastAssistant = index === last && message.role === "assistant";
+              const isStreamingCurrent = busy && isLastAssistant && (Boolean(message.text?.trim()) || Boolean(message.widgets?.length));
 
               return (
                 <li key={message.id} className="min-w-0">
@@ -496,7 +503,7 @@ export function Transcript({
                           alt="AI Assistant"
                           className={cn(
                             "w-6 h-6 object-contain",
-                            busy && index === last && "animate-pulse",
+                            isStreamingCurrent && "motion-safe:animate-pulse",
                           )}
                         />
                       </div>
@@ -521,11 +528,29 @@ export function Transcript({
                           <AssistantText
                             text={message.text}
                             onFollowUp={followUpState?.index === index ? undefined : sendPrompt}
+                            cursor={
+                              isStreamingCurrent ? (
+                                <span
+                                  aria-hidden="true"
+                                  className="size-2 rounded-full bg-brand inline-block ml-1.5 align-middle motion-safe:animate-pulse"
+                                />
+                              ) : undefined
+                            }
                           />
                         </div>
 
                         {message.widgets && message.widgets.length > 0 ? (
-                          <div className="mt-4 w-full min-w-0">{renderWidgets(message.widgets)}</div>
+                          <div className="mt-4 w-full min-w-0">
+                            {renderWidgets(message.widgets)}
+                            {isStreamingCurrent && !message.text?.trim() ? (
+                              <div className="mt-2">
+                                <span
+                                  aria-hidden="true"
+                                  className="size-2 rounded-full bg-brand inline-block ml-1.5 align-middle motion-safe:animate-pulse"
+                                />
+                              </div>
+                            ) : null}
+                          </div>
                         ) : null}
 
                         {followUpState && followUpState.index === index ? (
@@ -580,9 +605,21 @@ export function Transcript({
               );
             })}
 
-            {busy ? (
-              <li className="min-w-0 motion-safe:animate-pulse motion-reduce:animate-none">
-                <GrokThinkingCard label={copy.typing} />
+            {busy && !(messages[last]?.role === "assistant" && (Boolean(messages[last]?.text?.trim()) || Boolean(messages[last]?.widgets?.length))) ? (
+              <li className="min-w-0">
+                <div className="flex w-full items-start gap-3.5">
+                  <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 mt-1 select-none pointer-events-none">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src="/assets/Maverlang Logo-2.png"
+                      alt="AI Assistant"
+                      className="w-6 h-6 object-contain motion-safe:animate-pulse"
+                    />
+                  </div>
+                  <div className="flex-1 min-w-0 pt-0.5">
+                    <GrokThinkingCard label={copy.typing} />
+                  </div>
+                </div>
               </li>
             ) : null}
           </ol>
@@ -595,13 +632,14 @@ export function Transcript({
         {!isEmpty && !atBottom ? (
           <motion.button
             type="button"
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.8 }}
+            initial={prefersReducedMotion() ? false : { opacity: 0, scale: 0.85, y: 8 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={prefersReducedMotion() ? { opacity: 0 } : { opacity: 0, scale: 0.85, y: 8 }}
+            transition={{ duration: 0.2, ease: EASE_OUT }}
             onClick={scrollToEnd}
             aria-label="Ir al final"
             title="Ir al final"
-            className="absolute bottom-6 right-4 md:right-10 z-30 size-11 bg-zinc-900 text-white rounded-full shadow-lg flex items-center justify-center cursor-pointer border border-zinc-800 hover:opacity-90 active:scale-95"
+            className="absolute bottom-6 right-4 md:right-10 z-30 size-10 rounded-full bg-white/95 text-zinc-800 backdrop-blur-md shadow-md border border-border/80 flex items-center justify-center cursor-pointer transition-transform duration-200 hover:bg-white hover:scale-105 active:scale-95 hover:text-zinc-950 focus-visible:outline-2 focus-visible:outline-brand focus-visible:outline-offset-2 motion-reduce:transition-none"
           >
             <ArrowDownIcon />
           </motion.button>

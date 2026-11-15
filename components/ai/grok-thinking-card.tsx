@@ -6,9 +6,9 @@ import { cn } from "@/lib/cn";
 
 /** Etapas reales del stream: describen lo que hace la interfaz, no datos que no consulta. */
 const TELEMETRY_STEPS = [
-  "Generando la respuesta…",
-  "Redactando el texto…",
-  "Terminando de escribir…",
+  "Analizando mercado…",
+  "Consultando precios…",
+  "Ordenando la respuesta…",
 ] as const;
 
 const STEP_INTERVAL_MS = 1200;
@@ -75,44 +75,31 @@ export function GrokThinkingCard({
     <div
       data-ai-thinking={mode}
       className={cn(
-        "rounded-2xl border border-border/70 bg-white/90 px-3.5 py-3 backdrop-blur",
+        "flex items-center gap-2.5 rounded-xl border border-border/60 bg-surface-1/70 px-3.5 py-2 backdrop-blur-xs",
         "motion-safe:animate-fade-in motion-reduce:animate-none",
       )}
     >
-      <div className="flex items-center gap-2.5">
-        <span aria-hidden="true" className="relative flex size-2 shrink-0 items-center justify-center">
-          <span className="absolute inset-[-3px] rounded-full bg-brand/30 motion-safe:animate-ping motion-reduce:animate-none" />
-          <span className="relative size-2 rounded-full bg-brand motion-safe:animate-pulse motion-reduce:animate-none" />
-        </span>
-        <p
-          role="status"
-          aria-live="polite"
-          aria-atomic="true"
-          className="min-w-0 text-[12.5px] leading-snug font-medium text-fg-body"
-        >
-          {label}
-        </p>
-        <span className="ml-auto shrink-0 rounded-full border border-border/60 bg-surface-1 px-2 py-0.5 text-[11px] font-semibold tracking-[0.08em] text-fg-muted uppercase">
-          {MODE_BADGE[mode]}
-        </span>
-      </div>
+      <span aria-hidden="true" className="relative flex size-2 shrink-0 items-center justify-center">
+        <span className="absolute inset-[-3px] rounded-full bg-brand/30 motion-safe:animate-ping motion-reduce:animate-none" />
+        <span className="relative size-2 rounded-full bg-brand motion-safe:animate-pulse motion-reduce:animate-none" />
+      </span>
 
-      <div aria-hidden="true" className="mt-2 flex items-center gap-2.5">
-        <span className="flex items-center gap-1">
-          {TELEMETRY_STEPS.map((_, index) => (
-            <span
-              key={index}
-              className={cn(
-                "h-[3px] rounded-full transition-colors duration-300 ease-[var(--ease-inout)] motion-reduce:transition-none",
-                index === activeIndex ? "w-4 bg-brand" : "w-1.5 bg-border",
-              )}
-            />
-          ))}
-        </span>
-        <span className="min-w-0 truncate text-[12px] leading-snug text-fg-muted tabular-nums">
+      <div
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+        className="flex min-w-0 items-center gap-2 text-[13px] leading-snug font-medium text-fg-body"
+      >
+        <span>{label}</span>
+        <span aria-hidden="true" className="select-none text-[11px] text-border">·</span>
+        <span className="truncate text-[12px] font-normal text-fg-muted tabular-nums">
           {step}
         </span>
       </div>
+
+      <span className="ml-auto shrink-0 rounded-full border border-border/60 bg-surface-1 px-2 py-0.5 text-[10px] font-medium text-fg-muted">
+        {MODE_BADGE[mode]}
+      </span>
     </div>
   );
 }

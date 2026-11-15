@@ -18,6 +18,67 @@ import { useVoiceInput } from "@/components/ai/use-voice-input";
 import type { AsistenteCopy, AsistenteSuggestionId } from "@/content/i18n/extra-asistente";
 import { cn } from "@/lib/cn";
 
+export type SlashCommand = {
+  id: string;
+  command: string;
+  argHint?: string;
+  desc: string;
+  eg?: string;
+};
+
+export const SLASH_COMMANDS: readonly SlashCommand[] = [
+  {
+    id: "grafico",
+    command: "/grafico",
+    argHint: "<acción>",
+    desc: "Gráfico interactivo y precio en vivo",
+    eg: "/grafico NVDA",
+  },
+  {
+    id: "cartera",
+    command: "/cartera",
+    desc: "Resumen, peso y salud de tu portafolio",
+  },
+  {
+    id: "comparar",
+    command: "/comparar",
+    argHint: "<A> <B>",
+    desc: "Comparar dos acciones lado a lado",
+    eg: "/comparar AAPL MSFT",
+  },
+  {
+    id: "empresa",
+    command: "/empresa",
+    argHint: "<acción>",
+    desc: "Datos SEC, múltiplos y resultados",
+    eg: "/empresa AMZN",
+  },
+  {
+    id: "simular",
+    command: "/simular",
+    argHint: "<acción> <USD>",
+    desc: "Simular compra o aporte mensual",
+    eg: "/simular NVDA 500",
+  },
+  {
+    id: "alerta",
+    command: "/alerta",
+    argHint: "<acción> <precio>",
+    desc: "Configurar alerta de precio objetivo",
+    eg: "/alerta TSLA 300",
+  },
+  {
+    id: "resumen",
+    command: "/resumen",
+    desc: "Pulso diario de tus activos y mercado",
+  },
+  {
+    id: "copiar",
+    command: "/copiar",
+    desc: "Ver portafolios de Copy Trading",
+  },
+];
+
 /** Frases del placeholder animado, en el mismo orden que chat-input.tsx. */
 const CHAT_INPUT_PLACEHOLDERS = [
   "Pregúntame lo que quieras...",
@@ -151,6 +212,47 @@ export function Composer({
   });
 
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+
+  // Paleta de comandos slash (/)
+  const isSlashMode = draft.startsWith("/") && !draft.includes(" ") && !draft.includes("\n");
+  const slashQuery = isSlashMode ? draft.toLowerCase().trim() : "";
+  const filteredCommands = isSlashMode
+    ? SLASH_COMMANDS.filter((cmd) => cmd.command.toLowerCase().startsWith(slashQuery))
+    : [];
+  const [slashSelection, setSlashSelection] = useState<{ query: string; index: number }>({
+    query: "",
+    index: 0,
+  });
+  const [dismissedQuery, setDismissedQuery] = useState<string | null>(null);
+
+  const slashIndex =
+    slashSelection.query === slashQuery && filteredCommands.length > 0
+      ? Math.min(slashSelection.index, filteredCommands.length - 1)
+      : 0;
+  const slashDismissed = isSlashMode && dismissedQuery === slashQuery;
+  const showSlashPalette = isSlashMode && !slashDismissed && filteredCommands.length > 0;
+
+  function selectSlashCommand(cmd: SlashCommand) {
+    if (!cmd.argHint) {
+      onDraft("");
+      (onSuggest as unknown as (arg1: string, arg2?: string) => void)(cmd.command, cmd.command);
+    } else {
+      onDraft(`${cmd.command} `);
+      textareaRef.current?.focus();
+    }
+    setDismissedQuery(slashQuery);
+  }
+
+  function toggleSlashShortcut() {
+    if (draft === "/") {
+      onDraft("");
+      setDismissedQuery(null);
+    } else if (!draft.startsWith("/")) {
+      onDraft("/");
+      setDismissedQuery(null);
+    }
+    textareaRef.current?.focus();
+  }
 
   // Montaje: habilita el typewriter del placeholder en el siguiente frame.
   const [mounted, setMounted] = useState(false);
@@ -379,13 +481,89 @@ export function Composer({
         </p>
       ) : null}
 
+      {/* Paleta flotante de comandos slash (/). */}
+      <AnimatePresence>
+        {showSlashPalette ? (
+          <motion.div
+            initial={{ opacity: 0, y: openUpward ? 6 : -6, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: openUpward ? 6 : -6, scale: 0.98 }}
+            transition={{ duration: 0.15, ease: [0.22, 1, 0.36, 1] }}
+            role="listbox"
+            aria-label="Comandos del asistente"
+            className={cn(
+              "absolute left-0 z-40 w-full max-w-lg overflow-hidden rounded-2xl border border-border/80 bg-white/95 p-1.5 shadow-2xl backdrop-blur-md",
+              openUpward ? "bottom-full mb-2.5" : "top-full mt-2.5",
+            )}
+          >
+            <div className="flex items-center justify-between border-b border-border/50 bg-surface-1/70 px-3 py-1.5 text-[11px] font-semibold text-fg-muted">
+              <span className="flex items-center gap-1.5">
+                <span className="font-mono text-xs font-bold text-brand">/</span>
+                <span>Comandos del asistente</span>
+              </span>
+              <span className="font-mono text-[10px] text-fg-subtle">
+                ↑↓ navegar · ↵ elegir · Esc cerrar
+              </span>
+            </div>
+
+            <div className="max-h-60 overflow-y-auto overscroll-contain p-1 space-y-0.5">
+              {filteredCommands.map((cmd, idx) => {
+                const isSelected = idx === slashIndex;
+                return (
+                  <div
+                    key={cmd.id}
+                    id={`slash-cmd-${cmd.id}`}
+                    role="option"
+                    aria-selected={isSelected}
+                    onClick={() => selectSlashCommand(cmd)}
+                    onMouseEnter={() => setSlashSelection({ query: slashQuery, index: idx })}
+                    className={cn(
+                      "group flex items-center justify-between gap-3 px-3 py-2 rounded-xl cursor-pointer transition-colors text-left",
+                      isSelected
+                        ? "bg-zinc-100/90 text-zinc-950 font-medium"
+                        : "text-zinc-700 hover:bg-zinc-50/80",
+                    )}
+                  >
+                    <div className="flex items-baseline gap-2 min-w-0">
+                      <span className="font-mono text-[13px] font-semibold text-zinc-950 shrink-0">
+                        {cmd.command}
+                      </span>
+                      {cmd.argHint ? (
+                        <span className="font-mono text-[11px] text-zinc-400 shrink-0">
+                          {cmd.argHint}
+                        </span>
+                      ) : null}
+                      <span className="text-[12px] text-zinc-500 truncate">
+                        {cmd.desc}
+                      </span>
+                    </div>
+
+                    <div className="shrink-0 flex items-center gap-1.5">
+                      {cmd.argHint ? (
+                        <span className="font-mono text-[10px] text-zinc-400 tabular-nums">
+                          {cmd.eg}
+                        </span>
+                      ) : (
+                        <span className="rounded-full bg-brand/10 text-brand px-2 py-0.5 text-[10px] font-medium">
+                          Instantáneo
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
+
       {/* Caja contenedora del input. */}
       <div
         className={cn(
-          "relative rounded-xl border border-control/80 bg-white p-2.5",
-          "shadow-[inset_0_0_1px_0_rgba(0,0,0,1),0_1px_2px_0_rgba(0,0,0,0.04),0_2px_12px_0_rgba(0,0,0,0.03)] transition-all duration-300 group focus-within:border-fg/60",
-          "focus-within:shadow-[inset_0_0_1px_0_rgba(0,0,0,1),0_1px_2px_0_rgba(0,0,0,0.04),0_4px_16px_0_rgba(0,0,0,0.06)]",
-          listening && "border-down/60 shadow-[0_0_15px_rgba(200,30,30,0.15)]",
+          "relative rounded-2xl border border-border/80 bg-white/95 p-2.5 backdrop-blur-md",
+          "shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05),0_8px_24px_-4px_rgba(0,0,0,0.08)] transition-all duration-200 group",
+          "focus-within:border-zinc-400 focus-within:ring-2 focus-within:ring-zinc-900/10 focus-within:shadow-[0_4px_16px_-2px_rgba(0,0,0,0.08),0_12px_32px_-4px_rgba(0,0,0,0.12)]",
+          listening && "border-down/60 ring-2 ring-down/20 shadow-[0_0_20px_rgba(200,30,30,0.15)]",
         )}
       >
         {/* Previsualización de la foto pendiente y del código pegado. */}
@@ -496,10 +674,43 @@ export function Composer({
             placeholder={displayedPlaceholder}
             aria-label={copy.placeholder}
             aria-describedby={photoError ? "ai-composer-error ai-composer-note" : "ai-composer-note"}
+            aria-activedescendant={showSlashPalette ? `slash-cmd-${filteredCommands[slashIndex]?.id}` : undefined}
             onChange={(event) => onDraft(event.target.value)}
             onInput={resizeTextarea}
             onFocus={keepComposerVisible}
             onKeyDown={(event) => {
+              if (showSlashPalette) {
+                if (event.key === "ArrowDown") {
+                  event.preventDefault();
+                  setSlashSelection({
+                    query: slashQuery,
+                    index: (slashIndex + 1) % filteredCommands.length,
+                  });
+                  return;
+                }
+                if (event.key === "ArrowUp") {
+                  event.preventDefault();
+                  setSlashSelection({
+                    query: slashQuery,
+                    index: (slashIndex - 1 + filteredCommands.length) % filteredCommands.length,
+                  });
+                  return;
+                }
+                if (event.key === "Enter" || event.key === "Tab") {
+                  event.preventDefault();
+                  const target = filteredCommands[slashIndex] ?? filteredCommands[0];
+                  if (target) {
+                    selectSlashCommand(target);
+                  }
+                  return;
+                }
+                if (event.key === "Escape") {
+                  event.preventDefault();
+                  setDismissedQuery(slashQuery);
+                  return;
+                }
+              }
+
               if (event.key === "Enter" && !event.shiftKey) {
                 event.preventDefault();
                 if (canSend) onSubmit();
@@ -689,6 +900,22 @@ export function Composer({
                 ) : null}
               </AnimatePresence>
             </div>
+
+            {/* Atajo de comandos rápidos (/). */}
+            <button
+              type="button"
+              onClick={toggleSlashShortcut}
+              aria-label="Comandos rápidos"
+              title="Comandos (/)"
+              className={cn(
+                "inline-flex h-11 w-11 shrink-0 cursor-pointer touch-manipulation items-center justify-center rounded-full border text-xs font-mono font-semibold transition-all duration-200 sm:h-9 sm:w-9",
+                showSlashPalette || draft.startsWith("/")
+                  ? "border-zinc-900 bg-zinc-900 text-white shadow-xs"
+                  : "border-border/70 bg-zinc-50/60 text-zinc-600 hover:border-zinc-400 hover:bg-zinc-100 hover:text-zinc-900",
+              )}
+            >
+              /
+            </button>
 
             {/* Píldoras sólo-icono: búsqueda web y razonamiento profundo. */}
             <div className="flex items-center gap-1.5 select-none">

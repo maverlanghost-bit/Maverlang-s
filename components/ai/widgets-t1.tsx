@@ -26,9 +26,9 @@ import type { AiWidget } from "@/components/ai/contract";
 const SIN_DATO = "sin dato";
 
 const CARD_CLASS =
-  "min-w-0 rounded-2xl border border-border/85 bg-bg-elevated/95 p-4 shadow-[0_10px_30px_-14px_rgba(12,15,20,0.1)] backdrop-blur-md transition-all duration-200 hover:border-brand/35 hover:shadow-[0_14px_34px_-14px_rgba(12,15,20,0.14)]";
+  "min-w-0 rounded-2xl border border-border/80 bg-white dark:bg-bg-elevated p-4 shadow-2xs transition-all duration-200 hover:border-brand/35 hover:shadow-xs";
 
-const ROW_CLASS = "flex items-baseline justify-between gap-3 border-b border-border/60 py-1.5 last:border-b-0";
+const ROW_CLASS = "flex items-baseline justify-between gap-3 border-b border-border/60 py-2 last:border-b-0";
 
 const oneDecimal = new Intl.NumberFormat("es-CL", { maximumFractionDigits: 1 });
 const twoDecimals = new Intl.NumberFormat("es-CL", { maximumFractionDigits: 2 });
@@ -182,9 +182,10 @@ export function PortfolioTodayWidget({ widget }: { widget: Extract<AiWidget, { t
             const change = finiteOrNull(position.changePct);
             const weight = finiteOrNull(position.weightPct);
             const ratio = weight == null ? null : ratioFromPortion(weight);
+            const href = detailHref(position.ticker);
             return (
-              <li key={`${position.ticker}-${index}`} className="border-b border-border/70 py-2 last:border-b-0">
-                <div className="flex min-h-11 items-center gap-2">
+              <li key={`${position.ticker}-${index}`} className="border-b border-border/70 py-2.5 last:border-b-0">
+                <div className="flex min-h-11 items-center gap-2 tabular-nums">
                   <TickerLogo
                     symbol={position.ticker}
                     name={position.name}
@@ -194,7 +195,16 @@ export function PortfolioTodayWidget({ widget }: { widget: Extract<AiWidget, { t
                     sizes="32px"
                   />
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate font-medium text-fg">{textOrSinDato(position.name)}</span>
+                    {href ? (
+                      <Link
+                        href={href}
+                        className="block truncate font-medium text-fg outline-none transition-colors hover:text-brand focus-visible:ring-4 focus-visible:ring-fg/20"
+                      >
+                        {textOrSinDato(position.name)}
+                      </Link>
+                    ) : (
+                      <span className="block truncate font-medium text-fg">{textOrSinDato(position.name)}</span>
+                    )}
                     <span className="block truncate text-sm text-fg-muted">{position.ticker}</span>
                   </span>
                   <span className="num shrink-0 text-right text-sm font-medium tabular-nums text-fg">
@@ -211,7 +221,7 @@ export function PortfolioTodayWidget({ widget }: { widget: Extract<AiWidget, { t
                     <ChangeBadge value={change} className="tabular-nums" />
                   )}
                 </div>
-                <span aria-hidden className="mt-1 block h-1 overflow-hidden rounded-full bg-surface-2">
+                <span aria-hidden className="mt-1.5 block h-1.5 overflow-hidden rounded-full bg-surface-2 ring-1 ring-border/40">
                   <span
                     className="block h-full rounded-full bg-brand transition-[width] duration-300"
                     style={{ width: `${((ratio ?? 0) * 100).toFixed(1)}%` }}

@@ -34,6 +34,7 @@ import {
   normalizeToRatio,
   seriesPath,
 } from "@/components/ai/model";
+import { parseSlashCommand } from "@/lib/ai/run-chat";
 import { BuyWidget, CompareWidget, PortfolioWidget, StockWidget } from "@/components/ai/widgets";
 import { asistenteCopy } from "@/content/i18n/extra-asistente";
 
@@ -213,5 +214,65 @@ describe("widgets del asistente", () => {
     );
     expect(limited).toContain("Demasiadas preguntas");
     expect(limited).toContain("Espera un momento");
+  });
+
+  it("la acción enriquecida incluye píldoras de rango y enlace a comprar", () => {
+    const markup = html(
+      createElement(StockWidget, {
+        copy,
+        widget: {
+          type: "stock",
+          ticker: "AAPL",
+          name: "Apple Inc.",
+          priceUsd: 150,
+          changePct: 0.02,
+          range: "1D",
+          points: [
+            { t: 100, p: 140 },
+            { t: 200, p: 150 },
+          ],
+        },
+      }),
+    );
+    expect(markup).toContain('role="tablist"');
+    expect(markup).toContain("Comprar");
+    expect(markup).toContain('href="/app/accion/AAPL?operar=comprar"');
+    expect(markup).toContain("Ver ficha");
+  });
+
+  it("parseSlashCommand identifica de forma determinista los comandos slash soportados", () => {
+    const g1 = parseSlashCommand("/grafico AAPL");
+    expect(g1).toEqual({ name: "get_stock", arguments: JSON.stringify({ query: "AAPL", range: "1D" }) });
+
+    const g2 = parseSlashCommand("/gráfico TSLA 1M");
+    expect(g2).toEqual({ name: "get_stock", arguments: JSON.stringify({ query: "TSLA", range: "1M" }) });
+
+    const c1 = parseSlashCommand("/cartera");
+    expect(c1).toEqual({ name: "portfolio_today", arguments: "{}" });
+
+    const c2 = parseSlashCommand("/portafolio");
+    expect(c2).toEqual({ name: "portfolio_today", arguments: "{}" });
+
+    const comp = parseSlashCommand("/comparar AAPL MSFT 1W");
+    expect(comp).toEqual({ name: "compare_stocks", arguments: JSON.stringify({ tickers: ["AAPL", "MSFT"], range: "1W" }) });
+
+    const emp = parseSlashCommand("/empresa NVDA");
+    expect(emp).toEqual({ name: "get_company_facts", arguments: JSON.stringify({ ticker: "NVDA" }) });
+
+    const sim = parseSlashCommand("/simular MSFT 500");
+    expect(sim).toEqual({ name: "simulate_buy", arguments: JSON.stringify({ ticker: "MSFT", amountUsd: 500 }) });
+
+    const al = parseSlashCommand("/alerta AAPL > 250");
+    expect(al).toEqual({ name: "propose_price_alert", arguments: JSON.stringify({ ticker: "AAPL", direction: "above", thresholdUsd: 250 }) });
+
+    const res = parseSlashCommand("/resumen");
+    expect(res).toEqual({ name: "daily_summary", arguments: "{}" });
+
+    const cop = parseSlashCommand("/copiar");
+    expect(cop).toEqual({ name: "list_copy_portfolios", arguments: "{}" });
+
+    expect(parseSlashCommand("cómo viene tesla")).toBeNull();
+    expect(parseSlashCommand("")).toBeNull();
+    expect(parseSlashCommand("/desconocido")).toBeNull();
   });
 });

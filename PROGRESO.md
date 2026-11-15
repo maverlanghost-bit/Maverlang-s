@@ -1,5 +1,13 @@
 # PROGRESO — Maverlang
 
+## DISEÑO_APP_03 — Transiciones del shell y asistente interactivo con comandos `/` (2026-11-14, main)
+- Alcance: 13 archivos de código y 2 tests unitarios; sin dependencias nuevas, sin migraciones ni cambios en rutas de API/servicios de trading.
+- Shell y marca: `components/app-shell/sidebar.tsx` unifica el logo con `<BrandFavicon className="w-10" />` también en `/app/asistente`, bloquea las coordenadas del logo y avatar inferior al colapsar (`212px` ↔ `68px`), y suaviza búsqueda colapsada, saldo e historial con `grid-rows`. `components/ai/chat-view.tsx` sincroniza `lg:transition-[left]` (`280ms`).
+- UX del asistente: `grok-thinking-card.tsx`, `transcript.tsx`, `rich-message.tsx`, `welcome-chips.tsx` y `content/i18n/extra-asistente.ts` reemplazan la caja pulsante "Escribiendo" por una fila editorial alineada al asistente que cede paso al cursor en streaming; añade soporte markdown para títulos (`##`/`###`) y listas.
+- Comandos `/` y widgets interactivos: `composer.tsx` agrega paleta flotante para `/grafico`, `/cartera`, `/comparar`, `/empresa`, `/simular`, `/alerta`, `/resumen` y `/copiar`. `lib/ai/{run-chat,system-prompt}.ts` garantizan su ejecución segura de sólo lectura. `widgets.tsx` convierte `StockWidget` en gráfico interactivo con rangos (`1D`/`1W`/`1M` vía `lib/api/client.ts`), crosshair y lectura de precio/fecha; `widgets-t1.tsx`/`widgets-t2.tsx` añaden barras de peso y enlaces por activo.
+- Verificación: `eslint` (0 errores/warnings en archivos tocados), `next build` 543/543 páginas OK (excluyendo `scratch_fin/` local no trackeada, `tsconfig.json` revertido antes del commit), `scan:secrets -- --require-bundle` (265 archivos limpio) y `npm test` (189 archivos / 1.933 tests OK).
+- Pendiente: prueba E2E Playwright (`npm run e2e`) en entorno completo.
+
 ## DISEÑO_APP_02 — Shell compacto, cabeceras limpias, Cripto/Ganar y gráfico en ficha (2026-11-14, main)
 - Alcance: 30 archivos modificados en app-shell, vistas autenticadas (`/app/*`), dominio (`market-section-chips.tsx`, `crypto-market.tsx`, `earn-screen.tsx`) y 2 tests unitarios; sin dependencias nuevas, sin migraciones ni cambios en `app/api/` o `lib/services/`.
 - Shell y búsqueda: `sidebar.tsx`, `app-shell.tsx`, `top-bar.tsx`, `stock-search.tsx`, `command-palette.tsx`, `lib/app-shell/sidebar.ts` y `settings-screen.tsx` (barra lateral más angosta, toggle por espacio vacío, lupa hacia paleta unificada, divisa trasladada a Ajustes).

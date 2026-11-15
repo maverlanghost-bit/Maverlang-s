@@ -31,7 +31,8 @@ import { useSession } from "@/lib/auth/session-context";
 import { cn } from "@/lib/cn";
 import { useT } from "@/lib/hooks/use-t";
 
-const WIDTH_ANIMATION = "transition-[width] duration-200 ease-spring";
+const WIDTH_ANIMATION =
+  "transition-[width] will-change-[width] duration-[280ms] ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none";
 
 const SELECT_EVENT = "maverlang:ai-select-chat";
 const ACTION_EVENT = "maverlang:ai-chat-action";
@@ -45,8 +46,7 @@ const ACTION_EVENT = "maverlang:ai-chat-action";
  * por forma y por borde, no por sombra (en modo claro la sombra casi no existe).
  */
 const ROW_BASE =
-  "group relative flex cursor-pointer items-center rounded-lg transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fg";
-const ROW_EXPANDED = "min-h-11 w-full gap-2.5 px-3 text-sm";
+  "group relative flex h-11 w-full cursor-pointer items-center rounded-lg transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fg";
 const ROW_HOVER = "hover:bg-fg/[0.055] hover:text-fg";
 const ROW_ACTIVE = "bg-bg font-medium text-fg ring-1 ring-border-strong/60";
 
@@ -218,9 +218,9 @@ function AccountTrigger({
       aria-expanded={open}
       aria-label={label}
       onClick={onClick}
-      className="flex min-h-11 w-full cursor-pointer items-center gap-2.5 rounded-lg px-1.5 py-1 text-left transition-colors hover:bg-fg/[0.04] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fg"
+      className="flex h-11 w-full cursor-pointer items-center gap-2.5 rounded-lg px-1.5 py-1 text-left transition-colors hover:bg-fg/[0.04] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fg"
     >
-      <Avatar alt="" fallback={name} size="sm" className="size-8" />
+      <Avatar alt="" fallback={name} size="sm" className="size-8 shrink-0" />
       <span className="min-w-0 flex-1">
         <span className="block truncate text-sm font-medium leading-5 text-fg">{name}</span>
         {email ? <span className="block truncate text-xs leading-4 text-fg-muted">{email}</span> : null}
@@ -379,14 +379,27 @@ export function Sidebar({
         aria-current={active ? "page" : undefined}
         className={cn(
           ROW_BASE,
-          collapsed ? "size-11 justify-center" : ROW_EXPANDED,
+          "justify-start text-sm",
           active ? ROW_ACTIVE : cn(utility ? "text-fg-muted" : "text-fg-body", ROW_HOVER),
         )}
       >
-        {collapsed ? (
+        <span
+          aria-hidden={!collapsed}
+          className={cn(
+            "flex size-11 shrink-0 items-center justify-center transition-opacity duration-[280ms] ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none",
+            collapsed ? "opacity-100" : "w-0 opacity-0 overflow-hidden",
+          )}
+        >
           <Icon className={cn("size-4 shrink-0", active ? "text-fg" : "text-fg-muted group-hover:text-fg")} />
-        ) : null}
-        <span className={cn("min-w-0 truncate", collapsed && "sr-only")}>{label}</span>
+        </span>
+        <span
+          className={cn(
+            "min-w-0 flex-1 truncate transition-[opacity,padding] duration-[280ms] ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none",
+            collapsed ? "sr-only opacity-0 px-0" : "opacity-100 px-3",
+          )}
+        >
+          {label}
+        </span>
       </Link>
     );
     return collapsed ? (
@@ -397,12 +410,6 @@ export function Sidebar({
       link
     );
   }
-
-  const searchButton = (
-    <Tooltip content={`${t.shell.search} (⌘K)`} side={collapsed ? "right" : "bottom"}>
-      <StockSearchButton variant="icon" />
-    </Tooltip>
-  );
 
   return (
     <aside
@@ -418,134 +425,174 @@ export function Sidebar({
     >
       {/* Marca. El slot de 44px queda centrado en los 68px del riel colapsado
           (12 + 44 + 12 = 68), así el isotipo no se mueve al colapsar. */}
-      <div
-        className={cn(
-          "flex shrink-0 items-center px-3 pt-3",
-          collapsed ? "justify-center pb-1" : "justify-between pb-1.5",
-        )}
-      >
+      <div className="flex h-14 shrink-0 items-center px-3 pt-3 pb-1.5">
         <Link
           href="/app"
           aria-label={isAiRoute ? t.detail.backToMarket : site.name}
           title={isAiRoute ? t.detail.backToMarket : site.name}
           className="flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-lg transition-opacity hover:opacity-70 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fg"
         >
-          {isAiRoute ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src="/assets/Maverlang Logo-2.png" alt={site.name} className="size-7 object-contain" />
-          ) : (
-            <BrandFavicon className="w-10" />
-          )}
+          <BrandFavicon className="w-10" />
         </Link>
-        {!collapsed ? searchButton : null}
+        <div
+          aria-hidden={collapsed}
+          inert={collapsed ? true : undefined}
+          className={cn(
+            "ml-auto overflow-hidden transition-[opacity,max-width] duration-[280ms] ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none",
+            collapsed ? "max-w-0 opacity-0 pointer-events-none" : "max-w-11 opacity-100",
+          )}
+        >
+          <Tooltip content={`${t.shell.search} (⌘K)`} side="bottom">
+            <StockSearchButton variant="icon" />
+          </Tooltip>
+        </div>
       </div>
-      {collapsed ? (
-        <div className="flex shrink-0 justify-center px-3 pb-1.5">{searchButton}</div>
-      ) : null}
+      <div
+        aria-hidden={!collapsed}
+        inert={!collapsed ? true : undefined}
+        className={cn(
+          "grid shrink-0 px-3 transition-[grid-template-rows,opacity,padding] duration-[280ms] ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none",
+          collapsed
+            ? "grid-rows-[1fr] opacity-100 pb-1.5"
+            : "grid-rows-[0fr] opacity-0 pb-0 pointer-events-none",
+        )}
+      >
+        <div className="min-h-0 overflow-hidden flex items-center justify-start">
+          <Tooltip content={`${t.shell.search} (⌘K)`} side="right">
+            <StockSearchButton variant="icon" />
+          </Tooltip>
+        </div>
+      </div>
 
       <nav aria-label={t.nav.label} className="flex-1 overflow-y-auto overscroll-contain px-3 pt-1 pb-2">
         {isAiRoute ? (
-          collapsed ? (
-            <ul className="flex flex-col items-center gap-0.5">
+          <>
+            <ul className="flex flex-col gap-0.5">
               <li>
-                <Tooltip content={newChatLabel} side="right">
+                {collapsed ? (
+                  <Tooltip content={newChatLabel} side="right">
+                    <button
+                      type="button"
+                      aria-label={newChatLabel}
+                      onClick={() => dispatchAiCommand({ type: "clear" })}
+                      className={cn(ROW_BASE, ROW_HOVER, "justify-start px-0 text-fg-body")}
+                    >
+                      <span className="flex size-11 shrink-0 items-center justify-center">
+                        <MessageSquarePlusIcon className="size-4 shrink-0 text-fg-muted" />
+                      </span>
+                      <span className="sr-only">{newChatLabel}</span>
+                    </button>
+                  </Tooltip>
+                ) : (
                   <button
                     type="button"
-                    aria-label={newChatLabel}
                     onClick={() => dispatchAiCommand({ type: "clear" })}
-                    className={cn(ROW_BASE, ROW_HOVER, "size-11 justify-center text-fg-muted")}
+                    className={cn(ROW_BASE, ROW_HOVER, "justify-start pr-3 text-fg-body")}
                   >
-                    <MessageSquarePlusIcon className="size-4" />
+                    <span className="flex size-11 shrink-0 items-center justify-center">
+                      <MessageSquarePlusIcon className="size-4 shrink-0 text-fg-muted" />
+                    </span>
+                    <span className="min-w-0 flex-1 truncate text-sm">{newChatLabel}</span>
                   </button>
-                </Tooltip>
+                )}
               </li>
               <li>
-                <Tooltip content={searchChatsLabel} side="right">
+                {collapsed ? (
+                  <Tooltip content={searchChatsLabel} side="right">
+                    <button
+                      type="button"
+                      aria-label={searchChatsLabel}
+                      onClick={() => {
+                        if (typeof window === "undefined") return;
+                        window.dispatchEvent(new CustomEvent(ACTION_EVENT, { detail: { type: "search" } }));
+                      }}
+                      className={cn(ROW_BASE, ROW_HOVER, "justify-start px-0 text-fg-body")}
+                    >
+                      <span className="flex size-11 shrink-0 items-center justify-center">
+                        <SearchIcon className="size-4 shrink-0 text-fg-muted" />
+                      </span>
+                      <span className="sr-only">{searchChatsLabel}</span>
+                    </button>
+                  </Tooltip>
+                ) : (
                   <button
                     type="button"
-                    aria-label={searchChatsLabel}
                     onClick={() => {
                       if (typeof window === "undefined") return;
                       window.dispatchEvent(new CustomEvent(ACTION_EVENT, { detail: { type: "search" } }));
                     }}
-                    className={cn(ROW_BASE, ROW_HOVER, "size-11 justify-center text-fg-muted")}
+                    className={cn(ROW_BASE, ROW_HOVER, "justify-start pr-3 text-fg-body")}
                   >
-                    <SearchIcon className="size-4" />
+                    <span className="flex size-11 shrink-0 items-center justify-center">
+                      <SearchIcon className="size-4 shrink-0 text-fg-muted" />
+                    </span>
+                    <span className="min-w-0 flex-1 truncate text-sm">{searchChatsLabel}</span>
                   </button>
-                </Tooltip>
+                )}
               </li>
               <li>
-                <Tooltip content={t.detail.backToMarket} side="right">
-                  <Link
-                    href="/app"
-                    aria-label={t.detail.backToMarket}
-                    className={cn(ROW_BASE, ROW_HOVER, "size-11 justify-center text-fg-muted")}
-                  >
-                    <ArrowLeftIcon className="size-4" />
+                {collapsed ? (
+                  <Tooltip content={t.detail.backToMarket} side="right">
+                    <Link
+                      href="/app"
+                      aria-label={t.detail.backToMarket}
+                      className={cn(ROW_BASE, ROW_HOVER, "justify-start px-0 text-fg-body")}
+                    >
+                      <span className="flex size-11 shrink-0 items-center justify-center">
+                        <ArrowLeftIcon className="size-4 shrink-0 text-fg-muted" />
+                      </span>
+                      <span className="sr-only">{t.detail.backToMarket}</span>
+                    </Link>
+                  </Tooltip>
+                ) : (
+                  <Link href="/app" className={cn(ROW_BASE, ROW_HOVER, "justify-start pr-3 text-fg-body")}>
+                    <span className="flex size-11 shrink-0 items-center justify-center">
+                      <ArrowLeftIcon className="size-4 shrink-0 text-fg-muted" />
+                    </span>
+                    <span className="min-w-0 flex-1 truncate text-sm">{t.detail.backToMarket}</span>
                   </Link>
-                </Tooltip>
+                )}
               </li>
             </ul>
-          ) : (
-            <>
-              <ul className="flex flex-col gap-0.5">
-                <li>
-                  <button
-                    type="button"
-                    onClick={() => dispatchAiCommand({ type: "clear" })}
-                    className={cn(ROW_BASE, ROW_EXPANDED, ROW_HOVER, "text-fg-body")}
-                  >
-                    <MessageSquarePlusIcon className="size-4 shrink-0 text-fg-muted" />
-                    <span className="truncate">{newChatLabel}</span>
-                  </button>
-                </li>
-                <li>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (typeof window === "undefined") return;
-                      window.dispatchEvent(new CustomEvent(ACTION_EVENT, { detail: { type: "search" } }));
-                    }}
-                    className={cn(ROW_BASE, ROW_EXPANDED, ROW_HOVER, "text-fg-body")}
-                  >
-                    <SearchIcon className="size-4 shrink-0 text-fg-muted" />
-                    <span className="truncate">{searchChatsLabel}</span>
-                  </button>
-                </li>
-                <li>
-                  <Link href="/app" className={cn(ROW_BASE, ROW_EXPANDED, ROW_HOVER, "text-fg-body")}>
-                    <ArrowLeftIcon className="size-4 shrink-0 text-fg-muted" />
-                    <span className="truncate">{t.detail.backToMarket}</span>
-                  </Link>
-                </li>
-              </ul>
 
-              <div data-sidebar-static="" className="mt-3 cursor-default border-t border-border pt-2">
-                <NavChatsHistory
-                  chats={savedChats}
-                  activeChatId={activeChatId}
-                  onSelectChat={(chatId) => {
-                    if (typeof window === "undefined") return;
-                    window.dispatchEvent(new CustomEvent(SELECT_EVENT, { detail: { chatId } }));
-                  }}
-                  onNewChat={() => dispatchAiCommand({ type: "clear" })}
-                  onRenameChat={(chatId, title) => dispatchAiAction({ type: "rename", chatId, title })}
-                  onTogglePinChat={(chatId) => dispatchAiAction({ type: "pin", chatId })}
-                  onDeleteChat={(chatId) => dispatchAiAction({ type: "delete", chatId })}
-                  onShareChat={(chatId) => dispatchAiAction({ type: "share", chatId })}
-                />
+            <div
+              aria-hidden={collapsed}
+              inert={collapsed ? true : undefined}
+              className={cn(
+                "grid transition-[grid-template-rows,opacity] duration-[280ms] ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none",
+                collapsed
+                  ? "grid-rows-[0fr] opacity-0 pointer-events-none"
+                  : "grid-rows-[1fr] opacity-100",
+              )}
+            >
+              <div className="min-h-0 overflow-hidden">
+                <div data-sidebar-static="" className="mt-3 cursor-default border-t border-border pt-2">
+                  <NavChatsHistory
+                    chats={savedChats}
+                    activeChatId={activeChatId}
+                    onSelectChat={(chatId) => {
+                      if (typeof window === "undefined") return;
+                      window.dispatchEvent(new CustomEvent(SELECT_EVENT, { detail: { chatId } }));
+                    }}
+                    onNewChat={() => dispatchAiCommand({ type: "clear" })}
+                    onRenameChat={(chatId, title) => dispatchAiAction({ type: "rename", chatId, title })}
+                    onTogglePinChat={(chatId) => dispatchAiAction({ type: "pin", chatId })}
+                    onDeleteChat={(chatId) => dispatchAiAction({ type: "delete", chatId })}
+                    onShareChat={(chatId) => dispatchAiAction({ type: "share", chatId })}
+                  />
+                </div>
               </div>
-            </>
-          )
+            </div>
+          </>
         ) : (
           <>
-            <ul className={cn("flex flex-col gap-0.5", collapsed && "items-center")}>
+            <ul className="flex flex-col gap-0.5">
               {sidebarPrimary.map((item) => (
                 <li key={item.id}>{navRow(item, false)}</li>
               ))}
             </ul>
             <div aria-hidden className="mx-1 my-2 h-px bg-border" />
-            <ul className={cn("flex flex-col gap-0.5", collapsed && "items-center")}>
+            <ul className="flex flex-col gap-0.5">
               {sidebarUtility.map((item) => (
                 <li key={item.id}>{navRow(item, true)}</li>
               ))}
@@ -555,21 +602,29 @@ export function Sidebar({
       </nav>
 
       <footer className="shrink-0 border-t border-border px-3 py-3">
-        {!isAiRoute && !collapsed ? (
-          <>
-            <div data-sidebar-static="" className="cursor-default">
-              <BalanceHeader variant="sidebar" className="bg-bg" />
+        {!isAiRoute ? (
+          <div
+            aria-hidden={collapsed}
+            inert={collapsed ? true : undefined}
+            className={cn(
+              "grid transition-[grid-template-rows,opacity] duration-[280ms] ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none",
+              collapsed
+                ? "grid-rows-[0fr] opacity-0 pointer-events-none"
+                : "grid-rows-[1fr] opacity-100",
+            )}
+          >
+            <div className="min-h-0 overflow-hidden">
+              <div data-sidebar-static="" className="cursor-default">
+                <BalanceHeader variant="sidebar" className="bg-bg" />
+              </div>
+              <div data-sidebar-static="" className="mt-2 cursor-default pb-2">
+                <AccountSwitch mode={accountMode} onChange={onAccountChange ?? (() => {})} />
+              </div>
             </div>
-            <div data-sidebar-static="" className="mt-2 cursor-default">
-              <AccountSwitch mode={accountMode} onChange={onAccountChange ?? (() => {})} />
-            </div>
-          </>
+          </div>
         ) : null}
 
-        <div
-          ref={menuRef}
-          className={cn("relative", collapsed && "flex justify-center", !isAiRoute && !collapsed && "mt-2")}
-        >
+        <div ref={menuRef} className="relative w-full">
           <AccountMenuPanel
             open={menuOpen && !collapsed && !loading}
             onClose={() => setMenuOpen(false)}
@@ -581,10 +636,7 @@ export function Sidebar({
           {loading ? (
             <div
               data-sidebar-static=""
-              className={cn(
-                "flex min-h-11 cursor-default items-center rounded-lg",
-                collapsed ? "justify-center" : "px-1.5",
-              )}
+              className="flex h-11 w-full cursor-default items-center rounded-lg px-1.5 py-1"
             >
               <Skeleton className="size-8 shrink-0 rounded-full" />
               {!collapsed ? <Skeleton className="ml-2.5 h-3.5 w-24" /> : null}
@@ -595,9 +647,9 @@ export function Sidebar({
                 href="/app/perfil"
                 aria-label={loading ? t.shell.account : `${name}. ${t.shell.account}`}
                 title={loading ? t.shell.account : name}
-                className="flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-lg hover:bg-fg/[0.055] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fg"
+                className="flex h-11 w-full cursor-pointer items-center rounded-lg px-1.5 py-1 hover:bg-fg/[0.055] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fg"
               >
-                <Avatar alt="" fallback={name} size="sm" className="size-8" />
+                <Avatar alt="" fallback={name} size="sm" className="size-8 shrink-0" />
               </Link>
             </Tooltip>
           ) : (

@@ -15,6 +15,7 @@ import { cn } from "@/lib/cn";
 export type WelcomeAction = {
   id: string;
   label: string;
+  title?: string;
   prompt: string;
   tone: "brand" | "up" | "info" | "warn";
 };
@@ -22,13 +23,15 @@ export type WelcomeAction = {
 export const WELCOME_ACTIONS: readonly WelcomeAction[] = [
   {
     id: "daily-summary",
+    title: "Resumen de hoy",
     label: "Resumen del día",
     prompt:
-      "Dame el resumen del día: qué acciones del catálogo suben y bajan más hoy y cómo va mi cartera. Sólo datos, sin recomendaciones.",
+      "Dame el resumen de hoy: qué acciones del catálogo suben y bajan más y cómo va el mercado. Sólo datos, sin recomendaciones.",
     tone: "info",
   },
   {
     id: "portfolio-review",
+    title: "¿Cómo está mi cartera?",
     label: "Analizar tu portafolio",
     prompt:
       "Analiza mi portafolio con las cotizaciones en vivo. Dame un resumen del rendimiento, las posiciones que más suben y bajan, el riesgo actual y una recomendación concreta.",
@@ -36,23 +39,26 @@ export const WELCOME_ACTIONS: readonly WelcomeAction[] = [
   },
   {
     id: "portfolio-create",
+    title: "Simular aporte en Tesla",
     label: "Crear un portafolio",
     prompt:
-      "Ayúdame a crear un portafolio desde cero con acciones tokenizadas. Pregúntame por mi perfil de riesgo, horizonte temporal y capital inicial, y propón una cartera concreta con porcentajes por acción, el motivo de cada posición y cómo diversificarla.",
+      "Simula un aporte de 500 USD en Tesla (TSLAx). Explica cómo diversificarlo y los riesgos clave.",
     tone: "up",
   },
   {
     id: "market-news",
+    title: "Gráfico de Nvidia",
     label: "Noticias del mercado",
     prompt:
-      "Dame un resumen de las noticias financieras más importantes de hoy. Incluye los principales movimientos del mercado, eventos corporativos relevantes y su impacto potencial.",
+      "Muestra el gráfico interactivo y precio en vivo de NVDAx, junto con sus principales catalizadores y noticias.",
     tone: "info",
   },
   {
     id: "investment-strategy",
+    title: "Comparar Apple vs Microsoft",
     label: "Estrategia de inversión",
     prompt:
-      "Ayúdame a crear una estrategia de inversión. Pregúntame sobre mi perfil de riesgo, horizonte temporal, capital disponible y objetivos. Dame un plan diversificado con porcentajes.",
+      "Compara Apple (AAPLx) y Microsoft (MSFTx) lado a lado: múltiplos, valuación, crecimiento y rendimiento reciente.",
     tone: "warn",
   },
 ];
@@ -90,22 +96,21 @@ function PlusCircleIcon({ className }: IconProps): React.ReactElement {
   );
 }
 
-function NewspaperIcon({ className }: IconProps): React.ReactElement {
+function LineChartIcon({ className }: IconProps): React.ReactElement {
   return (
     <svg {...SVG_BASE} className={className}>
-      <path d="M4 6.75A1.75 1.75 0 0 1 5.75 5h8.5A1.75 1.75 0 0 1 16 6.75V19H6a2 2 0 0 1-2-2z" />
-      <path d="M16 9.5h2.25A1.75 1.75 0 0 1 20 11.25V17a2 2 0 0 1-2 2h-2" />
-      <path d="M7 9h6M7 12.5h6M7 16h3.5" />
+      <path d="M3 3v18h18" />
+      <path d="M6.5 15.5 11 11l3.5 3.5L20 8" />
+      <path d="M15.5 8H20v4.5" />
     </svg>
   );
 }
 
-function TargetIcon({ className }: IconProps): React.ReactElement {
+function ScaleIcon({ className }: IconProps): React.ReactElement {
   return (
     <svg {...SVG_BASE} className={className}>
-      <circle cx="12" cy="12" r="8.25" />
-      <circle cx="12" cy="12" r="4.25" />
-      <circle cx="12" cy="12" r="0.9" />
+      <path d="M12 3v18M7 21h10M4 7h16" />
+      <path d="M7 7l-3 6a3 3 0 0 0 6 0L7 7ZM17 7l-3 6a3 3 0 0 0 6 0l-3-6Z" />
     </svg>
   );
 }
@@ -138,9 +143,9 @@ function actionIcon(id: string): (props: IconProps) => React.ReactElement {
     case "portfolio-create":
       return PlusCircleIcon;
     case "market-news":
-      return NewspaperIcon;
+      return LineChartIcon;
     case "investment-strategy":
-      return TargetIcon;
+      return ScaleIcon;
     default:
       return SparkIcon;
   }
@@ -156,7 +161,7 @@ export function WelcomeChips({
       role="group"
       aria-label="Acciones rápidas"
       data-welcome-chips=""
-      className="w-full max-w-2xl px-1 grid grid-cols-2 gap-2 md:flex md:flex-wrap md:items-center md:justify-center"
+      className="w-full max-w-3xl px-1 grid grid-cols-1 sm:grid-cols-2 lg:flex lg:flex-wrap lg:items-center lg:justify-center gap-2"
     >
       {WELCOME_ACTIONS.map((action) => {
         const Icon = actionIcon(action.id);
@@ -168,21 +173,24 @@ export function WelcomeChips({
             data-welcome-action={action.id}
             onClick={() => onSendMessage(action.prompt)}
             className={cn(
-              "flex items-center gap-1.5 text-left md:text-center",
-              "px-3 py-2.5 md:py-1.5 rounded-2xl md:rounded-full",
-              "text-[12px] font-medium leading-tight",
-              "border border-zinc-200",
-              "text-zinc-600",
-              "bg-white/80",
-              "hover:text-zinc-900",
-              "hover:bg-zinc-100",
-              "hover:border-zinc-300",
-              "transition-all duration-200 cursor-pointer active:scale-95",
-              "md:whitespace-nowrap",
+              "group flex items-center gap-2.5 text-left",
+              "px-3.5 py-2.5 rounded-2xl lg:rounded-full",
+              "bg-white/90 border border-border/70 shadow-2xs backdrop-blur-xs",
+              "hover:border-border hover:bg-surface-1 hover:shadow-xs",
+              "transition-all duration-200 cursor-pointer active:scale-[0.98]",
             )}
           >
-            <Icon className="w-3.5 h-3.5 opacity-70 shrink-0" />
-            <span className="min-w-0">{action.label}</span>
+            <span className="flex size-7 shrink-0 items-center justify-center rounded-xl bg-surface-2 text-zinc-600 transition-colors group-hover:bg-white group-hover:text-zinc-950 shadow-2xs border border-border/40">
+              <Icon className="size-3.5" />
+            </span>
+            <div className="flex flex-col min-w-0 pr-1">
+              <span className="text-[12.5px] font-semibold text-zinc-900 leading-snug truncate">
+                {action.title ?? action.label}
+              </span>
+              <span className="text-[11px] text-zinc-500 leading-none truncate">
+                {action.label}
+              </span>
+            </div>
           </button>
         );
       })}

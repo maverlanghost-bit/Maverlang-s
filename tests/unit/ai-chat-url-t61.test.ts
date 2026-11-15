@@ -262,8 +262,8 @@ describe("T61 — navbar y sidebar", () => {
 
     expect(sidebar).not.toContain("Maverlang AI");
     expect(sidebar).not.toContain("bg-zinc-900/5");
-    // La marca sigue enlazando al mercado con su logo.
-    expect(sidebar).toContain("Maverlang Logo-2.png");
+    // La marca sigue enlazando al mercado con el isotipo unificado de la app.
+    expect(sidebar).toContain("<BrandFavicon");
   });
 });
 

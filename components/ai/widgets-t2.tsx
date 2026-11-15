@@ -20,7 +20,7 @@ import type { AiWidget } from "@/components/ai/contract";
 const SIN_DATO = "sin dato";
 
 const CARD_CLASS =
-  "min-w-0 rounded-2xl border border-border/85 bg-bg-elevated/95 p-4 shadow-[0_10px_30px_-14px_rgba(12,15,20,0.1)] backdrop-blur-md transition-all duration-200 hover:border-brand/35 hover:shadow-[0_14px_34px_-14px_rgba(12,15,20,0.14)]";
+  "min-w-0 rounded-2xl border border-border/80 bg-white dark:bg-bg-elevated p-4 shadow-2xs transition-all duration-200 hover:border-brand/35 hover:shadow-xs";
 
 type DailySummary = Extract<AiWidget, { type: "daily-summary" }>;
 type DailyMovement = DailySummary["gainers"][number];

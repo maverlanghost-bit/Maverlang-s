@@ -5,7 +5,7 @@
  * localizado. No es una recomendación ni una autorización legal.
  */
 
-export type AsistenteSuggestionId = "tesla" | "compare" | "portfolio" | "import";
+export type AsistenteSuggestionId = "tesla" | "compare" | "portfolio" | "import" | (string & {});
 
 export type AsistenteSuggestion = {
   id: AsistenteSuggestionId;
