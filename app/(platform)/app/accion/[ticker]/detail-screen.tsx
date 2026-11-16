@@ -1249,6 +1249,9 @@ export function DetailScreen({
         <TradeSheet
           ticker={ticker}
           side={operar === "vender" ? "sell" : "buy"}
+          allowBuy={effectiveBlock === null}
+          allowSell={canSell}
+          onSideChange={(side) => { if (side === "buy" ? effectiveBlock === null : canSell) openOperar(side === "sell" ? "vender" : "comprar"); }}
           open
           onOpenChange={(open) => {
             if (!open) openOperar(null);

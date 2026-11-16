@@ -19,6 +19,7 @@ export function Sheet({
   description,
   children,
   fill = false,
+  dismissible = true,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -26,6 +27,7 @@ export function Sheet({
   description?: string;
   children: ReactNode;
   fill?: boolean;
+  dismissible?: boolean;
 }) {
   return (
     <OverlayPanel
@@ -33,6 +35,7 @@ export function Sheet({
       onClose={() => onOpenChange(false)}
       title={title}
       description={description}
+      dismissible={dismissible}
       panelClassName={cn(
         // Hoja: columna con cabecera fija y un solo cuerpo desplazable.
         // Móvil: pantalla completa, sin esquinas ni hueco sobre el scrim.

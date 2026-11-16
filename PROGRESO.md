@@ -1,5 +1,15 @@
 # PROGRESO — Maverlang
 
+## T67 — Resumen de cotización y protección de la hoja durante ejecución
+- Alcance U06 y contrato de cierre U08: `quote-exchange-summary.tsx`, hojas de acción/cripto, adaptadores Sheet/Overlay, selector de operación de ficha y dirección de revisión en billetera.
+- Presentación: Pagas/Recibes con cantidades de la cotización fresca, costes desplegables abiertos al revisar y CTA existente; unidades y ausencia de cotización explícitas, precisión cripto compartida con el gráfico.
+- Comprar/Vender conserva los permisos de compra/venta de la ficha; cambiar lado remonta el formulario, descarta la cotización anterior y requiere revisión nueva. No confirma ni firma al seleccionar.
+- Ejecución: cierre, Escape y fondo bloqueados durante firma/envío/confirmación, reactivados al terminar. Guardas de cotización, doble envío, llamadas build/sign/submit y transiciones originales preservadas; NO GO real de auditoría sin cambios.
+- Billetera: dirección completa en revisión con copia íntegra; formularios, validación y transferencia preservados. No se ejecutaron firmas, compras ni envíos para verificar la presentación.
+- Verificación ligera: TypeScript y lint dirigidos; comparación AST de las dos funciones confirm sin cambios salvo notificaciones de ocupación de UI; diff limpio. Sin build, suite completa, E2E, servidor ni revisión visual.
+- Trabajo previo: cambios locales de órdenes límite, DCA y destinatarios guardados conservados fuera del commit mediante variantes del índice. Sin dependencias nuevas, migraciones, flags, push ni deploy.
+- Pendiente: U09, G07 y cierre de procedencia/estados en otras superficies; revisiones visuales y verificaciones pesadas siguen aplazadas por Manu.
+
 ## T66 — Histórico de composición, ficha por pestañas y detalle de posiciones
 - Alcance: opción inicial G06, ampliación G02/G01 y U04/U05; `lib/portfolio/series.ts`, gráfico de cartera, ficha, posiciones y favoritas. Las 16 mejoras siguen en curso en el registro de implementación.
 - Cartera: simulación de composición actual explícita; cantidades/efectivo constantes, ventana común y datos conocidos a cada instante. Se elimina el último punto forzado al total presente y el hover ya no reemplaza el saldo real.

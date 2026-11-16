@@ -4,6 +4,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useEffect, useId, useRef, useState, type ComponentProps, type ReactNode } from "react";
 
+import { QuoteExchangeSummary } from "@/components/domain/quote-exchange-summary";
+import { Accordion } from "@/components/ui/accordion";
 import { CostBreakdown } from "@/components/domain/cost-breakdown";
 import { TradeImpactPreview } from "@/components/domain/trade-impact-preview";
 import { MarketStatusPill } from "@/components/domain/market-status-pill";
@@ -369,7 +371,7 @@ function quickChipLabel(value: number, currency: TradeAmountCurrency): string {
 /**
  * Barra del botón principal: la define `SheetActionBar` más arriba.
  */
-function TradeFlow({ side, ticker }: { side: Side; ticker: Ticker }) {
+function TradeFlow({ side, ticker, onBusyChange }: { side: Side; ticker: Ticker; onBusyChange: (busy: boolean) => void }) {
   const { t, currency: displayCurrency, language } = useT();
   const session = useSession();
   const { mode } = useAccountMode();
@@ -524,6 +526,7 @@ function TradeFlow({ side, ticker }: { side: Side; ticker: Ticker }) {
       return;
     }
     confirming.current = true;
+    onBusyChange(true);
     const current = quote;
     setPhase("signing");
     setFlowError(null);
@@ -558,6 +561,7 @@ function TradeFlow({ side, ticker }: { side: Side; ticker: Ticker }) {
       setPhase("error");
     } finally {
       confirming.current = false;
+      onBusyChange(false);
     }
   }
 
@@ -601,7 +605,7 @@ function TradeFlow({ side, ticker }: { side: Side; ticker: Ticker }) {
   if (phase === "signing" || phase === "submitting") {
     // El stepper trae su propio role="status" aria-live="polite".
     return (
-      <div className="flex min-h-full flex-col gap-6">
+      <div className="flex min-h-0 flex-1 flex-col gap-6">
         <TradeHeader
           ticker={ticker}
           priceLabel={t.trade.price}
@@ -636,7 +640,7 @@ function TradeFlow({ side, ticker }: { side: Side; ticker: Ticker }) {
       fxRate,
     );
     return (
-      <div role="status" aria-live="polite" className="flex min-h-full flex-col">
+      <div role="status" aria-live="polite" className="flex min-h-0 flex-1 flex-col">
         <div className="flex flex-col gap-6 pb-8">
           <div className="flex items-start gap-3">
             <span
@@ -705,7 +709,7 @@ function TradeFlow({ side, ticker }: { side: Side; ticker: Ticker }) {
 
   if (phase === "error") {
     return (
-      <div role="alert" className="flex min-h-full flex-col">
+      <div role="alert" className="flex min-h-0 flex-1 flex-col">
         <div className="flex flex-1 flex-col gap-3 pt-1 pb-8">
           <p className="label text-down">{t.states.error}</p>
           <p className="text-xl leading-snug text-balance text-fg">{flowError ?? t.trade.orderFailed}</p>
@@ -776,11 +780,6 @@ function TradeFlow({ side, ticker }: { side: Side; ticker: Ticker }) {
   const labels = { CLP: "CLP", USDC: "USD", SHARES: t.trade.shares, USD: "USD" } as const;
 
   if (phase === "review") {
-    const sub = quote
-      ? side === "buy"
-        ? fill(t.trade.pay, { amount: shownMoney(quote.inAmountUi, displayCurrency, fxRate) })
-        : fill(t.trade.sellOf, { amount: formatShares(quote.inAmountUi), name: ticker.name })
-      : null;
     const rows = quote && fresh ? quoteRows(t, quote, displayCurrency, fxRate) : null;
     // Al vender, la cifra grande ya es el total recibido: no se repite abajo.
     const total =
@@ -792,7 +791,7 @@ function TradeFlow({ side, ticker }: { side: Side; ticker: Ticker }) {
         : undefined;
 
     return (
-      <div className="flex min-h-full flex-col">
+      <div className="flex min-h-0 flex-1 flex-col">
         <div className="flex flex-col gap-6 pb-8">
           <div className="flex items-center justify-between gap-3">
             <button
@@ -806,26 +805,10 @@ function TradeFlow({ side, ticker }: { side: Side; ticker: Ticker }) {
             <span className="num text-[12px] uppercase tracking-[0.045em] text-fg-muted">{ticker.symbol}</span>
           </div>
 
-          <section className="border-y border-border py-5">
-            <p className="label">{t.trade.youReceive}</p>
-            {quote && fresh ? (
-              side === "buy" ? (
-                <p className="mt-2.5 flex flex-wrap items-baseline gap-x-2 gap-y-1">
-                  <span className="num text-[2rem] leading-none tracking-[-0.02em] break-words text-fg">
-                    {formatShares(quote.outAmountUi)}
-                  </span>
-                  <span className="num text-[12px] uppercase tracking-[0.045em] text-fg-muted">{ticker.symbol}</span>
-                </p>
-              ) : (
-                <p className="num mt-2.5 text-[2rem] leading-none tracking-[-0.02em] break-words text-fg">
-                  {shownMoney(quote.outAmountUi, displayCurrency, fxRate)}
-                </p>
-              )
-            ) : (
-              <p className="num mt-2.5 text-[2rem] leading-none text-fg-muted">—</p>
-            )}
-            {sub ? <p className="mt-3 text-[13px] leading-relaxed text-fg-body">{sub}</p> : null}
-          </section>
+          <QuoteExchangeSummary label={isEnglish ? "Quote summary" : "Resumen de la cotización"} fromLabel={isEnglish ? "You pay" : "Pagas"} toLabel={t.trade.youReceive}
+            from={quote && fresh ? side === "buy" ? shownMoney(quote.inAmountUi, displayCurrency, fxRate) : `${formatShares(quote.inAmountUi)} ${ticker.symbol}` : "—"}
+            to={quote && fresh ? side === "buy" ? `${formatShares(quote.outAmountUi)} ${ticker.symbol}` : shownMoney(quote.outAmountUi, displayCurrency, fxRate) : "—"}
+            note={isEnglish ? "Estimated amounts for this quote. Network and other costs are detailed below." : "Montos estimados para esta cotización. Los costes de red y otros cargos se detallan abajo."} />
 
           {quote && !quoting && !quoteError ? (
             <QuoteValidity
@@ -855,7 +838,7 @@ function TradeFlow({ side, ticker }: { side: Side; ticker: Ticker }) {
             <MarketStatusPill open={false} label={market.data.session === "closed" ? t.market.closed : t.market.offHours} />
           ) : null}
 
-          {rows ? <CostBreakdown rows={rows} total={total} /> : null}
+          {rows ? <Accordion defaultValue={["costs"]} items={[{ id: "costs", title: isEnglish ? "Costs and execution details" : "Costes y detalle de ejecución", content: <CostBreakdown rows={rows} total={total} /> }]} /> : null}
 
           {fresh && quote ? (
             <TradeImpactPreview
@@ -904,7 +887,7 @@ function TradeFlow({ side, ticker }: { side: Side; ticker: Ticker }) {
   }
 
   return (
-    <div className="flex min-h-full flex-col">
+    <div className="flex min-h-0 flex-1 flex-col">
       <div className="flex flex-col gap-5 pb-8">
         <TradeHeader
           ticker={ticker}
@@ -1027,18 +1010,26 @@ export function TradeSheet({
   side,
   ticker,
   onOpenChange,
+  onSideChange,
+  allowBuy = true,
+  allowSell = true,
 }: {
   open: boolean;
   side: Side;
   ticker: Ticker;
   onOpenChange: (open: boolean) => void;
+  onSideChange?: (side: Side) => void;
+  allowBuy?: boolean;
+  allowSell?: boolean;
 }) {
-  const { t } = useT();
+  const { t, language } = useT();
+  const [executing, setExecuting] = useState(false);
   const title = fill(side === "sell" ? t.detail.tradeSell : t.detail.tradeBuy, { name: ticker.name });
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange} title={title} fill>
-      <TradeFlow key={`${side}:${ticker.symbol}`} side={side} ticker={ticker} />
+    <Sheet open={open} onOpenChange={(next) => { if (!executing) onOpenChange(next); }} title={title} fill dismissible={!executing}>
+      {onSideChange ? <div className="mb-4 shrink-0"><SegmentedControl label={language === "en" ? "Operation" : "Operación"} value={side} fullWidth options={[{ value: "buy", label: t.detail.buy, disabled: executing || !allowBuy }, { value: "sell", label: t.detail.sell, disabled: executing || !allowSell }]} onChange={(next) => { if (!executing && (next === "buy" ? allowBuy : allowSell)) onSideChange(next === "sell" ? "sell" : "buy"); }} /></div> : null}
+      <TradeFlow key={`${side}:${ticker.symbol}`} side={side} ticker={ticker} onBusyChange={setExecuting} />
     </Sheet>
   );
 }

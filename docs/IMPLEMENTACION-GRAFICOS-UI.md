@@ -18,7 +18,7 @@ Objetivo aprobado: implementar las 16 mejoras de `PLAN-GRAFICOS-Y-UI.md`. Manu r
 | U03 | Búsqueda y selectores | En curso: `AssetPicker` compartido para comparador y ficha, con búsqueda API, teclado, foco Radix, agrupación por tipo y límite de selección. Búsqueda global conservada y mejorada: identidad/emisor, demo/referencia/atraso, carga visible y fullscreen; sin instalar cmdk. Revisión visual pendiente. |
 | U04 | Organización de ficha | Implementado en código: Resumen/Empresa/Token y riesgos, gráfico y avisos materiales fuera de pestañas, herramientas/simulaciones expandibles y extremos de simulación coherentes con el historial. Revisión visual pendiente. |
 | U05 | Cartera y favoritas | Implementado en código: menú/detalle de posición sin abandonar cartera, costes/resultados desconocidos explícitos, unidades diferenciadas, LST hacia Ganar; favoritas reutiliza fila de Mercado y ofrece comparar/quitar, estados y fuentes coherentes. Revisión visual pendiente. |
-| U06 | Presentación de operaciones/billetera | Pendiente; handoff de auditoría leído. Mantener lógica de firma y guardas. |
+| U06 | Presentación de operaciones/billetera | Implementado en código: Pagas/Recibes de cotización fresca, costes expandibles, Comprar/Vender con permisos existentes y nueva revisión al cambiar lado, hoja no descartable durante ejecución, dirección íntegra copiable al revisar envío. Funciones confirm preservadas salvo notificaciones UI. Revisión visual/operativa pendiente; NO GO real sin cambios. |
 | U07 | Navegación y acceso móvil a cripto | Implementado en código: tipos de activo visibles y herramientas agrupadas; acceso a Cripto desde Mercado y retorno a Acciones desde Cripto/Ganar. Mercado activo en las rutas cripto móviles, sección Cripto separada en escritorio. Revisión visual pendiente. |
 | U08 | Estados y overlays | En curso: Popover/Dropdown Menu de shadcn adaptados a tokens; portales respetan fullscreen; herramientas con foco Radix/hoja existente. Integración en otras superficies pendiente. |
 | U09 | Asistente, Copiar y marketing | Pendiente. |
@@ -34,7 +34,7 @@ Objetivo aprobado: implementar las 16 mejoras de `PLAN-GRAFICOS-Y-UI.md`. Manu r
 
 ## Próximo trabajo
 
-Continuar G07, U06/U09 y cerrar las restantes superficies G01/U08. Mantener este registro por propuesta; no considerar finalizado el objetivo mientras queden propuestas pendientes.
+Continuar G07 y U09, y cerrar las restantes superficies G01/U08. Mantener este registro por propuesta; no considerar finalizado el objetivo mientras queden propuestas pendientes.
 
 ## Comparación y selección (T64)
 
@@ -62,3 +62,11 @@ Continuar G07, U06/U09 y cerrar las restantes superficies G01/U08. Mantener este
 - Posiciones: Sheet con detalle y menú Radix, montos ocultables, costes/resultados ausentes conservados y cantidades de acciones/tokens diferenciadas. LST/USDY vuelven a Ganar, donde ya existe la operación, sin añadir firmas ni ejecución automática.
 - Favoritas: misma anatomía que Mercado y menú para comparar/quitar; se conservan alertas y se muestran errores de cotización sin borrar las filas conocidas.
 - Las funcionalidades locales previas no rastreadas siguen fuera del commit. TypeScript/lint focalizados y comprobaciones de invariantes pasaron; revisión visual y verificaciones pesadas siguen aplazadas.
+
+## Presentación de operaciones y billetera (T67)
+
+- `QuoteExchangeSummary` sólo recibe valores de presentación; no consulta proveedores ni calcula cantidades nuevas. Acciones y cripto lo alimentan desde su cotización vigente, con costes abiertos por defecto y controles de revisión/confirmación conservados.
+- Comprar/Vender de la ficha respeta disponibilidad, reinicia el formulario por clave de lado y exige una cotización nueva. La selección nunca ejecuta una operación.
+- Sheet/Overlay admiten `dismissible` (por defecto verdadero). Las hojas de operación lo desactivan desde el inicio de confirmar hasta finalizar firma/envío/sondeo; foco y scroll siguen en sus implementaciones existentes. Los demás consumidores conservan su contrato.
+- El envío mantiene la dirección completa y añade copia en la revisión, sin tocar validaciones ni la ejecución. Las funciones confirm de acción y cripto se compararon por AST con su base: las únicas adiciones son las notificaciones de UI ocupada.
+- TypeScript/lint focalizados y diff; sin build, suite completa, E2E, servidor ni revisión visual/operaciones. No se habilita dinero real ni se incluyen cambios locales de órdenes límite o destinatarios.

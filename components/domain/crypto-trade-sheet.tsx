@@ -12,6 +12,8 @@ import {
   type ReactNode,
 } from "react";
 
+import { QuoteExchangeSummary } from "@/components/domain/quote-exchange-summary";
+import { Accordion } from "@/components/ui/accordion";
 import { CostBreakdown } from "@/components/domain/cost-breakdown";
 import { AmountInput } from "@/components/ui/amount-input";
 import { Button } from "@/components/ui/button";
@@ -33,6 +35,7 @@ import { signDemoTransaction } from "@/lib/auth/sign-transaction";
 import { findCryptoBySymbol } from "@/lib/catalog/crypto";
 import { findEarnBySymbol } from "@/lib/catalog/lst";
 import { cn } from "@/lib/cn";
+import { pricePrecision } from "@/lib/charts/data";
 import { formatDateTime, formatMoney } from "@/lib/format";
 import { SPOT_MS, usePortfolio, usePrices } from "@/lib/hooks/queries";
 import { useT } from "@/lib/hooks/use-t";
@@ -65,20 +68,15 @@ const percentFormatter = new Intl.NumberFormat("es-CL", {
   maximumFractionDigits: 2,
   signDisplay: "never",
 });
-const priceFormatter = new Intl.NumberFormat("es-CL", {
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 8,
-});
-
-/** Precio unitario legible: 2 decimales para valores ≥ 1 y hasta 8 para los muy chicos. */
+/** Precio unitario legible: 2 decimales para valores ≥ 1 y hasta 12 para los muy chicos. */
 function formatPrice(value: number | null | undefined): string | null {
   if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) return null;
   if (value >= 1) return formatMoney(value, "USD");
-  return `US$ ${priceFormatter.format(value)}`;
+  return `US$ ${new Intl.NumberFormat("es-CL", { minimumFractionDigits: 2, maximumFractionDigits: pricePrecision(value) }).format(value)}`;
 }
 
 function tokenAmount(value: number): string {
-  if (!Number.isFinite(value)) return "0";
+  if (!Number.isFinite(value)) return "—";
   return tokenFormatter.format(value);
 }
 
@@ -236,12 +234,14 @@ function CryptoFlow({
   maxOrderUsd,
   onClose,
   onDone,
+  onBusyChange,
 }: {
   symbol: string;
   mode: Side;
   maxOrderUsd: number | null;
   onClose: () => void;
   onDone?: () => void;
+  onBusyChange: (busy: boolean) => void;
 }) {
   const { t } = useT();
   const session = useSession();
@@ -378,6 +378,7 @@ function CryptoFlow({
       return;
     }
     confirming.current = true;
+    onBusyChange(true);
     const current = quote;
     setPhase("signing");
     setFlowError(null);
@@ -413,6 +414,7 @@ function CryptoFlow({
       setPhase("error");
     } finally {
       confirming.current = false;
+      onBusyChange(false);
     }
   }
 
@@ -457,7 +459,7 @@ function CryptoFlow({
 
   if (portfolio.isError) {
     return (
-      <div className="flex min-h-full flex-col">
+      <div className="flex min-h-0 flex-1 flex-col">
         <div role="alert" className="flex flex-1 flex-col gap-3 pt-1 pb-8">
           <p className="text-[13px] leading-5 text-down">Error</p>
           <p className="text-xl leading-snug text-balance text-fg">No pudimos cargar tu saldo demo.</p>
@@ -480,7 +482,7 @@ function CryptoFlow({
   if (phase === "signing" || phase === "submitting") {
     const signing = phase === "signing";
     return (
-      <div className="flex min-h-full flex-col gap-6">
+      <div className="flex min-h-0 flex-1 flex-col gap-6">
         {header}
         <div role="status" aria-live="polite" className="flex flex-1 flex-col items-start justify-center gap-3 py-12">
           <span
@@ -511,7 +513,7 @@ function CryptoFlow({
     const totalValue = formatMoney(result.side === "buy" ? result.inAmountUi : result.outAmountUi, "USD");
 
     return (
-      <div className="flex min-h-full flex-col">
+      <div className="flex min-h-0 flex-1 flex-col">
         <div className="flex flex-col gap-6 pb-8">
           <div className="flex items-start gap-3">
             <span
@@ -586,7 +588,7 @@ function CryptoFlow({
 
   if (phase === "error") {
     return (
-      <div className="flex min-h-full flex-col">
+      <div className="flex min-h-0 flex-1 flex-col">
         <div role="alert" className="flex flex-1 flex-col gap-3 pt-1 pb-8">
           <p className="text-[13px] leading-5 text-down">Error</p>
           <p className="text-xl leading-snug text-balance text-fg">{flowError ?? t.trade.orderFailed}</p>
@@ -715,17 +717,8 @@ function CryptoFlow({
       };
     }
 
-    const heroValue =
-      quote && fresh ? (mode === "buy" ? tokenAmount(quote.outAmountUi) : formatMoney(quote.outAmountUi, "USD")) : "—";
-    const sub =
-      quote && fresh
-        ? mode === "buy"
-          ? `Pagas ${formatMoney(quote.inAmountUi, "USD")}`
-          : `Vendes ${tokenAmount(quote.inAmountUi)} ${symbol}`
-        : null;
-
     return (
-      <div className="flex min-h-full flex-col">
+      <div className="flex min-h-0 flex-1 flex-col">
         <div className="flex flex-col gap-6 pb-8">
           <div className="flex items-center justify-between gap-3">
             <button
@@ -739,20 +732,9 @@ function CryptoFlow({
             <span className="num text-[13px] tracking-[0.01em] text-fg-muted">{symbol}</span>
           </div>
 
-          <section className="border-y border-border py-5">
-            <p className="text-[13px] leading-5 text-fg-muted">{t.trade.youReceive}</p>
-            <p className="mt-2 flex min-h-9 flex-wrap items-baseline gap-x-2 gap-y-1">
-              <span className="num text-[2rem] leading-none tracking-[-0.02em] text-fg">{heroValue}</span>
-              {quote && fresh && mode === "buy" ? (
-                <span className="num text-[13px] leading-4 tracking-[0.045em] text-fg-muted uppercase">
-                  {symbol}
-                </span>
-              ) : null}
-            </p>
-            {sub ? <p className="mt-3 text-[13px] leading-relaxed text-fg-body">{sub}</p> : null}
-          </section>
+          <QuoteExchangeSummary label="Resumen de la cotización" fromLabel="Pagas" toLabel={t.trade.youReceive} from={quote && fresh ? mode === "buy" ? formatMoney(quote.inAmountUi, "USD") : `${tokenAmount(quote.inAmountUi)} ${symbol}` : "—"} to={quote && fresh ? mode === "buy" ? `${tokenAmount(quote.outAmountUi)} ${symbol}` : formatMoney(quote.outAmountUi, "USD") : "—"} note="Montos estimados para esta cotización. Los costes de red y otros cargos se detallan abajo." />
 
-          {rows.length > 0 ? <CostBreakdown rows={rows} total={total} /> : null}
+          {rows.length > 0 ? <Accordion defaultValue={["costs"]} items={[{ id: "costs", title: "Costes y detalle de ejecución", content: <CostBreakdown rows={rows} total={total} /> }]} /> : null}
 
           <p className="text-[13px] leading-relaxed text-fg-muted">
             {quote && quote.route !== "mock"
@@ -772,7 +754,7 @@ function CryptoFlow({
   }
 
   return (
-    <div className="flex min-h-full flex-col">
+    <div className="flex min-h-0 flex-1 flex-col">
       <div className="flex flex-col gap-6 pb-8">
         {header}
 
@@ -843,6 +825,7 @@ export function CryptoTradeSheet({
   maxOrderUsd?: number | null;
   onDone?: () => void;
 }): ReactElement | null {
+  const [executing, setExecuting] = useState(false);
   const asset = findCryptoBySymbol(symbol) ?? findEarnBySymbol(symbol);
   const name = asset?.name ?? symbol;
   if (!open) return null;
@@ -852,9 +835,10 @@ export function CryptoTradeSheet({
     <Sheet
       open={open}
       onOpenChange={(next) => {
-        if (!next) onClose();
+        if (!next && !executing) onClose();
       }}
       title={title}
+      dismissible={!executing}
       fill
     >
       <CryptoFlow
@@ -864,6 +848,7 @@ export function CryptoTradeSheet({
         maxOrderUsd={maxOrderUsd}
         onClose={onClose}
         onDone={onDone}
+        onBusyChange={setExecuting}
       />
     </Sheet>
   );

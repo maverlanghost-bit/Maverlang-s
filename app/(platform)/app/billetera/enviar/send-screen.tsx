@@ -4,6 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 
+import { CopyButton } from "@/components/ui/copy-button";
 import { CostBreakdown } from "@/components/domain/cost-breakdown";
 import { AmountInput } from "@/components/ui/amount-input";
 import { Button } from "@/components/ui/button";
@@ -309,6 +310,7 @@ export function SendScreen() {
         <div className="flex min-w-0 flex-col gap-1.5 rounded-xl border border-border bg-bg px-4 py-3.5 text-center">
           <p className="label">{t.wallet.destination}</p>
           <p className="num text-[13px] leading-relaxed break-all text-fg">{draft.to}</p>
+          <div className="flex justify-center"><CopyButton value={draft.to} label={t.detail.copy} copiedLabel={t.detail.copied} /></div>
         </div>
         {draft.own ? <p className="rounded-xl bg-warn-bg px-4 py-3 text-sm text-fg">{t.wallet.ownAddress}</p> : null}
         <CostBreakdown rows={rows} />

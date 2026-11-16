@@ -158,6 +158,7 @@ export function OverlayPanel({
   panelClassName,
   panelStyle,
   grabber = false,
+  dismissible = true,
 }: {
   open: boolean;
   onClose: () => void;
@@ -168,8 +169,10 @@ export function OverlayPanel({
   panelClassName?: string;
   panelStyle?: CSSProperties;
   grabber?: boolean;
+  dismissible?: boolean;
 }) {
-  const panelRef = useOverlay(open, onClose);
+  const close = () => { if (dismissible) onClose(); };
+  const panelRef = useOverlay(open, close);
   const titleId = useId();
   const descriptionId = useId();
 
@@ -180,7 +183,7 @@ export function OverlayPanel({
       <div className={cn("fixed inset-0 z-50", frameClassName)}>
         <div
           className="absolute inset-0 animate-fade-in touch-none bg-fg/50"
-          onClick={onClose}
+          onClick={close}
           aria-hidden
         />
         <div
@@ -203,7 +206,7 @@ export function OverlayPanel({
             </p>
           ) : null}
           <div className="mt-4">{children}</div>
-          <IconButton label="Cerrar" size="md" className="absolute top-3 right-3" onClick={onClose}>
+          <IconButton label="Cerrar" size="md" className="absolute top-3 right-3" onClick={close} disabled={!dismissible}>
             <IconClose />
           </IconButton>
         </div>
