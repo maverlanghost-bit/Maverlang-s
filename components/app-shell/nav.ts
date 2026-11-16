@@ -155,8 +155,8 @@ export function shellTabLabel(
   return nav[id];
 }
 
-/** Rutas que dependen de la pestaña Mercado (acciones y Copiar). */
-const MARKET_PATHS = ["/app/accion", "/app/copiar"] as const;
+/** Rutas que dependen de la pestaña Mercado (acciones, Copiar y herramientas de mercado). */
+const MARKET_PATHS = ["/app/accion", "/app/copiar", "/app/screener", "/app/comparar", "/app/mix", "/app/alertas"] as const;
 
 /** Rutas que dependen de la sección Cripto (Tokens y Ganar). */
 const CRYPTO_PATHS = ["/app/cripto", "/app/ganar"] as const;
@@ -176,6 +176,8 @@ export function isShellSectionActive(pathname: string, id: string): boolean {
 
 /** Índice de la pestaña activa. -1 si la ruta no es una de las cinco. */
 export function activeMobileTab(pathname: string): number {
+  // Crypto has its own desktop destination and belongs to Market on mobile.
+  if (isShellSectionActive(pathname, "crypto")) return mobileTabs.findIndex((item) => item.id === "market");
   return mobileTabs.findIndex((item) => isShellSectionActive(pathname, item.id));
 }
 

@@ -1,19 +1,16 @@
 "use client";
 
-import { memo, useEffect, useId, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useId, useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useQueries } from "@tanstack/react-query";
 
-import { ChangeBadge } from "@/components/domain/change-badge";
-import { FavoriteButton } from "@/components/domain/favorite-button";
-import { FlashPrice } from "@/components/domain/flash-price";
+import { ActiveFilters, FilterPanel } from "@/components/market/filter-panel";
+import { AssetMarketRow as MarketListRow } from "@/components/market/asset-row";
 import { MarketHeatmap } from "@/components/domain/market-heatmap";
 import { MarketToday } from "@/components/domain/market-today/market-today";
 import { FloatingMarketOrb } from "@/components/domain/market-status-pill";
 import { PriceFreshness } from "@/components/domain/price-freshness";
-import { Sparkline } from "@/components/domain/sparkline";
-import { TickerLogo } from "@/components/domain/ticker-logo";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ErrorState } from "@/components/ui/error-state";
@@ -34,7 +31,6 @@ import {
   type MarketFilter,
   type MarketSort,
 } from "@/lib/market/browse";
-import { anchorSeriesToSpot } from "@/lib/market/series";
 import type { Currency, Quote } from "@/lib/types";
 
 const PAGE_SIZE = 20;
@@ -49,8 +45,10 @@ function canonicalSearch(search: string): string {
     .join("&");
 }
 
-function withMarketParams(params: URLSearchParams, filter: MarketFilter, sort: MarketSort) {
-  params.delete("q");
+function withMarketParams(params: URLSearchParams, filter: MarketFilter, sort: MarketSort, query: string, page: number, view: MarketView) {
+  if (query.trim()) params.set("q", query.trim()); else params.delete("q");
+  if (page > 1) params.set("paginas", String(page)); else params.delete("paginas");
+  if (view === "heatmap") params.set("vista", view); else params.delete("vista");
   if (filter === "all") params.delete("filtro");
   else params.set("filtro", filter);
   if (sort === "popular") params.delete("orden");
@@ -101,20 +99,21 @@ function changeOf(entry: PricedItem): number {
   return Number.isFinite(entry.quote.change24hPct) ? entry.quote.change24hPct : 0;
 }
 
-function orderPriced(rows: readonly PricedItem[], sort: MarketSort): PricedItem[] {
+/** Missing daily changes stay at the end, never become zero. */
+function orderRows(rows: readonly MarketRow[], sort: MarketSort): MarketRow[] {
   if (sort !== "gain" && sort !== "loss") return [...rows];
   return [...rows].sort((a, b) => {
-    const delta = changeOf(a) - changeOf(b);
-    const directed = sort === "gain" ? -delta : delta;
-    return directed || a.index - b.index;
+    const left = a.quote && Number.isFinite(a.quote.change24hPct) ? a.quote.change24hPct : null;
+    const right = b.quote && Number.isFinite(b.quote.change24hPct) ? b.quote.change24hPct : null;
+    if (left === null && right !== null) return 1;
+    if (right === null && left !== null) return -1;
+    return left !== null && right !== null ? (sort === "gain" ? right - left : left - right) || a.index - b.index : a.index - b.index;
   });
 }
 
-/** Mayor alza o baja espera a tener todos los precios, para no reordenar la lista a medias. */
-function orderRows(rows: readonly MarketRow[], sort: MarketSort): MarketRow[] {
-  if (sort !== "gain" && sort !== "loss") return [...rows];
-  if (rows.some((row) => row.quote === null)) return [...rows];
-  return orderPriced(rows as PricedItem[], sort);
+function pageNumber(value: string | null | undefined) {
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed > 0 ? Math.min(20, parsed) : 1;
 }
 
 /** Top por |variación| sobre filas ya cotizadas. Criterio objetivo: no es una selección editorial. */
@@ -197,176 +196,6 @@ function ChipGroup<T extends string>({
   );
 }
 
-type MarketRowStatus = { kind: "open" | "closed" | "halted"; label: string };
-
-type MarketListRowProps = {
-  href: string;
-  symbol: string;
-  name: string;
-  logoUrl?: string | null;
-  /** Precio ya resuelto a la moneda que se muestra. `null` si aún no hay cotización. */
-  price: number | null;
-  currency: Currency;
-  /** Variación 24 h; `null` si la cotización no la trae. */
-  change: number | null;
-  /** Todavía no llega ningún precio: se muestra un marcador, no un cero. */
-  pricePending: boolean;
-  sparkline?: number[];
-  lowLiquidityLabel?: string | null;
-  reviewLabel?: string | null;
-  reviewHint?: string | null;
-  status?: MarketRowStatus | null;
-  favoritePressed: boolean;
-  favoriteLabel: string;
-  /** Estable (`useFavorites`): permite memoizar la fila por contenido. */
-  onToggleFavorite: (symbol: string) => void;
-  noPriceLabel: string;
-  unavailableLabel: string;
-};
-
-/** Marca de estado del catálogo: círculo abierta, rombo suspendida, cuadrado cerrada. */
-function StatusMark({ kind }: { kind: MarketRowStatus["kind"] }) {
-  return (
-    <span
-      aria-hidden
-      className={cn(
-        "size-1.5 shrink-0",
-        kind === "open" ? "rounded-full bg-up" : kind === "halted" ? "rotate-45 bg-down" : "rounded-[1px] bg-warn",
-      )}
-    />
-  );
-}
-
-/**
- * Fila del mercado: dato, no tarjeta. Ticker en mono, nombre que envuelve
- * (nunca se corta), precio y variación a la derecha con cifras tabulares y la
- * estrella fuera del enlace. En 360 px no hay scroll horizontal: el nombre
- * cede ancho y la cifra conserva su columna.
- */
-function MarketListRowBase({
-  href,
-  symbol,
-  name,
-  logoUrl,
-  price,
-  currency,
-  change,
-  pricePending,
-  sparkline,
-  lowLiquidityLabel = null,
-  reviewLabel = null,
-  reviewHint = null,
-  status = null,
-  favoritePressed,
-  favoriteLabel,
-  onToggleFavorite,
-  noPriceLabel,
-  unavailableLabel,
-}: MarketListRowProps) {
-  return (
-    <div className="flex min-h-16 items-center transition-colors duration-150 hover:bg-surface-1/70 active:bg-surface-1">
-      <Link
-        href={href}
-        className="flex min-h-16 min-w-0 flex-1 items-center gap-3 py-3 pr-1 pl-1 sm:gap-4 sm:py-2"
-      >
-        <TickerLogo symbol={symbol} name={name} logoUrl={logoUrl} size={36} decorative loading="lazy" sizes="40px" />
-        <span className="min-w-0 flex-1">
-          <span className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5">
-            <span className="font-mono text-sm leading-5 font-semibold tracking-tight text-fg">{symbol}</span>
-            {status ? (
-              <span
-                className="inline-flex shrink-0 items-center gap-1 text-[13px] leading-4 text-fg-muted"
-                title={status.label}
-              >
-                <StatusMark kind={status.kind} />
-                <span className="sr-only">{status.label}</span>
-              </span>
-            ) : null}
-          </span>
-          <span className="mt-0.5 block text-[13px] leading-4 text-fg-muted">
-            <span className="break-words">{name}</span>
-            {lowLiquidityLabel ? <span className="whitespace-nowrap"> · {lowLiquidityLabel}</span> : null}
-            {reviewLabel ? (
-              <span className="whitespace-nowrap text-warn" title={reviewHint ?? undefined}>
-                {" · "}
-                {reviewLabel}
-              </span>
-            ) : null}
-          </span>
-        </span>
-        {sparkline ? (
-          <Sparkline data={sparkline} change={change ?? 0} width={88} height={32} className="hidden shrink-0 sm:block" />
-        ) : null}
-        <span className="flex shrink-0 flex-col items-end gap-1 pl-1 text-right">
-          {price === null ? (
-            pricePending ? (
-              <>
-                <span aria-hidden className="block h-5 w-16 rounded-sm bg-surface-2" />
-                <span aria-hidden className="block h-4 w-12 rounded-full bg-surface-2" />
-              </>
-            ) : (
-              <>
-                <span className="text-[13px] leading-5 whitespace-nowrap text-fg-muted">{noPriceLabel}</span>
-                <span className="text-xs leading-4 text-fg-muted">
-                  <span aria-hidden>—</span>
-                  <span className="sr-only">{unavailableLabel}</span>
-                </span>
-              </>
-            )
-          ) : (
-            <>
-              <span className="flex items-baseline gap-1 whitespace-nowrap">
-                <FlashPrice value={price} currency={currency} size="sm" className="-mr-1 font-medium" />
-                {currency === "CLP" ? (
-                  <span className="text-[11px] leading-none font-medium text-fg-muted">CLP</span>
-                ) : null}
-              </span>
-              {change === null ? (
-                <span className="text-xs leading-4 text-fg-muted">
-                  <span aria-hidden>—</span>
-                  <span className="sr-only">{unavailableLabel}</span>
-                </span>
-              ) : (
-                <ChangeBadge value={change} size="sm" />
-              )}
-            </>
-          )}
-        </span>
-      </Link>
-      <div className="flex shrink-0 items-center pr-1">
-        <FavoriteButton pressed={favoritePressed} label={favoriteLabel} onToggle={() => onToggleFavorite(symbol)} />
-      </div>
-    </div>
-  );
-}
-
-/** Sólo re-pinta la fila si cambia lo que se ve: la lista llega cada 15 s. */
-function sameMarketListRow(prev: MarketListRowProps, next: MarketListRowProps): boolean {
-  return (
-    prev.href === next.href &&
-    prev.symbol === next.symbol &&
-    prev.name === next.name &&
-    prev.logoUrl === next.logoUrl &&
-    prev.price === next.price &&
-    prev.currency === next.currency &&
-    prev.change === next.change &&
-    prev.pricePending === next.pricePending &&
-    prev.sparkline === next.sparkline &&
-    prev.lowLiquidityLabel === next.lowLiquidityLabel &&
-    prev.reviewLabel === next.reviewLabel &&
-    prev.reviewHint === next.reviewHint &&
-    prev.status?.kind === next.status?.kind &&
-    prev.status?.label === next.status?.label &&
-    prev.favoritePressed === next.favoritePressed &&
-    prev.favoriteLabel === next.favoriteLabel &&
-    prev.noPriceLabel === next.noPriceLabel &&
-    prev.unavailableLabel === next.unavailableLabel &&
-    prev.onToggleFavorite === next.onToggleFavorite
-  );
-}
-
-const MarketListRow = memo(MarketListRowBase, sameMarketListRow);
-
 function ResultsSkeleton({ label }: { label: string }) {
   // Mismo esqueleto que `components/ui/skeleton`, con la retícula real:
   // logo, símbolo + nombre, sparkline (desde sm), precio + variación y el
@@ -415,37 +244,39 @@ function LoadFailure({ message, retryLabel, onRetry }: { message: string; retryL
 export function MarketScreen({
   initialFilter,
   initialSort,
+  initialQuery = "",
+  initialPage = "",
+  initialView = "",
   sections,
 }: {
   initialFilter: string;
   initialSort: string;
+  initialQuery?: string;
+  initialPage?: string;
+  initialView?: string;
   /** Navegación de secciones del mercado (Acciones · Cripto · Ganar · Copiar). */
   sections?: ReactNode;
 }) {
   const { t, currency, language } = useT();
   const router = useRouter();
   const pathname = usePathname();
-  const filtersLabelId = useId();
-  const sortLabelId = useId();
-  const filtersPanelId = useId();
   const moversTitleId = useId();
   const listTitleId = useId();
 
   const [filter, setFilter] = useState<MarketFilter>(() => parseFilter(initialFilter));
-  // N19: sin A–Z en la UI; una URL vieja con `orden=az` cae a Popular.
-  const [sort, setSort] = useState<MarketSort>(() => {
-    const parsed = parseSort(initialSort);
-    return parsed === "az" ? "popular" : parsed;
-  });
-  const [page, setPage] = useState(1);
-  // Vista por defecto: lista. El DOM de la lista no cambia cuando view === "list".
-  const [view, setView] = useState<MarketView>("list");
-  // En <sm las categorías viven detrás de «Filtros · X ▾»; desde sm se ven siempre.
-  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [sort, setSort] = useState<MarketSort>(() => parseSort(initialSort));
+  const [page, setPage] = useState(() => pageNumber(initialPage));
+  const [view, setView] = useState<MarketView>(initialView === "heatmap" ? "heatmap" : "list");
+  const [draft, setDraft] = useState(initialQuery.slice(0, 64));
+  const [query, setQuery] = useState(initialQuery.trim().slice(0, 64));
+  useEffect(() => {
+    const timer = window.setTimeout(() => setQuery(draft.trim()), 200);
+    return () => window.clearTimeout(timer);
+  }, [draft]);
 
   // Favoritas vive en este navegador: el servidor devuelve todo y se filtra aquí.
   const serverCategory = filter === "favorites" ? "all" : filter;
-  const serverSort = "liquidity";
+  const serverSort = sort === "az" ? "name" : "liquidity";
 
   // Una consulta del servidor por página cargada. Al cambiar el criterio, la página vuelve a 1.
   // Opciones memoizadas: un array nuevo en cada render vuelve a suscribir useQueries.
@@ -454,20 +285,19 @@ export function MarketScreen({
       Array.from({ length: page }, (_, index) => {
         const pageNum = index + 1;
         return {
-          queryKey: ["market-search", "", serverCategory, pageNum, PAGE_SIZE, serverSort] as const,
+          queryKey: ["market-search", query, serverCategory, pageNum, PAGE_SIZE, serverSort, "curated"] as const,
           queryFn: () =>
             searchMarket({
-              q: "",
+              q: query,
               category: serverCategory,
               page: pageNum,
               pageSize: PAGE_SIZE,
               sort: serverSort,
             }),
           staleTime: SEARCH_STALE_MS,
-          placeholderData: (previous: Awaited<ReturnType<typeof searchMarket>> | undefined) => previous,
         };
       }),
-    [page, serverCategory, serverSort],
+    [page, query, serverCategory, serverSort],
   );
   const searchQueries = useQueries({ queries: searchQueryOptions });
   const fx = useFx();
@@ -523,20 +353,13 @@ export function MarketScreen({
     }
     return map;
   })();
-  /** Un solo indicador para la lista (M41): el `updatedAt` más reciente. */
+  // Conservative batch timestamp: a recent row must not hide older observations.
   const freshestAt = (() => {
-    let max: number | null = null;
-    for (const quote of quotesBySymbol.values()) {
-      const ms = Date.parse(quote.updatedAt);
-      if (Number.isFinite(ms) && (max === null || ms > max)) max = ms;
-    }
-    if (max !== null) return max;
-    for (const query of priceQueries) {
-      const at = query.dataUpdatedAt;
-      if (typeof at === "number" && Number.isFinite(at) && at > 0 && (max === null || at > max)) max = at;
-    }
-    return max;
+    const times = [...quotesBySymbol.values()].map((quote) => Date.parse(quote.updatedAt)).filter(Number.isFinite);
+    return times.length ? Math.min(...times) : null;
   })();
+  const hasDemo = [...quotesBySymbol.values()].some((quote) => quote.source === "mock");
+  const hasReference = [...quotesBySymbol.values()].some((quote) => quote.reference);
   const anyStale = (() => {
     for (const quote of quotesBySymbol.values()) {
       if (quote.stale === true) return true;
@@ -565,19 +388,22 @@ export function MarketScreen({
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    withMarketParams(params, filter, sort);
+    withMarketParams(params, filter, sort, draft, page, view);
     const searchText = params.toString();
     if (canonicalSearch(window.location.search) === canonicalSearch(searchText ? `?${searchText}` : "")) return;
     router.replace(searchText ? `${pathname}?${searchText}` : pathname, { scroll: false });
-  }, [filter, pathname, router, sort]);
+  }, [filter, pathname, router, sort, draft, page, view]);
 
   useEffect(() => {
     const onPop = () => {
       const params = new URLSearchParams(window.location.search);
       setFilter(parseFilter(params.get("filtro")));
       const parsed = parseSort(params.get("orden"));
-      setSort(parsed === "az" ? "popular" : parsed);
-      setPage(1);
+      setSort(parsed);
+      setDraft((params.get("q") ?? "").slice(0, 64));
+      setQuery((params.get("q") ?? "").trim().slice(0, 64));
+      setPage(pageNumber(params.get("paginas")));
+      setView(params.get("vista") === "heatmap" ? "heatmap" : "list");
     };
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
@@ -606,12 +432,10 @@ export function MarketScreen({
       if (!data || !isRealSparkHistory(data)) return;
       const points = data.points;
       if (!points || points.length < 2) return;
-      const spot = quotesBySymbol.get(symbol)?.priceUsd;
-      const series = spot !== undefined && spot > 0 ? anchorSeriesToSpot(points, spot) : points;
-      map.set(symbol, downsample(series.map((point) => point.p)));
+      map.set(symbol, downsample(points.map((point) => point.p)));
     });
     return map;
-  }, [sparkSymbols, histories, quotesBySymbol]);
+  }, [sparkSymbols, histories]);
 
   const favoritesPending = filter === "favorites" && favorites === null;
   const rate = fx.data?.rate;
@@ -633,14 +457,14 @@ export function MarketScreen({
     const out: HeatmapRow[] = [];
     for (const entry of listRows) {
       const quote = entry.quote;
-      if (!quote) continue;
+      if (!quote || !Number.isFinite(quote.change24hPct)) continue;
       const priced = priceRows([{ item: entry.item, quote, index: entry.index }], currency, rate)[0];
       if (!priced) continue;
       out.push({
         symbol: entry.item.symbol,
         name: entry.item.name,
         priceUsd: quote.priceUsd,
-        change24hPct: Number.isFinite(quote.change24hPct) ? quote.change24hPct : 0,
+        change24hPct: quote.change24hPct,
         priceFormatted: formatMoney(priced.price, priced.currency),
       });
     }
@@ -670,11 +494,12 @@ export function MarketScreen({
     { value: "popular", label: t.market.popular },
     { value: "gain", label: t.market.gain },
     { value: "loss", label: t.market.loss },
+    { value: "az", label: "A–Z" },
   ];
   // Rótulos fijos del conmutador de vista (no hay claves de i18n para esto).
   const viewOptions: { value: MarketView; label: string }[] = [
-    { value: "list", label: "Lista" },
-    { value: "heatmap", label: "Mapa de calor" },
+    { value: "list", label: language === "en" ? "List" : "Lista" },
+    { value: "heatmap", label: language === "en" ? "Heatmap" : "Mapa de calor" },
   ];
   const activeFilterLabel = filterOptions.find((option) => option.value === filter)?.label ?? t.market.all;
   const filtersTitle = language === "en" ? "Category" : "Categoría";
@@ -711,7 +536,7 @@ export function MarketScreen({
 
   function onSortChange(value: MarketSort) {
     setSort(value);
-    setPage(1);
+    if (value === "az" || sort === "az") setPage(1);
   }
 
   function retry() {
@@ -721,7 +546,8 @@ export function MarketScreen({
     if (currency === "CLP") void fx.refetch();
   }
 
-  const emptyTitle = `${t.market.emptyFor} «${t.market[filter]}»`;
+  const emptyTitle = draft ? `${t.market.emptyFor} «${draft}»` : `${t.market.emptyFor} «${t.market[filter]}»`;
+  function clearFilters() { setFilter("all"); setSort("popular"); setDraft(""); setQuery(""); setPage(1); }
   /** Ningún precio del lote todavía: la fila muestra marcador, nunca un cero. */
   const pricePending = quotesBySymbol.size === 0 && (firstPrices?.isPending ?? true);
   const noPriceLabel = language === "en" ? "No price" : "Sin precio";
@@ -731,7 +557,7 @@ export function MarketScreen({
       <h1 className="sr-only">{t.pages.market.title}</h1>
       {sections ? <div className="-mx-5 min-w-0 px-5 sm:mx-0 sm:px-0">{sections}</div> : null}
 
-      <MarketToday />
+      {!draft && filter === "all" ? <MarketToday /> : null}
 
       <section
         aria-labelledby={listTitleId}
@@ -775,46 +601,23 @@ export function MarketScreen({
             </>
           ) : null}
           <PriceFreshness at={freshestAt} stale={anyStale} className="text-[13px] leading-5" />
+          {freshestAt ? <span className="text-xs">{language === "en" ? "Oldest observation in this batch" : "Observación más antigua del lote"}</span> : null}
         </div>
 
-        {/* Ordenar y categoría: dos grupos con rótulo, en texto. En móvil las
-            categorías quedan detrás de «Categoría · Todas ▾»; abiertas, se
-            deslizan en un solo carril con snap. */}
-        <div className="flex w-full min-w-0 flex-col gap-2">
-          <div className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-0.5">
-            <p id={sortLabelId} className="eyebrow w-full shrink-0 sm:w-20">
-              {t.market.sortLabel}
-            </p>
-            <ChipGroup ariaLabel={t.market.sortLabel} value={sort} options={sortOptions} onChange={onSortChange} />
-          </div>
-
-          <div className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-0.5">
-            <div className="flex w-full min-w-0 items-center justify-between gap-2 sm:w-20 sm:justify-start">
-              <p id={filtersLabelId} className="eyebrow">
-                {filtersTitle}
-              </p>
-              <button
-                type="button"
-                aria-expanded={filtersOpen}
-                aria-controls={filtersPanelId}
-                aria-label={`${filtersTitle}: ${activeFilterLabel}`}
-                onClick={() => setFiltersOpen((value) => !value)}
-                className="inline-flex min-h-11 cursor-pointer items-center gap-1.5 rounded-xs text-[13px] font-medium text-fg outline-none transition-colors hover:text-fg-body focus-visible:ring-2 focus-visible:ring-fg focus-visible:ring-offset-2 focus-visible:ring-offset-bg sm:hidden"
-              >
-                {activeFilterLabel}
-                <span aria-hidden className="text-fg-muted">
-                  {filtersOpen ? "▴" : "▾"}
-                </span>
-              </button>
-            </div>
-            <div
-              id={filtersPanelId}
-              className={cn("w-full min-w-0 sm:block sm:w-auto", filtersOpen ? "block" : "hidden")}
-            >
-              <ChipGroup ariaLabel={t.market.filtersLabel} value={filter} options={filterOptions} onChange={onFilterChange} />
-            </div>
-          </div>
+        <div className="flex w-full min-w-0 flex-wrap items-end gap-3">
+          <label className="flex min-w-40 flex-1 flex-col gap-1.5 text-xs text-fg-muted">{t.market.searchLabel}<input type="search" value={draft} maxLength={64} onChange={(event) => { setDraft(event.target.value); setPage(1); }} placeholder={language === "en" ? "Name or symbol" : "Nombre o símbolo"} className="min-h-11 rounded-lg border border-border-control bg-bg px-3 text-base text-fg sm:text-sm" /></label>
+          <FilterPanel activeCount={filter === "all" ? 0 : 1}>
+            <label className="flex flex-col gap-1.5 text-xs text-fg-muted">{filtersTitle}<select value={filter} onChange={(event) => onFilterChange(parseFilter(event.target.value))} className="min-h-11 rounded-lg border border-border-control bg-bg px-3 text-base text-fg sm:text-sm">{filterOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
+          </FilterPanel>
+          <label className="flex w-40 flex-col gap-1.5 text-xs text-fg-muted">{t.market.sortLabel}<select value={sort} onChange={(event) => onSortChange(parseSort(event.target.value))} className="min-h-11 rounded-lg border border-border-control bg-bg px-3 text-base text-fg sm:text-sm">{sortOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
         </div>
+        <div className="w-full"><ActiveFilters filters={[
+          ...(draft ? [{ id: "q", label: draft, remove: () => { setDraft(""); setQuery(""); setPage(1); } }] : []),
+          ...(filter !== "all" ? [{ id: "category", label: activeFilterLabel, remove: () => onFilterChange("all") }] : []),
+        ]} onClear={clearFilters} /></div>
+        {draft.trim() !== query ? <p role="status" className="w-full text-xs text-fg-muted">{t.states.loading}</p> : null}
+        {sort === "gain" || sort === "loss" || filter === "favorites" ? <p className="w-full text-xs text-fg-muted">{language === "en" ? `Filtered and ranked among ${items.length} loaded stocks. Load more to expand the universe.` : `Filtro y orden entre ${items.length} acciones cargadas. Carga más para ampliar el universo.`}</p> : null}
+        <p className="w-full text-xs text-fg-muted">{hasDemo ? (language === "en" ? "Demo prices. " : "Precios de demostración. ") : ""}{hasReference ? (language === "en" ? "Includes reference prices. " : "Incluye precios de referencia. ") : ""}{language === "en" ? "Weekly trends may show the underlying reference; source details are in each stock." : "La tendencia semanal puede mostrar la referencia del subyacente; la procedencia está en cada ficha."}</p>
 
         {currencyNote ? (
           <p
@@ -851,16 +654,14 @@ export function MarketScreen({
           <div className="w-full">
             {filter === "favorites" ? (
               <EmptyState
-                title={t.market.emptyFavoritesTitle}
-                description={t.market.emptyFavoritesHint}
+                title={favoriteSet.size ? (language === "en" ? "No favorites in the loaded results" : "Sin favoritas entre los resultados cargados") : t.market.emptyFavoritesTitle}
+                description={favoriteSet.size ? (language === "en" ? "Load more stocks or open your favorites list." : "Carga más acciones o abre tu lista de favoritas.") : t.market.emptyFavoritesHint}
                 action={
-                  <Button variant="secondary" onClick={() => onFilterChange("all")}>
-                    {t.market.emptyFavoritesAction}
-                  </Button>
+                  favoriteSet.size ? <Link href="/app/favoritas" className="inline-flex min-h-11 items-center text-sm underline">{t.market.favorites}</Link> : <Button variant="secondary" onClick={() => onFilterChange("all")}>{t.market.emptyFavoritesAction}</Button>
                 }
               />
             ) : (
-              <EmptyState title={emptyTitle} description={t.market.emptyHint} />
+              <EmptyState title={emptyTitle} description={t.market.emptyHint} action={<Button variant="secondary" onClick={clearFilters}>{language === "en" ? "Clear filters" : "Limpiar filtros"}</Button>} />
             )}
           </div>
         ) : null}
@@ -901,6 +702,7 @@ export function MarketScreen({
                       change={change}
                       pricePending={pricePending}
                       sparkline={sparkBySymbol.get(entry.item.symbol)}
+                      trendLabel={language === "en" ? "1 week · see source in stock details" : "1 semana · consulta la fuente en la ficha"}
                       lowLiquidityLabel={entry.item.lowLiquidity ? t.market.lowLiquidity : null}
                       reviewLabel={entry.item.underReview ? t.market.underReview : null}
                       reviewHint={entry.item.underReview ? t.market.underReviewHint : null}
@@ -922,25 +724,6 @@ export function MarketScreen({
               </div>
             ) : null}
 
-            {hasMore && !pageFailed ? (
-              <div className="flex w-full flex-col items-start gap-3 border-t border-border pt-5">
-                <Button variant="secondary" onClick={() => setPage((value) => value + 1)} disabled={loadingMore}>
-                  {loadMoreLabel}
-                </Button>
-                {loadingMore ? (
-                  <div
-                    role="status"
-                    aria-live="polite"
-                    aria-busy="true"
-                    className="flex w-full flex-col divide-y divide-border"
-                  >
-                    <span className="sr-only">{t.states.loading}</span>
-                    <Skeleton className="h-16 w-full rounded-none" />
-                    <Skeleton className="h-16 w-full rounded-none" />
-                  </div>
-                ) : null}
-              </div>
-            ) : null}
           </>
         ) : null}
 
@@ -957,10 +740,12 @@ export function MarketScreen({
             )}
           </div>
         ) : null}
+        {!waiting && !failed && hasMore && !pageFailed && page < 20 ? <div className="w-full border-t border-border pt-4"><Button variant="secondary" onClick={() => setPage((value) => value + 1)} disabled={loadingMore}>{loadingMore ? t.states.loading : loadMoreLabel}</Button></div> : null}
+        {page >= 20 && hasMore ? <Link href="/app/screener" className="min-h-11 text-sm underline">{language === "en" ? "Expand analysis in Screener" : "Ampliar el análisis en Screener"}</Link> : null}
       </section>
 
       {/* Las más movidas del lote visible, en una línea de dato que envuelve. */}
-      {!waiting && !failed && moverItems.length > 0 ? (
+      {!draft && !waiting && !failed && moverItems.length > 0 ? (
         <section
           aria-labelledby={moversTitleId}
           className="flex min-w-0 flex-col gap-1 border-t border-border pt-5"

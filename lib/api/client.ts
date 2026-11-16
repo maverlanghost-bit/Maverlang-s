@@ -1,4 +1,5 @@
 import { z, type ZodType } from "zod";
+import { readBatches } from "@/lib/api/batches";
 
 import {
   activityResponseSchema,
@@ -162,10 +163,21 @@ export function searchMarket(params: MarketSearchParams): Promise<MarketSearchRe
   return request(`/api/market/search${suffix ? `?${suffix}` : ""}`, marketSearchResponseSchema);
 }
 
-export function getPrices(symbols?: readonly string[]): Promise<Quote[]> {
-  const list = (symbols ?? []).map((symbol) => symbol.trim()).filter((symbol) => symbol.length > 0);
-  const query = list.length > 0 ? `?symbols=${encodeURIComponent(list.join(","))}` : "";
-  return request(`/api/prices${query}`, quotesResponseSchema, { cache: "no-store" });
+export async function getPrices(symbols?: readonly string[]): Promise<Quote[]> {
+  const seen = new Set<string>();
+  const list = (symbols ?? []).map((symbol) => symbol.trim()).filter((symbol) => {
+    const key = symbol.toLowerCase();
+    if (!symbol || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+  const batch = (chunk: readonly string[]) => {
+    const query = chunk.length ? `?symbols=${encodeURIComponent(chunk.join(","))}` : "";
+    return request(`/api/prices${query}`, quotesResponseSchema, { cache: "no-store" });
+  };
+  if (list.length <= 50) return batch(list);
+  // The HTTP contract accepts at most 50 symbols. Keep parallelism bounded.
+  return readBatches(list, 50, batch);
 }
 
 export function getFx(): Promise<FxRate> {
@@ -280,10 +292,11 @@ export function getHistories(symbols: readonly string[], range: Range = "1W"): P
     list.push(trimmed);
   }
   if (list.length === 0) return Promise.resolve([]);
-  const query = new URLSearchParams({ symbols: list.join(","), range });
-  return request(`/api/tickers/history?${query.toString()}`, historiesResponseSchema, { cache: "no-store" }).then(
-    (data) => data.series,
-  );
+  const batch = (chunk: readonly string[]) => {
+    const query = new URLSearchParams({ symbols: chunk.join(","), range });
+    return request(`/api/tickers/history?${query.toString()}`, historiesResponseSchema, { cache: "no-store" }).then((data) => data.series);
+  };
+  return list.length <= 50 ? batch(list) : readBatches(list, 50, batch);
 }
 
 export function quoteTrade(body: TradeQuoteRequest, mockError?: string | null): Promise<TradeQuote> {

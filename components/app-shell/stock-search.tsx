@@ -33,6 +33,7 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip } from "@/components/ui/tooltip";
 import { ENABLED_TICKERS } from "@/config/tickers";
+import { site } from "@/config/site";
 import { getPrices, searchMarket, type MarketSearchItem } from "@/lib/api/client";
 import { CRYPTO_ASSETS, type CryptoAsset } from "@/lib/catalog/crypto";
 import { LST_ASSETS, type LstAsset } from "@/lib/catalog/lst";
@@ -40,6 +41,8 @@ import { cn } from "@/lib/cn";
 import { formatMoney } from "@/lib/format";
 import { priceQueryKey, useFx } from "@/lib/hooks/queries";
 import { useT } from "@/lib/hooks/use-t";
+import { useFullscreenContainer } from "@/lib/hooks/use-fullscreen-container";
+import { catalogIssuer } from "@/lib/market/screener";
 import { displayPrice, fold, matchesQuery } from "@/lib/market/browse";
 import type { Currency, Quote, Ticker } from "@/lib/types";
 
@@ -259,6 +262,8 @@ type StockRowItem = {
 
 type QuickCommandId =
   | "market"
+  | "screener"
+  | "compare"
   | "portfolio"
   | "assistant"
   | "wallet"
@@ -371,8 +376,10 @@ function getQuickCommands(language: "es-CL" | "en"): QuickCommand[] {
   if (language === "en") {
     return [
       { id: "market", href: "/app", label: "Market", hint: "Tokenized U.S. stocks 24/7", keywords: "stocks etfs home" },
+      { id: "screener", href: "/app/screener", label: "Screener", hint: "Filter stocks by sector & metrics", keywords: "screener filter stocks sector etf" },
+      { id: "compare", href: "/app/comparar", label: "Compare", hint: "Compare stocks side by side", keywords: "compare vs versus performance" },
       { id: "portfolio", href: "/app/cartera", label: "Portfolio", hint: "Positions and orders", keywords: "holdings history orders" },
-      { id: "assistant", href: "/app/asistente", label: "AI Assistant", hint: "Ask Maverlang AI", keywords: "ai chat assistant" },
+      { id: "assistant", href: "/app/asistente", label: "AI Assistant", hint: `Ask ${site.name} AI`, keywords: "ai chat assistant" },
       { id: "wallet", href: "/app/billetera", label: "Wallet", hint: "USDC balance, deposit & send", keywords: "usdc balance deposit withdraw send" },
       { id: "favorites", href: "/app/favoritas", label: "Favorites", hint: "Saved stocks", keywords: "watchlist starred" },
       { id: "crypto", href: "/app/cripto", label: "Crypto", hint: "Solana tokens, dollars & gold", keywords: "bitcoin solana crypto tokens" },
@@ -382,8 +389,10 @@ function getQuickCommands(language: "es-CL" | "en"): QuickCommand[] {
   }
   return [
     { id: "market", href: "/app", label: "Mercado", hint: "Acciones de EE.UU. 24/7", keywords: "acciones etfs inicio" },
+    { id: "screener", href: "/app/screener", label: "Screener", hint: "Filtrar acciones por sector y métricas", keywords: "screener filtros acciones sector etf" },
+    { id: "compare", href: "/app/comparar", label: "Comparar", hint: "Comparar acciones lado a lado", keywords: "comparar vs rendimiento" },
     { id: "portfolio", href: "/app/cartera", label: "Cartera", hint: "Posiciones y órdenes", keywords: "portafolio historial ordenes" },
-    { id: "assistant", href: "/app/asistente", label: "Asistente AI", hint: "Preguntar a Maverlang AI", keywords: "ia chat asistente" },
+    { id: "assistant", href: "/app/asistente", label: "Asistente AI", hint: `Preguntar a ${site.name} AI`, keywords: "ia chat asistente" },
     { id: "wallet", href: "/app/billetera", label: "Billetera", hint: "Saldo USDC, depósitos y retiros", keywords: "saldo usdc depositar retirar enviar" },
     { id: "favorites", href: "/app/favoritas", label: "Favoritas", hint: "Acciones guardadas", keywords: "watchlist estrella" },
     { id: "crypto", href: "/app/cripto", label: "Cripto", hint: "Tokens en Solana, dólar y oro", keywords: "criptomonedas bitcoin solana dolares oro" },
@@ -396,6 +405,24 @@ function CommandIcon({ id }: { id: QuickCommandId }) {
   switch (id) {
     case "market":
       return <IconChart className="size-4" />;
+    case "screener":
+      return (
+        <svg viewBox="0 0 16 16" fill="none" className="size-4" aria-hidden>
+          <path d="M2.5 4h11M4.5 8h7M6.5 12h3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+        </svg>
+      );
+    case "compare":
+      return (
+        <svg viewBox="0 0 16 16" fill="none" className="size-4" aria-hidden>
+          <path
+            d="M3 5h8M9 2.75 11.25 5 9 7.25M13 11H5M7 8.75 4.75 11 7 13.25"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      );
     case "portfolio":
       return <IconPortfolio className="size-4" />;
     case "wallet":
@@ -487,6 +514,8 @@ function StockSearchPanel({
   const backdropPressRef = useRef(false);
   const scrollActiveRef = useRef(false);
 
+  const fullscreenContainer = useFullscreenContainer();
+  const descriptionId = useId();
   const listId = useId();
   const inputId = useId();
   const groupStocksId = useId();
@@ -566,7 +595,7 @@ function StockSearchPanel({
   }, [mounted, onDismiss]);
 
   const search = useQuery({
-    queryKey: ["market-search", needle, "all", 1, PAGE_SIZE, "liquidity"] as const,
+    queryKey: ["market-search", needle, "all", 1, PAGE_SIZE, "liquidity", "curated"] as const,
     queryFn: () => searchMarket({ q: needle, page: 1, pageSize: PAGE_SIZE, sort: "liquidity" }),
     enabled: needle.length > 0,
     staleTime: 30_000,
@@ -754,7 +783,7 @@ function StockSearchPanel({
   const earnOffset = cryptoOffset + cryptoOptions.length;
   const commandOffset = earnOffset + earnOptions.length;
 
-  const stocksHeading = language === "en" ? "Stocks" : "Acciones";
+  const stocksHeading = language === "en" ? "Tokenized stocks" : "Acciones tokenizadas";
   const cryptoHeading = language === "en" ? "Crypto" : "Cripto";
   const earnHeading = language === "en" ? "Earn" : "Ganar";
   const commandsHeading = language === "en" ? "Jump to" : "Ir a";
@@ -777,6 +806,7 @@ function StockSearchPanel({
         role="dialog"
         aria-modal="true"
         aria-label={t.market.searchLabel}
+        aria-describedby={descriptionId}
         className="animate-pop-in flex max-h-[min(32rem,76dvh)] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-border bg-bg shadow-float"
         onKeyDown={(event) => {
           if (event.target instanceof HTMLButtonElement) return;
@@ -814,6 +844,7 @@ function StockSearchPanel({
               ref={inputRef}
               id={inputId}
               type="search"
+              maxLength={64}
               value={draft}
               placeholder={placeholder}
               autoComplete="off"
@@ -848,6 +879,7 @@ function StockSearchPanel({
             <IconClose />
           </button>
         </form>
+        <p id={descriptionId} className="px-4 py-2 text-xs text-fg-muted">{language === "en" ? "Open an asset or a section" : "Abre la ficha de un activo o una sección"} · {shown}{currency === "CLP" && !fxKnown ? (language === "en" ? " · exchange rate unavailable" : " · sin tipo de cambio") : ""}</p>
 
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-1.5 [scrollbar-width:thin]">
           {showPublicIdle ? (
@@ -890,7 +922,7 @@ function StockSearchPanel({
           ) : null}
 
           {hasOptions ? (
-            <div role="listbox" id={listId} aria-label={t.market.suggestLabel} className="flex flex-col gap-2 pb-1">
+            <div role="listbox" id={listId} aria-busy={stockSearchWaiting} aria-label={t.market.suggestLabel} className="flex flex-col gap-2 pb-1">
               {stockOptions.length > 0 ? (
                 <div role="group" aria-labelledby={groupStocksId} className="flex flex-col gap-0.5">
                   <div
@@ -940,6 +972,7 @@ function StockSearchPanel({
                             <span className="num shrink-0 text-xs uppercase tracking-[0.03em] text-fg-muted">
                               {opt.stock.symbol}
                             </span>
+                            <span className="text-xs text-fg-muted">{catalogIssuer(opt.stock.symbol) === "xstocks" ? "xStocks" : catalogIssuer(opt.stock.symbol) === "ondo" ? "Ondo" : (language === "en" ? "Token" : "Token")}</span>
                             <span aria-hidden className="text-xs text-fg-muted">
                               ·
                             </span>
@@ -950,13 +983,15 @@ function StockSearchPanel({
                         </span>
                         <span className="flex shrink-0 flex-col items-end gap-0.5">
                           {opt.price === null ? (
-                            prices.isPending ? <Skeleton className="h-3.5 w-16" /> : null
+                            prices.isPending ? <Skeleton className="h-3.5 w-16" /> : <span className="text-xs text-fg-muted">{language === "en" ? "No price" : "Sin precio"}</span>
                           ) : (
                             <span className="num text-[13px] leading-5 text-fg tabular-nums">
                               {formatSearchPrice(opt.price, shown)}
                             </span>
                           )}
                           {opt.change === null ? null : <ChangeBadge value={opt.change} />}
+                          {quotes.get(opt.stock.symbol.toLowerCase())?.reference || quotes.get(opt.stock.symbol.toLowerCase())?.source === "mock" ? <span className="text-[11px] text-fg-muted">{quotes.get(opt.stock.symbol.toLowerCase())?.reference ? (language === "en" ? "Reference" : "Referencia") : "Demo"}</span> : null}
+                          {quotes.get(opt.stock.symbol.toLowerCase())?.stale ? <span className="text-[11px] text-warn">{language === "en" ? "Delayed" : "Atrasado"}</span> : null}
                         </span>
                       </button>
                     );
@@ -1126,9 +1161,9 @@ function StockSearchPanel({
           ) : null}
 
           {stockSearchWaiting && hasOptions ? (
-            <span className="sr-only" role="status" aria-live="polite">
+            <p className="px-3 py-2 text-xs text-fg-muted" role="status" aria-live="polite">
               {t.states.loading}
-            </span>
+            </p>
           ) : null}
 
           {stockSearchFailed && hasOptions ? (
@@ -1140,8 +1175,8 @@ function StockSearchPanel({
             </div>
           ) : null}
 
-          {search.data?.hasMore && stockOptions.length > 0 ? (
-            <p className="px-4 py-2 text-center text-xs text-fg-muted">{t.market.searchMore}</p>
+          {search.data?.hasMore && trimmedDraft === needle && stockOptions.length > 0 ? (
+            isAppRoute ? <button type="button" onClick={() => navigateTo(`/app?q=${encodeURIComponent(needle)}`)} className="min-h-11 w-full px-4 py-2 text-center text-sm underline">{language === "en" ? "View all stock results in Market" : "Ver todas las acciones encontradas en Mercado"}</button> : <p className="px-4 py-2 text-center text-xs text-fg-muted">{t.market.searchMore}</p>
           ) : null}
         </div>
 
@@ -1165,6 +1200,6 @@ function StockSearchPanel({
         </div>
       </div>
     </div>,
-    document.body,
+    fullscreenContainer ?? document.body,
   );
 }

@@ -1,5 +1,15 @@
 # PROGRESO — Maverlang
 
+## T65 — Mercado, screener y navegación de herramientas
+- Alcance: U01/U02/U03/U07 y estados U08 del plan aprobado; filas/filtros compartidos en `components/market/*`, nuevo screener y adaptación de sus rutas. No se considera completo el objetivo de 16 mejoras.
+- Mercado: búsqueda API sin perder categoría, filtros removibles, orden A–Z, alcance explícito de alzas/bajas/favoritas y URL con búsqueda, páginas y vista; carga adicional disponible también en mapa/vacíos.
+- Screener: páginas uniformes de 50, catálogo ampliable de forma explícita, filtros/columnas, tabla y filas móviles, selección persistente de 2–4 activos y acceso al comparador; URL recuperable y universo analizado visible.
+- Datos: precios e históricos se dividen en lotes de hasta 50 con concurrencia máxima de dos; fallos no inventan totales parciales; precios desconocidos al final y sparklines semanales conservadas sin reescalar, color de su propio período.
+- Navegación/búsqueda: Acciones/Cripto visibles, herramientas en menú Radix, Cripto marca Mercado en móvil; una sola paleta, identidad/emisor, demo/referencia/atraso y portales en fullscreen. Sin nuevas dependencias.
+- Trabajo local previo: ruta screener incorporada; se conserva sin tocar su componente antiguo no rastreado. Los enlaces/implementaciones locales de Mix y Alertas se mantienen fuera del commit; se incorporan Screener y Comparar en la navegación/búsqueda.
+- Verificación ligera: TypeScript focalizado de Mercado/screener y buscador sin errores; lint dirigido sin errores ni advertencias tras corregir una dependencia sobrante; sintaxis, diff e invariantes de lotes, URL, duplicados, ausentes y orden.
+- Pendiente: revisión visual, build de producción, suites y E2E aplazados por Manu; seguir G06/U04/U05 y el resto del registro. Sin servidor, migraciones, flags, firma/envío real, push ni deploy.
+
 ## T64 — Comparador compartido, ventanas comunes y selector de activos
 - Alcance: `/app/comparar` → `components/charts/compare-screen.tsx`, `lib/charts/comparison.ts`, `asset-picker.tsx`, comparación de ficha y motor de segmentos. Las 16 mejoras aprobadas siguen en curso en `docs/IMPLEMENTACION-GRAFICOS-UI.md`.
 - Comparación: precios originales, base temporal común, observaciones conocidas a cada instante (sin nearest futuro), fecha de origen conservada y huecos visibles mediante segmentos separados; leyenda/tabla/simulación coherentes.

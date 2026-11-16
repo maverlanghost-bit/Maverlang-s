@@ -1,101 +1,45 @@
+"use client";
+
 import Link from "next/link";
-
 import { cn } from "@/lib/cn";
+import { useT } from "@/lib/hooks/use-t";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
-export type MarketSectionId = "stocks" | "copy";
-
-type MarketSection = { id: MarketSectionId; href: string; label: string };
-
-const SECTIONS: readonly MarketSection[] = [{ id: "stocks", href: "/app", label: "Acciones" }];
-
-/** Chip de «Copiar carteras»: no es una pestaña nueva, vive dentro de Mercado. */
-const COPY_SECTION: MarketSection = { id: "copy", href: "/app/copiar", label: "Copiar" };
-
+export type MarketSectionId = "stocks" | "crypto" | "screener" | "compare" | "mix" | "alerts" | "copy";
 type CryptoSubTabId = "tokens" | "earn";
-
-type CryptoSubTab = { id: CryptoSubTabId; href: string; label: string };
-
-const CRYPTO_SUB_TABS: readonly CryptoSubTab[] = [
+const CRYPTO_SUB_TABS = [
   { id: "tokens", href: "/app/cripto", label: "Tokens" },
   { id: "earn", href: "/app/ganar", label: "Ganar" },
-];
+] as const;
+const TOOLS = [
+  { id: "screener", href: "/app/screener", es: "Screener", en: "Screener" },
+  { id: "compare", href: "/app/comparar", es: "Comparar", en: "Compare" },
+] as const;
+const linkClass = "inline-flex min-h-11 shrink-0 items-center justify-center text-[13px] font-medium whitespace-nowrap text-fg-muted hover:text-fg sm:min-h-9";
 
-/**
- * Chips de sección del mercado: navegación entre páginas, no un filtro.
- * Se montan arriba de Mercado (`MarketScreen`) y Copiar (`CopiarPage`); la barra
- * inferior sigue con sus cinco pestañas y Mercado activo en las secciones.
- *
- * `showCopy` lo decide el servidor con `isCopyEnabled()`: con la sección
- * apagada habría sólo un chip ("Acciones"), así que se devuelve `null`. Con la
- * sección encendida, muestra `Acciones · Copiar` y `/app/copiar/**` queda
- * activo dentro de Mercado.
- *
- * En móvil la fila no envuelve ni empuja la página: se desplaza dentro de su
- * propio carril (`overflow-x-auto`). Cada chip conserva 44 px de alto y 44 px
- * de ancho mínimo como área táctil.
- */
-export function MarketSectionChips({
-  active,
-  showCopy = false,
-}: {
-  active: MarketSectionId;
-  showCopy?: boolean;
-}) {
-  if (!showCopy) return null;
-  const sections: readonly MarketSection[] = [...SECTIONS, COPY_SECTION];
-  return (
-    <nav
-      aria-label="Secciones del mercado"
-      className="no-scrollbar -my-1 flex min-w-0 snap-x snap-mandatory items-center gap-x-6 overflow-x-auto overscroll-x-contain py-1"
-    >
-      {sections.map((section) => {
-        const current = section.id === active;
-        return (
-          <Link
-            key={section.id}
-            href={section.href}
-            aria-current={current ? "page" : undefined}
-            className={cn(
-              // Mismo criterio que las chips del mercado: texto, no cápsula.
-              // El activo va en tinta y subrayado; el resto en gris y oscurece
-              // al pasar el puntero. 44px en móvil, 32px con puntero.
-              "inline-flex min-h-11 min-w-11 shrink-0 snap-start cursor-pointer items-center justify-center text-[13px] leading-5 font-medium whitespace-nowrap transition-colors duration-150 ease-spring sm:min-h-8",
-              current ? "text-fg" : "text-fg-muted hover:text-fg",
-            )}
-          >
-            <span className={cn(current && "underline decoration-2 underline-offset-[5px]")}>{section.label}</span>
-          </Link>
-        );
-      })}
-    </nav>
-  );
+/** Primary asset types stay visible; analytical tools use a keyboard-accessible menu. */
+export function MarketSectionChips({ active, showCopy = false }: { active: MarketSectionId; showCopy?: boolean }) {
+  const { language } = useT();
+  const en = language === "en";
+  const activeTool = TOOLS.find((tool) => tool.id === active);
+  const primary = [
+    { id: "stocks", href: "/app", label: en ? "Stocks" : "Acciones" },
+    { id: "crypto", href: "/app/cripto", label: en ? "Crypto" : "Cripto" },
+    ...(showCopy ? [{ id: "copy", href: "/app/copiar", label: en ? "Copy" : "Copiar" }] : []),
+  ];
+  return <nav aria-label={en ? "Market sections" : "Secciones del mercado"} className="flex min-w-0 flex-wrap items-center gap-x-5 gap-y-1">
+    {primary.map((section) => <Link key={section.id} href={section.href} aria-current={section.id === active ? "page" : undefined} className={cn(linkClass, section.id === active && "text-fg underline decoration-2 underline-offset-[5px]")}>{section.label}</Link>)}
+    <DropdownMenu><DropdownMenuTrigger asChild><button type="button" className={cn(linkClass, "gap-1.5", activeTool && "text-fg underline decoration-2 underline-offset-[5px]")}>{activeTool ? activeTool[en ? "en" : "es"] : en ? "Tools" : "Herramientas"}<span aria-hidden>⌄</span></button></DropdownMenuTrigger><DropdownMenuContent align="end">{TOOLS.map((tool) => <DropdownMenuItem key={tool.id} asChild><Link href={tool.href} aria-current={tool.id === active ? "page" : undefined}>{tool[en ? "en" : "es"]}{tool.id === active ? <span className="ml-auto" aria-hidden>✓</span> : null}</Link></DropdownMenuItem>)}</DropdownMenuContent></DropdownMenu>
+  </nav>;
 }
 
-/**
- * Subnavegación segmentada dentro de Cripto para alternar entre Tokens y Ganar.
- */
 export function CryptoSubTabs({ active }: { active: CryptoSubTabId }) {
-  return (
-    <nav
-      aria-label="Subsecciones de cripto"
-      className="inline-flex w-fit items-center gap-1 rounded-full border border-border bg-surface-1 p-1"
-    >
-      {CRYPTO_SUB_TABS.map((tab) => {
-        const current = tab.id === active;
-        return (
-          <Link
-            key={tab.id}
-            href={tab.href}
-            aria-current={current ? "page" : undefined}
-            className={cn(
-              "inline-flex min-h-9 cursor-pointer items-center justify-center rounded-full px-4 text-[13px] font-medium whitespace-nowrap transition-colors duration-150 focus-visible:ring-4 focus-visible:ring-fg/20 focus-visible:outline-none",
-              current ? "bg-bg text-fg shadow-xs ring-1 ring-border/60" : "text-fg-muted hover:text-fg",
-            )}
-          >
-            {tab.label}
-          </Link>
-        );
-      })}
+  const { language } = useT();
+  const en = language === "en";
+  return <div className="flex min-w-0 flex-col gap-3">
+    <MarketSectionChips active="crypto" />
+    <nav aria-label={en ? "Crypto subsections" : "Subsecciones de cripto"} className="inline-flex w-fit items-center gap-1 rounded-full border border-border bg-surface-1 p-1">
+      {CRYPTO_SUB_TABS.map((tab) => <Link key={tab.id} href={tab.href} aria-current={tab.id === active ? "page" : undefined} className={cn("inline-flex min-h-11 items-center justify-center rounded-full px-4 text-[13px] font-medium transition-colors sm:min-h-9", tab.id === active ? "bg-bg text-fg shadow-xs ring-1 ring-border/60" : "text-fg-muted hover:text-fg")}>{tab.id === "earn" && en ? "Earn" : tab.label}</Link>)}
     </nav>
-  );
+  </div>;
 }

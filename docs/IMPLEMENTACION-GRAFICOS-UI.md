@@ -13,13 +13,13 @@ Objetivo aprobado: implementar las 16 mejoras de `PLAN-GRAFICOS-Y-UI.md`. Manu r
 | G05 | Gráfico cripto consistente | Implementado el motor, formatos, contexto y estados sin datos; ficha reordenada como gráfico → operación → metadatos en móvil. Revisión visual pendiente. |
 | G06 | Significado del histórico de cartera | Pendiente: distinguir reconstrucción de composición actual de patrimonio/rendimiento real. |
 | G07 | Velas, volumen y estudios verificables | Motor preparado y opciones condicionadas a datos válidos; falta extender contratos y resolver cobertura/fuente real. No se inventan barras ni volumen. |
-| U01 | Mercado y filtros | Pendiente. |
-| U02 | Screener y selección | Pendiente. |
-| U03 | Búsqueda y selectores | En curso: `AssetPicker` compartido para comparador y ficha, con búsqueda API, teclado, foco Radix, agrupación por tipo y límite de selección. Búsqueda global existente pendiente de pulido. |
+| U01 | Mercado y filtros | Implementado en código: búsqueda API, filtros removibles, A–Z, alcance visible del ranking/favoritas, filas comunes, carga adicional y URL con páginas/vista. Revisión visual pendiente. |
+| U02 | Screener y selección | Implementado en código: páginas fijas de 50, universo cargado/total, ampliación explícita, filtros/orden/columnas, tabla y móvil, selección 2–4 conservada al filtrar y URL. Lotes API limitados a 50 y dos en paralelo. Revisión visual pendiente. |
+| U03 | Búsqueda y selectores | En curso: `AssetPicker` compartido para comparador y ficha, con búsqueda API, teclado, foco Radix, agrupación por tipo y límite de selección. Búsqueda global conservada y mejorada: identidad/emisor, demo/referencia/atraso, carga visible y fullscreen; sin instalar cmdk. Revisión visual pendiente. |
 | U04 | Organización de ficha | Pendiente. |
 | U05 | Cartera y favoritas | Pendiente. |
 | U06 | Presentación de operaciones/billetera | Pendiente; handoff de auditoría leído. Mantener lógica de firma y guardas. |
-| U07 | Navegación y acceso móvil a cripto | Pendiente. |
+| U07 | Navegación y acceso móvil a cripto | Implementado en código: tipos de activo visibles y herramientas agrupadas; acceso a Cripto desde Mercado y retorno a Acciones desde Cripto/Ganar. Mercado activo en las rutas cripto móviles, sección Cripto separada en escritorio. Revisión visual pendiente. |
 | U08 | Estados y overlays | En curso: Popover/Dropdown Menu de shadcn adaptados a tokens; portales respetan fullscreen; herramientas con foco Radix/hoja existente. Integración en otras superficies pendiente. |
 | U09 | Asistente, Copiar y marketing | Pendiente. |
 
@@ -34,7 +34,7 @@ Objetivo aprobado: implementar las 16 mejoras de `PLAN-GRAFICOS-Y-UI.md`. Manu r
 
 ## Próximo trabajo
 
-Continuar U01/U02/U03/U07 (mercado, screener, búsqueda global, navegación) y después las pantallas de cartera/operaciones. Mantener este registro por propuesta; no considerar finalizado el objetivo mientras queden propuestas pendientes.
+Continuar G06/U04/U05 (semántica histórica de cartera, organización de ficha, posiciones/favoritas) y después operaciones y las demás superficies. Mantener este registro por propuesta; no considerar finalizado el objetivo mientras queden propuestas pendientes.
 
 ## Comparación y selección (T64)
 
@@ -44,3 +44,12 @@ Continuar U01/U02/U03/U07 (mercado, screener, búsqueda global, navegación) y d
 - La ficha reutiliza esa alineación para gráfico/leyendas y distingue fuente por activo. El benchmark elegido no se reemplaza silenciosamente por SPY cuando falla. La versión clásica se deshabilita para comparaciones con huecos; si falla el canvas, se ofrece tabla de registros.
 - Popover y menús detectan el contenedor fullscreen para mantener visibles los selectores. La búsqueda compartida no ejecuta operaciones y no filtra dos veces los resultados de acciones del servidor.
 - Verificación ligera: comprobaciones de ventana común, ausencia de observaciones futuras, precios preservados y cortes por huecos; TypeScript y lint dirigidos. Sin build, suite completa, E2E, servidor ni revisión visual de la implementación.
+
+## Mercado, screener y navegación (T65)
+
+- `components/market/asset-row.tsx` y `filter-panel.tsx` comparten anatomía de filas, selección y filtros: Popover en escritorio y Sheet en móvil. La lista principal no fuerza desplazamiento horizontal.
+- El nuevo screener usa páginas homogéneas de 50 y conserva selección independiente de los filtros. El usuario amplía el catálogo explícitamente; restauración URL limitada a 20 páginas/1.000 activos, con límite visible si el catálogo fuera mayor. Tabla y mapa comparten el conjunto filtrado y los valores desconocidos no equivalen a cero.
+- El cliente API divide lecturas de precios/históricos en lotes de 50 con dos solicitudes simultáneas como máximo. Un fallo del lote rechaza la lectura; se conserva el error y los datos anteriores que ofrezca Query, sin presentar totales parciales como completos.
+- Las tendencias semanales preservan sus precios y usan el signo de su propio período. El contexto distingue referencia del subyacente, demostración, moneda/conversión y la observación más antigua del lote.
+- Se incorpora la ruta screener y los accesos Screener/Comparar. Los componentes locales previos de screener y las rutas Mix/Alertas quedan conservados fuera del commit; sus enlaces locales también permanecen en el árbol de trabajo.
+- TypeScript focalizado, ESLint dirigido, sintaxis e invariantes de lotes/estado URL/duplicados/ausentes/orden; sin verificaciones pesadas ni revisión visual de esta etapa.

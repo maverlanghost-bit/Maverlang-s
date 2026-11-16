@@ -26,6 +26,9 @@ export default async function MercadoPage({
     <MarketScreen
       initialFilter={one(params.filtro)}
       initialSort={one(params.orden)}
+      initialQuery={one(params.q)}
+      initialPage={one(params.paginas)}
+      initialView={one(params.vista)}
       sections={<MarketSectionChips active="stocks" showCopy={showCopy} />}
     />
   );
