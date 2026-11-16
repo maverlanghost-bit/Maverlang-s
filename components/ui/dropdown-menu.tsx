@@ -5,6 +5,7 @@ import type { ComponentProps } from "react";
 import * as Primitive from "@radix-ui/react-dropdown-menu";
 import { IconCheck } from "@/components/ui/icons";
 import { cn } from "@/lib/cn";
+import { useFullscreenContainer } from "@/lib/hooks/use-fullscreen-container";
 
 export const DropdownMenu = Primitive.Root;
 export const DropdownMenuTrigger = Primitive.Trigger;
@@ -12,8 +13,9 @@ export const DropdownMenuGroup = Primitive.Group;
 export const DropdownMenuRadioGroup = Primitive.RadioGroup;
 
 export function DropdownMenuContent({ className, sideOffset = 8, ...props }: ComponentProps<typeof Primitive.Content>) {
+  const fullscreenContainer = useFullscreenContainer();
   return (
-    <Primitive.Portal>
+    <Primitive.Portal container={fullscreenContainer ?? undefined}>
       <Primitive.Content
         data-slot="dropdown-menu-content"
         sideOffset={sideOffset}

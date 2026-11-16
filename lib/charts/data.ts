@@ -1,6 +1,9 @@
 import type { Currency, PricePoint, Quote } from "@/lib/types";
 
 export interface FinancialPoint extends PricePoint {
+  /** Only comparison views carry an observation forward; retain its actual date. */
+  observedAt?: number;
+  gap?: boolean;
   o?: number;
   h?: number;
   l?: number;
@@ -37,7 +40,7 @@ export function compatibleSpot(
 }
 
 /** Preserves historical prices; never rescales them to the current quote. */
-export function observedSeries<T extends PricePoint>(points: readonly T[], spot?: PricePoint): Array<T | PricePoint> {
+export function observedSeries(points: readonly FinancialPoint[], spot?: PricePoint): FinancialPoint[] {
   const rows = chartPoints(points);
   const last = rows[rows.length - 1];
   if (!spot || !last || spot.t < last.t) return rows;
@@ -53,6 +56,20 @@ export function sharedWindow(series: readonly (readonly PricePoint[])[]): { star
 
 export function inChartWindow<T extends PricePoint>(points: readonly T[], bounds: { start: number; end: number }): T[] {
   return points.filter((point) => point.t >= bounds.start && point.t <= bounds.end);
+}
+
+/** Built-in line series connect whitespace. Separate runs make visual gaps real. */
+export function chartSegments(points: readonly FinancialPoint[]): FinancialPoint[][] {
+  const segments: FinancialPoint[][] = [];
+  let current: FinancialPoint[] = [];
+  for (const point of points) {
+    if (point.gap) {
+      if (current.length) segments.push(current);
+      current = [];
+    } else current.push(point);
+  }
+  if (current.length) segments.push(current);
+  return segments;
 }
 
 export function pricePrecision(value: number, currency: Currency = "USD"): number {

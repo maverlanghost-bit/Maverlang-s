@@ -1,5 +1,14 @@
 # PROGRESO — Maverlang
 
+## T64 — Comparador compartido, ventanas comunes y selector de activos
+- Alcance: `/app/comparar` → `components/charts/compare-screen.tsx`, `lib/charts/comparison.ts`, `asset-picker.tsx`, comparación de ficha y motor de segmentos. Las 16 mejoras aprobadas siguen en curso en `docs/IMPLEMENTACION-GRAFICOS-UI.md`.
+- Comparación: precios originales, base temporal común, observaciones conocidas a cada instante (sin nearest futuro), fecha de origen conservada y huecos visibles mediante segmentos separados; leyenda/tabla/simulación coherentes.
+- Página: 2–4 activos, selección/búsqueda API, rangos compartidos y URL `activos`/`rango`, estados por fuente, tarjetas móviles y simulación expandible con exclusiones explícitas. La ruta local antes no rastreada se incorpora al alcance; el componente antiguo local se conserva sin modificar.
+- Ficha: mismo modelo temporal para comparados y benchmark, fuente por activo, sin reemplazo silencioso por SPY si falla el elegido, versión clásica condicionada a poder representar los datos; los vacíos no cambian al proveedor externo.
+- Rendimiento/accesibilidad: resultados de consultas combinados y estables, tooltip con fecha original, selector y tabla accesibles, teclado/búsqueda con foco Radix, portales dentro del fullscreen nativo. Sin dependencias nuevas.
+- Verificación ligera: TypeScript focalizado, lint dirigido y comprobaciones de invariantes de ventana/datos/huecos; correcciones de tipos integradas. Sin build de producción, suites completas, E2E, servidor ni revisión visual, aplazados según Manu.
+- Pendiente: U01/U02/U03/U07 y restantes superficies, cartera patrimonial y capacidades/fuente OHLCV. Sin migraciones, cambios de flags, push, deploy ni ejecución real.
+
 ## T63 — Base de gráficos compartidos y herramientas compactas (plan aprobado, etapa inicial)
 - Alcance: motor diferido `components/charts/*`, adaptadores `lib/charts/data.ts`, integración en ficha de acción/cripto y seguimiento de las 16 propuestas en `docs/IMPLEMENTACION-GRAFICOS-UI.md`; el objetivo completo sigue en curso.
 - Dependencias: `lightweight-charts@5.3.0` (motor canvas), `@radix-ui/react-popover@1.3.1` y `@radix-ui/react-dropdown-menu@2.2.1` (componentes shadcn selectivos, foco y menús); versiones fijadas, sin clonar repositorios ni agregar Recharts.

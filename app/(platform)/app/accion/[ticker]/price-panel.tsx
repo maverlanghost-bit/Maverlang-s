@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { useQueries, useQuery } from "@tanstack/react-query";
+import { useQueries, useQuery, type UseQueryResult } from "@tanstack/react-query";
 
 import { ChartContext } from "@/components/charts/chart-context";
 import { ChartTools } from "@/components/charts/chart-tools";
@@ -29,6 +29,7 @@ import { graficoCopy } from "@/content/i18n/extra-grafico";
 import { historyStaleMs } from "@/lib/api/contracts";
 import { getHistory } from "@/lib/api/client";
 import { compatibleSpot, observedSeries } from "@/lib/charts/data";
+import { comparisonSeries } from "@/lib/charts/comparison";
 import { cn } from "@/lib/cn";
 import { formatDateTime, formatMoney, formatPercent } from "@/lib/format";
 import { useChartMode } from "@/lib/hooks/use-chart-mode";
@@ -52,6 +53,9 @@ const EMPTY_STUDIES: ChartStudies = {
   rsi: [],
 };
 const NO_BARS = { volume: false, ohlc: false };
+function combineHistories(results: readonly UseQueryResult<Awaited<ReturnType<typeof getHistory>>>[]) {
+  return results.map(({ data, isPending }) => ({ data, isPending }));
+}
 /** Comparadores del modo Técnico: SPYx es el de siempre; el resto, alternativas. */
 const COMPARE_SYMBOLS = [SPY_SYMBOL, "QQQx", "AAPLx", "NVDAx", "TSLAx"] as const;
 /** Comparaciones simultáneas que caben legibles en el mismo gráfico. */
@@ -256,6 +260,7 @@ function ChartToggle({
   tone = "neutral",
   label,
   className,
+  disabled = false,
 }: {
   pressed: boolean;
   onClick: () => void;
@@ -263,16 +268,19 @@ function ChartToggle({
   tone?: keyof typeof TOGGLE_ACTIVE;
   label?: string;
   className?: string;
+  disabled?: boolean;
 }) {
   return (
     <button
       type="button"
       aria-pressed={pressed}
+      disabled={disabled}
       aria-label={label}
       onClick={onClick}
       className={cn(
         "inline-flex h-11 shrink-0 items-center gap-1.5 rounded-full px-3 text-[13px] font-medium whitespace-nowrap transition-colors outline-none focus-visible:ring-4 focus-visible:ring-fg/20 sm:h-8",
         pressed ? TOGGLE_ACTIVE[tone] : "text-fg-muted hover:bg-surface-1 hover:text-fg",
+        disabled && "cursor-not-allowed opacity-40",
         className,
       )}
     >
@@ -337,12 +345,10 @@ export function PricePanel({
   const effectiveLivePoint = useMemo(() => compatibleSpot(history.data?.source, quote), [history.data?.source, quote]);
   const points = useMemo(() => observedSeries(rawPoints, effectiveLivePoint), [rawPoints, effectiveLivePoint]);
   const period = periodBounds(points, undefined);
-  const spotEndUsd = points[points.length - 1]?.p ?? null;
   const move = rangeMove(points);
   const stats = !history.isPending && !history.isError ? rangeBounds(points) : null;
   const illustrative =
     !history.isPending && !history.isError && points.length >= 2 && isReferenceHistory(history.data);
-  const tone = toneOf(move);
   const [hover, setHover] = useState<{ key: string; usd: number; timeMs: number } | null>(null);
   const [spyOn, setSpyOn] = useState(false);
   const [smaOn, setSmaOn] = useState<Record<SmaPeriod, boolean>>({ 20: false, 50: false, 200: false });
@@ -427,6 +433,7 @@ export function PricePanel({
       queryFn: () => getHistory(compared, range),
       ...studyQueryOptions(chartReady),
     })),
+    combine: combineHistories,
   });
   const bars = useMemo(() => (chartReady ? barAvailability(points) : NO_BARS), [chartReady, points]);
   const studies = useMemo(() => {
@@ -510,6 +517,7 @@ export function PricePanel({
         if (inWindow.length >= 2) return { points: inWindow, label: key };
       }
     }
+    if (enabled) return null;
     if (studies.spyPoints.length < 2) return null;
     return { points: studies.spyPoints, label: copy.spyLegend };
   }, [
@@ -525,6 +533,19 @@ export function PricePanel({
     studies.spyPoints,
     copy.spyLegend,
   ]);
+  const hasComparable = Boolean(benchmark) || overlays.some((layer) => layer.rebased);
+  const aligned = useMemo(() => comparisonSeries([
+    { id: "asset", points, source: history.data?.source },
+    ...overlays.filter((layer) => layer.rebased).map((layer) => ({ id: layer.id, points: layer.points, source: history.data?.source })),
+    ...(benchmark ? [{ id: "benchmark", points: benchmark.points, source: history.data?.source }] : []),
+  ]), [points, overlays, benchmark, history.data?.source]);
+  const plotPoints = hasComparable ? aligned.series[0]?.points ?? NO_POINTS : points;
+  const plotOverlays = useMemo(() => hasComparable ? overlays.map((layer) => layer.rebased ? { ...layer, points: aligned.series.find((entry) => entry.id === layer.id)?.points ?? NO_POINTS } : layer) : overlays, [hasComparable, overlays, aligned.series]);
+  const plotBenchmark = useMemo(() => benchmark ? { ...benchmark, points: aligned.series.find((entry) => entry.id === "benchmark")?.points ?? NO_POINTS } : null, [benchmark, aligned.series]);
+  const plotMove = hasComparable ? aligned.series[0]?.returnRatio ?? null : move;
+  const chartPeriod = hasComparable ? aligned.bounds : period;
+  const tone = toneOf(plotMove);
+  const unavailableCompared = comparedSymbols.filter((_symbol, index) => !compareQueries[index]?.isPending && (compareQueries[index]?.data?.points.length ?? 0) < 2);
   const showSpy = chartReady && studies.spyPoints.length >= 2;
   const compareOptions = COMPARE_SYMBOLS.filter((item) => item.toUpperCase() !== symbolKey.toUpperCase()).map(
     (item) => ({ value: item, label: item }),
@@ -558,30 +579,29 @@ export function PricePanel({
   // Sin memoización manual: las deps derivadas de props no se pueden preservar y el
   // compilador de React ya memoiza el resultado.
   const comparisonItems: ActiveComparisonItem[] = (() => {
-    const bounds = periodBounds(points, effectiveLivePoint);
     const items: ActiveComparisonItem[] = [
       {
         id: "asset",
         symbol: symbolKey,
         name,
         color: TONE_STROKE[tone],
-        changePct: move,
+        changePct: plotMove,
+        source: history.data?.source,
         removable: false,
       },
     ];
     comparedSymbols.forEach((compared, index) => {
       const query = compareQueries[index];
-      const rows = query?.data?.points;
-      const inWindow = rows ? windowPoints(rows, bounds) : [];
       const catalog = COMPARE_CATALOG.find((option) => option.symbol === compared);
       items.push({
         id: compareLayerId(compared),
         symbol: compared,
         name: catalog?.name ?? compared,
         color: compareColor(index),
-        changePct: inWindow.length >= 2 ? rangeMove(inWindow) : null,
+        changePct: aligned.series.find((entry) => entry.id === compareLayerId(compared))?.returnRatio ?? null,
         removable: true,
         pending: query?.isPending === true,
+        source: query?.data?.source,
       });
     });
     return items;
@@ -639,21 +659,21 @@ export function PricePanel({
   const marketShown = marketValue === null ? null : formatMoney(marketValue, priceCurrency);
 
   // Estadísticas del período activo (Apertura, Promedio y Variación absoluta en dinero)
-  const openUsd = points.length >= 2 && Number.isFinite(points[0]?.p) && (points[0]?.p ?? 0) > 0 ? points[0]!.p : null;
+  const openUsd = plotPoints.length >= 2 && Number.isFinite(plotPoints[0]?.p) && (plotPoints[0]?.p ?? 0) > 0 ? plotPoints[0]!.p : null;
   const periodAvgUsd = useMemo(() => {
-    if (points.length < 2) return null;
+    if (plotPoints.length < 2) return null;
     let sum = 0;
     let count = 0;
-    for (const pt of points) {
+    for (const pt of plotPoints) {
       if (Number.isFinite(pt.p) && pt.p > 0) {
         sum += pt.p;
         count += 1;
       }
     }
     return count >= 2 ? sum / count : null;
-  }, [points]);
+  }, [plotPoints]);
   const activeEndUsd =
-    point?.usd ?? spotEndUsd ?? (points.length >= 2 ? points[points.length - 1]?.p ?? null : null);
+    point?.usd ?? plotPoints[plotPoints.length - 1]?.p ?? null;
   const deltaUsd = openUsd !== null && activeEndUsd !== null ? activeEndUsd - openUsd : null;
   const deltaShown = deltaUsd !== null ? displayPrice(Math.abs(deltaUsd), priceCurrency, rate) : null;
   const deltaFormatted =
@@ -685,7 +705,9 @@ export function PricePanel({
     label: value === "ALL" ? "Máx" : t.detail.rangeShort[value],
   }));
   const historySource = history.data?.source;
-  const PriceChart = provider === "svg" ? SvgPriceChart : FinancialChart;
+  const classicAvailable = !hasComparable || aligned.series.every((entry) => !entry.hasGaps);
+  const shownProvider = provider === "svg" && !classicAvailable ? "native" : provider;
+  const PriceChart = shownProvider === "svg" ? SvgPriceChart : FinancialChart;
   const selectProvider = (value: string) => setProvider(value === "tradingview" ? "tradingview" : value === "svg" ? "svg" : "native");
   const settings = (
     <ChartTools>
@@ -714,9 +736,10 @@ export function PricePanel({
         <fieldset>
           <legend className="mb-2 text-xs font-medium text-fg-muted">{language === "en" ? "Chart version" : "Versión del gráfico"}</legend>
           <div className="flex flex-col items-start gap-1">
-            {PROVIDER_OPTIONS.map((option) => <ChartToggle key={option.value} pressed={provider === option.value} onClick={() => selectProvider(option.value)}>{option.label}</ChartToggle>)}
+            {PROVIDER_OPTIONS.map((option) => <ChartToggle key={option.value} disabled={option.value === "svg" && !classicAvailable} pressed={shownProvider === option.value} onClick={() => selectProvider(option.value)}>{option.label}</ChartToggle>)}
           </div>
           <p className="mt-2 text-xs leading-relaxed text-fg-muted">{language === "en" ? "TradingView shows the underlying, with its own source and update frequency. It is not a quote for this token." : "TradingView muestra el subyacente, con su propia fuente y frecuencia de actualización. No es una cotización de este token."}</p>
+          {!classicAvailable ? <p className="mt-2 text-xs text-fg-muted">{language === "en" ? "Use the interactive version to display gaps in this comparison." : "Usa la versión interactiva para mostrar los cortes de datos en esta comparación."}</p> : null}
         </fieldset>
       </div>
     </ChartTools>
@@ -809,19 +832,19 @@ export function PricePanel({
                 <time dateTime={pointIso}>{formatDateTime(pointIso)}</time>
               </p>
             </div>
-          ) : move === null ? (
+          ) : plotMove === null ? (
             <span className="num text-[13px] text-fg-muted">—</span>
           ) : (
             <>
               <span
                 className={cn(
                   "num shrink-0 text-[13px] font-medium",
-                  move > 0 ? "text-up" : move < 0 ? "text-down" : "text-fg-muted",
+                  plotMove !== null && plotMove > 0 ? "text-up" : plotMove !== null && plotMove < 0 ? "text-down" : "text-fg-muted",
                 )}
               >
-                {formatPercent(move)}
+                {formatPercent(plotMove)}
               </span>
-              <span className="min-w-0 truncate text-[13px] text-fg-muted">{t.detail.rangeCaption[range]}</span>
+              <span className="min-w-0 truncate text-[13px] text-fg-muted">{hasComparable ? (language === "en" ? "common window" : "ventana común") : t.detail.rangeCaption[range]}</span>
               {deltaFormatted ? (
                 <span
                   className={cn(
@@ -889,7 +912,7 @@ export function PricePanel({
                   ) : (
                     <span className="text-sm text-fg-muted">—</span>
                   )}
-                  {move !== null ? <ChangeBadge value={move} /> : null}
+                  {plotMove !== null ? <ChangeBadge value={plotMove} /> : null}
                 </div>
               </div>
               <button
@@ -931,6 +954,8 @@ export function PricePanel({
           {smaChoices.filter((key) => smaOn[key]).map((key) => <button type="button" key={key} onClick={() => setSmaOn((current) => ({ ...current, [key]: false }))} className="min-h-9 rounded-full bg-surface-1 px-3 text-xs text-fg-muted">SMA {key} ×</button>)}
           {rsiOn ? <button type="button" onClick={() => setRsiOn(false)} className="min-h-9 rounded-full bg-surface-1 px-3 text-xs text-fg-muted">RSI ×</button> : null}
         </div> : null}
+        {hasComparable ? <p className="mt-2 text-xs text-fg-muted">{language === "en" ? "Compared on a common window. The last known observation is used, with its original date; long gaps remain blank." : "Comparación en ventana común. Se usa el último registro conocido, con su fecha original; los vacíos prolongados quedan sin curva."}</p> : null}
+        {unavailableCompared.length ? <p role="status" className="mt-2 text-xs text-warn">{language === "en" ? "History unavailable" : "Sin historial"}: {unavailableCompared.join(", ")}.</p> : null}
         <div className="relative mt-4 min-w-0 max-w-full">
           {tvActive ? (
             <TradingViewChart symbol={symbol} underlying={underlying} range={range} fullscreen={fullscreen} />
@@ -940,7 +965,7 @@ export function PricePanel({
               datasetKey={`${symbol}:${range}`}
               currency={priceCurrency}
               rate={rate}
-              points={points}
+              points={plotPoints}
               tone={tone}
               livePoint={effectiveLivePoint}
               quiet={history.isPending || history.isError}
@@ -949,8 +974,8 @@ export function PricePanel({
               emptyHint={t.detail.chartEmptyHint}
               onHover={onHover}
               reference={illustrative || historySource === "closes"}
-              overlays={overlays}
-              benchmark={benchmark}
+              overlays={plotOverlays}
+              benchmark={plotBenchmark}
               avgCostUsd={avgCostUsd}
               periodAvgUsd={showPeriodAvg ? periodAvgUsd : null}
               showGrid={showGrid}
@@ -985,13 +1010,13 @@ export function PricePanel({
             ) : null}
           </div>
         </div>
-        {period ? (
+        {chartPeriod ? (
           <div className="num mt-2 flex justify-between gap-3 text-xs leading-5 text-fg-muted">
-            <time dateTime={new Date(period.start).toISOString()}>{formatPeriodDate(period.start)}</time>
-            <time dateTime={new Date(period.end).toISOString()}>{formatPeriodDate(period.end)}</time>
+            <time dateTime={new Date(chartPeriod.start).toISOString()}>{formatPeriodDate(chartPeriod.start)}</time>
+            <time dateTime={new Date(chartPeriod.end).toISOString()}>{formatPeriodDate(chartPeriod.end)}</time>
           </div>
         ) : null}
-        {chartReady && stats && quote && Number.isFinite(quote.priceUsd) ? (
+        {!hasComparable && historySource === "ticks" && chartReady && stats && quote && Number.isFinite(quote.priceUsd) ? (
           <PriceRangeBar
             lowUsd={stats.low}
             highUsd={stats.high}
@@ -1001,7 +1026,7 @@ export function PricePanel({
             rate={rate}
           />
         ) : null}
-        {chartReady && openUsd !== null && periodAvgUsd !== null ? (() => {
+        {!hasComparable && chartReady && openUsd !== null && periodAvgUsd !== null ? (() => {
           const openShown = displayPrice(openUsd, priceCurrency, rate);
           const avgShown = displayPrice(periodAvgUsd, priceCurrency, rate);
           return (
@@ -1039,11 +1064,11 @@ export function PricePanel({
           );
         })() : null}
         {technical ? <ChartLegend label={copy.legend} items={legendItems} /> : null}
-        {technical && rsiOn && showRsi && period ? (
+        {technical && rsiOn && showRsi && chartPeriod ? (
           <RsiPanel
             points={studies.rsi}
-            t0={period.start}
-            t1={period.end}
+            t0={chartPeriod.start}
+            t1={chartPeriod.end}
             label={copy.rsi}
             axisLabel={copy.rsiAxis}
             emptyLabel={copy.rsiEmpty}
@@ -1051,7 +1076,7 @@ export function PricePanel({
         ) : null}
         {technical ? <p className="mt-3 text-xs text-fg-muted">{copy.disclaimer}</p> : null}
       </div>
-      <div className="mt-3"><ChartContext source={historySource} points={points} currency={priceCurrency} range={range} underlying={underlying} /></div>
+      <div className="mt-3"><ChartContext source={historySource} points={plotPoints} currency={priceCurrency} range={range} underlying={underlying} /></div>
     </section>
   );
 }
