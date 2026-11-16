@@ -1,4 +1,5 @@
 import type { PricePoint, Range } from "@/lib/types";
+import { chartPoints } from "@/lib/charts/data";
 
 /**
  * El % bajo el titular y "Variación {rango}" salen de `rangeMove` sobre esta serie
@@ -60,36 +61,18 @@ export function toneOf(move: number | null): ChartTone {
   return move >= 0 ? "up" : "down";
 }
 
-function round4(value: number): number {
-  return Math.round(value * 10_000) / 10_000;
-}
-
 /**
- * Multiplica la serie para que el último punto sea `spotUsd`.
- * El máximo queda en el spot o sobre él, y el mínimo en el spot o bajo él,
- * porque el último punto entra en el rango.
+ * @deprecated Historical compatibility name. Preserve observations instead of
+ * rescaling the entire past to today's spot. Only append compatible, dated
+ * token quotes through `observedSeries` + `compatibleSpot`.
  */
-export function anchorSeriesToSpot(points: readonly PricePoint[], spotUsd: number): PricePoint[] {
-  if (points.length === 0 || !Number.isFinite(spotUsd) || spotUsd <= 0) {
-    return points.map((point) => ({ t: point.t, p: point.p }));
-  }
-  const last = points[points.length - 1]?.p;
-  if (last === undefined || !Number.isFinite(last) || last <= 0) {
-    return points.map((point) => ({ t: point.t, p: point.p }));
-  }
-  const factor = spotUsd / last;
-  return points.map((point, index) => {
-    if (index === points.length - 1) return { t: point.t, p: spotUsd };
-    const scaled = point.p * factor;
-    const next = Number.isFinite(scaled) && scaled > 0 ? round4(scaled) : point.p;
-    return { t: point.t, p: next };
-  });
+export function anchorSeriesToSpot(points: readonly PricePoint[], _spotUsd: number): PricePoint[] {
+  void _spotUsd; // Retained for callers of the previous API; it must not rewrite history.
+  return chartPoints(points);
 }
 
-/** La serie que ve la pantalla: anclada al spot del mismo quote, si lo hay. */
-export function seriesForQuote(points: readonly PricePoint[], spotUsd: number | null | undefined): PricePoint[] {
-  if (spotUsd == null || !Number.isFinite(spotUsd) || spotUsd <= 0) {
-    return points.map((point) => ({ t: point.t, p: point.p }));
-  }
-  return anchorSeriesToSpot(points, spotUsd);
+/** Historical observations, independent of a quote from another source/time. */
+export function seriesForQuote(points: readonly PricePoint[], _spotUsd: number | null | undefined): PricePoint[] {
+  void _spotUsd;
+  return chartPoints(points);
 }

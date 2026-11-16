@@ -1,5 +1,15 @@
 # PROGRESO — Maverlang
 
+## T63 — Base de gráficos compartidos y herramientas compactas (plan aprobado, etapa inicial)
+- Alcance: motor diferido `components/charts/*`, adaptadores `lib/charts/data.ts`, integración en ficha de acción/cripto y seguimiento de las 16 propuestas en `docs/IMPLEMENTACION-GRAFICOS-UI.md`; el objetivo completo sigue en curso.
+- Dependencias: `lightweight-charts@5.3.0` (motor canvas), `@radix-ui/react-popover@1.3.1` y `@radix-ui/react-dropdown-menu@2.2.1` (componentes shadcn selectivos, foco y menús); versiones fijadas, sin clonar repositorios ni agregar Recharts.
+- Gráficos: zoom, cursor/tooltip, actualización incremental sin reset de ventana, pantalla completa, alternativa SVG, selector/tabla accesibles y atribución/licencias públicas. API y proveedores siguen en sus capas existentes.
+- Datos: se preservan observaciones históricas; sólo se agregan quotes Jupiter compatibles a ticks del token con fecha real. `anchorSeriesToSpot`/`seriesForQuote` ya no reescalan el pasado; cierres del subyacente/demo identificados aparte del spot.
+- Acción: herramientas secundarias en Popover/Sheet; fuente externa del subyacente explícita, sin salto automático de proveedor por vacío; se elimina el poller duplicado del panel. Cripto: mismo motor, estados vacíos honestos, gráfico antes de metadatos y precisión por instrumento.
+- Mercado destacado: respeta USD/CLP y usa la serie de su rango, sin curvas de otro rango ni spot de otra fuente. Overlays respetan el contenedor fullscreen.
+- Verificación ligera: TypeScript focalizado sin errores; lint dirigido y diff. Por instrucción de Manu NO build de producción, suites completas, E2E ni mediciones pesadas; revisión visual de la implementación pendiente.
+- Pendiente: completar comparación/ventanas y las restantes superficies U01–U09, semántica de cartera y contrato/fuente OHLCV. Handoff de auditoría leído; sin migraciones, push, deploy, cambios de flags ni ejecución real.
+
 ## T62 — Plan de gráficos e interfaz con Lightweight Charts y shadcn/ui (2026-11-15)
 - Alcance: análisis y documentación en `docs/PLAN-GRAFICOS-Y-UI.md`; 16 propuestas priorizadas, 5 bloques aprobables, esquemas de pantallas, dependencias, criterios de aceptación y estimaciones orientativas. Implementación pendiente de aprobación de Manu.
 - Base: código local en `c982197` y cambios previos sin confirmar; se confirmó que el producto sigue siendo acciones tokenizadas/cripto, no mercados de predicciones.

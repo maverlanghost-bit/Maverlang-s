@@ -16,12 +16,13 @@ import { hoyCopy } from "@/content/i18n/extra-hoy";
 import { ApiError, getHistory, searchMarket } from "@/lib/api/client";
 import { apiResultSchema } from "@/lib/api/contracts";
 import { cn } from "@/lib/cn";
+import { compatibleSpot, observedSeries } from "@/lib/charts/data";
+import { displayPrice } from "@/lib/market/browse";
 import { formatPercent } from "@/lib/format";
-import { useHistory, usePrices } from "@/lib/hooks/queries";
+import { useFx, useHistory, usePrices } from "@/lib/hooks/queries";
 import { useFavorites } from "@/lib/hooks/use-favorites";
 import { useT } from "@/lib/hooks/use-t";
 import {
-  dayChange,
   formatChileClock,
   todayBoardSchema,
   type TodayBoard,
@@ -110,30 +111,6 @@ function chileClockServerSnapshot(): number | null {
   return null;
 }
 
-/**
- * Reloj del cambio diario. Resolución de un minuto: basta para la ventana de
- * 24 h y evita llamar `Date.now()` durante el render.
- */
-const DAY_CLOCK_MS = 60_000;
-let dayClockValue: number | null = null;
-
-function subscribeDayClock(onStoreChange: () => void) {
-  const id = window.setInterval(() => {
-    dayClockValue = Date.now();
-    onStoreChange();
-  }, DAY_CLOCK_MS);
-  return () => window.clearInterval(id);
-}
-
-function dayClockSnapshot(): number | null {
-  dayClockValue ??= Date.now();
-  return dayClockValue;
-}
-
-function dayClockServerSnapshot(): number | null {
-  return null;
-}
-
 function ChileClock({ label, locale }: { label: string; locale: "es-CL" | "en" }) {
   const now = useSyncExternalStore(subscribeChileClock, chileClockSnapshot, chileClockServerSnapshot);
   if (now === null) {
@@ -154,7 +131,8 @@ function cardLabel(template: string, card: { name: string }): string {
 }
 
 export function MarketToday() {
-  const { language } = useT();
+  const { language, currency } = useT();
+  const fx = useFx();
   const router = useRouter();
   const copy = hoyCopy(language);
   const locale = language === "en" ? "en" : "es-CL";
@@ -212,7 +190,6 @@ export function MarketToday() {
       : null;
 
   const historyQuery = useHistory(activeCard?.symbol ?? "", range);
-  const dayNow = useSyncExternalStore(subscribeDayClock, dayClockSnapshot, dayClockServerSnapshot);
 
   /** Precarga los otros rangos de la acción activa una vez que el gráfico visible terminó de cargar. */
   const queryClient = useQueryClient();
@@ -239,49 +216,11 @@ export function MarketToday() {
     return () => window.clearTimeout(timer);
   }, [activeCard?.symbol, historyQuery.isSuccess, queryClient, range]);
 
-  /**
-   * Serie del gráfico según el rango activo:
-   * - Si `useHistory(symbol, range)` ya devolvió >= 2 puntos reales, usa esa serie exacta.
-   * - Si aún está cargando o `1D` no tiene ticks intradía, recorta `spark` a la ventana
-   *   proporcional (`1D` = últimos 3 cierres, `1W` = últimos 6 cierres, `1M` = mes completo)
-   *   para que cada pestaña muestre su propia curva y horizonte temporal.
-   * - Cuando existe precio spot en vivo (`spotUsd`), la curva siempre cierra en ese punto
-   *   para que el extremo derecho coincida con el precio titular y la variación del período.
-   */
-  const series = useMemo<{ p: number; t: number | null }[]>(() => {
-    const pts = historyQuery.data?.points;
-    let base: { p: number; t: number | null }[] = [];
-    if (pts && pts.length >= 2) {
-      base = pts
-        .filter((pt) => Number.isFinite(pt.p) && pt.p > 0)
-        .map((pt) => ({ p: pt.p, t: pt.t < 1e12 ? pt.t * 1000 : pt.t }));
-    } else {
-      const cleanSpark = (activeCard?.spark ?? []).filter((p) => Number.isFinite(p) && p > 0);
-      if (cleanSpark.length >= 2) {
-        if (range === "1D") {
-          base = cleanSpark.slice(-3).map((p) => ({ p, t: null }));
-        } else if (range === "1W" && historyQuery.isPending) {
-          base = cleanSpark.slice(-6).map((p) => ({ p, t: null }));
-        } else if (range === "1M" && historyQuery.isPending) {
-          base = cleanSpark.map((p) => ({ p, t: null }));
-        }
-      }
-    }
-    if (base.length >= 1 && spotUsd !== null) {
-      const last = base[base.length - 1]!;
-      const updatedMs = activeQuote?.updatedAt ? Date.parse(activeQuote.updatedAt) : Number.NaN;
-      const spotTime =
-        Number.isFinite(updatedMs) && updatedMs > 0
-          ? updatedMs
-          : last.t !== null
-            ? last.t + 1_000
-            : null;
-      if (last.t === null || (spotTime !== null && spotTime > last.t) || Math.abs(last.p - spotUsd) > 1e-6) {
-        return [...base, { p: spotUsd, t: spotTime }];
-      }
-    }
-    return base;
-  }, [activeCard, activeQuote, historyQuery.data, historyQuery.isPending, range, spotUsd]);
+  // Keep the actual observations and append only a dated quote from the same token source.
+  const series = useMemo<{ p: number; t: number | null }[]>(() =>
+    observedSeries(historyQuery.data?.points ?? [], compatibleSpot(historyQuery.data?.source, activeQuote)),
+    [historyQuery.data, activeQuote],
+  );
   const hasHistory = (historyQuery.data?.points?.length ?? 0) >= 2;
   const chartLoading = historyQuery.isPending && series.length < 2;
 
@@ -307,44 +246,11 @@ export function MarketToday() {
     }));
   }, [series]);
 
-  /**
-   * Variación del día a partir de la serie real de 1D, con la misma regla del
-   * tablero: dos cierres diarios o la ventana de 24 h con ticks. Así una ficha
-   * que sólo viene del catálogo no muestra cinco días como si fueran "hoy".
-   */
-  const dayChangePct = useMemo<number | null>(() => {
-    const data = historyQuery.data;
-    if (!data || data.points.length < 2 || dayNow === null) return null;
-    const points = data.points.map((pt) => ({
-      t: pt.t < 1e12 ? pt.t * 1000 : pt.t,
-      p: pt.p,
-    }));
-    return dayChange(points, dayNow, data.source === "closes");
-  }, [dayNow, historyQuery.data]);
-
-  /**
-   * Variación como fracción (formatPercent usa style "percent": 0,035 → 3,5 %).
-   * Antes se multiplicaba por 100 y salían cifras como -3.500 %.
-   */
   const basePct = useMemo<number | null>(() => {
-    if (!activeCard) return null;
-    // 1D prioriza la variación 24h en vivo de `/api/prices`, igual que la tabla y la ficha.
-    if (range === "1D") {
-      if (activeQuote && Number.isFinite(activeQuote.change24hPct)) {
-        return activeQuote.change24hPct;
-      }
-      if (activeCard.changePct !== null && Number.isFinite(activeCard.changePct)) {
-        return activeCard.changePct;
-      }
-      return dayChangePct;
-    }
-    if (series.length >= 2) {
-      const first = series[0]!.p;
-      const last = spotUsd ?? series[series.length - 1]!.p;
-      if (first > 0) return (last - first) / first;
-    }
-    return null;
-  }, [activeCard, activeQuote, dayChangePct, range, series, spotUsd]);
+    const first = series[0]?.p;
+    const last = series[series.length - 1]?.p;
+    return series.length >= 2 && first && last !== undefined ? (last - first) / first : null;
+  }, [series]);
 
   const displayPct = useMemo<number | null>(() => {
     const first = series[0]?.p ?? 0;
@@ -358,6 +264,9 @@ export function MarketToday() {
    */
   const lastPoint = series.length > 0 ? series[series.length - 1] : undefined;
   const shownPriceUsd = hoverPoint?.p ?? spotUsd ?? lastPoint?.p ?? null;
+  const rate = fx.data?.rate;
+  const shownCurrency = currency === "CLP" && rate && rate > 0 ? "CLP" : "USD";
+  const shownPrice = shownPriceUsd === null ? null : displayPrice(shownPriceUsd, shownCurrency, rate);
 
   const chartValues = useMemo(() => series.map((pt) => pt.p), [series]);
   const chartShape = useMemo(() => sparklineSmoothPath(chartValues, CHART_W, CHART_H), [chartValues]);
@@ -515,10 +424,10 @@ export function MarketToday() {
                 </div>
 
                 <div className="flex shrink-0 flex-col items-end gap-1 text-right">
-                  {shownPriceUsd !== null ? (
+                  {shownPrice !== null ? (
                     <PriceText
-                      value={shownPriceUsd}
-                      currency="USD"
+                      value={shownPrice}
+                      currency={shownCurrency}
                       size="sm"
                       className="text-[26px] leading-none font-semibold tracking-tight sm:text-[30px]"
                     />

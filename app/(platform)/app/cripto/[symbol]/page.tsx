@@ -198,9 +198,9 @@ export default async function CriptoFichaPage({ params }: { params: Promise<{ sy
         ) : null}
       </div>
 
-      {/* En móvil el precio y la compra van primero; en lg, la boleta queda fija a la derecha. */}
+      {/* En móvil: gráfico, operación y datos. En escritorio, operación fija a la derecha. */}
       <div className="flex flex-col gap-8 lg:grid lg:grid-cols-[minmax(0,1fr)_22rem] lg:gap-x-10 xl:grid-cols-[minmax(0,1fr)_24rem] xl:gap-x-16">
-        <aside className="order-1 min-w-0 lg:order-2">
+        <aside className="order-2 min-w-0">
           <div className="lg:sticky lg:top-6">
             <CryptoBuyPanel
               symbol={asset.symbol}
@@ -211,15 +211,18 @@ export default async function CriptoFichaPage({ params }: { params: Promise<{ sy
           </div>
         </aside>
 
-        <div className="order-2 flex min-w-0 flex-col gap-10 lg:order-1">
+        <div className="contents lg:order-1 lg:flex lg:min-w-0 lg:flex-col lg:gap-10">
+          <div className="order-1 min-w-0 lg:order-none">
+            <CryptoDetailChart symbol={asset.symbol} name={asset.name} />
+          </div>
           {asset.symbol === "BTC" ? (
-            <p className="max-w-prose text-[13px] leading-relaxed text-fg-body">
+            <p className="order-3 max-w-prose text-[13px] leading-relaxed text-fg-body lg:order-none">
               <span className="font-medium text-fg">BTC aquí es cbBTC de Coinbase en Solana.</span> No es Bitcoin
               nativo y no ofrecemos WBTC.
             </p>
           ) : null}
 
-          <section aria-labelledby="datos-token" className="border-t border-border pt-8">
+          <section aria-labelledby="datos-token" className="order-3 border-t border-border pt-8 lg:order-none">
             <h2 id="datos-token" className="text-lg font-medium tracking-tight text-fg">
               Datos del token
             </h2>
@@ -258,9 +261,7 @@ export default async function CriptoFichaPage({ params }: { params: Promise<{ sy
             </dl>
           </section>
 
-          <CryptoDetailChart symbol={asset.symbol} name={asset.name} />
-
-          <section aria-labelledby="avisos-cripto" className="border-t border-border pt-8">
+          <section aria-labelledby="avisos-cripto" className="order-4 border-t border-border pt-8 lg:order-none">
             <h2 id="avisos-cripto" className="text-lg font-medium tracking-tight text-fg">
               Avisos
             </h2>

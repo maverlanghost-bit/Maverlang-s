@@ -3,6 +3,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useQueries, useQuery } from "@tanstack/react-query";
 
+import { ChartContext } from "@/components/charts/chart-context";
+import { ChartTools } from "@/components/charts/chart-tools";
+import { FinancialChart } from "@/components/charts/financial-chart";
+
 import { ChangeBadge } from "@/components/domain/change-badge";
 import {
   ChartMultiCompare,
@@ -23,11 +27,12 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { indexFromKey } from "@/components/ui/keys";
 import { graficoCopy } from "@/content/i18n/extra-grafico";
 import { historyStaleMs } from "@/lib/api/contracts";
-import { getHistory, getPrices } from "@/lib/api/client";
+import { getHistory } from "@/lib/api/client";
+import { compatibleSpot, observedSeries } from "@/lib/charts/data";
 import { cn } from "@/lib/cn";
 import { formatDateTime, formatMoney, formatPercent } from "@/lib/format";
 import { useChartMode } from "@/lib/hooks/use-chart-mode";
-import { useHistory, useMarketStatus } from "@/lib/hooks/queries";
+import { useHistory } from "@/lib/hooks/queries";
 import { priceFlashDirection, type PriceFlash } from "@/lib/hooks/use-price-flash";
 import { useT } from "@/lib/hooks/use-t";
 import { displayPrice } from "@/lib/market/browse";
@@ -39,8 +44,6 @@ import type { Currency, PricePoint, Quote, Range } from "@/lib/types";
 
 const NO_POINTS: readonly PricePoint[] = [];
 const NO_OVERLAYS: readonly ChartOverlay[] = [];
-const LIVE_RANGE_MS = 15_000;
-const CLOSED_RANGE_MS = 60_000;
 /** Cierres largos y SPYx en modo Técnico: una lectura, fresca una hora. */
 const STUDY_STALE_MS = 60 * 60 * 1000;
 const EMPTY_STUDIES: ChartStudies = {
@@ -55,8 +58,9 @@ const COMPARE_SYMBOLS = [SPY_SYMBOL, "QQQx", "AAPLx", "NVDAx", "TSLAx"] as const
 const MAX_COMPARE = 4;
 /** Motores del gráfico: el nativo Pro y el widget de TradingView. */
 const PROVIDER_OPTIONS = [
-  { value: "native", label: "Gráfico Pro" },
-  { value: "tradingview", label: "TradingView" },
+  { value: "native", label: "Interactivo" },
+  { value: "svg", label: "Gráfico clásico" },
+  { value: "tradingview", label: "Subyacente en TradingView" },
 ] as const;
 
 /**
@@ -125,10 +129,6 @@ function periodBounds(
   return { start, end };
 }
 
-function pollsLiveChart(range: Range): boolean {
-  return range === "1W" || range === "1M";
-}
-
 /** Color estable por índice de comparación; nunca repite el mismo tono seguido. */
 function compareColor(index: number): string {
   return COMPARE_PALETTE[index % COMPARE_PALETTE.length] ?? "#2563eb";
@@ -151,11 +151,6 @@ function windowPoints(
       row.t >= bounds.start &&
       row.t <= bounds.end,
   );
-}
-
-function livePricePoint(row: { priceUsd: number } | undefined, at: number): PricePoint | undefined {
-  if (!row || at <= 0 || !Number.isFinite(row.priceUsd) || row.priceUsd <= 0) return undefined;
-  return { t: at, p: row.priceUsd };
 }
 
 function fill(template: string, values: Record<string, string>) {
@@ -337,42 +332,13 @@ export function PricePanel({
     queryFn: () => getHistory(symbolKey, "ALL"),
     ...studyQueryOptions(technical && symbolKey.length > 0),
   });
-  const market = useMarketStatus();
-  const marketOpen = market.data?.underlyingOpen === true;
-  const pollChart = pollsLiveChart(range);
-  const liveQuote = useQuery({
-    queryKey: ["quote", symbol],
-    queryFn: () => getPrices([symbol]),
-    enabled: pollChart && symbol.trim().length > 0,
-    refetchInterval: marketOpen ? LIVE_RANGE_MS : CLOSED_RANGE_MS,
-    refetchIntervalInBackground: false,
-  });
-  const polledRow = pollChart ? liveQuote.data?.find((item) => item.symbol === symbol) : undefined;
-  const polledAt = pollChart && liveQuote.dataUpdatedAt > 0 ? liveQuote.dataUpdatedAt : 0;
-  const livePoint = useMemo(() => livePricePoint(polledRow, polledAt), [polledRow, polledAt]);
-  const points = history.data?.points ?? NO_POINTS;
-  const quoteUpdatedMs = quote?.updatedAt ? Date.parse(quote.updatedAt) : 0;
-  const effectiveLivePoint = useMemo(() => {
-    if (livePoint) return livePoint;
-    if (!quote || !Number.isFinite(quote.priceUsd) || quote.priceUsd <= 0) return undefined;
-    const lastPt = points[points.length - 1];
-    const fallbackAt =
-      Number.isFinite(quoteUpdatedMs) && quoteUpdatedMs > 0
-        ? quoteUpdatedMs
-        : lastPt && Number.isFinite(lastPt.t)
-          ? lastPt.t + 1_000
-          : 0;
-    return livePricePoint(quote, fallbackAt);
-  }, [livePoint, points, quote, quoteUpdatedMs]);
-  // Sin dos puntos el SVG no puede dibujar: se cae a TradingView y se avisa.
-  const autoTradingView = !history.isPending && points.length < 2;
-  const period = periodBounds(points, effectiveLivePoint);
-  const openPointUsd = points.length >= 2 && Number.isFinite(points[0]?.p) && (points[0]?.p ?? 0) > 0 ? points[0]!.p : null;
-  const spotEndUsd = effectiveLivePoint?.p ?? (quote && Number.isFinite(quote.priceUsd) && quote.priceUsd > 0 ? quote.priceUsd : null);
-  const move =
-    openPointUsd !== null && spotEndUsd !== null && openPointUsd > 0
-      ? (spotEndUsd - openPointUsd) / openPointUsd
-      : rangeMove(points);
+  // The screen already polls the spot. Reuse that quote instead of a second cache/poller.
+  const rawPoints = history.data?.points ?? NO_POINTS;
+  const effectiveLivePoint = useMemo(() => compatibleSpot(history.data?.source, quote), [history.data?.source, quote]);
+  const points = useMemo(() => observedSeries(rawPoints, effectiveLivePoint), [rawPoints, effectiveLivePoint]);
+  const period = periodBounds(points, undefined);
+  const spotEndUsd = points[points.length - 1]?.p ?? null;
+  const move = rangeMove(points);
   const stats = !history.isPending && !history.isError ? rangeBounds(points) : null;
   const illustrative =
     !history.isPending && !history.isError && points.length >= 2 && isReferenceHistory(history.data);
@@ -390,12 +356,12 @@ export function PricePanel({
   const [comparedSymbols, setComparedSymbols] = useState<string[]>([]);
   const [highlightedLayerId, setHighlightedLayerId] = useState<string | null>(null);
   // Motor del gráfico: Pro nativo y TradingView conviven; el SVG sigue montado.
-  const [provider, setProvider] = useState<"native" | "tradingview">("native");
+  const [provider, setProvider] = useState<"native" | "svg" | "tradingview">("native");
   // Eje Y: precio o porcentaje desde la apertura del período.
   const [axisMode, setAxisMode] = useState<"price" | "percent">("price");
   const [fullscreen, setFullscreen] = useState(false);
   const chartCardRef = useRef<HTMLDivElement>(null);
-  const tvActive = provider === "tradingview" || autoTradingView;
+  const tvActive = provider === "tradingview";
   /** Sale del modo amplio y, si el navegador tomó la tarjeta, del fullscreen nativo. */
   const exitFullscreen = useCallback(() => {
     setFullscreen(false);
@@ -469,15 +435,15 @@ export function PricePanel({
       symbol,
       range,
       illustrative,
-      window: periodBounds(history.data?.points ?? NO_POINTS, livePricePoint(polledRow, polledAt)),
-      spy: spyHistory.data
+      window: periodBounds(points, undefined),
+      spy: spyHistory.data && spyHistory.data.source === history.data?.source
         ? { points: spyHistory.data.points, reference: isReferenceHistory(spyHistory.data) }
         : null,
-      closes: longHistory.data
+      closes: longHistory.data && longHistory.data.source === history.data?.source
         ? { points: longHistory.data.points, reference: isReferenceHistory(longHistory.data) }
         : null,
     });
-  }, [technical, symbol, range, illustrative, history.data, polledRow, polledAt, spyHistory.data, longHistory.data]);
+  }, [technical, symbol, range, illustrative, points, history.data?.source, spyHistory.data, longHistory.data]);
   const overlays = useMemo(() => {
     const list: ChartOverlay[] = [];
     if (technical && chartReady) {
@@ -719,20 +685,42 @@ export function PricePanel({
     label: value === "ALL" ? "Máx" : t.detail.rangeShort[value],
   }));
   const historySource = history.data?.source;
-  const lastT = points[points.length - 1]?.t;
-  const sourceLine =
-    !history.isPending &&
-    !history.isError &&
-    points.length >= 2 &&
-    lastT !== undefined &&
-    (historySource === "closes" || historySource === "ticks")
-      ? historySource === "closes"
-        ? fill(t.detail.chartSourceClose, {
-            symbol: underlying.trim() || symbol,
-            when: formatDateTime(new Date(lastT).toISOString()),
-          })
-        : fill(t.detail.chartSourceTicks, { when: formatDateTime(new Date(lastT).toISOString()) })
-      : null;
+  const PriceChart = provider === "svg" ? SvgPriceChart : FinancialChart;
+  const selectProvider = (value: string) => setProvider(value === "tradingview" ? "tradingview" : value === "svg" ? "svg" : "native");
+  const settings = (
+    <ChartTools>
+      <div className="flex flex-col gap-5">
+        <fieldset>
+          <legend className="mb-2 text-xs font-medium text-fg-muted">{language === "en" ? "Display" : "Visualización"}</legend>
+          <div className="flex flex-wrap gap-1">
+            <ChartToggle pressed={showPeriodAvg} onClick={() => setShowPeriodAvg((value) => !value)}>{language === "en" ? "Period average" : "Promedio"}</ChartToggle>
+            <ChartToggle pressed={showGrid} onClick={() => setShowGrid((value) => !value)}>{language === "en" ? "Grid" : "Cuadrícula"}</ChartToggle>
+            <ChartToggle pressed={axisMode === "percent"} onClick={() => setAxisMode((value) => value === "price" ? "percent" : "price")} label="Escala del eje: porcentaje o precio">% / $</ChartToggle>
+          </div>
+        </fieldset>
+        {technical ? <div className="[&_[role=group]]:flex-wrap [&_[role=group]]:overflow-visible [&_[role=group]]:px-0 [&_[role=group]]:mx-0">
+          {longHistory.isLoading ? <StudiesSkeleton label={copy.studiesLoading} /> : <ChartStudyBar
+            copy={copy}
+            spyPending={spyHistory.isLoading}
+            spy={showSpy ? { on: spyOn, onToggle: () => setSpyOn((value) => !value) } : null}
+            smas={smaChoices.map((periodKey) => ({ period: periodKey, on: smaOn[periodKey], onToggle: () => setSmaOn((current) => ({ ...current, [periodKey]: !current[periodKey] })) }))}
+            rsi={showRsi ? { on: rsiOn, onToggle: () => setRsiOn((value) => !value) } : null}
+            volume={bars.volume ? { on: volumeOn, onToggle: () => setVolumeOn((value) => !value), label: copy.volume } : null}
+            style={bars.ohlc ? { value: draw, line: copy.styleLine, candles: copy.styleCandles, label: copy.styleLabel, onChange: setDraw } : null}
+          />}
+          {!bars.ohlc || !bars.volume ? <p className="mt-2 text-xs leading-relaxed text-fg-muted">{language === "en" ? "Candles and volume require verified OHLCV data from the selected source." : "Velas y volumen requieren datos OHLCV verificados de la fuente seleccionada."}</p> : null}
+        </div> : null}
+        {showCompare ? <RangeCapsule compact idPrefix="compare" label="Comparar con" options={compareOptions} value={compareSymbol} onChange={setCompareSymbol} /> : null}
+        <fieldset>
+          <legend className="mb-2 text-xs font-medium text-fg-muted">{language === "en" ? "Chart version" : "Versión del gráfico"}</legend>
+          <div className="flex flex-col items-start gap-1">
+            {PROVIDER_OPTIONS.map((option) => <ChartToggle key={option.value} pressed={provider === option.value} onClick={() => selectProvider(option.value)}>{option.label}</ChartToggle>)}
+          </div>
+          <p className="mt-2 text-xs leading-relaxed text-fg-muted">{language === "en" ? "TradingView shows the underlying, with its own source and update frequency. It is not a quote for this token." : "TradingView muestra el subyacente, con su propia fuente y frecuencia de actualización. No es una cotización de este token."}</p>
+        </fieldset>
+      </div>
+    </ChartTools>
+  );
 
   let priceNode: ReactNode;
   if (pending && !quote) {
@@ -771,11 +759,11 @@ export function PricePanel({
           ) : null}
         </div>
         <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
+          <span className="text-xs text-fg-muted">{point ? (language === "en" ? "Historical observation" : "Registro histórico") : quote.source === "mock" ? (language === "en" ? "Demo quote" : "Cotización de demostración") : quote.reference ? t.detail.referencePrice : (language === "en" ? "Token quote" : "Cotización del token")} · {priceCurrency}</span>
           <PriceFreshness
-            at={polledAt > 0 ? polledAt : (priceUpdatedAt ?? quote.updatedAt)}
-            stale={polledAt > 0 ? polledRow?.stale === true : priceStale || quote.stale === true}
-            delayedOnly={polledAt <= 0}
-            live={polledAt > 0 && polledRow?.stale !== true}
+            at={quote.updatedAt || priceUpdatedAt}
+            stale={priceStale || quote.stale === true}
+            live={quote.source === "jupiter" && !quote.reference}
           />
           {point === null && quote.reference ? (
             <p className={NOTE}>{t.detail.referencePrice}</p>
@@ -872,7 +860,7 @@ export function PricePanel({
         />
       </div>
 
-      {illustrative ? <p className={cn("mt-3", NOTE)}>{t.detail.chartReference}</p> : null}
+      {historySource === "mock" || historySource === "closes" ? <p className="mt-2 text-xs text-fg-muted">{historySource === "mock" ? (language === "en" ? "Demonstration history · simulated prices" : "Historial de demostración · precios simulados") : (language === "en" ? "Underlying price history · reference, not token trades" : "Histórico del subyacente · referencia, no operaciones del token")}</p> : null}
 
       <div
         ref={chartCardRef}
@@ -923,106 +911,11 @@ export function PricePanel({
                   if (isDetailRange(value)) onRangeChange(value);
                 }}
               />
-              <RangeCapsule
-                idPrefix="fullscreen-provider"
-                label="Motor del gráfico (pantalla completa)"
-                options={PROVIDER_OPTIONS}
-                value={provider}
-                onChange={(value) => setProvider(value === "tradingview" ? "tradingview" : "native")}
-              />
-              <div className="flex shrink-0 items-center gap-1.5">
-                <ChartToggle tone="accent" pressed={showPeriodAvg} onClick={() => setShowPeriodAvg((v) => !v)}>
-                  <span aria-hidden="true" className="size-1.5 rounded-full bg-[#2b7fd9]" />
-                  Promedio
-                </ChartToggle>
-                <ChartToggle pressed={showGrid} onClick={() => setShowGrid((v) => !v)}>
-                  Escala
-                </ChartToggle>
-                <ChartToggle
-                  pressed={axisMode === "percent"}
-                  onClick={() => setAxisMode((v) => (v === "price" ? "percent" : "price"))}
-                  label="Escala del eje: porcentaje o precio"
-                >
-                  % / $
-                </ChartToggle>
-              </div>
             </div>
           </div>
         ) : null}
-        {/* Controles del gráfico (sólo modo técnico): motor Pro/TradingView, promedio, escala y eje.
-            La pantalla completa se abre desde el botón flotante de la esquina del gráfico. */}
-        {technical && !fullscreen ? (
-          <div className="mb-3 flex flex-wrap items-center gap-x-1 gap-y-2 border-b border-border/70 pb-3">
-            <RangeCapsule
-              className="mr-1 shrink-0"
-              idPrefix="chart-provider"
-              label="Motor del gráfico"
-              options={PROVIDER_OPTIONS}
-              value={provider}
-              onChange={(value) => setProvider(value === "tradingview" ? "tradingview" : "native")}
-            />
-            <ChartToggle tone="accent" pressed={showPeriodAvg} onClick={() => setShowPeriodAvg((v) => !v)}>
-              <span aria-hidden="true" className="size-1.5 rounded-full bg-[#2b7fd9]" />
-              Promedio
-            </ChartToggle>
-            <ChartToggle pressed={showGrid} onClick={() => setShowGrid((v) => !v)}>
-              Escala
-            </ChartToggle>
-            <ChartToggle
-              pressed={axisMode === "percent"}
-              onClick={() => setAxisMode((v) => (v === "price" ? "percent" : "price"))}
-              label="Escala del eje: porcentaje o precio"
-            >
-              % / $
-            </ChartToggle>
-          </div>
-        ) : null}
-        {technical ? (
-          longHistory.isLoading ? (
-            <StudiesSkeleton label={copy.studiesLoading} />
-          ) : (
-            <ChartStudyBar
-              copy={copy}
-              spyPending={spyHistory.isLoading}
-              spy={showSpy ? { on: spyOn, onToggle: () => setSpyOn((value) => !value) } : null}
-              smas={smaChoices.map((periodKey) => ({
-                period: periodKey,
-                on: smaOn[periodKey],
-                onToggle: () => setSmaOn((current) => ({ ...current, [periodKey]: !current[periodKey] })),
-              }))}
-              rsi={showRsi ? { on: rsiOn, onToggle: () => setRsiOn((value) => !value) } : null}
-              volume={
-                bars.volume ? { on: volumeOn, onToggle: () => setVolumeOn((value) => !value), label: copy.volume } : null
-              }
-              style={
-                bars.ohlc
-                  ? {
-                      value: draw,
-                      line: copy.styleLine,
-                      candles: copy.styleCandles,
-                      label: copy.styleLabel,
-                      onChange: setDraw,
-                    }
-                  : null
-              }
-            />
-          )
-        ) : null}
-        {showCompare ? (
-          <div className="mb-3 flex flex-wrap items-center gap-2">
-            <span className="text-xs font-medium text-fg-muted">Comparar con</span>
-            <RangeCapsule
-              compact
-              idPrefix="compare"
-              label="Comparar con"
-              options={compareOptions}
-              value={compareSymbol}
-              onChange={setCompareSymbol}
-            />
-          </div>
-        ) : null}
-        {tvActive ? null : (
-          <ChartMultiCompare
+        <div className="mt-3 flex min-w-0 items-start justify-between gap-2">
+          {!tvActive ? <div className="min-w-0 flex-1"><ChartMultiCompare
             baseSymbol={symbolKey}
             selectedSymbols={comparedSymbols}
             onToggleSymbol={toggleComparedSymbol}
@@ -1031,15 +924,22 @@ export function PricePanel({
             highlightedId={highlightedLayerId}
             onHighlightChange={setHighlightedLayerId}
             maxCompare={MAX_COMPARE}
-          />
-        )}
+          /></div> : <span className="self-center text-xs text-fg-muted">{language === "en" ? "Underlying reference" : "Referencia del subyacente"}</span>}
+          {settings}
+        </div>
+        {technical && (smaChoices.some((key) => smaOn[key]) || rsiOn) ? <div className="mt-1 flex flex-wrap gap-1.5" aria-label={language === "en" ? "Active studies" : "Indicadores activos"}>
+          {smaChoices.filter((key) => smaOn[key]).map((key) => <button type="button" key={key} onClick={() => setSmaOn((current) => ({ ...current, [key]: false }))} className="min-h-9 rounded-full bg-surface-1 px-3 text-xs text-fg-muted">SMA {key} ×</button>)}
+          {rsiOn ? <button type="button" onClick={() => setRsiOn(false)} className="min-h-9 rounded-full bg-surface-1 px-3 text-xs text-fg-muted">RSI ×</button> : null}
+        </div> : null}
         <div className="relative mt-4 min-w-0 max-w-full">
           {tvActive ? (
             <TradingViewChart symbol={symbol} underlying={underlying} range={range} fullscreen={fullscreen} />
           ) : null}
-          {/* El SVG nativo sigue montado aunque TradingView esté visible: los tests buscan su SVG. */}
-          <div className={cn("relative min-w-0 max-w-full", (provider === "tradingview" || autoTradingView) && "hidden")}>
-            <SvgPriceChart
+          <div className={cn("relative min-w-0 max-w-full", tvActive && "hidden")}>
+            <PriceChart
+              datasetKey={`${symbol}:${range}`}
+              currency={priceCurrency}
+              rate={rate}
               points={points}
               tone={tone}
               livePoint={effectiveLivePoint}
@@ -1048,14 +948,14 @@ export function PricePanel({
               emptyLabel={t.detail.chartEmpty}
               emptyHint={t.detail.chartEmptyHint}
               onHover={onHover}
-              reference={illustrative}
+              reference={illustrative || historySource === "closes"}
               overlays={overlays}
               benchmark={benchmark}
               avgCostUsd={avgCostUsd}
-              periodAvgUsd={(technical || fullscreen) && showPeriodAvg ? periodAvgUsd : null}
-              showGrid={(technical || fullscreen) && showGrid}
+              periodAvgUsd={showPeriodAvg ? periodAvgUsd : null}
+              showGrid={showGrid}
               showExtremes={false}
-              axisMode={technical || fullscreen ? axisMode : "price"}
+              axisMode={axisMode}
               highlightedLayerId={highlightedLayerId}
               onHighlightLayer={setHighlightedLayerId}
               onToggleFullscreen={toggleFullscreen}
@@ -1085,9 +985,6 @@ export function PricePanel({
             ) : null}
           </div>
         </div>
-        {autoTradingView && provider === "native" ? (
-          <p className="mt-2 text-xs text-fg-muted">Mostrando gráfico en tiempo real vía TradingView</p>
-        ) : null}
         {period ? (
           <div className="num mt-2 flex justify-between gap-3 text-xs leading-5 text-fg-muted">
             <time dateTime={new Date(period.start).toISOString()}>{formatPeriodDate(period.start)}</time>
@@ -1154,7 +1051,7 @@ export function PricePanel({
         ) : null}
         {technical ? <p className="mt-3 text-xs text-fg-muted">{copy.disclaimer}</p> : null}
       </div>
-      {sourceLine ? <p className={cn("mt-3", NOTE)}>{sourceLine}</p> : null}
+      <div className="mt-3"><ChartContext source={historySource} points={points} currency={priceCurrency} range={range} underlying={underlying} /></div>
     </section>
   );
 }

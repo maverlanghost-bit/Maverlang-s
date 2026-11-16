@@ -115,11 +115,11 @@ export function TradingViewChart({
       <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b border-border bg-surface-1 px-3 py-2">
         <div className="flex min-w-0 items-center gap-2">
           <span
-            className="size-1.5 shrink-0 rounded-full bg-up motion-safe:animate-pulse motion-reduce:animate-none"
+            className="size-1.5 shrink-0 rounded-full bg-fg-subtle"
             aria-hidden
           />
           <span className="truncate text-xs text-fg-muted">
-            TradingView Live · Velas e indicadores en tiempo real
+            TradingView · Referencia del subyacente · Fuente externa
           </span>
         </div>
         <div className="flex shrink-0 items-center gap-2">

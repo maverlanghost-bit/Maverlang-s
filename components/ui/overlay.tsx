@@ -42,7 +42,7 @@ function useMounted() {
 function Portal({ children }: { children: ReactNode }) {
   const mounted = useMounted();
   if (!mounted) return null;
-  return createPortal(children, document.body);
+  return createPortal(children, document.fullscreenElement ?? document.body);
 }
 
 /**

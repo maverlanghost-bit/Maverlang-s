@@ -4,10 +4,13 @@ import { useCallback, useMemo, useState } from "react";
 
 import { ChangeBadge } from "@/components/domain/change-badge";
 import { PriceFreshness } from "@/components/domain/price-freshness";
-import { SvgPriceChart } from "@/components/domain/svg-price-chart";
+import { FinancialChart } from "@/components/charts/financial-chart";
+import { ChartContext } from "@/components/charts/chart-context";
+import { ChartTools } from "@/components/charts/chart-tools";
 import { ErrorState } from "@/components/ui/error-state";
 import { indexFromKey } from "@/components/ui/keys";
 import { cn } from "@/lib/cn";
+import { compatibleSpot, observedSeries, pricePrecision } from "@/lib/charts/data";
 import { formatDateTime } from "@/lib/format";
 import { SPOT_MS, useFx, useHistory, usePrices } from "@/lib/hooks/queries";
 import { useT } from "@/lib/hooks/use-t";
@@ -39,12 +42,7 @@ function isUsableQuote(quote: Quote): boolean {
 }
 
 function usdDecimalsFor(value: number): number {
-  const abs = Math.abs(value);
-  if (abs === 0) return 2;
-  if (abs >= 1) return 2;
-  if (abs >= 0.01) return 4;
-  if (abs >= 0.0001) return 6;
-  return 8;
+  return pricePrecision(value);
 }
 
 function clpDecimalsFor(value: number): number {
@@ -53,7 +51,7 @@ function clpDecimalsFor(value: number): number {
   if (abs >= 10) return 0;
   if (abs >= 1) return 2;
   if (abs >= 0.01) return 4;
-  return 6;
+  return pricePrecision(value);
 }
 
 function formatCryptoPrice(
@@ -114,6 +112,8 @@ export function CryptoDetailChart({ symbol, name }: { symbol: string; name: stri
   const { language, currency } = useT();
   const isEn = language === "en";
   const [range, setRange] = useState<Range>("1M");
+  const [grid, setGrid] = useState(false);
+  const [axisMode, setAxisMode] = useState<"price" | "percent">("price");
   const [hover, setHover] = useState<{
     key: string;
     usd: number;
@@ -145,22 +145,12 @@ export function CryptoDetailChart({ symbol, name }: { symbol: string; name: stri
   const rawPoints = historyQuery.data?.points;
   const validPoints = useMemo(() => normalizePoints(rawPoints), [rawPoints]);
 
-  const livePoint = useMemo<PricePoint | undefined>(() => {
-    if (!quote || validPoints.length === 0) return undefined;
-    const parsedTime = Date.parse(quote.updatedAt);
-    const last = validPoints[validPoints.length - 1];
-    const t =
-      Number.isFinite(parsedTime) && parsedTime > last.t
-        ? parsedTime
-        : last.t + 1;
-    return { t, p: quote.priceUsd };
-  }, [quote, validPoints]);
+  const livePoint = useMemo(() => compatibleSpot(historyQuery.data?.source, quote), [historyQuery.data?.source, quote]);
+  const observedPoints = useMemo(() => observedSeries(validPoints, livePoint), [validPoints, livePoint]);
 
   const seriesStats = useMemo(() => {
     if (validPoints.length < 2) return null;
-    const allPrices = livePoint
-      ? [...validPoints.map((pt) => pt.p), livePoint.p]
-      : validPoints.map((pt) => pt.p);
+    const allPrices = observedPoints.map((pt) => pt.p);
     const first = allPrices[0] ?? 0;
     const last = allPrices[allPrices.length - 1] ?? 0;
     let min = Infinity;
@@ -175,7 +165,7 @@ export function CryptoDetailChart({ symbol, name }: { symbol: string; name: stri
       maxUsd: max,
       changePct,
     };
-  }, [validPoints, livePoint]);
+  }, [validPoints, observedPoints]);
 
   const seriesKey = `${symbol}:${range}:${validPoints.length}`;
 
@@ -219,8 +209,6 @@ export function CryptoDetailChart({ symbol, name }: { symbol: string; name: stri
   const activeRangeLabel = isEn ? activeRangeMeta.labelEn : activeRangeMeta.labelEs;
 
   const hasChartSeries = validPoints.length >= 2;
-  const isMockSeries = historyQuery.data?.source === "mock";
-  const isLiveTicks = historyQuery.data?.source === "ticks";
 
   const sourceBadgeLabel = useMemo(() => {
     if (!quote) return null;
@@ -231,7 +219,7 @@ export function CryptoDetailChart({ symbol, name }: { symbol: string; name: stri
   return (
     <section
       aria-labelledby="precio-cripto-vivo"
-      className="flex flex-col gap-5 rounded-xl border border-border bg-surface-1 p-5 sm:p-6"
+      className="flex min-w-0 flex-col gap-4"
     >
       {/* Spot en vivo + cambio 24h + estado de frescura */}
       <div className="flex flex-wrap items-start justify-between gap-4">
@@ -241,7 +229,7 @@ export function CryptoDetailChart({ symbol, name }: { symbol: string; name: stri
               id="precio-cripto-vivo"
               className="text-xs font-medium tracking-wider text-fg-muted uppercase"
             >
-              {isEn ? "Live price" : "Precio en vivo"} · {symbol}
+              {isEn ? "Token price" : "Precio del token"} · {symbol}
             </h2>
             {sourceBadgeLabel ? (
               <span className="inline-flex items-center rounded-full border border-border bg-surface-2 px-2 py-0.5 text-[11px] font-medium text-fg-body">
@@ -341,7 +329,7 @@ export function CryptoDetailChart({ symbol, name }: { symbol: string; name: stri
                   }
                 }}
                 className={cn(
-                  "rounded-md px-3 py-1.5 text-xs font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent",
+                  "min-h-11 rounded-md px-3 py-1.5 text-xs font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fg sm:min-h-9",
                   selected
                     ? "bg-bg text-fg shadow-xs"
                     : "text-fg-muted hover:text-fg",
@@ -417,8 +405,8 @@ export function CryptoDetailChart({ symbol, name }: { symbol: string; name: stri
           }
           description={
             isEn
-              ? "Live spot pricing remains active above."
-              : "El precio spot en vivo sigue disponible arriba."
+              ? quote ? "The current quote is available above." : "The quote is also unavailable. Try again in a moment."
+              : quote ? "La cotización actual está disponible arriba." : "La cotización también está pendiente. Puedes volver a intentarlo."
           }
           onRetry={() => {
             void historyQuery.refetch();
@@ -427,9 +415,15 @@ export function CryptoDetailChart({ symbol, name }: { symbol: string; name: stri
         />
       ) : hasChartSeries ? (
         <div className="flex flex-col gap-2">
-          <SvgPriceChart
-            points={validPoints}
-            livePoint={livePoint}
+          <div className="flex justify-end"><ChartTools><div className="flex flex-col gap-3">
+            <button type="button" aria-pressed={grid} onClick={() => setGrid((value) => !value)} className="min-h-11 rounded-md px-3 text-left text-sm hover:bg-surface-1">{isEn ? "Grid" : "Cuadrícula"} · {grid ? (isEn ? "On" : "Activada") : (isEn ? "Off" : "Desactivada")}</button>
+            <button type="button" aria-pressed={axisMode === "percent"} onClick={() => setAxisMode((value) => value === "price" ? "percent" : "price")} className="min-h-11 rounded-md px-3 text-left text-sm hover:bg-surface-1">{isEn ? "Scale" : "Escala"} · {axisMode === "percent" ? "%" : effectiveCurrency}</button>
+          </div></ChartTools></div>
+          <FinancialChart
+            datasetKey={`${symbol}:${range}`}
+            currency={effectiveCurrency}
+            rate={fxRate}
+            points={observedPoints}
             tone={tone}
             label={
               isEn
@@ -440,23 +434,12 @@ export function CryptoDetailChart({ symbol, name }: { symbol: string; name: stri
               isEn ? "No history available" : "Sin historial disponible"
             }
             onHover={handleHover}
-            showGrid
-            showExtremes
-            heightClassName="h-56 sm:h-64"
+            showGrid={grid}
+            axisMode={axisMode}
+            reference={historyQuery.data?.source !== "ticks"}
+            heightClassName="h-64 sm:h-80"
           />
-          <p className="text-[11px] leading-relaxed text-fg-muted">
-            {isLiveTicks
-              ? isEn
-                ? `Chart built from stored ${symbol} ticks in USD and anchored to live Jupiter spot.`
-                : `Curva construida con registros reales de ${symbol} en USD y anclada al precio vivo actual.`
-              : isMockSeries
-                ? isEn
-                  ? `Demo series for ${symbol} (${activeRangeLabel}) anchored to reference spot.`
-                  : `Serie de demostración para ${symbol} (${activeRangeLabel}) en modo demo.`
-                : isEn
-                  ? `Stored closes for ${symbol} (${activeRangeLabel}).`
-                  : `Cierres almacenados para ${symbol} (${activeRangeLabel}).`}
-          </p>
+          <ChartContext source={historyQuery.data?.source} points={observedPoints} currency={effectiveCurrency} />
         </div>
       ) : (
         <div className="rounded-lg border border-dashed border-border-strong bg-bg p-5">
@@ -467,8 +450,8 @@ export function CryptoDetailChart({ symbol, name }: { symbol: string; name: stri
           </p>
           <p className="mt-1.5 max-w-prose text-[13px] leading-relaxed text-fg-body">
             {isEn
-              ? "We do not have enough stored ticks for this range yet. We show the real live quote above without inventing chart points."
-              : `Todavía no acumulamos suficientes registros históricos de ${symbol} para ${activeRangeLabel}. Mostramos el precio real en vivo arriba sin rellenar el gráfico con curvas inventadas.`}
+              ? quote ? "There are not enough observations for this range. The current quote is shown above." : "There are not enough observations for this range and the quote is unavailable."
+              : quote ? `Faltan registros históricos de ${symbol} para ${activeRangeLabel}. La cotización actual aparece arriba.` : `Faltan registros históricos de ${symbol} para ${activeRangeLabel} y no hay cotización disponible.`}
           </p>
           {quote ? (
             <dl className="mt-4 grid grid-cols-2 gap-3 border-t border-border pt-4 text-xs sm:grid-cols-3">
