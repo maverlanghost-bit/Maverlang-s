@@ -1,5 +1,16 @@
 # PROGRESO — Maverlang
 
+## T66 — Histórico de composición, ficha por pestañas y detalle de posiciones
+- Alcance: opción inicial G06, ampliación G02/G01 y U04/U05; `lib/portfolio/series.ts`, gráfico de cartera, ficha, posiciones y favoritas. Las 16 mejoras siguen en curso en el registro de implementación.
+- Cartera: simulación de composición actual explícita; cantidades/efectivo constantes, ventana común y datos conocidos a cada instante. Se elimina el último punto forzado al total presente y el hover ya no reemplaza el saldo real.
+- Motor: FinancialChart en cartera, huecos conservados al codificar y comparar, cobertura de todas las posiciones, SPYx sólo con ventana compatible; fechas efectivas, procedencia y conversión CLP visibles. La API histórica no implica patrimonio ni rendimiento personal real.
+- Ficha: gráfico fuera de Resumen/Empresa/Token y riesgos, avisos materiales y desviación del token siempre visibles; análisis/simuladores agrupados. Simulación histórica usa extremos de la misma serie y fecha final explícita, sin unir cierre/subyacente con spot de otra fuente.
+- Posiciones: menú accesible y Sheet con tipo, cantidad, precio, valor, coste, resultado y peso; ausentes como Sin dato, ocultación de montos respetada. Cripto usa tokens; LST/USDY enlazan a Ganar, conservando el flujo de venta existente.
+- Favoritas: fila compartida con Mercado, moneda/frescura/procedencia, errores sin ocultar filas disponibles, comparar/quitar en menú y tendencias semanales originales.
+- Verificación ligera: TypeScript focalizado, lint dirigido sin errores/advertencias e invariantes de cobertura, ausencia de muestreo futuro/anclaje, huecos, codificación y comparación. Sin build, suites completas, E2E, servidor ni revisión visual.
+- Trabajo previo preservado: variantes del índice incorporan sólo esta etapa; DCA/órdenes límite/Xray/calendario locales se conservan fuera del commit. Sin dependencias nuevas, migraciones, flags, push, deploy ni ejecución real.
+- Pendiente: G07 (contrato/fuente OHLCV), U06/U09 y cerrar estados/otras superficies G01/U08. Patrimonio histórico real requiere posiciones y flujos históricos; no se declara implementado por este cambio.
+
 ## T65 — Mercado, screener y navegación de herramientas
 - Alcance: U01/U02/U03/U07 y estados U08 del plan aprobado; filas/filtros compartidos en `components/market/*`, nuevo screener y adaptación de sus rutas. No se considera completo el objetivo de 16 mejoras.
 - Mercado: búsqueda API sin perder categoría, filtros removibles, orden A–Z, alcance explícito de alzas/bajas/favoritas y URL con búsqueda, páginas y vista; carga adicional disponible también en mapa/vacíos.

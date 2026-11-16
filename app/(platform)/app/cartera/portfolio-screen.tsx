@@ -14,11 +14,15 @@ import { PortfolioHealthCard } from "@/components/domain/portfolio-health-card";
 import { PortfolioTaxSummaryCard } from "@/components/domain/portfolio-tax-summary-card";
 import { PortfolioValueChart, isPortfolioRange, usePortfolioValueSeries } from "@/components/domain/portfolio-value-chart";
 import { DividendMultiplierCard } from "@/components/domain/dividend-multiplier-card";
+import { PositionDetails } from "@/components/market/position-details";
 import { PositionRow, POSITION_ACTION_WIDTH, POSITION_ROW_GRID } from "@/components/domain/position-row";
 import { PriceFreshness } from "@/components/domain/price-freshness";
 import { RealAccountEmpty } from "@/components/domain/real-account-empty";
 import { ResetDemoButton } from "@/components/domain/reset-demo-button";
-import { SvgPriceChart } from "@/components/domain/svg-price-chart";
+import { FinancialChart } from "@/components/charts/financial-chart";
+import { TONE_STROKE } from "@/components/domain/svg-price-chart";
+import { comparisonSeries } from "@/lib/charts/comparison";
+import { historyDescription } from "@/lib/charts/data";
 import { TradeReceiptTrigger } from "@/components/domain/trade-receipt-modal";
 import { Badge, type BadgeTone } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -43,11 +47,10 @@ import {
   usePortfolio,
   useTickers,
 } from "@/lib/hooks/queries";
-import { priceFlashDirection, type PriceFlash } from "@/lib/hooks/use-price-flash";
 import { useT } from "@/lib/hooks/use-t";
 import { displayPrice } from "@/lib/market/browse";
 import type { AssetStatus } from "@/lib/market/asset-status.shared";
-import { DETAIL_RANGES, isDetailRange, isReferenceHistory, rangeMove, toneOf } from "@/lib/market/series";
+import { DETAIL_RANGES, rangeMove, toneOf } from "@/lib/market/series";
 import { portfolioPerformance, type PortfolioPerformance } from "@/lib/portfolio/performance";
 import { balancedPortions, sumUsd, sumsMatch, tradeActivity } from "@/lib/portfolio/series";
 import { DEMO_INITIAL_USD } from "@/lib/services/demo.logic";
@@ -102,12 +105,10 @@ function fill(template: string, values: Record<string, string>) {
 }
 
 function tickerHref(symbol: string) {
-  const base = positionMeta(symbol) ? "/app/cripto" : "/app/accion";
+  const meta = positionMeta(symbol);
+  if (meta?.kind === "lst") return "/app/ganar";
+  const base = meta ? "/app/cripto" : "/app/accion";
   return `${base}/${encodeURIComponent(symbol)}`;
-}
-
-function sellHref(symbol: string) {
-  return `${tickerHref(symbol)}?operar=vender`;
 }
 
 function explorerTxUrl(signature: string) {
@@ -223,14 +224,11 @@ function PatrimonyHero({
   perf,
   shownUsd,
   cashUsdc,
-  hoverActive,
-  hoverForce,
   currency,
   rate,
   pendingFx,
   masked,
   hiddenLabel,
-  onChart,
   summaryTip,
   freshnessAt,
 }: {
@@ -238,14 +236,11 @@ function PatrimonyHero({
   perf: PortfolioPerformance;
   shownUsd: number;
   cashUsdc: number;
-  hoverActive: boolean;
-  hoverForce: PriceFlash | undefined;
   currency: Currency;
   rate: number | undefined;
   pendingFx: boolean;
   masked: boolean;
   hiddenLabel: string;
-  onChart: string;
   summaryTip: string;
   freshnessAt: string | number | undefined;
 }) {
@@ -284,13 +279,10 @@ function PatrimonyHero({
                 value={shown.amount}
                 currency={shown.currency}
                 size="lg"
-                live={!hoverActive}
-                force={hoverForce}
                 className="block text-[1.75rem] leading-[1.05] font-medium tracking-tight tabular-nums whitespace-nowrap sm:text-[2.25rem]"
               />
             </span>
           )}
-          <p className="mt-2 h-4 text-xs text-fg-muted">{hoverActive && !masked ? onChart : ""}</p>
         </div>
 
         <dl className="flex flex-wrap items-end gap-x-10 gap-y-4">
@@ -372,103 +364,41 @@ function PatrimonyHero({
   );
 }
 
-const ValueChart = memo(function ValueChart({
-  positions,
-  cashUsdc,
-  totalUsd,
-  onHover,
-  currency,
-  rate,
-  pendingFx,
-}: {
-  positions: readonly Position[];
-  cashUsdc: number;
-  totalUsd: number;
-  onHover: (usd: number | null) => void;
-  currency: Currency;
-  rate: number | undefined;
-  pendingFx: boolean;
+// Inspecting the hypothetical chart must keep the actual account total intact.
+const ignoreCompositionHover = () => {};
+
+const ValueChart = memo(function ValueChart({ positions, cashUsdc, totalUsd, currency, rate, pendingFx }: {
+  positions: readonly Position[]; cashUsdc: number; totalUsd: number; currency: Currency; rate: number | undefined; pendingFx: boolean;
 }) {
-  const { t } = useT();
+  const { t, language } = useT();
+  const en = language === "en";
   const [range, setRange] = useState<Range>("1M");
   const [compareSpy, setCompareSpy] = useState(false);
-  const spyHistory = useHistory(compareSpy ? "SPYx" : "", range);
   const symbols = useMemo(() => positions.map((position) => position.symbol), [positions]);
   const histories = useHistories(symbols, range);
+  const spyHistory = useHistory(compareSpy ? "SPYx" : "", range);
   const rows = histories.map((query) => query.data?.points ?? []);
-  const points = usePortfolioValueSeries(positions, rows, cashUsdc, totalUsd);
-  const pending = histories.some((query) => query.isPending);
+  const sources = histories.map((query) => query.data?.source);
+  const points = usePortfolioValueSeries(positions, rows, cashUsdc, totalUsd, sources);
+  const pending = histories.some((query) => query.isPending || query.isPlaceholderData);
   const failed = histories.some((query) => query.isError);
-  // Si alguna historia usada es mock (o no está marcada real), la curva
-  // mezclada tampoco es un precio real.
-  const reference =
-    !pending && !failed && points.length >= 2 && histories.some((query) => isReferenceHistory(query.data));
-  const benchmark = useMemo(() => {
-    if (!compareSpy) return null;
-    const data = spyHistory.data;
-    const pts = data?.points ?? [];
-    if (pts.length < 2) return null;
-    // Misma naturaleza de dato: no se compara una cartera demo contra el índice
-    // real (ni al revés), porque el eje Y pasa a porcentaje y la mezcla mentiría.
-    if (reference !== isReferenceHistory(data)) return null;
-    return { label: "S&P 500 (SPYx)", points: pts };
-  }, [compareSpy, reference, spyHistory.data]);
-
-  // Sólo los cuatro rangos de la cartera: 1S, 1M, 3M y 1A. El 1D y el "Todo"
-  // siguen disponibles en la ficha de cada acción.
-  const rangeOptions = useMemo(
-    () =>
-      DETAIL_RANGES.filter((value) => isPortfolioRange(value)).map((value) => ({
-        value,
-        label: t.detail.rangeShort[value],
-      })),
-    [t],
-  );
-  const formatValue = useCallback(
-    (usd: number) => {
-      const view = moneyView(usd, currency, rate);
-      return formatMoney(view.amount, view.currency);
-    },
-    [currency, rate],
-  );
-
-  return (
-    <PortfolioValueChart
-      ranges={rangeOptions}
-      range={range}
-      onRangeChange={(value) => {
-        if (!isDetailRange(value)) return;
-        setRange(value);
-        onHover(null);
-      }}
-      points={points}
-      formatValue={formatValue}
-      valueCurrency={currency}
-      pendingFx={pendingFx}
-      compare={{ active: compareSpy, onToggle: () => setCompareSpy((prev) => !prev) }}
-      pending={pending}
-      failed={failed}
-      onRetry={() => {
-        for (const query of histories) void query.refetch();
-      }}
-      referenceNote={reference ? t.detail.chartReference : null}
-    >
-      <SvgPriceChart
-        points={points}
-        tone={toneOf(rangeMove(points))}
-        label={fill(t.portfolio.chartLabel, { range: t.detail.rangeCaption[range] })}
-        emptyLabel={t.detail.chartEmpty}
-        emptyHint={t.detail.chartEmptyHint}
-        heightClassName="h-56 sm:h-64 lg:h-[340px]"
-        onHover={onHover}
-        reference={reference}
-        benchmark={benchmark}
-        /* Tres guías con su cifra: sin eje, una curva de valores no se puede
-           leer. Con comparación activa la escala pasa a % sola. */
-        showGrid
-      />
-    </PortfolioValueChart>
-  );
+  const demo = histories.some((query) => query.data?.source === "mock");
+  const reference = histories.some((query) => query.data?.source !== "ticks");
+  const comparison = useMemo(() => {
+    const spy = spyHistory.data;
+    if (!compareSpy || !spy || spy.points.length < 2 || demo !== (spy.source === "mock")) return null;
+    const aligned = comparisonSeries([{ id: "composition", points, source: "closes" }, { id: "SPYx", points: spy.points, source: spy.source }]);
+    if (aligned.unavailable.length) return null;
+    return { points: aligned.series[0]!.points, benchmark: { label: "SPYx", points: aligned.series[1]!.points } };
+  }, [compareSpy, demo, points, spyHistory.data]);
+  const visiblePoints = comparison?.points ?? points;
+  const notice = !compareSpy ? null : spyHistory.isPending ? (en ? "Loading SPYx…" : "Cargando SPYx…") : spyHistory.isError ? (en ? "SPYx history could not be loaded." : "No se pudo cargar el historial de SPYx.") : !comparison ? (en ? "No compatible common coverage for this comparison." : "Sin cobertura común compatible para esta comparación.") : null;
+  const rangeOptions = useMemo(() => DETAIL_RANGES.filter(isPortfolioRange).map((value) => ({ value, label: t.detail.rangeShort[value] })), [t]);
+  const formatValue = useCallback((usd: number) => { const view = moneyView(usd, currency, rate); return formatMoney(view.amount, view.currency); }, [currency, rate]);
+  const sourceNote = [...new Set(sources.map((source) => historyDescription(source, en)))].join(" · ");
+  return <PortfolioValueChart ranges={rangeOptions} range={range} onRangeChange={(value) => { if (isPortfolioRange(value)) setRange(value); }} points={visiblePoints} formatValue={formatValue} valueCurrency={currency === "CLP" && rate && rate > 0 ? "CLP" : "USD"} pendingFx={pendingFx} compare={{ active: compareSpy, plotted: comparison !== null, note: notice, onToggle: () => setCompareSpy((current) => !current) }} pending={pending} failed={failed} onRetry={() => { for (const query of histories) void query.refetch(); if (compareSpy) void spyHistory.refetch(); }} referenceNote={sourceNote}>
+    <FinancialChart onHover={ignoreCompositionHover} datasetKey={`composition:${symbols.join(",")}:${range}:${comparison ? "SPYx" : "solo"}`} points={visiblePoints} tone={toneOf(rangeMove(visiblePoints))} lineColor={TONE_STROKE[toneOf(rangeMove(visiblePoints))]} label={en ? "Hypothetical current composition" : "Simulación de la composición actual"} emptyLabel={en ? "Not enough history to reconstruct this composition" : "Sin historial suficiente para reconstruir esta composición"} emptyHint={en ? "Every held asset needs compatible coverage; no partial portfolio is drawn." : "Cada posición necesita cobertura compatible; no se dibuja una cartera parcial."} heightClassName="h-56 sm:h-64 lg:h-[340px]" reference={reference} benchmark={comparison?.benchmark ?? null} currency={currency === "CLP" && rate && rate > 0 ? "CLP" : "USD"} rate={rate} showGrid />
+  </PortfolioValueChart>;
 });
 
 export function PortfolioScreen() {
@@ -481,11 +411,6 @@ export function PortfolioScreen() {
   const activity = useActivity();
   const tickers = useTickers();
   const fx = useFx();
-  const [hoverUsd, setHoverUsd] = useState<number | null>(null);
-  const onHoverUsd = useCallback((usd: number | null) => {
-    setHoverUsd((current) => (current === usd ? current : usd));
-  }, []);
-
   const tickerBySymbol = useMemo(() => {
     const map = new Map<string, Ticker>();
     for (const ticker of tickers.data ?? []) map.set(ticker.symbol, ticker);
@@ -574,10 +499,6 @@ export function PortfolioScreen() {
     );
   } else {
     const positionSum = sumUsd(loaded.positions.map((position) => position.valueUsd));
-    const shownUsd = hoverUsd ?? loaded.totalUsd;
-    // N18: igual que en el detalle, el total sólo se tiñe contra el actual.
-    const hoverForce: PriceFlash | undefined =
-      hoverUsd !== null ? priceFlashDirection(loaded.totalUsd, hoverUsd, "usd", "usd") : undefined;
     const sliceInputs: { key: string; label: string; valueUsd: number; color: string }[] = [];
     for (const position of loaded.positions) {
       if (!(position.valueUsd > 0)) continue;
@@ -639,16 +560,13 @@ export function PortfolioScreen() {
             <PatrimonyHero
               copy={copy}
               perf={perf}
-              shownUsd={shownUsd}
+              shownUsd={loaded.totalUsd}
               cashUsdc={loaded.cashUsdc}
-              hoverActive={hoverUsd !== null}
-              hoverForce={hoverForce}
               currency={currency}
               rate={rate}
               pendingFx={pendingFx}
               masked={masked}
               hiddenLabel={t.shell.balanceHidden}
-              onChart={ui.onChart}
               summaryTip={ui.summaryTip}
               freshnessAt={portfolio.dataUpdatedAt || loaded.updatedAt}
             />
@@ -658,7 +576,6 @@ export function PortfolioScreen() {
                 positions={loaded.positions}
                 cashUsdc={loaded.cashUsdc}
                 totalUsd={loaded.totalUsd}
-                onHover={onHoverUsd}
                 currency={currency}
                 rate={rate}
                 pendingFx={pendingFx}
@@ -821,7 +738,8 @@ export function PortfolioScreen() {
                         name={name}
                         logoUrl={ticker?.logo || logoPathFromSymbol(position.symbol)}
                         shares={position.shares}
-                        shareHint={t.portfolio.shareHint}
+                        shareHint={positionMeta(position.symbol) ? (language === "en" ? "Tokens" : "Tokens") : t.portfolio.shareHint}
+                        unitLabel={positionMeta(position.symbol) ? "tokens" : language === "en" ? "shares" : "acciones"}
                         price={priceValue === null ? null : priceValue.amount}
                         value={value.amount}
                         currency={value.currency}
@@ -831,26 +749,10 @@ export function PortfolioScreen() {
                         hidden={masked}
                         hiddenLabel={t.shell.balanceHidden}
                         pending={pendingFx}
-                        action={
-                          position.shares > 0 ? (
-                            <Button
-                              asChild
-                              variant="ghost"
-                              size="sm"
-                              className="w-full whitespace-nowrap px-0 text-fg hover:bg-surface-2"
-                            >
-                              <Link
-                                href={sellHref(position.symbol)}
-                                aria-label={fill(t.detail.tradeSell, { name })}
-                              >
-                                {t.detail.sell}
-                              </Link>
-                            </Button>
-                          ) : null
-                        }
+                        action={<PositionDetails position={position} name={name} logoUrl={ticker?.logo || logoPathFromSymbol(position.symbol)} href={tickerHref(position.symbol)} currency={currency} rate={rate} pendingFx={pendingFx} masked={masked} totalUsd={loaded.totalUsd} token={positionMeta(position.symbol) !== null} earn={positionMeta(position.symbol)?.kind === "lst"} />}
                       />
                       {position.avgCostUsd !== null && Number.isFinite(position.avgCostUsd) ? (
-                        <p className="flex min-w-0 items-baseline gap-1.5 pb-3 pl-12 text-[13px] leading-4 text-fg-muted tabular-nums sm:pl-[3.25rem]">
+                        <p className="hidden min-w-0 items-baseline gap-1.5 pb-3 pl-12 md:flex text-[13px] leading-4 text-fg-muted tabular-nums sm:pl-[3.25rem]">
                           <span className="shrink-0">{copy.avgCost}</span>
                           <MoneyLine
                             usd={position.avgCostUsd}

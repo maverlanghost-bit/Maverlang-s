@@ -1,3 +1,5 @@
+import { comparisonSeries } from "@/lib/charts/comparison";
+import type { FinancialPoint } from "@/lib/charts/data";
 import type { Activity, Position, PricePoint } from "@/lib/types";
 
 function cents(value: number): number {
@@ -34,80 +36,59 @@ export function balancedPortions(values: readonly number[], total: number): numb
 }
 
 /**
- * Precio de una serie en el instante `t` (el punto más cercano en el tiempo).
- * Las series reales de cada símbolo no comparten timestamps exactos, así que
- * alinear por índice daba saltos erráticos: se alinea por tiempo.
- */
-function priceAt(series: readonly PricePoint[], t: number): number | null {
-  if (series.length === 0) return null;
-  let best = series[0];
-  if (!best) return null;
-  let bestGap = Math.abs(best.t - t);
-  for (const point of series) {
-    const gap = Math.abs(point.t - t);
-    if (gap < bestGap) {
-      best = point;
-      bestGap = gap;
-    }
-    // La serie está ordenada por tiempo: una vez que pasamos de t, no seguir.
-    if (point.t > t && gap > bestGap) break;
-  }
-  return best.p;
-}
-
-/**
- * Serie de valor de la cartera en el tiempo. Suma, en cada instante, el
- * efectivo más el valor de cada posición al precio real de ESE momento. El
- * timestamp de referencia lo da la serie con más puntos; el último punto se
- * fija en `totalUsd` (el total vivo del servicio) para que cierre exacto.
+ * Hypothetical value of today's composition at historical prices. This is not
+ * account equity or investment performance: holdings and cash stay constant.
+ * Require coverage for every held asset; use dated known observations, never
+ * future prices or a forced final point equal to today's account total.
  */
 export function portfolioValueSeries(
   positions: readonly Pick<Position, "shares">[],
   histories: readonly (readonly PricePoint[])[],
   cashUsdc: number,
-  totalUsd: number,
-): PricePoint[] {
-  if (positions.length === 0 || histories.length !== positions.length) return [];
-  // Rejilla temporal: unión ordenada de todos los timestamps (serie más larga
-  // como base; el resto aporta sus puntos para no perder variaciones reales).
-  const stamps = new Set<number>();
-  for (const series of histories) {
-    for (const point of series) stamps.add(point.t);
-  }
-  const grid = [...stamps].sort((a, b) => a - b);
-  if (grid.length < 2) return [];
-
-  const points: PricePoint[] = [];
-  grid.forEach((t, index) => {
+  _totalUsd: number,
+  sources: readonly (string | undefined)[] = [],
+): FinancialPoint[] {
+  void _totalUsd; // Previous public signature; an account total is not a historical observation.
+  if (!Number.isFinite(cashUsdc) || cashUsdc < 0 || histories.length !== positions.length) return [];
+  if (positions.some((position) => !Number.isFinite(position.shares) || position.shares < 0)) return [];
+  const held = positions.map((position, index) => ({ ...position, index })).filter((position) => position.shares > 0);
+  if (!held.length || held.some((position) => (histories[position.index]?.length ?? 0) < 2)) return [];
+  const aligned = comparisonSeries(held.map((position) => ({ id: String(position.index), points: histories[position.index]!, source: sources[position.index] })));
+  if (aligned.unavailable.length || !aligned.bounds || aligned.series.some((series) => series.points.length < 2)) return [];
+  const result = aligned.series[0]!.points.map((point, index) => {
     let value = cashUsdc;
-    for (let slot = 0; slot < positions.length; slot += 1) {
-      const price = priceAt(histories[slot] ?? [], t);
-      if (price !== null) value += (positions[slot]?.shares ?? 0) * price;
+    let gap = false;
+    for (let slot = 0; slot < held.length; slot++) {
+      const observation = aligned.series[slot]!.points[index]!;
+      value += held[slot]!.shares * observation.p;
+      gap ||= observation.gap === true;
     }
-    points.push({ t, p: index === grid.length - 1 ? totalUsd : cents(value) });
+    return { t: point.t, p: cents(value), observedAt: point.t, ...(gap ? { gap: true } : {}) };
   });
-  return points.length >= 2 ? points : [];
+  return result.every((point) => Number.isFinite(point.p)) ? result : [];
 }
 
 /** Clave estable para memorizar la serie sin depender de la identidad del arreglo. */
-export function encodePoints(points: readonly PricePoint[]): string {
+export function encodePoints(points: readonly FinancialPoint[]): string {
   let out = "";
   for (const point of points) {
     if (out.length > 0) out += "|";
-    out += `${point.t},${point.p}`;
+    out += `${point.t},${point.p}${point.gap || point.observedAt !== undefined ? `,${point.gap ? 1 : 0},${point.observedAt ?? point.t}` : ""}`;
   }
   return out;
 }
 
-export function decodePoints(encoded: string): PricePoint[] {
+export function decodePoints(encoded: string): FinancialPoint[] {
   if (encoded.length === 0) return [];
-  const points: PricePoint[] = [];
+  const points: FinancialPoint[] = [];
   for (const part of encoded.split("|")) {
     const comma = part.indexOf(",");
     if (comma < 0) continue;
     const t = Number(part.slice(0, comma));
-    const p = Number(part.slice(comma + 1));
-    if (Number.isFinite(t) && Number.isFinite(p)) points.push({ t, p });
+    const [price, gap, date] = part.slice(comma + 1).split(",");
+    const p = Number(price);
+    const observedAt = date === undefined ? undefined : Number(date);
+    if (Number.isFinite(t) && Number.isFinite(p)) points.push({ t, p, ...(gap === "1" ? { gap: true } : {}), ...(observedAt !== undefined && Number.isFinite(observedAt) ? { observedAt } : {}) });
   }
   return points;
 }

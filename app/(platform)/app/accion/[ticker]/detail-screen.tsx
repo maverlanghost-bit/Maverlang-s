@@ -19,6 +19,7 @@ import { CompanyCard } from "@/components/domain/company-card";
 import { ExplainChartButton } from "@/components/domain/explain-chart-button";
 import { WhatIfCalculator } from "@/components/domain/what-if-calculator";
 import { Accordion } from "@/components/ui/accordion";
+import { Tabs } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { carteraCopy } from "@/content/i18n/extra-cartera";
@@ -1109,12 +1110,14 @@ export function DetailScreen({
           </div>
         </div>
 
-        {/* Explicación del gráfico en el asistente y tarjeta para compartir: sin montos. */}
-        <div className="flex flex-wrap items-center gap-2">
-          <ExplainChartButton ticker={ticker.symbol} name={ticker.name} range={RANGE_QUESTION_LABEL[range]} />
-          <ShareCardButton id={ticker.symbol} name={ticker.name} pct={position?.pnlPct ?? null} />
+        <div className="flex flex-col gap-3">
+          <p className="text-xs text-fg-muted">{ticker.symbol} · {ticker.issuer} · Solana</p>
+          <p className={NOTE}>{t.detail.risks}</p>
+          <Link href="/legal/riesgos" className="inline-flex min-h-11 w-fit items-center text-sm underline">{t.detail.risksLink}</Link>
         </div>
-
+        <TokenGapCard symbol={ticker.symbol} quote={quote} />
+        <Tabs key={ticker.symbol} label={language === "en" ? "Asset information" : "Información del activo"} defaultValue="summary" tabs={[
+          { value: "summary", label: language === "en" ? "Overview" : "Resumen", content: <div className="flex min-w-0 flex-col gap-8">
         <KeyStats
           quote={quote}
           quotePending={prices.isPending && quote === null}
@@ -1129,18 +1132,36 @@ export function DetailScreen({
           tradeBlock={effectiveBlock}
         />
 
-        <TokenGapCard symbol={ticker.symbol} quote={quote} />
+
+
+            <Accordion items={[{ id: "analysis", title: language === "en" ? "Analysis and historical simulations" : "Análisis y simulaciones históricas", content: <div className="flex min-w-0 flex-col gap-6">
+            <p className="text-xs text-fg-muted">{language === "en" ? "Simulations use the first and last observations of the selected history, not today’s executable quote." : "Las simulaciones usan el primer y el último registro del historial seleccionado, no la cotización ejecutable de hoy."}</p>
+        {/* Explicación del gráfico en el asistente y tarjeta para compartir: sin montos. */}
+        <div className="flex flex-wrap items-center gap-2">
+          <ExplainChartButton ticker={ticker.symbol} name={ticker.name} range={RANGE_QUESTION_LABEL[range]} />
+          <ShareCardButton id={ticker.symbol} name={ticker.name} pct={position?.pnlPct ?? null} />
+          <Button asChild variant="secondary" size="sm">
+            <Link href={`/app/comparar?activos=${encodeURIComponent(`${ticker.symbol},SPYx,QQQx`)}`}>
+              {language === "en" ? "Compare assets" : "Comparar activos"}
+            </Link>
+          </Button>
+        </div>
 
         {/* Simulador "¿y si hubieras invertido?": se autodescarta sin historial o sin precio. */}
         <WhatIfCalculator
+          historySource={history.data?.source}
           symbol={ticker.symbol}
           name={ticker.name}
           points={points}
-          currentPriceUsd={quote?.priceUsd ?? null}
+          currentPriceUsd={points.at(-1)?.p ?? null}
           currency={currency}
           rate={rate}
         />
 
+
+            </div> }]} />
+          </div> },
+          { value: "company", label: language === "en" ? "Company" : "Empresa", content: <div className="flex min-w-0 flex-col gap-8">
         <CompanyCard symbol={ticker.symbol} />
 
         <section className="flex flex-col gap-3 border-t border-border pt-8">
@@ -1151,6 +1172,9 @@ export function DetailScreen({
           </p>
         </section>
 
+
+          </div> },
+          { value: "token", label: language === "en" ? "Token and risks" : "Token y riesgos", content: <div className="flex min-w-0 flex-col gap-8">
         <section className="flex flex-col gap-4 border-t border-border pt-8">
           <h2 className="text-lg font-medium tracking-tight text-fg">{t.detail.tokenTitle}</h2>
           <p className="max-w-prose text-sm leading-relaxed text-pretty text-fg-body">
@@ -1207,6 +1231,8 @@ export function DetailScreen({
         />
 
         <StockTokenGuide />
+          </div> },
+        ]} />
       </div>
 
       <aside className="hidden lg:block">

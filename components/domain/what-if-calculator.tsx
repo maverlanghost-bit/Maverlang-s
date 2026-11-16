@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 
+import { historyDescription } from "@/lib/charts/data";
 import { ChangeBadge } from "@/components/domain/change-badge";
 import { cn } from "@/lib/cn";
 import { formatClp, formatMoney, formatShares, formatUsd } from "@/lib/format";
@@ -19,7 +20,7 @@ function groupAmount(value: number, language: "es-CL" | "en"): string {
 
 /**
  * Simulador "¿y si hubieras invertido?": toma el precio del inicio del período
- * y el precio actual para mostrar acciones, valor hoy y rendimiento.
+ * y el precio de cierre del período para mostrar cantidades y variación.
  * No es una proyección ni una promesa de rentabilidad.
  */
 export function WhatIfCalculator({
@@ -27,6 +28,7 @@ export function WhatIfCalculator({
   name,
   points,
   currentPriceUsd,
+  historySource,
   currency,
   rate,
 }: {
@@ -34,6 +36,7 @@ export function WhatIfCalculator({
   name: string;
   points: readonly PricePoint[];
   currentPriceUsd: number | null;
+  historySource?: string;
   currency: Currency;
   rate: number | undefined;
 }) {
@@ -69,6 +72,8 @@ export function WhatIfCalculator({
   const pnlAmount = effectiveCurrency === "CLP" && rateValue !== null ? pnlUsd * rateValue : pnlUsd;
   const pnlText = `${pnlUsd > 0 ? "+" : ""}${formatMoney(pnlAmount, effectiveCurrency)}`;
 
+  const endTime = points.at(-1)?.t;
+  const endLabel = endTime === undefined ? null : new Intl.DateTimeFormat(language, { day: "2-digit", month: "short", year: "numeric", timeZone: "America/Santiago" }).format(new Date(endTime));
   const startTime = startPoint.t;
   const sinceLabel = Number.isFinite(startTime)
     ? new Intl.DateTimeFormat(isEn ? "en-US" : "es-CL", {
@@ -100,6 +105,7 @@ export function WhatIfCalculator({
         <ChangeBadge value={pnlPct} className="num shrink-0" />
       </div>
 
+      <p className="text-xs text-fg-muted">{historyDescription(historySource, isEn)} · {isEn ? "Historical price simulation" : "Simulación histórica de precios"}</p>
       <div>
         <p className="label">{isEn ? "Initial amount" : "Monto inicial"}</p>
         <div
@@ -144,7 +150,7 @@ export function WhatIfCalculator({
             <dd className="num mt-1 text-base leading-6 font-medium text-fg">{formatAmount(amountUsd)}</dd>
           </div>
           <div className="min-w-0 border-t border-border py-3">
-            <dt className="label min-h-8 sm:min-h-0">{isEn ? "Value today" : "Valor hoy"}</dt>
+            <dt className="label min-h-8 sm:min-h-0">{isEn ? "Value at period end" : "Valor al final del período"}</dt>
             <dd className="num mt-1 text-base leading-6 font-medium text-fg">{formatAmount(valueTodayUsd)}</dd>
           </div>
           <div className="col-span-2 min-w-0 border-t border-border py-3 sm:col-span-1">
@@ -164,13 +170,13 @@ export function WhatIfCalculator({
       <p className="num text-[12px] leading-4 text-fg-muted">
         {isEn ? "Entry" : "Entrada"} {formatUsd(startPrice)}
         {" · "}
-        {isEn ? "Today" : "Hoy"} {formatUsd(currentPriceUsd)}
+        {isEn ? "Period end" : "Final del período"} {formatUsd(currentPriceUsd)}{endLabel ? ` · ${endLabel}` : ""}
       </p>
 
       <p className="border-t border-border pt-3 text-[12px] leading-4 text-pretty text-fg-muted">
         {isEn
-          ? "Past returns do not guarantee future results. Simulation based on the token price at the start of the period and the current price; fees and taxes are not included."
-          : "Los rendimientos pasados no aseguran resultados futuros. Simulación con el precio del token al inicio del período y el precio actual; no incluye comisiones ni impuestos."}
+          ? "Past returns do not guarantee future results. Simulation based on the first and last price in the selected history; fees and taxes are not included."
+          : "Los rendimientos pasados no aseguran resultados futuros. Simulación con el primer y el último precio del historial seleccionado; no incluye comisiones ni impuestos."}
       </p>
     </section>
   );

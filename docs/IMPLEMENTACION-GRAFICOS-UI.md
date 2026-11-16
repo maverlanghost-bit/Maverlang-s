@@ -7,17 +7,17 @@ Objetivo aprobado: implementar las 16 mejoras de `PLAN-GRAFICOS-Y-UI.md`. Manu r
 | ID | Alcance | Estado actual |
 | --- | --- | --- |
 | G01 | Procedencia, frescura, moneda e histórico | En curso: ficha distingue cotización/demo/subyacente; sólo se extienden ticks compatibles y fechados; eliminado reescalado histórico en helpers; destacado respeta moneda. Revisar etiquetas y métricas de las otras superficies. |
-| G02 | Motor financiero compartido | Implementado en ficha de acción y cripto: carga diferida de Lightweight Charts 5.3, zoom, cursor, actualización incremental, pantalla completa, tabla/selector accesibles, alternativa SVG y atribución. Expansión y revisión visual pendientes. |
+| G02 | Motor financiero compartido | Implementado en ficha de acción y cripto: carga diferida de Lightweight Charts 5.3, zoom, cursor, actualización incremental, pantalla completa, tabla/selector accesibles, alternativa SVG y atribución. Expandido también a cartera; otras superficies y revisión visual pendientes. |
 | G03 | Herramientas compactas | Implementado en ficha: controles secundarios en Popover/Sheet; estudios activos removibles; versión SVG y subyacente externo explícitos. Revisión visual pendiente. |
 | G04 | Comparaciones coherentes | Implementado en página y ficha: motor común, ventana compartida, base común temporal, lectura de registros conocidos sin buscar datos futuros, fechas originales y cortes por vacíos. Activos/rango en URL, errores/cobertura visibles, leyendas y simulación con la misma variación. Revisión visual pendiente. |
 | G05 | Gráfico cripto consistente | Implementado el motor, formatos, contexto y estados sin datos; ficha reordenada como gráfico → operación → metadatos en móvil. Revisión visual pendiente. |
-| G06 | Significado del histórico de cartera | Pendiente: distinguir reconstrucción de composición actual de patrimonio/rendimiento real. |
+| G06 | Significado del histórico de cartera | Implementada la opción inicial: composición actual hipotética, efectivo/cantidades constantes, sin muestreo futuro ni cierre forzado al saldo, cobertura completa y huecos; saldo actual separado, fuente/fechas/FX explícitos y SPYx alineado. No se afirma patrimonio o rendimiento personal histórico; esa opción completa requiere datos adicionales. Revisión visual pendiente. |
 | G07 | Velas, volumen y estudios verificables | Motor preparado y opciones condicionadas a datos válidos; falta extender contratos y resolver cobertura/fuente real. No se inventan barras ni volumen. |
 | U01 | Mercado y filtros | Implementado en código: búsqueda API, filtros removibles, A–Z, alcance visible del ranking/favoritas, filas comunes, carga adicional y URL con páginas/vista. Revisión visual pendiente. |
 | U02 | Screener y selección | Implementado en código: páginas fijas de 50, universo cargado/total, ampliación explícita, filtros/orden/columnas, tabla y móvil, selección 2–4 conservada al filtrar y URL. Lotes API limitados a 50 y dos en paralelo. Revisión visual pendiente. |
 | U03 | Búsqueda y selectores | En curso: `AssetPicker` compartido para comparador y ficha, con búsqueda API, teclado, foco Radix, agrupación por tipo y límite de selección. Búsqueda global conservada y mejorada: identidad/emisor, demo/referencia/atraso, carga visible y fullscreen; sin instalar cmdk. Revisión visual pendiente. |
-| U04 | Organización de ficha | Pendiente. |
-| U05 | Cartera y favoritas | Pendiente. |
+| U04 | Organización de ficha | Implementado en código: Resumen/Empresa/Token y riesgos, gráfico y avisos materiales fuera de pestañas, herramientas/simulaciones expandibles y extremos de simulación coherentes con el historial. Revisión visual pendiente. |
+| U05 | Cartera y favoritas | Implementado en código: menú/detalle de posición sin abandonar cartera, costes/resultados desconocidos explícitos, unidades diferenciadas, LST hacia Ganar; favoritas reutiliza fila de Mercado y ofrece comparar/quitar, estados y fuentes coherentes. Revisión visual pendiente. |
 | U06 | Presentación de operaciones/billetera | Pendiente; handoff de auditoría leído. Mantener lógica de firma y guardas. |
 | U07 | Navegación y acceso móvil a cripto | Implementado en código: tipos de activo visibles y herramientas agrupadas; acceso a Cripto desde Mercado y retorno a Acciones desde Cripto/Ganar. Mercado activo en las rutas cripto móviles, sección Cripto separada en escritorio. Revisión visual pendiente. |
 | U08 | Estados y overlays | En curso: Popover/Dropdown Menu de shadcn adaptados a tokens; portales respetan fullscreen; herramientas con foco Radix/hoja existente. Integración en otras superficies pendiente. |
@@ -34,7 +34,7 @@ Objetivo aprobado: implementar las 16 mejoras de `PLAN-GRAFICOS-Y-UI.md`. Manu r
 
 ## Próximo trabajo
 
-Continuar G06/U04/U05 (semántica histórica de cartera, organización de ficha, posiciones/favoritas) y después operaciones y las demás superficies. Mantener este registro por propuesta; no considerar finalizado el objetivo mientras queden propuestas pendientes.
+Continuar G07, U06/U09 y cerrar las restantes superficies G01/U08. Mantener este registro por propuesta; no considerar finalizado el objetivo mientras queden propuestas pendientes.
 
 ## Comparación y selección (T64)
 
@@ -53,3 +53,12 @@ Continuar G06/U04/U05 (semántica histórica de cartera, organización de ficha,
 - Las tendencias semanales preservan sus precios y usan el signo de su propio período. El contexto distingue referencia del subyacente, demostración, moneda/conversión y la observación más antigua del lote.
 - Se incorpora la ruta screener y los accesos Screener/Comparar. Los componentes locales previos de screener y las rutas Mix/Alertas quedan conservados fuera del commit; sus enlaces locales también permanecen en el árbol de trabajo.
 - TypeScript focalizado, ESLint dirigido, sintaxis e invariantes de lotes/estado URL/duplicados/ausentes/orden; sin verificaciones pesadas ni revisión visual de esta etapa.
+
+## Composición de cartera y organización de información (T66)
+
+- Se implementa la opción inicial de G06: una simulación de la composición actual, sin atribuirla al patrimonio que tuvo la cuenta. Los historiales deben cubrir todas las posiciones con cantidad positiva; valores futuros y el cierre forzado al saldo actual se eliminan. Los huecos sobreviven a memoización, comparación y renderizado.
+- FinancialChart sustituye el gráfico grande de cartera, con fuente, fechas y metodología visibles. SPYx se alinea en la misma ventana y los fallos o incompatibilidades se explican. La cifra principal de saldo sigue siendo la del servicio al inspeccionar el gráfico.
+- Ficha: gráfico/rango separados de las pestañas, contexto de riesgo y desviación visibles, y análisis histórico desplegable. El simulador usa los extremos de su propio historial y rotula fecha/fuente final.
+- Posiciones: Sheet con detalle y menú Radix, montos ocultables, costes/resultados ausentes conservados y cantidades de acciones/tokens diferenciadas. LST/USDY vuelven a Ganar, donde ya existe la operación, sin añadir firmas ni ejecución automática.
+- Favoritas: misma anatomía que Mercado y menú para comparar/quitar; se conservan alertas y se muestran errores de cotización sin borrar las filas conocidas.
+- Las funcionalidades locales previas no rastreadas siguen fuera del commit. TypeScript/lint focalizados y comprobaciones de invariantes pasaron; revisión visual y verificaciones pesadas siguen aplazadas.

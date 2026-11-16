@@ -4,17 +4,15 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useQueries } from "@tanstack/react-query";
 
+import { AssetMarketRow } from "@/components/market/asset-row";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { IconButton } from "@/components/ui/icon-button";
 import { AlertButton } from "@/components/domain/alert-button";
 import { AlertsPanel } from "@/components/domain/alert-panel";
-import { FavoriteButton } from "@/components/domain/favorite-button";
 import { PriceFreshness } from "@/components/domain/price-freshness";
-import { Sparkline } from "@/components/domain/sparkline";
-import { TickerLogo } from "@/components/domain/ticker-logo";
-import { ChangeBadge } from "@/components/domain/change-badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ErrorState } from "@/components/ui/error-state";
-import { FlashPrice } from "@/components/domain/flash-price";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { Skeleton } from "@/components/ui/skeleton";
 import { alertasText, fillAlert } from "@/content/i18n/extra-alertas";
@@ -24,7 +22,6 @@ import { useFavorites, useSyncFavorites } from "@/lib/hooks/use-favorites";
 import { PRICE_MS, priceQueryKey, useFx, useHistories } from "@/lib/hooks/queries";
 import { useT } from "@/lib/hooks/use-t";
 import { isRealSparkHistory, downsample, displayPrice } from "@/lib/market/browse";
-import { anchorSeriesToSpot } from "@/lib/market/series";
 import { chunkSymbols, sortFavoriteRows, uniqueSymbols, type FavoriteSort } from "@/lib/services/alerts-logic";
 import type { Quote } from "@/lib/types";
 import { useFavoriteCatalog } from "./use-favorite-catalog";
@@ -159,12 +156,8 @@ export function FavoritasScreen() {
 
   /** Frescura de la lista: el `updatedAt` más reciente de las cotizaciones. */
   const freshestAt = useMemo(() => {
-    let max: number | null = null;
-    for (const quote of quotes.values()) {
-      const ms = Date.parse(quote.updatedAt);
-      if (Number.isFinite(ms) && (max === null || ms > max)) max = ms;
-    }
-    return max;
+    const times = [...quotes.values()].map((quote) => Date.parse(quote.updatedAt)).filter(Number.isFinite);
+    return times.length ? Math.min(...times) : null;
   }, [quotes]);
   const anyStale = useMemo(() => {
     for (const quote of quotes.values()) {
@@ -185,12 +178,10 @@ export function FavoritasScreen() {
       if (!data || !isRealSparkHistory(data)) return;
       const points = data.points;
       if (!points || points.length < 2) return;
-      const spot = quotes.get(symbol.toLowerCase())?.priceUsd;
-      const series = spot !== undefined && spot > 0 ? anchorSeriesToSpot(points, spot) : points;
-      map.set(symbol.toLowerCase(), downsample(series.map((point) => point.p)));
+      map.set(symbol.toLowerCase(), downsample(points.map((point) => point.p)));
     });
     return map;
-  }, [sparkSymbols, histories, quotes]);
+  }, [sparkSymbols, histories]);
 
   const rows = useMemo(() => {
     const built: Row[] = favoriteSymbols.map((symbol) => {
@@ -230,7 +221,8 @@ export function FavoritasScreen() {
   return (
     <div className="flex min-w-0 flex-col gap-6">
       <h1 className="sr-only">{copy.pageTitle}</h1>
-      <PriceFreshness at={freshestAt} stale={anyStale} />
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-fg-muted"><span>{shownCurrency}{shownCurrency === "CLP" ? (language === "en" ? " · current reference FX" : " · dólar de referencia actual") : ""}</span><PriceFreshness at={freshestAt} stale={anyStale} />{freshestAt ? <span>{language === "en" ? "Oldest observation in the batch" : "Observación más antigua del lote"}</span> : null}{[...quotes.values()].some((quote) => quote.source === "mock") ? <span>{language === "en" ? "Demo prices" : "Precios demo"}</span> : null}{[...quotes.values()].some((quote) => quote.reference) ? <span>{language === "en" ? "Includes reference prices" : "Incluye precios de referencia"}</span> : null}</div>
+      {priceQueries.some((query) => query.isError) ? <ErrorState title={language === "en" ? "Some prices could not be refreshed" : "No se pudieron actualizar algunos precios"} onRetry={retry} retryLabel={copy.retry} /> : null}
       {favoriteSymbols.length > 0 ? (
         <div className="flex max-w-full">
           <SegmentedControl
@@ -281,7 +273,7 @@ export function FavoritasScreen() {
           }
         />
       ) : null}
-      {!pendingFavorites && !searching && !searchFailed && rows.length > 0 ? (
+      {!pendingFavorites && !searching && rows.length > 0 ? (
         <div className="flex min-w-0 flex-col">
           <div
             aria-hidden
@@ -298,6 +290,7 @@ export function FavoritasScreen() {
                   <FavoriteRow
                     row={row}
                     shown={shown}
+                    pending={priceQueries.some((query) => query.isPending)}
                     currency={shownCurrency}
                     noPrice={copy.noPrice}
                     noChange={copy.noChange}
@@ -329,7 +322,9 @@ function FavoriteRow({
   reviewHint,
   favoriteLabel,
   onToggle,
+  pending = false,
 }: {
+  pending?: boolean;
   row: Row;
   shown: number | null;
   currency: "CLP" | "USD";
@@ -341,54 +336,13 @@ function FavoriteRow({
   favoriteLabel: string;
   onToggle: () => void;
 }) {
-  return (
-    <div className="flex min-h-16 items-center transition-colors duration-150 hover:bg-surface-1/70 active:bg-surface-1">
-      <Link
-        href={tickerHref(row.symbol)}
-        className="flex min-h-16 min-w-0 flex-1 items-center gap-3 py-3 pr-1 pl-1 sm:gap-4 sm:py-2"
-      >
-        <TickerLogo symbol={row.symbol} name={row.name} logoUrl={row.logoUrl} size={36} decorative loading="lazy" sizes="40px" />
-        <span className="min-w-0 flex-1">
-          <span className="block font-mono text-sm leading-5 font-semibold tracking-tight text-fg">{row.symbol}</span>
-          <span className="mt-0.5 block text-[13px] leading-4 text-fg-muted">
-            <span className="break-words">{row.name}</span>
-            {lowLiquidityLabel ? <span className="whitespace-nowrap"> · {lowLiquidityLabel}</span> : null}
-          </span>
-          {reviewLabel ? (
-            <span className="mt-1 block text-[13px] leading-4 font-medium text-warn" title={reviewHint ?? undefined}>
-              {reviewLabel}
-            </span>
-          ) : null}
-        </span>
-        {row.sparkline ? <Sparkline data={row.sparkline} width={72} height={28} className="hidden shrink-0 sm:block" /> : null}
-        <span className="flex shrink-0 flex-col items-end gap-0.5 pr-1 text-right font-medium tabular-nums">
-          {shown == null ? (
-            <span className="text-sm whitespace-nowrap text-fg-muted">{noPrice}</span>
-          ) : (
-            <>
-              <span className="flex items-baseline gap-1">
-                <FlashPrice value={shown} currency={currency} size="sm" className="-mr-1" />
-                {currency === "CLP" ? (
-                  <span className="text-[11px] leading-none font-medium text-fg-muted">CLP</span>
-                ) : null}
-              </span>
-              {row.change24hPct == null ? (
-                <span className="text-xs whitespace-nowrap text-fg-muted">{noChange}</span>
-              ) : (
-                <ChangeBadge value={row.change24hPct} />
-              )}
-            </>
-          )}
-        </span>
-      </Link>
-      <div className="flex shrink-0 items-center gap-1 pr-1">
-        <span className="hidden sm:inline-flex">
-          <AlertButton symbol={row.symbol} name={row.name} priceUsd={row.priceUsd} iconOnly />
-        </span>
-        <FavoriteButton pressed label={favoriteLabel} onToggle={onToggle} />
-      </div>
-    </div>
-  );
+  const { language } = useT();
+  const en = language === "en";
+  const peer = row.symbol.toLowerCase() === "spyx" ? "QQQx" : "SPYx";
+  return <div className="flex min-w-0 items-center">
+    <div className="min-w-0 flex-1"><AssetMarketRow href={tickerHref(row.symbol)} symbol={row.symbol} name={row.name} logoUrl={row.logoUrl} price={shown} currency={currency} change={row.change24hPct} pricePending={pending} sparkline={row.sparkline} trendLabel={en ? "1 week · source in stock details" : "1 semana · fuente en la ficha"} lowLiquidityLabel={lowLiquidityLabel} reviewLabel={reviewLabel} reviewHint={reviewHint} favoritePressed favoriteLabel={favoriteLabel} onToggleFavorite={() => onToggle()} hideFavorite noPriceLabel={noPrice} unavailableLabel={noChange} /></div>
+    <div className="flex shrink-0 items-center"><span className="hidden sm:inline-flex"><AlertButton symbol={row.symbol} name={row.name} priceUsd={row.priceUsd} iconOnly /></span><DropdownMenu><DropdownMenuTrigger asChild><IconButton label={`${en ? "Favorite options" : "Opciones de favorita"}: ${row.name}`}><span aria-hidden className="text-lg">⋯</span></IconButton></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem asChild><Link href={tickerHref(row.symbol)}>{en ? "Open stock" : "Abrir ficha"}</Link></DropdownMenuItem><DropdownMenuItem asChild><Link href={`/app/comparar?activos=${encodeURIComponent([row.symbol, peer].join(","))}`}>{en ? "Compare" : "Comparar"}</Link></DropdownMenuItem><DropdownMenuSeparator /><DropdownMenuItem onSelect={onToggle}>{en ? "Remove favorite" : "Quitar favorita"}</DropdownMenuItem></DropdownMenuContent></DropdownMenu></div>
+  </div>;
 }
 
 /** Ilustración del estado vacío de favoritas: una estrella con el mismo trazo del design system. */

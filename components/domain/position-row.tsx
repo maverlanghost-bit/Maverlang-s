@@ -28,6 +28,7 @@ export function PositionRow({
   logoUrl,
   shares,
   shareHint,
+  unitLabel,
   price,
   value,
   currency,
@@ -46,6 +47,7 @@ export function PositionRow({
   /** Acciones ya ajustadas por el multiplicador del emisor. */
   shares: number;
   shareHint: string;
+  unitLabel?: string;
   /** Precio por acción en la moneda visible de la pantalla. */
   price: number | null;
   value: number;
@@ -122,7 +124,7 @@ export function PositionRow({
 
         {/* Cantidad: bajo el nombre en móvil, columna propia en escritorio. */}
         <span className="num min-w-0 truncate text-[13px] leading-none text-fg-muted max-md:col-span-2 max-md:pl-12 md:col-start-2 md:row-start-1 md:text-right">
-          {formatShares(shares)}
+          {formatShares(shares)}{unitLabel ? ` ${unitLabel}` : ""}
           <span className="sr-only">. {shareHint}</span>
         </span>
 
@@ -161,7 +163,7 @@ export function PositionRow({
         </div>
       </Link>
 
-      <div className={cn("hidden shrink-0 items-center justify-end md:flex", POSITION_ACTION_WIDTH)}>
+      <div className={cn("flex shrink-0 items-center justify-end", POSITION_ACTION_WIDTH)}>
         {action}
       </div>
     </div>

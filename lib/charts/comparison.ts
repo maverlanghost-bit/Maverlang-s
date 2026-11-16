@@ -3,7 +3,7 @@ import type { PricePoint } from "@/lib/types";
 
 export interface ComparisonInput {
   id: string;
-  points: readonly PricePoint[];
+  points: readonly FinancialPoint[];
   source?: string;
 }
 
@@ -49,7 +49,8 @@ export function comparisonSeries(input: readonly ComparisonInput[]) {
       while (index + 1 < entry.points.length && entry.points[index + 1]!.t <= t) index += 1;
       const observation = entry.points[index];
       if (!observation || observation.t > t) continue;
-      points.push({ t, p: observation.p, observedAt: observation.t, gap: t - observation.t > maxAge });
+      const observedAt = observation.observedAt ?? observation.t;
+      points.push({ t, p: observation.p, observedAt, gap: observation.gap === true || t - observedAt > maxAge });
     }
     const first = points[0];
     const last = points[points.length - 1];

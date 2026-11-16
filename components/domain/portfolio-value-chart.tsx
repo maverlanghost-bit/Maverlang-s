@@ -11,6 +11,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { carteraCopy } from "@/content/i18n/extra-cartera";
 import { cn } from "@/lib/cn";
 import { useT } from "@/lib/hooks/use-t";
+import { formatDateTime } from "@/lib/format";
+import type { FinancialPoint } from "@/lib/charts/data";
 import { rangeMove, toneOf } from "@/lib/market/series";
 import { periodPerformance } from "@/lib/portfolio/performance";
 import { decodePoints, encodePoints, portfolioValueSeries } from "@/lib/portfolio/series";
@@ -33,7 +35,7 @@ export function isPortfolioRange(value: string): value is (typeof PORTFOLIO_RANG
 }
 
 /**
- * Serie del valor de la cartera en el rango activo: efectivo más cada posición
+ * Simulación de composición actual en el rango activo: efectivo más cada posición
  * a su precio de ese instante (`portfolioValueSeries`). `rows[i]` es el
  * historial de `positions[i]`. Si falta un historial o trae menos de dos
  * puntos no hay serie dibujable: se devuelve vacío, nunca una recta inventada.
@@ -43,10 +45,11 @@ export function usePortfolioValueSeries(
   rows: readonly (readonly PricePoint[])[],
   cashUsdc: number,
   totalUsd: number,
-): PricePoint[] {
+  sources: readonly (string | undefined)[] = [],
+): FinancialPoint[] {
   const encoded = encodePoints(
-    positions.length > 0 && rows.length === positions.length && rows.every((row) => row.length >= 2)
-      ? portfolioValueSeries(positions, rows, cashUsdc, totalUsd)
+    positions.length > 0 && rows.length === positions.length
+      ? portfolioValueSeries(positions, rows, cashUsdc, totalUsd, sources)
       : [],
   );
   return useMemo(() => decodePoints(encoded), [encoded]);
@@ -58,22 +61,22 @@ export interface PortfolioValueChartProps {
   range: Range;
   onRangeChange: (value: string) => void;
   /** Serie del valor de la cartera en el rango activo. */
-  points: readonly PricePoint[];
+  points: readonly FinancialPoint[];
   /** Monto de la variación en la moneda visible de la pantalla. */
   formatValue: (usd: number) => string;
-  /** Moneda de la pantalla: la escala del gráfico siempre se rotula en US$. */
+  /** Moneda efectiva del gráfico; CLP es una conversión al tipo de cambio actual. */
   valueCurrency: Currency;
   /** Falta el tipo de cambio: el monto se muestra como esqueleto, no como cero. */
   pendingFx: boolean;
   /** Comparación contra el S&P 500 (SPYx), en porcentaje. */
-  compare: { active: boolean; onToggle: () => void };
+  compare: { active: boolean; plotted?: boolean; note?: ReactNode; onToggle: () => void };
   pending: boolean;
   failed: boolean;
   onRetry: () => void;
   /** Aviso de historial de referencia. null si la serie es real. */
   referenceNote: ReactNode | null;
   /**
-   * La curva del rango. La cartera entrega `SvgPriceChart` con la serie que
+   * La curva del rango. La cartera entrega `FinancialChart` con la serie que
    * armó desde los historiales de cada posición.
    */
   children: ReactNode;
@@ -182,7 +185,7 @@ export function PortfolioValueChart({
   const { t, language } = useT();
   const copy = carteraCopy(language);
   const isEn = language === "en";
-  const period = points.length >= 2 ? periodPerformance(points) : null;
+  const period = points.length >= 2 && !points[0]?.gap && !points.at(-1)?.gap ? periodPerformance(points) : null;
   const options = ranges.map((option) => ({ value: option.value, label: option.label }));
   // Mismo tono que la curva: el color de la leyenda no inventa un segundo trazo.
   const tone = toneOf(rangeMove(points));
@@ -190,14 +193,16 @@ export function PortfolioValueChart({
   return (
     <section className="flex min-w-0 flex-col" data-range={range}>
       <div className="flex items-center gap-1.5">
-        <p className="label shrink-0">{copy.period}</p>
+        <p className="label shrink-0">{isEn ? "Change in this simulation" : "Variación de esta simulación"}</p>
         <span aria-hidden className="text-xs text-fg-subtle">
           ·
         </span>
         <p className="min-w-0 truncate text-xs text-fg-muted">{t.detail.rangeCaption[range]}</p>
-        <InfoTip label={`${copy.whatIsThis}. ${copy.period}`} text={copy.periodTip} align="start" />
+        <InfoTip label={`${copy.whatIsThis}. ${copy.period}`} text={isEn ? "Uses today’s quantities and cash at historical prices. It does not track your historical holdings, deposits or withdrawals." : "Usa las cantidades y el efectivo actuales a precios históricos. No reconstruye tus posiciones, depósitos ni retiros de cada fecha."} align="start" />
       </div>
 
+      <p className="mt-3 max-w-2xl text-xs leading-relaxed text-fg-muted">{isEn ? "Hypothetical current composition. This is not your account’s historical equity or personal investment return. The current account total stays separate." : "Simulación de la composición actual. No es el patrimonio histórico de tu cuenta ni tu rentabilidad personal. El saldo actual se muestra por separado."}</p>
+      {points.length >= 2 ? <p className="mt-2 text-xs text-fg-muted">{formatDateTime(new Date(points[0]!.t).toISOString())} → {formatDateTime(new Date(points.at(-1)!.t).toISOString())}</p> : null}
       <div className="mt-2 flex min-h-9 flex-wrap items-baseline gap-x-2.5 gap-y-1">
         {pending ? (
           <Skeleton className="h-8 w-40" />
@@ -264,9 +269,10 @@ export function PortfolioValueChart({
         </button>
       </div>
 
+      {compare.note ? <p role="status" className="mt-2 text-xs text-fg-muted">{compare.note}</p> : null}
       {/* Leyenda y unidad de la escala. Sin esto, la línea comparativa no tenía
           nombre y el eje en dólares no se distinguía del monto en pesos. */}
-      {compare.active ? (
+      {compare.active && compare.plotted ? (
         <ul className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs leading-5 text-fg-muted">
           <li className="flex items-center gap-1.5">
             <span
@@ -274,7 +280,7 @@ export function PortfolioValueChart({
               className="h-0 w-4 border-t-2"
               style={{ borderColor: TONE_STROKE[tone] }}
             />
-            {isEn ? "Your portfolio" : "Tu cartera"}
+            {isEn ? "Current composition" : "Composición actual"}
           </li>
           <li className="flex items-center gap-1.5">
             <span aria-hidden className="h-0 w-4 border-t-2 border-dashed border-[#5c5c5c]" />
@@ -286,7 +292,7 @@ export function PortfolioValueChart({
         </ul>
       ) : valueCurrency === "CLP" ? (
         <p className="mt-1 text-xs leading-5 text-fg-subtle">
-          {isEn ? "Chart scale and readout in USD" : "Escala y lectura del gráfico en US$"}
+          {isEn ? "CLP is converted at the current reference FX, not historical peso performance." : "CLP es una conversión al dólar de referencia actual, no un rendimiento histórico en pesos."}
         </p>
       ) : null}
     </section>
