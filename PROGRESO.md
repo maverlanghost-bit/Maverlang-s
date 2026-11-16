@@ -1,5 +1,14 @@
 # PROGRESO — Maverlang
 
+## T62 — Plan de gráficos e interfaz con Lightweight Charts y shadcn/ui (2026-11-15)
+- Alcance: análisis y documentación en `docs/PLAN-GRAFICOS-Y-UI.md`; 16 propuestas priorizadas, 5 bloques aprobables, esquemas de pantallas, dependencias, criterios de aceptación y estimaciones orientativas. Implementación pendiente de aprobación de Manu.
+- Base: código local en `c982197` y cambios previos sin confirmar; se confirmó que el producto sigue siendo acciones tokenizadas/cripto, no mercados de predicciones.
+- Hallazgos: motor nativo SVG + iframe externo de TradingView (sin Lightweight Charts instalado); historial HTTP sólo `{t,p}`; distinguir token/subyacente/demo, reescalado al spot y semántica del histórico de cartera.
+- Propuesta: piloto de gráfico en una ficha, controles compactos con shadcn selectivo, extensión a comparador/cripto y mejoras de listas; conservar marca, API/servicios, SVG pequeños y protecciones operativas.
+- Verificación: revisión visual local mock de `/app`, ficha NVDAx Simple/Técnico (escritorio/390 px), comparador y SOL sin datos; fuentes oficiales consultadas. Sin build de producción ni suites: no se cambió código de producto.
+- Servidor temporal detenido; se retiraron sólo los includes que Next añadió a `tsconfig.json`. Sin dependencias nuevas, migraciones, push ni deploy; cambios anteriores fuera del commit de esta tarea.
+- Pendiente/próximo paso: Manu elige bloques; se recomienda A (fuentes/unidades + piloto de gráfico y herramientas). OHLCV y patrimonio histórico requieren alcance de datos propio; antes de tocar dinero, leer handoff obligatorio.
+
 ## DISEÑO_APP_04 — Precios unificados, sección Cripto separada y catálogo ampliado (2026-11-15, main)
 - Alcance: 19 archivos (15 de app/componentes/lib, 2 nuevos de UI cripto y 2 tests unitarios); sin dependencias nuevas, sin migraciones ni cambios en flujos de firma/ejecución.
 - Consistencia de precios: `components/domain/market-today/market-today.tsx` ahora consume `usePrices` (`/api/prices`), fija el precio titular en `spotUsd` (invariante al rango `1D`–`1A`, salvo hover), cierra la curva en el spot actual y siembra `["prices", [symbol]]` en caché. `app/(platform)/app/accion/[ticker]/price-panel.tsx` unifica `effectiveLivePoint` y compara la variación del período contra `spotEndUsd`.
