@@ -2,6 +2,8 @@
 
 Objetivo aprobado: implementar las 16 mejoras de `PLAN-GRAFICOS-Y-UI.md`, sin pedir aprobación por cada bloque. Estado al 17 de noviembre de 2026: alcance inicial implementado y verificado localmente, con las comprobaciones concentradas al final según la instrucción posterior de Manu. No se habilitan operaciones reales ni se despliega.
 
+Verificación completa posterior T69: **1.969/1.969 unitarios y 87 casos de navegador aprobados, con dos omisiones previstas; lint general sin errores**. El apartado T69 al final contiene los resultados definitivos, posteriores a las corridas por grupos de T68.
+
 ## Estado por propuesta
 
 | ID | Alcance | Estado actual |
@@ -92,3 +94,19 @@ Las 16 propuestas están cubiertas en su alcance inicial. Los apartados por etap
 - Tres agentes GPT-6.1 Terra con razonamiento medio colaboraron en implementación y revisión. Staging selectivo preservó cambios locales previos; se corrigió también la ubicación del estado de retorno en la variante del índice. Sin migraciones, cambios de flags, push, despliegue ni firmas/envíos reales. El NO GO de dinero real del handoff sigue vigente.
 
 Los logs, mediciones y capturas locales citados se conservan en `tmp/ui-approved-baseline/` (ignorado por Git). La revisión de las variantes selectivas fue por lectura; el build y el navegador verificaron el árbol de trabajo, que además contiene funciones locales ajenas excluidas del commit.
+
+## Verificación completa posterior — T69, 17 de noviembre de 2026
+
+Manu pidió completar las comprobaciones. Se ejecutaron todas las pruebas unitarias y toda la suite demo de navegador sobre el producto del build final de T68. Los resultados anteriores se conservan como registro histórico; estos son los resultados completos definitivos:
+
+| Comprobación | Resultado | Evidencia local en `tmp/ui-approved-baseline/` |
+| --- | --- | --- |
+| Unitarios completos, dos trabajadores | Salida 0; 199/199 archivos, 1.969/1.969 pruebas, 379 s | `t69-full-unit-final.log` |
+| Navegador completo, un trabajador | Salida 0; 87 aprobados, 2 omitidos, cero fallos, 19,7 min | `t69-full-browser.log` |
+| ESLint general de las carpetas de código y configuraciones | Salida 0; cero errores y 26 advertencias de variables sin uso | `t69-full-lint.log` |
+
+- La primera corrida unitaria detectó una expectativa textual antigua en `reference-series.test.ts`: buscaba las fuentes de las consultas actuales. Se actualizó para exigir las fuentes de la serie realmente visible, que puede ser el historial conservado durante un error. Todas las demás guardas permanecen; se repitió la suite completa después del cambio.
+- Las dos omisiones del navegador son el acceso con Supabase real y el depósito en pesos deshabilitado por configuración. Los 87 casos aprobados cubren accesibilidad/teclado, onboarding, compra/venta/reinicio demo, billetera, ficha, mercado, portada/idioma, presupuestos de rendimiento, guardas/CSRF/CSP y todas las pruebas nuevas de gráficos, interacción y retorno con estado.
+- Las 26 advertencias de lint están en `tests/unit/wallet-withdrawals-d02.test.ts`, que contiene trabajo local previo ajeno a estas mejoras. Se conserva sin modificar y fuera del commit T69.
+- T69 sólo modifica la expectativa estática y este registro; el navegador reutilizó el artefacto `.next-e2e` de producción ya compilado con TypeScript en T68. El árbol local probado incluye cambios anteriores que se mantienen fuera de los commits de esta tarea.
+- Apoyo GPT-6.1 Terra con razonamiento medio para unitarios/lint. Sin operaciones reales, migraciones, cambios de flags, dependencias, push ni despliegue. Los límites de fuentes/licencias, teléfono físico y seguridad productiva registrados en T68 siguen vigentes.

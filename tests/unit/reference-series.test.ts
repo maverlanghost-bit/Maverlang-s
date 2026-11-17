@@ -126,7 +126,8 @@ describe("copy y pantallas", () => {
 
   it("la cartera rotula si alguna historia es de referencia y pasa reference", () => {
     const portfolio = read("app/(platform)/app/cartera/portfolio-screen.tsx");
-    expect(portfolio).toContain('histories.some((query) => query.data?.source !== "ticks")');
+    expect(portfolio).toContain("const sources = previous?.sources ?? currentSources");
+    expect(portfolio).toContain('sources.some((source) => source !== "ticks")');
     expect(portfolio).toContain("referenceNote={sourceNote}");
     expect(portfolio).toContain("reference={reference}");
     expect(portfolio).toContain("DETAIL_RANGES");

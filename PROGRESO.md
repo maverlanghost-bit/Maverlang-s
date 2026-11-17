@@ -1,5 +1,14 @@
 # PROGRESO — Maverlang
 
+## T69 — Verificación completa posterior de gráficos e interfaz (2026-11-17)
+- Solicitud: Manu pide completar las verificaciones. Se repiten todos los unitarios y los 89 casos E2E, con apoyo GPT-6.1 Terra, razonamiento medio; lint general de app/componentes/lib/config/contenido/tests/E2E/scripts y configuraciones.
+- Unitarios definitivos: 199/199 archivos y 1.969/1.969 pruebas aprobadas, salida 0. Primera corrida detectó sólo una expectativa textual antigua en `tests/unit/reference-series.test.ts`; ahora comprueba las fuentes de la curva visible, incluido el historial conservado tras error.
+- Navegador definitivo: salida 0, 87 aprobados y 2 omitidos por configuración (Supabase real y depósito en pesos apagado), 19,7 min. Accesibilidad, compra/venta/reinicio demo, seguridad/CSP, rendimiento, gráficos/velas de prueba, móvil emulado y retorno al Mercado incluidos.
+- Lint general: salida 0, cero errores y 26 advertencias de variables sin uso, todas en el trabajo local previo de `tests/unit/wallet-withdrawals-d02.test.ts`; archivo preservado fuera del commit.
+- La compilación de producción/TypeScript de T68 corresponde al producto probado; T69 sólo cambia la expectativa estática y documentación. Se reutiliza el artefacto `.next-e2e` ya verificado.
+- Evidencia: `tmp/ui-approved-baseline/t69-full-{unit-final,browser,lint}.log` (ignorados) y `docs/IMPLEMENTACION-GRAFICOS-UI.md`. Pruebas sobre el árbol local, que incluye cambios ajenos preservados.
+- Sin dependencias, migraciones, flags, push, deploy ni operaciones reales. NO GO de dinero real y pendientes de seguridad/fuentes/teléfono físico conservados.
+
 ## T68 — Cierre de las 16 mejoras de gráficos e interfaz (2026-11-17)
 - Alcance inicial G01–G07/U01–U09 implementado; integración de datos, motor, herramientas, listas, navegación, operaciones y superficies públicas. Tres bots GPT-6.1 Terra con razonamiento medio, según Manu.
 - Datos: OHLCV del fallback Yahoo existente sólo con USD/resolución/unidades verificables; DB conserva cierres y prioridad, ticks/mock no inventan barras. Precios escalan juntos; volumen sin FX/multiplicador. Estudios diarios compatibles.
