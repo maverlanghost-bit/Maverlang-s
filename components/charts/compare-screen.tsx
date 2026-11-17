@@ -32,10 +32,10 @@ const PRESETS = [
 ];
 
 function combineHistories(results: readonly UseQueryResult<Awaited<ReturnType<typeof getHistory>>>[]) {
-  return results.map(({ data, isPending, isError, refetch }) => ({ data, isPending, isError, refetch }));
+  return results.map(({ data, isPending, isFetching, isError, refetch }) => ({ data, isPending, isFetching, isError, refetch }));
 }
 function combineMetadata(results: readonly UseQueryResult<Awaited<ReturnType<typeof searchMarket>>>[]) {
-  return results.map(({ data }) => ({ data }));
+  return results.map(({ data, isPending, isError }) => ({ data, isPending, isError }));
 }
 
 function validSymbols(input: readonly string[] | undefined): string[] {
@@ -62,6 +62,9 @@ export function CompareProScreen({ initialSymbols, initialRange = "1M", sections
   const [range, setRange] = useState<Range>(initialRange);
   const [hidden, setHidden] = useState<ReadonlySet<string>>(() => new Set());
   const [hoverTime, setHoverTime] = useState<number | null>(null);
+  const [legendFocus, setLegendFocus] = useState<string | null>(null);
+  const [legendHover, setLegendHover] = useState<string | null>(null);
+  const [chartHighlight, setChartHighlight] = useState<string | null>(null);
   const [picked, setPicked] = useState<Record<string, PickedAsset>>({});
   const [simulation, setSimulation] = useState({ currency, value: currency === "CLP" ? "1000000" : "1000" });
   const prices = usePrices(symbols);
@@ -95,7 +98,7 @@ export function CompareProScreen({ initialSymbols, initialRange = "1M", sections
     refetchIntervalInBackground: false, refetchOnWindowFocus: false, retry: false,
   })) });
   const metadata = useQueries({ combine: combineMetadata, queries: symbols.map((symbol) => ({
-    queryKey: ["compare-meta", symbol], queryFn: () => searchMarket({ q: symbol, page: 1, pageSize: 5, scope: "listed" }),
+    queryKey: ["compare-meta", symbol.toLowerCase()], queryFn: () => searchMarket({ q: symbol.toLowerCase(), page: 1, pageSize: 50, scope: "listed" }),
     enabled: !CRYPTO_ASSETS.some((asset) => asset.symbol.toLowerCase() === symbol.toLowerCase()), staleTime: 300_000, retry: false,
   })) });
   const assets = useMemo(() => symbols.map((symbol, index) => {
@@ -108,8 +111,9 @@ export function CompareProScreen({ initialSymbols, initialRange = "1M", sections
       source: histories[index]?.data?.source,
       points: observedSeries(histories[index]?.data?.points ?? [], compatibleSpot(histories[index]?.data?.source, quote)),
       pending: histories[index]?.isPending,
+      refreshing: histories[index]?.isFetching && Boolean(histories[index]?.data),
       error: histories[index]?.isError,
-      issuer: crypto ? `${crypto.originLabel} · Solana` : stock ? (symbol.toLowerCase().endsWith("on") ? "Ondo · Solana" : "Backed (xStocks) · Solana") : (en ? "Issuer unavailable" : "Emisor no disponible"),
+      issuer: crypto ? `${crypto.originLabel} · Solana` : stock ? (symbol.toLowerCase().endsWith("on") ? "Ondo · Solana" : "Backed (xStocks) · Solana") : metadata[index]?.isPending ? (en ? "Loading issuer…" : "Cargando emisor…") : (en ? "Issuer unavailable" : "Emisor no disponible"),
       href: crypto ? `/app/cripto/${encodeURIComponent(symbol)}` : `/app/accion/${encodeURIComponent(symbol)}`,
     };
   }), [symbols, metadata, prices.data, histories, picked, en]);
@@ -118,10 +122,16 @@ export function CompareProScreen({ initialSymbols, initialRange = "1M", sections
   const visible = useMemo(() => plotted.filter((asset) => !hidden.has(asset.symbol) && asset.comparison.points.length >= 2), [plotted, hidden]);
   const main = visible[0];
   const overlays = useMemo<ChartOverlay[]>(() => visible.slice(1).map((asset) => ({ id: asset.symbol, label: asset.symbol, points: asset.comparison.points, color: asset.color, rebased: true })), [visible]);
+  const highlightedSymbol = [legendFocus, legendHover, chartHighlight === "asset" ? main?.symbol : chartHighlight]
+    .find((symbol) => symbol != null && visible.some((asset) => asset.symbol === symbol)) ?? null;
+  const highlightedLayerId = highlightedSymbol === main?.symbol ? "asset" : highlightedSymbol;
   const onHover = useCallback((_price: number | null, time?: number | null) => setHoverTime(time ?? null), []);
   const onCrosshairTime = useCallback((time: number | null) => setHoverTime(time), []);
+  const onHighlightLayer = useCallback((id: string | null) => setChartHighlight(id), []);
   const hasError = histories.some((history) => history.isError);
   const loading = histories.some((history) => history.isPending);
+  const refreshing = histories.some((history) => history.isFetching && history.data);
+  const unavailable = loading ? [] : comparison.unavailable.filter((id) => !assets.find((asset) => asset.symbol === id)?.error);
   const simulatedInput = simulation.currency === shownCurrency ? simulation.value : shownCurrency === "CLP" ? "1000000" : "1000";
   const amount = parseAmount(simulatedInput);
   const formatPrice = (usd: number) => {
@@ -153,7 +163,7 @@ export function CompareProScreen({ initialSymbols, initialRange = "1M", sections
       <section aria-label={en ? "Selected assets" : "Activos seleccionados"} className="flex flex-col gap-3">
         <div className="flex flex-wrap gap-2">{PRESETS.map((preset) => <button key={preset.es} type="button" onClick={() => changeSymbols(preset.symbols)} className="min-h-11 rounded-full border border-border bg-bg px-3 text-xs text-fg-muted hover:bg-surface-1 sm:min-h-9">{en ? preset.en : preset.es}</button>)}</div>
         <div className="flex flex-wrap items-center gap-2">
-          {assets.map((asset) => <span key={asset.symbol} className="inline-flex min-h-11 items-center gap-2 rounded-full bg-surface-1 pl-3 text-xs"><span aria-hidden="true" className="size-2 rounded-full" style={{ background: asset.color }} /><span className="font-medium">{asset.symbol}</span><span className="max-w-28 truncate text-fg-muted">{asset.name}</span><button type="button" disabled={symbols.length <= 2} onClick={() => changeSymbols(symbols.filter((symbol) => symbol !== asset.symbol))} aria-label={`${en ? "Remove" : "Quitar"} ${asset.symbol}`} className="inline-flex size-11 items-center justify-center rounded-full text-base text-fg-muted hover:bg-surface-2 disabled:opacity-30">×</button></span>)}
+          {assets.map((asset) => <span key={asset.symbol} className="inline-flex min-h-11 items-center gap-2 rounded-full bg-surface-1 pl-3 text-xs"><span aria-hidden="true" className="size-2 rounded-full" style={{ background: asset.color }} /><span className="font-medium">{asset.symbol}</span>{asset.name.toLowerCase() !== asset.symbol.toLowerCase() ? <span className="max-w-28 truncate text-fg-muted">{asset.name}</span> : null}<button type="button" disabled={symbols.length <= 2} onClick={() => changeSymbols(symbols.filter((symbol) => symbol !== asset.symbol))} aria-label={`${en ? "Remove" : "Quitar"} ${asset.symbol}`} className="inline-flex size-11 items-center justify-center rounded-full text-base text-fg-muted hover:bg-surface-2 disabled:opacity-30">×</button></span>)}
           <AssetPicker selectedSymbols={symbols} onSelect={choose} />
         </div>
       </section>
@@ -163,13 +173,14 @@ export function CompareProScreen({ initialSymbols, initialRange = "1M", sections
           {plotted.map((asset) => {
             const row = hoverTime === null ? undefined : asset.comparison.points.find((point) => point.t === hoverTime);
             const value = row && !row.gap ? row.p / asset.comparison.points[0]!.p - 1 : hoverTime === null ? asset.comparison.returnRatio : null;
-            return <button key={asset.symbol} type="button" aria-pressed={!hidden.has(asset.symbol)} onClick={() => toggle(asset.symbol)} className={cn("inline-flex min-h-11 items-center gap-2 rounded-full border border-border px-3 text-xs sm:min-h-9", hidden.has(asset.symbol) && "opacity-45")}><span aria-hidden="true" className="size-2 rounded-full" style={{ background: asset.color }} /><span className="font-medium">{asset.symbol}</span><span className="num">{value === null ? "—" : formatPercent(value)}</span></button>;
+            return <button key={asset.symbol} type="button" aria-pressed={!hidden.has(asset.symbol)} onClick={() => toggle(asset.symbol)} onFocus={() => setLegendFocus(asset.symbol)} onBlur={() => setLegendFocus(null)} onPointerEnter={() => setLegendHover(asset.symbol)} onPointerLeave={() => setLegendHover(null)} className={cn("inline-flex min-h-11 items-center gap-2 rounded-full border border-border px-3 text-xs text-fg outline-none focus-visible:ring-2 focus-visible:ring-fg sm:min-h-9", hidden.has(asset.symbol) && "border-dashed", highlightedSymbol === asset.symbol && "border-fg bg-surface-2")}><span aria-hidden="true" className="size-2 rounded-full" style={{ background: asset.color }} /><span className={cn("font-medium", hidden.has(asset.symbol) && "line-through")}>{asset.symbol}</span><span className="num">{value === null ? "—" : formatPercent(value)}</span></button>;
           })}
         </div>
-        {loading && !main ? <Skeleton className="h-72 sm:h-96" /> : main ? <FinancialChart datasetKey={`compare:${symbolKey}:${range}`} points={main.comparison.points} overlays={overlays} tone="flat" lineColor={main.color} axisMode="percent" label={main.symbol} emptyLabel={en ? "No comparable history" : "Sin historial comparable"} onHover={onHover} onCrosshairTime={onCrosshairTime} heightClassName="h-72 sm:h-96" /> : <div role="status" className="flex h-64 items-center justify-center text-center text-sm text-fg-muted">{en ? "There is not enough history in a common window." : "No hay suficiente historial en una ventana común."}</div>}
+        {loading && !main ? <Skeleton className="h-72 sm:h-96" /> : main ? <FinancialChart datasetKey={`compare:${symbolKey}:${range}`} points={main.comparison.points} overlays={overlays} tone="flat" lineColor={main.color} axisMode="percent" label={main.symbol} emptyLabel={en ? "No comparable history" : "Sin historial comparable"} onHover={onHover} onCrosshairTime={onCrosshairTime} highlightedLayerId={highlightedLayerId} onHighlightLayer={onHighlightLayer} heightClassName="h-72 sm:h-96" /> : <div role="status" className="flex h-64 items-center justify-center text-center text-sm text-fg-muted">{en ? "There is not enough history in a common window." : "No hay suficiente historial en una ventana común."}</div>}
         {hasError ? <ErrorState title={en ? "Some histories could not be loaded" : "No pudimos cargar algunos historiales"} onRetry={() => { for (const history of histories) if (history.isError) void history.refetch(); }} retryLabel={en ? "Retry histories" : "Reintentar historiales"} /> : null}
-        {comparison.unavailable.length ? <p role="status" className="text-xs text-warn">{en ? "No comparable history" : "Sin historial comparable"}: {comparison.unavailable.join(", ")}.</p> : null}
-        <ul className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-fg-muted">{assets.map((asset) => <li key={asset.symbol}>{asset.symbol} · {historyDescription(asset.source, en)}</li>)}</ul>
+        {loading || refreshing ? <p role="status" className="text-xs text-fg-muted">{en ? "Loading histories; available observations remain visible." : "Cargando historiales; se conservan los registros disponibles."}</p> : null}
+        {unavailable.length ? <p role="status" className="text-xs text-warn">{en ? "No comparable history" : "Sin historial comparable"}: {unavailable.join(", ")}.</p> : null}
+        <ul className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-fg-muted">{assets.map((asset) => <li key={asset.symbol}>{asset.symbol} · {asset.pending ? (en ? "Loading history…" : "Cargando historial…") : asset.error && !asset.source ? (en ? "History could not be loaded" : "No se pudo cargar el historial") : historyDescription(asset.source, en)}{asset.error && asset.source ? (en ? " · refresh failed; showing available data" : " · no se pudo actualizar; se muestran datos disponibles") : ""}</li>)}</ul>
         <p className="max-w-prose text-xs leading-relaxed text-fg-muted">{en ? "Price changes in USD, rebased to 0% at the common start. At each time, the last known observation is used; long gaps remain blank. Dividends, fees and taxes are not included." : "Variación de precios en USD, con base 0 % al inicio común. En cada instante se usa el último registro conocido; los vacíos prolongados quedan sin curva. No incluye dividendos, comisiones ni impuestos."}</p>
       </section>
       <section aria-label={en ? "Asset comparison" : "Datos de los activos"}>

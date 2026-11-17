@@ -2,6 +2,7 @@
 
 import { useMemo, type ReactNode } from "react";
 
+import { site } from "@/config/site";
 import { cn } from "@/lib/cn";
 import { formatPercent } from "@/lib/format";
 
@@ -65,13 +66,14 @@ export function PerfChart({
   points: readonly PerfPoint[];
   className?: string;
 }) {
-  const clean = useMemo(
-    () =>
-      points.filter(
-        (point) => toTime(point.t) !== null && Number.isFinite(point.p),
-      ),
-    [points],
-  );
+  const clean = useMemo(() => {
+    const byTime = new Map<number, PerfPoint>();
+    for (const point of points) {
+      const t = toTime(point.t);
+      if (t !== null && t > 0 && Number.isFinite(point.p) && point.p > 0) byTime.set(t, { t, p: point.p });
+    }
+    return [...byTime.values()].sort((left, right) => Number(left.t) - Number(right.t));
+  }, [points]);
 
   const drawing = useMemo(() => {
     if (clean.length < 2) return null;
@@ -80,12 +82,14 @@ export function PerfChart({
     const max = Math.max(...values);
     const span = max - min;
     const list = sample(clean);
-    const x = (index: number) => (index / (list.length - 1)) * WIDTH;
+    const start = toTime(list[0]!.t)!;
+    const end = toTime(list.at(-1)!.t)!;
+    const x = (point: PerfPoint) => (toTime(point.t)! - start) / (end - start) * WIDTH;
     const y = (value: number) =>
       span === 0 ? HEIGHT / 2 : PAD + (1 - (value - min) / span) * (HEIGHT - PAD * 2);
 
     const line = list
-      .map((point, index) => `${index === 0 ? "M" : "L"}${x(index).toFixed(2)} ${y(point.p).toFixed(2)}`)
+      .map((point, index) => `${index === 0 ? "M" : "L"}${x(point).toFixed(2)} ${y(point.p).toFixed(2)}`)
       .join(" ");
     const area = `${line} L${WIDTH} ${HEIGHT} L0 ${HEIGHT} Z`;
     return {
@@ -103,7 +107,7 @@ export function PerfChart({
   if (!drawing) {
     return (
       <p className={cn("text-[13px] leading-relaxed text-fg-muted", className)}>
-        Sin historial de precios de Maverlang para esta cartera. No dibujamos una curva con datos que no
+        Sin historial de precios de {site.name} para esta cartera. No dibujamos una curva con datos que no
         tenemos.
       </p>
     );
@@ -119,6 +123,7 @@ export function PerfChart({
   return (
     <figure className={cn("flex min-w-0 flex-col", className)}>
       <div className="flex flex-col gap-1.5">
+        <p className="label">Variación de la estimación</p>
         <p
           className={cn(
             "num text-[36px] leading-none font-medium tracking-tight tabular-nums sm:text-[40px]",
@@ -188,8 +193,9 @@ export function PerfChart({
       </dl>
 
       <figcaption className="mt-3 text-[13px] leading-relaxed text-pretty text-fg-muted">
-        Estimado: composición actual hacia atrás, con precios de Maverlang. Línea punteada.
+        Estimado: composición actual hacia atrás, con precios de {site.name}. Línea punteada. Se basa en posiciones comprables con historial disponible y puede cubrir sólo parte de la cartera publicada. No es el patrimonio histórico ni la rentabilidad real de esa cartera.
       </figcaption>
+      <details className="mt-3 border-t border-border"><summary className="min-h-11 cursor-pointer py-3 text-sm font-medium text-fg">Ver datos de la estimación</summary><div className="max-h-64 overflow-auto"><table className="w-full text-left text-xs"><caption className="py-2 text-left text-fg-muted">Composición actual hacia atrás · índice de referencia</caption><thead><tr><th scope="col" className="py-2">Fecha</th><th scope="col" className="text-right">Índice</th><th scope="col" className="text-right">Desde el inicio</th></tr></thead><tbody>{clean.map((point) => <tr key={point.t} className="border-t border-border"><td className="py-2">{toDay(point.t)}</td><td className="num text-right">{new Intl.NumberFormat("es-CL", { maximumFractionDigits: 2 }).format(point.p)}</td><td className="num text-right">{formatPercent(point.p / base - 1)}</td></tr>)}</tbody></table></div></details>
     </figure>
   );
 }

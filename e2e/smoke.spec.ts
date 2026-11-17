@@ -57,7 +57,9 @@ test("smoke con datos mock", async ({ page }) => {
   await sheet.getByRole("link", { name: "Ver en cartera" }).click();
 
   await expect(page).toHaveURL(/\/app\/cartera/);
-  const apple = page.locator('a[href="/app/accion/AAPLx"]');
+  const apple = page.locator("section")
+    .filter({ has: page.getByRole("heading", { name: "Tus acciones", exact: true }) })
+    .getByRole("listitem").filter({ has: page.locator('a[href="/app/accion/AAPLx"]') });
   await expect(apple).toBeVisible();
   await expect(apple).toContainText(/acc\./);
 

@@ -4,7 +4,7 @@
 import type { ComponentProps } from "react";
 import * as Primitive from "@radix-ui/react-popover";
 import { cn } from "@/lib/cn";
-import { useFullscreenContainer } from "@/lib/hooks/use-fullscreen-container";
+import { useOverlayPortalContainer } from "@/components/ui/overlay-portal-context";
 
 export const Popover = Primitive.Root;
 export const PopoverTrigger = Primitive.Trigger;
@@ -17,9 +17,9 @@ export function PopoverContent({
   container,
   ...props
 }: ComponentProps<typeof Primitive.Content> & { container?: HTMLElement | null }) {
-  const fullscreenContainer = useFullscreenContainer();
+  const portalContainer = useOverlayPortalContainer();
   return (
-    <Primitive.Portal container={container ?? fullscreenContainer ?? undefined}>
+    <Primitive.Portal container={container ?? portalContainer ?? undefined}>
       <Primitive.Content
         data-slot="popover-content"
         align={align}

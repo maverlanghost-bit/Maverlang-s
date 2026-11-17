@@ -1,5 +1,20 @@
 # PROGRESO — Maverlang
 
+## T68 — Cierre de las 16 mejoras de gráficos e interfaz (2026-11-17)
+- Alcance inicial G01–G07/U01–U09 implementado; integración de datos, motor, herramientas, listas, navegación, operaciones y superficies públicas. Tres bots GPT-6.1 Terra con razonamiento medio, según Manu.
+- Datos: OHLCV del fallback Yahoo existente sólo con USD/resolución/unidades verificables; DB conserva cierres y prioridad, ticks/mock no inventan barras. Precios escalan juntos; volumen sin FX/multiplicador. Estudios diarios compatibles.
+- Procedencia: spot/historial separados, fechas originales, demo/referencia/atraso por superficie; tablero por fila vía cliente → API → getServices().market.today(). Aviso demo ya no promete precios reales.
+- Asistente/Copiar: menús, ampliación financiera diferida y metadatos compatibles; índice estimado, cobertura parcial explícita y tabla de registros. Comparaciones conservan fechas/huecos sin datos futuros.
+- UI: portales anidados/FS, foco, Escape por capa, atribución accesible, controles sobre canvas, eje X localizado y desborde corregido a 360/390/430. Sin dependencias nuevas en T68.
+- Selectores/mercado: Alertas adopta AssetPicker simple/elegibilidad/error/reintento; operaciones previas preservadas por AST. Volver desde ficha conserva URL, filtros y scroll; acceso directo usa Mercado.
+- Favoritas normaliza símbolos conocidos sin inventar identidad/precio; regresión 2/2. Cartera conserva historial válido al fallar un rango y permite reintentar sin cambiar el saldo actual.
+- Comprobaciones al final del conjunto: última suite de 197 archivos, 1.965/1.966 OK; única expectativa antigua corregida y su archivo repetido 18/18. Contexto nuevo 1/1. No se afirma otra corrida completa posterior.
+- Navegador: hallazgos de la corrida inicial corregidos y repetidos por grupos; compra/venta/reinicio demo, capas, OHLCV de prueba, asistente, Alertas y móviles comprobados. Últimos grupos 5/5 y 6/6, incluido retorno al Mercado.
+- Build final de producción: JavaScript/TypeScript y 547 páginas completados; lint de 92 archivos y correcciones posteriores sin errores. Capturas con curvas cargadas revisadas; gestos móviles emulados y zoom/arrastre comprobados.
+- Medición final: chunk motor/interfaz 185.672 bytes / 60.179 gzip; 45 intervalos rAF por prueba, mediana 16,7 ms, p95 emulado 16,7 y escritorio 33,4. Sin baseline ni promesas en teléfono físico.
+- Registro/evidencia: docs/IMPLEMENTACION-GRAFICOS-UI.md y plan actualizado. G06 es composición hipotética; patrimonio real y cobertura/licencias productivas quedan aparte. Alerta de seguridad de Next.js registrada para actualización antes de producción.
+- Cambios locales ajenos preservados con snapshots/staging selectivo; variantes revisadas por lectura y estado de retorno del índice corregido. Sin migraciones, flags, push, deploy ni operaciones reales; NO GO real intacto.
+
 ## T67 — Resumen de cotización y protección de la hoja durante ejecución
 - Alcance U06 y contrato de cierre U08: `quote-exchange-summary.tsx`, hojas de acción/cripto, adaptadores Sheet/Overlay, selector de operación de ficha y dirección de revisión en billetera.
 - Presentación: Pagas/Recibes con cantidades de la cotización fresca, costes desplegables abiertos al revisar y CTA existente; unidades y ausencia de cotización explícitas, precisión cripto compartida con el gráfico.

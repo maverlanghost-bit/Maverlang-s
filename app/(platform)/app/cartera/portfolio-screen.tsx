@@ -54,7 +54,7 @@ import { DETAIL_RANGES, rangeMove, toneOf } from "@/lib/market/series";
 import { portfolioPerformance, type PortfolioPerformance } from "@/lib/portfolio/performance";
 import { balancedPortions, sumUsd, sumsMatch, tradeActivity } from "@/lib/portfolio/series";
 import { DEMO_INITIAL_USD } from "@/lib/services/demo.logic";
-import type { Activity, Currency, OrderStatus, Position, Range, Ticker } from "@/lib/types";
+import type { Activity, Currency, OrderStatus, Position, PricePoint, Range, Ticker } from "@/lib/types";
 
 const DEPOSIT_HREF = "/app/billetera/depositar";
 const SEND_HREF = "/app/billetera/enviar";
@@ -377,27 +377,41 @@ const ValueChart = memo(function ValueChart({ positions, cashUsdc, totalUsd, cur
   const symbols = useMemo(() => positions.map((position) => position.symbol), [positions]);
   const histories = useHistories(symbols, range);
   const spyHistory = useHistory(compareSpy ? "SPYx" : "", range);
-  const rows = histories.map((query) => query.data?.points ?? []);
-  const sources = histories.map((query) => query.data?.source);
-  const points = usePortfolioValueSeries(positions, rows, cashUsdc, totalUsd, sources);
   const pending = histories.some((query) => query.isPending || query.isPlaceholderData);
   const failed = histories.some((query) => query.isError);
-  const demo = histories.some((query) => query.data?.source === "mock");
-  const reference = histories.some((query) => query.data?.source !== "ticks");
+  const symbolKey = JSON.stringify(symbols);
+  const currentRows = histories.map((query) => query.data?.points ?? []);
+  const currentSources = histories.map((query) => query.data?.source);
+  const currentPoints = usePortfolioValueSeries(positions, currentRows, cashUsdc, totalUsd, currentSources);
+  const observationsKey = JSON.stringify(histories.map((query) => query.data ?? null));
+  const [lastHistory, setLastHistory] = useState<{ signature: string; symbols: string; range: Range; rows: PricePoint[][]; sources: (string | undefined)[] } | null>(null);
+  const validSignature = !pending && !failed && currentPoints.length >= 2
+    ? JSON.stringify([symbolKey, range, observationsKey]) : null;
+  if (validSignature !== null && lastHistory?.signature !== validSignature) {
+    const data = JSON.parse(observationsKey) as ({ points: PricePoint[]; source?: string } | null)[];
+    setLastHistory({ signature: validSignature, symbols: symbolKey, range, rows: data.map((row) => row?.points ?? []), sources: data.map((row) => row?.source) });
+  }
+  const previous = (pending || failed) && lastHistory?.symbols === symbolKey ? lastHistory : null;
+  const rows = previous?.rows ?? currentRows;
+  const sources = previous?.sources ?? currentSources;
+  const displayedRange = previous?.range ?? range;
+  const points = usePortfolioValueSeries(positions, rows, cashUsdc, totalUsd, sources);
+  const demo = sources.some((source) => source === "mock");
+  const reference = sources.some((source) => source !== "ticks");
   const comparison = useMemo(() => {
     const spy = spyHistory.data;
-    if (!compareSpy || !spy || spy.points.length < 2 || demo !== (spy.source === "mock")) return null;
+    if (!compareSpy || previous || !spy || spy.points.length < 2 || demo !== (spy.source === "mock")) return null;
     const aligned = comparisonSeries([{ id: "composition", points, source: "closes" }, { id: "SPYx", points: spy.points, source: spy.source }]);
     if (aligned.unavailable.length) return null;
     return { points: aligned.series[0]!.points, benchmark: { label: "SPYx", points: aligned.series[1]!.points } };
-  }, [compareSpy, demo, points, spyHistory.data]);
+  }, [compareSpy, demo, points, previous, spyHistory.data]);
   const visiblePoints = comparison?.points ?? points;
   const notice = !compareSpy ? null : spyHistory.isPending ? (en ? "Loading SPYx…" : "Cargando SPYx…") : spyHistory.isError ? (en ? "SPYx history could not be loaded." : "No se pudo cargar el historial de SPYx.") : !comparison ? (en ? "No compatible common coverage for this comparison." : "Sin cobertura común compatible para esta comparación.") : null;
   const rangeOptions = useMemo(() => DETAIL_RANGES.filter(isPortfolioRange).map((value) => ({ value, label: t.detail.rangeShort[value] })), [t]);
   const formatValue = useCallback((usd: number) => { const view = moneyView(usd, currency, rate); return formatMoney(view.amount, view.currency); }, [currency, rate]);
   const sourceNote = [...new Set(sources.map((source) => historyDescription(source, en)))].join(" · ");
-  return <PortfolioValueChart ranges={rangeOptions} range={range} onRangeChange={(value) => { if (isPortfolioRange(value)) setRange(value); }} points={visiblePoints} formatValue={formatValue} valueCurrency={currency === "CLP" && rate && rate > 0 ? "CLP" : "USD"} pendingFx={pendingFx} compare={{ active: compareSpy, plotted: comparison !== null, note: notice, onToggle: () => setCompareSpy((current) => !current) }} pending={pending} failed={failed} onRetry={() => { for (const query of histories) void query.refetch(); if (compareSpy) void spyHistory.refetch(); }} referenceNote={sourceNote}>
-    <FinancialChart onHover={ignoreCompositionHover} datasetKey={`composition:${symbols.join(",")}:${range}:${comparison ? "SPYx" : "solo"}`} points={visiblePoints} tone={toneOf(rangeMove(visiblePoints))} lineColor={TONE_STROKE[toneOf(rangeMove(visiblePoints))]} label={en ? "Hypothetical current composition" : "Simulación de la composición actual"} emptyLabel={en ? "Not enough history to reconstruct this composition" : "Sin historial suficiente para reconstruir esta composición"} emptyHint={en ? "Every held asset needs compatible coverage; no partial portfolio is drawn." : "Cada posición necesita cobertura compatible; no se dibuja una cartera parcial."} heightClassName="h-56 sm:h-64 lg:h-[340px]" reference={reference} benchmark={comparison?.benchmark ?? null} currency={currency === "CLP" && rate && rate > 0 ? "CLP" : "USD"} rate={rate} showGrid />
+  return <PortfolioValueChart ranges={rangeOptions} range={range} displayedRange={displayedRange} onRangeChange={(value) => { if (isPortfolioRange(value)) setRange(value); }} points={visiblePoints} formatValue={formatValue} valueCurrency={currency === "CLP" && rate && rate > 0 ? "CLP" : "USD"} pendingFx={pendingFx} compare={{ active: compareSpy, plotted: comparison !== null, note: notice, onToggle: () => setCompareSpy((current) => !current) }} pending={pending} failed={failed} onRetry={() => { for (const query of histories) void query.refetch(); if (compareSpy) void spyHistory.refetch(); }} referenceNote={sourceNote}>
+    <FinancialChart onHover={ignoreCompositionHover} datasetKey={`composition:${symbols.join(",")}:${displayedRange}:${comparison ? "SPYx" : "solo"}`} points={visiblePoints} tone={toneOf(rangeMove(visiblePoints))} lineColor={TONE_STROKE[toneOf(rangeMove(visiblePoints))]} label={en ? "Hypothetical current composition" : "Simulación de la composición actual"} emptyLabel={en ? "Not enough history to reconstruct this composition" : "Sin historial suficiente para reconstruir esta composición"} emptyHint={en ? "Every held asset needs compatible coverage; no partial portfolio is drawn." : "Cada posición necesita cobertura compatible; no se dibuja una cartera parcial."} heightClassName="h-56 sm:h-64 lg:h-[340px]" reference={reference} benchmark={comparison?.benchmark ?? null} currency={currency === "CLP" && rate && rate > 0 ? "CLP" : "USD"} rate={rate} showGrid />
   </PortfolioValueChart>;
 });
 
@@ -568,7 +582,7 @@ export function PortfolioScreen() {
               masked={masked}
               hiddenLabel={t.shell.balanceHidden}
               summaryTip={ui.summaryTip}
-              freshnessAt={portfolio.dataUpdatedAt || loaded.updatedAt}
+              freshnessAt={loaded.updatedAt}
             />
 
             {masked ? null : (

@@ -45,6 +45,8 @@
     "docs",
     "ai-chat-extracted",
     ".next-e2e",
-    ".next-e2e-auth"
+    ".next-e2e-auth",
+    "tmp",
+    "scratch_fin"
   ]
 }

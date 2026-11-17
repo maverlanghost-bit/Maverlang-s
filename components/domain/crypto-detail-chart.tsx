@@ -10,12 +10,12 @@ import { ChartTools } from "@/components/charts/chart-tools";
 import { ErrorState } from "@/components/ui/error-state";
 import { indexFromKey } from "@/components/ui/keys";
 import { cn } from "@/lib/cn";
-import { compatibleSpot, observedSeries, pricePrecision } from "@/lib/charts/data";
+import { chartPoints, compatibleSpot, historyDescription, observedSeries, pricePrecision } from "@/lib/charts/data";
 import { formatDateTime } from "@/lib/format";
 import { SPOT_MS, useFx, useHistory, usePrices } from "@/lib/hooks/queries";
 import { useT } from "@/lib/hooks/use-t";
 import { displayPrice } from "@/lib/market/browse";
-import type { Currency, PricePoint, Quote, Range } from "@/lib/types";
+import type { Currency, Quote, Range } from "@/lib/types";
 
 type RangeOption = {
   value: Range;
@@ -26,7 +26,7 @@ type RangeOption = {
 };
 
 const CRYPTO_RANGES: readonly RangeOption[] = [
-  { value: "1D", labelEs: "1D", labelEn: "1D", ariaEs: "Últimas 24 horas", ariaEn: "Last 24 hours" },
+  { value: "1D", labelEs: "1D", labelEn: "1D", ariaEs: "Ventana intradía", ariaEn: "Intraday window" },
   { value: "1W", labelEs: "1S", labelEn: "1W", ariaEs: "Última semana", ariaEn: "Last week" },
   { value: "1M", labelEs: "1M", labelEn: "1M", ariaEs: "Último mes", ariaEn: "Last month" },
   { value: "1Y", labelEs: "1A", labelEn: "1Y", ariaEs: "Último año", ariaEn: "Last year" },
@@ -89,25 +89,6 @@ function formatCompactUsd(value: number, language: "es-CL" | "en"): string {
   }).format(value);
 }
 
-function normalizePoints(points: readonly PricePoint[] | undefined): PricePoint[] {
-  if (!points || points.length === 0) return [];
-  const filtered = points.filter(
-    (point) => Number.isFinite(point.t) && Number.isFinite(point.p) && point.p > 0,
-  );
-  if (filtered.length === 0) return [];
-  const sorted = [...filtered].sort((a, b) => a.t - b.t);
-  const deduped: PricePoint[] = [];
-  for (const point of sorted) {
-    const prev = deduped[deduped.length - 1];
-    if (prev && prev.t === point.t) {
-      deduped[deduped.length - 1] = point;
-    } else {
-      deduped.push(point);
-    }
-  }
-  return deduped;
-}
-
 export function CryptoDetailChart({ symbol, name }: { symbol: string; name: string }) {
   const { language, currency } = useT();
   const isEn = language === "en";
@@ -143,7 +124,7 @@ export function CryptoDetailChart({ symbol, name }: { symbol: string; name: stri
   }, [pricesQuery.data, symbol]);
 
   const rawPoints = historyQuery.data?.points;
-  const validPoints = useMemo(() => normalizePoints(rawPoints), [rawPoints]);
+  const validPoints = useMemo(() => chartPoints(rawPoints ?? []), [rawPoints]);
 
   const livePoint = useMemo(() => compatibleSpot(historyQuery.data?.source, quote), [historyQuery.data?.source, quote]);
   const observedPoints = useMemo(() => observedSeries(validPoints, livePoint), [validPoints, livePoint]);
@@ -167,7 +148,7 @@ export function CryptoDetailChart({ symbol, name }: { symbol: string; name: stri
     };
   }, [validPoints, observedPoints]);
 
-  const seriesKey = `${symbol}:${range}:${validPoints.length}`;
+  const seriesKey = `${symbol}:${range}:${historyQuery.data?.source ?? "unavailable"}`;
 
   const handleHover = useCallback(
     (usd: number | null, timeMs?: number | null) => {
@@ -229,9 +210,9 @@ export function CryptoDetailChart({ symbol, name }: { symbol: string; name: stri
               id="precio-cripto-vivo"
               className="text-xs font-medium tracking-wider text-fg-muted uppercase"
             >
-              {isEn ? "Token price" : "Precio del token"} · {symbol}
+              {activeHover ? historyDescription(historyQuery.data?.source, isEn) : isEn ? "Token price" : "Precio del token"} · {symbol}
             </h2>
-            {sourceBadgeLabel ? (
+            {sourceBadgeLabel && !activeHover ? (
               <span className="inline-flex items-center rounded-full border border-border bg-surface-2 px-2 py-0.5 text-[11px] font-medium text-fg-body">
                 {sourceBadgeLabel}
               </span>
@@ -275,9 +256,7 @@ export function CryptoDetailChart({ symbol, name }: { symbol: string; name: stri
                 {secondaryLabel ? <span className="num">≈ {secondaryLabel}</span> : null}
                 {waitingClpRate ? (
                   <span>
-                    {isEn
-                      ? "Loading USD/CLP rate, showing USD"
-                      : "Cargando dólar, mostrando USD"}
+                    {fxQuery.isPending ? isEn ? "Loading USD/CLP rate, showing USD" : "Cargando dólar, mostrando USD" : isEn ? "USD/CLP rate unavailable; showing USD" : "Dólar no disponible; mostrando USD"}
                   </span>
                 ) : null}
               </>
@@ -286,11 +265,11 @@ export function CryptoDetailChart({ symbol, name }: { symbol: string; name: stri
         </div>
 
         <div className="flex flex-col items-start gap-2 sm:items-end">
-          <PriceFreshness
+          {!activeHover ? <PriceFreshness
             at={quote?.updatedAt ?? null}
             stale={quote?.stale}
             live={quote?.source === "jupiter" && !quote?.stale}
-          />
+          /> : null}
           {quote?.liquidityUsd && quote.liquidityUsd > 0 ? (
             <p className="num text-xs text-fg-muted">
               {isEn ? "Liquidity" : "Liquidez DEX"}:{" "}
@@ -301,6 +280,7 @@ export function CryptoDetailChart({ symbol, name }: { symbol: string; name: stri
           ) : null}
         </div>
       </div>
+      {pricesQuery.isError ? <p role="status" className="text-xs text-warn">{quote ? isEn ? "The quote could not be refreshed. Its last update is shown above." : "No pudimos actualizar la cotización. Su última actualización aparece arriba." : isEn ? "The current quote is unavailable; historical observations remain separate." : "La cotización actual no está disponible; los registros históricos se muestran por separado."} <button type="button" onClick={() => { void pricesQuery.refetch(); }} className="min-h-9 underline underline-offset-2">{isEn ? "Retry quote" : "Reintentar cotización"}</button></p> : null}
 
       {/* Selector de rango */}
       <div className="flex flex-wrap items-center justify-between gap-3 border-y border-border py-3">
@@ -369,21 +349,7 @@ export function CryptoDetailChart({ symbol, name }: { symbol: string; name: stri
       </div>
 
       {/* Área de gráfico o tarjeta honesta de precio en vivo */}
-      {pricesQuery.isError && !quote ? (
-        <ErrorState
-          title={isEn ? "Couldn't load live price" : "No pudimos cargar el precio en vivo"}
-          description={
-            isEn
-              ? "Check your connection or try again in a few seconds."
-              : "Revisa tu conexión o vuelve a intentarlo en unos segundos."
-          }
-          onRetry={() => {
-            void pricesQuery.refetch();
-            void historyQuery.refetch();
-          }}
-          retryLabel={isEn ? "Retry" : "Reintentar"}
-        />
-      ) : historyQuery.isPending ? (
+      {historyQuery.isPending ? (
         <div
           aria-busy="true"
           aria-label={isEn ? "Loading chart" : "Cargando historial de precio"}
@@ -420,9 +386,10 @@ export function CryptoDetailChart({ symbol, name }: { symbol: string; name: stri
             <button type="button" aria-pressed={axisMode === "percent"} onClick={() => setAxisMode((value) => value === "price" ? "percent" : "price")} className="min-h-11 rounded-md px-3 text-left text-sm hover:bg-surface-1">{isEn ? "Scale" : "Escala"} · {axisMode === "percent" ? "%" : effectiveCurrency}</button>
           </div></ChartTools></div>
           <FinancialChart
-            datasetKey={`${symbol}:${range}`}
+            datasetKey={`${seriesKey}:${historyQuery.data?.metadata?.provider ?? "unknown"}:${historyQuery.data?.metadata?.resolution ?? "unknown"}`}
             currency={effectiveCurrency}
             rate={fxRate}
+            metadata={historyQuery.data?.metadata}
             points={observedPoints}
             tone={tone}
             label={
@@ -439,7 +406,7 @@ export function CryptoDetailChart({ symbol, name }: { symbol: string; name: stri
             reference={historyQuery.data?.source !== "ticks"}
             heightClassName="h-64 sm:h-80"
           />
-          <ChartContext source={historyQuery.data?.source} points={observedPoints} currency={effectiveCurrency} />
+          <ChartContext source={historyQuery.data?.source} points={observedPoints} currency={effectiveCurrency} range={range} metadata={historyQuery.data?.metadata} refreshing={historyQuery.isFetching} refreshFailed={historyQuery.isError} onRetry={() => { void historyQuery.refetch(); }} />
         </div>
       ) : (
         <div className="rounded-lg border border-dashed border-border-strong bg-bg p-5">
@@ -453,6 +420,8 @@ export function CryptoDetailChart({ symbol, name }: { symbol: string; name: stri
               ? quote ? "There are not enough observations for this range. The current quote is shown above." : "There are not enough observations for this range and the quote is unavailable."
               : quote ? `Faltan registros históricos de ${symbol} para ${activeRangeLabel}. La cotización actual aparece arriba.` : `Faltan registros históricos de ${symbol} para ${activeRangeLabel} y no hay cotización disponible.`}
           </p>
+          <button type="button" onClick={() => { void historyQuery.refetch(); }} className="mt-2 min-h-11 text-xs underline underline-offset-2">{isEn ? "Retry history" : "Reintentar historial"}</button>
+          <ChartContext source={historyQuery.data?.source} points={observedPoints} currency={effectiveCurrency} range={range} metadata={historyQuery.data?.metadata} />
           {quote ? (
             <dl className="mt-4 grid grid-cols-2 gap-3 border-t border-border pt-4 text-xs sm:grid-cols-3">
               <div>

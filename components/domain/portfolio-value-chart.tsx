@@ -59,6 +59,7 @@ export interface PortfolioValueChartProps {
   /** Opciones del selector, en orden (1S, 1M, 3M, 1A). */
   ranges: readonly { value: Range; label: string }[];
   range: Range;
+  displayedRange?: Range;
   onRangeChange: (value: string) => void;
   /** Serie del valor de la cartera en el rango activo. */
   points: readonly FinancialPoint[];
@@ -170,6 +171,7 @@ function RangeTabs({
 export function PortfolioValueChart({
   ranges,
   range,
+  displayedRange = range,
   onRangeChange,
   points,
   formatValue,
@@ -185,6 +187,8 @@ export function PortfolioValueChart({
   const { t, language } = useT();
   const copy = carteraCopy(language);
   const isEn = language === "en";
+  const hasPoints = points.length >= 2;
+  const initialPending = pending && !hasPoints;
   const period = points.length >= 2 && !points[0]?.gap && !points.at(-1)?.gap ? periodPerformance(points) : null;
   const options = ranges.map((option) => ({ value: option.value, label: option.label }));
   // Mismo tono que la curva: el color de la leyenda no inventa un segundo trazo.
@@ -197,14 +201,14 @@ export function PortfolioValueChart({
         <span aria-hidden className="text-xs text-fg-subtle">
           ·
         </span>
-        <p className="min-w-0 truncate text-xs text-fg-muted">{t.detail.rangeCaption[range]}</p>
+        <p className="min-w-0 truncate text-xs text-fg-muted">{displayedRange !== range ? `${isEn ? "Previous range" : "Rango anterior"}: ${t.detail.rangeCaption[displayedRange]}` : t.detail.rangeCaption[range]}</p>
         <InfoTip label={`${copy.whatIsThis}. ${copy.period}`} text={isEn ? "Uses today’s quantities and cash at historical prices. It does not track your historical holdings, deposits or withdrawals." : "Usa las cantidades y el efectivo actuales a precios históricos. No reconstruye tus posiciones, depósitos ni retiros de cada fecha."} align="start" />
       </div>
 
       <p className="mt-3 max-w-2xl text-xs leading-relaxed text-fg-muted">{isEn ? "Hypothetical current composition. This is not your account’s historical equity or personal investment return. The current account total stays separate." : "Simulación de la composición actual. No es el patrimonio histórico de tu cuenta ni tu rentabilidad personal. El saldo actual se muestra por separado."}</p>
       {points.length >= 2 ? <p className="mt-2 text-xs text-fg-muted">{formatDateTime(new Date(points[0]!.t).toISOString())} → {formatDateTime(new Date(points.at(-1)!.t).toISOString())}</p> : null}
       <div className="mt-2 flex min-h-9 flex-wrap items-baseline gap-x-2.5 gap-y-1">
-        {pending ? (
+        {initialPending ? (
           <Skeleton className="h-8 w-40" />
         ) : period === null ? (
           <span className="text-sm text-fg-muted">{copy.emptyFigure}</span>
@@ -229,25 +233,22 @@ export function PortfolioValueChart({
         <RangeTabs label={t.detail.rangesLabel} options={options} value={range} onChange={onRangeChange} />
       </div>
 
-      {referenceNote ? (
+      {referenceNote && !initialPending ? (
         <p className="mt-3 text-xs leading-relaxed text-fg-subtle">{referenceNote}</p>
       ) : null}
 
       <div className="mt-3">
-        {pending ? (
+        {initialPending ? (
           <div role="status" aria-live="polite" aria-busy="true">
             <span className="sr-only">{t.states.loading}</span>
             <Skeleton className="h-56 w-full sm:h-64 lg:h-[340px]" />
           </div>
-        ) : failed ? (
-          <ErrorState
-            title={t.detail.chartError}
-            label={t.states.error}
-            retryLabel={t.states.retry}
-            onRetry={onRetry}
-          />
         ) : (
-          children
+          <>
+            {pending && hasPoints ? <p role="status" className="mb-2 text-xs text-fg-muted">{displayedRange !== range ? (isEn ? "Updating history; showing the previous range." : "Actualizando historial; se muestra el rango anterior.") : (isEn ? "Updating history; showing available data." : "Actualizando historial; se muestran los datos disponibles.")}</p> : null}
+            {failed ? <ErrorState title={t.detail.chartError} label={t.states.error} retryLabel={t.states.retry} onRetry={onRetry} /> : null}
+            {!failed || hasPoints ? children : null}
+          </>
         )}
       </div>
 

@@ -1,4 +1,4 @@
-import type { Currency, PricePoint, Quote } from "@/lib/types";
+import type { Currency, HistoryMetadata, PricePoint, Quote } from "@/lib/types";
 
 export interface FinancialPoint extends PricePoint {
   /** Only comparison views carry an observation forward; retain its actual date. */
@@ -43,8 +43,49 @@ export function compatibleSpot(
 export function observedSeries(points: readonly FinancialPoint[], spot?: PricePoint): FinancialPoint[] {
   const rows = chartPoints(points);
   const last = rows[rows.length - 1];
-  if (!spot || !last || spot.t < last.t) return rows;
+  // Compare real observation times before chartPoints rounds to seconds; an
+  // older quote in the same second must not replace a newer historical tick.
+  const lastObservedAt = points.reduce((latest, row) => Number.isFinite(row.t) && row.t > 0 && Number.isFinite(row.p) && row.p > 0 ? Math.max(latest, row.t) : latest, 0);
+  // A quote is not a complete bar. Keep the provider's bars intact even when
+  // token spot and historical instrument happen to be compatible.
+  const hasBars = rows.some((row) => [row.o, row.h, row.l, row.c, row.v].some((value) => value !== undefined));
+  if (!spot || !last || spot.t < lastObservedAt || hasBars) return rows;
   return chartPoints([...rows, spot]);
+}
+
+export function validOhlc(row: FinancialPoint): boolean {
+  return !row.gap && [row.o, row.h, row.l, row.c].every((value) => typeof value === "number" && Number.isFinite(value) && value > 0)
+    && row.h! >= Math.max(row.o!, row.c!) && row.l! <= Math.min(row.o!, row.c!)
+    && row.p === row.c;
+}
+
+/** Fields alone do not establish the instrument, resolution or volume unit. */
+export function chartCapabilities(points: readonly FinancialPoint[], metadata?: HistoryMetadata) {
+  if (!metadata) return { ohlc: false, volume: false };
+  const complete = points.length >= 2 && points.every((row) => !row.gap && (row.observedAt === undefined || row.observedAt === row.t));
+  const resolved = ["15m", "1h", "1d", "1wk"].includes(metadata.resolution);
+  const verified = resolved && metadata.provider !== "unknown" && metadata.provider !== "mixed" && metadata.instrument !== "demo";
+  return {
+    ohlc: Boolean(complete && verified && metadata.capabilities.ohlc && points.every(validOhlc)),
+    volume: Boolean(complete && verified && metadata.capabilities.volume
+      && metadata.instrument === "underlying" && metadata.volumeUnit === "underlying_shares" && metadata.volumeScope === "underlying_market"
+      && points.every((row) => typeof row.v === "number" && Number.isFinite(row.v) && row.v >= 0)),
+  };
+}
+
+export function chartVolumeLabel(metadata: HistoryMetadata | undefined, en: boolean): string | undefined {
+  return metadata?.volumeUnit === "underlying_shares" && metadata.volumeScope === "underlying_market"
+    ? en ? "Underlying volume (shares)" : "Volumen del subyacente (acciones)"
+    : undefined;
+}
+
+export function resolutionLabel(resolution: HistoryMetadata["resolution"] | undefined, en: boolean): string | null {
+  if (resolution === "15m") return en ? "15-minute bars" : "Barras de 15 minutos";
+  if (resolution === "1h") return en ? "Hourly bars" : "Barras de 1 hora";
+  if (resolution === "1d") return en ? "Daily observations" : "Registros diarios";
+  if (resolution === "1wk") return en ? "Weekly bars" : "Barras semanales";
+  if (resolution === "irregular") return en ? "Irregular observations" : "Registros de frecuencia irregular";
+  return null;
 }
 
 export function sharedWindow(series: readonly (readonly PricePoint[])[]): { start: number; end: number } | null {

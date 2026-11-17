@@ -28,7 +28,7 @@ export const en = {
     demo: "Demo account",
     real: "Real account",
     badge: "Demo",
-    note: "Simulation with real prices; not real money or advice.",
+    note: "Practice account with a fictitious balance; not real money or advice.",
     comingTitle: "Real accounts: coming soon",
     comingBody: "We don't offer real accounts yet. We'll let you know when they're available. Meanwhile you can try the demo account.",
     comingProfileNote: "When they're available we'll ask for your details and verify your identity.",

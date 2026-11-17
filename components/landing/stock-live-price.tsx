@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { ChangeBadge } from "@/components/domain/change-badge";
 import { PriceText } from "@/components/domain/price-text";
+import { PriceFreshness } from "@/components/domain/price-freshness";
 import { getPrices } from "@/lib/api/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/cn";
@@ -17,7 +18,7 @@ import { cn } from "@/lib/cn";
  * `QueryClientProvider` en la landing.
  *
  * Estados honestos: nunca se dice «en vivo» sobre un precio que no lo es.
- * - `ready` con fuente real → «En vivo · cada 30 s» (punto verde).
+ * - `ready` con fuente real → «Cotización del token · USD» y fecha de la fuente.
  * - `ready` con `mock`/`reference` → «Precio de referencia · demo» (punto
  *   neutro): la demo no entrega precios de mercado.
  * - `stale` (la API marcó el precio como guardado, o falló un refresco con un
@@ -40,6 +41,7 @@ type LiveQuote = {
   demo: boolean;
   /** `true` si el precio es el último guardado tras un 429 o un error (M38). */
   stale: boolean;
+  updatedAt: string;
 };
 
 type LiveStatus = "loading" | "ready" | "stale" | "missing" | "error";
@@ -72,6 +74,7 @@ function pickQuote(
     source: "jupiter" | "mock";
     reference?: boolean;
     stale?: boolean;
+    updatedAt: string;
   }[],
   symbol: string,
 ): LiveQuote | null {
@@ -85,6 +88,7 @@ function pickQuote(
     reference: match.source === "mock" || match.reference === true,
     demo: match.source === "mock",
     stale: match.stale === true,
+    updatedAt: match.updatedAt,
   };
 }
 
@@ -207,7 +211,7 @@ export function StockLivePrice({
   if (current) {
     const stale = status === "stale" || current.stale;
     return (
-      <div className={cn("flex flex-col", className)}>
+      <div className={cn("flex flex-col", className)} title={`${current.demo ? "Demostración" : current.reference ? "Referencia" : "Cotización del token"} · USD${stale ? " · atrasado" : ""}`}>
         <div className={cn("flex flex-wrap items-baseline gap-x-2.5 gap-y-1", sizeFrame[size])}>
           <PriceText value={current.priceUsd} currency="USD" size={size} live={!stale && !current.reference} />
           {current.change !== null ? (
@@ -222,15 +226,16 @@ export function StockLivePrice({
           )}
         </div>
         {showStatus ? (
-          stale ? (
-            <PriceStatus tone="warn" label="Precio atrasado" />
-          ) : current.reference ? (
+          current.reference ? (
             <PriceStatus
               tone="muted"
-              label={current.demo ? "Precio de referencia · demo" : "Precio de referencia"}
+              label={current.demo ? "Precio ilustrativo · USD" : "Precio de referencia · USD"}
             />
           ) : (
-            <PriceStatus tone="live" label="En vivo · cada 30 s" />
+            <div>
+              <PriceStatus tone={stale ? "warn" : "muted"} label={stale ? "Cotización atrasada del token · USD" : "Cotización del token · USD"} />
+              <PriceFreshness at={current.updatedAt} stale={stale} />
+            </div>
           )
         ) : null}
       </div>

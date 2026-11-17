@@ -143,14 +143,14 @@ describe("WhatIfCalculator", () => {
     expect(markup).toContain("Elige un monto inicial");
     // Etiquetas estables de las métricas.
     expect(markup).toContain("Invertido");
-    expect(markup).toContain("Valor hoy");
+    expect(markup).toContain("Valor al final del período");
     expect(markup).toContain("Acciones compradas");
     expect(markup).toContain("Ganancia / pérdida");
     // El resultado va con signo y moneda: en este caso es una ganancia en CLP.
     expect(markup).toContain("+$");
     // Precios de entrada y actual, y el aviso de que no es una proyección.
     expect(markup).toContain("Entrada");
-    expect(markup).toContain("Hoy");
+    expect(markup).toContain("Final del período");
     expect(markup).toContain("Los rendimientos pasados no aseguran resultados futuros");
   });
 

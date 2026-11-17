@@ -6,7 +6,7 @@ import { isCryptoSymbol } from "@/lib/catalog/crypto";
 import { isEarnSymbol } from "@/lib/catalog/lst";
 import { CATALOG_SYMBOL } from "@/lib/catalog/symbol";
 import { ASSET_STATUS_BATCH_MAX } from "@/lib/market/asset-status.shared";
-import type { ApiErrorCode } from "@/lib/types";
+import type { ApiErrorCode, HistoryMetadata, PricePoint } from "@/lib/types";
 
 /**
  * Schemas de request/response de ARQUITECTURA §2.4.
@@ -87,7 +87,25 @@ export const quoteSchema = z.object({
 export const pricePointSchema = z.object({
   t: z.number().int().nonnegative(),
   p: z.number().nonnegative(),
+  o: z.number().positive().optional(),
+  h: z.number().positive().optional(),
+  l: z.number().positive().optional(),
+  c: z.number().positive().optional(),
+  v: z.number().nonnegative().optional(),
+}).superRefine((point, ctx) => {
+  const hasOhlc = point.o !== undefined || point.h !== undefined || point.l !== undefined || point.c !== undefined;
+  if (hasOhlc && !completeHistoryBar(point)) {
+    ctx.addIssue({ code: "custom", message: "Barra OHLC incompleta o incoherente." });
+  }
 });
+
+/** No convierte un sondeo de precio en una vela ni completa campos ausentes. */
+function completeHistoryBar(point: PricePoint): boolean {
+  const { o, h, l, c } = point;
+  return o !== undefined && h !== undefined && l !== undefined && c !== undefined &&
+    [o, h, l, c].every((value) => Number.isFinite(value) && value > 0) &&
+    h >= Math.max(o, c) && l <= Math.min(o, c) && c === point.p;
+}
 
 export const fxRateSchema = z.object({
   pair: z.literal("USDCLP"),
@@ -650,13 +668,28 @@ export function apiResultSchema<T extends z.ZodType>(data: T) {
 export const tickersResponseSchema = z.array(tickerSchema);
 export const quotesResponseSchema = z.array(quoteSchema);
 /**
- * Historial: `source` es `ticks` (intradía), `closes` (cierre Yahoo × multiplier) o `mock`.
+ * Historial: `source` es `ticks` (sondeos), `closes` (referencia subyacente × multiplier) o `mock`.
  * `real` es true sólo con al menos 2 puntos y fuente distinta de mock.
  */
+export const historyMetadataSchema = z.object({
+  instrument: z.enum(["token", "underlying", "demo"]),
+  provider: z.enum(["yahoo", "jupiter", "coingecko", "mixed", "mock", "unknown"]),
+  providerSymbol: z.string().min(1).optional(),
+  resolution: z.enum(["15m", "1h", "1d", "1wk", "irregular", "unknown"]),
+  priceUnit: z.enum(["usd_per_share", "usd_per_token"]),
+  reference: z.boolean(),
+  capabilities: z.object({ ohlc: z.boolean(), volume: z.boolean() }),
+  volumeUnit: z.literal("underlying_shares").optional(),
+  volumeScope: z.literal("underlying_market").optional(),
+  priceAdjustment: z.enum(["provider_quote", "stored"]).optional(),
+  multiplier: z.number().positive().optional(),
+});
+
 export const historyResponseSchema = z.object({
   points: z.array(pricePointSchema),
   real: z.boolean(),
   source: z.enum(["ticks", "closes", "mock"]),
+  metadata: historyMetadataSchema.optional(),
 });
 
 /** Serie con datos: CDN 60 s y revalidación en segundo plano. */
@@ -683,19 +716,44 @@ export function historySourceOf(source: string): HistorySourceName {
  * Cuerpo de `/api/tickers/[symbol]/history`.
  * Siempre trae `source` y `real`. `real` sólo con 2+ puntos y fuente distinta de mock.
  */
-export function historyFields(points: readonly { t: number; p: number }[], source: string) {
+export function historyFields(points: readonly PricePoint[], source: string, metadata?: HistoryMetadata) {
   const safeSource = historySourceOf(source);
-  const safePoints: { t: number; p: number }[] = [];
+  const safePoints: PricePoint[] = [];
   for (const point of points) {
     if (!Number.isFinite(point.t) || !Number.isFinite(point.p) || point.t < 0 || point.p < 0) continue;
     const t = Math.round(point.t);
     if (!Number.isInteger(t)) continue;
-    safePoints.push({ t, p: point.p });
+    const safePoint: PricePoint = { t, p: point.p };
+    if (safeSource === "closes" && completeHistoryBar(point)) {
+      safePoint.o = point.o;
+      safePoint.h = point.h;
+      safePoint.l = point.l;
+      safePoint.c = point.c;
+    }
+    if (safeSource === "closes" && Number.isFinite(point.v) && point.v !== undefined && point.v >= 0) {
+      safePoint.v = point.v;
+    }
+    safePoints.push(safePoint);
+  }
+  const parsedMetadata = historyMetadataSchema.safeParse(metadata);
+  const safeMetadata = parsedMetadata.success ? parsedMetadata.data : undefined;
+  if (safeMetadata) {
+    const observedBars = safeSource === "closes" && safeMetadata.instrument === "underlying" &&
+      safeMetadata.provider === "yahoo" && safeMetadata.reference && safeMetadata.priceUnit === "usd_per_share" &&
+      safeMetadata.resolution !== "unknown" && safeMetadata.resolution !== "irregular" &&
+      safeMetadata.priceAdjustment === "provider_quote";
+    safeMetadata.capabilities = {
+      ohlc: observedBars && safeMetadata.capabilities.ohlc && safePoints.length >= 2 && safePoints.every(completeHistoryBar),
+      volume: observedBars && safeMetadata.capabilities.volume && safePoints.length >= 2 &&
+        safeMetadata.volumeUnit === "underlying_shares" && safeMetadata.volumeScope === "underlying_market" &&
+        safePoints.every((point) => point.v !== undefined && Number.isFinite(point.v) && point.v >= 0),
+    };
   }
   return {
     points: safePoints,
     real: safePoints.length >= 2 && safeSource !== "mock",
     source: safeSource,
+    ...(safeMetadata ? { metadata: safeMetadata } : {}),
   };
 }
 

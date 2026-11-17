@@ -38,7 +38,7 @@ import { getPrices, searchMarket, type MarketSearchItem } from "@/lib/api/client
 import { CRYPTO_ASSETS, type CryptoAsset } from "@/lib/catalog/crypto";
 import { LST_ASSETS, type LstAsset } from "@/lib/catalog/lst";
 import { cn } from "@/lib/cn";
-import { formatMoney } from "@/lib/format";
+import { formatUnitPrice } from "@/lib/market/price-format";
 import { priceQueryKey, useFx } from "@/lib/hooks/queries";
 import { useT } from "@/lib/hooks/use-t";
 import { useFullscreenContainer } from "@/lib/hooks/use-fullscreen-container";
@@ -264,6 +264,7 @@ type QuickCommandId =
   | "market"
   | "screener"
   | "compare"
+  | "alerts"
   | "portfolio"
   | "assistant"
   | "wallet"
@@ -286,32 +287,8 @@ type SearchOption =
   | { kind: "earn"; id: string; href: string; asset: LstAsset; price: number | null }
   | { kind: "command"; id: string; href: string; command: QuickCommand };
 
-const usd4 = new Intl.NumberFormat("es-CL", {
-  style: "currency",
-  currency: "USD",
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 4,
-});
-
-const usd6 = new Intl.NumberFormat("es-CL", {
-  style: "currency",
-  currency: "USD",
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 6,
-});
-
-const usd8 = new Intl.NumberFormat("es-CL", {
-  style: "currency",
-  currency: "USD",
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 8,
-});
-
 function formatSearchPrice(value: number, currency: Currency): string {
-  if (currency === "CLP" || value >= 1) return formatMoney(value, currency);
-  if (value >= 0.01) return usd4.format(value);
-  if (value >= 0.0001) return usd6.format(value);
-  return usd8.format(value);
+  return formatUnitPrice(value, currency);
 }
 
 function tickerToRow(ticker: Ticker): StockRowItem {
@@ -378,6 +355,7 @@ function getQuickCommands(language: "es-CL" | "en"): QuickCommand[] {
       { id: "market", href: "/app", label: "Market", hint: "Tokenized U.S. stocks 24/7", keywords: "stocks etfs home" },
       { id: "screener", href: "/app/screener", label: "Screener", hint: "Filter stocks by sector & metrics", keywords: "screener filter stocks sector etf" },
       { id: "compare", href: "/app/comparar", label: "Compare", hint: "Compare stocks side by side", keywords: "compare vs versus performance" },
+      { id: "alerts", href: "/app/alertas", label: "Alerts", hint: "Price alerts and targets", keywords: "alerts notifications price target" },
       { id: "portfolio", href: "/app/cartera", label: "Portfolio", hint: "Positions and orders", keywords: "holdings history orders" },
       { id: "assistant", href: "/app/asistente", label: "AI Assistant", hint: `Ask ${site.name} AI`, keywords: "ai chat assistant" },
       { id: "wallet", href: "/app/billetera", label: "Wallet", hint: "USDC balance, deposit & send", keywords: "usdc balance deposit withdraw send" },
@@ -391,6 +369,7 @@ function getQuickCommands(language: "es-CL" | "en"): QuickCommand[] {
     { id: "market", href: "/app", label: "Mercado", hint: "Acciones de EE.UU. 24/7", keywords: "acciones etfs inicio" },
     { id: "screener", href: "/app/screener", label: "Screener", hint: "Filtrar acciones por sector y métricas", keywords: "screener filtros acciones sector etf" },
     { id: "compare", href: "/app/comparar", label: "Comparar", hint: "Comparar acciones lado a lado", keywords: "comparar vs rendimiento" },
+    { id: "alerts", href: "/app/alertas", label: "Alertas", hint: "Alertas de precio objetivo", keywords: "alertas notificaciones precio objetivo" },
     { id: "portfolio", href: "/app/cartera", label: "Cartera", hint: "Posiciones y órdenes", keywords: "portafolio historial ordenes" },
     { id: "assistant", href: "/app/asistente", label: "Asistente AI", hint: `Preguntar a ${site.name} AI`, keywords: "ia chat asistente" },
     { id: "wallet", href: "/app/billetera", label: "Billetera", hint: "Saldo USDC, depósitos y retiros", keywords: "saldo usdc depositar retirar enviar" },
@@ -421,6 +400,18 @@ function CommandIcon({ id }: { id: QuickCommandId }) {
             strokeLinecap="round"
             strokeLinejoin="round"
           />
+        </svg>
+      );
+    case "alerts":
+      return (
+        <svg viewBox="0 0 16 16" fill="none" className="size-4" aria-hidden>
+          <path
+            d="M4.2 6.8a3.8 3.8 0 0 1 7.6 0c0 2.5 1 3.7 1.4 4.2H2.8c.4-.5 1.4-1.7 1.4-4.2Z"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinejoin="round"
+          />
+          <path d="M6.6 12.8a1.5 1.5 0 0 0 2.8 0" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
         </svg>
       );
     case "portfolio":

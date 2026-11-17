@@ -17,7 +17,7 @@ import type { Quote } from "@/lib/types";
  */
 
 /** Etiqueta discreta cuando los precios son reales. */
-export const LANDING_LIVE_NOTICE = "Precios en dólares (US$), en vivo";
+export const LANDING_LIVE_NOTICE = "Cotizaciones del token en dólares (US$) · consulta la fecha de cada precio";
 
 /** Etiqueta según el origen: en vivo o muestra. */
 export function landingNotice(live: boolean): string {
@@ -35,7 +35,7 @@ export const LANDING_QUOTES_TTL_MS = 30_000;
 export interface LandingQuotes {
   quotes: LandingQuote[];
   live: boolean;
-  updatedAt: string;
+  updatedAt: string | null;
 }
 
 export interface LandingQuotesDeps {
@@ -63,6 +63,8 @@ function sampleQuotes(): LandingQuote[] {
     priceUsd: quote.priceUsd,
     change: quote.change,
     live: false,
+    source: "mock",
+    reference: true,
   }));
 }
 
@@ -77,13 +79,14 @@ function isLiveQuote(quote: Quote | undefined): quote is Quote {
   );
 }
 
-function newestUpdatedAt(quotes: Quote[], nowMs: number): string {
-  let best = Number.NaN;
+function oldestUpdatedAt(quotes: readonly LandingQuote[]): string | null {
+  let oldest = Number.POSITIVE_INFINITY;
   for (const quote of quotes) {
-    const time = Date.parse(quote.updatedAt);
-    if (Number.isFinite(time) && (Number.isNaN(best) || time > best)) best = time;
+    const time = Date.parse(quote.updatedAt ?? "");
+    if (!Number.isFinite(time)) return null;
+    oldest = Math.min(oldest, time);
   }
-  return new Date(Number.isNaN(best) ? nowMs : best).toISOString();
+  return Number.isFinite(oldest) ? new Date(oldest).toISOString() : null;
 }
 
 function withTimeout<T>(work: Promise<T>, ms: number): Promise<T> {
@@ -115,7 +118,7 @@ export async function getLandingQuotes(deps?: LandingQuotesDeps): Promise<Landin
   const fallback = (): LandingQuotes => ({
     quotes: sampleQuotes(),
     live: false,
-    updatedAt: new Date(nowFn()).toISOString(),
+    updatedAt: null,
   });
 
   if (!liveMode) {
@@ -133,13 +136,17 @@ export async function getLandingQuotes(deps?: LandingQuotesDeps): Promise<Landin
     const quotes = samples.map((sample) => {
       const quote = bySymbol.get(sample.symbol);
       if (!isLiveQuote(quote)) return sample;
-      return { ...sample, priceUsd: quote.priceUsd, change: quote.change24hPct, live: true };
+      return {
+        ...sample, priceUsd: quote.priceUsd, change: quote.change24hPct, live: true,
+        source: quote.source, reference: quote.reference === true, stale: quote.stale === true,
+        updatedAt: quote.updatedAt,
+      };
     });
     const live = quotes.every((quote) => quote.live === true);
     const data: LandingQuotes = {
       quotes,
       live,
-      updatedAt: live ? newestUpdatedAt(fetched, nowFn()) : new Date(nowFn()).toISOString(),
+      updatedAt: live ? oldestUpdatedAt(quotes) : null,
     };
     if (!injected) cached = { at: nowFn(), data };
     return data;

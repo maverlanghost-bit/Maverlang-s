@@ -26,13 +26,17 @@ test("demo mock: US$10.000, compra US$100 y reinicio", async ({ page }) => {
   await expect(page).toHaveURL(/\/app\/?$/);
   await expect(page.getByRole("heading", { name: "Mercado" })).toBeVisible();
 
+  const posicionApple = page.locator("section")
+    .filter({ has: page.getByRole("heading", { name: "Tus acciones", exact: true }) })
+    .getByRole("listitem").filter({ has: page.locator('a[href="/app/accion/AAPLx"]') });
+
   await page.goto("/app/cartera");
   const disponible = page
     .getByRole("heading", { name: "Disponible para invertir" })
     .locator("..");
   await page.getByRole("button", { name: "Reiniciar cuenta demo" }).click();
   await page.getByRole("button", { name: "Reiniciar", exact: true }).click();
-  await expect(page.locator('a[href="/app/accion/AAPLx"]')).toHaveCount(0);
+  await expect(posicionApple).toHaveCount(0);
   await expect.poll(() => monto(disponible)).toContain("$9.500.000");
 
   await page.goto("/app/accion/AAPLx");
@@ -48,11 +52,11 @@ test("demo mock: US$10.000, compra US$100 y reinicio", async ({ page }) => {
 
   await expect(page).toHaveURL(/\/app\/cartera/);
   await expect.poll(() => monto(disponible)).toContain("$9.405.000");
-  await expect(page.locator('a[href="/app/accion/AAPLx"]')).toBeVisible();
+  await expect(posicionApple).toBeVisible();
 
   await page.getByRole("button", { name: "Reiniciar cuenta demo" }).click();
   await page.getByRole("button", { name: "Reiniciar", exact: true }).click();
-  await expect(page.locator('a[href="/app/accion/AAPLx"]')).toHaveCount(0);
+  await expect(posicionApple).toHaveCount(0);
   await expect.poll(() => monto(disponible)).not.toContain("$9.405.000");
   await expect.poll(() => monto(disponible)).toContain("$9.500.000");
 });

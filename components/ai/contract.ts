@@ -1,3 +1,5 @@
+import type { HistoryMetadata } from "@/lib/types";
+
 /**
  * Contrato compartido del asistente.
  * La PARTE B lo publica en `lib/ai/types.ts` con esta misma forma.
@@ -13,10 +15,13 @@ export type AiWidget =
       changePct: number | null;
       range: "1D" | "1W" | "1M";
       points: { t: number; p: number }[];
+      /** Absent on older saved replies and point-only providers. */
+      source?: "ticks" | "closes" | "mock";
+      metadata?: HistoryMetadata;
     }
   | {
       type: "compare";
-      items: { ticker: string; name: string; changePct: number | null; points: { t: number; p: number }[] }[];
+      items: { ticker: string; name: string; changePct: number | null; points: { t: number; p: number }[]; source?: "ticks" | "closes" | "mock"; metadata?: HistoryMetadata }[];
       range: "1W" | "1M" | "1Y";
     }
   | {

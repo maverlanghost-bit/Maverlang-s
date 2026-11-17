@@ -126,7 +126,7 @@ test("UI demo: el aviso de simulación es visible en la plataforma", async ({ pa
   await page.goto("/app/cartera");
   await expect(page.getByText("Demo", { exact: true }).first()).toBeVisible();
   await expect(
-    page.getByText("Simulación con precios reales; no es dinero real ni asesoría."),
+    page.getByText("Cuenta de práctica con saldo ficticio; no es dinero real ni asesoría."),
   ).toBeVisible();
 
   // El botón de reinicio de la demo existe (la cuenta real no se reinicia).

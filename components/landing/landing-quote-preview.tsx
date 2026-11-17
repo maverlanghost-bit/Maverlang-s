@@ -4,9 +4,11 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 
 import { PriceText } from "@/components/domain/price-text";
+import { PriceFreshness } from "@/components/domain/price-freshness";
 import { TickerLogo } from "@/components/domain/ticker-logo";
 import { SvgPriceChart, type ChartPoint } from "@/components/domain/svg-price-chart";
-import { useLandingQuote, useLandingStatus } from "@/components/landing/live-landing-prices";
+import { useLandingQuote } from "@/components/landing/live-landing-prices";
+import { historyDescription, observedSeries } from "@/lib/charts/data";
 import { cn } from "@/lib/cn";
 import { formatMoney, formatPercent, formatShares } from "@/lib/format";
 import { useHistory } from "@/lib/hooks/queries";
@@ -29,26 +31,18 @@ const RANGE_OPTIONS: { value: Range; label: string; name: string }[] = [
  * puntos, el gráfico queda vacío y lo dice.
  */
 export function LandingQuotePreview({ quote, live }: { quote: LandingQuote; live: boolean }) {
-  const { priceUsd, change } = useLandingQuote(quote.symbol, {
+  const current = useLandingQuote(quote.symbol, {
     priceUsd: quote.priceUsd,
     change: quote.change,
   });
-  const { stale } = useLandingStatus();
+  const { priceUsd, change, stale, demo, reference, updatedAt } = current;
 
   const [range, setRange] = useState<Range>("1M");
   const history = useHistory(quote.symbol, range);
   const rangeName = RANGE_OPTIONS.find((option) => option.value === range)?.name ?? "";
 
   const chartData = useMemo<ChartPoint[]>(() => {
-    const raw = history.data?.points;
-    if (!raw || raw.length === 0) return [];
-
-    const rows: ChartPoint[] = [];
-    for (const point of raw) {
-      if (!point || !Number.isFinite(point.t) || !Number.isFinite(point.p) || point.p <= 0) continue;
-      rows.push({ t: point.t < 1e12 ? point.t * 1000 : point.t, p: point.p });
-    }
-    rows.sort((a, b) => a.t - b.t);
+    const rows = observedSeries(history.data?.points ?? []);
     return rows.length >= 2 ? rows : [];
   }, [history.data]);
 
@@ -77,16 +71,21 @@ export function LandingQuotePreview({ quote, live }: { quote: LandingQuote; live
   const periodChange =
     stats.open !== null && stats.close !== null && stats.open > 0
       ? (stats.close - stats.open) / stats.open
-      : change;
+      : null;
 
   const priceValid = Number.isFinite(priceUsd) && priceUsd > 0;
   const fraction = priceValid ? formatShares(LANDING_MIN_ORDER_USD / priceUsd) : "—";
-  const historyIsReference = !live || history.data?.real !== true;
-  const priceState = !live
+  const historyIsReference = history.data?.source !== "ticks" || history.data?.real !== true;
+  const priceState = demo
     ? "Precio ilustrativo"
+    : reference
+      ? "Precio de referencia"
     : stale
       ? "Último precio conocido"
-      : "Precio en vivo";
+      : "Cotización del token";
+  const firstObservation = chartData[0];
+  const lastObservation = chartData[chartData.length - 1];
+  const observationDate = new Intl.DateTimeFormat("es-CL", { dateStyle: "medium", timeZone: "America/Santiago" });
 
   return (
     <div className="border-y border-border">
@@ -116,7 +115,7 @@ export function LandingQuotePreview({ quote, live }: { quote: LandingQuote; live
               value={priceUsd}
               currency="USD"
               size="lg"
-              live={live}
+              live={live && current.source === "jupiter" && !reference && !stale}
               className="mt-3 block whitespace-nowrap"
             />
             <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1">
@@ -135,8 +134,9 @@ export function LandingQuotePreview({ quote, live }: { quote: LandingQuote; live
               <span aria-hidden className="text-sm text-fg-muted">
                 ·
               </span>
-              <span className="text-sm text-fg-muted">{priceState}</span>
+              <span className="text-sm text-fg-muted">{priceState} · USD</span>
             </div>
+            {!demo && !reference ? <PriceFreshness at={updatedAt} stale={stale} className="mt-2" /> : null}
           </div>
 
           <div className="mt-8 border-t border-border pt-4">
@@ -164,8 +164,7 @@ export function LandingQuotePreview({ quote, live }: { quote: LandingQuote; live
         <div className="min-w-0 lg:border-l lg:border-border lg:pl-12 xl:pl-16">
           <div className="flex flex-col gap-2 border-b border-border pb-1 sm:flex-row sm:flex-wrap sm:items-baseline sm:justify-between sm:gap-x-4">
             <p className="text-sm text-fg-muted">
-              Historial · {rangeName}
-              {historyIsReference ? " · referencia" : ""}
+              {historyDescription(history.data?.source, false)} · {rangeName} · USD
             </p>
             <div role="group" aria-label="Rango del gráfico" className="-ml-2 flex items-center gap-0.5 sm:ml-0">
               {RANGE_OPTIONS.map((option) => {
@@ -193,7 +192,7 @@ export function LandingQuotePreview({ quote, live }: { quote: LandingQuote; live
           <div className="mt-4">
             <SvgPriceChart
               points={chartData}
-              tone={periodChange >= 0 ? "up" : "down"}
+              tone={periodChange === null ? "flat" : periodChange >= 0 ? "up" : "down"}
               label={`Historial de ${quote.name} en ${rangeName}`}
               emptyLabel="Sin historial disponible"
               emptyHint="La fuente no entregó puntos para este período."
@@ -211,18 +210,24 @@ export function LandingQuotePreview({ quote, live }: { quote: LandingQuote; live
               className="mt-4 grid grid-cols-2 gap-x-4 gap-y-4 border-t border-border pt-4 sm:grid-cols-3"
             >
               <div className="min-w-0">
-                <dt className="text-sm leading-none text-fg-muted">Apertura</dt>
+                <dt className="text-sm leading-none text-fg-muted">Primer registro</dt>
                 <dd className="num mt-1.5 text-sm text-fg">{formatMoney(stats.open, "USD")}</dd>
               </div>
               <div className="min-w-0">
-                <dt className="text-sm leading-none text-fg-muted">Máximo</dt>
+                <dt className="text-sm leading-none text-fg-muted">Mayor registro</dt>
                 <dd className="num mt-1.5 text-sm text-fg">{formatMoney(stats.high, "USD")}</dd>
               </div>
               <div className="min-w-0">
-                <dt className="text-sm leading-none text-fg-muted">Mínimo</dt>
+                <dt className="text-sm leading-none text-fg-muted">Menor registro</dt>
                 <dd className="num mt-1.5 text-sm text-fg">{formatMoney(stats.low, "USD")}</dd>
               </div>
             </dl>
+          ) : null}
+          {firstObservation && lastObservation ? (
+            <p className="mt-3 text-xs leading-relaxed text-fg-muted">
+              Registros disponibles del <time dateTime={new Date(firstObservation.t).toISOString()}>{observationDate.format(firstObservation.t)}</time> al <time dateTime={new Date(lastObservation.t).toISOString()}>{observationDate.format(lastObservation.t)}</time>.
+              {history.data?.source === "closes" ? " Referencia del subyacente; no son operaciones del token." : history.data?.source === "mock" ? " Precios simulados de demostración." : " Sondeos del precio del token."}
+            </p>
           ) : null}
         </div>
       </div>

@@ -197,8 +197,17 @@ describe("textos y contrato", () => {
     expect(source).toContain('handle("short"');
     expect(source).toContain("todayBoardSchema");
     expect(source).not.toContain("searchParams");
-    expect(source).toContain("readHistory");
-    expect(source).toContain("readUnderlyingCloses");
+    expect(source).toContain("getServices().market.today(now)");
+    expect(source).toContain('withRateLimit(req, "prices")');
+    expect(source).toContain("const FRESH_MS = 120_000");
+    expect(source).toContain("const STALE_MS = 30 * 60_000");
+    expect(source).toContain("if (pending) return pending");
+    const service = readFileSync(path.join(ROOT, "lib/services/market-movers.ts"), "utf8");
+    expect(service).toContain("readHistoryWithMetadata");
+    expect(service).toContain("readUnderlyingHistory");
+    expect(service).toContain("const PAGE_SIZE = 40");
+    expect(service).toContain("const MAX_PAGES = 1");
+    expect(service).toContain("concurrency: 32");
   });
 
   it("las tarjetas no agregan otro ancla de ficha", () => {

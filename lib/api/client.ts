@@ -37,11 +37,13 @@ import {
 } from "@/lib/api/contracts";
 import { httpStatusFor, type ApiErrorCode } from "@/lib/api/result";
 import { ASSET_STATUS_BATCH_MAX } from "@/lib/market/asset-status.shared";
+import { todayBoardSchema, type TodayBoard } from "@/lib/market/movers";
 import type {
   Activity,
   Balance,
   Consent,
   FxRate,
+  HistoryMetadata,
   MarketStatus,
   OnrampSession,
   OnrampSessionRequest,
@@ -188,6 +190,10 @@ export function getMarketStatus(): Promise<MarketStatus> {
   return request("/api/market/status", marketStatusSchema, { cache: "no-store" });
 }
 
+export function getTodayBoard(): Promise<TodayBoard> {
+  return request("/api/market/movers", todayBoardSchema, { cache: "no-store" });
+}
+
 export type AssetStatus = z.infer<typeof assetStatusSchema>;
 
 /** Horario real por acción (M39). Sin símbolo se usa `getMarketStatus` (estado general). */
@@ -264,6 +270,7 @@ export interface HistoryResponse {
   points: PricePoint[];
   real: boolean;
   source: "ticks" | "closes" | "mock";
+  metadata?: HistoryMetadata;
 }
 
 export function getHistory(symbol: string, range: Range = "1M"): Promise<HistoryResponse> {

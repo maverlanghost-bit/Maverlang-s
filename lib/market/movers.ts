@@ -2,7 +2,7 @@ import { z } from "zod";
 
 import { logoPathFromSymbol } from "@/lib/catalog/logos";
 import { downsample } from "@/lib/market/browse";
-import type { MarketSession } from "@/lib/types";
+import type { HistoryMetadata, MarketSession, PricePoint } from "@/lib/types";
 
 /** Ficha del S&P 500 en el catálogo (xStocks). */
 export const SPY_SYMBOL = "SPYx";
@@ -39,6 +39,28 @@ export interface MoverCard {
   /** Ratio: 0,012 es +1,2 %. */
   changePct: number;
   spark: number[];
+  /** Ausente en payloads antiguos: no se deduce fuente/fecha del momento de consulta. */
+  metadata?: MoverMetadata;
+  /** El proveedor entrega el tablero guardado mientras intenta refrescarlo. */
+  stale?: boolean;
+}
+
+export interface MoverMetadata {
+  source: "ticks" | "closes" | "mock";
+  provider?: HistoryMetadata["provider"];
+  resolution?: HistoryMetadata["resolution"];
+  /** Fechas de los extremos realmente usados para calcular el porcentaje. */
+  changeFrom: number;
+  changeTo: number;
+  /** La curva corta puede abarcar una ventana diferente del porcentaje. */
+  sparkFrom: number;
+  sparkTo: number;
+}
+
+export interface MoverHistory {
+  points: PricePoint[];
+  source: MoverMetadata["source"];
+  metadata?: HistoryMetadata;
 }
 
 export interface TodayBoard {
@@ -51,9 +73,9 @@ export interface TodayBoard {
 export interface TodayDeps {
   listOffered(): Promise<OfferedName[]>;
   /** Observaciones de `price_ticks`. Vacío si no hay. */
-  readTicks(symbol: string): Promise<{ t: number; p: number }[]>;
+  readTicks(symbol: string): Promise<PricePoint[] | MoverHistory>;
   /** Cierres de `underlying_prices` del subyacente. Vacío si no hay. */
-  readCloses(underlying: string): Promise<{ t: number; p: number }[]>;
+  readCloses(underlying: string): Promise<PricePoint[] | MoverHistory>;
   now?: number;
   concurrency?: number;
 }
@@ -65,6 +87,16 @@ const moverCardSchema = z
     logoUrl: z.string().nullable(),
     changePct: z.number().finite(),
     spark: z.array(z.number().finite()).min(2).max(SPARK_MAX),
+    metadata: z.object({
+      source: z.enum(["ticks", "closes", "mock"]),
+      provider: z.enum(["yahoo", "jupiter", "coingecko", "mixed", "mock", "unknown"]).optional(),
+      resolution: z.enum(["15m", "1h", "1d", "1wk", "irregular", "unknown"]).optional(),
+      changeFrom: z.number().int().nonnegative(),
+      changeTo: z.number().int().nonnegative(),
+      sparkFrom: z.number().int().nonnegative(),
+      sparkTo: z.number().int().nonnegative(),
+    }).strict().optional(),
+    stale: z.boolean().optional(),
   })
   .strict();
 
@@ -142,11 +174,11 @@ function opposesDay(series: readonly { p: number }[], change: number | null): bo
  * Si la serie elegida empieza y termina en el lado contrario al de `dayChange`,
  * se reemplaza por `dayWindow` (los dos del día), aunque eso deje dos puntos.
  */
-export function sparkLine(
+function sparkObservations(
   points: readonly { t: number; p: number }[],
   now: number,
   daily: boolean,
-): number[] {
+): { t: number; p: number }[] {
   const clean = cleanPoints(points);
   const windowed = dayWindow(points, now, daily);
   const change = dayChange(points, now, daily);
@@ -155,10 +187,11 @@ export function sparkLine(
     series = windowed;
   }
   if (windowed.length >= 2 && opposesDay(series, change)) series = windowed;
-  return downsample(
-    series.map((point) => round6(point.p)),
-    SPARK_MAX,
-  );
+  return series;
+}
+
+export function sparkLine(points: readonly { t: number; p: number }[], now: number, daily: boolean): number[] {
+  return downsample(sparkObservations(points, now, daily).map((point) => round6(point.p)), SPARK_MAX);
 }
 
 function nyCivil(instant: Date): { weekday: number; hour: number; minute: number } {
@@ -243,6 +276,8 @@ function toCard(row: RankRow): MoverCard {
     logoUrl: row.logoUrl,
     changePct: round6(row.changePct),
     spark: row.spark.map(round6),
+    ...(row.metadata ? { metadata: row.metadata } : {}),
+    ...(row.stale ? { stale: true } : {}),
   };
 }
 
@@ -303,16 +338,16 @@ export async function loadTodayBoard(deps: TodayDeps): Promise<TodayBoard> {
   if (!bySymbol.has(SPY_SYMBOL)) bySymbol.set(SPY_SYMBOL, spyPlaceholder());
 
   const rows = await mapPool([...bySymbol.values()], deps.concurrency ?? 8, async (asset) => {
-    const ticks = await deps.readTicks(asset.symbol).catch(() => [] as { t: number; p: number }[]);
-    const tickPoints = cleanPoints(ticks);
+    const ticks = await deps.readTicks(asset.symbol).catch(() => [] as PricePoint[]);
+    const tickPoints = cleanPoints(Array.isArray(ticks) ? ticks : ticks.points);
     const useTicks = tickPoints.length >= 2;
-    const points = useTicks
-      ? tickPoints
-      : cleanPoints(await deps.readCloses(asset.underlying).catch(() => [] as { t: number; p: number }[]));
+    const history = useTicks ? ticks : await deps.readCloses(asset.underlying).catch(() => [] as PricePoint[]);
+    const points = useTicks ? tickPoints : cleanPoints(Array.isArray(history) ? history : history.points);
     const daily = !useTicks;
     if (points.length < 2) return null;
     const rawChange = dayChange(points, now, daily);
-    const spark = sparkLine(points, now, daily);
+    const sparkPoints = sparkObservations(points, now, daily);
+    const spark = downsample(sparkPoints.map((point) => round6(point.p)), SPARK_MAX);
     if (rawChange === null || spark.length < 2) return null;
     const row: RankRow = {
       symbol: asset.symbol,
@@ -323,6 +358,21 @@ export async function loadTodayBoard(deps: TodayDeps): Promise<TodayBoard> {
       observations: useTicks ? tickPoints.length : 0,
       liquidityUsd: asset.liquidityUsd,
     };
+    if (!Array.isArray(history)) {
+      const changePoints = dayWindow(points, now, daily);
+      const changeFrom = changePoints[0]?.t;
+      const changeTo = changePoints.at(-1)?.t;
+      const sparkFrom = sparkPoints[0]?.t;
+      const sparkTo = sparkPoints.at(-1)?.t;
+      if (changeFrom !== undefined && changeTo !== undefined && sparkFrom !== undefined && sparkTo !== undefined &&
+          [changeFrom, changeTo, sparkFrom, sparkTo].every((time) => Number.isInteger(time) && time >= 0)) {
+        row.metadata = {
+          source: history.source, changeFrom, changeTo, sparkFrom, sparkTo,
+          ...(history.metadata ? { resolution: history.metadata.resolution } : {}),
+          ...(history.metadata && history.metadata.provider !== "mixed" ? { provider: history.metadata.provider } : {}),
+        };
+      }
+    }
     return row;
   });
 

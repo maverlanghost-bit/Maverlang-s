@@ -7,7 +7,7 @@ import { describe, expect, it } from "vitest";
  * pantallas de la plataforma sin romper los guardrailes existentes:
  *
  * - memo(TickerRowInner, sameRow) exigido por tests/unit/perf-static.test.ts.
- * - SvgPriceChart directo y data-range en detalle y cartera (perf-static + e2e).
+ * - Gráfico compartido diferido y data-range en detalle (perf-static + e2e).
  * - Headings, aria-label, role="radiogroup"/"radio" y data-range que leen
  *   e2e/market.spec.ts, e2e/detail.spec.ts, e2e/demo-trade.spec.ts,
  *   e2e/deposit.spec.ts y e2e/a11y.spec.ts.
@@ -37,9 +37,13 @@ describe("W5: memoización y carga diferida intactas (perf-static)", () => {
     expect(tickerRow).toContain('sizes="40px"');
   });
 
-  it("la ficha y la cartera dibujan SvgPriceChart directo", () => {
+  it("la ficha y la cartera usan el motor compartido y la ficha conserva el SVG clásico", () => {
     expect(pricePanel).toContain('import { SvgPriceChart } from "@/components/domain/svg-price-chart"');
-    expect(portfolioScreen).toContain('import { SvgPriceChart } from "@/components/domain/svg-price-chart"');
+    expect(pricePanel).toContain('import { FinancialChart } from "@/components/charts/financial-chart"');
+    expect(portfolioScreen).toContain('import { FinancialChart } from "@/components/charts/financial-chart"');
+    const shared = read("components/charts/financial-chart.tsx");
+    expect(shared).toContain('import("./financial-chart-canvas")');
+    expect(shared).toContain("FallbackChart");
     expect(pricePanel).not.toContain("LazyPriceChart");
     expect(portfolioScreen).not.toContain("LazyPriceChart");
     // El rango activo del panel queda expuesto como data-range (e2e/detail).

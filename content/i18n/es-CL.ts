@@ -30,7 +30,7 @@ export const esCL = {
     demo: "Cuenta demo",
     real: "Cuenta real",
     badge: "Demo",
-    note: "Simulación con precios reales; no es dinero real ni asesoría.",
+    note: "Cuenta de práctica con saldo ficticio; no es dinero real ni asesoría.",
     comingTitle: "Cuentas reales: próximamente",
     comingBody: "De momento no ofrecemos cuentas reales. Te avisaremos cuando estén disponibles. Mientras tanto puedes probar con la cuenta demo.",
     comingProfileNote: "Cuando estén disponibles te pediremos tus datos y verificaremos tu identidad.",

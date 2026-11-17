@@ -99,7 +99,7 @@ describe("M84: ninguna ruta con datos de usuario es cacheable", () => {
 describe("M84: carga diferida de librerías pesadas", () => {
   const scanDirs = ["app", "components", "lib"].map((dir) => path.join(ROOT, dir));
 
-  it("ningún archivo importa lightweight-charts", () => {
+  it("lightweight-charts sólo se importa en el lienzo cargado de forma diferida", () => {
     const violations: string[] = [];
     for (const dir of scanDirs) {
       for (const file of listFiles(dir)) {
@@ -109,7 +109,10 @@ describe("M84: carga diferida de librerías pesadas", () => {
         }
       }
     }
-    expect(violations, violations.join("\n")).toEqual([]);
+    expect(violations).toEqual(["components/charts/financial-chart-canvas.tsx: importa lightweight-charts"]);
+    const wrapper = readFileSync(path.join(ROOT, "components/charts/financial-chart.tsx"), "utf8");
+    expect(wrapper).toContain('import("./financial-chart-canvas")');
+    expect(wrapper).toContain("ssr: false");
   });
 
   it("el provider de Privy no se importa estático desde el árbol cliente", () => {

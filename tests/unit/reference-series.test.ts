@@ -107,8 +107,8 @@ describe("copy y pantallas", () => {
   it("el detalle rotula por el historial y pasa reference", () => {
     const pricePanel = read("app/(platform)/app/accion/[ticker]/price-panel.tsx");
     expect(pricePanel).toContain("isReferenceHistory(history.data)");
-    expect(pricePanel).toContain("t.detail.chartReference");
-    expect(pricePanel).toContain("reference={illustrative}");
+    expect(pricePanel).toContain("<ChartContext source={historySource}");
+    expect(pricePanel).toContain('reference={illustrative || historySource === "closes"}');
     expect(pricePanel).toContain("DETAIL_RANGES");
     expect(pricePanel).toContain('import { SvgPriceChart } from "@/components/domain/svg-price-chart"');
     expect(pricePanel).toContain("history.data?.points ?? NO_POINTS");
@@ -126,12 +126,12 @@ describe("copy y pantallas", () => {
 
   it("la cartera rotula si alguna historia es de referencia y pasa reference", () => {
     const portfolio = read("app/(platform)/app/cartera/portfolio-screen.tsx");
-    expect(portfolio).toContain("histories.some((query) => isReferenceHistory(query.data))");
-    expect(portfolio).toContain("t.detail.chartReference");
+    expect(portfolio).toContain('histories.some((query) => query.data?.source !== "ticks")');
+    expect(portfolio).toContain("referenceNote={sourceNote}");
     expect(portfolio).toContain("reference={reference}");
     expect(portfolio).toContain("DETAIL_RANGES");
-    expect(portfolio).toContain('import { SvgPriceChart } from "@/components/domain/svg-price-chart"');
-    expect(portfolio).toContain("emptyHint={t.detail.chartEmptyHint}");
+    expect(portfolio).toContain('import { FinancialChart } from "@/components/charts/financial-chart"');
+    expect(portfolio).toContain("Cada posición necesita cobertura compatible; no se dibuja una cartera parcial.");
     expect(portfolio).not.toContain("anchorSeriesToSpot");
     expect(portfolio).not.toContain("LazyPriceChart");
     expect(portfolio).not.toContain("errorLabel");

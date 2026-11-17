@@ -2,8 +2,10 @@ import "server-only";
 
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { searchCatalog } from "@/lib/catalog/assets";
+import { isCryptoSymbol } from "@/lib/catalog/crypto";
+import { isEarnSymbol } from "@/lib/catalog/lst";
 import { safeJobError } from "@/lib/market/cron-safe";
-import type { PricePoint, Range } from "@/lib/types";
+import type { HistoryMetadata, PricePoint, Range } from "@/lib/types";
 
 /**
  * Acceso a datos de observaciones reales de precio (`price_ticks`). Vive en
@@ -29,6 +31,30 @@ export interface PriceTick {
 export interface PriceTickWriteResult {
   saved: number;
   error: string | null;
+}
+
+export interface PriceTickHistory {
+  points: PricePoint[];
+  metadata: HistoryMetadata;
+}
+
+interface HistoryRow { t: string; price_usd: number; source?: unknown }
+
+function tickHistory(symbol: string, rows: readonly HistoryRow[]): PriceTickHistory {
+  const validRows = rows.filter((row) => Number.isFinite(Date.parse(row.t)) &&
+    Number.isFinite(Number(row.price_usd)) && Number(row.price_usd) > 0);
+  const sources = new Set(validRows.map((row) => row.source));
+  const known = [...sources].every((source) => source === "jupiter" || source === "coingecko");
+  const provider = !known || sources.size === 0 ? "unknown" : sources.size > 1 ? "mixed" :
+    sources.has("jupiter") ? "jupiter" : "coingecko";
+  return {
+    points: validRows.map((row) => ({ t: Date.parse(row.t), p: Number(row.price_usd) })).reverse(),
+    metadata: {
+      instrument: "token", provider, resolution: "irregular",
+      priceUnit: isCryptoSymbol(symbol) || isEarnSymbol(symbol) ? "usd_per_token" : "usd_per_share",
+      reference: false, capabilities: { ohlc: false, volume: false },
+    },
+  };
 }
 
 /**
@@ -116,6 +142,15 @@ export async function readHistory(
   range: Range,
   now = Date.now(),
 ): Promise<PricePoint[]> {
+  return (await readHistoryWithMetadata(symbol, range, now)).points;
+}
+
+/** Sondeos reales con su proveedor almacenado; nunca se agregan como OHLCV. */
+export async function readHistoryWithMetadata(
+  symbol: string,
+  range: Range,
+  now = Date.now(),
+): Promise<PriceTickHistory> {
   const admin = createSupabaseAdminClient();
   const from = new Date(now - RANGE_MS[range]).toISOString();
   const controller = new AbortController();
@@ -123,20 +158,16 @@ export async function readHistory(
   try {
     const { data, error } = await admin
       .from("price_ticks")
-      .select("t,price_usd")
+      .select("t,price_usd,source")
       .eq("symbol", symbol)
       .gte("t", from)
       .order("t", { ascending: false })
       .limit(HISTORY_CAP)
       .abortSignal(controller.signal);
-    if (error || !data) return [];
-    const points = (data as { t: string; price_usd: number }[])
-      .map((row) => ({ t: Date.parse(row.t), p: Number(row.price_usd) }))
-      .filter((point) => Number.isFinite(point.t) && Number.isFinite(point.p) && point.p > 0);
-    points.reverse();
-    return points;
+    if (error || !data) return tickHistory(symbol, []);
+    return tickHistory(symbol, data as HistoryRow[]);
   } catch {
-    return [];
+    return tickHistory(symbol, []);
   } finally {
     clearTimeout(timer);
   }

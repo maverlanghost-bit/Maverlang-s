@@ -1,3 +1,4 @@
+import { historyMetadataSchema } from "@/lib/api/contracts";
 import { z } from "zod";
 
 import type { AiChatRequest, AiWidget } from "@/components/ai/contract";
@@ -83,6 +84,8 @@ const stockSchema = z.object({
   changePct: z.number().finite().nullable(),
   range: z.enum(["1D", "1W", "1M"]),
   points: z.array(pointSchema),
+  source: z.enum(["ticks", "closes", "mock"]).optional(),
+  metadata: historyMetadataSchema.optional().catch(undefined),
 });
 
 const compareSchema = z.object({
@@ -94,6 +97,8 @@ const compareSchema = z.object({
       name: z.string(),
       changePct: z.number().finite().nullable(),
       points: z.array(pointSchema),
+      source: z.enum(["ticks", "closes", "mock"]).optional(),
+      metadata: historyMetadataSchema.optional().catch(undefined),
     }),
   ),
 });

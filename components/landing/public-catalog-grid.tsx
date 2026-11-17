@@ -8,6 +8,7 @@ import {
   type PublicAssetCardItem,
 } from "@/components/landing/public-asset-card";
 import { Button } from "@/components/ui/button";
+import { ActiveFilters } from "@/components/ui/active-filters";
 import { EmptyState } from "@/components/ui/empty-state";
 import { cn } from "@/lib/cn";
 
@@ -151,6 +152,7 @@ export function PublicCatalogGrid({ assets }: { assets: readonly PublicCatalogIt
         </div>
       </div>
 
+      <div className="mt-3"><ActiveFilters filters={[...(query.trim() ? [{ id: "query", label: query.trim(), remove: () => setQuery("") }] : []), ...(filter !== "all" ? [{ id: "type", label: FILTERS.find((option) => option.id === filter)?.label ?? filter, remove: () => setFilter("all") }] : [])]} onClear={clearFilters} /></div>
       <p aria-live="polite" className="sr-only">
         {results.length === 1 ? "1 resultado" : `${results.length} resultados`}
       </p>

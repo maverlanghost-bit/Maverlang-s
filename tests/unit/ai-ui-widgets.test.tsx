@@ -57,8 +57,8 @@ describe("widgets del asistente", () => {
           changePct: 0.0123,
           range: "1D",
           points: [
-            { t: 1, p: 170 },
-            { t: 2, p: 180.5 },
+            { t: 1700000000000, p: 170 },
+            { t: 1700086400000, p: 180.5 },
           ],
         },
       }),
@@ -67,9 +67,9 @@ describe("widgets del asistente", () => {
     expect(markup).toContain("AAPLx");
     expect(markup).toContain("/logos/aapl.png");
     expect(markup).toContain("US$180,50");
-    expect(markup).toContain("+1,23%");
+    expect(markup).toContain("+6,18%");
     expect(markup).toContain("<svg");
-    expect(markup).toContain("M ");
+    expect(markup).toMatch(/d="M[\d.]+ [\d.]+ L/);
     expect(markup).toContain('href="/app/accion/AAPLx"');
   });
 
@@ -117,14 +117,14 @@ describe("widgets del asistente", () => {
           type: "compare",
           range: "1M",
           items: [
-            { ticker: "AAPLx", name: "Apple", changePct: 0.1, points: [{ t: 1, p: 100 }, { t: 2, p: 110 }] },
-            { ticker: "MSFTx", name: "Microsoft", changePct: -0.1, points: [{ t: 1, p: 100 }, { t: 2, p: 90 }] },
+            { ticker: "AAPLx", name: "Apple", changePct: 0.1, points: [{ t: 1700000000000, p: 100 }, { t: 1700086400000, p: 110 }] },
+            { ticker: "MSFTx", name: "Microsoft", changePct: -0.1, points: [{ t: 1700000000000, p: 100 }, { t: 1700086400000, p: 90 }] },
           ],
         },
       }),
     );
-    expect(markup).toContain(upPath);
-    expect(markup).toContain(downPath);
+    expect(markup).toContain("Ventana común");
+    expect(markup.match(/d="M[\d.]+ [\d.]+ L/g)).toHaveLength(2);
     expect(markup).toContain("Apple");
     expect(markup).toContain("Microsoft");
     expect(markup).toContain("+10,00%");
@@ -234,8 +234,8 @@ describe("widgets del asistente", () => {
         },
       }),
     );
-    expect(markup).toContain('role="tablist"');
-    expect(markup).toContain("Comprar");
+    expect(markup).toContain('aria-label="Rango de tiempo"');
+    expect(markup).toContain("Ver para comprar");
     expect(markup).toContain('href="/app/accion/AAPL?operar=comprar"');
     expect(markup).toContain("Ver ficha");
   });

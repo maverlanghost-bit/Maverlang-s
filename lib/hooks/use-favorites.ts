@@ -5,6 +5,7 @@ import { useCallback, useEffect, useSyncExternalStore } from "react";
 import { getFavorites, setFavorites } from "@/lib/api/client";
 import { useSession } from "@/lib/auth/session-context";
 import { favoritesNeedUpload, mergeFavoriteSymbols } from "@/lib/favorites/merge";
+import { displayFavoriteSymbols, toggleFavoriteSymbol } from "@/lib/favorites/display";
 
 const KEY = "a24_favorites";
 const EVENT = "a24-favorites";
@@ -30,7 +31,7 @@ function parse(raw: string | null): string[] {
     for (const item of list) {
       if (typeof item === "string" && item.length > 0 && !symbols.includes(item)) symbols.push(item);
     }
-    return symbols;
+    return displayFavoriteSymbols(symbols);
   } catch {
     return [];
   }
@@ -80,7 +81,7 @@ export function useFavorites() {
   const toggle = useCallback(
     (symbol: string) => {
       const current = read();
-      const next = current.includes(symbol) ? current.filter((item) => item !== symbol) : [...current, symbol];
+      const next = toggleFavoriteSymbol(current, symbol);
       try {
         write(next);
       } catch {
@@ -110,7 +111,7 @@ export function useSyncFavorites() {
         if (cancelled) return;
         const merged = mergeFavoriteSymbols(server, read());
         try {
-          write(merged);
+          write(displayFavoriteSymbols(merged));
         } catch {
           return;
         }

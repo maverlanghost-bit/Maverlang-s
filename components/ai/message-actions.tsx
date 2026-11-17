@@ -3,10 +3,11 @@
 import { useEffect, useRef, useState } from "react";
 import type { ReactElement, ReactNode } from "react";
 import { cn } from "@/lib/cn";
+import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 /**
- * Acciones por respuesta del asistente. Sin dependencias externas: los iconos
- * son SVG inline y la lectura en voz alta usa la Web Speech API del navegador,
+ * Acciones por respuesta del asistente. Los iconos son SVG inline y la lectura
+ * en voz alta usa la Web Speech API del navegador,
  * así que en SSR sólo se renderizan los botones en estado reposo.
  */
 
@@ -128,6 +129,10 @@ function StopIcon({ className }: { className?: string }): ReactElement {
   );
 }
 
+function MoreIcon(): ReactElement {
+  return <Icon><circle cx="5" cy="12" r="1" /><circle cx="12" cy="12" r="1" /><circle cx="19" cy="12" r="1" /></Icon>;
+}
+
 /** Quita el markdown básico para que la síntesis no lea símbolos ni URLs. */
 function toSpeechText(raw: string): string {
   return raw
@@ -146,7 +151,7 @@ function getSynthesis(): SpeechSynthesis | null {
   return synthesis;
 }
 
-export function SpeakAction({ text }: { text: string }): ReactElement {
+export function SpeakAction({ text, en = false }: { text: string; en?: boolean }): ReactElement {
   const [speaking, setSpeaking] = useState(false);
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
 
@@ -188,8 +193,8 @@ export function SpeakAction({ text }: { text: string }): ReactElement {
     try {
       synthesis.cancel();
       const utterance = new SpeechSynthesisUtterance(spoken);
-      utterance.lang = "es-CL";
-      const chileanVoice = synthesis.getVoices().find((voice) => voice.lang?.toLowerCase() === "es-cl");
+      utterance.lang = en ? "en-US" : "es-CL";
+      const chileanVoice = synthesis.getVoices().find((voice) => voice.lang?.toLowerCase() === utterance.lang.toLowerCase());
       // Si no hay voz es-CL dejamos `lang` tal cual y el navegador elige la más cercana.
       if (chileanVoice) utterance.voice = chileanVoice;
 
@@ -216,8 +221,8 @@ export function SpeakAction({ text }: { text: string }): ReactElement {
     <button
       type="button"
       onClick={handleClick}
-      aria-label={speaking ? "Detener lectura" : "Escuchar respuesta"}
-      title={speaking ? "Detener lectura" : "Escuchar respuesta"}
+      aria-label={speaking ? (en ? "Stop reading" : "Detener lectura") : en ? "Listen to answer" : "Escuchar respuesta"}
+      title={speaking ? (en ? "Stop reading" : "Detener lectura") : en ? "Listen to answer" : "Escuchar respuesta"}
       aria-pressed={speaking}
       data-speak-state={speaking ? "speaking" : "idle"}
       className={cn(ACTION_BUTTON, speaking && "text-zinc-900")}
@@ -234,6 +239,7 @@ export function AssistantMessageActions({
   onFeedback,
   onRetry,
   onShare,
+  en = false,
 }: {
   messageId: string;
   content: string;
@@ -241,6 +247,7 @@ export function AssistantMessageActions({
   onFeedback?: (type: "like" | "dislike") => void;
   onRetry?: () => void;
   onShare?: () => void;
+  en?: boolean;
 }): ReactElement {
   const [copied, setCopied] = useState(false);
   const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -278,66 +285,34 @@ export function AssistantMessageActions({
       data-message-id={messageId}
       data-ai-message-actions=""
       role="group"
-      aria-label="Acciones de la respuesta"
+      aria-label={en ? "Answer actions" : "Acciones de la respuesta"}
       className="flex items-center gap-0.5"
     >
       <button
         type="button"
         onClick={() => void handleCopy()}
-        aria-label="Copiar respuesta"
-        title={copied ? "¡Copiado!" : "Copiar respuesta"}
+        aria-label={en ? "Copy answer" : "Copiar respuesta"}
+        title={copied ? (en ? "Copied!" : "¡Copiado!") : en ? "Copy answer" : "Copiar respuesta"}
         className={cn(ACTION_BUTTON, copied && "text-emerald-600 hover:text-emerald-600")}
       >
         {copied ? <CheckIcon /> : <CopyIcon />}
       </button>
 
-      <button
-        type="button"
-        onClick={() => onFeedback?.("like")}
-        aria-label="Respuesta útil"
-        title="Respuesta útil"
-        aria-pressed={liked}
-        className={cn(ACTION_BUTTON, liked && "text-zinc-900")}
-      >
-        <ThumbsUpIcon filled={liked} className={liked ? "fill-zinc-900" : undefined} />
-      </button>
-
-      <button
-        type="button"
-        onClick={() => onFeedback?.("dislike")}
-        aria-label="Respuesta poco útil"
-        title="Respuesta poco útil"
-        aria-pressed={disliked}
-        className={cn(ACTION_BUTTON, disliked && "text-zinc-900")}
-      >
-        <ThumbsDownIcon filled={disliked} className={disliked ? "fill-zinc-900" : undefined} />
-      </button>
-
-      {onRetry ? (
-        <button
-          type="button"
-          onClick={onRetry}
-          aria-label="Regenerar respuesta"
-          title="Regenerar respuesta"
-          className={ACTION_BUTTON}
-        >
-          <RotateIcon />
-        </button>
-      ) : null}
-
-      <SpeakAction text={content} />
-
-      {onShare ? (
-        <button
-          type="button"
-          onClick={onShare}
-          aria-label="Compartir respuesta"
-          title="Compartir respuesta"
-          className={ACTION_BUTTON}
-        >
-          <ShareIcon />
-        </button>
-      ) : null}
+      <SpeakAction text={content} en={en} />
+      {onFeedback || onRetry || onShare ? <DropdownMenu>
+        <DropdownMenuTrigger asChild><button type="button" aria-label={en ? "More answer actions" : "Más acciones de la respuesta"} title={en ? "More actions" : "Más acciones"} className={cn(ACTION_BUTTON, "data-[state=open]:bg-zinc-100")}><MoreIcon /></button></DropdownMenuTrigger>
+        <DropdownMenuContent align="start">
+          <DropdownMenuLabel>{en ? "Answer actions" : "Acciones de la respuesta"}</DropdownMenuLabel>
+          {onFeedback ? <>
+            <DropdownMenuCheckboxItem checked={liked} onCheckedChange={() => onFeedback("like")}><ThumbsUpIcon filled={liked} />{en ? "Helpful answer" : "Respuesta útil"}</DropdownMenuCheckboxItem>
+            <DropdownMenuCheckboxItem checked={disliked} onCheckedChange={() => onFeedback("dislike")}><ThumbsDownIcon filled={disliked} />{en ? "Unhelpful answer" : "Respuesta poco útil"}</DropdownMenuCheckboxItem>
+          </> : null}
+          {onFeedback && (onRetry || onShare) ? <DropdownMenuSeparator /> : null}
+          {onRetry ? <DropdownMenuItem onSelect={onRetry}><RotateIcon />{en ? "Regenerate answer" : "Regenerar respuesta"}</DropdownMenuItem> : null}
+          {onShare ? <DropdownMenuItem onSelect={onShare}><ShareIcon />{en ? "Share answer" : "Compartir respuesta"}</DropdownMenuItem> : null}
+        </DropdownMenuContent>
+      </DropdownMenu> : null}
+      <span className="sr-only" role="status">{copied ? (en ? "Answer copied" : "Respuesta copiada") : ""}</span>
     </div>
   );
 }

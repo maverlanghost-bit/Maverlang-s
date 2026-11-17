@@ -8,25 +8,21 @@ import { ChangeText, MoverCard, SpyChip } from "@/components/domain/market-today
 import { TodaySkeleton } from "@/components/domain/market-today/skeleton";
 import { buildFeaturedPool } from "@/components/domain/market-today/spotlight";
 import { PriceText } from "@/components/domain/price-text";
+import { PriceFreshness } from "@/components/domain/price-freshness";
 import { sparklineSmoothPath } from "@/components/domain/sparkline";
 import { TickerLogo } from "@/components/domain/ticker-logo";
 import { Button } from "@/components/ui/button";
 import { indexFromKey } from "@/components/ui/keys";
 import { hoyCopy } from "@/content/i18n/extra-hoy";
-import { ApiError, getHistory, searchMarket } from "@/lib/api/client";
-import { apiResultSchema } from "@/lib/api/contracts";
+import { getHistory, getTodayBoard, searchMarket } from "@/lib/api/client";
 import { cn } from "@/lib/cn";
-import { compatibleSpot, observedSeries } from "@/lib/charts/data";
+import { compatibleSpot, historyDescription, observedSeries } from "@/lib/charts/data";
 import { displayPrice } from "@/lib/market/browse";
 import { formatPercent } from "@/lib/format";
 import { useFx, useHistory, usePrices } from "@/lib/hooks/queries";
 import { useFavorites } from "@/lib/hooks/use-favorites";
 import { useT } from "@/lib/hooks/use-t";
-import {
-  formatChileClock,
-  todayBoardSchema,
-  type TodayBoard,
-} from "@/lib/market/movers";
+import { formatChileClock } from "@/lib/market/movers";
 
 const LISTS = ["gainers", "losers", "viewed"] as const;
 type ListId = (typeof LISTS)[number];
@@ -63,32 +59,6 @@ const quietActionClass =
 /** Flecha del carrusel: 44px táctil, 36px con puntero. */
 const pagerButtonClass =
   "inline-flex size-11 cursor-pointer items-center justify-center rounded-full text-base font-semibold text-fg transition-colors hover:bg-surface-1 active:scale-[0.96] sm:size-9";
-
-async function fetchTodayBoard(): Promise<TodayBoard> {
-  let response: Response;
-  try {
-    response = await fetch("/api/market/movers", {
-      headers: { accept: "application/json" },
-      credentials: "same-origin",
-    });
-  } catch {
-    throw new ApiError("UPSTREAM", "No pudimos conectar.");
-  }
-  let payload: unknown;
-  try {
-    payload = await response.json();
-  } catch {
-    throw new ApiError("UPSTREAM", "La respuesta no es JSON.", response.status || 502);
-  }
-  const parsed = apiResultSchema(todayBoardSchema).safeParse(payload);
-  if (!parsed.success || !parsed.data.ok) {
-    if (parsed.success && !parsed.data.ok) {
-      throw new ApiError(parsed.data.error.code, parsed.data.error.message, response.status, parsed.data.requestId);
-    }
-    throw new ApiError("UPSTREAM", "La respuesta no tiene el formato esperado.", response.status || 502);
-  }
-  return parsed.data.data;
-}
 
 const CLOCK_MS = 15_000;
 let chileNow: number | null = null;
@@ -144,7 +114,7 @@ export function MarketToday() {
 
   const board = useQuery({
     queryKey: ["market-today"],
-    queryFn: fetchTodayBoard,
+    queryFn: getTodayBoard,
     staleTime: 60_000,
     refetchInterval: 60_000,
     refetchIntervalInBackground: false,
@@ -259,7 +229,7 @@ export function MarketToday() {
   }, [basePct, hoverPoint, series]);
 
   /**
-   * Precio grande de la destacada: siempre el precio spot en vivo (`spotUsd`)
+   * Precio grande de la destacada: cotización actual disponible (`spotUsd`)
    * cuando no hay hover, para que no salte al cambiar entre rangos del gráfico.
    */
   const lastPoint = series.length > 0 ? series[series.length - 1] : undefined;
@@ -267,6 +237,18 @@ export function MarketToday() {
   const rate = fx.data?.rate;
   const shownCurrency = currency === "CLP" && rate && rate > 0 ? "CLP" : "USD";
   const shownPrice = shownPriceUsd === null ? null : displayPrice(shownPriceUsd, shownCurrency, rate);
+  const shownHistoricalPoint = hoverPoint ?? (spotUsd === null ? lastPoint : undefined);
+  const quoteSourceLabel = !activeQuote
+    ? language === "en" ? "Quote unavailable" : "Cotización no disponible"
+    : activeQuote.source === "mock"
+    ? language === "en" ? "Demo quote" : "Cotización de demostración"
+    : activeQuote?.reference
+      ? language === "en" ? "Reference price" : "Precio de referencia"
+      : language === "en" ? "Token quote" : "Cotización del token";
+  const shownSourceLabel = shownHistoricalPoint ? historyDescription(historyQuery.data?.source, language === "en") : quoteSourceLabel;
+  const observationFormatter = useMemo(() => new Intl.DateTimeFormat(locale, {
+    dateStyle: "medium", timeStyle: "short", timeZone: "America/Santiago",
+  }), [locale]);
 
   const chartValues = useMemo(() => series.map((pt) => pt.p), [series]);
   const chartShape = useMemo(() => sparklineSmoothPath(chartValues, CHART_W, CHART_H), [chartValues]);
@@ -348,7 +330,7 @@ export function MarketToday() {
             {copy.title}
           </h2>
           {board.data?.spy ? (
-            <SpyChip
+            <SpyChip language={language === "en" ? "en" : "es"}
               card={board.data.spy}
               name={copy.spy}
               label={`${cardLabel(copy.openStock, board.data.spy)}. ${copy.spy}. ${formatPercent(board.data.spy.changePct)}`}
@@ -435,13 +417,31 @@ export function MarketToday() {
                     <span className="num text-[26px] leading-none font-semibold text-fg sm:text-[30px]">—</span>
                   )}
                   {displayPct !== null ? (
-                    <ChangeText value={displayPct} />
+                    <span className="flex flex-wrap items-baseline justify-end gap-x-2">
+                      <ChangeText value={displayPct} />
+                      <span className="text-[11px] text-fg-muted">{language === "en" ? "history change" : "variación histórica"}</span>
+                    </span>
                   ) : (
                     <span className="text-[13px] leading-5 text-fg-muted">—</span>
                   )}
                   <span className="text-[13px] leading-5 text-fg-muted">{hoverDate || rangeLabel}</span>
+                  <span className="text-xs text-fg-muted">{shownSourceLabel} · {shownCurrency}</span>
+                  {shownHistoricalPoint?.t ? (
+                    <time className="text-xs text-fg-muted" dateTime={new Date(shownHistoricalPoint.t).toISOString()}>{observationFormatter.format(shownHistoricalPoint.t)}</time>
+                  ) : activeQuote?.source === "jupiter" && !activeQuote.reference ? (
+                    <PriceFreshness at={activeQuote.updatedAt} stale={activeQuote.stale === true || pricesQuery.isError || pricesQuery.isRefetchError} />
+                  ) : null}
                 </div>
               </div>
+
+              <p className="text-xs leading-relaxed text-fg-muted">
+                {historyDescription(historyQuery.data?.source, language === "en")}.
+                {series[0]?.t && lastPoint?.t ? <> {observationFormatter.format(series[0].t)} — {observationFormatter.format(lastPoint.t)}.</> : null}
+                {historyQuery.data?.source === "closes" ? (language === "en" ? " Underlying reference; token quotes may differ." : " Referencia del subyacente; la cotización del token puede diferir.") : null}
+                {shownCurrency === "CLP" ? (fx.data?.source === "mock"
+                  ? language === "en" ? " CLP conversion uses a demo exchange rate." : " Conversión CLP con tipo de cambio de demostración."
+                  : language === "en" ? " CLP conversion uses the available exchange rate, not historical FX." : " Conversión CLP con el tipo de cambio disponible, no histórico.") : currency === "CLP" ? (language === "en" ? " Shown in USD while the exchange rate is unavailable." : " Se muestra USD mientras no hay tipo de cambio disponible.") : null}
+              </p>
 
               {/* Rangos de texto y paginador del carrusel, sobre el gráfico. */}
               <div className="flex min-w-0 flex-col gap-1">
@@ -640,6 +640,7 @@ export function MarketToday() {
 
           {/* Ranking del día: chips de texto y filas de dato con hairline. */}
           <div className="flex min-w-0 flex-col gap-2 py-5">
+            <p className="text-xs leading-relaxed text-fg-muted">{language === "en" ? "Changes use the available observations: token price samples or underlying reference closes, depending on coverage." : "Las variaciones usan los registros disponibles: sondeos del precio del token o cierres de referencia del subyacente, según la cobertura."}</p>
             <div
               role="tablist"
               aria-label={copy.lists}
@@ -678,7 +679,7 @@ export function MarketToday() {
                 <ol className="flex min-w-0 flex-col divide-y divide-border">
                   {cards.map((card, index) => (
                     <li key={card.symbol}>
-                      <MoverCard
+                      <MoverCard language={language === "en" ? "en" : "es"}
                         card={card}
                         rank={index + 1}
                         label={`${cardLabel(copy.openStock, card)}. ${card.symbol}. ${formatPercent(card.changePct)}`}

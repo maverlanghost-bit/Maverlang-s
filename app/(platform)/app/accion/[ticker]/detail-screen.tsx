@@ -41,8 +41,10 @@ import { useFavorites } from "@/lib/hooks/use-favorites";
 import { useT } from "@/lib/hooks/use-t";
 import { displayPrice } from "@/lib/market/browse";
 import { chipKeyForStatus, tradeBlockForStatus } from "@/lib/market/asset-status.shared";
+import { chartCapabilities, historyDescription } from "@/lib/charts/data";
+import { consumeMarketEntry, markMarketReturn } from "@/lib/market/return-navigation";
 import { rangeBounds, rangeMove, seriesForQuote } from "@/lib/market/series";
-import type { Currency, Position, PricePoint, Quote, Range, Ticker } from "@/lib/types";
+import type { Currency, HistoryMetadata, Position, PricePoint, Quote, Range, Ticker } from "@/lib/types";
 
 import { PricePanel } from "./price-panel";
 
@@ -583,7 +585,7 @@ function TradeActions({
       <div className="flex flex-col gap-1">
         <h2 className="text-lg font-medium tracking-tight text-fg">{t.detail.actions}</h2>
         <span className="inline-flex items-center gap-1.5 text-xs leading-5 text-fg-muted">
-          <span className={cn("size-1.5 shrink-0 rounded-full", chipDot)} aria-hidden />
+          <span className={cn("inline-block size-1.5 shrink-0 align-middle rounded-full", chipDot)} aria-hidden />
           {chipText}
         </span>
       </div>
@@ -615,13 +617,13 @@ function categoryName(
 
 function ContextItem({ children, separator = false }: { children: ReactNode; separator?: boolean }) {
   return (
-    <li className="inline-flex shrink-0 items-center gap-2.5">
+    <li className="inline-flex max-w-full min-w-0 items-center gap-2.5">
       {separator ? (
         <span aria-hidden className="shrink-0 text-fg-muted">
           ·
         </span>
       ) : null}
-      <span className="inline-flex items-center gap-1.5 whitespace-nowrap">{children}</span>
+      <span className="min-w-0">{children}</span>
     </li>
   );
 }
@@ -647,6 +649,9 @@ function KeyStats({
   points,
   historyPending,
   historyError,
+  historySource,
+  historyMetadata,
+  historyRefreshFailed,
   range,
   currency,
   rate,
@@ -659,6 +664,9 @@ function KeyStats({
   points: readonly PricePoint[];
   historyPending: boolean;
   historyError: boolean;
+  historySource?: string;
+  historyMetadata?: HistoryMetadata;
+  historyRefreshFailed?: boolean;
   range: Range;
   currency: Currency;
   rate: number | undefined;
@@ -669,7 +677,8 @@ function KeyStats({
   /** Estado de operación del servidor (`page.tsx`); null = operable. */
   tradeBlock: TradeBlock;
 }) {
-  const { t } = useT();
+  const { t, language } = useT();
+  const en = language === "en";
   const caption = range === "ALL" ? t.detail.rangeShort.ALL : t.detail.rangeCaption[range];
   const fxKnown = typeof rate === "number" && Number.isFinite(rate) && rate > 0;
   const shownCurrency: Currency = currency === "CLP" && fxKnown ? "CLP" : "USD";
@@ -677,8 +686,11 @@ function KeyStats({
   const bounds = historyPending || historyError ? null : rangeBounds(points);
   const rangeMissing = historyError ? t.detail.chartError : t.detail.chartEmpty;
   const quoteCellPending = quotePending && quote === null;
-  const high = bounds ? moneyText(bounds.high, shownCurrency, rate) : null;
-  const low = bounds ? moneyText(bounds.low, shownCurrency, rate) : null;
+  const bars = !historyPending && !historyError && chartCapabilities(points, historyMetadata).ohlc;
+  const high = bounds ? moneyText(bars ? Math.max(...points.map((point) => point.h!)) : bounds.high, shownCurrency, rate) : null;
+  const low = bounds ? moneyText(bars ? Math.min(...points.map((point) => point.l!)) : bounds.low, shownCurrency, rate) : null;
+  const highLabel = bars ? (en ? "Highest bar price" : "Máximo de barras") : historySource === "closes" ? (en ? "Highest recorded close" : "Máximo de cierres") : (en ? "Highest observed price" : "Máximo observado");
+  const lowLabel = bars ? (en ? "Lowest bar price" : "Mínimo de barras") : historySource === "closes" ? (en ? "Lowest recorded close" : "Mínimo de cierres") : (en ? "Lowest observed price" : "Mínimo observado");
   const priceNow =
     quote && Number.isFinite(quote.priceUsd) ? moneyText(quote.priceUsd, shownCurrency, rate) : null;
   // Estado con textos ya publicados (i18n). Sin market cap ni volumen: no
@@ -695,6 +707,9 @@ function KeyStats({
   return (
     <section className="border-t border-border pt-8">
       <h2 className="text-lg font-medium tracking-tight text-fg">{t.detail.stats}</h2>
+      <p className="mt-2 text-xs leading-relaxed text-fg-muted">{quote ? quote.source === "mock" ? (en ? "Demo quote" : "Cotización de demostración") : quote.reference ? (en ? "Reference quote" : "Cotización de referencia") : (en ? "Token quote" : "Cotización del token") : (en ? "No quote" : "Sin cotización")} · {shownCurrency}</p>
+      <p className="mt-1 text-xs leading-relaxed text-fg-muted">{historyDescription(historySource, en)} · {bars ? (en ? "Extremes of verified bars" : "Extremos de barras verificadas") : (en ? "Extremes of available observations" : "Extremos de registros disponibles")}{shownCurrency === "CLP" ? (en ? " · converted at current reference FX" : " · convertidos al dólar de referencia actual") : ""}</p>
+      {historyRefreshFailed ? <p role="status" className="mt-2 text-xs text-warn">{en ? "Refresh failed; previous observations are shown." : "No se pudo actualizar; se muestran los registros anteriores."}</p> : null}
       <dl className="mt-3 grid grid-cols-1 gap-x-12 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
         {/* Precio actual: mismo `quote.priceUsd` del titular, en tu moneda. */}
         <DataRow label={shownCurrency === "CLP" ? t.detail.priceClp : t.detail.priceUsd}>
@@ -725,10 +740,10 @@ function KeyStats({
             <ChangeBadge value={move} className="align-middle" />
           )}
         </DataRow>
-        <DataRow label={fill(t.detail.rangeHigh, { range: caption })}>
+        <DataRow label={`${highLabel} · ${caption}`}>
           {historyPending ? <Skeleton className="ml-auto h-4 w-20" /> : high === null ? <MissingFigure label={rangeMissing} /> : high}
         </DataRow>
-        <DataRow label={fill(t.detail.rangeLow, { range: caption })}>
+        <DataRow label={`${lowLabel} · ${caption}`}>
           {historyPending ? <Skeleton className="ml-auto h-4 w-20" /> : low === null ? <MissingFigure label={rangeMissing} /> : low}
         </DataRow>
         <DataRow label={t.detail.marketPrice}>
@@ -779,6 +794,13 @@ export function DetailScreen({
 }) {
   const { t, language, currency } = useT();
   const pathname = usePathname();
+  const [marketReturn, setMarketReturn] = useState<ReturnType<typeof consumeMarketEntry>>(null);
+  const consumedMarketPath = useRef<string | null>(null);
+  useEffect(() => {
+    if (consumedMarketPath.current === pathname) return;
+    consumedMarketPath.current = pathname;
+    setMarketReturn(consumeMarketEntry(pathname));
+  }, [pathname]);
   const { mode } = useAccountMode();
   const prices = usePrices([ticker.symbol], true, SPOT_MS);
   const fx = useFx();
@@ -1005,7 +1027,9 @@ export function DetailScreen({
       <div className="flex min-w-0 max-w-full flex-col gap-10 pb-36 lg:pb-0">
         <div className="flex min-w-0 flex-col gap-4">
           <Link
-            href="/app"
+            href={marketReturn?.href ?? "/app"}
+            scroll={marketReturn ? false : undefined}
+            onClick={(event) => { if (marketReturn && event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey) markMarketReturn(marketReturn); }}
             className="-ml-2 flex min-h-11 w-fit items-center gap-1.5 rounded-full px-2 text-[13px] font-medium text-fg-muted outline-none transition-colors duration-150 hover:bg-surface-1 hover:text-fg focus-visible:ring-4 focus-visible:ring-fg/20"
           >
             <IconBack className="size-4" />
@@ -1065,8 +1089,8 @@ export function DetailScreen({
               fxPending={fx.isPending}
               range={range}
               onRangeChange={setRange}
-              priceUpdatedAt={prices.dataUpdatedAt || quote?.updatedAt || null}
-              priceStale={quote?.stale === true}
+              priceUpdatedAt={quote?.updatedAt ?? null}
+              priceStale={quote?.stale === true || prices.isError || prices.isRefetchError}
               underlying={ticker.underlying}
               avgCostUsd={position?.avgCostUsd ?? null}
             />
@@ -1123,7 +1147,10 @@ export function DetailScreen({
           quotePending={prices.isPending && quote === null}
           points={points}
           historyPending={history.isPending}
-          historyError={history.isError}
+          historyError={history.isError && !history.data}
+          historyRefreshFailed={history.isError && Boolean(history.data)}
+          historySource={history.data?.source}
+          historyMetadata={history.data?.metadata}
           range={range}
           currency={currency}
           rate={rate}

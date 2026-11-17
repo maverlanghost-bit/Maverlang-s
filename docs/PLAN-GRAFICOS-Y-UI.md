@@ -1,6 +1,6 @@
 # Plan de mejora de gráficos e interfaz
 
-Fecha del plan: 15 de noviembre de 2026, hora de Chile. Estado: aprobado por Manu; implementación en curso. Verificaciones pesadas aplazadas hasta que Manu las indique. Seguimiento en `IMPLEMENTACION-GRAFICOS-UI.md`.
+Fecha del plan: 15 de noviembre de 2026, hora de Chile. Estado al 17 de noviembre: las 16 propuestas están implementadas en su alcance inicial y verificadas localmente. Las comprobaciones se concentraron al final del conjunto según la instrucción posterior de Manu. Evidencia y límites en `IMPLEMENTACION-GRAFICOS-UI.md`; sin despliegue ni habilitación de dinero real.
 
 Alcance confirmado con Manu: acciones tokenizadas y cripto. La referencia inicial a mercados de predicciones fue una confusión y queda fuera de este plan.
 
@@ -19,7 +19,7 @@ Orden recomendado:
 5. Mejorar mercado, screener, favoritas y cartera con patrones compartidos.
 6. Considerar velas y volumen únicamente cuando exista un contrato de datos que los sostenga.
 
-Manu aprobó implementar todos los bloques y aplazar las verificaciones pesadas hasta que las indique. La implementación avanza por etapas con dependencias selectivas; cambios de ejecución real, migraciones y despliegues conservan sus requisitos específicos.
+Manu aprobó implementar todos los bloques y posteriormente concentrar las compilaciones y comprobaciones al final de las mejoras. La implementación se completó por etapas con dependencias selectivas; cambios de ejecución real, migraciones y despliegues conservan sus requisitos específicos.
 
 ## 2. Base del análisis y límites
 

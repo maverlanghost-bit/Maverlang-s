@@ -2,6 +2,8 @@ import "server-only";
 
 import { tickerBySymbol } from "@/config/tickers";
 import { findAssetBySymbol } from "@/lib/catalog/assets";
+import { isCryptoSymbol } from "@/lib/catalog/crypto";
+import { isEarnSymbol } from "@/lib/catalog/lst";
 import type { ComplianceWriteInput } from "@/lib/compliance/profile-write";
 import { serverEnv } from "@/lib/env";
 import {
@@ -11,6 +13,8 @@ import {
   type AssetStatusBatchItem,
 } from "@/lib/market/asset-status";
 import { yahooSymbol } from "@/lib/market/underlying-move";
+import type { TodayBoard } from "@/lib/market/movers";
+import { marketMovers } from "@/lib/services/market-movers";
 import { mockAuth } from "@/lib/services/auth.mock";
 import { privyAuth } from "@/lib/services/auth.privy";
 import { koyweOnramp } from "@/lib/services/onramp.koywe";
@@ -21,7 +25,8 @@ import { livePortfolio } from "@/lib/services/portfolio.live";
 import { livePrices } from "@/lib/services/prices.live";
 import { mockPrices } from "@/lib/services/prices.mock";
 import { historyMemoTtl, scaleCloses, ticksForRange, ticksIfEnough } from "@/lib/services/history-series";
-import { readUnderlyingCloses } from "@/lib/services/underlying-prices.supabase";
+import { readHistoryWithMetadata } from "@/lib/services/price-ticks.supabase";
+import { readUnderlyingHistory } from "@/lib/services/underlying-prices.supabase";
 import { liveTrade } from "@/lib/services/trade.live";
 import { mockTrade } from "@/lib/services/trade.mock";
 import { assertMockAuthAllowed, isSupabaseAuth } from "@/lib/auth/mode";
@@ -34,6 +39,7 @@ import type {
   Balance,
   Consent,
   FxRate,
+  HistoryMetadata,
   MarketStatus,
   OnrampSession,
   OnrampSessionRequest,
@@ -66,6 +72,7 @@ export interface Services {
   };
   /** Horario real por activo (M39): live → catálogo → mock, con cache de 60 s. */
   market: {
+    today(now?: number): Promise<TodayBoard>;
     status(symbol: string): Promise<AssetStatus>;
     statuses(symbols: readonly string[]): Promise<AssetStatusBatchItem[]>;
   };
@@ -151,7 +158,7 @@ const HISTORY_BUDGET_MS = 6_000;
 
 export type HistorySource = "ticks" | "closes" | "mock";
 
-type HistoryResult = { points: PricePoint[]; source: HistorySource };
+export type HistoryResult = { points: PricePoint[]; source: HistorySource; metadata?: HistoryMetadata };
 
 const historyMemo = new Map<string, { at: number; value: HistoryResult }>();
 const historyInflight = new Map<string, Promise<HistoryResult>>();
@@ -163,6 +170,9 @@ function historyKey(symbol: string, range: Range): string {
 }
 
 async function underlyingSymbol(symbol: string): Promise<string> {
+  // Cripto/LST no tienen una acción subyacente. No buscar un símbolo Yahoo
+  // parecido para rellenar su historia cuando faltan observaciones del token.
+  if (isCryptoSymbol(symbol) || isEarnSymbol(symbol)) return "";
   const ticker = tickerBySymbol(symbol);
   if (ticker?.underlying) return yahooSymbol(ticker.underlying);
   const asset = await findAssetBySymbol(symbol, { scope: "all", noListing: true }).catch(() => null);
@@ -172,20 +182,24 @@ async function underlyingSymbol(symbol: string): Promise<string> {
 async function closesFor(
   symbol: string,
   range: Range,
-): Promise<{ points: PricePoint[]; source: "closes" }> {
+): Promise<HistoryResult & { source: "closes" }> {
   const pricesLive = serverEnv.PRICES_MODE === "live";
   const underlying = await underlyingSymbol(symbol);
-  const [multiplier, closes] = await Promise.all([
+  const [multiplier, history] = await Promise.all([
     pricesLive ? livePrices.multiplierFor(symbol).catch(() => 1) : Promise.resolve(1),
-    underlying ? readUnderlyingCloses(underlying, range).catch(() => [] as PricePoint[]) : Promise.resolve([] as PricePoint[]),
+    underlying ? readUnderlyingHistory(underlying, range).catch(() => null) : Promise.resolve(null),
   ]);
-  return { points: scaleCloses(closes, multiplier), source: "closes" };
+  const factor = Number.isFinite(multiplier) && multiplier > 0 ? multiplier : 1;
+  return {
+    points: scaleCloses(history?.points ?? [], factor), source: "closes",
+    ...(history ? { metadata: { ...history.metadata, multiplier: factor } } : {}),
+  };
 }
 
 async function realHistory(
   symbol: string,
   range: Range,
-): Promise<{ points: PricePoint[]; source: "ticks" | "closes" }> {
+): Promise<HistoryResult & { source: "ticks" | "closes" }> {
   // Cierres de `unstable_cache` antes que ticks cuando el rango es diario.
   // 1D no entra: necesita la serie intradía.
   if (CLOSES_FIRST.has(range)) {
@@ -197,9 +211,9 @@ async function realHistory(
     // 1D no depende de la ventana de `price_ticks`: se pide una semana y se corta a DIAS.
     // No se pide el spot: el gráfico no reescala, y Jupiter queda sólo en /api/prices.
     const tickRange: Range = range === "1D" ? "1W" : range;
-    const rawTicks = await livePrices.history(symbol, tickRange).catch(() => [] as PricePoint[]);
-    const ticks = ticksIfEnough(ticksForRange(range, rawTicks, DIAS, Date.now()), MIN_TICKS);
-    if (ticks) return { points: ticks, source: "ticks" };
+    const history = await readHistoryWithMetadata(symbol, tickRange).catch(() => null);
+    const ticks = ticksIfEnough(ticksForRange(range, history?.points ?? [], DIAS, Date.now()), MIN_TICKS);
+    if (ticks) return { points: ticks, source: "ticks", ...(history ? { metadata: history.metadata } : {}) };
   }
 
   if (!CLOSES_FIRST.has(range)) return closesFor(symbol, range);
@@ -210,7 +224,14 @@ async function loadHistory(symbol: string, range: Range): Promise<HistoryResult>
   const pricesLive = serverEnv.PRICES_MODE === "live";
   const dataLive = serverEnv.DATA_MODE === "live";
   if (!pricesLive && !dataLive) {
-    return { points: await mockPrices.history(symbol, range), source: "mock" };
+    return {
+      points: await mockPrices.history(symbol, range), source: "mock",
+      metadata: {
+        instrument: "demo", provider: "mock", resolution: "unknown", reference: true,
+        priceUnit: isCryptoSymbol(symbol) || isEarnSymbol(symbol) ? "usd_per_token" : "usd_per_share",
+        capabilities: { ohlc: false, volume: false },
+      },
+    };
   }
   const real = await realHistory(symbol, range).catch(() => null);
   if (real && real.points.length >= MIN_TICKS) return real;
@@ -362,6 +383,7 @@ export function getServices(): Services {
   return {
     prices: priceServices(),
     market: {
+      today: marketMovers.today,
       status: (symbol) => assetStatus(symbol),
       statuses: (symbols) => assetStatuses(symbols),
     },

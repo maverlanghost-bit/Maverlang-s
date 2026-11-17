@@ -19,7 +19,9 @@ test("portada: demo gratis, lista de espera y logos", async ({ page }) => {
   await expect(page).toHaveURL(/\/app\/registro/);
 
   await page.goto("/");
-  await expect(page.getByText("Practica con US$10.000 ficticios y precios reales.")).toBeVisible();
+  const avisoDemo = page.getByRole("region", { name: "Cotizaciones" }).getByText("Practica con US$10.000 ficticios.");
+  await expect(avisoDemo).toBeVisible();
+  await expect(avisoDemo).not.toContainText("precios reales");
   await expect(page.getByRole("link", { name: "Avísame cuando abra la cuenta Real" })).toBeVisible();
 
   let correoEnviado: unknown = null;

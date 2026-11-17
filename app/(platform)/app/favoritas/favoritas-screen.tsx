@@ -103,7 +103,7 @@ export function FavoritasScreen() {
   const favoritePriceSymbols = useMemo(
     () =>
       priceQueryKey(
-        favoriteSymbols.filter((symbol) => isCatalogSymbol(symbol)).map((symbol) => symbol.toLowerCase()),
+        favoriteSymbols.filter((symbol) => isCatalogSymbol(symbol.toLowerCase())).map((symbol) => symbol.toLowerCase()),
       ),
     [favoriteSymbols],
   );

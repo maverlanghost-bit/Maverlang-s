@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useQueries } from "@tanstack/react-query";
@@ -32,6 +32,7 @@ import {
   type MarketSort,
 } from "@/lib/market/browse";
 import type { Currency, Quote } from "@/lib/types";
+import { rememberMarketEntry, takeMarketScroll } from "@/lib/market/return-navigation";
 
 const PAGE_SIZE = 20;
 const SEARCH_STALE_MS = 30_000;
@@ -300,6 +301,27 @@ export function MarketScreen({
     [page, query, serverCategory, serverSort],
   );
   const searchQueries = useQueries({ queries: searchQueryOptions });
+  const returnScroll = useRef<number | null>(null);
+  const pagesReady = searchQueries.every((entry) => !entry.isPending);
+  useEffect(() => {
+    const savedScroll = takeMarketScroll();
+    if (savedScroll !== null) returnScroll.current = savedScroll;
+    document.addEventListener("click", rememberMarketEntry, true);
+    return () => document.removeEventListener("click", rememberMarketEntry, true);
+  }, []);
+  useEffect(() => {
+    if (!pagesReady || returnScroll.current === null) return;
+    const target = returnScroll.current;
+    let frame = 0;
+    const started = performance.now();
+    const restore = () => {
+      window.scrollTo(0, target);
+      if (Math.abs(window.scrollY - target) <= 1 || performance.now() - started > 3000) returnScroll.current = null;
+      else frame = requestAnimationFrame(restore);
+    };
+    frame = requestAnimationFrame(restore);
+    return () => cancelAnimationFrame(frame);
+  }, [pagesReady]);
   const fx = useFx();
   const status = useMarketStatus();
   const { symbols: favorites, toggle } = useFavorites();
@@ -611,7 +633,7 @@ export function MarketScreen({
           </FilterPanel>
           <label className="flex w-40 flex-col gap-1.5 text-xs text-fg-muted">{t.market.sortLabel}<select value={sort} onChange={(event) => onSortChange(parseSort(event.target.value))} className="min-h-11 rounded-lg border border-border-control bg-bg px-3 text-base text-fg sm:text-sm">{sortOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
         </div>
-        <div className="w-full"><ActiveFilters filters={[
+        <div className="w-full"><ActiveFilters language={language} filters={[
           ...(draft ? [{ id: "q", label: draft, remove: () => { setDraft(""); setQuery(""); setPage(1); } }] : []),
           ...(filter !== "all" ? [{ id: "category", label: activeFilterLabel, remove: () => onFilterChange("all") }] : []),
         ]} onClear={clearFilters} /></div>

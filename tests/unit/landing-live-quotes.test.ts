@@ -122,8 +122,9 @@ describe("M42: getLandingQuotes en vivo", () => {
 });
 
 describe("M42: etiqueta de la portada", () => {
-  it("en vivo quita 'Precios ilustrativos' y avisa dólares en vivo", () => {
-    expect(landingNotice(true)).toBe("Precios en dólares (US$), en vivo");
+  it("identifica cotizaciones del token y pide consultar la fecha sin prometer tiempo real", () => {
+    expect(landingNotice(true)).toBe("Cotizaciones del token en dólares (US$) · consulta la fecha de cada precio");
+    expect(landingNotice(true).toLowerCase()).not.toContain("en vivo");
     expect(landingNotice(false)).toBe(ILLUSTRATIVE_NOTICE);
     expect(landingNotice(false)).toBe("Precios ilustrativos");
   });

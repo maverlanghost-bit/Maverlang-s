@@ -61,7 +61,7 @@ export function GET(req: Request) {
         }
       }
       const rows = await callService(req, () => historiesWithSource(visible, range));
-      const series = rows.map((row) => ({ symbol: row.symbol, ...historyFields(row.points, row.source) }));
+      const series = rows.map((row) => ({ symbol: row.symbol, ...historyFields(row.points, row.source, row.metadata) }));
       const cacheable = series.some((row) => historyCacheControl(row) === HISTORY_CACHE_DATA);
       return NextResponse.json(ok({ series }), {
         status: 200,

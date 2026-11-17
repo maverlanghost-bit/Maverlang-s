@@ -34,7 +34,17 @@ export function scaleCloses(closes: readonly PricePoint[], multiplier: number): 
   for (const point of closes) {
     const price = point.p * factor;
     if (!Number.isFinite(point.t) || !Number.isFinite(price) || price <= 0) continue;
-    out.push({ t: point.t, p: price });
+    const scaled: PricePoint = { t: point.t, p: price };
+    // Todos los precios usan la misma unidad. El volumen sigue siendo el
+    // número de acciones del subyacente observado por la fuente.
+    for (const field of ["o", "h", "l", "c"] as const) {
+      const value = point[field];
+      if (value === undefined) continue;
+      const adjusted = value * factor;
+      if (Number.isFinite(adjusted) && adjusted > 0) scaled[field] = adjusted;
+    }
+    if (point.v !== undefined && Number.isFinite(point.v) && point.v >= 0) scaled.v = point.v;
+    out.push(scaled);
   }
   return out;
 }

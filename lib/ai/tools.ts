@@ -14,7 +14,7 @@ import { readCompanyForSymbol } from "@/lib/services/company-facts.supabase";
 import { readHistory } from "@/lib/services/price-ticks.supabase";
 import { readUnderlyingCloses } from "@/lib/services/underlying-prices.supabase";
 import type { CompanyFactsView } from "@/lib/market/fundamentals";
-import type { FxRate, Portfolio, PricePoint, Quote, Range } from "@/lib/types";
+import type { FxRate, HistoryMetadata, Portfolio, PricePoint, Quote, Range } from "@/lib/types";
 import type { AiWidget } from "@/lib/ai/types";
 import type { XaiTool } from "@/lib/ai/xai";
 import type { ResolveDeps, ResolvedTicker } from "@/lib/ai/resolve";
@@ -37,6 +37,8 @@ export interface AssistantDeps {
     /** Dólar observado del servicio de precios. Sin esto, la simulación no inventa pesos. */
     fx?: () => Promise<FxRate>;
   };
+  /** Existing history service with provenance; injected point-only services stay unknown. */
+  historyWithSource?: (symbol: string, range: Range) => Promise<{ points: PricePoint[]; source: "ticks" | "closes" | "mock"; metadata?: HistoryMetadata }>;
   loadPortfolio: (req: Request) => Promise<PortfolioLoad>;
   resolveTicker: (query: string, deps?: ResolveDeps) => Promise<ResolvedTicker | null>;
   searchTickers: (query: string, deps?: ResolveDeps) => Promise<ResolvedTicker[]>;
@@ -328,19 +330,21 @@ async function loadSeries(
   deps: AssistantDeps,
   ticker: string,
   range: Range,
-): Promise<{ priceUsd: number | null; changePct: number | null; points: { t: number; p: number }[] }> {
+): Promise<{ priceUsd: number | null; changePct: number | null; points: { t: number; p: number }[]; source?: "ticks" | "closes" | "mock"; metadata?: HistoryMetadata }> {
   const [quoteResult, historyResult] = await Promise.allSettled([
     deps.prices.list([ticker]),
-    deps.prices.history(ticker, range),
+    deps.historyWithSource ? deps.historyWithSource(ticker, range) : deps.prices.history(ticker, range).then((points) => ({ points, source: undefined, metadata: undefined })),
   ]);
   const quotes = quoteResult.status === "fulfilled" ? quoteResult.value : [];
   const quote = quotes.find((item) => item.symbol.toLowerCase() === ticker.toLowerCase());
-  const raw = historyResult.status === "fulfilled" ? historyResult.value : [];
+  const raw = historyResult.status === "fulfilled" ? historyResult.value.points : [];
+  const source = historyResult.status === "fulfilled" ? historyResult.value.source : undefined;
+  const metadata = historyResult.status === "fulfilled" ? historyResult.value.metadata : undefined;
   const points = cleanPoints(raw);
   const fromSeries = seriesChange(points);
   const priceUsd = positive(quote?.priceUsd) ?? positive(points[points.length - 1]?.p);
   const changePct = range === "1D" ? (ratio(quote?.change24hPct) ?? fromSeries) : fromSeries;
-  return { priceUsd, changePct, points };
+  return { priceUsd, changePct, points, ...(source ? { source } : {}), ...(metadata ? { metadata } : {}) };
 }
 
 function stockRange(value: unknown): StockRange | null {
@@ -386,6 +390,8 @@ async function toolStock(args: Record<string, unknown>, deps: AssistantDeps): Pr
     changePct: series.changePct,
     range,
     points: series.points,
+    ...(series.source ? { source: series.source } : {}),
+    ...(series.metadata ? { metadata: series.metadata } : {}),
   };
   return {
     content: JSON.stringify({
@@ -394,6 +400,7 @@ async function toolStock(args: Record<string, unknown>, deps: AssistantDeps): Pr
       priceUsd: series.priceUsd,
       changePct: series.changePct,
       range,
+      ...(series.source ? { historySource: series.source } : {}),
     }),
     widgets: [widget],
     stockRelated: true,
@@ -430,13 +437,15 @@ async function toolCompare(args: Record<string, unknown>, deps: AssistantDeps): 
       name: asset.name,
       changePct: series.changePct,
       points: series.points,
+      ...(series.source ? { source: series.source } : {}),
+      ...(series.metadata ? { metadata: series.metadata } : {}),
     });
   }
   const widget: AiWidget = { type: "compare", items, range };
   return {
     content: JSON.stringify({
       range,
-      items: items.map((item) => ({ ticker: item.ticker, name: item.name, changePct: item.changePct })),
+      items: items.map((item) => ({ ticker: item.ticker, name: item.name, changePct: item.changePct, ...(item.source ? { historySource: item.source } : {}) })),
     }),
     widgets: [widget],
     stockRelated: true,

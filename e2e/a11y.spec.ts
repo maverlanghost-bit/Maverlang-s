@@ -148,16 +148,15 @@ test("M85 a11y: flujo de teclado — skip link, hoja de compra y foco", async ({
   // Ir a la ficha y abrir la hoja de compra sólo con teclado.
   await page.goto("/app/accion/AAPLx");
   await expect(page.getByRole("heading", { level: 1, name: "Apple" })).toBeVisible();
-  const buy = page.getByRole("button", { name: "Comprar", exact: true });
+  const buy = page.getByRole("group", { name: "Comprar o vender" }).filter({ visible: true }).getByRole("button", { name: "Comprar", exact: true });
   await buy.focus();
   await expect(buy).toBeFocused();
   await page.keyboard.press("Enter");
   const sheet = page.getByRole("dialog", { name: /Comprar Apple/ });
   await expect(sheet).toBeVisible();
 
-  // Al abrir, el foco cae en el primer control de la hoja (el selector de
-  // moneda USD/Acciones, primero en el orden del DOM).
-  const firstControl = sheet.getByRole("radio", { name: "USD" });
+  // Al abrir, el foco cae en la opción activa del selector de operación.
+  const firstControl = sheet.getByRole("radiogroup", { name: "Operación" }).getByRole("radio", { name: "Comprar", exact: true });
   await expect(firstControl).toBeFocused();
 
   // El foco no escapa de la hoja: Tab desde el último control (Cerrar) vuelve
@@ -180,7 +179,7 @@ test("M85 a11y: flujo de compra completo por teclado", async ({ page }) => {
   await loginDemo(page);
 
   await page.goto("/app/accion/AAPLx");
-  const buy = page.getByRole("button", { name: "Comprar", exact: true });
+  const buy = page.getByRole("group", { name: "Comprar o vender" }).filter({ visible: true }).getByRole("button", { name: "Comprar", exact: true });
   await buy.focus();
   await page.keyboard.press("Enter");
   const sheet = page.getByRole("dialog", { name: /Comprar Apple/ });

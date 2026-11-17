@@ -39,6 +39,22 @@ export function ChangeText({ value, className }: { value: number; className?: st
   );
 }
 
+function provenance(card: MoverCardData, language: "en" | "es"): string {
+  const meta = card.metadata;
+  if (!meta) return `${language === "en" ? "Source and dates unavailable" : "Fuente y fechas no disponibles"}${card.stale ? (language === "en" ? " · cached, updating" : " · guardado, actualizando") : ""}`;
+  const source = meta.source === "mock"
+    ? (language === "en" ? "Demo prices" : "Precios de demostración")
+    : meta.source === "closes"
+      ? (language === "en" ? "Underlying reference closes" : "Cierres de referencia del subyacente")
+      : (language === "en" ? "Token price samples" : "Sondeos del precio del token");
+  const formatter = new Intl.DateTimeFormat(language === "en" ? "en" : "es-CL", {
+    timeZone: "America/Santiago", dateStyle: "short", ...(meta.source === "closes" ? {} : { timeStyle: "short" }),
+  });
+  const dates = (from: number, to: number) => `${formatter.format(from)} – ${formatter.format(to)}`;
+  const provider = meta.source === "mock" ? "" : meta.provider && meta.provider !== "unknown" ? ` · ${meta.provider}` : (language === "en" ? " · provider unavailable" : " · proveedor no disponible");
+  const stale = card.stale ? (language === "en" ? " · cached, updating" : " · guardado, actualizando") : "";
+  return `${source}${provider} · ${language === "en" ? "change" : "variación"}: ${dates(meta.changeFrom, meta.changeTo)} · ${language === "en" ? "chart" : "gráfico"}: ${dates(meta.sparkFrom, meta.sparkTo)}${stale}`;
+}
 function stockPath(symbol: string): string {
   return `/app/accion/${encodeURIComponent(symbol)}`;
 }
@@ -64,17 +80,19 @@ export function MoverCard({
   card,
   label,
   rank,
+  language,
 }: {
   card: MoverCardData;
   /** Nombre accesible, ya armado. */
   label: string;
   /** Posición opcional en el ranking (1..5). */
   rank?: number;
+  language: "en" | "es";
 }) {
   const path = stockPath(card.symbol);
   const open = useOpenStock(path);
   return (
-    <div role="link" tabIndex={0} aria-label={label} className={cn(moverCardClass, "cursor-pointer")} {...open}>
+    <div role="link" tabIndex={0} aria-label={`${label}. ${provenance(card, language)}`} className={cn(moverCardClass, "cursor-pointer")} {...open}>
       {rank !== undefined ? (
         <span aria-hidden className="num w-4 shrink-0 text-[13px] leading-5 tabular-nums text-fg-subtle">
           {rank}
@@ -89,11 +107,12 @@ export function MoverCard({
         loading="eager"
         sizes="28px"
       />
-      <span aria-hidden className="flex min-w-0 flex-1 items-baseline gap-2">
+      <span aria-hidden className="flex min-w-0 flex-1 flex-col"><span className="flex min-w-0 items-baseline gap-2">
         <span className="num shrink-0 text-[13px] leading-5 font-semibold tracking-tight text-fg">{card.symbol}</span>
         <span className="min-w-0 truncate text-[13px] leading-5 text-fg-muted" title={card.name}>
           {card.name}
         </span>
+        </span><span className="text-[11px] leading-4 text-fg-muted">{provenance(card, language)}</span>
       </span>
       <Sparkline
         data={card.spark}
@@ -117,10 +136,12 @@ export function SpyChip({
   card,
   name,
   label,
+  language,
 }: {
   card: MoverCardData;
   name: string;
   label: string;
+  language: "en" | "es";
 }) {
   const path = stockPath(card.symbol);
   const open = useOpenStock(path);
@@ -128,11 +149,11 @@ export function SpyChip({
     <div
       role="link"
       tabIndex={0}
-      aria-label={label}
+      aria-label={`${label}. ${provenance(card, language)}`}
       className="group inline-flex min-h-11 max-w-full cursor-pointer items-center sm:min-h-8"
       {...open}
     >
-      <span aria-hidden className="inline-flex min-w-0 items-center gap-2">
+      <span aria-hidden className="inline-flex min-w-0 flex-wrap items-center gap-2">
         <span className="truncate text-[13px] leading-5 text-fg-muted">{name}</span>
         <span className="num shrink-0 text-[13px] leading-5 font-medium text-fg group-hover:underline group-hover:underline-offset-4">
           {card.symbol}
@@ -145,6 +166,7 @@ export function SpyChip({
           className="hidden min-[360px]:block"
         />
         <ChangeText value={card.changePct} />
+        <span className="text-[11px] leading-4 text-fg-muted">{provenance(card, language)}</span>
       </span>
     </div>
   );

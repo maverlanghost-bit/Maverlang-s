@@ -1,5 +1,5 @@
 import { toYahooSymbol } from "@/lib/market/yahoo-symbol";
-import type { Range } from "@/lib/types";
+import type { HistoryMetadata, PricePoint, Range } from "@/lib/types";
 
 /**
  * Variación del día de la acción subyacente.
@@ -170,21 +170,23 @@ export async function fetchUnderlyingChanges(
 }
 
 /**
- * Serie del gráfico del subyacente, ya en ms y USD (`{ t, p }`).
+ * Serie del gráfico del subyacente, ya en ms y USD, con OHLCV observado opcional.
  * Es el respaldo del histórico cuando `underlying_prices` no tiene filas
  * recientes: la tabla se llena por cron y puede quedar días atrás.
  * Sin caché de Next ni `server-only`: cualquiera puede llamarlo desde el server.
  */
-export interface UnderlyingChartPoint {
-  t: number;
-  p: number;
+export type UnderlyingChartPoint = PricePoint;
+
+export interface UnderlyingChartHistory {
+  points: UnderlyingChartPoint[];
+  metadata: HistoryMetadata;
 }
 
 interface ChartQuery {
   /** `range` de Yahoo. */
   range: string;
   /** `interval` de Yahoo. */
-  interval: string;
+  interval: "15m" | "1h" | "1d" | "1wk";
 }
 
 /** 1D y 1W comparten `5d`: con 15m/1h Yahoo devuelve las dos últimas jornadas. */
@@ -205,26 +207,37 @@ const SERIES_TTL_MS = 60_000;
 interface SeriesCacheEntry {
   at: number;
   /** []; Yahoo no sirvió la serie (o no la tiene para ese símbolo). */
-  points: UnderlyingChartPoint[];
+  value: UnderlyingChartHistory;
 }
 
 const seriesCache = new Map<string, SeriesCacheEntry>();
-const inflightSeries = new Map<string, Promise<UnderlyingChartPoint[]>>();
+const inflightSeries = new Map<string, Promise<UnderlyingChartHistory>>();
 
-/**
- * Empareja `timestamp[i]` con `indicators.quote[0].close[i]`.
- * Yahoo deja `close: null` en barras sin operación: se descartan.
- */
-export function parseYahooChartSeries(body: unknown): UnderlyingChartPoint[] {
-  if (!isRecord(body)) return [];
+function yahooChartResult(body: unknown): Record<string, unknown> | null {
+  if (!isRecord(body)) return null;
   const chart = isRecord(body.chart) ? body.chart : null;
   const result = chart && Array.isArray(chart.result) ? chart.result[0] : null;
-  if (!isRecord(result)) return [];
+  return isRecord(result) ? result : null;
+}
+
+/**
+ * Empareja timestamp y arrays quote de la MISMA barra. No usa adjclose para
+ * construir OHLC, no rellena un open/high/low ausente a partir del cierre y
+ * no transforma sondeos en volumen. Un cierre útil conserva su valor incluso
+ * cuando el proveedor no entregó una barra completa.
+ */
+export function parseYahooChartSeries(body: unknown): UnderlyingChartPoint[] {
+  const result = yahooChartResult(body);
+  if (!result) return [];
   const timestamps = Array.isArray(result.timestamp) ? result.timestamp : [];
   const indicators = isRecord(result.indicators) ? result.indicators : null;
   const quotes = indicators && Array.isArray(indicators.quote) ? indicators.quote : [];
   const quote = isRecord(quotes[0]) ? quotes[0] : null;
   const closes = quote && Array.isArray(quote.close) ? quote.close : [];
+  const opens = quote && Array.isArray(quote.open) ? quote.open : [];
+  const highs = quote && Array.isArray(quote.high) ? quote.high : [];
+  const lows = quote && Array.isArray(quote.low) ? quote.low : [];
+  const volumes = quote && Array.isArray(quote.volume) ? quote.volume : [];
   const points: UnderlyingChartPoint[] = [];
   const size = Math.min(timestamps.length, closes.length);
   for (let i = 0; i < size; i += 1) {
@@ -234,7 +247,22 @@ export function parseYahooChartSeries(body: unknown): UnderlyingChartPoint[] {
     const p = typeof close === "number" ? close : Number.NaN;
     if (!Number.isFinite(t) || t <= 0) continue;
     if (!Number.isFinite(p) || p <= 0) continue;
-    points.push({ t, p });
+    const point: UnderlyingChartPoint = { t, p };
+    const open = opens[i];
+    const high = highs[i];
+    const low = lows[i];
+    if (typeof open === "number" && Number.isFinite(open) && open > 0 &&
+        typeof high === "number" && Number.isFinite(high) && high > 0 &&
+        typeof low === "number" && Number.isFinite(low) && low > 0 &&
+        high >= Math.max(open, p) && low <= Math.min(open, p)) {
+      point.o = open;
+      point.h = high;
+      point.l = low;
+      point.c = p;
+    }
+    const volume = volumes[i];
+    if (typeof volume === "number" && Number.isFinite(volume) && volume >= 0) point.v = volume;
+    points.push(point);
   }
   return points;
 }
@@ -262,13 +290,24 @@ function keepLastSessions(
   return trimmed.length > limit ? trimmed.slice(trimmed.length - limit) : trimmed;
 }
 
-async function fetchChartSeries(
+function emptyChartHistory(symbol: string): UnderlyingChartHistory {
+  return {
+    points: [],
+    metadata: {
+      instrument: "underlying", provider: "yahoo", providerSymbol: symbol,
+      resolution: "unknown", priceUnit: "usd_per_share", reference: true,
+      priceAdjustment: "provider_quote", capabilities: { ohlc: false, volume: false },
+    },
+  };
+}
+
+async function fetchChartHistory(
   underlying: string,
   range: Range,
   timeoutMs: number,
-): Promise<UnderlyingChartPoint[]> {
+): Promise<UnderlyingChartHistory> {
   const symbol = toYahooSymbol(underlying);
-  if (!YAHOO_SYMBOL.test(symbol)) return [];
+  if (!YAHOO_SYMBOL.test(symbol)) return emptyChartHistory(symbol);
   const query = CHART_QUERIES[range];
   const url = `${CHART_URL}/${encodeURIComponent(symbol)}?range=${query.range}&interval=${query.interval}`;
   const response = await fetch(url, {
@@ -278,8 +317,33 @@ async function fetchChartSeries(
     cache: "no-store",
   });
   if (!response.ok) throw new Error(`yahoo ${response.status}`);
-  const points = parseYahooChartSeries(await response.json()).sort((a, b) => a.t - b.t);
-  return range === "1D" ? keepLastSessions(points, ONE_DAY_SESSIONS, ONE_DAY_POINTS) : points;
+  const body: unknown = await response.json();
+  const result = yahooChartResult(body);
+  const meta = result && isRecord(result.meta) ? result.meta : null;
+  // Los precios de este contrato son USD. Un símbolo cotizado en otra moneda
+  // no puede convertirse a USD sólo por llevar ese nombre en el tipo.
+  if (meta?.currency !== "USD") return emptyChartHistory(symbol);
+  const allPoints = parseYahooChartSeries(body).sort((a, b) => a.t - b.t);
+  const points = range === "1D" ? keepLastSessions(allPoints, ONE_DAY_SESSIONS, ONE_DAY_POINTS) : allPoints;
+  const rawResolution = meta.dataGranularity;
+  const resolution = rawResolution === "15m" || rawResolution === "1h" || rawResolution === "1d" || rawResolution === "1wk"
+    ? rawResolution : "unknown";
+  const sharesVolume = meta.instrumentType === "EQUITY" || meta.instrumentType === "ETF";
+  // Con unidad de volumen desconocida se conserva el cierre, sin habilitar
+  // ni transportar una magnitud que la UI podría presentar como acciones.
+  if (!sharesVolume) for (const point of points) delete point.v;
+  return {
+    points,
+    metadata: {
+      ...emptyChartHistory(symbol).metadata,
+      resolution,
+      ...(sharesVolume ? { volumeUnit: "underlying_shares", volumeScope: "underlying_market" } as const : {}),
+      capabilities: {
+        ohlc: points.length >= 2 && points.every((point) => point.o !== undefined && point.h !== undefined && point.l !== undefined && point.c !== undefined),
+        volume: sharesVolume && points.length >= 2 && points.every((point) => point.v !== undefined),
+      },
+    },
+  };
 }
 
 /**
@@ -291,19 +355,29 @@ export async function fetchYahooChartSeries(
   range: Range,
   options: { timeoutMs?: number } = {},
 ): Promise<UnderlyingChartPoint[]> {
+  return (await fetchYahooChartHistory(underlying, range, options)).points;
+}
+
+/** Misma lectura y caché que fetchYahooChartSeries, conservando procedencia y resolución. */
+export async function fetchYahooChartHistory(
+  underlying: string,
+  range: Range,
+  options: { timeoutMs?: number } = {},
+): Promise<UnderlyingChartHistory> {
   const key = `${underlying}${range}`;
   const hit = seriesCache.get(key);
-  if (hit && Date.now() - hit.at < SERIES_TTL_MS) return hit.points;
+  if (hit && Date.now() - hit.at < SERIES_TTL_MS) return hit.value;
   const pending = inflightSeries.get(key);
   if (pending) return pending;
-  const job = fetchChartSeries(underlying, range, options.timeoutMs ?? DEFAULT_TIMEOUT_MS)
-    .then((points) => {
-      seriesCache.set(key, { at: Date.now(), points });
-      return points;
+  const job = fetchChartHistory(underlying, range, options.timeoutMs ?? DEFAULT_TIMEOUT_MS)
+    .then((value) => {
+      seriesCache.set(key, { at: Date.now(), value });
+      return value;
     })
     .catch(() => {
-      seriesCache.set(key, { at: Date.now(), points: [] });
-      return [];
+      const value = emptyChartHistory(toYahooSymbol(underlying));
+      seriesCache.set(key, { at: Date.now(), value });
+      return value;
     })
     .finally(() => {
       inflightSeries.delete(key);

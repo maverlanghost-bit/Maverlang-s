@@ -6,6 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { ChangeBadge } from "@/components/domain/change-badge";
 import { FlashPrice } from "@/components/domain/flash-price";
 import { PriceText } from "@/components/domain/price-text";
+import { PriceFreshness } from "@/components/domain/price-freshness";
 import { getPrices } from "@/lib/api/client";
 import { cn } from "@/lib/cn";
 import { formatPercent, formatUsd } from "@/lib/format";
@@ -27,6 +28,17 @@ export const LANDING_REFETCH_MS = 20_000;
 export interface LandingInitial {
   priceUsd: number;
   change: number;
+  source?: Quote["source"];
+  reference?: boolean;
+  stale?: boolean;
+  updatedAt?: string;
+  live?: boolean;
+}
+
+interface LandingResolved extends LandingInitial {
+  reference: boolean;
+  demo: boolean;
+  stale: boolean;
 }
 
 interface LandingLiveState {
@@ -67,7 +79,7 @@ export function LiveLandingPrices({
   const value = useMemo<LandingLiveState>(
     () => ({
       initialBySymbol: new Map(
-        initial.map((quote) => [quote.symbol, { priceUsd: quote.priceUsd, change: quote.change }]),
+        initial.map((quote) => [quote.symbol, quote]),
       ),
       liveBySymbol: new Map((query.data ?? []).map((quote) => [quote.symbol, quote])),
       // El refetch que falla deja el último precio bueno en pantalla: se
@@ -79,9 +91,7 @@ export function LiveLandingPrices({
   return <LandingLiveContext.Provider value={value}>{children}</LandingLiveContext.Provider>;
 }
 
-/** Precio y cambio 24 h: en vivo si la query ya trajo el símbolo, si no el valor inicial. */
-export function useLandingQuote(symbol: string, initial?: LandingInitial): { priceUsd: number; change: number } {
-  const state = useLandingLiveState();
+function resolvedQuote(state: LandingLiveState, symbol: string, initial?: LandingInitial): LandingResolved {
   const quote = state.liveBySymbol.get(symbol);
   if (
     quote &&
@@ -89,10 +99,26 @@ export function useLandingQuote(symbol: string, initial?: LandingInitial): { pri
     quote.priceUsd > 0 &&
     Number.isFinite(quote.change24hPct)
   ) {
-    return { priceUsd: quote.priceUsd, change: quote.change24hPct };
+    return {
+      priceUsd: quote.priceUsd, change: quote.change24hPct, source: quote.source,
+      updatedAt: quote.updatedAt, reference: quote.source === "mock" || quote.reference === true,
+      demo: quote.source === "mock", stale: state.stale || quote.stale === true,
+    };
   }
-  const fallback = initial ?? state.initialBySymbol.get(symbol);
-  return { priceUsd: fallback?.priceUsd ?? 0, change: fallback?.change ?? 0 };
+  // Los callers antiguos pasan sólo números. El mapa conserva la procedencia
+  // del servidor para que ese objeto parcial no convierta una muestra en live.
+  const fallback = state.initialBySymbol.get(symbol) ?? initial;
+  return {
+    ...fallback, priceUsd: fallback?.priceUsd ?? 0, change: fallback?.change ?? 0,
+    reference: fallback?.source !== "jupiter" || fallback.reference === true,
+    demo: fallback?.source === "mock" || (!fallback?.source && fallback?.live !== true),
+    stale: state.stale || fallback?.stale === true,
+  };
+}
+
+/** Valores y procedencia de la MISMA cotización; nunca del instante del refetch. */
+export function useLandingQuote(symbol: string, initial?: LandingInitial): LandingResolved {
+  return resolvedQuote(useLandingLiveState(), symbol, initial);
 }
 
 /**
@@ -100,9 +126,16 @@ export function useLandingQuote(symbol: string, initial?: LandingInitial): { pri
  * provider devuelve `stale: false` (la etiqueta es presentacional; el dato
  * sigue saliendo de `useLandingQuote`, que sí exige el provider).
  */
-export function useLandingStatus(): { stale: boolean } {
+export function useLandingStatus(): { stale: boolean; reference: boolean; demo: boolean; token: boolean } {
   const state = useContext(LandingLiveContext);
-  return { stale: state?.stale ?? false };
+  if (!state) return { stale: false, reference: true, demo: true, token: false };
+  const quotes = [...state.initialBySymbol.keys()].map((symbol) => resolvedQuote(state, symbol));
+  return {
+    stale: state.stale || quotes.some((quote) => quote.stale),
+    reference: quotes.some((quote) => quote.reference),
+    demo: quotes.length === 0 || quotes.every((quote) => quote.demo),
+    token: quotes.length > 0 && quotes.every((quote) => quote.source === "jupiter" && !quote.reference),
+  };
 }
 
 /**
@@ -112,23 +145,23 @@ export function useLandingStatus(): { stale: boolean } {
  * viejo.
  */
 export function LandingLiveBadge({ live }: { live: boolean }) {
-  const { stale } = useLandingStatus();
-  const state = !live ? "sample" : stale ? "stale" : "live";
+  const { stale, demo, token } = useLandingStatus();
+  const state = demo ? "sample" : stale ? "stale" : live && token ? "token" : "reference";
   return (
     <span
       className={cn(
         "inline-flex items-center gap-2 text-xs font-medium whitespace-nowrap",
-        state === "stale" ? "text-warn" : state === "live" ? "text-up" : "text-fg-muted",
+        state === "stale" ? "text-warn" : "text-fg-muted",
       )}
     >
       <span
         aria-hidden
         className={cn(
           "size-1.5 shrink-0 rounded-full",
-          state === "stale" ? "bg-warn" : state === "live" ? "bg-up" : "bg-fg-muted",
+          state === "stale" ? "bg-warn" : "bg-fg-muted",
         )}
       />
-      {state === "stale" ? "Último precio conocido" : state === "live" ? "En vivo" : "Ejemplo"}
+      {state === "stale" ? "Últimos precios conocidos · USD" : state === "token" ? "Cotizaciones del token · USD" : state === "sample" ? "Precios ilustrativos · USD" : "Incluye precios de referencia · USD"}
     </span>
   );
 }
@@ -146,23 +179,28 @@ export function LandingPrice({
   initial?: LandingInitial;
   layout?: "full" | "tape";
 }) {
-  const { priceUsd, change } = useLandingQuote(symbol, initial);
+  const quote = useLandingQuote(symbol, initial);
+  const { priceUsd, change, demo, reference, stale, updatedAt } = quote;
+  const sourceLabel = demo ? "Demostración" : reference ? "Referencia" : "Cotización del token";
 
   if (layout === "tape") {
     const tone = change > 0 ? "text-up" : change < 0 ? "text-down" : "text-fg-muted";
     return (
-      <span className="inline-flex items-center gap-2 px-4">
+      <span className="inline-flex items-center gap-2 px-4" title={`${sourceLabel} · USD${stale ? " · atrasado" : ""}`}>
         <span className="text-sm font-medium whitespace-nowrap text-fg">{symbol}</span>
         <span className="font-mono text-sm whitespace-nowrap tabular-nums text-fg-muted">{formatUsd(priceUsd)}</span>
         <span className={cn("font-mono text-sm whitespace-nowrap tabular-nums", tone)}>{formatPercent(change)}</span>
+        <span className="sr-only">24 h · {sourceLabel}{stale ? " · atrasado" : ""}</span>
       </span>
     );
   }
 
   return (
     <span className="flex shrink-0 flex-col items-end gap-1">
-      <FlashPrice value={priceUsd} currency="USD" size="sm" />
+      <FlashPrice value={priceUsd} currency="USD" size="sm" live={quote.source === "jupiter" && !reference && !stale} />
       <ChangeBadge value={change} />
+      <span className="text-[11px] text-fg-muted">24 h · {sourceLabel} · USD</span>
+      {!demo && !reference ? <PriceFreshness at={updatedAt} stale={stale} /> : null}
     </span>
   );
 }

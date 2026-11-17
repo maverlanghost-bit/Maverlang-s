@@ -11,6 +11,7 @@ import {
   readUsdClp,
 } from "@/lib/market/live-fx";
 import { anchorSeriesToSpot, rangeBounds, rangeMove } from "@/lib/market/series";
+import { compatibleSpot, observedSeries } from "@/lib/charts/data";
 
 const NOW = 1_700_000_000_000;
 const FX_URL = "https://mindicador.cl/api/dolar";
@@ -23,8 +24,8 @@ function jsonResponse(body: unknown, status = 200): Response {
   });
 }
 
-describe("serie anclada al spot", () => {
-  it("el último punto es el spot y el rango lo contiene", () => {
+describe("serie histórica y spot", () => {
+  it("el histórico conserva sus observaciones al recibir otro spot", () => {
     const series = priceHistory("AAPLx", "1M", NOW);
     const before = rangeMove(series);
     expect(series[series.length - 1]?.p).toBe(228.4);
@@ -32,26 +33,20 @@ describe("serie anclada al spot", () => {
     const scaled = anchorSeriesToSpot(series, SPOT);
     const bounds = rangeBounds(scaled);
 
-    expect(scaled[scaled.length - 1]?.p).toBe(SPOT);
+    expect(scaled).toEqual(series);
     expect(bounds).not.toBeNull();
-    expect(bounds!.high).toBeGreaterThanOrEqual(SPOT);
-    expect(bounds!.low).toBeLessThanOrEqual(SPOT);
+    expect(bounds!.high).toBe(Math.max(...series.map((point) => point.p)));
+    expect(bounds!.low).toBe(Math.min(...series.map((point) => point.p)));
     expect(rangeMove(scaled)).toBeCloseTo(before ?? 0, 4);
   });
 
-  it("un máximo previo queda sobre el spot y un mínimo bajo él", () => {
-    const scaled = anchorSeriesToSpot(
-      [
-        { t: 1, p: 100 },
-        { t: 2, p: 40 },
-        { t: 3, p: 80 },
-      ],
-      SPOT,
-    );
-    const bounds = rangeBounds(scaled);
-    expect(scaled[2]?.p).toBe(SPOT);
-    expect(bounds!.high).toBeGreaterThan(SPOT);
-    expect(bounds!.low).toBeLessThan(SPOT);
+  it("sólo añade un spot fechado del token a ticks compatibles", () => {
+    const points = [{ t: 1_000, p: 100 }, { t: 2_000, p: 40 }, { t: 3_000, p: 80 }];
+    const quote = { source: "jupiter" as const, reference: false, priceUsd: SPOT, updatedAt: "2026-01-01T00:00:00Z" };
+    const compatible = compatibleSpot("ticks", quote);
+    expect(observedSeries(points, compatible)).toEqual([...points, { t: Date.parse(quote.updatedAt), p: SPOT }]);
+    expect(observedSeries(points, compatibleSpot("closes", quote))).toEqual(points);
+    expect(observedSeries(points, compatibleSpot("mock", quote))).toEqual(points);
   });
 });
 

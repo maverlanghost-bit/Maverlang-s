@@ -26,6 +26,7 @@ import { formatMoney, formatPercent } from "@/lib/format";
 import { useFx, usePortfolio, usePrices } from "@/lib/hooks/queries";
 import { useT } from "@/lib/hooks/use-t";
 import { displayPrice, fold } from "@/lib/market/browse";
+import { formatUnitPrice } from "@/lib/market/price-format";
 import { parseAmount } from "@/lib/trade/amount";
 import type { Currency, Position, Quote } from "@/lib/types";
 
@@ -159,48 +160,6 @@ async function fetchCryptoList(): Promise<CryptoAsset[]> {
   throw new Error("La lista de criptos no tiene el formato esperado.");
 }
 
-const usd4 = new Intl.NumberFormat("es-CL", {
-  style: "currency",
-  currency: "USD",
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 4,
-});
-
-const usd6 = new Intl.NumberFormat("es-CL", {
-  style: "currency",
-  currency: "USD",
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 6,
-});
-
-const usd8 = new Intl.NumberFormat("es-CL", {
-  style: "currency",
-  currency: "USD",
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 8,
-});
-
-const clp2 = new Intl.NumberFormat("es-CL", {
-  style: "currency",
-  currency: "CLP",
-  minimumFractionDigits: 0,
-  maximumFractionDigits: 2,
-});
-
-const clp4 = new Intl.NumberFormat("es-CL", {
-  style: "currency",
-  currency: "CLP",
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 4,
-});
-
-const clp6 = new Intl.NumberFormat("es-CL", {
-  style: "currency",
-  currency: "CLP",
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 6,
-});
-
 const usdTope = new Intl.NumberFormat("es-CL", {
   style: "currency",
   currency: "USD",
@@ -236,17 +195,7 @@ function formatCryptoPrice(
   const shownCurrency: Currency = converted !== null ? currency : "USD";
   const value = converted ?? priceUsd;
 
-  if (shownCurrency === "CLP") {
-    if (value >= 10) return { formatted: formatMoney(value, "CLP"), shownCurrency };
-    if (value >= 1) return { formatted: clp2.format(value), shownCurrency };
-    if (value >= 0.01) return { formatted: clp4.format(value), shownCurrency };
-    return { formatted: clp6.format(value), shownCurrency };
-  }
-
-  if (value >= 1) return { formatted: formatMoney(value, "USD"), shownCurrency };
-  if (value >= 0.01) return { formatted: usd4.format(value), shownCurrency };
-  if (value >= 0.0001) return { formatted: usd6.format(value), shownCurrency };
-  return { formatted: usd8.format(value), shownCurrency };
+  return { formatted: formatUnitPrice(value, shownCurrency), shownCurrency };
 }
 
 function formatTotalAmount(usd: number, currency: Currency, rate: number | undefined): string {

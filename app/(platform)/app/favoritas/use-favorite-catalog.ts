@@ -106,7 +106,7 @@ export function useFavoriteCatalog(symbols: readonly string[]): FavoriteCatalog 
     const set = new Set<string>();
     for (const symbol of symbols) {
       const trimmed = symbol.trim();
-      if (!isCatalogSymbol(trimmed)) continue;
+      if (!isCatalogSymbol(trimmed.toLowerCase())) continue;
       set.add(trimmed.toLowerCase());
     }
     return set;

@@ -171,12 +171,11 @@ describe("T58 — integración de ai-chat-extracted en el asistente", () => {
       }),
     );
     expect(markup).toContain('aria-label="Copiar respuesta"');
-    expect(markup).toContain('aria-label="Respuesta útil"');
-    expect(markup).toContain('aria-label="Respuesta poco útil"');
-    expect(markup).toContain('aria-label="Regenerar respuesta"');
+    // Los ítems de Radix se montan al abrir el menú; se ejercitan en E2E.
+    expect(markup).toContain('aria-label="Más acciones de la respuesta"');
+    expect(markup).toContain('aria-haspopup="menu"');
+    expect(markup).toContain('aria-expanded="false"');
     expect(markup).toContain('aria-label="Escuchar respuesta"');
-    expect(markup).toContain('aria-label="Compartir respuesta"');
-    expect(markup).toContain('aria-pressed="true"');
     expect(markup).toContain('data-message-id="m1"');
   });
 

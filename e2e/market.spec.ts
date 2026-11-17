@@ -3,9 +3,9 @@ import { expect, test } from "@playwright/test";
 /**
  * M86: regresión del mercado `/app` en modo mock.
  *
- * - El catálogo (50 símbolos generados, scope `listed` por defecto) lista
+ * - El catálogo disponible en scope `curated` lista
  *   acciones y ETFs con su contador "N acciones".
- * - Filtro por categoría (radiogroup "Filtrar"): ETFs deja sólo ETFs.
+ * - Filtro por categoría (panel "Filtros"): ETFs deja sólo ETFs.
  * - Buscador en vivo ( diálogo "Buscar acciones", combobox con listbox).
  * - Cambio de moneda CLP/USD (radiogroup "Moneda" del sidebar; el dólar mock
  *   es 950, así que AAPLx ≈ $216.980 en CLP).
@@ -38,12 +38,14 @@ async function totalAcciones(page: import("@playwright/test").Page): Promise<num
 
 /** La lista carga de a 20: pide más hasta que aparezca la fila. */
 async function mostrarFila(page: import("@playwright/test").Page, href: string) {
-  const fila = page.locator(`a[href="${href}"]`).first();
-  const mas = page.getByRole("button", { name: /^Cargar \d+ más$/ });
+  const catalogo = page.getByRole("region", { name: "Acciones" });
+  const fila = catalogo.locator(`a[href="${href}"]`).first();
+  const mas = catalogo.getByRole("button", { name: /^Cargar \d+ más$/ });
   for (let intento = 0; intento < 30 && !(await fila.isVisible()); intento += 1) {
     if (!(await mas.isVisible())) break;
+    const cantidad = await catalogo.locator('ul > li').count();
     await mas.click();
-    await page.waitForTimeout(150);
+    await expect.poll(() => catalogo.locator('ul > li').count()).toBeGreaterThan(cantidad);
   }
   await expect(fila).toBeVisible();
 }
@@ -52,40 +54,46 @@ test("mercado: catálogo con contador, acciones y ETFs", async ({ page }) => {
   await entrarDemo(page);
   await expect(page.getByRole("heading", { name: "Mercado" })).toBeVisible();
 
-  // Contador del scope listed (catálogo generado: más de 50 símbolos).
+  // Contador del catálogo disponible en el modo mock.
   const total = await totalAcciones(page);
-  expect(total).toBeGreaterThan(50);
+  expect(total).toBeGreaterThanOrEqual(20);
 
   // La lista muestra acciones y ETFs del catálogo.
-  const lista = page.getByRole("heading", { name: "Acciones", exact: true }).locator("xpath=following-sibling::ul").first();
-  await expect(lista).toBeVisible();
-  await expect(page.locator('a[href="/app/accion/SPYx"]').first()).toBeVisible();
-  await expect(page.locator('a[href="/app/accion/NVDAx"]').first()).toBeVisible();
+  const catalogo = page.getByRole("region", { name: "Acciones" });
+  await expect(catalogo.getByRole("list")).toBeVisible();
+  await mostrarFila(page, "/app/accion/SPYx");
+  await mostrarFila(page, "/app/accion/NVDAx");
   await mostrarFila(page, "/app/accion/AAPLx");
 
   // Encabezado de la lista con el conteo visible.
-  await expect(page.getByText(new RegExp(`Mostrando \\d+ de ${total.toLocaleString("es-CL")} acciones`))).toBeVisible();
+  await expect(page.getByText(new RegExp(`Mostrando \\d+ de ${total} acciones`))).toBeVisible();
 });
 
 test("mercado: filtro ETFs deja sólo ETFs y actualiza la URL", async ({ page }) => {
   await entrarDemo(page);
   const total = await totalAcciones(page);
 
-  // El filtro es un radiogroup "Filtrar" con chips.
-  const filtros = page.getByRole("radiogroup", { name: "Filtrar" });
-  await filtros.getByRole("radio", { name: "ETFs" }).click();
+  // La categoría se selecciona dentro del panel de filtros.
+  const catalogo = page.getByRole("region", { name: "Acciones" });
+  await catalogo.getByRole("button", { name: /^Filtros/ }).click();
+  const dialogoFiltros = page.getByRole("dialog", { name: "Filtros", exact: true });
+  const categoria = dialogoFiltros.getByRole("combobox", { name: "Categoría", exact: true });
+  await expect(categoria).toBeVisible();
+  await categoria.selectOption("etf");
+  await dialogoFiltros.getByRole("button", { name: "Ver resultados" }).click();
 
   await expect.poll(() => totalAcciones(page)).toBeLessThan(total);
   const etfs = await totalAcciones(page);
   expect(etfs).toBeGreaterThan(0);
-  await expect(page.locator('a[href="/app/accion/SPYx"]').first()).toBeVisible();
+  await mostrarFila(page, "/app/accion/SPYx");
   // Apple (tech) ya no está en el resultado filtrado.
-  await expect(page.locator('a[href="/app/accion/AAPLx"]')).toHaveCount(0);
+  await expect(catalogo.locator('a[href="/app/accion/AAPLx"]')).toHaveCount(0);
   // El filtro se refleja en la URL (router.replace sin scroll).
   await expect(page).toHaveURL(/filtro=etf/);
 
   // Volver a Todas restaura el catálogo completo.
-  await filtros.getByRole("radio", { name: "Todas" }).click();
+  await catalogo.getByRole("button", { name: "Quitar filtro: ETFs" }).click();
+  await expect(page).not.toHaveURL(/filtro=etf/);
   await expect.poll(() => totalAcciones(page)).toBe(total);
   await mostrarFila(page, "/app/accion/AAPLx");
 });
@@ -130,7 +138,7 @@ test("mercado: cambio de moneda CLP/USD en el sidebar", async ({ page }) => {
   await elegirMoneda("Moneda: USD");
 
   // Apple a US$ 228,40 (mock): el precio visible cambia de dólares.
-  const apple = page.locator('a[href="/app/accion/AAPLx"]').first();
+  const apple = page.getByRole("region", { name: "Acciones" }).locator('a[href="/app/accion/AAPLx"]').first();
   await expect(apple).toContainText(/US\$228,40/);
 
   // A CLP con el dólar mock de 950: 228,40 × 950 = 216.980.
@@ -144,7 +152,8 @@ test("mercado: cambio de moneda CLP/USD en el sidebar", async ({ page }) => {
 
 test("mercado: la fila lleva a la ficha con volver al mercado", async ({ page }) => {
   await entrarDemo(page);
-  const nvda = page.locator(`a[href="${NVDA_HREF}"]`);
+  await mostrarFila(page, NVDA_HREF);
+  const nvda = page.getByRole("region", { name: "Acciones" }).locator(`a[href="${NVDA_HREF}"]`);
   await nvda.click();
   await expect(page).toHaveURL(new RegExp(`${NVDA_HREF.replace("/", "\\/")}$`));
   await expect(page.getByRole("heading", { level: 1, name: "NVIDIA" })).toBeVisible();

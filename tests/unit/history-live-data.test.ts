@@ -48,7 +48,7 @@ describe("historial real", () => {
     expect(route).toContain("historyCacheControl(");
     expect(route).toContain("historyResponseSchema");
     expect(closes).toContain("shouldCacheUnderlyingPoints");
-    expect(closes).toContain("underlying-closes-v3");
+    expect(closes).toContain("underlying-closes-v4");
     expect(closes).not.toContain("if (error || !data || data.length === 0) break");
     expect(cron).toContain("revalidateTag(PRICES_TAG, \"max\")");
   });

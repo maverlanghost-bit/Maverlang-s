@@ -4,8 +4,8 @@ import { expect, test } from "@playwright/test";
  * M86: regresión de la ficha `/app/accion/NVDAx`.
  *
  * La ruta real de la ficha es `/app/accion/<SYMBOL>` (no `/app/t/...`).
- * Los rangos del gráfico que existen en la UI son 1W/1M/3M/1Y/ALL,
- * etiquetados 1S/1M/3M/1A/Todo (`t.detail.rangeShort`).
+ * Los rangos incluyen 1D/1W/1M/3M/1Y/ALL, etiquetados
+ * 1D/1S/1M/3M/1A/Todo (`t.detail.rangeShort`).
  */
 
 /** Sesión demo mínima. */
@@ -56,25 +56,24 @@ test("ficha: encabezado, precio y estadísticas clave de NVDAx", async ({ page }
   await expect(stats.getByText("Backed (xStocks)")).toBeVisible();
 });
 
-test("ficha: selector de rango del gráfico 1S/1M/3M/1A/Todo", async ({ page }) => {
+test("ficha: selector de rango del gráfico 1D/1S/1M/3M/1A/Todo", async ({ page }) => {
   await entrarDemo(page);
   await page.goto("/app/accion/NVDAx");
   await expect(page.getByRole("heading", { level: 1, name: "NVIDIA", exact: true })).toBeVisible();
 
-  // `SegmentedControl` con `toggle` → group con aria-label "Rango del gráfico".
+  // El grupo expone el rango seleccionado a tecnologías de asistencia.
   const rangos = page.getByRole("group", { name: "Rango del gráfico" });
   await expect(rangos).toBeVisible();
 
-  // Los cinco rangos reales de la ficha, con sus etiquetas cortas.
-  for (const etiqueta of ["1S", "1M", "3M", "1A", "Todo"]) {
+  for (const etiqueta of ["1D", "1S", "1M", "3M", "1A", "Todo"]) {
     await expect(rangos.getByRole("button", { name: etiqueta, exact: true })).toBeVisible();
   }
 
   // Cambio de rango: el subtítulo de variación del período lo refleja.
   await rangos.getByRole("button", { name: "1A", exact: true }).click();
   await expect(page.getByText("Variación en 1 año")).toBeVisible();
-  await expect(page.getByText("Máximo en 1 año")).toBeVisible();
-  await expect(page.getByText("Mínimo en 1 año")).toBeVisible();
+  await expect(page.getByText("Máximo observado · en 1 año")).toBeVisible();
+  await expect(page.getByText("Mínimo observado · en 1 año")).toBeVisible();
 
   await rangos.getByRole("button", { name: "1S", exact: true }).click();
   await expect(page.getByText("Variación en 1 semana")).toBeVisible();
@@ -87,7 +86,8 @@ test("ficha: información del token subyacente con mint y emisor", async ({ page
   await entrarDemo(page);
   await page.goto("/app/accion/NVDAx");
 
-  const token = page.getByRole("heading", { name: "Sobre el token", exact: true }).locator("xpath=following-sibling::*").first();
+  await page.getByRole("tab", { name: "Token y riesgos" }).click();
+  await expect(page.getByRole("tab", { name: "Token y riesgos" })).toHaveAttribute("aria-selected", "true");
   await expect(page.getByRole("heading", { name: "Sobre el token", exact: true })).toBeVisible();
 
   // El lead explica que lo emite Backed, no la marca.
@@ -103,7 +103,6 @@ test("ficha: información del token subyacente con mint y emisor", async ({ page
     "href",
     /solscan\.io\/token\/Xsc9qvGR1efVDFGLrVsmkzv3qi45LTBjeUKSPmx9qEh/,
   );
-  void token;
 });
 
 test("ficha: abre la boleta de compra desde Comprar", async ({ page }) => {
@@ -113,7 +112,8 @@ test("ficha: abre la boleta de compra desde Comprar", async ({ page }) => {
 
   // Sección "Comprar o vender" con el botón Comprar habilitado.
   await expect(page.getByRole("heading", { name: "Comprar o vender" })).toBeVisible();
-  const comprar = page.getByRole("button", { name: "Comprar", exact: true });
+  const acciones = page.getByRole("group", { name: "Comprar o vender" }).filter({ visible: true });
+  const comprar = acciones.getByRole("button", { name: "Comprar", exact: true });
   await expect(comprar).toBeEnabled();
   await comprar.click();
 
@@ -142,10 +142,15 @@ test("ficha: vender deshabilitado sin posición; guest ve CTA de cuenta", async 
   await page.goto("/app/cartera");
   await page.getByRole("button", { name: "Reiniciar cuenta demo" }).click();
   await page.getByRole("button", { name: "Reiniciar", exact: true }).click();
-  await expect(page.locator('a[href="/app/accion/NVDAx"]')).toHaveCount(0);
+  const posicion = page.locator("section")
+    .filter({ has: page.getByRole("heading", { name: "Tus acciones", exact: true }) })
+    .getByRole("listitem").filter({ has: page.locator('a[href="/app/accion/NVDAx"]') });
+  await expect(posicion).toHaveCount(0);
 
   await page.goto("/app/accion/NVDAx");
-  const vender = page.getByRole("button", { name: "Vender", exact: true }).first();
+  const acciones = page.getByRole("group", { name: "Comprar o vender" }).filter({ visible: true });
+  const vender = acciones.getByRole("button", { name: "Vender", exact: true });
   await expect(vender).toBeDisabled();
-  await expect(page.getByText("Para vender, primero tienes que tener esta acción.").first()).toBeVisible();
+  await acciones.getByRole("button", { name: "¿Por qué no puedo vender?" }).click();
+  await expect(acciones.getByRole("tooltip")).toContainText("Para vender, primero tienes que tener esta acción.");
 });

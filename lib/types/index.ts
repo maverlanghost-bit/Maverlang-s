@@ -44,10 +44,38 @@ export interface Quote {
   liquidityUsd?: number;
 }
 
-/** `t` en unix ms. `p` es USD por acción. */
+/**
+ * `t` en unix ms; `p` es USD por acción mostrada (por token para cripto).
+ * OHLC sólo existe para barras observadas de la fuente; `p` es su cierre.
+ * `v` conserva unidades/ámbito del proveedor, declarados en HistoryMetadata.
+ */
 export interface PricePoint {
   t: number;
   p: number;
+  o?: number;
+  h?: number;
+  l?: number;
+  c?: number;
+  v?: number;
+}
+
+/** Capacidades de la serie entregada, no promesas sobre la cobertura del proveedor. */
+export interface HistoryMetadata {
+  instrument: "token" | "underlying" | "demo";
+  provider: "yahoo" | "jupiter" | "coingecko" | "mixed" | "mock" | "unknown";
+  providerSymbol?: string;
+  /** Resolución observada; el rango visible se solicita por separado. */
+  resolution: "15m" | "1h" | "1d" | "1wk" | "irregular" | "unknown";
+  priceUnit: "usd_per_share" | "usd_per_token";
+  reference: boolean;
+  capabilities: { ohlc: boolean; volume: boolean };
+  /** Volumen de la acción/ETF subyacente; nunca volumen del token en Solana. */
+  volumeUnit?: "underlying_shares";
+  volumeScope?: "underlying_market";
+  /** `stored` no permite deducir si cada cierre guardado vino de adjclose o close. */
+  priceAdjustment?: "provider_quote" | "stored";
+  /** Factor aplicado por igual a p/OHLC; nunca se aplica al volumen del subyacente. */
+  multiplier?: number;
 }
 
 export interface FxRate {

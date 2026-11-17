@@ -15,8 +15,9 @@ import { ReasoningAccordion } from "@/components/ai/reasoning-accordion";
 import { RichAssistantMessage } from "@/components/ai/rich-message";
 import { SourcesList } from "@/components/ai/tool-accordion";
 import { WelcomeChips } from "@/components/ai/welcome-chips";
-import type { AsistenteCopy, AsistenteSuggestionId } from "@/content/i18n/extra-asistente";
+import { asistenteCopy, type AsistenteCopy, type AsistenteSuggestionId } from "@/content/i18n/extra-asistente";
 import { cn } from "@/lib/cn";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 /** Campos opcionales que el coordinador puede adjuntar al mensaje guardado. */
 type MessageExtras = {
@@ -183,16 +184,21 @@ function UserBubble({
   message,
   onEditMessage,
   busy,
+  en,
 }: {
   message: ChatMessage;
   onEditMessage?: (messageId: string, newText: string) => void;
   busy: boolean;
+  en: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(message.text);
   const [copied, setCopied] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const draftRef = useRef<HTMLTextAreaElement>(null);
+  const actionTriggerRef = useRef<HTMLButtonElement>(null);
+  const editRequested = useRef(false);
 
   useEffect(() => {
     return () => {
@@ -223,19 +229,24 @@ function UserBubble({
   }
 
   function startEditing() {
+    if (busy) return;
+    editRequested.current = true;
     setDraft(message.text);
     setEditing(true);
+    requestAnimationFrame(() => draftRef.current?.focus());
   }
 
   function cancelEditing() {
     setEditing(false);
     setDraft(message.text);
+    requestAnimationFrame(() => actionTriggerRef.current?.focus());
   }
 
   function saveEditing() {
     const next = draft.trim();
-    if (!next || !onEditMessage) return;
+    if (busy || !next || !onEditMessage) return;
     setEditing(false);
+    requestAnimationFrame(() => actionTriggerRef.current?.focus());
     if (next === message.text.trim()) return;
     onEditMessage(message.id, next);
   }
@@ -249,11 +260,12 @@ function UserBubble({
         {editing ? (
           <div className="w-full min-w-[min(100%,280px)] sm:min-w-[340px] bg-white border border-control/50 rounded-3xl px-4 py-3 shadow-md transition-colors focus-within:border-fg/50">
             <textarea
+              ref={draftRef}
               data-bare-input=""
               value={draft}
               rows={2}
-              aria-label="Editar mensaje"
-              placeholder="Edita tu mensaje..."
+              aria-label={en ? "Edit message" : "Editar mensaje"}
+              placeholder={en ? "Edit your message…" : "Edita tu mensaje…"}
               onChange={(event) => {
                 setDraft(event.target.value);
                 const el = event.target;
@@ -277,15 +289,15 @@ function UserBubble({
                 onClick={cancelEditing}
                 className="h-11 px-3 rounded-full text-xs font-medium text-zinc-600 transition hover:text-zinc-900 focus-visible:ring-2 focus-visible:ring-zinc-900/20 focus-visible:outline-none sm:h-8 motion-reduce:transition-none"
               >
-                Cancelar
+                {en ? "Cancel" : "Cancelar"}
               </button>
               <button
                 type="button"
                 onClick={saveEditing}
-                disabled={!draft.trim() || !onEditMessage}
+                disabled={busy || !draft.trim() || !onEditMessage}
                 className="min-h-11 rounded-full bg-zinc-900 text-white px-3.5 py-1.5 text-xs font-semibold transition hover:opacity-90 focus-visible:ring-2 focus-visible:ring-zinc-900/20 focus-visible:outline-none disabled:opacity-40 sm:min-h-8 motion-reduce:transition-none"
               >
-                Guardar y enviar
+                {en ? "Save and send" : "Guardar y enviar"}
               </button>
             </div>
           </div>
@@ -311,7 +323,7 @@ function UserBubble({
                     onClick={() => setExpanded((previous) => !previous)}
                     className="min-h-9 px-1 text-xs font-semibold text-zinc-900 hover:opacity-75 transition-all flex items-center gap-1 cursor-pointer select-none motion-reduce:transition-none"
                   >
-                    {expanded ? "Ver menos ↑" : "Ver más →"}
+                    {expanded ? (en ? "Show less ↑" : "Ver menos ↑") : en ? "Show more →" : "Ver más →"}
                   </button>
                 </div>
               ) : null}
@@ -319,32 +331,17 @@ function UserBubble({
 
             <div
               className={cn(
-                "flex items-center gap-1 z-10 transition-all duration-200 motion-reduce:transition-none",
-                "absolute top-full right-0 mt-1",
-                "opacity-0 pointer-events-none max-sm:opacity-100 max-sm:pointer-events-auto",
-                "group-hover/user-msg:opacity-100 group-hover/user-msg:pointer-events-auto",
-                "focus-within:opacity-100 focus-within:pointer-events-auto",
+                "mt-1 flex items-center gap-1 transition-all duration-200 motion-reduce:transition-none",
               )}
             >
-              <button
-                type="button"
-                onClick={() => void copyMessage()}
-                aria-label="Copiar mensaje"
-                title="Copiar"
-                className={USER_ACTION_BUTTON}
-              >
-                {copied ? <CheckIcon /> : <CopyIcon />}
-              </button>
-              <button
-                type="button"
-                onClick={startEditing}
-                disabled={busy}
-                aria-label="Editar mensaje"
-                title="Editar"
-                className={cn(USER_ACTION_BUTTON, "disabled:pointer-events-none disabled:opacity-40")}
-              >
-                <PencilIcon />
-              </button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild><button ref={actionTriggerRef} type="button" aria-label={en ? "Message actions" : "Acciones del mensaje"} title={en ? "Message actions" : "Acciones del mensaje"} className={USER_ACTION_BUTTON}><MoreIcon /></button></DropdownMenuTrigger>
+                <DropdownMenuContent align="end" onCloseAutoFocus={(event) => { if (editRequested.current) { event.preventDefault(); editRequested.current = false; } }}>
+                  <DropdownMenuItem onSelect={() => void copyMessage()}>{copied ? <CheckIcon /> : <CopyIcon />}{en ? "Copy message" : "Copiar mensaje"}</DropdownMenuItem>
+                  {onEditMessage ? <DropdownMenuItem onSelect={startEditing} disabled={busy}><PencilIcon />{en ? "Edit message" : "Editar mensaje"}</DropdownMenuItem> : null}
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <span className="sr-only" role="status">{copied ? (en ? "Message copied" : "Mensaje copiado") : ""}</span>
             </div>
           </>
         )}
@@ -491,7 +488,7 @@ export function Transcript({
                   ) : null}
 
                   {message.role === "user" && message.text && !message.notice ? (
-                    <UserBubble message={message} onEditMessage={onEditMessage} busy={busy} />
+                    <UserBubble message={message} onEditMessage={onEditMessage} busy={busy} en={copy === asistenteCopy.en} />
                   ) : null}
 
                   {message.role === "assistant" && !message.notice ? (
@@ -572,13 +569,14 @@ export function Transcript({
                           </div>
                         ) : null}
 
-                        <div className="mt-2.5 opacity-0 group-hover/assistant:opacity-100 focus-within:opacity-100 max-sm:opacity-100 transition-opacity duration-200 motion-reduce:transition-none">
+                        <div className="mt-2.5">
                           <AssistantMessageActions
                             messageId={message.id}
+                            en={copy === asistenteCopy.en}
                             content={message.text}
                             feedback={feedback?.[message.id] ?? null}
-                            onFeedback={(type) => onFeedback?.(message.id, type)}
-                            onRetry={onRetryAnswer}
+                            onFeedback={onFeedback ? (type) => onFeedback(message.id, type) : undefined}
+                            onRetry={!busy && isLastAssistant ? onRetryAnswer : undefined}
                             onShare={onShareAnswer ? () => onShareAnswer(message.id) : undefined}
                           />
                         </div>
@@ -663,6 +661,10 @@ function ArrowDownIcon() {
       <path d="M8 3v10m0 0 4-4m-4 4-4-4" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
+}
+
+function MoreIcon() {
+  return <svg viewBox="0 0 16 16" className="size-3.5" fill="currentColor" aria-hidden="true" focusable="false"><circle cx="3" cy="8" r="1.2" /><circle cx="8" cy="8" r="1.2" /><circle cx="13" cy="8" r="1.2" /></svg>;
 }
 
 function CopyIcon() {

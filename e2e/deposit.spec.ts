@@ -92,8 +92,9 @@ test("depósito: pestañas Con pesos / Con USDC", async ({ page }) => {
   await expect(page.getByRole("heading", { level: 1, name: "Depositar" })).toBeVisible();
 
   if (!PESO_DEPOSITS_ENABLED) {
-    // Sólo USDC: sin pestañas ni monto en pesos.
-    await expect(page.getByText("Envía USDC por la red Solana a tu billetera.")).toBeVisible();
+    // La demo no instruye a enviar fondos reales; no ofrece pesos ni cobro.
+    await expect(page.getByRole("heading", { name: "Estás en la demo" })).toBeVisible();
+    await expect(page.getByText("No envíes fondos reales: no hay una dirección de cobro en la demo.")).toBeVisible();
     await expect(page.getByRole("tablist", { name: "Forma de depósito" })).toHaveCount(0);
     await expect(page.getByRole("tab", { name: "Con pesos" })).toHaveCount(0);
     await expect(page.getByLabel("Monto en CLP")).toHaveCount(0);

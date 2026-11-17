@@ -25,7 +25,9 @@ test("portada: héroe, CTAs y aviso de demo", async ({ page }) => {
   const acciones = page.getByRole("link", { name: "Ver acciones" }).first();
   await expect(acciones).toHaveAttribute("href", "/acciones");
 
-  await expect(page.getByText("Practica con US$10.000 ficticios y precios reales.")).toBeVisible();
+  const avisoDemo = page.getByRole("region", { name: "Cotizaciones" }).getByText("Practica con US$10.000 ficticios.");
+  await expect(avisoDemo).toBeVisible();
+  await expect(avisoDemo).not.toContainText("precios reales");
   await expect(page.getByText("Opera 24/7").first()).toBeVisible();
 });
 

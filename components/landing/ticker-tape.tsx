@@ -3,14 +3,7 @@
 import { useState } from "react";
 import { LandingPrice, useLandingStatus } from "@/components/landing/live-landing-prices";
 import { cn } from "@/lib/cn";
-import { formatPercent, formatUsd } from "@/lib/format";
 import type { LandingQuote } from "@/lib/mocks/landing";
-
-function changeWord(change: number) {
-  if (change > 0) return "sube";
-  if (change < 0) return "baja";
-  return "sin cambio";
-}
 
 /** Aviso de horario: vivía en el hero y se movió al pie de la cinta (no se borró). */
 const SCHEDULE_NOTE =
@@ -50,8 +43,8 @@ export function TickerTape({
   const rows = quotes.filter((quote) => Number.isFinite(quote.priceUsd) && quote.priceUsd > 0);
   const tape = Array.from({ length: TAPE_COPIES }, () => rows).flat();
   const [paused, setPaused] = useState(false);
-  const { stale } = useLandingStatus();
-  const label = !live ? "Precios ilustrativos" : stale ? "Precios sin actualizar" : "Precios en vivo";
+  const { stale, demo, token } = useLandingStatus();
+  const label = demo ? "Precios ilustrativos · USD" : stale ? "Últimos precios conocidos · USD" : live && token ? "Cotizaciones del token · USD" : "Incluye precios de referencia · USD";
 
   return (
     <section
@@ -122,8 +115,7 @@ export function TickerTape({
       <ul className="sr-only">
         {rows.map((quote) => (
           <li key={quote.symbol}>
-            {quote.name} ({quote.symbol}): {formatUsd(quote.priceUsd)}, {changeWord(quote.change)}{" "}
-            {formatPercent(quote.change)}.
+            {quote.name}: <LandingPrice symbol={quote.symbol} initial={{ priceUsd: quote.priceUsd, change: quote.change }} layout="tape" />
           </li>
         ))}
       </ul>

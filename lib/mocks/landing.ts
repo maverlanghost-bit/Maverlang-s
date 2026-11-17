@@ -25,6 +25,11 @@ export type LandingQuote = {
   sparkline?: number[];
   /** true cuando el precio viene de la fuente en vivo. La muestra lo deja en false. */
   live?: boolean;
+  /** Procedencia y fecha de observación; la fecha de render/refetch no las sustituye. */
+  source?: "jupiter" | "mock";
+  reference?: boolean;
+  stale?: boolean;
+  updatedAt?: string;
 };
 
 const ILLUSTRATIVE_PRICES: Record<string, { priceUsd: number; change: number }> = {

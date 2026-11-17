@@ -80,9 +80,9 @@ describe("caché de historia", () => {
     expect(route).toContain("historyFields(");
     expect(route).toContain("historyCacheControl(fields)");
     expect(route).toContain("HISTORY_CACHE_MISS");
-    expect(closes).toContain("shouldCacheUnderlyingPoints(points.length)");
+    expect(closes).toContain("shouldCacheUnderlyingPoints(history.points.length)");
     expect(closes).toContain("if (error) throw error");
-    expect(closes).toContain('["underlying-closes-v3"]');
+    expect(closes).toContain('["underlying-closes-v4"]');
     expect(hooks).toContain("useMemo");
     expect(hooks).toContain("historyStaleMs");
     expect(market).toContain("searchQueryOptions");

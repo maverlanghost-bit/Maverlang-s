@@ -10,14 +10,16 @@ import { fold } from "@/lib/market/browse";
 import { useT } from "@/lib/hooks/use-t";
 import { cn } from "@/lib/cn";
 
-export interface PickedAsset { symbol: string; name: string; kind: "stock" | "crypto" }
+export interface PickedAsset { symbol: string; name: string; kind: "stock" | "crypto"; logoUrl?: string | null }
 
 /** Shared asset selection for comparison and tools; selection never executes a trade. */
-export function AssetPicker({ selectedSymbols, onSelect, max = 4, includeCrypto = true, label }: {
+export function AssetPicker({ selectedSymbols, onSelect, max = 4, includeCrypto = true, mode = "multiple", tradableOnly = false, label }: {
   selectedSymbols: readonly string[];
   onSelect: (asset: PickedAsset) => void;
   max?: number;
   includeCrypto?: boolean;
+  mode?: "single" | "multiple";
+  tradableOnly?: boolean;
   label?: string;
 }) {
   const { language } = useT();
@@ -40,13 +42,13 @@ export function AssetPicker({ selectedSymbols, onSelect, max = 4, includeCrypto 
   const results = useMemo(() => {
     if (query.trim() !== needle) return [];
     const selected = new Set(selectedSymbols.map((symbol) => symbol.toLowerCase()));
-    const stocks: PickedAsset[] = (catalog.data?.items ?? []).map((item) => ({ symbol: item.symbol, name: item.name, kind: "stock" }));
+    const stocks: PickedAsset[] = (catalog.data?.items ?? []).filter((item) => !tradableOnly || item.tradable).map((item) => ({ symbol: item.symbol, name: item.name, kind: "stock", logoUrl: item.logoUrl }));
     const cryptos: PickedAsset[] = includeCrypto ? CRYPTO_ASSETS
       .filter((asset) => asset.decimals !== null && (!needle || fold(`${asset.symbol} ${asset.name}`).includes(fold(needle))))
       .slice(0, 8).map((asset) => ({ symbol: asset.symbol, name: asset.name, kind: "crypto" })) : [];
     return [...stocks, ...cryptos].filter((asset) => !selected.has(asset.symbol.toLowerCase()));
-  }, [catalog.data, includeCrypto, needle, query, selectedSymbols]);
-  const atLimit = selectedSymbols.length >= max;
+  }, [catalog.data, includeCrypto, needle, query, selectedSymbols, tradableOnly]);
+  const atLimit = mode === "multiple" && selectedSymbols.length >= max;
   const current = results[Math.min(active, Math.max(0, results.length - 1))];
   useEffect(() => {
     if (open && current) document.getElementById(`${id}-${current.symbol}`)?.scrollIntoView({ block: "nearest" });
@@ -85,7 +87,7 @@ export function AssetPicker({ selectedSymbols, onSelect, max = 4, includeCrypto 
             </button>
           </li>)}
         </ul>
-        <p className="border-t border-border px-2 pt-2 text-[11px] text-fg-muted">{en ? `Up to ${max} selected · ↑ ↓ Enter · Esc closes` : `Hasta ${max} seleccionados · ↑ ↓ Enter · Esc cierra`}</p>
+        <p className="border-t border-border px-2 pt-2 text-[11px] text-fg-muted">{mode === "single" ? (en ? "Select one asset · ↑ ↓ Enter · Esc closes" : "Selecciona un activo · ↑ ↓ Enter · Esc cierra") : en ? `Up to ${max} selected · ↑ ↓ Enter · Esc closes` : `Hasta ${max} seleccionados · ↑ ↓ Enter · Esc cierra`}</p>
       </PopoverContent>
     </Popover>
   );

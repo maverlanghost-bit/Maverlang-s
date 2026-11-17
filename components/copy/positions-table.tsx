@@ -1,3 +1,5 @@
+import Link from "next/link";
+import { site } from "@/config/site";
 import { cn } from "@/lib/cn";
 import { formatPortion } from "@/lib/format";
 
@@ -29,7 +31,7 @@ const statusTone: Record<PositionStatus, string> = {
 };
 
 function weight(value: number): string {
-  return formatPortion((Number.isFinite(value) ? value : 0) / 100);
+  return Number.isFinite(value) ? formatPortion(value / 100) : "Sin dato";
 }
 
 /** Retícula de columnas. En móvil cada cifra lleva su rótulo inline. */
@@ -74,7 +76,7 @@ export function PositionsTable({
       >
         <span>Posición</span>
         <span className="text-right">Original</span>
-        {showMaverlang ? <span className="text-right">Maverlang</span> : null}
+        {showMaverlang ? <span className="text-right">{site.name}</span> : null}
         <span className="text-right">Estado</span>
       </div>
 
@@ -89,7 +91,7 @@ export function PositionsTable({
             >
               <div className="col-span-2 flex min-w-0 flex-col sm:col-span-1">
                 <span className="font-mono text-[15px] leading-5 font-medium break-words text-fg">
-                  {row.symbol}
+                  {row.status === "available" && row.tradableSymbol ? <Link href={`/app/accion/${encodeURIComponent(row.tradableSymbol)}`} className="inline-flex min-h-11 items-center underline decoration-border underline-offset-4 hover:decoration-fg" aria-label={`Ver ${row.name ?? row.symbol} · ${row.tradableSymbol}`}>{row.symbol}</Link> : row.symbol}
                 </span>
                 {row.name ? (
                   <span className="text-[13px] leading-5 break-words text-pretty text-fg-muted">
@@ -115,13 +117,13 @@ export function PositionsTable({
 
                 {showMaverlang ? (
                   <div className="flex min-w-0 flex-col gap-0.5 sm:block sm:text-right">
-                    <span className="label-xs sm:hidden">En Maverlang</span>
+                    <span className="label-xs sm:hidden">En {site.name}</span>
                     <span
                       className={cn(
                         "num block text-[15px] leading-5 whitespace-nowrap tabular-nums",
                         row.status === "available" ? "text-fg-body" : "text-fg-muted",
                       )}
-                      title="Peso en la mezcla de Maverlang"
+                      title={`Peso en la mezcla de ${site.name}`}
                     >
                       {row.status === "available" ? weight(row.weightMaverlang) : "—"}
                     </span>

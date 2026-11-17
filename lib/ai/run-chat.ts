@@ -2,7 +2,7 @@ import "server-only";
 
 import { aiMessages } from "@/content/i18n/extra-b";
 import { fold } from "@/lib/market/browse";
-import { getServices } from "@/lib/services";
+import { getServices, historyWithSource } from "@/lib/services";
 import type { AiChatRequest, AiWidget } from "@/lib/ai/types";
 import { loadPortfolioForAssistant } from "@/lib/ai/portfolio";
 import { resolveTicker, searchTickers } from "@/lib/ai/resolve";
@@ -33,6 +33,7 @@ export function defaultAssistantDeps(): AssistantDeps {
   const services = getServices();
   return {
     prices: services.prices,
+    historyWithSource,
     loadPortfolio: loadPortfolioForAssistant,
     resolveTicker,
     searchTickers,

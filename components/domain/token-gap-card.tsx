@@ -74,7 +74,7 @@ function PriceColumn({
       <dd className="num mt-1 text-base leading-6 font-medium text-fg">
         {pending ? <Skeleton className="h-5 w-24" /> : amount}
       </dd>
-      <dd className="num mt-0.5 min-h-4 text-xs leading-4 text-fg-muted">{at ? formatDateTime(at) : null}</dd>
+      <dd className="num mt-0.5 min-h-4 text-xs leading-4 text-fg-muted">{at ? formatDateTime(at) : "—"}</dd>
     </div>
   );
 }
@@ -107,26 +107,34 @@ export function TokenGapCard({ symbol, quote }: { symbol: string; quote: Quote |
   const pendingFx = currency === "CLP" && !fxKnown && fx.isPending;
   const tokenView = shownMoney(gap.tokenUsd, currency, rate);
   const closeView = shownMoney(gap.closeUsd, currency, rate);
-  const template = gap.side === "above" ? copy.gapAbove : gap.side === "below" ? copy.gapBelow : copy.gapEven;
+  const isEn = language === "en";
+  const template = gap.side === "above"
+    ? isEn ? "The token observation is {pct} above the underlying reference." : "El registro del token está {pct} sobre la referencia del subyacente."
+    : gap.side === "below"
+      ? isEn ? "The token observation is {pct} below the underlying reference." : "El registro del token está {pct} bajo la referencia del subyacente."
+      : isEn ? "The observations match at the displayed precision ({pct} difference)." : "Los registros coinciden con la precisión mostrada ({pct} de diferencia).";
+  const title = isEn ? "Token and underlying reference" : "Token y referencia del subyacente";
+  const explanation = isEn ? "Compares the token quote with the last available underlying observation at the dates shown. The prices are not simultaneous." : "Compara la cotización del token con el último registro disponible del subyacente, en las fechas indicadas. Los precios no son simultáneos.";
 
   return (
     <section className="border-t border-border pt-8" data-token-gap={symbol}>
       <div className="flex items-start justify-between gap-3">
-        <h2 className="min-w-0 text-lg font-medium tracking-tight text-fg">{copy.gapTitle}</h2>
-        <InfoTip className="-mt-1 shrink-0" label={`${copy.whatIsThis}. ${copy.gapTitle}`} text={`${copy.gapTip} ${copy.gapWhy}`} />
+        <h2 className="min-w-0 text-lg font-medium tracking-tight text-fg">{title}</h2>
+        <InfoTip className="-mt-1 shrink-0" label={`${copy.whatIsThis}. ${title}`} text={`${explanation} ${copy.gapWhy}`} />
       </div>
       <p className="mt-2 max-w-prose text-sm leading-relaxed text-pretty text-fg-body">
         <GapLine template={template} pct={gapPercentText(gap.diffPct)} />
       </p>
+      <p className="mt-2 text-xs leading-relaxed text-fg-muted">{explanation}{quote?.stale ? isEn ? " The token quote is delayed." : " La cotización del token está atrasada." : ""}{tokenView.currency === "CLP" ? isEn ? " Both amounts use the available exchange rate, not historical FX." : " Ambos montos usan el tipo de cambio disponible, no histórico." : ""}</p>
       <dl className="mt-4 grid grid-cols-2 gap-x-6 sm:gap-x-8">
         <PriceColumn
-          label={copy.gapToken}
+          label={`${copy.gapToken} · ${tokenView.currency}`}
           amount={formatMoney(tokenView.amount, tokenView.currency)}
           pending={pendingFx}
           at={gap.tokenAt}
         />
         <PriceColumn
-          label={copy.gapClose}
+          label={`${isEn ? "Underlying reference" : "Referencia del subyacente"} · ${closeView.currency}`}
           amount={formatMoney(closeView.amount, closeView.currency)}
           pending={pendingFx}
           at={gap.closeAt}

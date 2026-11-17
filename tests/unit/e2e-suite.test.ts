@@ -108,12 +108,17 @@ describe("M86: cobertura de rutas y códigos por spec", () => {
   it("market.spec.ts cubre /app, filtro, buscador, moneda CLP/USD y ficha", () => {
     const source = readE2e("market.spec.ts");
     expect(source).toContain('"/app"');
-    expect(source).toContain('"Filtrar"');
+    expect(source).toContain("/^Filtros/");
+    expect(source).toContain('"Categoría"');
+    expect(source).toContain('getByRole("dialog", { name: "Filtros", exact: true })');
+    expect(source).toContain('getByRole("combobox", { name: "Categoría", exact: true })');
+    expect(source).toContain('selectOption("etf")');
+    expect(source).toContain("Quitar filtro: ETFs");
     expect(source).toContain("Buscar acciones");
     expect(source).toContain('"Moneda"');
     expect(source).toMatch(/Moneda: (CLP|USD)/);
     expect(source).toContain("/app/accion/NVDAx");
-    expect(source).toContain('"ETFs"');
+    expect(source).toContain("totalAcciones");
   });
 
   it("detail.spec.ts cubre la ficha, rangos del gráfico y boleta", () => {
@@ -151,7 +156,7 @@ describe("M86: cobertura de rutas y códigos por spec", () => {
     expect(source).toContain("REAL_TRADING_READY");
     // La demo sigue operando con el dinero real apagado.
     expect(source).toContain("/api/trade/quote");
-    expect(source).toMatch(/Simulación con precios reales/);
+    expect(source).toMatch(/Cuenta de práctica con saldo ficticio/);
     // El apagado también se nota en la UI de depósito: cotizar falla.
     expect(source).toContain("No pudimos calcular el depósito");
   });

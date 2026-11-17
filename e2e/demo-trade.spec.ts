@@ -29,6 +29,11 @@ async function entrarDemo(page: import("@playwright/test").Page, correo: string)
   await expect(page.getByRole("heading", { name: "Mercado" })).toBeVisible();
 }
 
+/** La sección se desmonta al quedar sin posiciones, incluso si hay otros enlaces al activo. */
+function posicionNvidia(page: import("@playwright/test").Page) {
+  const posiciones = page.locator("section").filter({ has: page.getByRole("heading", { name: "Tus acciones", exact: true }) });
+  return posiciones.getByRole("listitem").filter({ has: page.locator('a[href="/app/accion/NVDAx"]') });
+}
 /** Reinicia la cuenta demo desde la cartera y espera el saldo inicial. */
 async function reiniciarDemo(page: import("@playwright/test").Page) {
   await page.goto("/app/cartera");
@@ -72,7 +77,7 @@ test("demo: compra NVDAx por US$100 y la cartera se actualiza", async ({ page })
   await expect(page).toHaveURL(/\/app\/cartera/);
 
   // La cartera muestra la posición de NVIDIA.
-  const nvda = page.locator('a[href="/app/accion/NVDAx"]');
+  const nvda = posicionNvidia(page);
   await expect(nvda).toBeVisible();
   await expect(nvda).toContainText(/acc\./);
 
@@ -124,9 +129,10 @@ test("demo: venta parcial desde la cartera", async ({ page }) => {
   await sheetCompra.getByRole("button", { name: "Confirmar" }).click();
   await expect(sheetCompra.getByText("¡Listo!")).toBeVisible();
 
-  // Venta parcial desde la cartera (botón Vender de la fila).
+  // Venta parcial desde el menú de la posición en cartera.
   await page.goto("/app/cartera");
-  await page.getByRole("link", { name: "Vender NVIDIA" }).click();
+  await posicionNvidia(page).getByRole("button", { name: "Opciones de posición: NVIDIA" }).click();
+  await page.getByRole("menuitem", { name: "Vender", exact: true }).click();
   await expect(page).toHaveURL(/\/app\/accion\/NVDAx\?operar=vender/);
 
   const sheetVenta = page.getByRole("dialog", { name: "Vender NVIDIA" });
@@ -136,14 +142,18 @@ test("demo: venta parcial desde la cartera", async ({ page }) => {
   const reviewVenta = sheetVenta.getByRole("button", { name: "Revisar" });
   await expect(reviewVenta).toBeEnabled();
   await reviewVenta.click();
-  await expect(sheetVenta.getByText(/Vendes 0,5 acc\. de NVIDIA/)).toBeVisible();
+  const resumen = sheetVenta.getByRole("region", { name: "Resumen de la cotización" });
+  const pagas = resumen.getByText("Pagas", { exact: true }).locator("xpath=following-sibling::dd");
+  const recibes = resumen.getByText("Recibes", { exact: true }).locator("xpath=following-sibling::dd");
+  await expect(pagas).toHaveText("0,5 acc. NVDAx");
+  await expect(recibes).toContainText(/\$\s?[\d.]+/);
   await sheetVenta.getByRole("button", { name: "Confirmar" }).click();
   await expect(sheetVenta.getByText("¡Listo!")).toBeVisible();
 
   // La posición baja a 0,5 acc.
   await sheetVenta.getByRole("link", { name: "Ver en cartera" }).click();
   await expect(page).toHaveURL(/\/app\/cartera/);
-  const nvda = page.locator('a[href="/app/accion/NVDAx"]');
+  const nvda = posicionNvidia(page);
   await expect(nvda).toContainText(/0,5 acc\./);
 
   // Historial con la venta registrada.
@@ -166,7 +176,7 @@ test("demo: reinicio de cuenta borra posiciones y vuelve al saldo inicial", asyn
   await expect(sheet.getByText("¡Listo!")).toBeVisible();
 
   await page.goto("/app/cartera");
-  await expect(page.locator('a[href="/app/accion/NVDAx"]')).toBeVisible();
+  await expect(posicionNvidia(page)).toBeVisible();
 
   // Reinicio: diálogo de confirmación con su texto claro.
   await page.getByRole("button", { name: "Reiniciar cuenta demo" }).click();
@@ -175,7 +185,7 @@ test("demo: reinicio de cuenta borra posiciones y vuelve al saldo inicial", asyn
   await dialogo.getByRole("button", { name: "Reiniciar", exact: true }).click();
 
   // La posición desaparece y el disponible vuelve al inicial.
-  await expect(page.locator('a[href="/app/accion/NVDAx"]')).toHaveCount(0);
+  await expect(posicionNvidia(page)).toHaveCount(0);
   const disponible = page
     .getByRole("heading", { name: "Disponible para invertir" })
     .locator("xpath=following-sibling::div");

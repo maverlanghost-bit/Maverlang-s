@@ -1,13 +1,25 @@
 "use client";
 
-import { useEffect, useId, useRef, useSyncExternalStore, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, useSyncExternalStore, type CSSProperties, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { cn } from "@/lib/cn";
 import { IconButton } from "@/components/ui/icon-button";
 import { IconClose } from "@/components/ui/icons";
+import { OverlayPortalProvider, useOverlayPortalContainer } from "@/components/ui/overlay-portal-context";
 
 const FOCUSABLE =
   'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+const overlayPanels = new Set<HTMLElement>();
+
+function hasHigherPanel(panel: HTMLElement) {
+  for (const other of overlayPanels) {
+    if (other === panel || !other.isConnected) continue;
+    if (panel.contains(other)) return true;
+    if (!other.contains(panel) && (panel.compareDocumentPosition(other) & Node.DOCUMENT_POSITION_FOLLOWING)) return true;
+  }
+  return false;
+}
 
 let scrollLocks = 0;
 let scrollSnapshot = "";
@@ -41,8 +53,9 @@ function useMounted() {
 
 function Portal({ children }: { children: ReactNode }) {
   const mounted = useMounted();
+  const container = useOverlayPortalContainer();
   if (!mounted) return null;
-  return createPortal(children, document.fullscreenElement ?? document.body);
+  return createPortal(children, container ?? document.body);
 }
 
 /**
@@ -59,7 +72,7 @@ function isFocusable(element: HTMLElement): boolean {
 }
 
 function useOverlay(open: boolean, onClose: () => void) {
-  const panelRef = useRef<HTMLDivElement>(null);
+  const [panel, setPanel] = useState<HTMLDivElement | null>(null);
   const onCloseRef = useRef(onClose);
 
   useEffect(() => {
@@ -67,8 +80,8 @@ function useOverlay(open: boolean, onClose: () => void) {
   }, [onClose]);
 
   useEffect(() => {
-    if (!open) return;
-    const panel = panelRef.current;
+    if (!open || !panel) return;
+    overlayPanels.add(panel);
     const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
 
     function focusable() {
@@ -112,6 +125,10 @@ function useOverlay(open: boolean, onClose: () => void) {
     }
 
     function onKey(event: KeyboardEvent) {
+      if (!panel || event.defaultPrevented || hasHigherPanel(panel)) return;
+      const active = document.activeElement;
+      // Nested floating controls and wallet dialogs own their keyboard interaction.
+      if (active instanceof HTMLElement && (active.closest('[data-slot="popover-content"], [data-slot="dropdown-menu-content"]') || (!panel.contains(active) && active.closest('[role="dialog"], [role="menu"], [role="listbox"]')))) return;
       if (event.key === "Escape") {
         event.preventDefault();
         onCloseRef.current();
@@ -125,11 +142,10 @@ function useOverlay(open: boolean, onClose: () => void) {
         event.preventDefault();
         return;
       }
-      const active = document.activeElement;
       if (event.shiftKey && (active === first || (panel && !panel.contains(active)))) {
         event.preventDefault();
         last.focus();
-      } else if (!event.shiftKey && active === last) {
+      } else if (!event.shiftKey && (active === last || !panel.contains(active))) {
         event.preventDefault();
         first.focus();
       }
@@ -141,11 +157,12 @@ function useOverlay(open: boolean, onClose: () => void) {
       stopFollowing();
       document.removeEventListener("keydown", onKey);
       unlockScroll();
-      previous?.focus();
+      overlayPanels.delete(panel);
+      if (previous?.isConnected) previous.focus();
     };
-  }, [open]);
+  }, [open, panel]);
 
-  return panelRef;
+  return { panel, setPanel };
 }
 
 export function OverlayPanel({
@@ -172,7 +189,8 @@ export function OverlayPanel({
   dismissible?: boolean;
 }) {
   const close = () => { if (dismissible) onClose(); };
-  const panelRef = useOverlay(open, close);
+  const { panel, setPanel } = useOverlay(open, close);
+  const [portalHost, setPortalHost] = useState<HTMLElement | null>(null);
   const titleId = useId();
   const descriptionId = useId();
 
@@ -187,7 +205,7 @@ export function OverlayPanel({
           aria-hidden
         />
         <div
-          ref={panelRef}
+          ref={setPanel}
           role="dialog"
           aria-modal="true"
           aria-labelledby={titleId}
@@ -205,7 +223,8 @@ export function OverlayPanel({
               {description}
             </p>
           ) : null}
-          <div className="mt-4">{children}</div>
+          <OverlayPortalProvider value={{ host: portalHost, owner: panel }}><div className="mt-4">{children}</div></OverlayPortalProvider>
+          <section ref={setPortalHost} role="presentation" className="contents" />
           <IconButton label="Cerrar" size="md" className="absolute top-3 right-3" onClick={close} disabled={!dismissible}>
             <IconClose />
           </IconButton>
