@@ -1,5 +1,16 @@
 # PROGRESO — Maverlang
 
+## T69 — Plan de rediseño de portada y páginas previas a la plataforma (2026-11-17)
+- Alcance: análisis y documentación en `docs/PLAN-DISENO-MARKETING.md`. Sin cambios de código de producto; implementación pendiente de aprobación de Manu.
+- Revisado en navegador (mock, 1440 px): portada completa, `/acciones`, ficha de Apple, `/como-funciona`, `/costos`, `/guias`, ingreso y registro; portada a 375 px. Código leído: portada, hero, pasos, reglas, cierre, header, `globals.css`. ui.shadcn.com en vivo.
+- No vistas en navegador: `/categorias`, `/comparar`, `/seguridad` (página propia), `/ayuda`, `/legal/*`; sus propuestas salen de la estructura de archivos y del patrón común, a confirmar al iniciar D4–D6.
+- Hallazgos: el producto no se muestra en la portada; todas las secciones repiten composición; media caja vacía a 1440 px; escala tipográfica plana (48/34/18/14 px); avisos repetidos; header sin CTA; cierre sobrecargado; acceso sin contexto.
+- Medido: portada 7.500 px a 1440 y 11.256 px a 375. shadcn: Geist, H1 48 px/600/−2,4 px, bento de interfaz real bajo el hero.
+- Propuesta: hero con bento de producto alimentado por `getLandingQuotes()`, portada de 10 a 8 bloques con composiciones alternadas, banda invertida 24/7, `PageHero` dividido en páginas internas, acceso en dos columnas. Etapas D1–D8, una por sesión.
+- Decisiones abiertas: sombra/superficies en marketing (hoy "sin sombras"), banda negra, acento `#ff6a08` vs monocromo, dependencias `@radix-ui/react-navigation-menu` y `embla-carousel-react`, modo oscuro fuera.
+- Entorno: se creó `.claude/launch.json` (config de vista previa, sin commitear); servidor temporal detenido. Sin dependencias nuevas, migraciones, push ni deploy.
+- Próximo paso: Manu responde las decisiones del §10; se recomienda empezar por D1 → D2 → D3. Antes de D7 (acceso), leer `docs/AUDITORIA-HANDOFF.md`.
+
 ## T69 — Verificación completa posterior de gráficos e interfaz (2026-11-17)
 - Solicitud: Manu pide completar las verificaciones. Se repiten todos los unitarios y los 89 casos E2E, con apoyo GPT-6.1 Terra, razonamiento medio; lint general de app/componentes/lib/config/contenido/tests/E2E/scripts y configuraciones.
 - Unitarios definitivos: 199/199 archivos y 1.969/1.969 pruebas aprobadas, salida 0. Primera corrida detectó sólo una expectativa textual antigua en `tests/unit/reference-series.test.ts`; ahora comprueba las fuentes de la curva visible, incluido el historial conservado tras error.
