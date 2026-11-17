@@ -77,11 +77,15 @@ export function LegalBody({ blocks }: { blocks: Block[] }) {
   const withIndex = headings.length >= 3;
 
   return (
-    <div className={cn("mt-8", withIndex && "lg:grid lg:grid-cols-[minmax(0,1fr)_15rem] lg:items-start lg:gap-12")}>
+    <div
+      className={cn(
+        withIndex && "lg:grid lg:grid-cols-[15rem_minmax(0,1fr)] lg:items-start lg:gap-16",
+      )}
+    >
       {withIndex ? (
-        <aside className="mb-8 max-w-[68ch] lg:order-2 lg:sticky lg:top-24 lg:mb-0 lg:max-w-none">
+        <aside className="mb-10 lg:sticky lg:top-24 lg:mb-0 lg:max-h-[calc(100dvh-7rem)] lg:overflow-y-auto">
           {/* <lg: plegado, 44 px de summary, mismo indicador que /ayuda. */}
-          <details className="group border-y border-border lg:hidden">
+          <details className="group rounded-bento border border-border bg-surface-1 px-4 lg:hidden">
             <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-4 py-3 text-sm font-medium text-fg [&::-webkit-details-marker]:hidden">
               <span className="min-w-0">
                 En este documento
@@ -93,29 +97,30 @@ export function LegalBody({ blocks }: { blocks: Block[] }) {
               <IndexLinks headings={headings} />
             </nav>
           </details>
-          {/* lg: fijo junto al texto. */}
-          <nav
-            aria-label="Índice del documento"
-            className="hidden border-t border-border pt-4 lg:block"
-          >
-            <p className="eyebrow">En este documento</p>
+          {/* lg: fijo a la izquierda del texto. */}
+          <nav aria-label="Índice del documento" className="hidden lg:block">
+            <p className="label">En este documento</p>
             <IndexLinks headings={headings} />
           </nav>
         </aside>
       ) : null}
 
-      <div className="min-w-0 max-w-[68ch] space-y-5 text-[1.0625rem] leading-7 text-fg-body">
+      <div className="min-w-0 max-w-[68ch] space-y-5 text-[1.0625rem] leading-[1.75] text-fg-body">
         {blocks.map((block, index) => {
           if (block.type === "h2") {
             return (
-              <h2 key={block.id} id={block.id} className="pt-6 text-[1.375rem] first:pt-0 sm:text-2xl">
+              <h2
+                key={block.id}
+                id={block.id}
+                className="pt-8 text-[1.5rem] leading-tight font-semibold first:pt-0 sm:text-[1.75rem]"
+              >
                 {block.text}
               </h2>
             );
           }
           if (block.type === "h3") {
             return (
-              <h3 key={block.id} id={block.id} className="pt-2 text-lg">
+              <h3 key={block.id} id={block.id} className="pt-3 text-lg font-semibold">
                 {block.text}
               </h3>
             );
@@ -218,14 +223,14 @@ const LEGAL_NAV: { slug: string; label: string }[] = [
 export function LegalNav({ current }: { current: string }) {
   const others = LEGAL_NAV.filter((item) => item.slug !== current);
   return (
-    <nav aria-label="Documentos legales" className="mt-12 max-w-5xl border-t border-border pt-6">
-      <h2 className="text-base font-medium text-fg">Documentos legales</h2>
+    <nav aria-label="Documentos legales" className="mt-16 border-t border-border pt-10">
+      <h2 className="text-xl font-semibold tracking-tight text-fg">Documentos legales</h2>
       <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {others.map((item) => (
           <Link
             key={item.slug}
             href={`/legal/${item.slug}`}
-            className="group flex min-h-24 flex-col justify-between gap-3 rounded-xl border border-border p-4 transition-colors hover:border-border-strong hover:bg-surface-1"
+            className="group flex min-h-24 flex-col justify-between gap-3 rounded-bento border border-border bg-bg p-5 transition-colors hover:border-border-strong hover:bg-surface-1 motion-reduce:transition-none"
           >
             <span className="text-sm font-medium text-balance text-fg">{item.label}</span>
             <span className="inline-flex items-center gap-1 text-[13px] font-medium text-fg-muted transition-colors group-hover:text-fg">

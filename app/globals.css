@@ -57,6 +57,30 @@
   --shadow-hairline: var(--shadow-card);
   --shadow-raised: 0 1px 3px rgb(12 15 20 / 0.05);
 
+  /* T70 — sólo marketing (portada, páginas públicas y acceso).
+     `text-display` es el H1 de portada; `text-title`, el H2 de sección y el H1
+     de página interna; `text-lead-lg`, la bajada del hero. Los tres traen su
+     interlínea, tracking y peso para que ninguna página los arme a mano. */
+  --text-display: clamp(2.25rem, 1.35rem + 3.9vw, 4rem);
+  --text-display--line-height: 1.03;
+  --text-display--letter-spacing: -0.04em;
+  --text-display--font-weight: 600;
+  --text-title: clamp(1.875rem, 1.45rem + 1.8vw, 2.75rem);
+  --text-title--line-height: 1.08;
+  --text-title--letter-spacing: -0.03em;
+  --text-title--font-weight: 600;
+  --text-lead-lg: 1.125rem;
+  --text-lead-lg--line-height: 1.55;
+  /* Radio de tarjeta bento: entre `xl` (16) y `3xl` (24). */
+  --radius-bento: 1.25rem;
+  /* Única sombra añadida: el marco que muestra producto. No reemplaza al
+     hairline; lo acompaña. */
+  --shadow-frame: 0 1px 2px rgb(12 15 20 / 0.04), 0 16px 40px -16px rgb(12 15 20 / 0.14);
+  /* Banda invertida (fondo `fg`): texto secundario 8,4:1 y filo sobre negro. */
+  --color-inverse-muted: #a9acb1;
+  --color-inverse-border: rgb(255 255 255 / 0.14);
+  --color-inverse-surface: rgb(255 255 255 / 0.06);
+
   --ease-spring: cubic-bezier(0.25, 1, 0.5, 1);
   --ease-inout: cubic-bezier(0.4, 0, 0.2, 1);
 

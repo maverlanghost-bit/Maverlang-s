@@ -1,5 +1,7 @@
 import Link from "next/link";
-import { LandingSection } from "@/components/landing/section";
+import { PageHero } from "@/components/landing/page-hero";
+import { PageLinkCards } from "@/components/landing/page-link-cards";
+import { LandingSection, SectionHeader } from "@/components/landing/section";
 import { DisclosureList, type DisclosureItem } from "@/components/ui/disclosure-list";
 import { site } from "@/config/site";
 import { getFaq, type FaqEntry, type FaqPart } from "@/lib/content/faq";
@@ -47,15 +49,6 @@ const GUIDES = [
   },
 ] as const;
 
-const JUMP_LINKS = [
-  { href: "#ayuda-partir", label: "Para partir" },
-  { href: "#ayuda-operar", label: "Para operar" },
-  { href: "#ayuda-seguridad", label: "Seguridad y costos" },
-] as const;
-
-const textLinkClass =
-  "inline-flex min-h-11 items-center text-sm font-medium text-fg-body underline decoration-border underline-offset-4 transition-colors duration-150 hover:text-fg hover:decoration-fg motion-reduce:transition-none";
-
 // Enlace dentro de una respuesta: va en línea con la prosa.
 const inlineLinkClass =
   "font-medium text-fg underline decoration-border underline-offset-4 hover:decoration-fg";
@@ -97,7 +90,11 @@ function toDisclosureItems(entries: FaqEntry[]): DisclosureItem[] {
   }));
 }
 
-/** Centro de ayuda: guías dedicadas arriba, preguntas frecuentes abajo. */
+function questionCount(count: number): string {
+  return `${count} ${count === 1 ? "pregunta" : "preguntas"}`;
+}
+
+/** Centro de ayuda: temas arriba, guías por tema y preguntas frecuentes abajo. */
 export default function AyudaPage() {
   const faq = getFaq(site.name);
   const partir = faq.filter((entry) =>
@@ -111,89 +108,84 @@ export default function AyudaPage() {
   );
   const faqLd = faqPageJsonLd(faq);
 
+  const groups = [
+    { id: "ayuda-partir", title: "Para partir", entries: partir, muted: false },
+    { id: "ayuda-operar", title: "Para operar", entries: operar, muted: true },
+    { id: "ayuda-seguridad", title: "Seguridad y costos", entries: seguridad, muted: false },
+  ];
+
   return (
     <>
       <JsonLd data={faqLd} />
-      <LandingSection titleId="ayuda-title" density="compact">
-        <div className="max-w-3xl">
-          <p className="label">Ayuda</p>
-          <h1 id="ayuda-title" className="mt-3 text-3xl sm:text-4xl">
-            Centro de ayuda
-          </h1>
-          <p className="mt-4 max-w-[62ch] text-lead text-fg-body">
-            Guías por tema y respuestas cortas. Si partes de cero, empieza por “Para partir”. Términos,
-            privacidad, riesgos y comisiones siguen en borrador.
-          </p>
-        </div>
 
-        <nav aria-label="Secciones de la página" className="mt-8 max-w-3xl md:mt-10">
-          <p className="eyebrow">En esta página</p>
-          <ul className="mt-2 flex flex-wrap gap-x-6 gap-y-0.5">
-            {JUMP_LINKS.map((link) => (
-              <li key={link.href}>
-                <Link href={link.href} className={textLinkClass}>
-                  {link.label}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </nav>
-
-        <section aria-labelledby="ayuda-guias" className="mt-12 max-w-3xl md:mt-16">
-          <h2 id="ayuda-guias" className="text-2xl sm:text-3xl">
-            Guías por tema
-          </h2>
-          <ul className="mt-5 divide-y divide-border border-y border-border">
-            {GUIDES.map((guide) => (
-              <li key={guide.href + guide.title}>
-                <Link
-                  href={guide.href}
-                  className="group flex min-h-11 items-start gap-4 py-4 transition-colors duration-150 motion-reduce:transition-none"
-                >
-                  <span className="min-w-0 flex-1">
-                    <span className="block text-[15px] leading-snug font-medium text-fg sm:text-base">
-                      {guide.title}
-                    </span>
-                    <span className="mt-1 block text-[0.9375rem] leading-relaxed text-fg-body">
-                      {guide.body}
-                    </span>
-                  </span>
-                  <span
-                    aria-hidden="true"
-                    className="mt-0.5 shrink-0 text-sm text-fg-muted transition-colors duration-150 group-hover:text-fg motion-reduce:transition-none"
+      <PageHero
+        titleId="ayuda-title"
+        eyebrow="Ayuda"
+        title="Centro de ayuda"
+        aside={
+          <nav aria-label="Temas de ayuda">
+            <ul className="grid list-none gap-3">
+              {groups.map((group) => (
+                <li key={group.id}>
+                  <a
+                    href={`#${group.id}`}
+                    className="group flex min-h-11 items-center justify-between gap-4 rounded-bento border border-border bg-bg p-5 transition-colors hover:border-border-strong hover:bg-surface-1 motion-reduce:transition-none md:p-6"
                   >
-                    →
-                  </span>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </section>
+                    <span className="min-w-0">
+                      <span className="block text-lg leading-snug font-semibold tracking-tight text-fg">
+                        {group.title}
+                      </span>
+                      <span className="num mt-1 block text-[13px] leading-snug text-fg-muted">
+                        {questionCount(group.entries.length)}
+                      </span>
+                    </span>
+                    <span
+                      aria-hidden="true"
+                      className="shrink-0 text-lg leading-snug text-fg-muted transition-[color,transform] duration-150 group-hover:translate-x-0.5 group-hover:text-fg motion-reduce:transition-none"
+                    >
+                      →
+                    </span>
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </nav>
+        }
+      >
+        Guías por tema y respuestas cortas. Si partes de cero, empieza por “Para partir”. Términos,
+        privacidad, riesgos y comisiones siguen en borrador.
+      </PageHero>
 
-        <div className="mt-12 max-w-3xl space-y-10 md:mt-16 md:space-y-12">
-          {[
-            { id: "ayuda-partir", title: "Para partir", entries: partir },
-            { id: "ayuda-operar", title: "Para operar", entries: operar },
-            { id: "ayuda-seguridad", title: "Seguridad y costos", entries: seguridad },
-          ].map((group) => (
-            <section key={group.id} aria-labelledby={group.id}>
-              <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-                <h2 id={group.id} className="text-2xl sm:text-3xl">
-                  {group.title}
-                </h2>
-                <p className="text-[13px] text-fg-muted tabular-nums">
-                  {group.entries.length} {group.entries.length === 1 ? "pregunta" : "preguntas"}
-                </p>
-              </div>
+      <LandingSection titleId="ayuda-guias" tone="muted" density="compact">
+        <SectionHeader id="ayuda-guias" align="split" title="Guías por tema" />
+        <PageLinkCards className="mt-8 md:mt-10" links={GUIDES} />
+      </LandingSection>
+
+      {groups.map((group) => (
+        <LandingSection
+          key={group.id}
+          titleId={group.id}
+          tone={group.muted ? "muted" : "default"}
+          density="compact"
+        >
+          <div className="grid gap-6 lg:grid-cols-12 lg:gap-12">
+            <div className="lg:col-span-4">
+              <h2 id={group.id} className="text-2xl font-semibold tracking-tight text-balance sm:text-3xl">
+                {group.title}
+              </h2>
+              <p className="num mt-2 text-[13px] text-fg-muted">
+                {questionCount(group.entries.length)}
+              </p>
+            </div>
+            <div className="min-w-0 lg:col-span-8">
               <DisclosureList
                 items={toDisclosureItems(group.entries)}
-                className="mt-4"
                 summaryClassName="text-[15px] leading-snug sm:text-base"
               />
-            </section>
-          ))}
-        </div>
-      </LandingSection>
+            </div>
+          </div>
+        </LandingSection>
+      ))}
     </>
   );
 }

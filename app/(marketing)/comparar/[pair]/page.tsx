@@ -3,7 +3,10 @@ import Link from "next/link";
 import { notFound, permanentRedirect } from "next/navigation";
 import { TickerLogo } from "@/components/domain/ticker-logo";
 import { CompareChart } from "@/components/landing/compare-chart";
-import { LandingSection } from "@/components/landing/section";
+import { CatalogBody } from "@/components/landing/catalog-body";
+import { CatalogBreadcrumb } from "@/components/landing/catalog-breadcrumb";
+import { PageHero } from "@/components/landing/page-hero";
+import { ProductFrame } from "@/components/landing/product-frame";
 import { StockLivePrice } from "@/components/landing/stock-live-price";
 import { buttonClasses } from "@/components/ui/button";
 import { logoPathFromSymbol } from "@/lib/catalog/logos";
@@ -24,10 +27,6 @@ const DESCRIPTION_MIN = 120;
 
 const linkClass =
   "inline-flex min-h-11 items-center text-sm font-medium text-fg underline decoration-border underline-offset-4 transition-colors hover:decoration-fg motion-reduce:transition-none";
-
-/** Migas: el enlace mantiene 44 px de alto táctil sin agrandar el texto. */
-const crumbClass =
-  "inline-flex min-h-11 items-center underline decoration-border underline-offset-4 transition-colors hover:decoration-fg motion-reduce:transition-none";
 
 /** Importe por acción de la SEC (EPS o dividendos): dólares, dos decimales, es-CL. */
 function usdPerShare(value: number | null): string | null {
@@ -179,19 +178,19 @@ export async function generateMetadata({
   });
 }
 
-/** Cabecera de cada activo: sin tarjeta, sólo hairlines y el precio en vivo. */
+/** Tarjeta de cada activo: identidad, precio del token y enlace a su ficha. */
 function SideSummary({ asset }: { asset: PublicAsset }) {
   return (
-    <div className="flex h-full flex-col gap-4">
+    <div className="flex h-full flex-col gap-4 rounded-bento border border-border bg-bg p-5 md:p-6">
       <div className="flex items-center gap-3">
         <TickerLogo
           symbol={asset.symbol}
           name={asset.name}
           logoUrl={logoPathFromSymbol(asset.symbol)}
-          size={36}
+          size={40}
           decorative
           loading="lazy"
-          sizes="36px"
+          sizes="40px"
         />
         <div className="min-w-0">
           <p className="label">{asset.ticker}</p>
@@ -205,6 +204,24 @@ function SideSummary({ asset }: { asset: PublicAsset }) {
       <Link href={`/acciones/${asset.slug}`} className={`${linkClass} mt-auto`}>
         Ver ficha de {asset.name}
       </Link>
+    </div>
+  );
+}
+
+/** Logo grande del encabezado: el par "A vs B" ocupa la mitad derecha del hero. */
+function HeroLogo({ asset }: { asset: PublicAsset }) {
+  return (
+    <div className="flex min-w-0 flex-col items-center gap-3 text-center">
+      <TickerLogo
+        symbol={asset.symbol}
+        name={asset.name}
+        logoUrl={logoPathFromSymbol(asset.symbol)}
+        size={88}
+        decorative
+        loading="eager"
+        sizes="88px"
+      />
+      <span className="num text-sm font-medium text-fg">{asset.ticker}</span>
     </div>
   );
 }
@@ -377,247 +394,262 @@ export default async function CompararParPage({ params }: { params: Promise<{ pa
     { name: `${a.name} vs ${b.name}`, path: canonical },
   ];
 
+  const winnerSide = (row: (typeof rows)[number]): "left" | "right" | null => {
+    if (!row.numeric || row.leftValue === null || row.rightValue === null) return null;
+    if (row.leftValue === row.rightValue) return null;
+    return row.leftValue > row.rightValue ? "left" : "right";
+  };
+
   return (
-    <LandingSection titleId="comparar-title" density="compact">
+    <>
       <JsonLd data={breadcrumbJsonLd(crumbs)} />
-      <article>
-        <nav aria-label="Migas" className="text-sm text-fg-muted">
-          <ol className="flex flex-wrap items-center gap-x-2 gap-y-1">
-            <li>
-              <Link href="/" className={crumbClass}>
-                Inicio
-              </Link>
-            </li>
-            <li aria-hidden="true">/</li>
-            <li>
-              <Link href="/comparar" className={crumbClass}>
-                Comparar
-              </Link>
-            </li>
-            <li aria-hidden="true">/</li>
-            <li aria-current="page" className="text-fg">
-              {a.name} vs {b.name}
-            </li>
-          </ol>
-        </nav>
-
-        <header className="mt-6 border-b border-border pb-8">
-          <p className="label">Comparación</p>
-          <h1 id="comparar-title" className="mt-3 text-3xl text-balance sm:text-4xl">
-            {a.name} vs {b.name}
-          </h1>
-          <p className="mt-4 max-w-[62ch] text-lead text-fg-body">
-            Dos activos lado a lado: cifras de la empresa según la SEC, precio del token y rendimiento relativo del
-            último mes. Comparar no es recomendar.
-          </p>
-        </header>
-
-        <div className="mt-8 grid sm:grid-cols-2 sm:divide-x sm:divide-border">
-          <div className="border-b border-border py-5 sm:border-b-0 sm:pr-6 lg:pr-8">
-            <SideSummary asset={a} />
-          </div>
-          <div className="py-5 sm:pl-6 lg:pl-8">
-            <SideSummary asset={b} />
-          </div>
-        </div>
-
-        <CompareChart
-          key={canonical}
-          a={{ symbol: a.symbol, name: a.name, ticker: a.ticker }}
-          b={{ symbol: b.symbol, name: b.name, ticker: b.ticker }}
-          path={canonical}
-        />
-
-        <section aria-labelledby="comparar-datos" className="mt-12">
-          <h2 id="comparar-datos" className="text-2xl sm:text-3xl">
-            Datos de la empresa
-          </h2>
-          <p className="mt-2 max-w-[68ch] text-[13px] leading-relaxed text-fg-muted">
-            Cifras de los últimos 12 meses según la SEC. Si la empresa no publica un dato, se muestra “Sin dato”: no se
-            completa con cero.
-          </p>
-
-          {visibleRows.length > 0 ? (
-            <>
-              {/* <sm: una fila por métrica, dos valores y la cifra mayor en palabras.
-                  Reemplaza la tabla de 3 columnas que a 390 px caía a 11 px. */}
-              <ul className="mt-5 border-t border-border sm:hidden">
-                {visibleRows.map((row) => {
-                  const winner = winnerLabel(row, a, b);
-                  return (
-                    <li key={row.label} className="border-b border-border py-4">
-                      <p className="text-[13px] font-medium text-fg-body">{row.label}</p>
-                      <dl className="mt-2 space-y-1.5">
-                        <div className="flex items-baseline justify-between gap-3">
-                          <dt className="font-mono text-[13px] text-fg-muted">{a.ticker}</dt>
-                          <dd
-                            className={cn(
-                              "text-right text-sm text-fg",
-                              row.numeric && row.left !== null && "num",
-                              row.left === null && "text-fg-muted",
-                            )}
-                          >
-                            {row.left ?? "Sin dato"}
-                          </dd>
-                        </div>
-                        <div className="flex items-baseline justify-between gap-3">
-                          <dt className="font-mono text-[13px] text-fg-muted">{b.ticker}</dt>
-                          <dd
-                            className={cn(
-                              "text-right text-sm text-fg",
-                              row.numeric && row.right !== null && "num",
-                              row.right === null && "text-fg-muted",
-                            )}
-                          >
-                            {row.right ?? "Sin dato"}
-                          </dd>
-                        </div>
-                      </dl>
-                      {winner ? <p className="mt-2 text-[13px] text-fg-muted">{winner}</p> : null}
-                    </li>
-                  );
-                })}
-              </ul>
-
-              <div className="mt-5 hidden max-w-3xl overflow-x-auto sm:block">
-                <table className="w-full border-collapse text-left text-[13px]">
-                  <caption className="sr-only">
-                    Comparación de datos de empresa de {a.name} y {b.name}
-                  </caption>
-                  <thead>
-                    <tr className="border-b border-border">
-                      <th scope="col" className="label w-[32%] py-2.5 pr-4 text-left">
-                        Dato
-                      </th>
-                      <th scope="col" className="label whitespace-nowrap py-2.5 pr-4 pl-4 text-right text-fg">
-                        {a.ticker}
-                      </th>
-                      <th scope="col" className="label whitespace-nowrap py-2.5 pl-4 text-right text-fg">
-                        {b.ticker}
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {visibleRows.map((row) => (
-                      <tr
-                        key={row.label}
-                        className="border-b border-border transition-colors hover:bg-surface-1 motion-reduce:transition-none"
-                      >
-                        <th scope="row" className="py-3 pr-4 align-baseline font-normal text-fg-body">
-                          {row.label}
-                        </th>
-                        <td
-                          className={cn(
-                            "whitespace-nowrap px-4 py-3 text-right align-baseline",
-                            row.numeric && "num",
-                            row.left === null ? "text-fg-muted" : "text-fg",
-                          )}
-                        >
-                          {row.left ?? "Sin dato"}
-                        </td>
-                        <td
-                          className={cn(
-                            "whitespace-nowrap py-3 pl-4 text-right align-baseline",
-                            row.numeric && "num",
-                            row.right === null ? "text-fg-muted" : "text-fg",
-                          )}
-                        >
-                          {row.right ?? "Sin dato"}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </>
-          ) : (
-            <p className="mt-4 border-t border-border py-5 text-[13px] leading-relaxed text-fg-muted">
-              No hay datos de empresa publicados por la SEC para estos activos.
-            </p>
-          )}
-
-          <div className="mt-4 text-[13px] leading-relaxed text-fg-muted">
-            <p>
-              Fuente: SEC EDGAR{snapshotDate ? `, datos al ${snapshotDate}` : ""}. Cifras de los últimos 12 meses cuando
-              la empresa las publica.
-            </p>
-            {leftProfile?.sourceUrl || rightProfile?.sourceUrl ? (
-              <ul className="mt-1 flex flex-wrap items-center gap-x-4">
-                {leftProfile?.sourceUrl ? (
-                  <li>
-                    <a
-                      href={leftProfile.sourceUrl}
-                      target="_blank"
-                      rel="nofollow noopener"
-                      className="inline-flex min-h-11 items-center underline decoration-border underline-offset-4 hover:text-fg hover:decoration-fg"
-                    >
-                      Datos de {a.ticker} en EDGAR
-                    </a>
-                  </li>
-                ) : null}
-                {rightProfile?.sourceUrl ? (
-                  <li>
-                    <a
-                      href={rightProfile.sourceUrl}
-                      target="_blank"
-                      rel="nofollow noopener"
-                      className="inline-flex min-h-11 items-center underline decoration-border underline-offset-4 hover:text-fg hover:decoration-fg"
-                    >
-                      Datos de {b.ticker} en EDGAR
-                    </a>
-                  </li>
-                ) : null}
-              </ul>
-            ) : null}
-          </div>
-        </section>
-
-        {metrics.length > 0 ? (
-          <section aria-labelledby="comparar-tamano" className="mt-12 border-t border-border pt-8">
-            <h2 id="comparar-tamano" className="text-2xl sm:text-3xl">
-              Tamaño relativo
-            </h2>
-            <p className="mt-2 max-w-2xl text-[13px] leading-relaxed text-fg-muted">
-              Barras proporcionales al mayor valor absoluto de cada fila, con la línea base al centro: a la derecha las
-              cifras positivas y a la izquierda las negativas. Sirven para comparar magnitudes, no para medir
-              rendimiento.
-            </p>
-            <div className="mt-6 max-w-2xl space-y-6">
-              {metrics.map((metric) => (
-                <MetricBars
-                  key={metric.label}
-                  label={metric.label}
-                  a={a}
-                  b={b}
-                  left={metric.left}
-                  right={metric.right}
-                />
-              ))}
-            </div>
-          </section>
-        ) : null}
-
-        <div className="mt-12 flex flex-wrap items-center gap-x-6 gap-y-3">
-          <Link href="/acciones" className={buttonClasses({ variant: "primary" })}>
-            Ver el catálogo
-          </Link>
-          <Link href={`/acciones/${a.slug}`} className={linkClass}>
-            Ficha de {a.name}
-          </Link>
-          <Link href={`/acciones/${b.slug}`} className={linkClass}>
-            Ficha de {b.name}
-          </Link>
-          <Link href="/comparar" className={linkClass}>
+      <PageHero
+        titleId="comparar-title"
+        breadcrumb={
+          <CatalogBreadcrumb
+            items={[{ name: "Inicio", href: "/" }, { name: "Comparar", href: "/comparar" }, { name: `${a.name} vs ${b.name}` }]}
+          />
+        }
+        eyebrow="Comparación"
+        title={`${a.name} vs ${b.name}`}
+        factsLabel="Qué incluye la comparación"
+        facts={["Datos de la SEC EDGAR", "Precio del token", "Rendimiento relativo a 1 mes"]}
+        actions={
+          <Link href="/comparar" className={buttonClasses({ variant: "secondary", size: "lg" })}>
             Todas las comparaciones
           </Link>
-        </div>
-
-        <p className="mt-10 border-t border-border pt-6 text-[13px] leading-relaxed text-fg-body">
-          Las cifras de la empresa son datos públicos de la SEC y los precios se mueven durante el día; fuera del
-          horario regular de la bolsa de EE.UU. el precio puede variar más. Revisa la ficha de cada activo antes de
-          operar. Información, no recomendación de inversión.
+        }
+        aside={
+          <div
+            aria-hidden
+            className="flex items-center justify-center gap-5 rounded-bento border border-border bg-surface-1 px-6 py-12 sm:gap-8 md:py-16"
+          >
+            <HeroLogo asset={a} />
+            <span className="font-mono text-sm text-fg-muted">vs</span>
+            <HeroLogo asset={b} />
+          </div>
+        }
+      >
+        <p>
+          Dos activos lado a lado: cifras de la empresa según la SEC, precio del token y rendimiento relativo del
+          último mes. Comparar no es recomendar.
         </p>
-      </article>
-    </LandingSection>
+      </PageHero>
+
+      <CatalogBody>
+        <article>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <SideSummary asset={a} />
+            <SideSummary asset={b} />
+          </div>
+
+          <ProductFrame variant="plain" className="mt-6" bodyClassName="p-5 md:p-8">
+            <CompareChart
+              key={canonical}
+              a={{ symbol: a.symbol, name: a.name, ticker: a.ticker }}
+              b={{ symbol: b.symbol, name: b.name, ticker: b.ticker }}
+              path={canonical}
+            />
+          </ProductFrame>
+
+          <section aria-labelledby="comparar-datos" className="mt-14">
+            <h2 id="comparar-datos" className="text-2xl font-semibold sm:text-3xl">
+              Datos de la empresa
+            </h2>
+            <p className="mt-2 max-w-[68ch] text-[13px] leading-relaxed text-fg-muted">
+              Cifras de los últimos 12 meses según la SEC. Si la empresa no publica un dato, se muestra “Sin dato”: no se
+              completa con cero.
+            </p>
+
+            {visibleRows.length > 0 ? (
+              <>
+                {/* <sm: una fila por métrica, dos valores y la cifra mayor en palabras.
+                    Reemplaza la tabla de 3 columnas que a 390 px caía a 11 px. */}
+                <ul className="mt-6 divide-y divide-border overflow-hidden rounded-bento border border-border sm:hidden">
+                  {visibleRows.map((row) => {
+                    const winner = winnerLabel(row, a, b);
+                    return (
+                      <li key={row.label} className="px-4 py-4">
+                        <p className="text-[13px] font-medium text-fg-body">{row.label}</p>
+                        <dl className="mt-2 space-y-1.5">
+                          <div className="flex items-baseline justify-between gap-3">
+                            <dt className="font-mono text-[13px] text-fg-muted">{a.ticker}</dt>
+                            <dd
+                              className={cn(
+                                "text-right text-sm text-fg",
+                                row.numeric && row.left !== null && "num",
+                                row.left === null && "text-fg-muted",
+                              )}
+                            >
+                              {row.left ?? "Sin dato"}
+                            </dd>
+                          </div>
+                          <div className="flex items-baseline justify-between gap-3">
+                            <dt className="font-mono text-[13px] text-fg-muted">{b.ticker}</dt>
+                            <dd
+                              className={cn(
+                                "text-right text-sm text-fg",
+                                row.numeric && row.right !== null && "num",
+                                row.right === null && "text-fg-muted",
+                              )}
+                            >
+                              {row.right ?? "Sin dato"}
+                            </dd>
+                          </div>
+                        </dl>
+                        {winner ? <p className="mt-2 text-[13px] text-fg-muted">{winner}</p> : null}
+                      </li>
+                    );
+                  })}
+                </ul>
+
+                <div className="mt-6 hidden overflow-x-auto rounded-bento border border-border sm:block">
+                  <table className="w-full border-collapse text-left text-[15px]">
+                    <caption className="sr-only">
+                      Comparación de datos de empresa de {a.name} y {b.name}
+                    </caption>
+                    <thead>
+                      <tr className="border-b border-border">
+                        <th scope="col" className="label w-[40%] bg-surface-1 px-5 py-3 text-left">
+                          Dato
+                        </th>
+                        <th scope="col" className="label whitespace-nowrap bg-surface-1 px-5 py-3 text-right text-fg">
+                          {a.ticker}
+                        </th>
+                        <th scope="col" className="label whitespace-nowrap bg-surface-1 px-5 py-3 text-right text-fg">
+                          {b.ticker}
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {visibleRows.map((row) => {
+                        const winning = winnerSide(row);
+                        return (
+                          <tr
+                            key={row.label}
+                            className="border-b border-border last:border-b-0 transition-colors hover:bg-surface-1 motion-reduce:transition-none"
+                          >
+                            <th scope="row" className="px-5 py-3.5 align-baseline font-normal text-fg-body">
+                              {row.label}
+                            </th>
+                            <td
+                              className={cn(
+                                "whitespace-nowrap px-5 py-3.5 text-right align-baseline",
+                                row.numeric && "num",
+                                row.left === null ? "text-fg-muted" : "text-fg",
+                                winning === "left" && "bg-surface-1 font-semibold",
+                              )}
+                            >
+                              {row.left ?? "Sin dato"}
+                              {winning === "left" ? <span className="sr-only"> (cifra mayor)</span> : null}
+                            </td>
+                            <td
+                              className={cn(
+                                "whitespace-nowrap px-5 py-3.5 text-right align-baseline",
+                                row.numeric && "num",
+                                row.right === null ? "text-fg-muted" : "text-fg",
+                                winning === "right" && "bg-surface-1 font-semibold",
+                              )}
+                            >
+                              {row.right ?? "Sin dato"}
+                              {winning === "right" ? <span className="sr-only"> (cifra mayor)</span> : null}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            ) : (
+              <p className="mt-4 border-t border-border py-5 text-[13px] leading-relaxed text-fg-muted">
+                No hay datos de empresa publicados por la SEC para estos activos.
+              </p>
+            )}
+
+            <div className="mt-4 text-[13px] leading-relaxed text-fg-muted">
+              <p>
+                Fuente: SEC EDGAR{snapshotDate ? `, datos al ${snapshotDate}` : ""}. Cifras de los últimos 12 meses cuando
+                la empresa las publica.
+              </p>
+              {leftProfile?.sourceUrl || rightProfile?.sourceUrl ? (
+                <ul className="mt-1 flex flex-wrap items-center gap-x-4">
+                  {leftProfile?.sourceUrl ? (
+                    <li>
+                      <a
+                        href={leftProfile.sourceUrl}
+                        target="_blank"
+                        rel="nofollow noopener"
+                        className="inline-flex min-h-11 items-center underline decoration-border underline-offset-4 hover:text-fg hover:decoration-fg"
+                      >
+                        Datos de {a.ticker} en EDGAR
+                      </a>
+                    </li>
+                  ) : null}
+                  {rightProfile?.sourceUrl ? (
+                    <li>
+                      <a
+                        href={rightProfile.sourceUrl}
+                        target="_blank"
+                        rel="nofollow noopener"
+                        className="inline-flex min-h-11 items-center underline decoration-border underline-offset-4 hover:text-fg hover:decoration-fg"
+                      >
+                        Datos de {b.ticker} en EDGAR
+                      </a>
+                    </li>
+                  ) : null}
+                </ul>
+              ) : null}
+            </div>
+          </section>
+
+          {metrics.length > 0 ? (
+            <section aria-labelledby="comparar-tamano" className="mt-12 border-t border-border pt-8">
+              <h2 id="comparar-tamano" className="text-2xl font-semibold sm:text-3xl">
+                Tamaño relativo
+              </h2>
+              <p className="mt-2 max-w-2xl text-[13px] leading-relaxed text-fg-muted">
+                Barras proporcionales al mayor valor absoluto de cada fila, con la línea base al centro: a la derecha las
+                cifras positivas y a la izquierda las negativas. Sirven para comparar magnitudes, no para medir
+                rendimiento.
+              </p>
+              <div className="mt-6 max-w-2xl space-y-6">
+                {metrics.map((metric) => (
+                  <MetricBars
+                    key={metric.label}
+                    label={metric.label}
+                    a={a}
+                    b={b}
+                    left={metric.left}
+                    right={metric.right}
+                  />
+                ))}
+              </div>
+            </section>
+          ) : null}
+
+          <div className="mt-12 flex flex-wrap items-center gap-x-6 gap-y-3">
+            <Link href="/acciones" className={buttonClasses({ variant: "primary" })}>
+              Ver el catálogo
+            </Link>
+            <Link href={`/acciones/${a.slug}`} className={linkClass}>
+              Ficha de {a.name}
+            </Link>
+            <Link href={`/acciones/${b.slug}`} className={linkClass}>
+              Ficha de {b.name}
+            </Link>
+            <Link href="/comparar" className={linkClass}>
+              Todas las comparaciones
+            </Link>
+          </div>
+
+          <p className="mt-10 border-t border-border pt-6 text-[13px] leading-relaxed text-fg-body">
+            Las cifras de la empresa son datos públicos de la SEC y los precios se mueven durante el día; fuera del
+            horario regular de la bolsa de EE.UU. el precio puede variar más. Revisa la ficha de cada activo antes de
+            operar. Información, no recomendación de inversión.
+          </p>
+        </article>
+      </CatalogBody>
+    </>
   );
 }

@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { PublicAssetCard } from "@/components/landing/public-asset-card";
+import { StatTile } from "@/components/landing/stat-tile";
 import { cn } from "@/lib/cn";
 import {
   assetsInCategory,
@@ -15,6 +16,9 @@ import { stockParagraph } from "@/lib/seo/copy";
 import type { PublicAsset } from "@/lib/seo/public-catalog";
 import { stockFacts, stockIntro } from "@/lib/seo/stock-copy";
 
+/** H2 de sección: 600 y tracking apretado (el `h2` global es 500). */
+const H2_CLASS = "text-2xl font-semibold sm:text-3xl";
+
 /**
  * Secciones ricas de la ficha pública (`/acciones/[slug]`).
  *
@@ -24,8 +28,9 @@ import { stockFacts, stockIntro } from "@/lib/seo/stock-copy";
  */
 
 /**
- * Filas label/valor con hairline: el patrón de la ficha para especificaciones y
- * datos de la SEC. Sin tarjetas por celda, como una ficha técnica.
+ * Filas label/valor con hairline dentro de un contenedor con borde: el patrón de
+ * la ficha para especificaciones y datos de la SEC. Sin tarjetas por celda,
+ * como una ficha técnica.
  */
 export function StockDataList({
   rows,
@@ -39,20 +44,21 @@ export function StockDataList({
   return (
     <dl
       className={cn(
-        "border-t border-border",
-        columns === 2 && "sm:grid sm:grid-cols-2 sm:gap-x-10",
+        // Hairlines con `gap-px` sobre fondo de borde: sin dobles líneas en 2 columnas.
+        "grid gap-px overflow-hidden rounded-bento border border-border bg-border",
+        columns === 2 && "sm:grid-cols-2",
         className,
       )}
     >
       {rows.map((row) => (
         <div
           key={row.label}
-          className="flex flex-col gap-1 border-b border-border py-3 sm:flex-row sm:items-baseline sm:justify-between sm:gap-6"
+          className="flex flex-col gap-1 bg-bg px-5 py-3.5 sm:flex-row sm:items-baseline sm:justify-between sm:gap-6 sm:[&:last-child:nth-child(odd)]:col-span-full"
         >
-          <dt className="text-sm text-fg-muted">{row.label}</dt>
+          <dt className="text-[15px] text-fg-muted">{row.label}</dt>
           <dd
             className={cn(
-              "min-w-0 text-sm font-medium text-fg sm:text-right",
+              "min-w-0 text-[15px] font-medium text-fg sm:text-right",
               row.mono && "num",
             )}
           >
@@ -112,6 +118,32 @@ export function StockCategoryChips({
   );
 }
 
+/** Datos que se destacan como `StatTile`: cifras de la empresa o del fondo. */
+const KEY_FACT_LABEL = /^(Ingresos|Utilidad neta|Utilidad por acción|Dividendos|Activos netos|Posiciones del fondo)/;
+
+/**
+ * Valor de una cifra para el tile. Separa la unidad ("mil millones") y la fecha
+ * ("al 30 de junio de 2026") del número para que éste cuente: el texto íntegro
+ * sigue presente, sólo cambia su jerarquía.
+ */
+function factTile(fact: { label: string; value: string }) {
+  const dated = /^(.*?)s*((al [^)]+))$/.exec(fact.value);
+  const main = dated?.[1] ?? fact.value;
+  const unit = /^(-?US$[d.,]+)s+(billones|mil millones|millones)$/.exec(main);
+  return {
+    label: fact.label,
+    value: unit ? (
+      <>
+        {unit[1]}
+        <span className="ml-1.5 font-sans text-base font-normal tracking-normal text-fg-muted">{unit[2]}</span>
+      </>
+    ) : (
+      main
+    ),
+    hint: dated?.[2],
+  };
+}
+
 /**
  * "Sobre {nombre}": una sola sección con `stockIntro`. Las notas legales no se
  * mezclan con el texto: viven al final de la ficha (`StockLegalNotes`).
@@ -125,11 +157,13 @@ export function StockAboutSections({
 }) {
   const paragraphs = stockIntro(asset, profile);
   const facts = stockFacts(asset, profile);
+  const keyFacts = facts.filter((fact) => KEY_FACT_LABEL.test(fact.label)).slice(0, 4);
+  const listFacts = facts.filter((fact) => !keyFacts.includes(fact));
 
   return (
     <>
-      <section aria-labelledby="accion-sobre">
-        <h2 id="accion-sobre" className="text-2xl sm:text-3xl">
+      <section id="accion-sobre" aria-labelledby="accion-sobre-title" className="scroll-mt-12">
+        <h2 id="accion-sobre-title" className={H2_CLASS}>
           Sobre {asset.name}
         </h2>
         <div className="mt-4 max-w-[62ch] space-y-3 text-lead text-fg-body">
@@ -140,14 +174,32 @@ export function StockAboutSections({
       </section>
 
       {facts.length > 0 ? (
-        <section aria-labelledby="accion-datos-empresa" className="mt-10 border-t border-border pt-8">
-          <h2 id="accion-datos-empresa" className="text-2xl sm:text-3xl">
+        <section
+          id="accion-datos-empresa"
+          aria-labelledby="accion-datos-empresa-title"
+          className="mt-12 scroll-mt-12 border-t border-border pt-10"
+        >
+          <h2 id="accion-datos-empresa-title" className={H2_CLASS}>
             Datos de la empresa
           </h2>
-          <p className="mt-2 max-w-[62ch] text-sm leading-relaxed text-fg-muted">
+          <p className="mt-2 max-w-[62ch] text-[15px] leading-relaxed text-fg-muted">
             Cifras reportadas por la empresa a la SEC. Sólo se muestran los datos disponibles.
           </p>
-          <StockDataList rows={facts} columns={2} className="mt-5 max-w-3xl" />
+          {keyFacts.length > 0 ? (
+            <ul className="mt-6 grid grid-cols-2 gap-3">
+              {keyFacts.map((fact) => {
+                const tile = factTile(fact);
+                return (
+                  <li key={fact.label} className="min-w-0 rounded-bento border border-border bg-surface-1 p-5">
+                    <StatTile label={tile.label} value={tile.value} hint={tile.hint} />
+                  </li>
+                );
+              })}
+            </ul>
+          ) : null}
+          {listFacts.length > 0 ? (
+            <StockDataList rows={listFacts} columns={2} className={keyFacts.length > 0 ? "mt-3" : "mt-6"} />
+          ) : null}
           <p className="mt-5 text-xs leading-relaxed text-fg-muted">
             {`Fuente: SEC EDGAR${SNAPSHOT_DATE_LABEL ? `, datos al ${SNAPSHOT_DATE_LABEL}` : ""}.`}
           </p>
@@ -194,14 +246,14 @@ export function StockFaqSection({ items }: { items: readonly { question: string;
   if (items.length === 0) return null;
 
   return (
-    <section aria-labelledby="accion-preguntas" className="mt-14">
-      <h2 id="accion-preguntas" className="text-2xl sm:text-3xl">
+    <section id="accion-preguntas" aria-labelledby="accion-preguntas-title" className="mt-16 scroll-mt-12">
+      <h2 id="accion-preguntas-title" className={H2_CLASS}>
         Preguntas frecuentes
       </h2>
-      <div className="mt-5 max-w-3xl divide-y divide-border border-y border-border">
+      <div className="mt-6 max-w-3xl divide-y divide-border overflow-hidden rounded-bento border border-border">
         {items.map((item) => (
-          <details key={item.question} className="group py-4">
-            <summary className="flex cursor-pointer list-none items-center justify-between gap-4 rounded-md text-sm font-medium text-fg [&::-webkit-details-marker]:hidden">
+          <details key={item.question} className="group px-5 py-1">
+            <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-4 rounded-md py-2 text-[15px] font-medium text-fg [&::-webkit-details-marker]:hidden">
               <span>{item.question}</span>
               <span
                 aria-hidden="true"
@@ -210,7 +262,7 @@ export function StockFaqSection({ items }: { items: readonly { question: string;
                 +
               </span>
             </summary>
-            <p className="mt-3 text-sm leading-relaxed text-fg-body">{item.answer}</p>
+            <p className="pt-1 pb-4 text-[15px] leading-relaxed text-fg-body">{item.answer}</p>
           </details>
         ))}
       </div>
@@ -230,8 +282,8 @@ export function StockSimilarSection({
   if (similar.length === 0) return null;
 
   return (
-    <section aria-labelledby="accion-parecidas" className="mt-14">
-      <h2 id="accion-parecidas" className="text-2xl sm:text-3xl">
+    <section aria-labelledby="accion-parecidas" className="mt-16">
+      <h2 id="accion-parecidas" className={H2_CLASS}>
         Acciones parecidas
       </h2>
       <p className="mt-2 max-w-2xl text-sm leading-relaxed text-fg-muted">
@@ -265,7 +317,7 @@ function compareTarget(asset: PublicAsset, assets: readonly PublicAsset[]): Comp
 }
 
 const learnCardClass =
-  "group flex h-full flex-col rounded-xl bg-surface-1 p-5 transition hover:bg-surface-2";
+  "group flex h-full flex-col rounded-bento border border-border bg-surface-1 p-5 transition hover:bg-surface-2";
 
 /** Enlaces educativos: guía base, comparación con un par y categorías del activo. */
 export function StockExploreSection({
@@ -278,8 +330,8 @@ export function StockExploreSection({
   const compare = compareTarget(asset, assets);
 
   return (
-    <section aria-labelledby="accion-aprender" className="mt-14">
-      <h2 id="accion-aprender" className="text-2xl sm:text-3xl">
+    <section aria-labelledby="accion-aprender" className="mt-16">
+      <h2 id="accion-aprender" className={H2_CLASS}>
         Para seguir entendiendo
       </h2>
       <ul className="mt-6 grid max-w-4xl gap-3 sm:grid-cols-2">

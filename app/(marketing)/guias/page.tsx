@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { GuideCard } from "@/components/landing/guide-card";
+import { PageHero } from "@/components/landing/page-hero";
 import { LandingSection } from "@/components/landing/section";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -39,12 +41,46 @@ function formatGuideDate(isoDate: string): string {
   }).format(date);
 }
 
+/** Tarjeta del hero: los títulos de las guías con su tiempo de lectura. */
+function GuidesIndexCard({ guides }: { guides: ReturnType<typeof visibleGuides> }) {
+  return (
+    <nav
+      aria-label="Índice de guías"
+      className="rounded-bento border border-border bg-surface-1 p-5 sm:p-6 md:p-7"
+    >
+      <p className="label">Índice</p>
+      <ol className="mt-3 divide-y divide-border">
+        {guides.map((guide, index) => (
+          <li key={guide.slug}>
+            <Link
+              href={`/guias/${guide.slug}`}
+              className="group flex min-h-11 items-start gap-4 py-3.5"
+            >
+              <span aria-hidden="true" className="num pt-0.5 text-[13px] leading-snug text-fg-muted">
+                {String(index + 1).padStart(2, "0")}
+              </span>
+              <span className="min-w-0 flex-1 text-[15px] leading-snug font-medium text-fg">
+                <span className="underline decoration-transparent underline-offset-[5px] transition-colors duration-150 group-hover:decoration-fg motion-reduce:transition-none">
+                  {guide.title}
+                </span>
+              </span>
+              <span className="num shrink-0 pt-0.5 text-[13px] leading-snug text-fg-muted">
+                {guide.readingMinutes} min
+              </span>
+            </Link>
+          </li>
+        ))}
+      </ol>
+    </nav>
+  );
+}
+
 /** Índice de guías: sólo las publicables (las de revisión legal no aparecen). */
 export default function GuiasPage() {
   const guides = visibleGuides();
 
   return (
-    <LandingSection titleId="guias-title" density="compact">
+    <>
       <JsonLd data={breadcrumbJsonLd(crumbs)} />
       {guides.length > 0 ? (
         <JsonLd
@@ -56,101 +92,81 @@ export default function GuiasPage() {
         />
       ) : null}
 
-      <div className="max-w-3xl">
-        <p className="label">Guías</p>
-        <h1 id="guias-title" className="mt-3 text-3xl sm:text-4xl">
-          Guías de acciones tokenizadas
-        </h1>
-        <p className="mt-4 max-w-[62ch] text-lead text-fg-body">
-          Explicaciones cortas sobre cómo funciona una acción tokenizada, cómo se consigue USDC, el
-          horario y los riesgos. Contenido educativo: no es asesoría financiera ni una recomendación
-          de compra o venta.
-        </p>
-      </div>
+      <PageHero
+        titleId="guias-title"
+        eyebrow="Guías"
+        title="Guías de acciones tokenizadas"
+        facts={
+          guides.length > 0
+            ? [
+                <span key="count">
+                  <span className="num text-fg">{guides.length}</span>{" "}
+                  {guides.length === 1 ? "guía publicada" : "guías publicadas"}
+                </span>,
+              ]
+            : undefined
+        }
+        aside={guides.length > 0 ? <GuidesIndexCard guides={guides} /> : undefined}
+      >
+        Explicaciones cortas sobre cómo funciona una acción tokenizada, cómo se consigue USDC, el
+        horario y los riesgos. Contenido educativo: no es asesoría financiera ni una recomendación
+        de compra o venta.
+      </PageHero>
 
-      {guides.length === 0 ? (
-        <EmptyState
-          className="mt-10"
-          title="Las guías no están disponibles ahora."
-          description="Estamos revisando el contenido antes de publicarlo."
-          action={
-            <Button asChild variant="secondary">
-              <Link href="/acciones">Ver acciones</Link>
-            </Button>
-          }
-        />
-      ) : (
-        /* Índice editorial: una fila por guía, con hairlines en vez de tarjetas. */
-        <div className="mt-10 max-w-4xl">
-          <p className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b border-border pb-3">
-            <span className="eyebrow">Índice</span>
-            <span className="text-[13px] text-fg-muted">
-              <span className="num tabular-nums text-fg">{guides.length}</span>{" "}
-              {guides.length === 1 ? "guía publicada" : "guías publicadas"}
-            </span>
-          </p>
-          <ol>
+      <LandingSection titleId="guias-lista" density="compact">
+        <h2 id="guias-lista" className="sr-only">
+          Todas las guías
+        </h2>
+        {guides.length === 0 ? (
+          <EmptyState
+            title="Las guías no están disponibles ahora."
+            description="Estamos revisando el contenido antes de publicarlo."
+            action={
+              <Button asChild variant="secondary">
+                <Link href="/acciones">Ver acciones</Link>
+              </Button>
+            }
+          />
+        ) : (
+          <ol className="grid list-none gap-4 md:grid-cols-2 md:gap-5">
             {guides.map((guide, index) => (
-              <li key={guide.slug} className="border-b border-border">
-                <Link
+              <li key={guide.slug} className="min-w-0">
+                <GuideCard
                   href={`/guias/${guide.slug}`}
-                  className="group grid grid-cols-[1.75rem_minmax(0,1fr)] gap-x-4 py-7 sm:grid-cols-[2.5rem_minmax(0,1fr)] sm:gap-x-6 sm:py-8"
-                >
-                  <span
-                    aria-hidden="true"
-                    className="num pt-1 text-[13px] leading-none tabular-nums text-fg-muted"
-                  >
-                    {String(index + 1).padStart(2, "0")}
-                  </span>
-                  <div className="min-w-0">
-                    <div className="flex items-start justify-between gap-3">
-                      <h2 className="min-w-0 text-[1.0625rem] leading-snug font-medium text-fg sm:text-[1.125rem]">
-                        <span className="underline decoration-transparent underline-offset-[5px] transition-colors duration-150 group-hover:decoration-fg motion-reduce:transition-none">
-                          {guide.title}
-                        </span>
-                      </h2>
-                      <span
-                        aria-hidden="true"
-                        className="mt-0.5 shrink-0 text-sm text-fg-muted transition-[color,transform] duration-150 group-hover:translate-x-0.5 group-hover:text-fg motion-reduce:transition-none"
-                      >
-                        →
-                      </span>
-                    </div>
-                    <p className="mt-2 max-w-[62ch] text-[0.9375rem] leading-relaxed text-fg-body">
-                      {guide.description}
-                    </p>
-                    <p className="mt-3.5 flex flex-wrap items-center gap-x-2.5 gap-y-1.5 font-mono text-[13px] leading-snug text-fg-muted">
-                      <span className="uppercase tracking-[0.045em]">Guía</span>
-                      <span aria-hidden="true">·</span>
-                      <span>{guide.readingMinutes} min de lectura</span>
-                      <span aria-hidden="true">·</span>
-                      <time dateTime={guide.updatedAt} className="tabular-nums">
-                        Actualizada el {formatGuideDate(guide.updatedAt)}
-                      </time>
-                    </p>
-                  </div>
-                </Link>
+                  number={index + 1}
+                  title={guide.title}
+                  description={guide.description}
+                  readingMinutes={guide.readingMinutes}
+                  updatedAt={guide.updatedAt}
+                  updatedLabel={formatGuideDate(guide.updatedAt)}
+                />
               </li>
             ))}
           </ol>
-        </div>
-      )}
+        )}
+      </LandingSection>
 
-      <footer className="mt-12 max-w-4xl border-t border-border pt-8 md:mt-14">
-        <h2 className="text-base font-medium text-fg">Del texto al catálogo</h2>
-        <p className="mt-2 max-w-[62ch] text-[0.9375rem] leading-relaxed text-fg-body">
-          Cada ficha de acción muestra el precio del token, los datos de la empresa tomados de la SEC
-          y los riesgos de operar fuera del horario regular de la bolsa de EE.UU.
-        </p>
-        <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
-          <Button asChild>
-            <Link href="/acciones">Ver acciones</Link>
-          </Button>
-          <Link href="/ayuda" className={textLinkClass}>
-            Centro de ayuda
-          </Link>
+      <LandingSection titleId="guias-catalogo" tone="muted">
+        <div className="grid gap-8 rounded-bento border border-border bg-bg p-6 md:p-10 lg:grid-cols-12 lg:items-center lg:gap-12">
+          <div className="lg:col-span-7">
+            <h2 id="guias-catalogo" className="text-2xl font-semibold tracking-tight sm:text-3xl">
+              Del texto al catálogo
+            </h2>
+            <p className="mt-3 max-w-[62ch] text-[0.9375rem] leading-relaxed text-fg-body sm:text-base">
+              Cada ficha de acción muestra el precio del token, los datos de la empresa tomados de la
+              SEC y los riesgos de operar fuera del horario regular de la bolsa de EE.UU.
+            </p>
+          </div>
+          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center lg:col-span-5 lg:justify-end">
+            <Button asChild>
+              <Link href="/acciones">Ver acciones</Link>
+            </Button>
+            <Link href="/ayuda" className={textLinkClass}>
+              Centro de ayuda
+            </Link>
+          </div>
         </div>
-      </footer>
-    </LandingSection>
+      </LandingSection>
+    </>
   );
 }

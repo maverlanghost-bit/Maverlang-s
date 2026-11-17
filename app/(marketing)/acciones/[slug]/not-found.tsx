@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { PageHero } from "@/components/landing/page-hero";
 import { buttonClasses } from "@/components/ui/button";
 
 /**
@@ -9,23 +10,26 @@ import { buttonClasses } from "@/components/ui/button";
  */
 export default function AccionNoEncontrada() {
   return (
-    <section className="px-5 pt-10 pb-16 md:pt-12 md:pb-20">
-      <div className="mx-auto w-full max-w-7xl">
-        <p className="label">404</p>
-        <h1 className="mt-3 text-3xl text-balance sm:text-4xl">No encontramos esa acción</h1>
-        <p className="mt-4 max-w-[62ch] text-base leading-relaxed text-pretty text-fg-body">
-          La dirección no existe o cambió. En el catálogo está cada ficha pública, con el precio del token y los
-          datos de la empresa según la SEC.
-        </p>
-        <div className="mt-8 flex flex-wrap items-center gap-3">
-          <Link href="/acciones" className={buttonClasses({ variant: "primary" })}>
+    <PageHero
+      titleId="accion-404-title"
+      eyebrow="404"
+      title="No encontramos esa acción"
+      actions={
+        <>
+          <Link href="/acciones" className={buttonClasses({ variant: "primary", size: "lg" })}>
             Ver todas las acciones
           </Link>
-          <Link href="/" className={buttonClasses({ variant: "secondary" })}>
+          <Link href="/" className={buttonClasses({ variant: "secondary", size: "lg" })}>
             Ir al inicio
           </Link>
-        </div>
-      </div>
-    </section>
+        </>
+      }
+      className="border-b-0 pb-20 md:pb-28"
+    >
+      <p>
+        La dirección no existe o cambió. En el catálogo está cada ficha pública, con el precio del token y los datos
+        de la empresa según la SEC.
+      </p>
+    </PageHero>
   );
 }

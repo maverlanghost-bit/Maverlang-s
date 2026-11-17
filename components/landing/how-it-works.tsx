@@ -1,13 +1,16 @@
 import type { ReactNode } from "react";
-import { LandingSection, SectionIntro } from "@/components/landing/section";
+import { HowTabs, type HowTabStep } from "@/components/landing/how-tabs";
+import { ProductFrame } from "@/components/landing/product-frame";
 import { Reveal } from "@/components/landing/reveal";
+import { SectionHeader, LandingSection } from "@/components/landing/section";
 import { TickerLogo } from "@/components/domain/ticker-logo";
 import type { LandingQuote } from "@/lib/mocks/landing";
 import { formatMoney, formatPercent, formatShares } from "@/lib/format";
 import { LANDING_MIN_ORDER_USD } from "@/lib/market/asset-status.shared";
 import { cn } from "@/lib/cn";
-import { REVEAL_STAGGER_MS } from "@/lib/hooks/reveal-motion";
 import { landingNotice } from "@/lib/landing/live-quotes";
+
+const TITLE = "Tres pasos, en dólares (US$)";
 
 function sampleShares(quote: LandingQuote): number {
   return Number.isFinite(quote.priceUsd) && quote.priceUsd > 0
@@ -15,70 +18,131 @@ function sampleShares(quote: LandingQuote): number {
     : 0;
 }
 
-function BalanceMock() {
+/** Pantalla de teléfono con la misma cabecera y alto mínimo en los tres pasos. */
+function PhoneScreen({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <div className="flex h-full flex-col">
+    <ProductFrame variant="phone" className="lg:max-w-[24rem]">
+      <div className="flex min-h-[25rem] flex-col">
+        <p className="border-b border-border pb-3 text-sm font-semibold tracking-tight text-fg">
+          {title}
+        </p>
+        <div className="flex flex-1 flex-col pt-5">{children}</div>
+      </div>
+    </ProductFrame>
+  );
+}
+
+function QuoteLine({ quote }: { quote: LandingQuote }) {
+  return (
+    <>
+      <div className="flex min-w-0 items-center gap-3">
+        <TickerLogo
+          symbol={quote.symbol}
+          name={quote.name}
+          logoUrl={quote.logo}
+          size={32}
+          decorative
+          loading="lazy"
+          sizes="32px"
+        />
+        <div className="min-w-0">
+          <p className="num text-xs leading-none text-fg">{quote.symbol}</p>
+          <p className="mt-1 truncate text-xs leading-snug text-fg-muted">{quote.name}</p>
+        </div>
+      </div>
+      <div className="shrink-0 text-right">
+        <p className="num text-sm leading-none text-fg">{formatMoney(quote.priceUsd, "USD")}</p>
+        <p
+          className={cn(
+            "num mt-1 text-sm leading-none",
+            quote.change > 0 ? "text-up" : quote.change < 0 ? "text-down" : "text-fg-muted",
+          )}
+        >
+          {formatPercent(quote.change)}
+        </p>
+      </div>
+    </>
+  );
+}
+
+function BalanceScreen() {
+  return (
+    <PhoneScreen title="Inicio">
       <p className="eyebrow leading-none">Saldo de práctica</p>
-      <p className="num mt-3 text-xl leading-none text-fg sm:text-2xl">
+      <p className="num mt-3 text-4xl leading-none tracking-tight text-fg">
         {formatMoney(10000, "USD")}
       </p>
-      <p className="mt-3 text-sm leading-relaxed text-fg-muted">
+      <p className="mt-3 text-[15px] leading-relaxed text-fg-muted">
         Dólares ficticios. No es dinero depositado.
       </p>
-    </div>
+      <p className="mt-auto rounded-xl bg-surface-1 p-4 text-[15px] leading-relaxed text-fg-body">
+        Siguiente: elige una acción del catálogo.
+      </p>
+    </PhoneScreen>
   );
 }
 
-function PickMock({ quote }: { quote: LandingQuote }) {
+function PickScreen({ quotes, sample }: { quotes: LandingQuote[]; sample: LandingQuote | undefined }) {
+  if (!sample) {
+    return (
+      <PhoneScreen title="Mercado">
+        <p className="text-[15px] leading-relaxed text-fg-muted">
+          Las cotizaciones de ejemplo no están disponibles por ahora.
+        </p>
+      </PhoneScreen>
+    );
+  }
+  const rows = [sample, ...quotes.filter((quote) => quote.symbol !== sample.symbol)].slice(0, 4);
   return (
-    <div className="flex h-full flex-col">
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex min-w-0 items-center gap-3">
-          <TickerLogo
-            symbol={quote.symbol}
-            name={quote.name}
-            logoUrl={quote.logo}
-            size={32}
-            decorative
-            loading="lazy"
-            sizes="32px"
-          />
-          <div className="min-w-0">
-            <p className="num text-xs leading-none text-fg">{quote.symbol}</p>
-            <p className="mt-1 truncate text-xs leading-snug text-fg-muted">{quote.name}</p>
-          </div>
-        </div>
-        <div className="text-right">
-          <p className="num text-sm leading-none text-fg">{formatMoney(quote.priceUsd, "USD")}</p>
-          <p
+    <PhoneScreen title="Mercado">
+      <p className="eyebrow leading-none">Acciones del catálogo</p>
+      <ul className="mt-4 grid list-none gap-2">
+        {rows.map((quote) => (
+          <li
+            key={quote.symbol}
             className={cn(
-              "num mt-1 text-sm leading-none",
-              quote.change > 0 ? "text-up" : quote.change < 0 ? "text-down" : "text-fg-muted",
+              "flex items-center justify-between gap-3 rounded-xl border px-3 py-3",
+              quote.symbol === sample.symbol ? "border-fg bg-surface-1" : "border-border",
             )}
           >
-            {formatPercent(quote.change)}
-          </p>
-        </div>
-      </div>
-    </div>
+            <QuoteLine quote={quote} />
+          </li>
+        ))}
+      </ul>
+    </PhoneScreen>
   );
 }
 
-function OwnedMock({ quote }: { quote: LandingQuote }) {
-  const shares = sampleShares(quote);
+function OwnedScreen({ sample }: { sample: LandingQuote | undefined }) {
+  if (!sample) {
+    return (
+      <PhoneScreen title="Cartera">
+        <p className="text-[15px] leading-relaxed text-fg-muted">
+          La posición de ejemplo no está disponible por ahora.
+        </p>
+      </PhoneScreen>
+    );
+  }
+  const shares = sampleShares(sample);
   return (
-    <div className="flex h-full flex-col">
+    <PhoneScreen title="Cartera">
       <p className="eyebrow leading-none">Posición de ejemplo</p>
-      <div className="mt-3 flex items-baseline justify-between gap-3">
-        <span className="num text-xl leading-none text-fg">{formatShares(shares)}</span>
+      <div className="mt-4 flex items-center justify-between gap-3 rounded-xl border border-border px-3 py-3">
+        <QuoteLine quote={sample} />
+      </div>
+      <div className="mt-6 flex items-baseline justify-between gap-3">
+        <span className="num text-3xl leading-none tracking-tight text-fg">{formatShares(shares)}</span>
         <span className="num text-sm leading-none text-fg">
-          {formatMoney(shares * quote.priceUsd, "USD")}
+          {formatMoney(shares * sample.priceUsd, "USD")}
         </span>
       </div>
-      <p className="mt-3 text-sm leading-relaxed text-fg-muted">
-        {quote.symbol} en tu billetera, con el precio de la acción.
+      <p className="mt-3 text-[15px] leading-relaxed text-fg-muted">
+        {sample.symbol} en tu billetera, con el precio de la acción.
       </p>
-    </div>
+      <p className="mt-auto rounded-xl bg-surface-1 p-4 text-[15px] leading-relaxed text-fg-body">
+        Tu propia billetera: nosotros no custodiamos tus activos.
+      </p>
+    </PhoneScreen>
   );
 }
 
@@ -86,6 +150,10 @@ function OwnedMock({ quote }: { quote: LandingQuote }) {
  * La demo opera en dólares (US$): saldo ficticio de US$10.000 y precios de
  * acciones en vivo cuando la fuente responde. El depósito de dinero real
  * queda para cuando haya cuentas reales, sin afirmar pesos como método activo.
+ *
+ * T70: bloque dividido. Pasos como pestañas a la izquierda y, a la derecha, el
+ * teléfono con la pantalla del paso (`HowTabs`, cliente). En móvil los tres
+ * pasos van apilados con su pantalla.
  */
 export function HowItWorks({
   quotes,
@@ -103,68 +171,46 @@ export function HowItWorks({
     ? "Practicas con US$10.000 ficticios, eliges la acción y el token queda en tu propia billetera. Los montos de abajo son ejemplos."
     : "Practicas con US$10.000 ficticios, eliges la acción y el token queda en tu propia billetera. Los montos y precios de abajo son ejemplos.";
 
-  const steps: {
-    number: string;
-    title: string;
-    body: string;
-    mock: ReactNode;
-  }[] = [
+  const steps: HowTabStep[] = [
     {
       number: "01",
       title: "Practica con US$10.000 ficticios",
       body: "El saldo de práctica es ficticio. Con cuentas reales, el depósito se muestra en ese paso.",
-      mock: <BalanceMock />,
     },
     {
       number: "02",
       title: "Elige una acción",
       body: "Apple, NVIDIA y las demás del catálogo.",
-      mock: sampleQuote ? <PickMock quote={sampleQuote} /> : null,
     },
     {
       number: "03",
       title: "El token queda en tu billetera",
       body: "Queda en tu propia billetera —nosotros no custodiamos tus activos— y sigue el precio de la acción.",
-      mock: sampleQuote ? <OwnedMock quote={sampleQuote} /> : null,
     },
   ];
 
+  const panels: ReactNode[] = [
+    <BalanceScreen key="balance" />,
+    <PickScreen key="pick" quotes={quotes} sample={sampleQuote} />,
+    <OwnedScreen key="owned" sample={sampleQuote} />,
+  ];
+
+  const header = showIntro ? (
+    <SectionHeader id="como-funciona-title" eyebrow="Cómo funciona" title={TITLE}>
+      {introBody}
+    </SectionHeader>
+  ) : (
+    <h2 id="como-funciona-title" className="sr-only">
+      {TITLE}
+    </h2>
+  );
+
   return (
     <LandingSection id="como-funciona" titleId="como-funciona-title">
-      {showIntro ? (
-        <Reveal>
-          <SectionIntro id="como-funciona-title" title="Tres pasos, en dólares (US$)">
-            {introBody}
-          </SectionIntro>
-        </Reveal>
-      ) : (
-        <h2 id="como-funciona-title" className="sr-only">
-          Tres pasos, en dólares (US$)
-        </h2>
-      )}
-      <ol className="mt-10 grid list-none gap-x-8 gap-y-10 lg:mt-14 lg:grid-cols-3">
-        {steps.map((step, index) => (
-          <li key={step.title}>
-            <Reveal delay={(index + 1) * REVEAL_STAGGER_MS} className="border-t border-border pt-5">
-              <p aria-hidden className="label leading-none">
-                {step.number}
-              </p>
-
-              {/* Altura común en escritorio: los tres mocks arrancan a la misma altura. */}
-              <div className="lg:min-h-[8.5rem]">
-                <h3 className="mt-5 text-lg leading-snug text-pretty">{step.title}</h3>
-                <p className="mt-3 text-sm leading-relaxed text-fg-body">
-                  {step.body}
-                </p>
-              </div>
-
-              {/* Slot fijo: el mock no cambia el ritmo de la fila. */}
-              <div className="mt-6 min-h-32 border-t border-border pt-4">{step.mock}</div>
-            </Reveal>
-          </li>
-        ))}
-      </ol>
-      <p className="mt-6 text-[13px] leading-snug text-fg-muted">{landingNotice(live)}.</p>
+      <Reveal>
+        <HowTabs header={header} steps={steps} panels={panels} />
+      </Reveal>
+      <p className="mt-8 text-[13px] leading-snug text-fg-muted">{landingNotice(live)}.</p>
     </LandingSection>
   );
 }

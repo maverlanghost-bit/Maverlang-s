@@ -1,7 +1,9 @@
-import Link from "next/link";
 import { CostSimulator } from "@/components/landing/cost-simulator";
 import { CostsSection } from "@/components/landing/costs-section";
-import { LandingSection } from "@/components/landing/section";
+import { PageHero } from "@/components/landing/page-hero";
+import { PageLinkCards } from "@/components/landing/page-link-cards";
+import { LandingSection, SectionHeader } from "@/components/landing/section";
+import { StatTile } from "@/components/landing/stat-tile";
 import { brandShort, pageMetadata } from "@/lib/seo/metadata";
 
 export const metadata = pageMetadata({
@@ -12,92 +14,62 @@ export const metadata = pageMetadata({
   absolute: true,
 });
 
-/** Una línea de datos: los tres datos que se repiten en la página. */
-const RESUMEN = [
-  "0% comisión de lanzamiento",
-  "Costos visibles antes de firmar",
-  "Red Solana < US$0,01",
-] as const;
-
-const linkClass =
-  "inline-flex min-h-11 items-center text-sm font-medium text-fg underline decoration-border underline-offset-4 transition-colors hover:decoration-fg motion-reduce:transition-none";
+/** Los datos que se repiten en la página; el primero ("0%") va en la tarjeta del hero. */
+const RESUMEN = ["Costos visibles antes de firmar", "Red Solana < US$0,01"] as const;
 
 /**
- * Página dedicada de costos: hero corto, el desglose de la portada (sin repetir
- * su titular), el simulador y el cierre con los enlaces.
+ * Página dedicada de costos: hero con el 0% a la vista, el desglose de la
+ * portada (sin repetir su titular), el simulador en su propia tarjeta y el
+ * cierre con los enlaces.
  */
 export default function CostosPage() {
   return (
     <>
-      <LandingSection titleId="costos-page-title" density="compact" className="pb-6 md:pb-8">
-        <div className="max-w-3xl">
-          <p className="label">Costos</p>
-          <h1 id="costos-page-title" className="mt-3 text-3xl sm:text-4xl">
-            Lo que pagas, antes de confirmar
-          </h1>
-          <p className="mt-4 max-w-[62ch] text-lead text-fg-body">
-            La comisión de lanzamiento es 0%. El resto depende del mercado, la red y el proveedor, y
-            siempre aparece en el desglose antes de que aceptes la orden.
-          </p>
-          <ul
-            aria-label="Resumen de costos"
-            className="mt-5 flex flex-wrap items-baseline gap-x-2.5 gap-y-1 text-sm leading-relaxed text-fg-muted"
-          >
-            {RESUMEN.map((item, index) => (
-              <li key={item} className="inline-flex items-baseline gap-2.5">
-                {index > 0 ? (
-                  <span aria-hidden="true" className="text-fg-subtle">
-                    ·
-                  </span>
-                ) : null}
-                <span className="tabular-nums">{item}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      </LandingSection>
+      <PageHero
+        titleId="costos-page-title"
+        eyebrow="Costos"
+        title="Lo que pagas, antes de confirmar"
+        facts={RESUMEN}
+        factsLabel="Resumen de costos"
+        aside={
+          <div className="rounded-bento border border-border bg-surface-1 p-8 md:p-10">
+            <StatTile label="Comisión de lanzamiento" value="0%" size="lg" />
+          </div>
+        }
+      >
+        La comisión de lanzamiento es 0%. El resto depende del mercado, la red y el proveedor, y
+        siempre aparece en el desglose antes de que aceptes la orden.
+      </PageHero>
 
       <CostsSection showIntro={false} />
 
-      <LandingSection titleId="costos-simulador" density="compact">
-        <div className="grid gap-8 border-t border-border pt-8 md:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] md:items-start md:gap-12 md:pt-10">
-          <div className="max-w-md">
-            <p className="label">Simulador</p>
-            <h2 id="costos-simulador" className="mt-3 text-2xl text-balance sm:text-3xl">
-              Simulador interactivo de costos
-            </h2>
-            <p className="mt-4 max-w-[62ch] text-lead text-fg-body">
-              Elige un monto y marca si es tu primera compra de ese activo: ves cuánto se va en
-              comisión de plataforma y en red, y cuánto capital queda efectivamente en la acción.
-            </p>
-            <p className="mt-4 text-sm leading-relaxed text-fg-muted">
-              Son montos de ejemplo. El desglose definitivo, con la diferencia de precio y el
-              proveedor, aparece antes de confirmar la orden.
-            </p>
-          </div>
-          <div className="min-w-0 md:border-l md:border-border md:pl-10">
+      <LandingSection titleId="costos-simulador" tone="muted">
+        <SectionHeader id="costos-simulador" align="split" eyebrow="Simulador" title="Simulador interactivo de costos">
+          Elige un monto y marca si es tu primera compra de ese activo: ves cuánto se va en
+          comisión de plataforma y en red, y cuánto capital queda efectivamente en la acción.
+        </SectionHeader>
+        <div className="mt-10 grid gap-6 md:mt-12 lg:grid-cols-12 lg:items-start lg:gap-10">
+          <div className="min-w-0 rounded-bento border border-border bg-bg p-5 sm:p-6 md:p-8 lg:col-span-8">
             <CostSimulator />
           </div>
+          <p className="max-w-[62ch] text-sm leading-relaxed text-fg-muted lg:col-span-4 lg:pt-2">
+            Son montos de ejemplo. El desglose definitivo, con la diferencia de precio y el
+            proveedor, aparece antes de confirmar la orden.
+          </p>
         </div>
       </LandingSection>
 
-      <LandingSection titleId="costos-cierre" density="compact">
-        <div className="max-w-3xl border-t border-border pt-6">
-          <h2 id="costos-cierre" className="sr-only">
-            Seguir leyendo
-          </h2>
-          <p className="max-w-[62ch] text-sm leading-relaxed text-fg-body">
-            El detalle legal de las comisiones y las respuestas del centro de ayuda están a un clic.
-          </p>
-          <p className="mt-2 flex flex-wrap items-center gap-x-6 gap-y-3">
-            <Link href="/legal/comisiones" className={linkClass}>
-              Ver el detalle de comisiones
-            </Link>
-            <Link href="/ayuda" className={linkClass}>
-              Ir al centro de ayuda
-            </Link>
-          </p>
-        </div>
+      <LandingSection titleId="costos-cierre">
+        <SectionHeader id="costos-cierre" align="split" title="Seguir leyendo">
+          El detalle legal de las comisiones y las respuestas del centro de ayuda están a un clic.
+        </SectionHeader>
+        <PageLinkCards
+          className="mt-8 md:mt-10"
+          links={[
+            { href: "/legal/comisiones", title: "Ver el detalle de comisiones" },
+            { href: "/ayuda", title: "Ir al centro de ayuda" },
+          ]}
+        />
       </LandingSection>
     </>
   );

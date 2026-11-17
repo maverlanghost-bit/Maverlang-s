@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 
+import { AuthShell } from "@/components/auth/auth-shell";
 import { site } from "@/config/site";
 import { isSupabaseAuth } from "@/lib/auth/mode";
 import { safeNextPath } from "@/lib/auth/paths";
@@ -26,7 +27,7 @@ export default async function RegistroPage({
   const next = safeNextPath(one(params.next));
 
   return (
-    <main className="flex min-h-dvh flex-col items-center px-4 py-8 sm:px-5 sm:py-12">
+    <AuthShell>
       <RegistroWizard
         mode="alta"
         next={next}
@@ -40,6 +41,6 @@ export default async function RegistroPage({
         demoForBlocked={serverEnv.DEMO_FOR_BLOCKED}
         realRegistration={isSupabaseAuth()}
       />
-    </main>
+    </AuthShell>
   );
 }

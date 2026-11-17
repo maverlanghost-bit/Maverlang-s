@@ -1,9 +1,11 @@
 import Link from "next/link";
 import type { ReactElement } from "react";
+import { BentoCard, BentoGrid } from "@/components/landing/bento";
+import { PageHero } from "@/components/landing/page-hero";
+import { PageLinkCards } from "@/components/landing/page-link-cards";
 import { SecuritySection } from "@/components/landing/security-section";
-import { LandingSection } from "@/components/landing/section";
+import { LandingSection, SectionHeader } from "@/components/landing/section";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { site } from "@/config/site";
 import { brandShort, pageMetadata } from "@/lib/seo/metadata";
 
@@ -156,38 +158,75 @@ const framework: {
   },
 ];
 
-const linkClass =
-  "inline-flex min-h-11 items-center text-sm font-medium text-fg underline decoration-border underline-offset-4 transition-colors hover:decoration-fg motion-reduce:transition-none";
+/** Los mismos tres nodos de autocustodia que explica la sección de abajo. */
+const FLOW: { name: string; detail: string }[] = [
+  { name: "Tu billetera", detail: "La llave queda en tu cuenta. Quien controla la cuenta controla el token." },
+  { name: "Solana / Jupiter", detail: "La app construye la transacción y la red la procesa." },
+  { name: "Backed (xStocks)", detail: "Lo emite Backed (xStocks). Sigue el precio de la acción." },
+];
+
+/** Flujo simple de autocustodia para el hero (decorativo: el detalle está en la sección). */
+function CustodyFlow() {
+  return (
+    <div
+      aria-hidden="true"
+      className="rounded-bento border border-border bg-surface-1 p-5 sm:p-6 md:p-8"
+    >
+      <p className="label">Autocustodia</p>
+      <ol className="mt-5">
+        {FLOW.map((node, index) => (
+          <li key={node.name}>
+            {index > 0 ? (
+              <div className="flex h-7 items-center pl-[1.0625rem] text-fg-muted">
+                <span className="block h-full w-px bg-border-strong" />
+              </div>
+            ) : null}
+            <div className="flex items-start gap-4 rounded-xl border border-border bg-bg p-4">
+              <span className="num inline-flex size-9 shrink-0 items-center justify-center rounded-full border border-border bg-surface-1 text-[13px] text-fg">
+                {String(index + 1).padStart(2, "0")}
+              </span>
+              <div className="min-w-0">
+                <p className="text-base leading-snug font-semibold tracking-tight text-fg">{node.name}</p>
+                <p className="mt-1 text-sm leading-relaxed text-fg-muted">{node.detail}</p>
+              </div>
+            </div>
+          </li>
+        ))}
+      </ol>
+    </div>
+  );
+}
+
+function IconBox({ children }: { children: ReactElement }) {
+  return (
+    <span className="flex size-11 shrink-0 items-center justify-center rounded-xl border border-border bg-bg text-fg">
+      {children}
+    </span>
+  );
+}
 
 /** Página dedicada de seguridad: las tarjetas de la portada más el marco completo. */
 export default function SeguridadPage() {
   return (
     <>
-      <LandingSection titleId="seguridad-page-title" density="compact" className="pb-6 md:pb-8">
-        <div className="max-w-3xl">
-          <p className="label">Seguridad</p>
-          <h1 id="seguridad-page-title" className="mt-3 text-3xl text-balance sm:text-4xl">
-            Qué tienes y qué no
-          </h1>
-          <p className="mt-4 max-w-[62ch] text-lead text-fg-body">
-            {site.name} no es una corredora de EE.UU. El token es tuyo y queda en tu propia
-            billetera, sin custodia de nuestra parte. Sigue el precio de la acción.
-          </p>
-        </div>
-      </LandingSection>
+      <PageHero
+        titleId="seguridad-page-title"
+        eyebrow="Seguridad"
+        title="Qué tienes y qué no"
+        aside={<CustodyFlow />}
+      >
+        {site.name} no es una corredora de EE.UU. El token es tuyo y queda en tu propia
+        billetera, sin custodia de nuestra parte. Sigue el precio de la acción.
+      </PageHero>
 
       <SecuritySection showIntro={false} />
 
-      <LandingSection titleId="seguridad-demo" density="compact">
-        <div className="max-w-3xl">
-          <p className="label">Demo</p>
-          <h2 id="seguridad-demo" className="mt-3 text-balance text-2xl sm:text-3xl">
-            La demo no es dinero real
-          </h2>
-          <p className="mt-4 max-w-[62ch] text-lead text-fg-body">
+      <LandingSection titleId="seguridad-demo" tone="muted">
+        <div className="rounded-bento border border-border bg-bg p-6 md:p-10">
+          <SectionHeader id="seguridad-demo" align="split" eyebrow="Demo" title="La demo no es dinero real">
             La demo parte con US$10.000 ficticios para practicar, con precios reales. En esta demo
             no se cobra dinero real.
-          </p>
+          </SectionHeader>
           <p className="mt-8">
             <Button asChild>
               <Link href="/app/registro">Probar la demo</Link>
@@ -196,59 +235,61 @@ export default function SeguridadPage() {
         </div>
       </LandingSection>
 
-      <LandingSection titleId="seguridad-practicas" density="compact">
-        <div className="max-w-3xl">
-          <p className="label">Prácticas</p>
-          <h2 id="seguridad-practicas" className="mt-3 text-balance text-2xl sm:text-3xl">
-            Buenas prácticas
-          </h2>
-          <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2">
-            {practices.map((practice) => (
-              <Card key={practice.title} className="flex h-full flex-col gap-4 p-5 sm:p-6">
-                <span className="flex size-11 shrink-0 items-center justify-center rounded-xl border border-border bg-bg text-fg">
+      <LandingSection titleId="seguridad-practicas">
+        <SectionHeader id="seguridad-practicas" align="split" eyebrow="Prácticas" title="Buenas prácticas" />
+        <BentoGrid as="ul" className="mt-10 md:mt-12">
+          {practices.map((practice) => (
+            <BentoCard
+              key={practice.title}
+              as="li"
+              eyebrow={practice.label}
+              title={practice.title}
+              visualFirst
+              visual={
+                <IconBox>
                   <practice.Icon />
-                </span>
-                <div>
-                  <p className="eyebrow">{practice.label}</p>
-                  <h3 className="mt-2 text-base leading-relaxed">{practice.title}</h3>
-                </div>
-                <p className="text-sm leading-relaxed text-fg-body">{practice.body}</p>
-              </Card>
-            ))}
-          </div>
-        </div>
+                </IconBox>
+              }
+              className="lg:col-span-3"
+            >
+              {practice.body}
+            </BentoCard>
+          ))}
+        </BentoGrid>
       </LandingSection>
 
-      <LandingSection titleId="seguridad-marco" density="compact">
-        <div className="max-w-3xl">
-          <p className="label">Marco</p>
-          <h2 id="seguridad-marco" className="mt-3 text-balance text-2xl sm:text-3xl">
-            El marco completo
-          </h2>
-          <ul className="mt-8 divide-y divide-border border-y border-border">
-            {framework.map((item) => (
-              <li key={item.label} className="flex gap-4 p-5 sm:gap-5 sm:p-6">
-                <span className="mt-0.5 flex size-11 shrink-0 items-center justify-center rounded-xl border border-border bg-bg text-fg">
+      <LandingSection titleId="seguridad-marco" tone="muted">
+        <SectionHeader id="seguridad-marco" align="split" eyebrow="Marco" title="El marco completo" />
+        <BentoGrid as="ul" className="mt-10 md:mt-12">
+          {framework.map((item) => (
+            <BentoCard
+              key={item.label}
+              as="li"
+              eyebrow={item.label}
+              title={item.lead}
+              visualFirst
+              visual={
+                <IconBox>
                   <item.Icon />
-                </span>
-                <div className="min-w-0">
-                  <p className="eyebrow">{item.label}</p>
-                  <p className="mt-2 text-sm leading-relaxed text-fg-body sm:text-base">
-                    <strong className="font-medium text-fg">{item.lead}</strong> {item.body}
-                  </p>
-                </div>
-              </li>
-            ))}
-          </ul>
-          <p className="mt-8 flex flex-wrap gap-x-6 gap-y-3">
-            <Link href="/legal/riesgos" className={linkClass}>
-              Leer los riesgos
-            </Link>
-            <Link href="/ayuda" className={linkClass}>
-              Ir al centro de ayuda
-            </Link>
-          </p>
-        </div>
+                </IconBox>
+              }
+              className="lg:col-span-3"
+            >
+              {item.body}
+            </BentoCard>
+          ))}
+        </BentoGrid>
+      </LandingSection>
+
+      <LandingSection titleId="seguridad-seguir">
+        <SectionHeader id="seguridad-seguir" title="Seguir leyendo" />
+        <PageLinkCards
+          className="mt-8 md:mt-10"
+          links={[
+            { href: "/legal/riesgos", title: "Leer los riesgos" },
+            { href: "/ayuda", title: "Ir al centro de ayuda" },
+          ]}
+        />
       </LandingSection>
     </>
   );

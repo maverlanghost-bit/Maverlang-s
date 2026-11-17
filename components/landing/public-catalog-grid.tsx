@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 
 import {
   PublicAssetCard,
@@ -22,9 +22,46 @@ const FILTERS: readonly { id: CatalogFilter; label: string }[] = [
   { id: "etf", label: "ETFs" },
 ];
 
+const ICON_PROPS = {
+  viewBox: "0 0 16 16",
+  width: 16,
+  height: 16,
+  fill: "none",
+  stroke: "currentColor",
+  strokeWidth: 1.5,
+  strokeLinecap: "round" as const,
+  "aria-hidden": true,
+};
+
+const VIEWS: readonly { id: CatalogView; label: string; icon: ReactNode }[] = [
+  {
+    id: "table",
+    label: "Ver como tabla",
+    icon: (
+      <svg {...ICON_PROPS}>
+        <path d="M2.5 4h11M2.5 8h11M2.5 12h11" />
+      </svg>
+    ),
+  },
+  {
+    id: "cards",
+    label: "Ver como tarjetas",
+    icon: (
+      <svg {...ICON_PROPS}>
+        <rect x="2.5" y="2.5" width="4.5" height="4.5" rx="1" />
+        <rect x="9" y="2.5" width="4.5" height="4.5" rx="1" />
+        <rect x="2.5" y="9" width="4.5" height="4.5" rx="1" />
+        <rect x="9" y="9" width="4.5" height="4.5" rx="1" />
+      </svg>
+    ),
+  },
+];
+
 /** Filas que se revelan por click: las ~446 de una sola vez son ~25.000 px. */
 const PAGE_SIZE = 40;
 const SAMPLE_SIZE = 3;
+
+type CatalogView = "table" | "cards";
 
 /** Filtro como pestaña subrayada: la fila de datos manda, no las píldoras. */
 const TAB_BASE =
@@ -61,6 +98,7 @@ function letterAnchor(letter: string): string {
 export function PublicCatalogGrid({ assets }: { assets: readonly PublicCatalogItem[] }) {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<CatalogFilter>("all");
+  const [view, setView] = useState<CatalogView>("table");
   const [page, setPage] = useState<{ key: string; limit: number }>({ key: "", limit: PAGE_SIZE });
 
   const terms = useMemo(() => normalize(query).split(/\s+/).filter(Boolean), [query]);
@@ -118,9 +156,12 @@ export function PublicCatalogGrid({ assets }: { assets: readonly PublicCatalogIt
   }
 
   return (
-    <div>
-      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between sm:gap-8">
-        <div className="w-full sm:max-w-sm">
+    // La barra fija y el índice por letra se apilan bajo el header de 4 rem. Sus
+    // alturas son fijas (variable `--catalog-bar`) para que el índice sepa dónde
+    // pegarse sin medir nada en el cliente.
+    <div className="[--catalog-bar:6.75rem] sm:[--catalog-bar:3.75rem]">
+      <div className="sticky top-16 z-30 -mx-5 flex h-[var(--catalog-bar)] flex-col justify-center gap-1 border-b border-border bg-bg/95 px-5 backdrop-blur-sm sm:flex-row sm:items-center sm:gap-6">
+        <div className="w-full sm:min-w-0 sm:flex-1 sm:max-w-md">
           <label htmlFor="catalogo-buscar" className="sr-only">
             Buscar acciones o ETFs
           </label>
@@ -130,25 +171,55 @@ export function PublicCatalogGrid({ assets }: { assets: readonly PublicCatalogIt
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Buscar por nombre o ticker (Apple, NVDA, S&P 500)..."
-            className="min-h-11 w-full rounded-md border border-border-control bg-bg px-3 text-base text-fg transition placeholder:text-fg-subtle hover:border-fg/60"
+            className="min-h-11 w-full rounded-full border border-border-control bg-bg px-4 text-base text-fg transition placeholder:text-fg-subtle hover:border-fg/60"
           />
         </div>
 
-        <div role="group" aria-label="Filtrar por tipo" className="flex flex-wrap items-center gap-x-6">
-          {filters.map((option) => {
-            const active = filter === option.id;
-            return (
-              <button
-                key={option.id}
-                type="button"
-                aria-pressed={active}
-                onClick={() => setFilter(option.id)}
-                className={cn(TAB_BASE, active ? TAB_ACTIVE : TAB_IDLE)}
-              >
-                {option.label}
-              </button>
-            );
-          })}
+        <div className="flex items-center justify-between gap-4 sm:ml-auto sm:shrink-0 sm:justify-end sm:gap-6">
+          <div role="group" aria-label="Filtrar por tipo" className="flex items-center gap-x-5">
+            {filters.map((option) => {
+              const active = filter === option.id;
+              return (
+                <button
+                  key={option.id}
+                  type="button"
+                  aria-pressed={active}
+                  onClick={() => setFilter(option.id)}
+                  className={cn(TAB_BASE, active ? TAB_ACTIVE : TAB_IDLE)}
+                >
+                  {option.label}
+                </button>
+              );
+            })}
+          </div>
+
+          <div role="group" aria-label="Vista del catálogo" className="flex items-center">
+            {VIEWS.map((option) => {
+              const active = view === option.id;
+              return (
+                <button
+                  key={option.id}
+                  type="button"
+                  aria-pressed={active}
+                  aria-label={option.label}
+                  title={option.label}
+                  onClick={() => setView(option.id)}
+                  className="group/view inline-flex size-11 items-center justify-center"
+                >
+                  <span
+                    className={cn(
+                      "inline-flex size-8 items-center justify-center rounded-full border transition-colors duration-150 ease-spring",
+                      active
+                        ? "border-fg bg-fg text-white"
+                        : "border-transparent text-fg-muted group-hover/view:bg-surface-2 group-hover/view:text-fg",
+                    )}
+                  >
+                    {option.icon}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
         </div>
       </div>
 
@@ -191,28 +262,16 @@ export function PublicCatalogGrid({ assets }: { assets: readonly PublicCatalogIt
         </div>
       ) : (
         <>
-          <p className="mt-3 text-xs text-fg-muted">
+          <p className="mt-4 text-[13px] text-fg-muted">
             Acción = empresa · ETF = fondo. Cada fila abre la ficha del token.
           </p>
 
-          {/* Encabezado de columnas: desde `sm`, cuando caben las celdas. */}
-          <div
-            aria-hidden
-            className={cn(
-              "mt-4 hidden items-center gap-x-4 border-b border-border pb-2 sm:grid",
-              publicAssetGridColumns(hasPrice),
-            )}
-          >
-            <span className="label-xs">Ticker</span>
-            <span className="label-xs">Nombre</span>
-            <span className="label-xs">Sector</span>
-            {hasPrice ? <span className="label-xs text-right">Precio</span> : null}
-          </div>
-
-          {/* Índice sticky: única agrupación de la página (por letra). */}
+          {/* Índice por letra: única agrupación de la página. Pegado bajo la
+              barra fija desde `sm`; en móvil la barra ocupa dos filas y el
+              índice se desplaza con la página. */}
           <nav
             aria-label="Índice por letra"
-            className="sticky top-16 z-20 -mx-5 mt-2 border-b border-border bg-bg/95 px-5 backdrop-blur-sm"
+            className="z-20 -mx-5 mt-2 border-b border-border bg-bg/95 px-5 backdrop-blur-sm sm:sticky sm:top-[calc(4rem+var(--catalog-bar))]"
           >
             <ul className="no-scrollbar flex items-center gap-1 overflow-x-auto overscroll-x-contain">
               {groups.map((group) => (
@@ -228,27 +287,64 @@ export function PublicCatalogGrid({ assets }: { assets: readonly PublicCatalogIt
             </ul>
           </nav>
 
-          <div>
+          <div className="mt-5 space-y-5">
             {groups.map((group) => (
               <section
                 key={group.letter}
                 id={`activos-${letterAnchor(group.letter)}`}
                 aria-label={`Activos que empiezan con ${group.letter}`}
-                className="scroll-mt-16"
+                className="scroll-mt-28 sm:scroll-mt-12"
               >
-                <h2 className="flex items-baseline gap-3 border-b border-border pt-7 pb-2">
-                  <span className="font-mono text-[13px] font-medium tracking-[0.045em] text-fg uppercase">
-                    {group.letter}
-                  </span>
-                  <span className="num text-[13px] text-fg-muted">{group.items.length}</span>
-                </h2>
-                <ul className="divide-y divide-border">
-                  {group.items.map((asset) => (
-                    <li key={asset.slug}>
-                      <PublicAssetCard asset={asset} variant="table" showPrice={hasPrice} />
-                    </li>
-                  ))}
-                </ul>
+                {view === "table" ? (
+                  <div className="overflow-hidden rounded-bento border border-border">
+                    {/* Cabecera del grupo: letra, conteo y, desde `sm`, los
+                        rótulos de columna con la misma plantilla que las filas. */}
+                    <div
+                      className={cn(
+                        "grid items-center gap-x-3 border-b border-border bg-surface-1 px-4 py-2 sm:gap-x-4",
+                        publicAssetGridColumns(hasPrice),
+                      )}
+                    >
+                      <h2 className="col-span-2 flex items-baseline gap-3 sm:col-span-3">
+                        <span className="font-mono text-[13px] font-medium tracking-[0.045em] text-fg uppercase">
+                          {group.letter}
+                        </span>
+                        <span className="num text-[13px] text-fg-muted">{group.items.length}</span>
+                      </h2>
+                      <span aria-hidden className="label-xs hidden sm:block">
+                        Sector
+                      </span>
+                      {hasPrice ? (
+                        <span aria-hidden className="label-xs hidden text-right sm:block">
+                          Precio
+                        </span>
+                      ) : null}
+                    </div>
+                    <ul className="divide-y divide-border">
+                      {group.items.map((asset) => (
+                        <li key={asset.slug}>
+                          <PublicAssetCard asset={asset} variant="table" showPrice={hasPrice} />
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : (
+                  <>
+                    <h2 className="flex items-baseline gap-3 pb-3">
+                      <span className="font-mono text-[13px] font-medium tracking-[0.045em] text-fg uppercase">
+                        {group.letter}
+                      </span>
+                      <span className="num text-[13px] text-fg-muted">{group.items.length}</span>
+                    </h2>
+                    <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                      {group.items.map((asset) => (
+                        <li key={asset.slug}>
+                          <PublicAssetCard asset={asset} variant="card" className="h-full" />
+                        </li>
+                      ))}
+                    </ul>
+                  </>
+                )}
               </section>
             ))}
           </div>

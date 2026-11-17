@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { LandingSection, SectionIntro } from "@/components/landing/section";
+import { LandingSection, SectionHeader } from "@/components/landing/section";
 import { Reveal } from "@/components/landing/reveal";
 import { DisclosureList, type DisclosureItem } from "@/components/ui/disclosure-list";
 import { site } from "@/config/site";
@@ -73,19 +73,33 @@ export function FaqSection() {
 
   return (
     <LandingSection id="preguntas" titleId="preguntas-title">
-      <Reveal>
-        <SectionIntro id="preguntas-title" title="Antes de abrir la cuenta">
-          Siete respuestas cortas. El detalle legal sigue en borrador.
-        </SectionIntro>
-      </Reveal>
-      <Reveal delay={REVEAL_STAGGER_MS} className="mt-10 max-w-3xl md:mt-14">
-        <FaqDisclosure entries={entries} />
-        <p className="mt-4">
-          <Link href="/ayuda" className={actionLinkClass}>
-            Ver todas las preguntas
-          </Link>
-        </p>
-      </Reveal>
+      <div className="grid gap-10 lg:grid-cols-12 lg:gap-14">
+        {/* Titular fijo a la izquierda mientras se recorre el acordeón (lg). */}
+        <Reveal className="lg:sticky lg:top-24 lg:col-span-5 lg:self-start">
+          <SectionHeader id="preguntas-title" eyebrow="Preguntas frecuentes" title="Antes de abrir la cuenta">
+            Siete respuestas cortas. El detalle legal sigue en borrador.
+          </SectionHeader>
+          <p className="mt-6 hidden lg:block">
+            <Link href="/ayuda" className={actionLinkClass}>
+              Ver todas las preguntas
+              <span aria-hidden="true" className="ml-2">
+                →
+              </span>
+            </Link>
+          </p>
+        </Reveal>
+        <Reveal delay={REVEAL_STAGGER_MS} className="min-w-0 lg:col-span-7">
+          <FaqDisclosure entries={entries} />
+          <p className="mt-4 lg:hidden">
+            <Link href="/ayuda" className={actionLinkClass}>
+              Ver todas las preguntas
+              <span aria-hidden="true" className="ml-2">
+                →
+              </span>
+            </Link>
+          </p>
+        </Reveal>
+      </div>
     </LandingSection>
   );
 }

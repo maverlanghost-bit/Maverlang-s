@@ -1,5 +1,15 @@
 # PROGRESO — Maverlang
 
+## T70 — Rediseño de portada, páginas públicas y acceso (2026-11-17)
+- Alcance: D1–D7 de `docs/PLAN-DISENO-MARKETING.md`; D8 (pase fino) pendiente. Decisiones tomadas por mí por encargo de Manu: sombra `shadow-frame` y superficies sólo en marketing, una banda negra 24/7, monocromo, sin modo oscuro, sin dependencias nuevas.
+- Fundaciones: tokens (`text-display/title/lead-lg`, `rounded-bento`, `shadow-frame`, `inverse-*`) en `globals.css`; `SectionHeader`/tonos en `section.tsx`; `bento`, `product-frame`, `stat-tile`, `page-hero`. Excepción registrada en `docs/DESIGN-SYSTEM.md`.
+- Portada: hero con bento de producto (Mercado, ficha con gráfico, boleta de ejemplo, billetera, bolsa vs on-chain, saldo demo) → cinta → pasos con pestañas → «Por qué» (bento) → banda 24/7 → costos con simulador → qué tienes y qué no → preguntas → cierre. `ProductMock` ya no se renderiza.
+- Páginas: `PageHero` en catálogo, fichas, categorías, comparar, cómo funciona, costos, seguridad, guías, ayuda, legales y 404/error. Header con «Probar la demo»; footer de cuatro columnas. Acceso/registro en dos columnas, campos blancos; lógica de auth sin cambios (`wizard.tsx` sólo markup).
+- Hecho con agentes: Fable 5.2 (header/footer, acceso); el resto con Sonnet 5.5 tras el límite mensual de Fable.
+- Verificación: `tsc` y lint limpios; suite 199 archivos / 1.969 pruebas OK; capturas con Playwright a 1440 y 375 px de portada y páginas; sin desborde horizontal. Sin build de producción ni e2e. Se ajustó la alineación de header/footer con el contenido.
+- Pendiente (D8): portada mide 9.982 px en escritorio y 16.192 en móvil (antes 7.500/11.256; meta 5.500/7.500 no cumplida). Mercado repite 4 líneas de metadatos por fila en móvil (viene de `LandingPrice`, fuera de alcance). Revisar ficha pública, catálogo y comparar en pantalla, 768/1024 px, contraste AA y LCP/CLS.
+- Notas: se quitó la línea visible «Opera 24/7 con más de 400 acciones…» de la cinta; `e2e/landing.spec.ts` espera «Opera 24/7» en la portada (no se corrió). «Sistemas operativos» del footer es texto fijo. Sin migraciones, flags, push ni deploy.
+
 ## T69 — Plan de rediseño de portada y páginas previas a la plataforma (2026-11-17)
 - Alcance: análisis y documentación en `docs/PLAN-DISENO-MARKETING.md`. Sin cambios de código de producto; implementación pendiente de aprobación de Manu.
 - Revisado en navegador (mock, 1440 px): portada completa, `/acciones`, ficha de Apple, `/como-funciona`, `/costos`, `/guias`, ingreso y registro; portada a 375 px. Código leído: portada, hero, pasos, reglas, cierre, header, `globals.css`. ui.shadcn.com en vivo.

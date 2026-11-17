@@ -16,8 +16,8 @@ const EDGE_MASK =
 /** En pausa el contenido es un scroller: se apaga sólo el borde derecho (hay más). */
 const EDGE_MASK_RIGHT = "[mask-image:linear-gradient(90deg,black_92%,transparent_100%)]";
 
-/** Alto único de fila: la cinta mide lo mismo en marcha y en pausa. */
-const TAPE_ROW_HEIGHT = "h-14";
+/** Alto único de fila (= objetivo táctil del botón): la cinta mide lo mismo en marcha y en pausa. */
+const TAPE_ROW_HEIGHT = "h-11";
 
 /**
  * Copias del catálogo en la cinta. El bloque se desplaza -50 %, así que la
@@ -28,7 +28,13 @@ const TAPE_ROW_HEIGHT = "h-14";
 const TAPE_COPIES = 6;
 const TAPE_DURATION_S = 20 * TAPE_COPIES;
 
-/** Cinta animada con botón de pausa. El aviso de origen llega ya armado desde el servidor. */
+/**
+ * Cinta animada con botón de pausa (T70: una sola fila delgada). El rótulo de
+ * origen y el aviso de horario van juntos en una única línea al pie; el aviso
+ * de origen completo llega armado desde el servidor y se lee sólo con lector
+ * de pantalla. Con `prefers-reduced-motion` o en pausa, la fila es una lista
+ * estática con scroll (reglas `ticker-marquee-*` de `globals.css`).
+ */
 export function TickerTape({
   quotes,
   notice,
@@ -49,11 +55,53 @@ export function TickerTape({
   return (
     <section
       aria-label="Cinta de precios"
-      className={cn("overflow-hidden border-y border-border py-6 md:py-8", paused && "ticker-marquee-paused")}
+      className={cn("overflow-hidden border-y border-border py-2", paused && "ticker-marquee-paused")}
     >
-      {/* Cabecera: rótulo y pausa en la misma línea, sin envolver. */}
-      <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-4 px-5">
-        <p className="label min-w-0 truncate">{label}</p>
+      <div className="mx-auto flex w-full max-w-6xl items-center gap-3 px-5">
+        <div className="min-w-0 flex-1">
+          <div
+            className={cn("ticker-marquee-motion flex items-center overflow-hidden", TAPE_ROW_HEIGHT, EDGE_MASK)}
+            aria-hidden
+          >
+            <ul
+              className="flex w-max animate-marquee will-change-transform motion-reduce:animate-none"
+              style={{ animationDuration: `${TAPE_DURATION_S}s` }}
+            >
+              {tape.map((quote, index) => (
+                <li key={`${quote.symbol}-${index}`} className="flex">
+                  <LandingPrice
+                    symbol={quote.symbol}
+                    initial={{ priceUsd: quote.priceUsd, change: quote.change }}
+                    layout="tape"
+                  />
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* En pausa: una sola fila con scroll horizontal, del mismo alto que la
+              cinta. Sin máscara izquierda: al detenerse, el primer activo se lee
+              completo; a la derecha queda el fundido de «hay más». */}
+          <ul
+            className={cn(
+              "ticker-marquee-static flex-nowrap items-center gap-x-2 overflow-x-auto overscroll-x-contain no-scrollbar",
+              TAPE_ROW_HEIGHT,
+              EDGE_MASK_RIGHT,
+            )}
+            aria-hidden
+          >
+            {rows.map((quote) => (
+              <li key={quote.symbol} className="flex shrink-0">
+                <LandingPrice
+                  symbol={quote.symbol}
+                  initial={{ priceUsd: quote.priceUsd, change: quote.change }}
+                  layout="tape"
+                />
+              </li>
+            ))}
+          </ul>
+        </div>
+
         <button
           type="button"
           aria-pressed={paused}
@@ -64,52 +112,10 @@ export function TickerTape({
         </button>
       </div>
 
-      <div
-        className={cn("ticker-marquee-motion mt-2 flex items-center overflow-hidden", TAPE_ROW_HEIGHT, EDGE_MASK)}
-        aria-hidden
-      >
-        <ul
-          className="flex w-max animate-marquee will-change-transform motion-reduce:animate-none"
-          style={{ animationDuration: `${TAPE_DURATION_S}s` }}
-        >
-          {tape.map((quote, index) => (
-            <li key={`${quote.symbol}-${index}`} className="flex">
-              <LandingPrice
-                symbol={quote.symbol}
-                initial={{ priceUsd: quote.priceUsd, change: quote.change }}
-                layout="tape"
-              />
-            </li>
-          ))}
-        </ul>
-      </div>
-
-      {/* En pausa: una sola fila con scroll horizontal, del mismo alto que la
-          cinta. Sin máscara izquierda: al detenerse, el primer activo se lee
-          completo; a la derecha queda el fundido de «hay más». */}
-      <ul
-        className={cn(
-          "ticker-marquee-static mt-2 flex-nowrap items-center gap-x-2 overflow-x-auto overscroll-x-contain px-5 no-scrollbar",
-          TAPE_ROW_HEIGHT,
-          EDGE_MASK_RIGHT,
-        )}
-        aria-hidden
-      >
-        {rows.map((quote) => (
-          <li key={quote.symbol} className="flex shrink-0">
-            <LandingPrice
-              symbol={quote.symbol}
-              initial={{ priceUsd: quote.priceUsd, change: quote.change }}
-              layout="tape"
-            />
-          </li>
-        ))}
-      </ul>
-
-      <div className="mx-auto mt-6 w-full max-w-7xl px-5">
-        <p className="text-sm leading-relaxed text-fg">Opera 24/7 con más de 400 acciones tokenizadas.</p>
-        <p className="mt-1 max-w-3xl text-xs leading-relaxed text-fg-muted">{SCHEDULE_NOTE}</p>
-      </div>
+      {/* La única línea de aviso: origen de los precios y horario. */}
+      <p className="mx-auto w-full max-w-6xl px-5 pb-1 text-xs leading-relaxed text-fg-muted">
+        <span className="font-medium text-fg">{label}.</span> {SCHEDULE_NOTE}
+      </p>
 
       <p className="sr-only">{notice}</p>
       <ul className="sr-only">

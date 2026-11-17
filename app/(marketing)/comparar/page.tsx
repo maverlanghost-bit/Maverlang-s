@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { TickerLogo } from "@/components/domain/ticker-logo";
-import { LandingSection } from "@/components/landing/section";
+import { CatalogBody } from "@/components/landing/catalog-body";
+import { CatalogBreadcrumb } from "@/components/landing/catalog-breadcrumb";
+import { PageHero } from "@/components/landing/page-hero";
 import { buttonClasses } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { logoPathFromSymbol } from "@/lib/catalog/logos";
@@ -39,26 +41,31 @@ function validPairs(assets: readonly PublicAsset[]): { a: PublicAsset; b: Public
   return pairs;
 }
 
-function AssetRow({ asset }: { asset: PublicAsset }) {
+/** Logo del activo con el mismo borde en todos los tamaños del hub. */
+function PairLogo({
+  asset,
+  size,
+  eager = false,
+}: {
+  asset: PublicAsset;
+  size: number;
+  eager?: boolean;
+}) {
   return (
-    <span className="flex min-w-0 flex-1 items-center gap-2.5">
-      <TickerLogo
-        symbol={asset.symbol}
-        name={asset.name}
-        logoUrl={logoPathFromSymbol(asset.symbol)}
-        size={24}
-        decorative
-        loading="lazy"
-        sizes="24px"
-      />
-      <span className="min-w-0 flex-1 truncate text-base font-medium text-fg">{asset.name}</span>
-      <span className="shrink-0 font-mono text-[13px] text-fg-muted">{asset.ticker}</span>
-    </span>
+    <TickerLogo
+      symbol={asset.symbol}
+      name={asset.name}
+      logoUrl={logoPathFromSymbol(asset.symbol)}
+      size={size}
+      decorative
+      loading={eager ? "eager" : "lazy"}
+      sizes={`${size}px`}
+    />
   );
 }
 
-/** Fila de índice: dos activos, sector y enlace. Sin tarjeta ni sombra. */
-function PairRow({ a, b }: { a: PublicAsset; b: PublicAsset }) {
+/** Tarjeta "A vs B": los dos logos, nombres, sector y enlace. Toda la tarjeta es el enlace. */
+function PairCard({ a, b }: { a: PublicAsset; b: PublicAsset }) {
   const leftSector = sectorFor(a)?.name ?? null;
   const rightSector = sectorFor(b)?.name ?? null;
   const sector =
@@ -72,19 +79,26 @@ function PairRow({ a, b }: { a: PublicAsset; b: PublicAsset }) {
     <Link
       href={comparePath(a, b)}
       aria-label={`Comparar ${a.name} con ${b.name}`}
-      className="flex flex-col gap-3 border-b border-border py-4 transition-colors hover:bg-surface-1 sm:flex-row sm:items-center sm:gap-8"
+      className="group flex h-full flex-col gap-6 rounded-bento border border-border bg-bg p-5 transition-colors duration-[140ms] ease-spring hover:border-border-strong hover:bg-surface-1 md:p-6"
     >
-      <span className="flex min-w-0 flex-1 flex-col gap-1 sm:flex-row sm:items-center sm:gap-3">
-        <AssetRow asset={a} />
-        <span aria-hidden className="font-mono text-[13px] leading-none text-fg-muted">
-          vs
-        </span>
-        <AssetRow asset={b} />
+      <span aria-hidden className="flex items-center gap-3">
+        <PairLogo asset={a} size={44} />
+        <span className="font-mono text-[13px] leading-none text-fg-muted">vs</span>
+        <PairLogo asset={b} size={44} />
       </span>
-      <span className="flex items-center justify-between gap-4 sm:shrink-0 sm:justify-end">
-        {sector ? <span className="text-[13px] leading-relaxed text-fg-muted">{sector}</span> : null}
-        <span className="ml-auto inline-flex shrink-0 items-center gap-1 text-sm font-medium text-fg sm:ml-0">
-          Comparar <span aria-hidden>→</span>
+      <span className="min-w-0">
+        <span className="block text-lg leading-snug font-semibold tracking-tight text-fg">
+          {a.name} <span className="font-normal text-fg-muted">vs</span> {b.name}
+        </span>
+        <span className="num mt-1.5 block text-[13px] text-fg-muted">
+          {a.ticker} · {b.ticker}
+        </span>
+        {sector ? <span className="mt-1 block text-[13px] leading-relaxed text-fg-muted">{sector}</span> : null}
+      </span>
+      <span className="mt-auto inline-flex items-center gap-1 text-sm font-medium text-fg">
+        Comparar{" "}
+        <span aria-hidden className="transition-transform duration-[140ms] ease-spring group-hover:translate-x-0.5">
+          →
         </span>
       </span>
     </Link>
@@ -94,9 +108,10 @@ function PairRow({ a, b }: { a: PublicAsset; b: PublicAsset }) {
 export default async function CompararPage() {
   const assets = await listPublicAssets();
   const pairs = validPairs(assets);
+  const featured = pairs[0];
 
   return (
-    <LandingSection titleId="comparar-title" density="compact">
+    <>
       <JsonLd
         data={breadcrumbJsonLd([
           { name: "Inicio", path: "/" },
@@ -116,22 +131,55 @@ export default async function CompararPage() {
         />
       ) : null}
 
-      <div className="max-w-2xl">
-        <p className="label">Comparar</p>
-        <h1 id="comparar-title" className="mt-3 text-3xl sm:text-4xl">
-          Comparar acciones tokenizadas
-        </h1>
-        <p className="mt-4 max-w-[62ch] text-lead text-fg-body">
+      <PageHero
+        titleId="comparar-title"
+        breadcrumb={<CatalogBreadcrumb items={[{ name: "Inicio", href: "/" }, { name: "Comparar" }]} />}
+        eyebrow="Comparar"
+        title="Comparar acciones tokenizadas"
+        factsLabel="Comparaciones"
+        facts={[pairs.length === 1 ? "1 comparación disponible" : `${pairs.length} comparaciones disponibles`]}
+        actions={
+          <>
+            {pairs.length > 0 ? (
+              <Link href="/acciones" className={buttonClasses({ variant: "primary", size: "lg" })}>
+                Ver el catálogo completo
+              </Link>
+            ) : null}
+            <Link
+              href="/categorias"
+              className="inline-flex min-h-11 items-center justify-center px-3 text-sm font-medium text-fg underline decoration-border underline-offset-4 transition-colors hover:decoration-fg motion-reduce:transition-none"
+            >
+              Explorar por categorías
+            </Link>
+          </>
+        }
+        aside={
+          featured ? (
+            <div
+              aria-hidden
+              className="flex items-center justify-center gap-5 rounded-bento border border-border bg-surface-1 px-6 py-12 sm:gap-8 md:py-16"
+            >
+              <div className="flex min-w-0 flex-col items-center gap-3 text-center">
+                <PairLogo asset={featured.a} size={88} eager />
+                <span className="num text-sm font-medium text-fg">{featured.a.ticker}</span>
+              </div>
+              <span className="font-mono text-sm text-fg-muted">vs</span>
+              <div className="flex min-w-0 flex-col items-center gap-3 text-center">
+                <PairLogo asset={featured.b} size={88} eager />
+                <span className="num text-sm font-medium text-fg">{featured.b.ticker}</span>
+              </div>
+            </div>
+          ) : undefined
+        }
+      >
+        <p>
           Dos activos lado a lado: datos de la empresa según la SEC, precio del token y rendimiento relativo del
           último mes. Comparar no es recomendar.
         </p>
-        <p className="mt-4 text-sm text-fg-muted">
-          {pairs.length === 1 ? "1 comparación disponible" : `${pairs.length} comparaciones disponibles`}
-        </p>
-      </div>
+      </PageHero>
 
-      {pairs.length === 0 ? (
-        <div className="mt-10">
+      <CatalogBody>
+        {pairs.length === 0 ? (
           <EmptyState
             title="Las comparaciones no están disponibles ahora."
             description="Las fichas de los pares todavía no están publicadas. Mientras tanto puedes revisar el catálogo completo."
@@ -141,35 +189,21 @@ export default async function CompararPage() {
               </Link>
             }
           />
-        </div>
-      ) : (
-        <ul className="mt-8 border-t border-border">
-          {pairs.map(({ a, b }) => (
-            <li key={`${a.slug}-vs-${b.slug}`}>
-              <PairRow a={a} b={b} />
-            </li>
-          ))}
-        </ul>
-      )}
+        ) : (
+          <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {pairs.map(({ a, b }) => (
+              <li key={`${a.slug}-vs-${b.slug}`}>
+                <PairCard a={a} b={b} />
+              </li>
+            ))}
+          </ul>
+        )}
 
-      <div className="mt-10 flex flex-wrap items-center gap-x-6 gap-y-3">
-        {pairs.length > 0 ? (
-          <Link href="/acciones" className={buttonClasses({ variant: "primary" })}>
-            Ver el catálogo completo
-          </Link>
-        ) : null}
-        <Link
-          href="/categorias"
-          className="inline-flex min-h-11 items-center text-sm font-medium text-fg underline decoration-border underline-offset-4 transition-colors hover:decoration-fg motion-reduce:transition-none"
-        >
-          Explorar por categorías
-        </Link>
-      </div>
-
-      <p className="mt-10 max-w-[68ch] border-t border-border pt-6 text-[13px] leading-relaxed text-fg-muted">
-        Los datos de la empresa vienen de la SEC EDGAR y los precios se mueven durante el día. Fuera del horario
-        regular de la bolsa de EE.UU. el precio puede variar más. No es una recomendación de inversión.
-      </p>
-    </LandingSection>
+        <p className="mt-12 max-w-[68ch] border-t border-border pt-6 text-[13px] leading-relaxed text-fg-muted">
+          Los datos de la empresa vienen de la SEC EDGAR y los precios se mueven durante el día. Fuera del horario
+          regular de la bolsa de EE.UU. el precio puede variar más. No es una recomendación de inversión.
+        </p>
+      </CatalogBody>
+    </>
   );
 }

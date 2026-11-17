@@ -16,7 +16,8 @@ import { LANDING_MIN_ORDER_USD } from "@/lib/market/asset-status.shared";
 import type { LandingQuote } from "@/lib/mocks/landing";
 import type { Range } from "@/lib/types";
 
-const RANGE_OPTIONS: { value: Range; label: string; name: string }[] = [
+/** Rangos del gráfico; la ficha compacta del hero (`hero-quote-card.tsx`) los reutiliza. */
+export const RANGE_OPTIONS: { value: Range; label: string; name: string }[] = [
   { value: "1D", label: "1D", name: "1 día" },
   { value: "1W", label: "1S", name: "1 semana" },
   { value: "1M", label: "1M", name: "1 mes" },

@@ -34,14 +34,15 @@ export type PublicAssetCardItem = {
 export type PublicAssetCardVariant = "card" | "row" | "table";
 
 /**
- * Plantilla de columnas de la tabla: la comparten el encabezado
+ * Plantilla de columnas de la tabla: la comparten el encabezado de cada grupo
  * (`public-catalog-grid`) y cada fila, para que no se desalineen nunca.
- * Móvil: ticker + nombre. Desde `sm`: ticker · nombre · sector [· precio].
+ * Móvil: logo + nombre (con ticker y sector debajo). Desde `sm`: logo · ticker ·
+ * nombre · sector [· precio].
  */
 export function publicAssetGridColumns(hasPrice: boolean): string {
   return hasPrice
-    ? "grid-cols-[5rem_minmax(0,1fr)] sm:grid-cols-[6rem_minmax(0,1fr)_10rem_7rem]"
-    : "grid-cols-[5rem_minmax(0,1fr)] sm:grid-cols-[6rem_minmax(0,1fr)_10rem]";
+    ? "grid-cols-[2rem_minmax(0,1fr)] sm:grid-cols-[2rem_4.5rem_minmax(0,1fr)_11rem_7rem]"
+    : "grid-cols-[2rem_minmax(0,1fr)] sm:grid-cols-[2rem_4.5rem_minmax(0,1fr)_11rem]";
 }
 
 export function PublicAssetCard({
@@ -72,29 +73,31 @@ export function PublicAssetCard({
         href={`/acciones/${asset.slug}`}
         aria-label={`${asset.name} (${asset.ticker}), token ${asset.symbol}${sector ? `, ${sector}` : ""}`}
         className={cn(
-          "group grid items-center gap-x-4 py-3 transition-colors duration-[140ms] ease-spring hover:bg-surface-1",
+          "group grid min-h-14 items-center gap-x-3 px-4 py-3 transition-colors duration-[140ms] ease-spring hover:bg-surface-1 focus-visible:-outline-offset-2 sm:gap-x-4",
           publicAssetGridColumns(showPrice),
           className,
         )}
       >
-        <span className="flex min-w-0 items-center gap-2">
-          <TickerLogo
-            symbol={asset.symbol}
-            name={asset.name}
-            logoUrl={logoPathFromSymbol(asset.symbol)}
-            size={24}
-            decorative
-            loading="lazy"
-            sizes="24px"
-          />
-          <span className="font-mono text-[13px] font-medium tracking-tight text-fg">{asset.ticker}</span>
+        <TickerLogo
+          symbol={asset.symbol}
+          name={asset.name}
+          logoUrl={logoPathFromSymbol(asset.symbol)}
+          size={32}
+          decorative
+          loading="lazy"
+          sizes="32px"
+        />
+        <span className="hidden font-mono text-[13px] font-medium tracking-tight text-fg sm:block">
+          {asset.ticker}
         </span>
         {/* Sin `truncate` ni `line-clamp`: el nombre largo envuelve en móvil. */}
         <span className="min-w-0">
-          <span className="block text-sm leading-snug font-medium text-fg">{asset.name}</span>
-          <span className="mt-0.5 block text-xs text-fg-muted sm:hidden">{sectorCell}</span>
+          <span className="block text-[15px] leading-snug font-medium text-fg">{asset.name}</span>
+          <span className="mt-0.5 block text-xs text-fg-muted sm:hidden">
+            <span className="font-mono">{asset.ticker}</span> · {sectorCell}
+          </span>
         </span>
-        <span className="hidden min-w-0 truncate text-xs text-fg-muted sm:block" title={sectorCell}>
+        <span className="hidden min-w-0 truncate text-[13px] text-fg-muted sm:block" title={sectorCell}>
           {sectorCell}
         </span>
         {showPrice ? (
@@ -110,7 +113,7 @@ export function PublicAssetCard({
       aria-label={`${asset.name} (${asset.ticker}), token ${asset.symbol}${sector ? `, ${sector}` : ""}`}
       className={cn(
         "group flex items-center gap-3 bg-bg transition duration-[140ms] ease-spring hover:bg-surface-1",
-        row ? "min-h-16 px-0 py-2.5" : "min-h-24 rounded-xl border border-border p-4 hover:border-border-strong",
+        row ? "min-h-16 px-0 py-2.5" : "min-h-24 rounded-bento border border-border p-4 hover:border-border-strong",
         className,
       )}
     >

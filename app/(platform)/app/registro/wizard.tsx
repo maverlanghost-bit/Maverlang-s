@@ -76,6 +76,13 @@ const TITLES: Record<Step, string> = {
   3: "Términos y riesgos",
 };
 
+/** Nombre corto de cada paso para el indicador (sólo presentación). */
+const STEP_NAMES: Record<Step, string> = {
+  1: "Cuenta",
+  2: "Tus datos",
+  3: "Términos",
+};
+
 function messageFrom(error: unknown): string {
   if (isProfileMigrationMessage(error)) return PROFILE_MIGRATION_MESSAGE;
   if (error instanceof ApiError) return error.message;
@@ -696,7 +703,11 @@ function RegistroForm({
 
   return (
     <Shell>
-      <WizardProgress step={stepIndex + 1} total={steps.length} />
+      <WizardProgress
+        step={stepIndex + 1}
+        total={steps.length}
+        labels={mode === "alta" ? steps.map((item) => STEP_NAMES[item]) : undefined}
+      />
       <form className="mt-6" onSubmit={onSubmit} noValidate>
         <h1 ref={headingRef} tabIndex={-1} className={authTitleClass}>
           {title}
@@ -729,19 +740,6 @@ function RegistroForm({
               error={errors.passwordConfirm?.message}
               {...register("passwordConfirm")}
             />
-            <p className="mt-5 text-center text-[13px] leading-relaxed text-fg-muted">
-              <Link href={enter} className={authLinkClass}>
-                Ya tengo cuenta
-              </Link>
-            </p>
-            {onUseDemo ? (
-              <p className="mt-1 text-center text-[13px] leading-relaxed text-fg-muted">
-                ¿Solo quieres probar?{" "}
-                <button type="button" onClick={onUseDemo} className={authLinkClass}>
-                  Usar la cuenta demo
-                </button>
-              </p>
-            ) : null}
           </div>
         ) : null}
         {step === 2 && !unavailable ? (
@@ -890,6 +888,23 @@ function RegistroForm({
             )}
             {mode === "completar" ? <LogoutButton variant="ghost" size="md" className="w-auto px-2" /> : null}
           </div>
+        ) : null}
+        {step === 1 ? (
+          <>
+            <p className="mt-1 text-center text-[13px] leading-relaxed text-fg-muted">
+              <Link href={enter} className={authLinkClass}>
+                Ya tengo cuenta
+              </Link>
+            </p>
+            {onUseDemo ? (
+              <div className="mt-3 border-t border-border pt-4">
+                <p className="text-sm leading-relaxed text-fg-muted">¿Solo quieres probar?</p>
+                <Button type="button" variant="secondary" size="md" className="mt-2 w-full" onClick={onUseDemo}>
+                  Usar la cuenta demo
+                </Button>
+              </div>
+            ) : null}
+          </>
         ) : null}
       </form>
     </Shell>

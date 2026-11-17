@@ -22,11 +22,11 @@ import { Sheet } from "@/components/ui/sheet";
 /** Primer destino: el catálogo. Vive fuera del desplegable a propósito. */
 const NAV_LEAD = { href: "/acciones", label: "Acciones" } as const;
 
-/** Agrupado bajo «Explorar»: descubre el catálogo, no lo explica. */
+/** Agrupado bajo «Explorar»: descubre el catálogo, no lo explica. Una línea factual por destino. */
 const NAV_EXPLORE = [
-  { href: "/categorias", label: "Categorías" },
-  { href: "/comparar", label: "Comparar" },
-  { href: "/guias", label: "Guías" },
+  { href: "/categorias", label: "Categorías", description: "Acciones agrupadas por sector y tema." },
+  { href: "/comparar", label: "Comparar", description: "Dos activos lado a lado." },
+  { href: "/guias", label: "Guías", description: "Explicaciones cortas, sin asesoría." },
 ] as const;
 
 /** Lo que explica el producto, en el orden de siempre. */
@@ -35,6 +35,10 @@ const NAV_PRODUCT = [
   { href: "/costos", label: "Costos" },
   { href: "/seguridad", label: "Seguridad" },
 ] as const;
+
+const LOGIN_HREF = "/app/ingresar";
+const DEMO_HREF = "/app/registro";
+const DEMO_LABEL = "Probar la demo";
 
 const SCROLL_OFFSET = 8;
 
@@ -148,17 +152,18 @@ function ExploreMenu() {
       return;
     }
     if (!open) return;
-    if (event.key !== "ArrowDown" && event.key !== "ArrowUp" && event.key !== "Home" && event.key !== "End") {
-      return;
-    }
+    // El panel es una grilla: las flechas horizontales recorren igual que las verticales.
+    const back = event.key === "ArrowUp" || event.key === "ArrowLeft";
+    const forward = event.key === "ArrowDown" || event.key === "ArrowRight";
+    if (!back && !forward && event.key !== "Home" && event.key !== "End") return;
     const list = links();
     if (list.length === 0) return;
     event.preventDefault();
     const index = list.indexOf(document.activeElement as HTMLAnchorElement);
     let next = 0;
-    if (event.key === "ArrowUp") next = index < 0 ? list.length - 1 : (index + list.length - 1) % list.length;
+    if (back) next = index < 0 ? list.length - 1 : (index + list.length - 1) % list.length;
     else if (event.key === "End") next = list.length - 1;
-    else if (event.key === "ArrowDown") next = index < 0 ? 0 : (index + 1) % list.length;
+    else if (forward) next = index < 0 ? 0 : (index + 1) % list.length;
     list[next]?.focus();
   };
 
@@ -204,18 +209,21 @@ function ExploreMenu() {
         <div
           ref={panelRef}
           id={panelId}
-          className="absolute top-full left-0 z-10 mt-4 w-56 rounded-xl border border-border bg-bg p-1.5 shadow-float motion-safe:animate-pop-in motion-reduce:animate-none"
+          className="absolute top-full left-0 z-10 mt-3 w-[40rem] max-w-[calc(100vw-2.5rem)] rounded-2xl border border-border bg-bg p-2 shadow-float motion-safe:animate-pop-in motion-reduce:animate-none"
         >
-          <ul>
+          <ul className="grid grid-cols-3 gap-1">
             {NAV_EXPLORE.map((item) => (
-              <li key={item.href}>
+              <li key={item.href} className="flex">
                 <Link
                   href={item.href}
                   aria-current={isCurrent(pathname, item.href) ? "page" : undefined}
                   onClick={() => setOpen(false)}
-                  className="flex h-10 items-center rounded-xl px-3 text-sm text-fg-body transition duration-[140ms] ease-spring hover:bg-surface-2 hover:text-fg aria-[current=page]:font-medium aria-[current=page]:text-fg"
+                  className="group flex min-h-11 w-full flex-col gap-1 rounded-xl p-4 transition duration-[140ms] ease-spring hover:bg-surface-1 aria-[current=page]:bg-surface-1"
                 >
-                  {item.label}
+                  <span className="text-sm font-medium text-fg">{item.label}</span>
+                  <span className="text-[13px] leading-snug text-pretty text-fg-muted group-hover:text-fg-body">
+                    {item.description}
+                  </span>
                 </Link>
               </li>
             ))}
@@ -306,16 +314,27 @@ export function SiteHeader() {
       }}
       className={cn(
         "fixed inset-x-0 top-0 z-40 h-16 border-b transition-[background-color,border-color,backdrop-filter,transform] duration-500 ease-spring",
-        scrolled ? "border-border bg-bg/80 backdrop-blur-md" : "border-transparent bg-transparent",
+        // Al bajar: sólido por defecto; translúcido con desenfoque sólo si el navegador
+        // soporta `backdrop-filter`, y sólido otra vez si se pide menos transparencia.
+        scrolled
+          ? "border-border bg-bg supports-[backdrop-filter]:bg-bg/75 supports-[backdrop-filter]:backdrop-blur-xl supports-[backdrop-filter]:backdrop-saturate-150 [@media(prefers-reduced-transparency:reduce)]:bg-bg! [@media(prefers-reduced-transparency:reduce)]:backdrop-filter-none!"
+          : "border-transparent bg-transparent",
         show ? "translate-y-0" : "-translate-y-full",
       )}
     >
-      <div className="mx-auto flex h-full max-w-7xl items-center gap-2 px-5 sm:gap-3">
-        <Link href="/" aria-label={site.name} className="flex min-w-0 shrink items-center rounded-full text-fg">
+      {/* 72rem + el px-5 de cada lado: el logo alinea con el contenido de las secciones. */}
+      <div className="mx-auto flex h-full w-full max-w-[calc(72rem+2.5rem)] items-center px-5">
+        <Link
+          href="/"
+          aria-label={site.name}
+          className="flex min-h-11 min-w-0 shrink items-center rounded-full text-fg"
+        >
           <BrandLogoImage priority />
         </Link>
 
-        <nav aria-label="Principal" className="ml-auto hidden items-center gap-1 md:flex lg:gap-2">
+        {/* Logo y navegación van juntos a la izquierda; las acciones, a la derecha.
+            La navegación completa entra desde `lg`: con el CTA de la demo no cabe en 768 px. */}
+        <nav aria-label="Principal" className="ml-6 hidden items-center gap-1 lg:flex xl:ml-8">
           <Link
             href={NAV_LEAD.href}
             aria-current={isCurrent(pathname, NAV_LEAD.href) ? "page" : undefined}
@@ -336,15 +355,19 @@ export function SiteHeader() {
           ))}
         </nav>
 
-        <div className="ml-auto flex shrink-0 items-center gap-2 md:ml-4">
-          {/* D1: el header no lleva `primary`; el único negro de la vista es el CTA del hero. */}
-          <Button asChild variant="ghost" size="md" className="min-h-11 px-4">
-            <Link href="/app/ingresar">Entrar</Link>
+        <div className="ml-auto flex shrink-0 items-center gap-1 pl-3 sm:gap-2">
+          <Button asChild variant="ghost" size="md" className="min-h-11 px-4 md:px-4">
+            <Link href={LOGIN_HREF}>Entrar</Link>
+          </Button>
+          {/* Plan de rediseño §5: la demo es la píldora negra del header, visible en
+              cualquier posición de scroll. En móvil vive fija al pie de la hoja. */}
+          <Button asChild variant="primary" size="sm" className="hidden px-4 sm:inline-flex">
+            <Link href={DEMO_HREF}>{DEMO_LABEL}</Link>
           </Button>
           <IconButton
             label={open ? "Cerrar menú" : "Abrir menú"}
             size="md"
-            className="md:hidden"
+            className="lg:hidden"
             aria-expanded={open}
             onClick={() => setOpen(true)}
           >
@@ -353,8 +376,8 @@ export function SiteHeader() {
         </div>
       </div>
 
-      <Sheet open={open} onOpenChange={setOpen} title="Menú">
-        <nav aria-label="Móvil" className="flex flex-col">
+      <Sheet open={open} onOpenChange={setOpen} title="Menú" fill>
+        <nav aria-label="Móvil" className="flex flex-col pb-4">
           <Link
             href={NAV_LEAD.href}
             aria-current={isCurrent(pathname, NAV_LEAD.href) ? "page" : undefined}
@@ -372,10 +395,11 @@ export function SiteHeader() {
                 <Link
                   href={item.href}
                   aria-current={isCurrent(pathname, item.href) ? "page" : undefined}
-                  className={cn(mobileLinkClass, "text-[15px] text-fg-body aria-[current=page]:text-fg")}
+                  className="flex min-h-14 flex-col justify-center gap-0.5 rounded-xl px-3 py-2 transition duration-[140ms] ease-spring hover:bg-surface-2 active:scale-[0.98] aria-[current=page]:bg-surface-1"
                   onClick={() => setOpen(false)}
                 >
-                  {item.label}
+                  <span className="text-[15px] text-fg">{item.label}</span>
+                  <span className="text-[13px] leading-snug text-fg-muted">{item.description}</span>
                 </Link>
               </li>
             ))}
@@ -394,14 +418,21 @@ export function SiteHeader() {
               </Link>
             ))}
           </div>
+        </nav>
 
-          {/* Único CTA de la vista pública: ghost, nunca negro (D1). */}
-          <Button asChild variant="ghost" size="md" className="mt-4 min-h-11 w-full border border-control">
-            <Link href="/app/ingresar" onClick={() => setOpen(false)}>
+        {/* Acciones fijas al pie de la hoja: la demo primero, «Entrar» como secundaria. */}
+        <div className="sticky bottom-0 z-10 -mx-5 mt-auto flex flex-col gap-2 border-t border-border bg-bg px-5 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))] md:-mx-7 md:px-7 md:pb-5">
+          <Button asChild variant="primary" size="lg" className="w-full">
+            <Link href={DEMO_HREF} onClick={() => setOpen(false)}>
+              {DEMO_LABEL}
+            </Link>
+          </Button>
+          <Button asChild variant="secondary" size="md" className="min-h-11 w-full">
+            <Link href={LOGIN_HREF} onClick={() => setOpen(false)}>
               Entrar
             </Link>
           </Button>
-        </nav>
+        </div>
       </Sheet>
     </header>
   );

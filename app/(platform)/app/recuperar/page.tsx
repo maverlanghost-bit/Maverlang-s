@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 
 import { AuthCard } from "@/components/auth/auth-frame";
+import { AuthShell } from "@/components/auth/auth-shell";
 import { Skeleton } from "@/components/ui/skeleton";
 import { site } from "@/config/site";
 
@@ -30,10 +31,10 @@ function Fallback() {
 
 export default function RecuperarPage() {
   return (
-    <main className="flex min-h-dvh flex-col items-center px-4 py-8 sm:px-5 sm:py-12">
+    <AuthShell>
       <Suspense fallback={<Fallback />}>
         <RecuperarForm />
       </Suspense>
-    </main>
+    </AuthShell>
   );
 }

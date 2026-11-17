@@ -1,6 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { LandingSection } from "@/components/landing/section";
+import { CatalogBody } from "@/components/landing/catalog-body";
+import { CatalogBreadcrumb } from "@/components/landing/catalog-breadcrumb";
+import { CatalogLogoStack } from "@/components/landing/catalog-logo-stack";
+import { PageHero } from "@/components/landing/page-hero";
+import { ProductFrame } from "@/components/landing/product-frame";
 import { buttonClasses } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import {
@@ -35,31 +39,42 @@ type PublishedCategory = {
   members: readonly PublicAsset[];
 };
 
-const linkClass =
-  "inline-flex min-h-11 items-center text-sm text-fg-body underline decoration-border underline-offset-4 hover:text-fg hover:decoration-fg";
+/** Mismo texto de siempre: 1 activo / N activos. */
+function countLabel(count: number): string {
+  return count === 1 ? "activo" : "activos";
+}
 
 /**
- * Fila de índice: nombre, hasta tres tickers de ejemplo y el conteo real.
- * Sin tarjeta ni sombra: una hairline separa cada entrada.
+ * Tarjeta de categoría: pila de logos de sus primeros miembros, nombre, conteo
+ * real y hasta tres tickers de ejemplo. Toda la tarjeta es el enlace.
  */
-function CategoryRow({ category, members }: PublishedCategory) {
+function CategoryCard({ category, members }: PublishedCategory) {
   const count = members.length;
   const examples = members.slice(0, 3).map((asset) => asset.ticker);
 
   return (
     <Link
       href={`/categorias/${category.slug}`}
-      className="group grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-4 gap-y-1 border-b border-border py-4 sm:grid-cols-[minmax(0,14rem)_minmax(0,1fr)_auto] sm:gap-x-6"
+      className="group flex h-full min-h-44 flex-col gap-6 rounded-bento border border-border bg-bg p-5 transition-colors duration-[140ms] ease-spring hover:border-border-strong hover:bg-surface-1 md:p-6"
     >
-      <span className="text-base leading-snug font-medium text-fg underline decoration-transparent underline-offset-4 transition-colors group-hover:decoration-border-strong">
-        {category.name}
+      <span className="flex items-center justify-between gap-3">
+        <CatalogLogoStack assets={members} max={5} size={36} />
+        <span
+          aria-hidden
+          className="inline-flex size-9 shrink-0 items-center justify-center rounded-full border border-border text-fg-muted transition-colors duration-[140ms] ease-spring group-hover:border-fg group-hover:bg-fg group-hover:text-white"
+        >
+          →
+        </span>
       </span>
-      <span className="num col-span-2 row-start-2 truncate text-[13px] leading-relaxed text-fg-muted sm:col-span-1 sm:col-start-2 sm:row-start-1">
-        <span className="sr-only">Ejemplos: </span>
-        {examples.join(" · ")}
-      </span>
-      <span className="num col-start-2 row-start-1 text-right text-[13px] leading-snug whitespace-nowrap text-fg-muted sm:col-start-3">
-        <span className="font-medium text-fg">{count}</span> {count === 1 ? "activo" : "activos"}
+      <span className="mt-auto min-w-0">
+        <span className="block text-lg leading-snug font-semibold tracking-tight text-fg">{category.name}</span>
+        <span className="num mt-1.5 block text-[13px] leading-snug text-fg-muted">
+          <span className="font-medium text-fg">{count}</span> {countLabel(count)}
+        </span>
+        <span className="num mt-1 block truncate text-xs leading-relaxed text-fg-muted">
+          <span className="sr-only">Ejemplos: </span>
+          {examples.join(" · ")}
+        </span>
       </span>
     </Link>
   );
@@ -77,15 +92,15 @@ function CategoryGroup({
   items: readonly PublishedCategory[];
 }) {
   return (
-    <section aria-labelledby={id} className="mt-10">
-      <h2 id={id} className="text-xl sm:text-2xl">
+    <section aria-labelledby={id} className="mt-12 first:mt-0">
+      <h2 id={id} className="text-2xl font-semibold sm:text-3xl">
         {title}
       </h2>
-      {intro ? <p className="mt-2 max-w-[62ch] text-[13px] leading-relaxed text-pretty text-fg-muted">{intro}</p> : null}
-      <ul className="mt-5 border-t border-border">
+      {intro ? <p className="mt-2 max-w-[62ch] text-[15px] leading-relaxed text-pretty text-fg-muted">{intro}</p> : null}
+      <ul className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {items.map((item) => (
           <li key={item.category.slug}>
-            <CategoryRow {...item} />
+            <CategoryCard {...item} />
           </li>
         ))}
       </ul>
@@ -104,9 +119,10 @@ export default async function CategoriasPage() {
 
   const sectors = published.filter(({ category }) => category.kind === "sector");
   const lists = published.filter(({ category }) => category.kind === "lista");
+  const preview = published.slice(0, 4);
 
   return (
-    <LandingSection titleId="categorias-title" density="compact">
+    <>
       <JsonLd
         data={breadcrumbJsonLd([
           { name: "Inicio", path: "/" },
@@ -124,34 +140,74 @@ export default async function CategoriasPage() {
         })}
       />
 
-      <nav aria-label="Migas" className="text-[13px] text-fg-muted">
-        <ol className="flex flex-wrap items-center gap-x-2 gap-y-1">
-          <li>
-            <Link href="/" className="underline decoration-border underline-offset-4 hover:decoration-fg">
-              Inicio
+      <PageHero
+        titleId="categorias-title"
+        breadcrumb={<CatalogBreadcrumb items={[{ name: "Inicio", href: "/" }, { name: "Categorías" }]} />}
+        eyebrow="Categorías"
+        title="Categorías de acciones"
+        factsLabel="Categorías disponibles"
+        facts={
+          published.length > 0
+            ? [
+                <span key="all">
+                  <span className="num font-medium text-fg">{published.length}</span> categorías
+                </span>,
+                <span key="sectors">
+                  <span className="num font-medium text-fg">{sectors.length}</span>{" "}
+                  {sectors.length === 1 ? "sector" : "sectores"}
+                </span>,
+                <span key="lists">
+                  <span className="num font-medium text-fg">{lists.length}</span>{" "}
+                  {lists.length === 1 ? "selección" : "selecciones"}
+                </span>,
+              ]
+            : undefined
+        }
+        actions={
+          <>
+            <Link href="/acciones" className={buttonClasses({ variant: "secondary", size: "lg" })}>
+              Ver el catálogo completo
             </Link>
-          </li>
-          <li aria-hidden="true">/</li>
-          <li aria-current="page" className="text-fg">
-            Categorías
-          </li>
-        </ol>
-      </nav>
-
-      <header className="mt-8 max-w-3xl">
-        <p className="label text-[13px]">Categorías</p>
-        <h1 id="categorias-title" className="mt-3 text-3xl sm:text-4xl">
-          Categorías de acciones
-        </h1>
-        <p className="mt-4 max-w-[62ch] text-lead text-pretty text-fg-body">
-          Los sectores salen de la clasificación SIC que la SEC registra para cada empresa; las
-          selecciones agrupan activos por tema o por un dato publicado en la SEC. Cada categoría
-          enlaza a las fichas públicas y no es una recomendación de inversión.
+            <Link
+              href="/como-funciona"
+              className="inline-flex min-h-11 items-center justify-center px-3 text-sm font-medium text-fg underline decoration-border underline-offset-4 hover:decoration-fg"
+            >
+              Cómo funciona
+            </Link>
+          </>
+        }
+        aside={
+          preview.length > 0 ? (
+            <ProductFrame decorative label="/categorias" bodyClassName="p-0 md:p-0">
+              <ul className="divide-y divide-border">
+                {preview.map(({ category, members }, index) => (
+                  <li
+                    key={category.slug}
+                    className={`flex items-center justify-between gap-4 px-5 py-4 ${index >= 3 ? "max-md:hidden" : ""}`}
+                  >
+                    <span className="min-w-0">
+                      <span className="block truncate text-[15px] font-medium text-fg">{category.name}</span>
+                      <span className="num block text-xs text-fg-muted">
+                        {members.length} {countLabel(members.length)}
+                      </span>
+                    </span>
+                    <CatalogLogoStack assets={members} max={4} size={32} eager />
+                  </li>
+                ))}
+              </ul>
+            </ProductFrame>
+          ) : undefined
+        }
+      >
+        <p>
+          Los sectores salen de la clasificación SIC que la SEC registra para cada empresa; las selecciones agrupan
+          activos por tema o por un dato publicado en la SEC. Cada categoría enlaza a las fichas públicas y no es una
+          recomendación de inversión.
         </p>
-      </header>
+      </PageHero>
 
-      {published.length === 0 ? (
-        <div className="mt-10">
+      <CatalogBody>
+        {published.length === 0 ? (
           <EmptyState
             title="Las categorías no están disponibles ahora."
             description="No pudimos cargar los sectores ni las selecciones. Recarga la página en unos minutos."
@@ -161,32 +217,23 @@ export default async function CategoriasPage() {
               </Link>
             }
           />
-        </div>
-      ) : (
-        <>
-          {sectors.length > 0 ? (
-            <CategoryGroup id="categorias-sectores" title="Sectores" items={sectors} />
-          ) : null}
+        ) : (
+          <>
+            {sectors.length > 0 ? (
+              <CategoryGroup id="categorias-sectores" title="Sectores" items={sectors} />
+            ) : null}
 
-          {lists.length > 0 ? (
-            <CategoryGroup
-              id="categorias-selecciones"
-              title="Selecciones"
-              intro={`Agrupaciones por tema o por un dato de la SEC. Las de criterio editorial son una selección de ${brandShort()}, no una recomendación.`}
-              items={lists}
-            />
-          ) : null}
-        </>
-      )}
-
-      <p className="mt-12 flex flex-wrap items-center gap-x-6 gap-y-3">
-        <Link href="/acciones" className={linkClass}>
-          Ver el catálogo completo
-        </Link>
-        <Link href="/como-funciona" className={linkClass}>
-          Cómo funciona
-        </Link>
-      </p>
-    </LandingSection>
+            {lists.length > 0 ? (
+              <CategoryGroup
+                id="categorias-selecciones"
+                title="Selecciones"
+                intro={`Agrupaciones por tema o por un dato de la SEC. Las de criterio editorial son una selección de ${brandShort()}, no una recomendación.`}
+                items={lists}
+              />
+            ) : null}
+          </>
+        )}
+      </CatalogBody>
+    </>
   );
 }

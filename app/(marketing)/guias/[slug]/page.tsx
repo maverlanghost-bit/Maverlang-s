@@ -2,10 +2,11 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { GuideReadMarker } from "@/components/domain/guide-read-marker";
-import { LandingSection } from "@/components/landing/section";
+import { GuideToc, type GuideTocItem } from "@/components/landing/guide-toc";
+import { PageBreadcrumb } from "@/components/landing/page-breadcrumb";
+import { PageHero } from "@/components/landing/page-hero";
 import { Button } from "@/components/ui/button";
 import { DisclosureList, type DisclosureItem } from "@/components/ui/disclosure-list";
-import { IconChevron } from "@/components/ui/icons";
 import { guideBySlug, visibleGuides, type Guide } from "@/lib/content/guias";
 import { articleJsonLd, breadcrumbJsonLd, JsonLd, simpleFaqJsonLd } from "@/lib/seo/jsonld";
 import { pageMetadata } from "@/lib/seo/metadata";
@@ -18,7 +19,7 @@ export const dynamicParams = true;
 function sectionId(heading: string, index: number): string {
   const base = heading
     .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[̀-ͯ]/g, "")
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
@@ -68,28 +69,8 @@ export async function generateMetadata({
 const textLinkClass =
   "inline-flex min-h-11 items-center text-sm font-medium text-fg underline decoration-border underline-offset-4 hover:decoration-fg";
 
-type TocItem = { id: string; label: string; marker: string };
-
-/** Misma fila de índice (44 px, número mono) en el pliegue de móvil y en el aside fijo. */
-function GuideIndex({ items }: { items: TocItem[] }) {
-  return (
-    <ol className="mt-2 text-sm">
-      {items.map((item) => (
-        <li key={item.id}>
-          <a
-            href={`#${item.id}`}
-            className="flex min-h-11 items-start gap-2.5 py-1.5 leading-snug text-fg-body underline decoration-transparent underline-offset-4 transition-colors duration-150 hover:text-fg hover:decoration-fg motion-reduce:transition-none"
-          >
-            <span aria-hidden="true" className="mt-px font-mono text-[13px] tabular-nums text-fg-muted">
-              {item.marker}
-            </span>
-            <span className="min-w-0">{item.label}</span>
-          </a>
-        </li>
-      ))}
-    </ol>
-  );
-}
+/** Encabezado de sección del artículo: peso 600 y aire para separar los apartados. */
+const h2Class = "text-[1.625rem] leading-tight font-semibold sm:text-[1.875rem]";
 
 /** La FAQ de la guía usa el mismo `<details>` sin JS que /ayuda. */
 function faqItems(faq: NonNullable<Guide["faq"]>): DisclosureItem[] {
@@ -125,20 +106,18 @@ export default async function GuiaPage({ params }: { params: Promise<{ slug: str
   const sources = guide.sources ?? [];
 
   /* El índice ya existía: se conserva con las mismas entradas y sus marcas. */
-  const toc: TocItem[] = [
+  const toc: GuideTocItem[] = [
     ...sections.map((section, index) => ({
       id: section.id,
       label: section.heading,
       marker: String(index + 1).padStart(2, "0"),
     })),
-    ...(faq.length > 0
-      ? [{ id: "guia-faq", label: "Preguntas frecuentes", marker: "?" }]
-      : []),
+    ...(faq.length > 0 ? [{ id: "guia-faq", label: "Preguntas frecuentes", marker: "?" }] : []),
     ...(sources.length > 0 ? [{ id: "guia-fuentes", label: "Fuentes", marker: "§" }] : []),
   ];
 
   return (
-    <LandingSection titleId="guia-title" density="compact">
+    <>
       <JsonLd data={breadcrumbJsonLd(crumbs)} />
       <JsonLd
         data={articleJsonLd({
@@ -152,87 +131,56 @@ export default async function GuiaPage({ params }: { params: Promise<{ slug: str
       {faq.length > 0 ? <JsonLd data={simpleFaqJsonLd(faq)} /> : null}
       <GuideReadMarker slug={guide.slug} />
 
-      <article>
-        <nav aria-label="Migas" className="text-sm text-fg-muted">
-          <ol className="flex flex-wrap items-center gap-x-2 gap-y-1">
-            <li>
-              <Link href="/" className="underline decoration-border underline-offset-4 hover:decoration-fg">
-                Inicio
-              </Link>
-            </li>
-            <li aria-hidden="true">/</li>
-            <li>
-              <Link
-                href="/guias"
-                className="underline decoration-border underline-offset-4 hover:decoration-fg"
-              >
-                Guías
-              </Link>
-            </li>
-            <li aria-hidden="true">/</li>
-            <li aria-current="page" className="text-fg">
-              {guide.title}
-            </li>
-          </ol>
-        </nav>
+      <PageHero
+        titleId="guia-title"
+        eyebrow="Guía"
+        title={guide.h1}
+        breadcrumb={
+          <PageBreadcrumb
+            items={[
+              { label: "Inicio", href: "/" },
+              { label: "Guías", href: "/guias" },
+              { label: guide.title },
+            ]}
+          />
+        }
+        facts={[
+          <span key="min">{guide.readingMinutes} min de lectura</span>,
+          <time key="fecha" dateTime={guide.updatedAt}>
+            Actualizada el {formatGuideDate(guide.updatedAt)}
+          </time>,
+          <span key="edu">Contenido educativo</span>,
+        ]}
+      >
+        {guide.description}
+      </PageHero>
 
-        <header className="mt-8 max-w-3xl border-b border-border pb-8">
-          <p className="label">Guía</p>
-          <h1 id="guia-title" className="mt-3 text-3xl sm:text-4xl">
-            {guide.h1}
-          </h1>
-          <p className="mt-4 max-w-[62ch] text-lead text-fg-body">{guide.description}</p>
-          <p className="mt-5 flex flex-wrap items-center gap-x-2.5 gap-y-1.5 font-mono text-[13px] leading-snug text-fg-muted">
-            <span>{guide.readingMinutes} min de lectura</span>
-            <span aria-hidden="true">·</span>
-            <time dateTime={guide.updatedAt} className="tabular-nums">
-              Actualizada el {formatGuideDate(guide.updatedAt)}
-            </time>
-            <span aria-hidden="true">·</span>
-            <span>Contenido educativo</span>
-          </p>
-        </header>
+      <div className="px-5 pt-10 pb-16 md:pt-14 md:pb-24">
+        <article
+          aria-labelledby="guia-title"
+          className="mx-auto w-full max-w-6xl lg:grid lg:grid-cols-[15rem_minmax(0,1fr)] lg:items-start lg:gap-16"
+        >
+          <GuideToc items={toc} />
 
-        <div className="mt-10 max-w-5xl lg:grid lg:grid-cols-[minmax(0,1fr)_15rem] lg:items-start lg:gap-12">
-          <aside className="mb-8 max-w-[68ch] lg:order-2 lg:sticky lg:top-24 lg:mb-0 lg:max-w-none">
-            {/* <lg: plegado, con la fila de 44 px del índice; ≥lg: fijo junto al texto. */}
-            <details className="group border-y border-border lg:hidden">
-              <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-4 py-3 text-sm font-medium text-fg [&::-webkit-details-marker]:hidden">
-                <span className="min-w-0">
-                  En esta guía
-                  <span className="text-fg-muted"> · {toc.length} apartados</span>
-                </span>
-                <IconChevron className="disclosure-chevron size-4 shrink-0 text-fg-muted transition-transform duration-200 motion-reduce:transition-none" />
-              </summary>
-              <nav aria-label="En esta guía" className="pb-3">
-                <GuideIndex items={toc} />
-              </nav>
-            </details>
-            <nav aria-label="En esta guía" className="hidden lg:block">
-              <p className="eyebrow">En esta guía</p>
-              <GuideIndex items={toc} />
-            </nav>
-          </aside>
-
-          <div className="min-w-0 max-w-[68ch] lg:order-1">
-            <div className="space-y-10">
+          <div className="max-w-[68ch] min-w-0">
+            <div className="space-y-14">
               {sections.map((section) => (
                 <section
                   key={section.id}
                   aria-labelledby={section.id}
-                  className="border-t border-border pt-9 first:border-t-0 first:pt-0"
+                  className="border-t border-border pt-12 first:border-t-0 first:pt-0"
                 >
-                  <h2 id={section.id} className="text-2xl sm:text-3xl">
+                  <h2 id={section.id} className={h2Class}>
                     {section.heading}
                   </h2>
-                  <div className="mt-4 space-y-5 text-[1.0625rem] leading-7 text-fg-body">
+                  <div className="mt-5 space-y-6 text-[1.0625rem] leading-[1.75] text-fg-body sm:text-lg sm:leading-8">
                     {section.paragraphs.map((paragraph, index) => (
                       <p key={index} className="text-pretty">
                         {paragraph}
                       </p>
                     ))}
                     {section.bullets && section.bullets.length > 0 ? (
-                      <ul className="list-disc space-y-2 pl-5 marker:text-fg-muted">
+                      <ul className="list-disc space-y-2.5 pl-5 marker:text-fg-muted">
                         {section.bullets.map((bullet, index) => (
                           <li key={index}>{bullet}</li>
                         ))}
@@ -244,20 +192,24 @@ export default async function GuiaPage({ params }: { params: Promise<{ slug: str
             </div>
 
             {faq.length > 0 ? (
-              <section id="guia-faq" aria-labelledby="guia-faq-title" className="mt-12 border-t border-border pt-9">
-                <h2 id="guia-faq-title" className="text-2xl sm:text-3xl">
+              <section id="guia-faq" aria-labelledby="guia-faq-title" className="mt-14 border-t border-border pt-12">
+                <h2 id="guia-faq-title" className={h2Class}>
                   Preguntas frecuentes
                 </h2>
-                <DisclosureList items={faqItems(faq)} className="mt-4" />
+                <DisclosureList items={faqItems(faq)} className="mt-5" />
               </section>
             ) : null}
 
             {sources.length > 0 ? (
-              <section id="guia-fuentes" aria-labelledby="guia-fuentes-title" className="mt-12 border-t border-border pt-9">
-                <h2 id="guia-fuentes-title" className="text-2xl sm:text-3xl">
+              <section
+                id="guia-fuentes"
+                aria-labelledby="guia-fuentes-title"
+                className="mt-14 border-t border-border pt-12"
+              >
+                <h2 id="guia-fuentes-title" className={h2Class}>
                   Fuentes
                 </h2>
-                <ul className="mt-3 max-w-[68ch] text-[0.9375rem] leading-relaxed">
+                <ul className="mt-4 max-w-[68ch] text-[0.9375rem] leading-relaxed">
                   {sources.map((source) => (
                     <li key={source.url}>
                       <a
@@ -278,25 +230,34 @@ export default async function GuiaPage({ params }: { params: Promise<{ slug: str
               <section
                 id="guia-relacionadas"
                 aria-labelledby="guia-relacionadas-title"
-                className="mt-12 border-t border-border pt-9"
+                className="mt-14 border-t border-border pt-12"
               >
-                <h2 id="guia-relacionadas-title" className="text-2xl sm:text-3xl">
+                <h2 id="guia-relacionadas-title" className={h2Class}>
                   Sigue leyendo
                 </h2>
-                <ul className="mt-4 divide-y divide-border border-b border-border">
+                <ul className="mt-6 grid list-none gap-3 sm:gap-4">
                   {related.map((item) => (
                     <li key={item.slug}>
-                      <Link href={`/guias/${item.slug}`} className="group block py-5">
-                        <span className="text-[1.0625rem] leading-snug font-medium text-fg">
-                          <span className="underline decoration-transparent underline-offset-[5px] transition-colors duration-150 group-hover:decoration-fg motion-reduce:transition-none">
+                      <Link
+                        href={`/guias/${item.slug}`}
+                        className="group flex min-h-11 items-start justify-between gap-4 rounded-bento border border-border bg-bg p-5 transition-colors hover:border-border-strong hover:bg-surface-1 motion-reduce:transition-none md:p-6"
+                      >
+                        <span className="min-w-0">
+                          <span className="block text-lg leading-snug font-semibold tracking-tight text-fg">
                             {item.title}
                           </span>
+                          <span className="mt-1.5 block text-[0.9375rem] leading-relaxed text-fg-body">
+                            {item.description}
+                          </span>
+                          <span className="mt-3 block font-mono text-[13px] leading-none text-fg-muted">
+                            {item.readingMinutes} min de lectura
+                          </span>
                         </span>
-                        <span className="mt-1 block max-w-[62ch] text-[0.9375rem] leading-relaxed text-fg-body">
-                          {item.description}
-                        </span>
-                        <span className="mt-2 block font-mono text-[13px] leading-none text-fg-muted">
-                          {item.readingMinutes} min de lectura
+                        <span
+                          aria-hidden="true"
+                          className="shrink-0 text-lg leading-snug text-fg-muted transition-[color,transform] duration-150 group-hover:translate-x-0.5 group-hover:text-fg motion-reduce:transition-none"
+                        >
+                          →
                         </span>
                       </Link>
                     </li>
@@ -305,8 +266,8 @@ export default async function GuiaPage({ params }: { params: Promise<{ slug: str
               </section>
             ) : null}
 
-            <footer className="mt-12 border-t border-border pt-9">
-              <h2 className="text-base font-medium text-fg">Del texto al catálogo</h2>
+            <footer className="mt-14 rounded-bento border border-border bg-surface-1 p-6 md:p-8">
+              <h2 className="text-xl font-semibold tracking-tight text-fg">Del texto al catálogo</h2>
               <p className="mt-2 max-w-[62ch] text-[0.9375rem] leading-relaxed text-fg-body">
                 Cada ficha muestra el precio del token, los datos de la empresa tomados de la SEC y los riesgos
                 de operar fuera del horario regular de la bolsa de EE.UU. Esta guía es educativa: no es asesoría
@@ -325,8 +286,8 @@ export default async function GuiaPage({ params }: { params: Promise<{ slug: str
               </div>
             </footer>
           </div>
-        </div>
-      </article>
-    </LandingSection>
+        </article>
+      </div>
+    </>
   );
 }

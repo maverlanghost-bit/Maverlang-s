@@ -200,13 +200,11 @@ export function CompareChart({
   const geometry = series ? buildGeometry(series) : null;
 
   return (
-    <section
-      aria-labelledby="comparar-grafico-title"
-      className={cn("mt-10 border-t border-border pt-8", className)}
-    >
+    // Sin margen ni filo propios: la página lo coloca dentro de un marco (ProductFrame).
+    <section aria-labelledby="comparar-grafico-title" className={className}>
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0 max-w-2xl">
-          <h2 id="comparar-grafico-title" className="text-xl text-balance sm:text-2xl">
+          <h2 id="comparar-grafico-title" className="text-xl font-semibold text-balance sm:text-2xl">
             Rendimiento relativo
           </h2>
           <p className="mt-2 text-[13px] leading-relaxed text-pretty text-fg-muted">
@@ -220,7 +218,7 @@ export function CompareChart({
         <div className="mt-6">
           <div
             aria-hidden
-            className="aspect-[720/260] w-full animate-pulse rounded-xl bg-surface-2 motion-reduce:animate-none"
+            className="aspect-[720/260] w-full animate-pulse rounded-bento bg-surface-2 motion-reduce:animate-none"
           />
           <p className="sr-only">Cargando el gráfico de rendimiento relativo…</p>
         </div>

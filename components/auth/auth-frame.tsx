@@ -34,8 +34,8 @@ export const authLinkClass =
  */
 export function AuthCard({ children, className, ...props }: ComponentProps<"div">) {
   return (
-    <Card className={cn("my-auto w-full max-w-md bg-bg p-5 sm:p-6 md:p-8", className)} {...props}>
-      <Link href="/" aria-label={site.name} className="inline-flex min-h-11 items-center rounded-sm">
+    <Card data-auth-card="" className={cn("my-auto w-full max-w-md bg-bg p-5 sm:p-6 md:p-8", className)} {...props}>
+      <Link href="/" aria-label={site.name} data-auth-logo="" className="inline-flex min-h-11 items-center rounded-sm">
         <BrandLogoImage />
       </Link>
       {children}

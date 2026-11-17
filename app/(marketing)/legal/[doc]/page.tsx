@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { LegalBody, LegalNav } from "@/components/landing/legal-document";
-import { LandingSection } from "@/components/landing/section";
+import { PageBreadcrumb } from "@/components/landing/page-breadcrumb";
+import { PageHero } from "@/components/landing/page-hero";
 import { site } from "@/config/site";
 import { formatLegalDate, getLegalDocument, LEGAL_SLUGS } from "@/lib/content/legal";
 import { breadcrumbJsonLd, JsonLd } from "@/lib/seo/jsonld";
@@ -51,41 +51,48 @@ export default async function LegalPage({ params }: { params: Promise<{ doc: str
   ];
 
   return (
-    <LandingSection titleId="legal-title" density="compact">
+    <>
       <JsonLd data={breadcrumbJsonLd(crumbs)} />
-      <article className="max-w-5xl">
-        <nav aria-label="Migas" className="mb-6 text-sm text-fg-muted">
-          <ol className="flex flex-wrap items-center gap-x-2 gap-y-1">
-            <li>
-              <Link href="/" className="underline decoration-border underline-offset-4 hover:decoration-fg">
-                Inicio
-              </Link>
-            </li>
-            <li aria-hidden="true">/</li>
-            <li aria-current="page" className="text-fg">
-              {legal.title}
-            </li>
-          </ol>
-        </nav>
+      <PageHero
+        titleId="legal-title"
+        title={legal.title}
+        breadcrumb={
+          <div className="flex flex-col items-start gap-5">
+            <PageBreadcrumb items={[{ label: "Inicio", href: "/" }, { label: legal.title }]} />
+            <p
+              role="note"
+              className="flex w-full max-w-[68ch] items-start gap-3 rounded-xl border border-warn bg-warn-bg px-4 py-3 text-[15px] leading-relaxed font-medium text-fg"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+                focusable="false"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={1.75}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="mt-0.5 size-5 shrink-0 text-warn"
+              >
+                <path d="M12 3.5 2.75 19.5h18.5L12 3.5Z" />
+                <path d="M12 10v4.5M12 17.25v.01" />
+              </svg>
+              <span>Borrador — [REVISIÓN ABOGADO]</span>
+            </p>
+          </div>
+        }
+        facts={[
+          <span key="version">Versión {legal.version}</span>,
+          <span key="fecha">Actualizado el {formatLegalDate(legal.updated)}</span>,
+        ]}
+      />
 
-        <header className="max-w-[68ch] border-b border-border pb-8">
-          <p
-            role="note"
-            className="border-l-2 border-warn pl-3 text-[13px] leading-relaxed font-medium text-warn"
-          >
-            Borrador — [REVISIÓN ABOGADO]
-          </p>
-          <h1 id="legal-title" className="mt-6 text-3xl sm:text-4xl">
-            {legal.title}
-          </h1>
-          <p className="mt-4 font-mono text-[13px] leading-snug text-fg-muted tabular-nums">
-            Versión {legal.version} · Actualizado el {formatLegalDate(legal.updated)}
-          </p>
-        </header>
-
-        <LegalBody blocks={legal.blocks} />
-        <LegalNav current={doc} />
-      </article>
-    </LandingSection>
+      <div className="px-5 pt-10 pb-16 md:pt-14 md:pb-24">
+        <article aria-labelledby="legal-title" className="mx-auto w-full max-w-6xl">
+          <LegalBody blocks={legal.blocks} />
+          <LegalNav current={doc} />
+        </article>
+      </div>
+    </>
   );
 }

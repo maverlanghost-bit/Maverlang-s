@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { AnnouncementPill } from "@/components/landing/announcement-pill";
-import { LandingLiveBadge, LandingPrice } from "@/components/landing/live-landing-prices";
-import { TickerRow } from "@/components/domain/ticker-row";
+import { HeroBento } from "@/components/landing/hero-bento";
+import { LandingSection } from "@/components/landing/section";
 import { Button } from "@/components/ui/button";
 import { esCL } from "@/content/i18n/es-CL";
 import { landingNotice } from "@/lib/landing/live-quotes";
@@ -14,15 +14,15 @@ import { HERO_SYMBOLS, type LandingQuote } from "@/lib/mocks/landing";
  * Dek: "Compra fracciones desde US$10 y opera 24/7. El token queda en tu propia
  *   billetera —nosotros no custodiamos tus activos—."
  * Acciones: "Prueba la demo gratis" (primario) → /app/registro · "Ver acciones"
- *   (secundario sin relleno) → /acciones. Sin un tercer enlace: la sección
- *   "Cómo funciona" es el bloque siguiente, no hace falta pointer a ella.
- * Nota: "Practica con US$10.000 ficticios y precios reales." vive al pie del
- *   bloque de cotizaciones; el aviso de horario, al pie de la cinta de precios.
- *   Se reubicaron: no se borró ninguno.
+ *   (secundario con contorno) → /acciones.
+ * Aviso: una sola línea bajo el bento con el origen de los precios y
+ *   "Practica con US$10.000 ficticios". El aviso de horario vive al pie de la
+ *   cinta de precios. No se borró ninguno: cada uno aparece una vez.
  *
- * Sin relleno de color: el fondo es el blanco de la página; el hero no lleva
- * halo, tarjeta ni sombra. La jerarquía la hacen la escala del H1 y las
- * hairlines del bloque de datos.
+ * T70: hero centrado y compacto; el producto va pegado debajo en un bento
+ * (`hero-bento.tsx`) alimentado por las mismas cotizaciones que recibe el hero.
+ * Sin gradientes, halos ni imágenes: la jerarquía la hacen la escala del H1 y
+ * las tarjetas.
  */
 export function Hero({ quotes, live }: { quotes: LandingQuote[]; live: boolean }) {
   // Sólo cotizaciones con precio válido: mostrar US$0,00 sería inventar un
@@ -30,81 +30,43 @@ export function Hero({ quotes, live }: { quotes: LandingQuote[]; live: boolean }
   const priced = quotes.filter((quote) => Number.isFinite(quote.priceUsd) && quote.priceUsd > 0);
   const heroFiltered = priced.filter((quote) => HERO_SYMBOLS.has(quote.symbol));
   const heroQuotes = (heroFiltered.length > 0 ? heroFiltered : priced).slice(0, 4);
+  // Acción de la ficha y de la boleta: Apple si está, si no la primera de la lista.
+  const reference = priced.find((quote) => quote.symbol === "AAPLx") ?? heroQuotes[0] ?? priced[0];
 
   return (
-    <section aria-labelledby="hero-title" className="px-5 pt-10 pb-12 md:pt-14 md:pb-16">
+    <LandingSection titleId="hero-title" className="pt-8 pb-12 md:pt-10 md:pb-16">
       <div className="mx-auto flex w-full max-w-4xl flex-col items-center text-center">
         <AnnouncementPill />
 
-        <h1
-          id="hero-title"
-          className="mx-auto mt-4 max-w-[46rem] text-[2rem] leading-[1.06] tracking-tight break-words text-balance sm:text-[2.5rem] lg:text-5xl"
-        >
+        {/* `text-display` y `text-lead-lg` van en cadenas planas: `cn` (tailwind-merge)
+            los descartaría junto a una clase de color. */}
+        <h1 id="hero-title" className="mt-5 text-display break-words text-balance">
           Acciones de EE.UU. tokenizadas, en tu billetera
         </h1>
 
-        <p className="mx-auto mt-5 max-w-[36rem] text-pretty text-lead text-fg-body">
+        <p className="mt-5 max-w-[38rem] text-pretty text-lead-lg text-fg-body">
           Compra fracciones desde US${LANDING_MIN_ORDER_USD} y opera 24/7. El token queda en tu
           propia billetera —nosotros no custodiamos tus activos—.
         </p>
 
-        <div className="mt-7 flex w-full flex-col items-stretch gap-2 sm:w-auto sm:flex-row sm:items-center">
-          <Button asChild size="md" className="w-full sm:w-auto">
+        <div className="mt-7 flex w-full flex-col items-stretch gap-2 sm:w-auto sm:flex-row sm:items-center sm:gap-3">
+          <Button asChild size="lg" className="w-full sm:w-auto">
             <Link href="/app/registro">Prueba la demo gratis</Link>
           </Button>
-          <Button asChild variant="ghost" size="md" className="w-full sm:w-auto">
+          <Button asChild variant="secondary" size="lg" className="w-full sm:w-auto">
             <Link href="/acciones">{esCL.guest.seeStocks}</Link>
           </Button>
         </div>
       </div>
 
-      {/* Cotizaciones: tabla de datos, no tarjeta. Hairlines y nada más. */}
-      <section aria-label="Cotizaciones" className="mx-auto mt-10 w-full max-w-2xl border-t border-border sm:mt-12">
-        <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2 px-2 pt-3 sm:px-3">
-          <p className="flex min-w-0 flex-wrap items-baseline gap-x-2">
-            <span className="label text-fg">Cotizaciones 24/7</span>
-            <span className="text-xs text-fg-muted">xStocks en Solana</span>
-          </p>
-          {heroQuotes.length > 0 ? (
-            <LandingLiveBadge live={live} />
-          ) : (
-            <span className="text-xs font-medium text-fg-muted">Sin datos</span>
-          )}
-        </div>
+      <div className="mt-10 md:mt-12">
+        <HeroBento heroQuotes={heroQuotes} reference={reference} live={live} />
 
-        {heroQuotes.length > 0 ? (
-          <ul className="mt-3 divide-y divide-border border-t border-border">
-            {heroQuotes.map((quote) => (
-              <li key={quote.symbol}>
-                <TickerRow
-                  href={quote.href}
-                  symbol={quote.symbol}
-                  name={quote.name}
-                  logoUrl={quote.logo}
-                  price={quote.priceUsd}
-                  currency="USD"
-                  change={quote.change}
-                  priceSlot={
-                    <LandingPrice
-                      symbol={quote.symbol}
-                      initial={{ priceUsd: quote.priceUsd, change: quote.change }}
-                    />
-                  }
-                />
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="mt-3 border-t border-border px-2 py-4 text-sm text-fg-muted sm:px-3">
-            Las cotizaciones no están disponibles en este momento.
-          </p>
-        )}
-
-        <p className="border-t border-border px-2 py-3 text-sm leading-relaxed text-fg-muted sm:px-3">
-          Practica con US$10.000 ficticios.{" "}
-          {heroQuotes.length === 0 ? null : live ? "Precios en dólares (US$)." : `${landingNotice(false)}.`}
+        <p className="mx-auto mt-4 max-w-3xl text-center text-sm leading-relaxed text-fg-muted">
+          Practica con US$10.000 ficticios.
+          {heroQuotes.length === 0 ? null : ` ${landingNotice(live)}.`}
         </p>
-      </section>
-    </section>
+      </div>
+    </LandingSection>
   );
 }

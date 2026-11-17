@@ -56,6 +56,8 @@ Contraste: `fg-muted` sobre blanco ≈ 4.0:1 → usar sólo ≥14px; texto peque
 - `radius-xs` 4px (chips mini), `radius-md` 12px (inputs), `radius-xl` 16px (filas/cards pequeñas), `radius-3xl` 24px (cards grandes, sheets), `full` (botones, badges).
 - Bordes 1px `border`. **Sin sombras** salvo flotantes (dropdown, toast, sheet): `0 8px 30px rgb(0 0 0 / .08)`.
 
+- **Excepción de marketing (T70, sólo portada, páginas públicas y acceso):** el marco que muestra producto (`ProductFrame`) y la tarjeta fija de resumen llevan `shadow-frame` además del hairline; las tarjetas bento usan `rounded-bento` (20px) con fondo `bg` o `surface-1`; se admite **una** banda invertida (`bg-fg`) por página, con texto secundario `inverse-muted`. Escala de títulos `text-display` / `text-title` / `text-lead-lg`. Dentro de la plataforma sigue rigiendo "sin sombras". Detalle en `docs/PLAN-DISENO-MARKETING.md` §4.
+
 ### Motion
 - `--dur-fast` 140ms (hover, press), `--dur-base` 240ms (sheet, tabs), `--dur-slow` 600ms (reveal).
 - `--ease-spring` `cubic-bezier(.25,1,.5,1)`; `--ease-inout` `cubic-bezier(.4,0,.2,1)`.
