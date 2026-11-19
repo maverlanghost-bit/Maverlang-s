@@ -25,10 +25,11 @@ test("portada: héroe, CTAs y aviso de demo", async ({ page }) => {
   const acciones = page.getByRole("link", { name: "Ver acciones" }).first();
   await expect(acciones).toHaveAttribute("href", "/acciones");
 
-  const avisoDemo = page.getByRole("region", { name: "Cotizaciones" }).getByText("Practica con US$10.000 ficticios.");
+  const hero = page.getByRole("region", { name: "Acciones de EE.UU. tokenizadas, en tu billetera" });
+  const avisoDemo = hero.getByText("Practica con US$10.000 ficticios.");
   await expect(avisoDemo).toBeVisible();
   await expect(avisoDemo).not.toContainText("precios reales");
-  await expect(page.getByText("Opera 24/7").first()).toBeVisible();
+  await expect(hero.getByText(/opera 24\/7/i)).toBeVisible();
 });
 
 test("portada: la lista de espera envía el contrato de /api/waitlist", async ({ page }) => {
@@ -120,7 +121,8 @@ test("legales: los cuatro documentos con su aviso de borrador", async ({ page })
     await expect(page.getByRole("heading", { level: 1, name: doc.heading })).toBeVisible();
     await expect(page.getByText("Borrador — [REVISIÓN ABOGADO]")).toBeVisible();
     // Versión y fecha junto al título.
-    await expect(page.getByText(/Versión .+ · Actualizado el /)).toBeVisible();
+    await expect(page.getByText(/^Versión \S+/)).toBeVisible();
+    await expect(page.getByText(/^Actualizado el .+/)).toBeVisible();
   }
 });
 
@@ -139,7 +141,7 @@ test("seguridad: la página explica custodia y enlaza los riesgos", async ({ pag
   for (let index = 0; index < totalRiesgos; index += 1) {
     await expect(riesgos.nth(index)).toHaveAttribute("href", "/legal/riesgos");
   }
-  const demo = page.getByRole("link", { name: "Probar la demo" });
+  const demo = page.getByRole("main").getByRole("link", { name: "Probar la demo", exact: true });
   await expect(demo).toHaveAttribute("href", "/app/registro");
 });
 

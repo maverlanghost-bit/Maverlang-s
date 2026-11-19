@@ -1,5 +1,15 @@
 # PROGRESO — Maverlang
 
+## T71 — Preparación de publicación y compatibilidad de SDK (2026-11-18)
+- Base: `0885f5a` ya contiene las 16 mejoras en GitHub. Vercel reportó fallo y el control TypeScript de GitHub identificó una importación de `SegmentedControl` ausente en el commit de la hoja de compra/venta. El árbol local anterior tenía la importación.
+- Se añade la importación en `components/domain/trade-sheet.tsx`. Se ajustan pruebas de portada y seguridad para mantener sus comprobaciones sobre las secciones y controles del diseño publicado en GitHub.
+- Dependencias: Next y eslint-config-next 16.4.6, Privy React 3.51.4 y Zod 4.6.7 para x402, Coinbase CDP y Reown. El SDK oficial de Privy conserva sus funciones de billetera. El lock se generó con npm 11.19.0.
+- `scripts/migrate-wallet-sdk-schemas.mjs` aplica en postinstall la clave explícita de los mapas Zod 4 en x402 y Coinbase. Verifica versión y SHA-256 de cada archivo antes de editar y permite repetir la instalación. Revisar el script al actualizar esos SDK.
+- `npm run audit:deps` pasa con cero avisos altos o críticos pendientes, 19 moderados y sin excepciones nuevas. El paywall independiente de x402 conserva código embebido de terceros. Las trazas y chunks revisados lo excluyen del sitio.
+- Compatibilidad local: 13 pruebas de validación y auditoría aprobadas. Se verificaron importación CommonJS/ESM, DTO de pago, EIP-712 y mensajes Reown. Firma, recuperación y exportación con cuentas reales quedan fuera de las pruebas demo.
+- Verificación del candidato: build y TypeScript correctos (546 páginas), lint dirigido y escaneo del bundle limpios, 1.959/1.959 unitarios y 14 casos de navegador aprobados entre la corrida y el reintento de legales. La primera compilación incremental incorporó la importación sólo en TypeScript; se reconstruyó antes de aprobar navegador.
+- Cambios preparados en la rama aislada `codex/release-ui-20261117`. Se conserva el estado de dinero real. Evidencia local en `tmp/ui-approved-baseline/t71-*.log`.
+
 ## T70 — Rediseño de portada, páginas públicas y acceso (2026-11-17)
 - Alcance: D1–D7 de `docs/PLAN-DISENO-MARKETING.md`; D8 (pase fino) pendiente. Decisiones tomadas por mí por encargo de Manu: sombra `shadow-frame` y superficies sólo en marketing, una banda negra 24/7, monocromo, sin modo oscuro, sin dependencias nuevas.
 - Fundaciones: tokens (`text-display/title/lead-lg`, `rounded-bento`, `shadow-frame`, `inverse-*`) en `globals.css`; `SectionHeader`/tonos en `section.tsx`; `bento`, `product-frame`, `stat-tile`, `page-hero`. Excepción registrada en `docs/DESIGN-SYSTEM.md`.
