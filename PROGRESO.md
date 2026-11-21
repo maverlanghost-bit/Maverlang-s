@@ -9,6 +9,11 @@
 - Compatibilidad local: 13 pruebas de validación y auditoría aprobadas. Se verificaron importación CommonJS/ESM, DTO de pago, EIP-712 y mensajes Reown. Firma, recuperación y exportación con cuentas reales quedan fuera de las pruebas demo.
 - Verificación del candidato: build y TypeScript correctos (546 páginas), lint dirigido y escaneo del bundle limpios, 1.959/1.959 unitarios y 14 casos de navegador aprobados entre la corrida y el reintento de legales. La primera compilación incremental incorporó la importación sólo en TypeScript; se reconstruyó antes de aprobar navegador.
 - Cambios preparados en la rama aislada `codex/release-ui-20261117`. Se conserva el estado de dinero real. Evidencia local en `tmp/ui-approved-baseline/t71-*.log`.
+## T74 — Lista de pendientes para publicar la plataforma (2026-11-21)
+- Nueva guía en `docs/PENDIENTES-PRODUCCION.md` con pasos y condiciones para publicar la demo, habilitar fondos reales y habilitar órdenes límite.
+- Incluye configuración y verificación de Upstash, estado del ejecutor de órdenes y qué falta validar en Vercel, Supabase, retiros, cumplimiento y operación.
+- Distingue código versionado, trabajo local y comprobaciones pendientes en los entornos reales. Documentación revisada sin compilación, suite, cambios de infraestructura ni despliegue.
+
 ## T73 — Preparación de órdenes límite estrictas para xStocks (2026-11-21)
 - Decisión de Manu: máximo al comprar y mínimo al vender por acción mostrada. La liquidación del par usa USDC.
 - `stock-limit-terms.ts`: conversión exacta a unidades atómicas con enteros, multiplicador binary64 y redondeo que protege el límite. Compra por monto en USDC y venta por cantidad de acciones.
