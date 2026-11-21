@@ -1,5 +1,10 @@
 # PROGRESO — Maverlang
 
+## T79 — Evaluación de Distortion Waves (2026-11-21)
+- Revisados documentación y paquete publicado `distortion-waves` 0.1.0. Licencia MIT, React y React DOM 18+, sin dependencias de ejecución adicionales. Entrada ESM de 32 kB con gzip, medida sobre el archivo publicado.
+- Propuesta para demo: onda breve desde el check del comprobante de una compra a mercado, una vez por orden `confirmed`. Carga diferida y comprobante disponible inmediatamente, con transición ligera según dispositivo y preferencia de movimiento.
+- Puntos de integración revisados: `trade-sheet.tsx`, `crypto-trade-sheet.tsx` y `billetera/enviar/send-screen.tsx`. Pendiente prototipo y fluidez en móvil con datos demo.
+
 ## T78 — Historial y lectura del chat (2026-11-21)
 - El historial del asistente usa una superficie por fila, títulos de 15 px y menú contextual al pasar el cursor o enfocar con teclado. El menú abre fuera del contenedor desplazable y conserva fijar, renombrar, compartir y eliminar.
 - Nuevo chat, Buscar chats y Volver al mercado se alinean a la izquierda. Los chats fijados usan borde oscuro y conservan su prioridad en la lista.
