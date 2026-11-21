@@ -26,6 +26,7 @@ import {
 } from "@/lib/api/client";
 import { useSession } from "@/lib/auth/session-context";
 import type { Range } from "@/lib/types";
+import { depositConfirmationStatus } from "@/lib/wallet/activity";
 
 const HOUR_MS = 3_600_000;
 /** Polling de precios en vivo (M41): 15 s en listas, también al volver a la pestaña. */
@@ -230,10 +231,17 @@ export function useBalances() {
   });
 }
 
-export function useActivity() {
+export function useActivity(watchedDepositId?: string) {
   return useQuery({
     queryKey: ["activity"],
     queryFn: getActivity,
+    refetchInterval: watchedDepositId
+      ? ({ state }) => {
+          const movement = state.data?.find((row) => row.id === watchedDepositId);
+          return state.status === "success" && depositConfirmationStatus(movement) === "pending" ? 20_000 : false;
+        }
+      : false,
+    refetchIntervalInBackground: false,
   });
 }
 
