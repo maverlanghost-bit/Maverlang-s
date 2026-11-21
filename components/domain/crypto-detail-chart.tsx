@@ -6,16 +6,18 @@ import { ChangeBadge } from "@/components/domain/change-badge";
 import { PriceFreshness } from "@/components/domain/price-freshness";
 import { FinancialChart } from "@/components/charts/financial-chart";
 import { ChartContext } from "@/components/charts/chart-context";
-import { ChartTools } from "@/components/charts/chart-tools";
+import { ChartStylePicker, ChartToolButton, ChartToolGroup, ChartTools, type ChartStyle } from "@/components/charts/chart-tools";
+import { CryptoBadgeIcon } from "@/components/domain/crypto-badge-icon";
+import { TONE_STROKE } from "@/components/domain/svg-price-chart";
 import { ErrorState } from "@/components/ui/error-state";
 import { indexFromKey } from "@/components/ui/keys";
 import { cn } from "@/lib/cn";
-import { chartPoints, compatibleSpot, historyDescription, observedSeries, pricePrecision } from "@/lib/charts/data";
+import { chartCapabilities, chartPoints, compatibleSpot, historyDescription, observedSeries, pricePrecision } from "@/lib/charts/data";
 import { formatDateTime } from "@/lib/format";
-import { SPOT_MS, useFx, useHistory, usePrices } from "@/lib/hooks/queries";
+import { SPOT_MS, useHistory, usePrices } from "@/lib/hooks/queries";
+import { useChartFullscreen } from "@/lib/hooks/use-chart-fullscreen";
 import { useT } from "@/lib/hooks/use-t";
-import { displayPrice } from "@/lib/market/browse";
-import type { Currency, Quote, Range } from "@/lib/types";
+import type { Quote, Range } from "@/lib/types";
 
 type RangeOption = {
   value: Range;
@@ -41,42 +43,15 @@ function isUsableQuote(quote: Quote): boolean {
   );
 }
 
-function usdDecimalsFor(value: number): number {
-  return pricePrecision(value);
-}
-
-function clpDecimalsFor(value: number): number {
-  const abs = Math.abs(value);
-  if (abs === 0) return 0;
-  if (abs >= 10) return 0;
-  if (abs >= 1) return 2;
-  if (abs >= 0.01) return 4;
-  return pricePrecision(value);
-}
-
-function formatCryptoPrice(
-  value: number,
-  currency: Currency,
-  language: "es-CL" | "en",
-): string {
+function formatCryptoPrice(value: number, language: "es-CL" | "en"): string {
   if (!Number.isFinite(value)) return "—";
-  if (currency === "CLP") {
-    const decimals = clpDecimalsFor(value);
-    return new Intl.NumberFormat(language, {
-      style: "currency",
-      currency: "CLP",
-      minimumFractionDigits: decimals,
-      maximumFractionDigits: decimals,
-    }).format(value);
-  }
-  const decimals = usdDecimalsFor(value);
-  const formatted = new Intl.NumberFormat(language, {
+  const decimals = pricePrecision(value);
+  return new Intl.NumberFormat(language, {
     style: "currency",
     currency: "USD",
     minimumFractionDigits: decimals,
     maximumFractionDigits: decimals,
   }).format(value);
-  return formatted;
 }
 
 function formatCompactUsd(value: number, language: "es-CL" | "en"): string {
@@ -90,10 +65,12 @@ function formatCompactUsd(value: number, language: "es-CL" | "en"): string {
 }
 
 export function CryptoDetailChart({ symbol, name }: { symbol: string; name: string }) {
-  const { language, currency } = useT();
+  const { language } = useT();
   const isEn = language === "en";
   const [range, setRange] = useState<Range>("1M");
   const [grid, setGrid] = useState(false);
+  const [style, setStyle] = useState<ChartStyle>("area");
+  const { ref: fullscreenRef, expanded, toggle: toggleFullscreen } = useChartFullscreen();
   const [axisMode, setAxisMode] = useState<"price" | "percent">("price");
   const [hover, setHover] = useState<{
     key: string;
@@ -104,15 +81,6 @@ export function CryptoDetailChart({ symbol, name }: { symbol: string; name: stri
   const symbols = useMemo(() => [symbol], [symbol]);
   const pricesQuery = usePrices(symbols, true, SPOT_MS);
   const historyQuery = useHistory(symbol, range);
-  const fxQuery = useFx();
-
-  const fxRate = useMemo(() => {
-    const raw = fxQuery.data?.rate;
-    return typeof raw === "number" && Number.isFinite(raw) && raw > 0 ? raw : undefined;
-  }, [fxQuery.data]);
-
-  const effectiveCurrency: Currency = currency === "CLP" && fxRate ? "CLP" : "USD";
-  const waitingClpRate = currency === "CLP" && !fxRate;
 
   const quote = useMemo(() => {
     const rows = pricesQuery.data;
@@ -163,20 +131,6 @@ export function CryptoDetailChart({ symbol, name }: { symbol: string; name: stri
 
   const activeHover = hover && hover.key === seriesKey ? hover : null;
   const displayedUsd = activeHover ? activeHover.usd : quote?.priceUsd ?? null;
-  const displayedValue =
-    displayedUsd !== null ? displayPrice(displayedUsd, effectiveCurrency, fxRate) : null;
-
-  const secondaryLabel = useMemo(() => {
-    if (displayedUsd === null) return null;
-    if (effectiveCurrency === "CLP") {
-      return formatCryptoPrice(displayedUsd, "USD", language);
-    }
-    if (fxRate) {
-      const clp = displayPrice(displayedUsd, "CLP", fxRate);
-      if (clp !== null) return formatCryptoPrice(clp, "CLP", language);
-    }
-    return null;
-  }, [displayedUsd, effectiveCurrency, fxRate, language]);
 
   const tone: "up" | "down" | "flat" = useMemo(() => {
     const pct = seriesStats ? seriesStats.changePct : quote?.change24hPct ?? 0;
@@ -190,6 +144,9 @@ export function CryptoDetailChart({ symbol, name }: { symbol: string; name: stri
   const activeRangeLabel = isEn ? activeRangeMeta.labelEn : activeRangeMeta.labelEs;
 
   const hasChartSeries = validPoints.length >= 2;
+  const hasOhlc = chartCapabilities(observedPoints, historyQuery.data?.metadata).ohlc;
+  const candlesAvailable = hasOhlc && axisMode === "price";
+  const chartStyle = style === "candles" && !candlesAvailable ? "area" : style;
 
   const sourceBadgeLabel = useMemo(() => {
     if (!quote) return null;
@@ -218,7 +175,7 @@ export function CryptoDetailChart({ symbol, name }: { symbol: string; name: stri
               </span>
             ) : null}
             <span className="inline-flex items-center rounded-full bg-surface-2 px-2 py-0.5 font-mono text-[11px] font-medium text-fg-muted">
-              {effectiveCurrency}
+              USD
             </span>
           </div>
 
@@ -228,9 +185,9 @@ export function CryptoDetailChart({ symbol, name }: { symbol: string; name: stri
                 aria-hidden
                 className="h-10 w-44 animate-pulse rounded-md bg-surface-2"
               />
-            ) : displayedValue !== null ? (
+            ) : displayedUsd !== null ? (
               <p className="num text-3xl font-semibold tracking-tight text-fg sm:text-4xl">
-                {formatCryptoPrice(displayedValue, effectiveCurrency, language)}
+                {formatCryptoPrice(displayedUsd, language)}
               </p>
             ) : (
               <p className="text-2xl font-medium tracking-tight text-fg-muted">
@@ -246,22 +203,11 @@ export function CryptoDetailChart({ symbol, name }: { symbol: string; name: stri
             ) : null}
           </div>
 
-          <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-fg-muted">
-            {activeHover?.timeMs ? (
-              <span className="font-medium text-fg-body">
-                {formatDateTime(new Date(activeHover.timeMs).toISOString())}
-              </span>
-            ) : (
-              <>
-                {secondaryLabel ? <span className="num">≈ {secondaryLabel}</span> : null}
-                {waitingClpRate ? (
-                  <span>
-                    {fxQuery.isPending ? isEn ? "Loading USD/CLP rate, showing USD" : "Cargando dólar, mostrando USD" : isEn ? "USD/CLP rate unavailable; showing USD" : "Dólar no disponible; mostrando USD"}
-                  </span>
-                ) : null}
-              </>
-            )}
-          </div>
+          {activeHover?.timeMs ? (
+            <p className="mt-1.5 text-xs font-medium text-fg-body">
+              {formatDateTime(new Date(activeHover.timeMs).toISOString())}
+            </p>
+          ) : null}
         </div>
 
         <div className="flex flex-col items-start gap-2 sm:items-end">
@@ -327,23 +273,12 @@ export function CryptoDetailChart({ symbol, name }: { symbol: string; name: stri
               <span>{isEn ? `Range ${activeRangeLabel}` : `Rango ${activeRangeLabel}`}:</span>
               <ChangeBadge value={seriesStats.changePct} size="sm" />
             </span>
-            {(() => {
-              const minDisplay = displayPrice(seriesStats.minUsd, effectiveCurrency, fxRate);
-              const maxDisplay = displayPrice(seriesStats.maxUsd, effectiveCurrency, fxRate);
-              if (minDisplay === null || maxDisplay === null) return null;
-              return (
-                <span className="num">
-                  {isEn ? "Min" : "Mín"}{" "}
-                  <span className="text-fg-body">
-                    {formatCryptoPrice(minDisplay, effectiveCurrency, language)}
-                  </span>{" "}
-                  · {isEn ? "Max" : "Máx"}{" "}
-                  <span className="text-fg-body">
-                    {formatCryptoPrice(maxDisplay, effectiveCurrency, language)}
-                  </span>
-                </span>
-              );
-            })()}
+            <span className="num">
+              {isEn ? "Min" : "Mín"}{" "}
+              <span className="text-fg-body">{formatCryptoPrice(seriesStats.minUsd, language)}</span>
+              {" · "}{isEn ? "Max" : "Máx"}{" "}
+              <span className="text-fg-body">{formatCryptoPrice(seriesStats.maxUsd, language)}</span>
+            </span>
           </div>
         ) : null}
       </div>
@@ -380,18 +315,52 @@ export function CryptoDetailChart({ symbol, name }: { symbol: string; name: stri
           retryLabel={isEn ? "Retry history" : "Reintentar historial"}
         />
       ) : hasChartSeries ? (
-        <div className="flex flex-col gap-2">
-          <div className="flex justify-end"><ChartTools><div className="flex flex-col gap-3">
-            <button type="button" aria-pressed={grid} onClick={() => setGrid((value) => !value)} className="min-h-11 rounded-md px-3 text-left text-sm hover:bg-surface-1">{isEn ? "Grid" : "Cuadrícula"} · {grid ? (isEn ? "On" : "Activada") : (isEn ? "Off" : "Desactivada")}</button>
-            <button type="button" aria-pressed={axisMode === "percent"} onClick={() => setAxisMode((value) => value === "price" ? "percent" : "price")} className="min-h-11 rounded-md px-3 text-left text-sm hover:bg-surface-1">{isEn ? "Scale" : "Escala"} · {axisMode === "percent" ? "%" : effectiveCurrency}</button>
-          </div></ChartTools></div>
+        <div
+          ref={fullscreenRef}
+          role={expanded ? "dialog" : undefined}
+          aria-modal={expanded || undefined}
+          aria-label={expanded ? (isEn ? `Chart for ${name}` : `Gráfico de ${name}`) : undefined}
+          className={cn("flex min-w-0 flex-col gap-3", expanded && "fixed inset-0 z-[100] h-[100dvh] overflow-y-auto bg-bg p-4 sm:p-8")}
+        >
+          <div className="flex items-center justify-between gap-3">
+            {expanded ? (
+              <div className="flex min-w-0 items-center gap-3">
+                <CryptoBadgeIcon symbol={symbol} size={40} loading="eager" />
+                <div className="min-w-0">
+                  <p className="truncate text-lg font-medium">{name}</p>
+                  <p className="num text-xs text-fg-muted">{symbol} · USD</p>
+                </div>
+              </div>
+            ) : null}
+            <div className="ml-auto">
+              <ChartTools>
+                <div className="grid gap-3">
+                  <ChartStylePicker
+                    value={chartStyle}
+                    onChange={setStyle}
+                    candlesAvailable={candlesAvailable}
+                    candleHint={hasOhlc
+                      ? (isEn ? "Switch the axis to USD to view candles." : "Cambia el eje a USD para ver velas.")
+                      : (isEn ? "This range has no verified candle data." : "Este rango no tiene datos verificados para velas.")}
+                  />
+                  <ChartToolGroup label={isEn ? "Display" : "Visualización"}>
+                    <div className="flex flex-wrap gap-1.5">
+                      <ChartToolButton pressed={grid} onClick={() => setGrid((value) => !value)}>{isEn ? "Grid" : "Cuadrícula"}</ChartToolButton>
+                      <ChartToolButton pressed={axisMode === "percent"} onClick={() => setAxisMode((value) => value === "price" ? "percent" : "price")}>{isEn ? "Axis" : "Eje"} · {axisMode === "percent" ? "%" : "USD"}</ChartToolButton>
+                    </div>
+                  </ChartToolGroup>
+                </div>
+              </ChartTools>
+            </div>
+          </div>
           <FinancialChart
             datasetKey={`${seriesKey}:${historyQuery.data?.metadata?.provider ?? "unknown"}:${historyQuery.data?.metadata?.resolution ?? "unknown"}`}
-            currency={effectiveCurrency}
-            rate={fxRate}
+            currency="USD"
             metadata={historyQuery.data?.metadata}
             points={observedPoints}
             tone={tone}
+            lineColor={TONE_STROKE[tone]}
+            chartStyle={chartStyle}
             label={
               isEn
                 ? `${name} (${symbol}) price chart — ${activeRangeLabel}`
@@ -404,9 +373,11 @@ export function CryptoDetailChart({ symbol, name }: { symbol: string; name: stri
             showGrid={grid}
             axisMode={axisMode}
             reference={historyQuery.data?.source !== "ticks"}
-            heightClassName="h-64 sm:h-80"
+            heightClassName={expanded ? "h-[72dvh] shrink-0" : "h-64 sm:h-80"}
+            onToggleFullscreen={toggleFullscreen}
+            isFullscreen={expanded}
           />
-          <ChartContext source={historyQuery.data?.source} points={observedPoints} currency={effectiveCurrency} range={range} metadata={historyQuery.data?.metadata} refreshing={historyQuery.isFetching} refreshFailed={historyQuery.isError} onRetry={() => { void historyQuery.refetch(); }} />
+          <ChartContext source={historyQuery.data?.source} points={observedPoints} currency="USD" range={range} metadata={historyQuery.data?.metadata} refreshing={historyQuery.isFetching} refreshFailed={historyQuery.isError} onRetry={() => { void historyQuery.refetch(); }} />
         </div>
       ) : (
         <div className="rounded-lg border border-dashed border-border-strong bg-bg p-5">
@@ -421,30 +392,15 @@ export function CryptoDetailChart({ symbol, name }: { symbol: string; name: stri
               : quote ? `Faltan registros históricos de ${symbol} para ${activeRangeLabel}. La cotización actual aparece arriba.` : `Faltan registros históricos de ${symbol} para ${activeRangeLabel} y no hay cotización disponible.`}
           </p>
           <button type="button" onClick={() => { void historyQuery.refetch(); }} className="mt-2 min-h-11 text-xs underline underline-offset-2">{isEn ? "Retry history" : "Reintentar historial"}</button>
-          <ChartContext source={historyQuery.data?.source} points={observedPoints} currency={effectiveCurrency} range={range} metadata={historyQuery.data?.metadata} />
+          <ChartContext source={historyQuery.data?.source} points={observedPoints} currency="USD" range={range} metadata={historyQuery.data?.metadata} />
           {quote ? (
             <dl className="mt-4 grid grid-cols-2 gap-3 border-t border-border pt-4 text-xs sm:grid-cols-3">
               <div>
-                <dt className="text-fg-muted">{isEn ? "Live spot (USD)" : "Spot en vivo (USD)"}</dt>
+                <dt className="text-fg-muted">{isEn ? "Spot price (USD)" : "Precio spot (USD)"}</dt>
                 <dd className="num mt-0.5 font-medium text-fg">
-                  {formatCryptoPrice(quote.priceUsd, "USD", language)}
+                  {formatCryptoPrice(quote.priceUsd, language)}
                 </dd>
               </div>
-              {fxRate ? (
-                <div>
-                  <dt className="text-fg-muted">
-                    {isEn ? "Equivalent (CLP)" : "Equivalente (CLP)"}
-                  </dt>
-                  <dd className="num mt-0.5 font-medium text-fg">
-                    {(() => {
-                      const clp = displayPrice(quote.priceUsd, "CLP", fxRate);
-                      return clp !== null
-                        ? formatCryptoPrice(clp, "CLP", language)
-                        : "—";
-                    })()}
-                  </dd>
-                </div>
-              ) : null}
               <div>
                 <dt className="text-fg-muted">{isEn ? "24h change" : "Cambio 24h"}</dt>
                 <dd className="mt-1">

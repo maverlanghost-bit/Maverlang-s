@@ -2,6 +2,7 @@
 
 import { useCallback, useSyncExternalStore } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { usePathname } from "next/navigation";
 
 import { useSession } from "@/lib/auth/session-context";
 import { usePrefs } from "@/lib/hooks/queries";
@@ -118,10 +119,12 @@ function setLocalLanguage(language: Preferences["language"]) {
   if (typeof window !== "undefined") window.dispatchEvent(new Event(LANG_EVENT));
 }
 
-/** Moneda única resuelta: sesión (DB) > local > CLP. Se actualiza al instante. */
+/** La plataforma cotiza en USD; la preferencia pública se conserva para el marketing. */
 export function useDisplayCurrency(): Currency {
   const prefs = usePrefs();
   const local = useLocalCurrency();
+  const pathname = usePathname();
+  if (pathname === "/app" || pathname?.startsWith("/app/")) return "USD";
   const fromPrefs = prefs.data?.displayCurrency ?? null;
   return resolveDisplayCurrency({ prefs: fromPrefs, stored: local });
 }

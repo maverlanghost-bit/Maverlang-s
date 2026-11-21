@@ -147,9 +147,6 @@ export function InvestmentHistory({
     if (displayCurrency === "CLP" && usd !== null) {
       return formatUsdValue(usd);
     }
-    if (displayCurrency === "USD" && usd !== null && typeof fxRate === "number" && Number.isFinite(fxRate) && fxRate > 0) {
-      return formatClpValue(usd * fxRate);
-    }
     if ((item.kind === "buy" || item.kind === "sell") && usd !== null && shares > 0) {
       return `${formatUsdValue(usd / shares)} ${isEn ? "/ share" : "/ acc."}`;
     }

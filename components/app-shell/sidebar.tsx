@@ -6,7 +6,6 @@ import { BrandFavicon } from "@/components/app-shell/brand-image";
 import { usePathname } from "next/navigation";
 
 import { useAccountLabel } from "@/components/app-shell/account-label";
-import { CurrencySwitch } from "@/components/app-shell/currency-switch";
 import {
   isShellSectionActive,
   shellTabLabel,
@@ -135,7 +134,6 @@ type AccountMenuLabels = {
   account: string;
   profile: string;
   settings: string;
-  currency: string;
   logout: string;
 };
 
@@ -176,11 +174,6 @@ function AccountMenuPanel({
       <Link role="menuitem" href="/app/ajustes" onClick={onClose} className={item}>
         {labels.settings}
       </Link>
-      <div role="presentation" className="my-1 h-px bg-border" />
-      <div className="flex min-h-11 items-center justify-between gap-2 pl-3 pr-1">
-        <span className="label-xs">{labels.currency}</span>
-        <CurrencySwitch compact />
-      </div>
       <div role="presentation" className="my-1 h-px bg-border" />
       <button
         role="menuitem"
@@ -276,7 +269,6 @@ export function Sidebar({
     account: t.shell.account,
     profile: t.nav.profile,
     settings: t.nav.settings,
-    currency: t.shell.currencyLabel,
     logout: t.profile.logout,
   };
 

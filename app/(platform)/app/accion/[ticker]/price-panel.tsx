@@ -4,7 +4,7 @@ import { useCallback, useId, useMemo, useState, type ReactNode } from "react";
 import { useQueries, useQuery, type UseQueryResult } from "@tanstack/react-query";
 
 import { ChartContext } from "@/components/charts/chart-context";
-import { ChartTools } from "@/components/charts/chart-tools";
+import { ChartStylePicker, ChartToolButton, ChartToolGroup, ChartTools, type ChartStyle } from "@/components/charts/chart-tools";
 import { FinancialChart } from "@/components/charts/financial-chart";
 
 import { ChangeBadge } from "@/components/domain/change-badge";
@@ -21,6 +21,7 @@ import { PriceFreshness } from "@/components/domain/price-freshness";
 import { PriceRangeBar } from "@/components/domain/price-range-bar";
 import { TONE_STROKE } from "@/components/domain/svg-price-chart";
 import { SvgPriceChart } from "@/components/domain/svg-price-chart";
+import { TickerLogo } from "@/components/domain/ticker-logo";
 import { TradingViewChart } from "@/components/domain/tradingview-chart";
 import { ErrorState } from "@/components/ui/error-state";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -68,9 +69,9 @@ const COMPARE_SYMBOLS = [SPY_SYMBOL, "QQQx", "AAPLx", "NVDAx", "TSLAx"] as const
 const MAX_COMPARE = 4;
 /** Motores del gráfico: el nativo Pro y el widget de TradingView. */
 const PROVIDER_OPTIONS = [
-  { value: "native", label: "Interactivo" },
-  { value: "svg", label: "Gráfico clásico" },
-  { value: "tradingview", label: "Subyacente en TradingView" },
+  { value: "native", label: "Interactivo", labelEn: "Interactive" },
+  { value: "svg", label: "Gráfico clásico", labelEn: "Classic chart" },
+  { value: "tradingview", label: "Subyacente en TradingView", labelEn: "Underlying on TradingView" },
 ] as const;
 
 /**
@@ -252,55 +253,10 @@ function RangeCapsule({
   );
 }
 
-const TOGGLE_ACTIVE = {
-  accent: "bg-surface-2 text-fg",
-  solid: "bg-fg text-bg",
-  neutral: "bg-surface-2 text-fg",
-} as const;
-
-/** Chip de control del gráfico. Mismo look en la barra y en pantalla completa. */
-function ChartToggle({
-  pressed,
-  onClick,
-  children,
-  tone = "neutral",
-  label,
-  className,
-  disabled = false,
-  describedBy,
-}: {
-  pressed: boolean;
-  onClick: () => void;
-  children: ReactNode;
-  tone?: keyof typeof TOGGLE_ACTIVE;
-  label?: string;
-  className?: string;
-  disabled?: boolean;
-  describedBy?: string;
-}) {
-  return (
-    <button
-      type="button"
-      aria-pressed={pressed}
-      disabled={disabled}
-      aria-label={label}
-      aria-describedby={describedBy}
-      onClick={onClick}
-      className={cn(
-        "inline-flex h-11 shrink-0 items-center gap-1.5 rounded-full px-3 text-[13px] font-medium whitespace-nowrap transition-colors outline-none focus-visible:ring-4 focus-visible:ring-fg/20 sm:h-8",
-        pressed ? TOGGLE_ACTIVE[tone] : "text-fg-muted hover:bg-surface-1 hover:text-fg",
-        disabled && "cursor-not-allowed opacity-40",
-        className,
-      )}
-    >
-      {children}
-    </button>
-  );
-}
-
 export function PricePanel({
   symbol,
   name,
+  logoUrl,
   quote,
   pending,
   onRetry,
@@ -316,6 +272,7 @@ export function PricePanel({
 }: {
   symbol: string;
   name: string;
+  logoUrl?: string | null;
   quote: Quote | null;
   pending: boolean;
   onRetry: () => void;
@@ -363,7 +320,7 @@ export function PricePanel({
   const [spyOn, setSpyOn] = useState(false);
   const [smaOn, setSmaOn] = useState<Record<SmaPeriod, boolean>>({ 20: false, 50: false, 200: false });
   const [rsiOn, setRsiOn] = useState(false);
-  const [draw, setDraw] = useState<"line" | "candles">("line");
+  const [draw, setDraw] = useState<ChartStyle>("area");
   const [volumeOn, setVolumeOn] = useState(false);
   // Opciones visuales del gráfico: por defecto limpio, sin grilla ni promedio.
   const [showGrid, setShowGrid] = useState(false);
@@ -531,7 +488,7 @@ export function PricePanel({
           {
             id: "asset",
             label: symbol,
-            color: illustrative ? BENCHMARK_COLOR : TONE_STROKE[tone],
+            color: TONE_STROKE[tone],
             dashed: illustrative,
           },
           { id: "benchmark", label: benchmark.label, color: BENCHMARK_COLOR, dashed: true },
@@ -681,45 +638,60 @@ export function PricePanel({
   const shownProvider = provider === "svg" && !classicAvailable ? "native" : provider;
   const PriceChart = shownProvider === "svg" ? SvgPriceChart : FinancialChart;
   const selectProvider = (value: string) => setProvider(value === "tradingview" ? "tradingview" : value === "svg" ? "svg" : "native");
+  const chartStyle = draw === "candles" && !candlesAvailable ? "area" : draw;
   const settings = (
     <ChartTools>
-      <div className="flex flex-col gap-5">
-        <fieldset>
-          <legend className="mb-2 text-xs font-medium text-fg-muted">{language === "en" ? "Display" : "Visualización"}</legend>
-          <div className="flex flex-wrap gap-1">
-            <ChartToggle pressed={showPeriodAvg} onClick={() => setShowPeriodAvg((value) => !value)}>{language === "en" ? "Period average" : "Promedio"}</ChartToggle>
-            <ChartToggle pressed={showGrid} onClick={() => setShowGrid((value) => !value)}>{language === "en" ? "Grid" : "Cuadrícula"}</ChartToggle>
-            <ChartToggle pressed={axisMode === "percent"} onClick={() => setAxisMode((value) => value === "price" ? "percent" : "price")} label="Escala del eje: porcentaje o precio">% / $</ChartToggle>
+      <div className="grid min-w-0 gap-3">
+        {!tvActive ? <>
+          <ChartStylePicker
+            value={chartStyle}
+            onChange={setDraw}
+            candlesAvailable={candlesAvailable}
+            candleHint={bars.ohlc
+              ? (language === "en" ? "Use the price scale and turn off comparisons to view candles." : "Usa la escala de precio y desactiva las comparaciones para ver velas.")
+              : (language === "en" ? "This range has no verified candle data." : "Este rango no tiene datos verificados para velas.")}
+          />
+          <ChartToolGroup label={language === "en" ? "Display" : "Visualización"}>
+            <div className="flex flex-wrap gap-1.5">
+              <ChartToolButton pressed={showPeriodAvg} onClick={() => setShowPeriodAvg((value) => !value)}>{language === "en" ? "Average" : "Promedio"}</ChartToolButton>
+              <ChartToolButton pressed={showGrid} onClick={() => setShowGrid((value) => !value)}>{language === "en" ? "Grid" : "Cuadrícula"}</ChartToolButton>
+              <ChartToolButton
+                label={language === "en" ? "Axis scale: percent or price" : "Escala del eje: porcentaje o precio"}
+                pressed={axisMode === "percent" || hasComparable}
+                disabled={hasComparable}
+                onClick={() => setAxisMode((value) => value === "price" ? "percent" : "price")}
+              >
+                {language === "en" ? "Axis" : "Eje"} · {axisMode === "percent" || hasComparable ? "%" : priceCurrency}
+              </ChartToolButton>
+            </div>
+          </ChartToolGroup>
+          {technical ? <ChartToolGroup label={language === "en" ? "Indicators" : "Indicadores"}>
+            {longHistory.isLoading ? <StudiesSkeleton label={copy.studiesLoading} /> : <ChartStudyBar
+              copy={copy}
+              spyPending={spyHistory.isLoading}
+              spy={showSpy ? { on: spyOn, onToggle: () => setSpyOn((value) => !value) } : null}
+              smas={smaChoices.map((periodKey) => ({ period: periodKey, on: smaOn[periodKey], onToggle: () => setSmaOn((current) => ({ ...current, [periodKey]: !current[periodKey] })) }))}
+              rsi={showRsi ? { on: rsiOn, onToggle: () => setRsiOn((value) => !value) } : null}
+            />}
+            {showCompare ? <RangeCapsule compact idPrefix="compare" label={language === "en" ? "Compare with" : "Comparar con"} options={compareOptions} value={compareSymbol} onChange={setCompareSymbol} /> : null}
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              <ChartToolButton pressed={volumeAvailable && volumeOn} disabled={!volumeAvailable} describedBy={!volumeAvailable ? capabilityId : undefined} onClick={() => setVolumeOn((value) => !value)}>{volumeLabel ?? copy.volume}</ChartToolButton>
+            </div>
+            {!volumeAvailable ? <p id={capabilityId} className="mt-2 text-xs text-fg-muted">
+              {bars.volume
+                ? (language === "en" ? "Turn off comparisons to view the original volume." : "Desactiva las comparaciones para ver el volumen original.")
+                : (language === "en" ? "This range has no verified volume." : "Este rango no tiene volumen verificado.")}
+            </p> : null}
+            {!dailyStudies && !longHistory.isLoading ? <p className="mt-2 text-xs text-fg-muted">{language === "en" ? "SMA and RSI need compatible daily data." : "Las SMA y el RSI requieren datos diarios compatibles."}</p> : null}
+          </ChartToolGroup> : null}
+        </> : null}
+        <ChartToolGroup label={language === "en" ? "Chart version" : "Versión del gráfico"}>
+          <div className="flex flex-wrap gap-1.5">
+            {PROVIDER_OPTIONS.map((option) => <ChartToolButton key={option.value} disabled={option.value === "svg" && !classicAvailable} pressed={shownProvider === option.value} onClick={() => selectProvider(option.value)}>{language === "en" ? option.labelEn : option.label}</ChartToolButton>)}
           </div>
-        </fieldset>
-        {technical ? <div className="[&_[role=group]]:flex-wrap [&_[role=group]]:overflow-visible [&_[role=group]]:px-0 [&_[role=group]]:mx-0">
-          {longHistory.isLoading ? <StudiesSkeleton label={copy.studiesLoading} /> : <ChartStudyBar
-            copy={{ ...copy, tip: language === "en" ? "S&P 500 shows SPYx over the same range, with both series rebased to percent. SMA 20, 50 and 200 average that many daily periods from the source. RSI (14) also uses daily periods and runs from 0 to 100; the lines mark 30 and 70. The latest period is not confirmed as closed and may change." : "S&P 500 muestra SPYx en el mismo rango, con ambas series rebasadas a porcentaje. Las SMA 20, 50 y 200 promedian esa cantidad de períodos diarios de la fuente. El RSI (14) también usa períodos diarios y va de 0 a 100; las líneas marcan 30 y 70. El período más reciente no tiene cierre confirmado y puede cambiar." }}
-            spyPending={spyHistory.isLoading}
-            spy={showSpy ? { on: spyOn, onToggle: () => setSpyOn((value) => !value) } : null}
-            smas={smaChoices.map((periodKey) => ({ period: periodKey, on: smaOn[periodKey], onToggle: () => setSmaOn((current) => ({ ...current, [periodKey]: !current[periodKey] })) }))}
-            rsi={showRsi ? { on: rsiOn, onToggle: () => setRsiOn((value) => !value) } : null}
-          />}
-          <div role="group" aria-label={copy.styleLabel} className="mt-2 flex flex-wrap gap-1">
-            <ChartToggle pressed={!candlesAvailable || draw === "line"} onClick={() => setDraw("line")}>{copy.styleLine}</ChartToggle>
-            <ChartToggle pressed={candlesAvailable && draw === "candles"} disabled={!candlesAvailable} describedBy={capabilityId} onClick={() => setDraw("candles")}>{copy.styleCandles}</ChartToggle>
-            <ChartToggle pressed={volumeAvailable && volumeOn} disabled={!volumeAvailable} describedBy={capabilityId} onClick={() => setVolumeOn((value) => !value)}>{volumeLabel ?? copy.volume}</ChartToggle>
-          </div>
-          <div id={capabilityId} className="mt-2 space-y-1 text-xs leading-relaxed text-fg-muted">
-            {!bars.ohlc ? <p>{language === "en" ? "Candles unavailable: this series does not include complete, verified OHLC bars with a known source and resolution." : "Velas no disponibles: esta serie no incluye barras OHLC completas y verificadas con fuente y resolución conocidas."}</p> : hasComparable || axisMode === "percent" ? <p>{language === "en" ? "Candles are available on the price scale without comparisons." : "Las velas están disponibles en escala de precio y sin comparaciones."}</p> : null}
-            {!bars.volume ? <p>{language === "en" ? "Volume unavailable: traded units and their market scope are not verified for every observation." : "Volumen no disponible: no hay unidades negociadas y ámbito de mercado verificados para cada registro."}</p> : hasComparable ? <p>{language === "en" ? "Remove comparisons to view the original volume bars." : "Quita las comparaciones para ver las barras de volumen originales."}</p> : null}
-            {!dailyStudies && !longHistory.isLoading ? <p>{language === "en" ? "Daily SMA and RSI need compatible daily observations; polling ticks or weekly bars cannot substitute for them." : "Las SMA y el RSI diarios requieren registros diarios compatibles; los sondeos o las barras semanales no los sustituyen."}</p> : dailyStudies ? <p>{language === "en" ? "SMA and RSI use daily periods and their required warm-up data. The latest period is not confirmed as closed and may change." : "SMA y RSI usan períodos diarios y respetan los datos previos necesarios para calcularlos. El período más reciente no tiene cierre confirmado y puede cambiar."}</p> : null}
-          </div>
-        </div> : null}
-        {showCompare ? <RangeCapsule compact idPrefix="compare" label="Comparar con" options={compareOptions} value={compareSymbol} onChange={setCompareSymbol} /> : null}
-        <fieldset>
-          <legend className="mb-2 text-xs font-medium text-fg-muted">{language === "en" ? "Chart version" : "Versión del gráfico"}</legend>
-          <div className="flex flex-col items-start gap-1">
-            {PROVIDER_OPTIONS.map((option) => <ChartToggle key={option.value} disabled={option.value === "svg" && !classicAvailable} pressed={shownProvider === option.value} onClick={() => selectProvider(option.value)}>{option.label}</ChartToggle>)}
-          </div>
-          <p className="mt-2 text-xs leading-relaxed text-fg-muted">{language === "en" ? "TradingView shows the underlying, with its own source and update frequency. It is not a quote for this token." : "TradingView muestra el subyacente, con su propia fuente y frecuencia de actualización. No es una cotización de este token."}</p>
-          {!classicAvailable ? <p className="mt-2 text-xs text-fg-muted">{language === "en" ? "Use the interactive version to display gaps in this comparison." : "Usa la versión interactiva para mostrar los cortes de datos en esta comparación."}</p> : null}
-        </fieldset>
+          {tvActive ? <p className="mt-2 text-xs text-fg-muted">{language === "en" ? "TradingView displays the underlying asset using its own data." : "TradingView muestra el activo subyacente con sus propios datos."}</p> : null}
+          {!classicAvailable ? <p className="mt-2 text-xs text-fg-muted">{language === "en" ? "The interactive chart shows gaps in this comparison." : "El gráfico interactivo muestra los cortes de datos en esta comparación."}</p> : null}
+        </ChartToolGroup>
       </div>
     </ChartTools>
   );
@@ -883,8 +855,13 @@ export function PricePanel({
           <div className="flex flex-col gap-3 border-b border-border/60 pt-[max(1rem,env(safe-area-inset-top))] pb-4">
             <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3">
               <div className="min-w-0">
-                <p className="truncate text-lg font-medium text-fg">{name}</p>
-                <p className="num mt-0.5 text-xs font-medium text-fg-muted">{symbol}</p>
+                <div className="flex items-center gap-3">
+                  <TickerLogo symbol={symbol} name={name} logoUrl={logoUrl} size={40} decorative />
+                  <div className="min-w-0">
+                    <p className="truncate text-lg font-medium text-fg">{name}</p>
+                    <p className="num text-xs font-medium text-fg-muted">{symbol}</p>
+                  </div>
+                </div>
                 <div className="mt-1.5 flex flex-wrap items-center gap-2">
                   {shown !== null ? (
                     <FlashPrice value={shown} currency={priceCurrency} size="lg" live={point === null} force={hoverForce} />
@@ -964,8 +941,9 @@ export function PricePanel({
               onHighlightLayer={setHighlightedLayerId}
               onToggleFullscreen={toggleFullscreen}
               isFullscreen={fullscreen}
-              heightClassName={fullscreen ? "h-[58vh] sm:h-[66vh] md:h-[72vh]" : "h-64 sm:h-80 md:h-[380px]"}
-              chartStyle={technical && candlesAvailable ? draw : "line"}
+              heightClassName={fullscreen ? "h-[52dvh] min-h-64 sm:h-[60dvh]" : "h-64 sm:h-80 md:h-[380px]"}
+              chartStyle={chartStyle}
+              lineColor={TONE_STROKE[tone]}
               showVolume={technical && volumeAvailable && volumeOn}
               volumeLabel={volumeLabel ?? copy.volume}
             />

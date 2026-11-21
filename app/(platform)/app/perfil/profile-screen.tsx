@@ -1,7 +1,6 @@
 "use client";
 
 import { AccountSwitch } from "@/components/app-shell/account-switch";
-import { CurrencySwitch } from "@/components/app-shell/currency-switch";
 import { Avatar } from "@/components/ui/avatar";
 import { ErrorState } from "@/components/ui/error-state";
 import { LoadingState } from "@/components/ui/loading-state";
@@ -156,10 +155,6 @@ export function ProfileScreen({ version }: { version: string }) {
         <SettingsField label={t.account.typeLabel}>
           <AccountSwitch mode={account.mode} onChange={account.select} />
         </SettingsField>
-        <div className="flex min-w-0 items-center justify-between gap-3 border-t border-border px-4 py-3 md:px-5 lg:hidden">
-          <p className="label">{t.shell.currencyLabel}</p>
-          <CurrencySwitch />
-        </div>
         {account.mode === "demo" ? (
           <div className="border-t border-border px-4 py-3 md:px-5">
             <ResetDemoButton />

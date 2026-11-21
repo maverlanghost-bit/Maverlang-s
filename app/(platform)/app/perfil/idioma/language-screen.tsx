@@ -11,7 +11,7 @@ export function LanguageScreen() {
   return (
     <SettingsFrame title={t.profile.language} description={t.profile.languageLead}>
       <SettingsPanel label={t.profile.language}>
-        <PreferencesForm currencyFirst={false} />
+        <PreferencesForm />
       </SettingsPanel>
     </SettingsFrame>
   );

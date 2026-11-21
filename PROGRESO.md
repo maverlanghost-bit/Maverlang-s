@@ -1,5 +1,17 @@
 # PROGRESO — Maverlang
 
+## T72 — Fichas de activos, operación en USD y órdenes límite demo (2026-11-20)
+- Gráficos de acciones y cripto: área por defecto, línea y velas sólo con OHLC verificado; color según el rendimiento del rango y referencias identificadas. Pantalla completa con logo.
+- Herramientas: grupos de estilo, visualización e indicadores. Los controles se distribuyen en varias filas y el menú usa el Sheet existente en móvil.
+- Imágenes: 51 logos de CoinGecko para el catálogo de cripto y LST, guardados como WebP de 96 × 96 (131 KiB en total); respaldo de monograma. Sin dependencias nuevas.
+- Plataforma: cotizaciones, saldos y compraventa en USD aun con preferencia anterior en CLP. Depósito en pesos conserva la moneda de pago. Se quitan inversión mínima y emisor de la tarjeta rápida; el emisor sigue en el detalle.
+- Compraventa de acciones: selector A mercado/Límite. La demo permite guardar y cancelar por cuenta en este navegador, con precio límite y vigencia simulada. No ejecuta ni reserva saldo.
+- Jupiter Trigger V2 permite órdenes por umbral en USD. Pendiente: validar mints y precio efectivo tras deslizamiento, integrar custodia, cancelación y conciliación y cerrar bloqueantes de la auditoría para ejecución real.
+- Archivos clave: `price-panel.tsx`, `components/charts/*`, `crypto-detail-chart.tsx`, `crypto-badge-icon.tsx`, `trade-sheet.tsx` y `use-display-currency.ts`.
+- Verificación dirigida: TypeScript y 21 pruebas focalizadas pasaron durante el trabajo. En navegador se revisó NVIDIA con estilos, herramientas, logo y ancho móvil, la ficha y logo de SOL, y el guardado y cancelación de una orden demo sin invocar la API de ejecución.
+- Pendiente por indicación de Manu: compilación de producción y verificaciones pesadas. Repetir el logo en fullscreen cripto tras ajustar su carga y terminar la comprobación de cotización a mercado (la compilación del endpoint agotó la espera).
+- Cambios previos de otras tareas preservados. Sin migraciones, push ni deploy.
+
 ## T70 — Rediseño de portada, páginas públicas y acceso (2026-11-17)
 - Alcance: D1–D7 de `docs/PLAN-DISENO-MARKETING.md`; D8 (pase fino) pendiente. Decisiones tomadas por mí por encargo de Manu: sombra `shadow-frame` y superficies sólo en marketing, una banda negra 24/7, monocromo, sin modo oscuro, sin dependencias nuevas.
 - Fundaciones: tokens (`text-display/title/lead-lg`, `rounded-bento`, `shadow-frame`, `inverse-*`) en `globals.css`; `SectionHeader`/tonos en `section.tsx`; `bento`, `product-frame`, `stat-tile`, `page-hero`. Excepción registrada en `docs/DESIGN-SYSTEM.md`.

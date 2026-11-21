@@ -17,7 +17,6 @@ export interface FinancialChartProps extends PriceChartProps {
   datasetKey: string;
   currency?: Currency;
   rate?: number;
-  lineColor?: string;
   metadata?: HistoryMetadata;
   /** Cursor time is distinct from the actual date of a carried observation. */
   onCrosshairTime?: (timeMs: number | null) => void;
@@ -77,7 +76,7 @@ export function FinancialChart(props: FinancialChartProps) {
   const { ref, expanded: ownExpanded, toggle } = useChartFullscreen();
   const expanded = !props.onToggleFullscreen && ownExpanded;
   const capabilities = chartCapabilities(props.points, props.metadata);
-  const chartProps = { ...props, chartStyle: props.chartStyle === "candles" && capabilities.ohlc ? "candles" as const : "line" as const, showVolume: props.showVolume && capabilities.volume, onToggleFullscreen: props.onToggleFullscreen ?? toggle, isFullscreen: props.isFullscreen ?? expanded };
+  const chartProps = { ...props, chartStyle: props.chartStyle === "candles" && !capabilities.ohlc ? "area" as const : props.chartStyle, showVolume: props.showVolume && capabilities.volume, onToggleFullscreen: props.onToggleFullscreen ?? toggle, isFullscreen: props.isFullscreen ?? expanded };
   const gaps = (props.points as readonly FinancialPoint[]).some((point) => point.gap);
   const tableFallback = gaps || props.currency === "CLP" || props.axisMode === "percent" || props.benchmark || props.overlays?.some((layer) => layer.rebased) || chartProps.chartStyle === "candles" || chartProps.showVolume;
   return (
