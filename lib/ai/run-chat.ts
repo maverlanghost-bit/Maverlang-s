@@ -293,10 +293,8 @@ export async function runChat(
 
   // Ejecución segura y determinista de comandos slash antes de la ronda 1
   const lastUserMessage = [...input.messages].reverse().find((m) => m.role === "user");
-  const slash =
-    lastUserMessage && lastUserMessage.content.trim().startsWith("/")
-      ? parseSlashCommand(lastUserMessage.content.trim(), viewing?.ticker ?? contextTicker)
-      : null;
+  const firstLine = lastUserMessage?.content.trim().split(/\r?\n/, 1)[0];
+  const slash = firstLine ? parseSlashCommand(firstLine, viewing?.ticker ?? contextTicker) : null;
 
   if (slash) {
     const callId = `slash_${Date.now()}`;

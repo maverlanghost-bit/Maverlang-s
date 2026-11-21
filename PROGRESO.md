@@ -1,5 +1,12 @@
 # PROGRESO — Maverlang
 
+## T77 — Barra y comandos del asistente (2026-11-21)
+- El compositor conserva el selector Rápido/Pro y quita los interruptores de búsqueda web y razonamiento. Pro mantiene su instrucción de razonamiento actual; la búsqueda automática queda pendiente de integración.
+- La paleta de comandos muestra icono, nombre y descripción. Conserva filtrado y navegación por teclado, el borrador al abrir y cierre exclusivo con el menú de adjuntos.
+- Los activos adjuntos muestran logo y ticker. El logo usa el catálogo y conserva el respaldo de monograma.
+- Los comandos conservan la primera línea al enviar contexto o elegir Pro, para que el servidor pueda reconocerlos antes de consultar al modelo.
+- Verificación liviana con ESLint, pruebas focalizadas del asistente y vista aislada a 320, 390 y 1440 px. Sin compilación completa ni despliegue.
+
 ## T76 — Diseño de la ayuda con movimientos (2026-11-21)
 - `/ayuda` destaca los movimientos en la navegación y presenta pasos desplegables para depósitos ausentes, operaciones pendientes y diferencias de saldo.
 - La tarjeta de contacto muestra el correo configurado y un acceso a Actividad. Desde el detalle de un movimiento, el borrador de correo conserva el folio y el ID.

@@ -214,6 +214,19 @@ afterEach(() => {
 });
 
 describe("herramientas T1: registro y sólo lectura", () => {
+  it("ejecuta el comando inicial cuando lo acompañan instrucciones de contexto", async () => {
+    const complete: Complete = async (messages) => {
+      expect(messages.some((message) => message.role === "tool")).toBe(true);
+      return { content: "Aquí está el gráfico de Tesla.", toolCalls: [] };
+    };
+    const result = await runChat({
+      messages: [{ role: "user", content: "/grafico TSLAx 1W\n\nContexto del usuario: Tesla. Razona con profundidad." }],
+      req: request(),
+    }, deps(), complete);
+
+    expect(widgetOf(result.widgets, "stock")).toMatchObject({ ticker: "TSLAx", range: "1W" });
+  });
+
   it("las cuatro tools nuevas están registradas con sus argumentos", () => {
     const names = AI_TOOLS.map((tool) => tool.function.name);
     for (const name of ["get_company_facts", "portfolio_today", "simulate_buy", "propose_price_alert"]) {
