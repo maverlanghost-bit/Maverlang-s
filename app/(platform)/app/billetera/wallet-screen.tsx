@@ -205,18 +205,22 @@ export function WalletScreen() {
   const { mode } = useAccountMode();
   const { hidden } = useHideBalance();
   const balances = useBalances();
-  const activity = useActivity();
   const tickers = useTickers();
   const fx = useFx();
   const [activityFilter, setActivityFilter] = useState<ActivityFilter>("all");
   const [activityQuery, setActivityQuery] = useState("");
   const [selection, setSelection] = useState<{ id: string; mode: typeof mode } | null>(null);
+  const selectedId = selection?.mode === mode ? selection.id : null;
+  const realBlocked = isRealAccountUiBlocked(mode);
+  const activity = useActivity(
+    session.status !== "loading" && balances.isSuccess && !realBlocked ? selectedId ?? undefined : undefined,
+  );
 
   if (session.status === "loading" || balances.isPending) {
     return <LoadingState label={t.states.loading} />;
   }
 
-  if (isRealAccountUiBlocked(mode)) {
+  if (realBlocked) {
     return (
       <div className="flex flex-col gap-6">
         <h1 className="sr-only">{t.pages.wallet.title}</h1>
@@ -258,7 +262,6 @@ export function WalletScreen() {
   const showZeroBalance = !masked && rows.length > 0 && usdcUi <= 0 && !hasPositions;
 
   const allActivities = activity.data ?? [];
-  const selectedId = selection?.mode === mode ? selection.id : null;
   const selected = allActivities.find((row) => row.id === selectedId);
   const byFilter =
     activityFilter === "all"

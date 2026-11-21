@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 
 import { activityFolio } from "@/components/domain/activity-item";
+import { preloadTradeConfirmationWave, TradeConfirmationWave } from "@/components/domain/trade-confirmation-wave";
 import { Badge, type BadgeTone } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CopyButton } from "@/components/ui/copy-button";
@@ -14,6 +15,7 @@ import { cn } from "@/lib/cn";
 import { formatDateTime } from "@/lib/format";
 import { useT } from "@/lib/hooks/use-t";
 import type { Activity, OrderStatus } from "@/lib/types";
+import { depositConfirmationStatus } from "@/lib/wallet/activity";
 import { explorerTxUrl } from "@/lib/wallet/explorer";
 
 export const MOVEMENT_HELP_HREF = "/ayuda#movimientos";
@@ -39,6 +41,19 @@ export function WalletActivitySheet({ id, row, tone, amount, demo, onClose, onRe
   const en = language === "en";
   const [refreshing, setRefreshing] = useState(false);
   const [refreshStatus, setRefreshStatus] = useState<"updated" | "error" | null>(null);
+  const confirmationIcon = useRef<HTMLSpanElement>(null);
+  const depositStatus = depositConfirmationStatus(row);
+  // La hoja se remonta al cambiar de movimiento. Sólo cuenta una transición observada aquí.
+  const [deposit, setDeposit] = useState({ status: depositStatus, shown: false, animate: false });
+  if (deposit.status !== depositStatus) {
+    const animate = !deposit.shown && deposit.status === "pending" && depositStatus === "confirmed";
+    setDeposit({ status: depositStatus, shown: deposit.shown || animate, animate });
+  }
+  const showConfirmation = deposit.animate && depositStatus === "confirmed";
+
+  useEffect(() => {
+    if (depositStatus === "pending") preloadTradeConfirmationWave();
+  }, [depositStatus]);
   const folio = activityFolio(id);
   const mailto = supportMailto();
   const subject = `${en ? "Movement" : "Movimiento"} ${folio}`;
@@ -65,21 +80,27 @@ export function WalletActivitySheet({ id, row, tone, amount, demo, onClose, onRe
     <Sheet open onOpenChange={onClose} title={en ? "Movement details" : "Detalle del movimiento"}>
       <div className="space-y-6 pb-2">
         {row ? (
-          <section aria-label={en ? "Movement status" : "Estado del movimiento"} className="rounded-2xl border border-border bg-surface-1 p-4 sm:p-5">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <span className={cn("grid size-10 shrink-0 place-items-center rounded-full ring-1 ring-inset ring-border",
-                tone === "up" && "bg-up-bg text-up",
+          <section aria-label={en ? "Movement status" : "Estado del movimiento"} className={cn(
+            "rounded-2xl border border-border bg-surface-1 p-4 sm:p-5",
+            showConfirmation && "relative isolate overflow-hidden border-up/15 bg-bg",
+          )}>
+            {showConfirmation ? <TradeConfirmationWave source={confirmationIcon} /> : null}
+            <div className={cn("flex flex-wrap items-center justify-between gap-3", showConfirmation && "relative z-10")}>
+              <span ref={confirmationIcon} className={cn("grid size-10 shrink-0 place-items-center rounded-full ring-1 ring-inset ring-border",
+                tone === "up" && (showConfirmation ? "bg-up text-white" : "bg-up-bg text-up"),
                 tone === "warn" && "bg-warn-bg text-warn",
                 tone === "down" && "bg-down-bg text-down",
                 tone === "neutral" && "bg-surface-2 text-fg-muted",
               )}>
                 <StatusIcon className="size-5" />
               </span>
-              <Badge tone={tone}>{t.portfolio.status[row.status]}</Badge>
+              <Badge tone={tone} aria-live="polite">{t.portfolio.status[row.status]}</Badge>
             </div>
-            <h3 className="mt-4 text-sm font-medium text-fg-muted">{t.wallet.kinds[row.kind]} · {row.symbol}</h3>
-            <p className="num mt-1 text-2xl leading-tight font-semibold break-words text-fg">{amount}</p>
-            <p className="mt-3 text-sm leading-relaxed text-fg-muted">{STATES[row.status][en ? 1 : 0]}</p>
+            <div className={showConfirmation ? "relative z-10" : undefined}>
+              <h3 className="mt-4 text-sm font-medium text-fg-muted">{t.wallet.kinds[row.kind]} · {row.symbol}</h3>
+              <p className="num mt-1 text-2xl leading-tight font-semibold break-words text-fg">{amount}</p>
+              <p className="mt-3 text-sm leading-relaxed text-fg-muted">{STATES[row.status][en ? 1 : 0]}</p>
+            </div>
           </section>
         ) : (
           <p className="rounded-xl border border-border bg-surface-1 p-4 text-sm leading-relaxed text-fg-muted">

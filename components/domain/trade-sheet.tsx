@@ -12,12 +12,13 @@ import { LimitOrdersPanel } from "@/components/domain/limit-orders-panel";
 import { MarketStatusPill } from "@/components/domain/market-status-pill";
 import { RealAccountEmpty } from "@/components/domain/real-account-empty";
 import { TickerLogo } from "@/components/domain/ticker-logo";
-import { preloadTradeConfirmationWave, TradeConfirmationWave } from "@/components/domain/trade-confirmation-wave";
+import { preloadTradeConfirmationWave, TradeConfirmationHeading } from "@/components/domain/trade-confirmation-wave";
 import { TradeExecutionStepper } from "@/components/domain/trade-execution-stepper";
 import { AmountInput } from "@/components/ui/amount-input";
 import { Button } from "@/components/ui/button";
 import { ErrorState } from "@/components/ui/error-state";
-import { IconBack, IconCheck } from "@/components/ui/icons";
+import { Badge } from "@/components/ui/badge";
+import { IconBack, IconClock } from "@/components/ui/icons";
 import { Input } from "@/components/ui/input";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { Sheet } from "@/components/ui/sheet";
@@ -405,7 +406,6 @@ function TradeFlow({ side, ticker, onBusyChange }: { side: Side; ticker: Ticker;
   const seqRef = useRef(0);
   const mounted = useRef(true);
   const confirming = useRef(false);
-  const confirmationCheck = useRef<HTMLSpanElement>(null);
 
   const isEnglish = language === "en";
   const doc = isEnglish
@@ -415,7 +415,6 @@ function TradeFlow({ side, ticker, onBusyChange }: { side: Side; ticker: Ticker;
   const userId = session.user?.id?.trim() ?? "";
   const limitEnabled = mode === "demo" && session.status === "authenticated" && userId.length > 0;
   const isLimit = limitEnabled && orderMode === "limit";
-  const demoMarketBuy = mode === "demo" && side === "buy" && !isLimit;
   // La cuenta demo no tiene billetera: se firma con el id de usuario (uuid ≥ 32).
   const pubkey = wallet.length >= 32 ? wallet : mode === "demo" && userId.length >= 32 ? userId : null;
   const position = portfolio.data?.positions.find((item) => item.symbol === ticker.symbol) ?? null;
@@ -481,8 +480,8 @@ function TradeFlow({ side, ticker, onBusyChange }: { side: Side; ticker: Ticker;
   }, []);
 
   useEffect(() => {
-    if (phase === "review" && demoMarketBuy) preloadTradeConfirmationWave();
-  }, [phase, demoMarketBuy]);
+    if (phase === "review" && !isLimit) preloadTradeConfirmationWave();
+  }, [phase, isLimit]);
 
   useEffect(() => {
     const id = window.setInterval(() => setNow(Date.now()), 1000);
@@ -662,17 +661,21 @@ function TradeFlow({ side, ticker, onBusyChange }: { side: Side; ticker: Ticker;
     return (
       <div role="status" aria-live="polite" className="flex min-h-0 flex-1 flex-col">
         <div className="flex flex-col gap-6 pb-8">
-          <div className="flex items-start gap-3">
+          <div className="relative isolate flex items-start gap-3 overflow-hidden rounded-2xl border border-border bg-bg p-3.5 sm:p-4">
+            <div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-surface-1 motion-safe:animate-fade-in" />
             <span
               aria-hidden="true"
-              className="mt-0.5 grid size-8 shrink-0 place-items-center rounded-full bg-fg text-bg"
+              className="relative mt-0.5 grid size-8 shrink-0 place-items-center rounded-full bg-warn-bg text-warn"
             >
-              <IconCheck className="size-4" />
+              <IconClock className="size-4" />
             </span>
-            <div className="min-w-0">
-              <p className="text-xl leading-tight text-fg">
-                {isEnglish ? "Demo order saved" : "Orden demo guardada"}
-              </p>
+            <div className="relative min-w-0">
+              <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5">
+                <p className="text-xl leading-tight text-fg">
+                  {isEnglish ? "Demo order saved" : "Orden demo guardada"}
+                </p>
+                <Badge tone="warn">{isEnglish ? "Pending" : "Pendiente"}</Badge>
+              </div>
               <p className="mt-1.5 text-[13px] leading-relaxed text-fg-body">
                 {isEnglish
                   ? `${sideText} · ${ticker.name}`
@@ -723,7 +726,6 @@ function TradeFlow({ side, ticker, onBusyChange }: { side: Side; ticker: Ticker;
   }
 
   if (phase === "done" && result) {
-    const showConfirmationWave = demoMarketBuy && result.side === "buy" && result.status === "confirmed";
     const summary =
       result.side === "buy"
         ? fill(t.trade.doneBuy, { amount: formatShares(result.outAmountUi), name: ticker.name })
@@ -737,26 +739,7 @@ function TradeFlow({ side, ticker, onBusyChange }: { side: Side; ticker: Ticker;
     return (
       <div role="status" aria-live="polite" className="flex min-h-0 flex-1 flex-col">
         <div className="flex flex-col gap-6 pb-8">
-          <div className={cn(
-            "flex items-start gap-3",
-            showConfirmationWave && "relative isolate overflow-hidden rounded-2xl border border-up/15 bg-bg p-3.5 sm:p-4",
-          )}>
-            {showConfirmationWave ? <TradeConfirmationWave key={result.id} source={confirmationCheck} /> : null}
-            <span
-              ref={confirmationCheck}
-              aria-hidden="true"
-              className={cn(
-                "mt-0.5 grid size-8 shrink-0 place-items-center rounded-full bg-fg text-bg",
-                showConfirmationWave && "relative z-10 bg-up text-white",
-              )}
-            >
-              <IconCheck className="size-4" />
-            </span>
-            <div className={cn("min-w-0", showConfirmationWave && "relative z-10")}>
-              <p className="text-xl leading-tight text-fg">{t.trade.done}</p>
-              <p className="mt-1.5 text-[13px] leading-relaxed text-fg-body">{summary}</p>
-            </div>
-          </div>
+          <TradeConfirmationHeading key={result.id} title={t.trade.done} summary={summary} animate={result.status === "confirmed"} />
 
           <dl className="divide-y divide-border border-y border-border">
             <StatementRow label={doc.folio} value={`#MV-${result.id.slice(0, 8).toUpperCase()}`} />

@@ -9,6 +9,13 @@
 - Compatibilidad local: 13 pruebas de validación y auditoría aprobadas. Se verificaron importación CommonJS/ESM, DTO de pago, EIP-712 y mensajes Reown. Firma, recuperación y exportación con cuentas reales quedan fuera de las pruebas demo.
 - Verificación del candidato: build y TypeScript correctos (546 páginas), lint dirigido y escaneo del bundle limpios, 1.959/1.959 unitarios y 14 casos de navegador aprobados entre la corrida y el reintento de legales. La primera compilación incremental incorporó la importación sólo en TypeScript; se reconstruyó antes de aprobar navegador.
 - Cambios preparados en la rama aislada `codex/release-ui-20261117`. Se conserva el estado de dinero real. Evidencia local en `tmp/ui-approved-baseline/t71-*.log`.
+## T81 — Confirmaciones para la web (2026-11-21)
+- Comprobante compartido con onda para compras y ventas de acciones a mercado y compraventas de cripto cuando la orden queda confirmada. Se conservan los controles de acceso y ejecución existentes.
+- La orden límite guardada en la demo usa un fundido neutro y estado visible «Pendiente».
+- Billetera vuelve a consultar el historial cada 20 s mientras se está viendo un depósito pendiente en una pestaña activa. La onda se reproduce una vez si el estado cambia a confirmado durante esa visita al detalle.
+- La biblioteca se carga bajo demanda. La animación y su alternativa de fundido quedan separadas del texto, de los importes y de los botones del comprobante.
+- ESLint, 23 pruebas focalizadas y simulación en Chromium verificadas, incluido el sondeo del depósito y su detención al confirmar. La prueba del efecto mantuvo la política de seguridad del navegador sin bloqueos nuevos. Pendientes para publicar: compilación completa y revisión en dispositivo físico.
+
 ## T80 — Onda de confirmación en compras demo (2026-11-21)
 - Dependencia `distortion-waves` 0.1.0 para el efecto visual del comprobante. Se limita a compras a mercado confirmadas de la cuenta demo y se carga de forma diferida.
 - `trade-sheet.tsx` precarga el módulo al revisar. `trade-confirmation-wave.tsx` dibuja una onda verde de alrededor de medio segundo detrás del encabezado y libera el canvas. El comprobante aparece de inmediato y el efecto usa una capa decorativa sin capturar datos del DOM.

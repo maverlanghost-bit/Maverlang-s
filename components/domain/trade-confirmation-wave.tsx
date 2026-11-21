@@ -3,6 +3,9 @@
 import { Component, useEffect, useRef, useState, type ReactNode, type RefObject } from "react";
 import type { DistortionWaveHandle, WaveStyleInput } from "distortion-waves";
 
+import { IconCheck } from "@/components/ui/icons";
+import { cn } from "@/lib/cn";
+
 type WaveComponent = typeof import("distortion-waves").DistortionWave;
 
 const REDUCED_MOTION = "(prefers-reduced-motion: reduce)";
@@ -101,5 +104,36 @@ export function TradeConfirmationWave({ source }: { source: RefObject<HTMLSpanEl
         <div className="size-full bg-bg" />
       </Wave>
     </WaveBoundary>
+  );
+}
+
+export function TradeConfirmationHeading({ title, summary, animate }: {
+  title: string;
+  summary: string;
+  animate: boolean;
+}) {
+  const check = useRef<HTMLSpanElement>(null);
+
+  return (
+    <div className={cn(
+      "flex items-start gap-3",
+      animate && "relative isolate overflow-hidden rounded-2xl border border-up/15 bg-bg p-3.5 sm:p-4",
+    )}>
+      {animate ? <TradeConfirmationWave source={check} /> : null}
+      <span
+        ref={check}
+        aria-hidden="true"
+        className={cn(
+          "mt-0.5 grid size-8 shrink-0 place-items-center rounded-full bg-fg text-bg",
+          animate && "relative z-10 bg-up text-white",
+        )}
+      >
+        <IconCheck className="size-4" />
+      </span>
+      <div className={cn("min-w-0", animate && "relative z-10")}>
+        <p className="text-xl leading-tight text-fg">{title}</p>
+        <p className="mt-1.5 text-[13px] leading-relaxed text-fg-body">{summary}</p>
+      </div>
+    </div>
   );
 }

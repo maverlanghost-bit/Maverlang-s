@@ -15,10 +15,11 @@ import {
 import { QuoteExchangeSummary } from "@/components/domain/quote-exchange-summary";
 import { Accordion } from "@/components/ui/accordion";
 import { CostBreakdown } from "@/components/domain/cost-breakdown";
+import { preloadTradeConfirmationWave, TradeConfirmationHeading } from "@/components/domain/trade-confirmation-wave";
 import { AmountInput } from "@/components/ui/amount-input";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { IconBack, IconCheck } from "@/components/ui/icons";
+import { IconBack } from "@/components/ui/icons";
 import { Sheet } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { site } from "@/config/site";
@@ -322,6 +323,10 @@ function CryptoFlow({
   const busy = phase === "signing" || phase === "submitting" || phase === "done" || phase === "error";
 
   useEffect(() => {
+    if (phase === "review") preloadTradeConfirmationWave();
+  }, [phase]);
+
+  useEffect(() => {
     mounted.current = true;
     return () => {
       mounted.current = false;
@@ -515,18 +520,7 @@ function CryptoFlow({
     return (
       <div className="flex min-h-0 flex-1 flex-col">
         <div className="flex flex-col gap-6 pb-8">
-          <div className="flex items-start gap-3">
-            <span
-              aria-hidden
-              className="mt-0.5 grid size-8 shrink-0 place-items-center rounded-full bg-fg text-bg"
-            >
-              <IconCheck className="size-4" />
-            </span>
-            <div className="min-w-0">
-              <p className="text-xl leading-tight text-fg">{t.trade.done}</p>
-              <p className="mt-1.5 text-[13px] leading-relaxed text-fg-body">{summary}</p>
-            </div>
-          </div>
+          <TradeConfirmationHeading key={result.id} title={t.trade.done} summary={summary} animate={result.status === "confirmed"} />
 
           <dl className="divide-y divide-border border-y border-border">
             <StatementRow label="Folio" value={`#MV-${result.id.slice(0, 8).toUpperCase()}`} />
