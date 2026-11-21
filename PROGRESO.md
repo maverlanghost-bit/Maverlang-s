@@ -1,5 +1,13 @@
 # PROGRESO — Maverlang
 
+## T73 — Preparación de órdenes límite estrictas para xStocks (2026-11-21)
+- Decisión de Manu: máximo al comprar y mínimo al vender por acción mostrada. La liquidación del par usa USDC.
+- `stock-limit-terms.ts`: conversión exacta a unidades atómicas con enteros, multiplicador binary64 y redondeo que protege el límite. Compra por monto en USDC y venta por cantidad de acciones.
+- `POST /api/trade/limit/preview` → `getServices().stockLimits`: valida sesión, billetera, beta, compuertas reales y catálogo. Lee el mint Token-2022 y el multiplicador del slot observado y pausa cerca de cambios programados. Devuelve cantidades de referencia, sin registrar ni financiar una orden.
+- Jupiter Trigger V2 deriva su mínimo de precios y tolerancia. V1 permite fijar cantidades crudas, pero una orden pendiente de xStocks necesita comprobar el multiplicador vigente durante la liquidación final.
+- Pendiente: integrar y validar un ejecutor que imponga ese límite al liquidar. Faltan firma, registro, cancelación y conciliación de órdenes reales, además de cerrar los bloqueantes del handoff antes de habilitarlas.
+- Verificación focalizada: 10 casos con lectura de Solana simulada y revisión de la estructura pública del mint NVDAx, incluido su hook inactivo. Sin dependencias, compilación pesada, operaciones reales, cambios de flags, migraciones, push ni deploy.
+
 ## T72 — Fichas de activos, operación en USD y órdenes límite demo (2026-11-20)
 - Gráficos de acciones y cripto: área por defecto, línea y velas sólo con OHLC verificado; color según el rendimiento del rango y referencias identificadas. Pantalla completa con logo.
 - Herramientas: grupos de estilo, visualización e indicadores. Los controles se distribuyen en varias filas y el menú usa el Sheet existente en móvil.

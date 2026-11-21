@@ -36,6 +36,11 @@ import {
   type ProfileUpdate,
 } from "@/lib/api/contracts";
 import { httpStatusFor, type ApiErrorCode } from "@/lib/api/result";
+import {
+  stockLimitPreviewSchema,
+  type StockLimitPreview,
+  type StockLimitPreviewRequest,
+} from "@/lib/api/stock-limit-contracts";
 import { ASSET_STATUS_BATCH_MAX } from "@/lib/market/asset-status.shared";
 import { todayBoardSchema, type TodayBoard } from "@/lib/market/movers";
 import type {
@@ -308,6 +313,10 @@ export function getHistories(symbols: readonly string[], range: Range = "1W"): P
 
 export function quoteTrade(body: TradeQuoteRequest, mockError?: string | null): Promise<TradeQuote> {
   return send("POST", withMockQuery("/api/trade/quote", mockError), tradeQuoteSchema, body);
+}
+
+export function previewStockLimit(body: StockLimitPreviewRequest): Promise<StockLimitPreview> {
+  return send("POST", "/api/trade/limit/preview", stockLimitPreviewSchema, body);
 }
 
 export function buildTrade(body: TradeBuildRequest, mockError?: string | null): Promise<TradeBuildResponse> {
