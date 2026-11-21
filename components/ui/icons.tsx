@@ -57,6 +57,16 @@ export function IconCheck(props: IconProps) {
   );
 }
 
+export function IconHelp(props: IconProps) {
+  return (
+    <svg viewBox="0 0 16 16" fill="none" {...base(props)}>
+      <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.5" />
+      <path d="M6.25 6.25a1.75 1.75 0 1 1 2.52 1.57C8.27 8.06 8 8.4 8 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      <circle cx="8" cy="11.25" r=".75" fill="currentColor" />
+    </svg>
+  );
+}
+
 export function IconChart(props: IconProps) {
   return (
     <svg viewBox="0 0 16 16" fill="none" {...base(props)}>

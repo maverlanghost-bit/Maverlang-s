@@ -39,7 +39,7 @@ const LINKS = [
   { href: "/app/perfil/notificaciones", id: "notifications" },
   { href: "/app/ajustes", id: "settings" },
   { href: "/app/perfil/legal", id: "legal" },
-  { href: "/app/ayuda", id: "help" },
+  { href: "/ayuda", id: "help" },
 ] as const;
 
 /** Identidad sin caja: avatar, nombre y los dos datos que importan. */

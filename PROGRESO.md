@@ -9,6 +9,12 @@
 - Compatibilidad local: 13 pruebas de validación y auditoría aprobadas. Se verificaron importación CommonJS/ESM, DTO de pago, EIP-712 y mensajes Reown. Firma, recuperación y exportación con cuentas reales quedan fuera de las pruebas demo.
 - Verificación del candidato: build y TypeScript correctos (546 páginas), lint dirigido y escaneo del bundle limpios, 1.959/1.959 unitarios y 14 casos de navegador aprobados entre la corrida y el reintento de legales. La primera compilación incremental incorporó la importación sólo en TypeScript; se reconstruyó antes de aprobar navegador.
 - Cambios preparados en la rama aislada `codex/release-ui-20261117`. Se conserva el estado de dinero real. Evidencia local en `tmp/ui-approved-baseline/t71-*.log`.
+## T76 — Diseño de la ayuda con movimientos (2026-11-21)
+- `/ayuda` destaca los movimientos en la navegación y presenta pasos desplegables para depósitos ausentes, operaciones pendientes y diferencias de saldo.
+- La tarjeta de contacto muestra el correo configurado y un acceso a Actividad. Desde el detalle de un movimiento, el borrador de correo conserva el folio y el ID.
+- Se renovaron los accesos desde Billetera y el detalle, y se corrigió el enlace de Ayuda desde Perfil.
+- Verificación liviana con ESLint y vista aislada en Chromium a 320, 390 y 1440 px. Se comprobó el teclado, los enlaces, el estado sin correo y accesibilidad automática de la sección. Sin compilación completa ni despliegue.
+
 ## T75 — Seguimiento de movimientos y preparación de soporte (2026-11-21)
 - Billetera → Actividad abre el detalle con estado, fecha, folio, ID copiable, consulta del historial y enlace a Solscan cuando aplica. El buscador admite folio, ID y firma.
 - El servicio live conserva el estado registrado del movimiento y mapea acciones y USD según el lado de la orden.
