@@ -28,6 +28,7 @@ import { historyMemoTtl, scaleCloses, ticksForRange, ticksIfEnough } from "@/lib
 import { readHistoryWithMetadata } from "@/lib/services/price-ticks.supabase";
 import { readUnderlyingHistory } from "@/lib/services/underlying-prices.supabase";
 import { liveTrade } from "@/lib/services/trade.live";
+import { liveStockLimits } from "@/lib/services/stock-limits.live";
 import { mockTrade } from "@/lib/services/trade.mock";
 import { assertMockAuthAllowed, isSupabaseAuth } from "@/lib/auth/mode";
 import { supabaseSessionAuth } from "@/lib/services/auth.supabase";
@@ -82,6 +83,7 @@ export interface Services {
     submit(request: TradeSubmitRequest, userId: string): Promise<TradeSubmitResponse>;
     status(id: string): Promise<Order>;
   };
+  stockLimits?: typeof liveStockLimits;
   portfolio: {
     /** T43: `userId` opcional para calcular costo medio y P&L con las órdenes. */
     get(address: string, userId?: string): Promise<Portfolio>;
@@ -388,6 +390,7 @@ export function getServices(): Services {
       statuses: (symbols) => assetStatuses(symbols),
     },
     trade: dataLive ? liveTrade : mockTrade,
+    stockLimits: dataLive ? liveStockLimits : undefined,
     portfolio: dataLive ? livePortfolio : mockPortfolio,
     onramp: dataLive ? liveOnramp() : mockOnramp,
     users: supabaseSession ? rlsUsers : dataLive ? supabaseUsers : mockUsers,
