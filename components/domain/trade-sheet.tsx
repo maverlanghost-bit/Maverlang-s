@@ -143,10 +143,6 @@ function shownMoney(usd: number, currency: Currency, rate: number | null | undef
   return formatMoney(value, currency);
 }
 
-/**
- * Filas del detalle. El total va aparte (`CostBreakdown.total`) para que la
- * última línea tenga el peso de un estado de cuenta.
- */
 function quoteRows(t: Messages, quote: TradeQuote, currency: Currency, rate: number | null | undefined) {
   const fee =
     quote.costs.platformFeeBps === 0
@@ -155,19 +151,21 @@ function quoteRows(t: Messages, quote: TradeQuote, currency: Currency, rate: num
           percent: plainPercent.format(quote.costs.platformFeeBps / 10_000),
           amount: shownMoney(quote.costs.platformFeeUsd, currency, rate),
         });
-  const rows = [
-    { label: t.trade.price, value: shownMoney(quote.pricePerShareUsd, currency, rate) },
+  const fees = [
     { label: fill(t.trade.fee, { brand: site.name }), value: fee },
     { label: t.trade.network, value: solText(quote.costs.networkFeeSol) },
   ];
   if (quote.costs.tokenAccountRentSol > 0) {
-    rows.push({ label: t.trade.rent, value: solText(quote.costs.tokenAccountRentSol) });
+    fees.push({ label: t.trade.rent, value: solText(quote.costs.tokenAccountRentSol) });
   }
-  rows.push(
-    { label: t.trade.impact, value: plainPercent.format(quote.costs.priceImpactPct) },
-    { label: t.trade.slippage, value: plainPercent.format(quote.costs.slippageBps / 10_000) },
-  );
-  return rows;
+  return {
+    fees,
+    details: [
+      { label: t.trade.price, value: shownMoney(quote.pricePerShareUsd, currency, rate) },
+      { label: t.trade.impact, value: plainPercent.format(quote.costs.priceImpactPct) },
+      { label: t.trade.slippage, value: plainPercent.format(quote.costs.slippageBps / 10_000) },
+    ],
+  };
 }
 
 function blockCopy(
@@ -881,15 +879,19 @@ function TradeFlow({ side, ticker, onBusyChange }: { side: Side; ticker: Ticker;
   const labels = { USDC: "USD", SHARES: t.trade.shares } as const;
 
   if (phase === "review") {
-    const rows = quote && fresh ? quoteRows(t, quote, displayCurrency, fxRate) : null;
-    // Al vender, la cifra grande ya es el total recibido: no se repite abajo.
-    const total =
-      quote && fresh && side === "buy"
-        ? {
-            label: isEnglish ? "Estimated total" : "Total estimado",
-            value: shownMoney(quote.inAmountUi, displayCurrency, fxRate),
-          }
-        : undefined;
+    const reviewQuote = fresh ? quote : null;
+    const breakdown = reviewQuote ? quoteRows(t, reviewQuote, displayCurrency, fxRate) : null;
+    const buying = side === "buy";
+    const from = reviewQuote
+      ? buying
+        ? shownMoney(reviewQuote.inAmountUi, displayCurrency, fxRate)
+        : `${formatShares(reviewQuote.inAmountUi)} ${ticker.symbol}`
+      : "—";
+    const to = reviewQuote
+      ? buying
+        ? `${formatShares(reviewQuote.outAmountUi)} ${ticker.symbol}`
+        : shownMoney(reviewQuote.outAmountUi, displayCurrency, fxRate)
+      : "—";
 
     return (
       <div className="flex min-h-0 flex-1 flex-col">
@@ -906,10 +908,15 @@ function TradeFlow({ side, ticker, onBusyChange }: { side: Side; ticker: Ticker;
             <span className="num text-[12px] uppercase tracking-[0.045em] text-fg-muted">{ticker.symbol}</span>
           </div>
 
-          <QuoteExchangeSummary label={isEnglish ? "Quote summary" : "Resumen de la cotización"} fromLabel={isEnglish ? "You pay" : "Pagas"} toLabel={t.trade.youReceive}
-            from={quote && fresh ? side === "buy" ? shownMoney(quote.inAmountUi, displayCurrency, fxRate) : `${formatShares(quote.inAmountUi)} ${ticker.symbol}` : "—"}
-            to={quote && fresh ? side === "buy" ? `${formatShares(quote.outAmountUi)} ${ticker.symbol}` : shownMoney(quote.outAmountUi, displayCurrency, fxRate) : "—"}
-            note={isEnglish ? "Estimated amounts for this quote. Network and other costs are detailed below." : "Montos estimados para esta cotización. Los costes de red y otros cargos se detallan abajo."} />
+          <QuoteExchangeSummary
+            label={isEnglish ? "Estimated exchange" : "Montos estimados"}
+            fromLabel={buying ? (isEnglish ? "You pay" : "Pagas") : (isEnglish ? "You sell" : "Vendes")}
+            toLabel={t.trade.youReceive}
+            from={from}
+            to={to}
+            feeLabel={isEnglish ? "Fees and network costs" : "Comisiones y costos de red"}
+            fees={breakdown?.fees}
+          />
 
           {quote && !quoting && !quoteError ? (
             <QuoteValidity
@@ -939,7 +946,11 @@ function TradeFlow({ side, ticker, onBusyChange }: { side: Side; ticker: Ticker;
             <MarketStatusPill open={false} label={market.data.session === "closed" ? t.market.closed : t.market.offHours} />
           ) : null}
 
-          {rows ? <Accordion defaultValue={["costs"]} items={[{ id: "costs", title: isEnglish ? "Costs and execution details" : "Costes y detalle de ejecución", content: <CostBreakdown rows={rows} total={total} /> }]} /> : null}
+          {breakdown ? <Accordion items={[{
+            id: "details",
+            title: isEnglish ? "Execution details" : "Detalle de ejecución",
+            content: <CostBreakdown rows={breakdown.details} />,
+          }]} /> : null}
 
           {fresh && quote ? (
             <TradeImpactPreview

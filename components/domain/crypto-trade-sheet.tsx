@@ -243,7 +243,7 @@ function CryptoFlow({
   onDone?: () => void;
   onBusyChange: (busy: boolean) => void;
 }) {
-  const { t } = useT();
+  const { t, language } = useT();
   const session = useSession();
   const queryClient = useQueryClient();
   const portfolio = usePortfolio();
@@ -684,38 +684,43 @@ function CryptoFlow({
         : "El equivalente en dólares aparece al cotizar.";
 
   if (phase === "review") {
-    const rows: { label: string; value: string }[] = [];
-    let total: { label: string; value: string } | undefined;
-    if (quote && fresh) {
-      rows.push(
-        { label: `Precio por ${symbol}`, value: formatPrice(quote.pricePerShareUsd) ?? "sin dato" },
+    const en = language === "en";
+    const buying = mode === "buy";
+    const reviewQuote = fresh ? quote : null;
+    const fees: { label: string; value: string }[] = [];
+    if (reviewQuote) {
+      const costs = reviewQuote.costs;
+      fees.push(
         {
           label: fill(t.trade.fee, { brand: site.name }),
           value:
-            quote.costs.platformFeeBps === 0
+            costs.platformFeeBps === 0
               ? t.trade.feeFree
               : fill(t.trade.feeLine, {
-                  percent: percentFormatter.format(quote.costs.platformFeeBps / 10_000),
-                  amount: formatMoney(quote.costs.platformFeeUsd, "USD"),
+                  percent: percentFormatter.format(costs.platformFeeBps / 10_000),
+                  amount: formatMoney(costs.platformFeeUsd, "USD"),
                 }),
         },
-        { label: t.trade.network, value: `${tokenFormatter.format(quote.costs.networkFeeSol)} SOL` },
+        { label: t.trade.network, value: `${tokenFormatter.format(costs.networkFeeSol)} SOL` },
       );
-      if (quote.costs.tokenAccountRentSol > 0) {
-        rows.push({
+      if (costs.tokenAccountRentSol > 0) {
+        fees.push({
           label: t.trade.rent,
-          value: `${tokenFormatter.format(quote.costs.tokenAccountRentSol)} SOL`,
+          value: `${tokenFormatter.format(costs.tokenAccountRentSol)} SOL`,
         });
       }
-      rows.push(
-        { label: t.trade.impact, value: percentFormatter.format(quote.costs.priceImpactPct) },
-        { label: t.trade.slippage, value: percentFormatter.format(quote.costs.slippageBps / 10_000) },
-      );
-      total = {
-        label: "Total estimado",
-        value: formatMoney(mode === "buy" ? quote.inAmountUi : quote.outAmountUi, "USD"),
-      };
     }
+    const details = reviewQuote ? [
+      { label: en ? `Price per ${symbol}` : `Precio por ${symbol}`, value: formatPrice(reviewQuote.pricePerShareUsd) ?? "—" },
+      { label: t.trade.impact, value: percentFormatter.format(reviewQuote.costs.priceImpactPct) },
+      { label: t.trade.slippage, value: percentFormatter.format(reviewQuote.costs.slippageBps / 10_000) },
+    ] : null;
+    const from = reviewQuote
+      ? buying ? formatMoney(reviewQuote.inAmountUi, "USD") : `${tokenAmount(reviewQuote.inAmountUi)} ${symbol}`
+      : "—";
+    const to = reviewQuote
+      ? buying ? `${tokenAmount(reviewQuote.outAmountUi)} ${symbol}` : formatMoney(reviewQuote.outAmountUi, "USD")
+      : "—";
 
     return (
       <div className="flex min-h-0 flex-1 flex-col">
@@ -732,9 +737,21 @@ function CryptoFlow({
             <span className="num text-[13px] tracking-[0.01em] text-fg-muted">{symbol}</span>
           </div>
 
-          <QuoteExchangeSummary label="Resumen de la cotización" fromLabel="Pagas" toLabel={t.trade.youReceive} from={quote && fresh ? mode === "buy" ? formatMoney(quote.inAmountUi, "USD") : `${tokenAmount(quote.inAmountUi)} ${symbol}` : "—"} to={quote && fresh ? mode === "buy" ? `${tokenAmount(quote.outAmountUi)} ${symbol}` : formatMoney(quote.outAmountUi, "USD") : "—"} note="Montos estimados para esta cotización. Los costes de red y otros cargos se detallan abajo." />
+          <QuoteExchangeSummary
+            label={en ? "Estimated exchange" : "Montos estimados"}
+            fromLabel={buying ? (en ? "You pay" : "Pagas") : (en ? "You sell" : "Vendes")}
+            toLabel={t.trade.youReceive}
+            from={from}
+            to={to}
+            feeLabel={en ? "Fees and network costs" : "Comisiones y costos de red"}
+            fees={fees}
+          />
 
-          {rows.length > 0 ? <Accordion defaultValue={["costs"]} items={[{ id: "costs", title: "Costes y detalle de ejecución", content: <CostBreakdown rows={rows} total={total} /> }]} /> : null}
+          {details ? <Accordion items={[{
+            id: "details",
+            title: en ? "Execution details" : "Detalle de ejecución",
+            content: <CostBreakdown rows={details} />,
+          }]} /> : null}
 
           <p className="text-[13px] leading-relaxed text-fg-muted">
             {quote && quote.route !== "mock"

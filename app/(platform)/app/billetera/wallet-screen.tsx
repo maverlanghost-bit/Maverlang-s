@@ -3,12 +3,13 @@
 import Link from "next/link";
 import { useState, type ReactNode } from "react";
 
-import { ActivityItem } from "@/components/domain/activity-item";
+import { ActivityItem, activityFolio } from "@/components/domain/activity-item";
 import { CsvExportButton } from "@/components/domain/csv-export-button";
 import { DemoAddressNotice } from "@/components/domain/demo-address-notice";
 import { PriceText } from "@/components/domain/price-text";
 import { RealAccountEmpty } from "@/components/domain/real-account-empty";
 import { TickerLogo } from "@/components/domain/ticker-logo";
+import { MOVEMENT_HELP_HREF, WalletActivitySheet } from "@/components/domain/wallet-activity-sheet";
 import { WalletVaultHeader } from "@/components/domain/wallet-vault-header";
 import type { BadgeTone } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -31,7 +32,6 @@ import { displayPrice } from "@/lib/market/browse";
 import type { Activity, ActivityKind, Balance, Currency, OrderStatus, Ticker } from "@/lib/types";
 import { groupBySantiagoDay } from "@/lib/wallet/days";
 import { formatAssetAmount } from "@/lib/wallet/display";
-import { explorerTxUrl } from "@/lib/wallet/explorer";
 import { formatSol, solIsLow } from "@/lib/wallet/send-cost";
 
 const DEPOSIT_HREF = "/app/billetera/depositar";
@@ -198,6 +198,7 @@ function AssetRow({
 
 export function WalletScreen() {
   const { t, language, currency } = useT();
+  const en = language === "en";
   const copy = EMPTY_COPY[language];
   const session = useSession();
   const { mode } = useAccountMode();
@@ -208,6 +209,7 @@ export function WalletScreen() {
   const fx = useFx();
   const [activityFilter, setActivityFilter] = useState<ActivityFilter>("all");
   const [activityQuery, setActivityQuery] = useState("");
+  const [selection, setSelection] = useState<{ id: string; mode: typeof mode } | null>(null);
 
   if (session.status === "loading" || balances.isPending) {
     return <LoadingState label={t.states.loading} />;
@@ -255,6 +257,8 @@ export function WalletScreen() {
   const showZeroBalance = !masked && rows.length > 0 && usdcUi <= 0 && !hasPositions;
 
   const allActivities = activity.data ?? [];
+  const selectedId = selection?.mode === mode ? selection.id : null;
+  const selected = allActivities.find((row) => row.id === selectedId);
   const byFilter =
     activityFilter === "all"
       ? allActivities
@@ -269,10 +273,10 @@ export function WalletScreen() {
           (row) =>
             row.symbol.toLowerCase().includes(activityTerm) ||
             row.kind.toLowerCase().includes(activityTerm) ||
+            row.id.toLowerCase().includes(activityTerm) ||
+            activityFolio(row.id).toLowerCase().includes(activityTerm) ||
             (row.signature ?? "").toLowerCase().includes(activityTerm),
         );
-  const buyCount = allActivities.filter((row) => row.kind === "buy").length;
-  const sellCount = allActivities.length - buyCount;
 
   return (
     <div className="flex flex-col gap-6">
@@ -419,21 +423,20 @@ export function WalletScreen() {
               type="search"
               value={activityQuery}
               onChange={(e) => setActivityQuery(e.target.value)}
-              placeholder="Buscar por símbolo (ej. NVDAx, USDC) o hash..."
-              aria-label="Buscar en actividad"
+              placeholder={en ? "Search by symbol, reference or signature" : "Buscar por símbolo, folio o firma"}
+              aria-label={en ? "Search activity" : "Buscar en actividad"}
               className="w-full sm:max-w-sm"
             />
             <p className="text-[13px] leading-relaxed tabular-nums text-fg-muted">
-              {`${allActivities.length} movimientos · ${buyCount} compras · ${sellCount} ventas y retiros`}
               {activityTerm.length > 0
-                ? ` · ${filteredActivities.length} ${filteredActivities.length === 1 ? "resultado" : "resultados"}`
-                : ""}
+                ? `${filteredActivities.length} ${en ? (filteredActivities.length === 1 ? "result" : "results") : (filteredActivities.length === 1 ? "resultado" : "resultados")}`
+                : `${allActivities.length} ${en ? (allActivities.length === 1 ? "movement" : "movements") : (allActivities.length === 1 ? "movimiento" : "movimientos")}`}
             </p>
           </div>
         ) : null}
         {activityTerm.length > 0 && filteredActivities.length === 0 ? (
           <p role="status" className="mt-3 rounded-xl border border-border bg-surface-1 px-4 py-3 text-[13px] leading-relaxed text-fg-muted">
-            Sin resultados para «{activityQuery.trim()}». Revisa el símbolo o el hash de la transacción, o limpia el buscador para ver todo el historial.
+            {en ? `No results for “${activityQuery.trim()}”. Check the symbol, reference or signature.` : `Sin resultados para «${activityQuery.trim()}». Revisa el símbolo, el folio o la firma.`}
           </p>
         ) : (
           <ActivityList
@@ -448,9 +451,31 @@ export function WalletScreen() {
               void activity.refetch();
             }}
             onShowAll={() => setActivityFilter("all")}
+            onOpen={(id) => setSelection({ id, mode })}
           />
         )}
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 rounded-xl border border-border bg-surface-1 px-4 py-2">
+          <p className="text-sm font-medium text-fg">{en ? "Looking for a movement?" : "¿Falta algún movimiento?"}</p>
+          <Button asChild variant="ghost" size="sm" className="-ml-3 sm:-ml-0">
+            <Link href={MOVEMENT_HELP_HREF}>{en ? "Movement help" : "Ayuda con movimientos"} <span aria-hidden="true">→</span></Link>
+          </Button>
+        </div>
       </Card>
+      {selectedId ? (
+        <WalletActivitySheet
+          key={selectedId}
+          id={selectedId}
+          row={selected}
+          tone={selected ? STATUS_TONE[selected.status] : "neutral"}
+          amount={selected ? activityDetail(selected, masked, t.shell.balanceHidden, currency, rate) : null}
+          demo={mode === "demo"}
+          onClose={() => setSelection(null)}
+          onRefresh={async () => {
+            const result = await activity.refetch();
+            return result.isSuccess && result.data.some((row) => row.id === selectedId);
+          }}
+        />
+      ) : null}
     </div>
   );
 }
@@ -505,6 +530,7 @@ function ActivityList({
   hasActivity,
   onRetry,
   onShowAll,
+  onOpen,
 }: {
   pending: boolean;
   error: boolean;
@@ -515,6 +541,7 @@ function ActivityList({
   hasActivity: boolean;
   onRetry: () => void;
   onShowAll: () => void;
+  onOpen: (id: string) => void;
 }) {
   const { t, language } = useT();
   const copy = EMPTY_COPY[language];
@@ -583,9 +610,7 @@ function ActivityList({
                   dateTime={row.at}
                   status={t.portfolio.status[row.status]}
                   tone={STATUS_TONE[row.status]}
-                  explorerHref={row.signature ? explorerTxUrl(row.signature) : null}
-                  explorerLabel={t.trade.explorer}
-                  explorerNew={t.trade.explorerNew}
+                  onOpen={() => onOpen(row.id)}
                 />
               </li>
             ))}
