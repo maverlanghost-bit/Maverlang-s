@@ -1,5 +1,13 @@
 # PROGRESO — Maverlang
 
+## T75 — Seguimiento de movimientos y preparación de soporte (2026-11-21)
+- Billetera → Actividad abre el detalle con estado, fecha, folio, ID copiable, consulta del historial y enlace a Solscan cuando aplica. El buscador admite folio, ID y firma.
+- El servicio live conserva el estado registrado del movimiento y mapea acciones y USD según el lado de la orden.
+- La confirmación de acciones y cripto muestra qué se paga o vende, qué se recibe y los costos estimados. El precio unitario, impacto y deslizamiento siguen disponibles en el detalle.
+- El centro de ayuda cubre depósitos ausentes, operaciones pendientes y diferencias de saldo. El contacto usa `NEXT_PUBLIC_SUPPORT_EMAIL` cuando está configurado.
+- `docs/SOPORTE-MOVIMIENTOS.md` deja roles, diagnóstico, mensajes y tres ensayos de staging. Pendientes de lanzamiento: asignar responsables, verificar el buzón y realizar los ensayos.
+- ESLint focalizado y 17 pruebas de actividad y rutas OK. Revisión visual en navegador, compilación y suite completa por indicación de Manu. Sin activación de dinero real ni despliegue.
+
 ## T74 — Lista de pendientes para publicar la plataforma (2026-11-21)
 - Nueva guía en `docs/PENDIENTES-PRODUCCION.md` con pasos y condiciones para publicar la demo, habilitar fondos reales y habilitar órdenes límite.
 - Incluye configuración y verificación de Upstash, estado del ejecutor de órdenes y qué falta validar en Vercel, Supabase, retiros, cumplimiento y operación.

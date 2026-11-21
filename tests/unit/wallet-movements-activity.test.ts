@@ -15,12 +15,17 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const state = vi.hoisted(() => ({
   rows: null as unknown,
+  orderRows: [] as unknown[],
   error: null as unknown,
   tables: [] as string[],
   selects: [] as string[],
   filters: [] as string[],
   orders: [] as string[],
   limits: [] as number[],
+}));
+
+vi.mock("@/lib/services/orders.supabase", () => ({
+  listOrdersForActivity: async () => state.orderRows,
 }));
 
 vi.mock("@/lib/supabase/admin", () => {
@@ -62,6 +67,8 @@ import {
   listUserWalletMovements,
   walletMovementsStore,
 } from "@/lib/services/wallet-movements.supabase";
+import { livePortfolio } from "@/lib/services/portfolio.live";
+import { USDC_MINT } from "@/config/tickers";
 
 /** Fila cruda tal como la devuelve PostgREST (snake_case). */
 function rawRow(overrides: Record<string, unknown> = {}): Record<string, unknown> {
@@ -83,6 +90,7 @@ function rawRow(overrides: Record<string, unknown> = {}): Record<string, unknown
 
 beforeEach(() => {
   state.rows = null;
+  state.orderRows = [];
   state.error = null;
   state.tables.length = 0;
   state.selects.length = 0;
@@ -216,5 +224,36 @@ describe("walletMovementsStore: el feed queda expuesto en el store", () => {
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({ id: "mov-1", userId: "user-1", kind: "deposit" });
     expect(state.limits).toEqual([10]);
+  });
+});
+
+describe("livePortfolio.activity", () => {
+  it("conserva el estado y el ID de los movimientos cuando se vuelven a consultar", async () => {
+    const withdraw = { id: "withdraw-1", kind: "withdraw", mint: USDC_MINT, amount_ui: 25 };
+    state.rows = [rawRow({ ...withdraw, status: "pending", confirmed_at: null })];
+    const account = { address: "11111111111111111111111111111111", userId: "user-1" };
+
+    await expect(livePortfolio.activity(account)).resolves.toMatchObject([
+      { id: "withdraw-1", kind: "withdraw", symbol: "USDC", amountUi: 25, status: "pending" },
+    ]);
+
+    state.rows = [rawRow({ ...withdraw, status: "failed", confirmed_at: null })];
+    await expect(livePortfolio.activity(account)).resolves.toMatchObject([
+      { id: "withdraw-1", status: "failed" },
+    ]);
+  });
+
+  it("mapea acciones y USD según el lado de la orden", async () => {
+    const order = { symbol: "NVDAx", status: "confirmed", signature: null, created_at: "2026-11-01T10:00:00.000Z" };
+    state.orderRows = [
+      { ...order, id: "buy-1", side: "buy", in_amount_ui: 60, out_amount_ui: 0.5 },
+      { ...order, id: "sell-1", side: "sell", in_amount_ui: 0.2, out_amount_ui: 24 },
+    ];
+
+    await expect(livePortfolio.activity({ address: "11111111111111111111111111111111", userId: "user-1" }))
+      .resolves.toMatchObject([
+        { id: "buy-1", amountUi: 0.5, valueUsd: 60 },
+        { id: "sell-1", amountUi: 0.2, valueUsd: 24 },
+      ]);
   });
 });

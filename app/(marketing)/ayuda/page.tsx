@@ -2,8 +2,9 @@ import Link from "next/link";
 import { PageHero } from "@/components/landing/page-hero";
 import { PageLinkCards } from "@/components/landing/page-link-cards";
 import { LandingSection, SectionHeader } from "@/components/landing/section";
+import { Button } from "@/components/ui/button";
 import { DisclosureList, type DisclosureItem } from "@/components/ui/disclosure-list";
-import { site } from "@/config/site";
+import { site, supportMailto } from "@/config/site";
 import { getFaq, type FaqEntry, type FaqPart } from "@/lib/content/faq";
 import { faqPageJsonLd, JsonLd } from "@/lib/seo/jsonld";
 import { brandShort, pageMetadata } from "@/lib/seo/metadata";
@@ -53,6 +54,12 @@ const GUIDES = [
 const inlineLinkClass =
   "font-medium text-fg underline decoration-border underline-offset-4 hover:decoration-fg";
 
+const MOVEMENT_CASES = [
+  { title: "El depósito no aparece", body: "Busca la firma en la billetera de origen. Comprueba que la transferencia se hizo en Solana a la dirección que aparece en Recibir." },
+  { title: "La operación sigue pendiente", body: "Abre el movimiento en tu billetera y selecciona Consultar estado. Guarda el folio y espera la confirmación antes de repetir la operación." },
+  { title: "El saldo se ve distinto", body: "Actualiza la billetera, comprueba si estás en la cuenta demo o real y compara las unidades del activo con las del movimiento." },
+] as const;
+
 function FaqParts({ parts }: { parts: FaqPart[] }) {
   return (
     <>
@@ -97,6 +104,7 @@ function questionCount(count: number): string {
 /** Centro de ayuda: temas arriba, guías por tema y preguntas frecuentes abajo. */
 export default function AyudaPage() {
   const faq = getFaq(site.name);
+  const contactHref = supportMailto();
   const partir = faq.filter((entry) =>
     ["demo", "registro", "contrasena", "que-es"].includes(entry.id),
   );
@@ -159,6 +167,28 @@ export default function AyudaPage() {
       <LandingSection titleId="ayuda-guias" tone="muted" density="compact">
         <SectionHeader id="ayuda-guias" align="split" title="Guías por tema" />
         <PageLinkCards className="mt-8 md:mt-10" links={GUIDES} />
+      </LandingSection>
+
+      <LandingSection titleId="movimientos" density="compact">
+        <div className="rounded-bento border border-border bg-surface-1 p-5 sm:p-8">
+          <h2 id="movimientos" className="scroll-mt-24 text-2xl font-semibold tracking-tight sm:text-3xl">Ayuda con movimientos</h2>
+          <div className="mt-5 grid divide-y divide-border overflow-hidden rounded-xl border border-border bg-bg sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+            {MOVEMENT_CASES.map(({ title, body }) => (
+              <div key={title} className="p-4 sm:p-5">
+                <h3 className="text-sm font-semibold text-fg">{title}</h3>
+                <p className="mt-2 text-sm leading-relaxed text-fg-muted">{body}</p>
+              </div>
+            ))}
+          </div>
+          {contactHref ? (
+            <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
+              <p className="max-w-lg text-sm leading-relaxed text-fg-muted">
+                Si el problema sigue, comparte el folio o la firma pública y la hora aproximada. Mantén tus claves y códigos de acceso en privado.
+              </p>
+              <Button asChild variant="secondary"><a href={contactHref}>Contactar a soporte</a></Button>
+            </div>
+          ) : null}
+        </div>
       </LandingSection>
 
       {groups.map((group) => (
