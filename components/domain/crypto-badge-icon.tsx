@@ -1,3 +1,7 @@
+"use client";
+
+import { useState } from "react";
+import Image from "next/image";
 import type { CryptoGroup, CryptoSector } from "@/lib/catalog/crypto-types";
 import { cn } from "@/lib/cn";
 
@@ -170,23 +174,63 @@ function monogramFontSize(length: number, size: number): number {
   return Math.round(size * 0.25);
 }
 
+// Logos de CoinGecko, guardados como WebP de 96 × 96 en public/crypto.
+const LOGO_SYMBOLS = new Set([
+  "aave", "avax", "bnb", "bonk", "bsol", "btc", "doge", "drift", "dsol", "ena", "eth", "fartcoin",
+  "hnt", "hype", "inf", "jitosol", "jto", "jup", "jupsol", "kmno", "link", "ltc", "msol", "near",
+  "ondo", "orca", "paxg", "pengu", "pepe", "popcat", "pyth", "pyusd", "ray", "render", "sol",
+  "sui", "tao", "trump", "trx", "uni", "usd1", "usde", "usdg", "usds", "usdt", "usdy", "w",
+  "wif", "xaut0", "xrp", "zec",
+]);
+
 /**
  * Avatar circular cromático para tokens cripto.
- * 100 % CSS/DOM local (`'self'`), sin peticiones a imágenes de terceros.
+ * Usa logos locales con respaldo al monograma si falta la imagen.
  */
 export function CryptoBadgeIcon({
   symbol,
   group,
   sector,
   size = 36,
+  loading = "lazy",
   className,
 }: {
   symbol: string;
   group?: CryptoGroup;
   sector?: CryptoSector;
   size?: number;
+  loading?: "eager" | "lazy";
   className?: string;
 }) {
+  const normalized = symbol.trim().toLowerCase();
+  const src = LOGO_SYMBOLS.has(normalized) ? `/crypto/${normalized}.webp` : null;
+  const [failedSrc, setFailedSrc] = useState<string | null>(null);
+  const showFallback = src === null || failedSrc === src;
+
+  if (!showFallback) {
+    return (
+      <span
+        aria-hidden
+        className={cn(
+          "relative inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full ring-1 ring-black/10 select-none ring-inset",
+          className,
+        )}
+        style={{ width: size, height: size }}
+      >
+        <Image
+          src={src}
+          alt=""
+          width={size}
+          height={size}
+          loading={loading}
+          unoptimized
+          onError={() => setFailedSrc(src)}
+          className="h-full w-full object-cover"
+        />
+      </span>
+    );
+  }
+
   const swatch = resolveSwatch(symbol, group, sector);
   const darkInk = usesDarkInk(swatch);
   const label = monogramText(symbol);

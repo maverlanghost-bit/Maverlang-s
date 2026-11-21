@@ -38,8 +38,8 @@ function Key({ children }: { children: string }) {
 }
 
 /**
- * Ajustes: la misma lista con hairline que Perfil. Moneda e idioma son filas
- * de un panel; la verificación en dos pasos mantiene su bloque propio y los
+ * Ajustes: la misma lista con hairline que Perfil. El idioma y la verificación
+ * en dos pasos tienen su propio panel y los
  * atajos de teclado sólo aparecen donde hay teclado.
  */
 export function SettingsScreen() {
@@ -49,7 +49,7 @@ export function SettingsScreen() {
       <h1 className="sr-only">{t.pages.settings.title}</h1>
 
       <SettingsPanel label={t.profile.language}>
-        <PreferencesForm currencyFirst />
+        <PreferencesForm />
       </SettingsPanel>
 
       {/* MfaSettings trae su propio borde y radio: se alinea al radio del sistema sin tocar el componente. */}

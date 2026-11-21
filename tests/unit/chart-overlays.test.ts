@@ -16,7 +16,7 @@ describe("ChartStudyBar", () => {
     expect(markup).toBe("");
   });
 
-  it("muestra los chips en una fila con un solo InfoTip, sin aviso repetido", () => {
+  it("permite que los chips ocupen varias filas y conserva un solo InfoTip", () => {
     const markup = renderToStaticMarkup(
       createElement(ChartStudyBar, {
         copy,
@@ -37,9 +37,8 @@ describe("ChartStudyBar", () => {
       }),
     );
     expect(markup).toContain('aria-label="Indicadores del gráfico"');
-    expect(markup).toContain("overflow-x-auto");
-    expect(markup).toContain("flex-nowrap");
-    expect(markup).not.toContain("flex-wrap");
+    expect(markup).toContain("flex-wrap");
+    expect(markup).not.toContain("overflow-x-auto");
     expect(markup).toContain("whitespace-nowrap");
     expect(markup).toContain("vs S&amp;P 500");
     expect(markup).toContain("SMA 20");
@@ -155,7 +154,9 @@ describe("montaje en la ficha", () => {
     expect(panel).toContain("<RsiPanel");
     expect(panel).toContain("overlays={plotOverlays}");
     expect(panel).toContain("benchmark={plotBenchmark}");
-    expect(panel).toContain('chartStyle={technical && candlesAvailable ? draw : "line"}');
+    expect(panel).toContain('useState<ChartStyle>("area")');
+    expect(panel).toContain('draw === "candles" && !candlesAvailable ? "area" : draw');
+    expect(panel).toContain('chartStyle={chartStyle}');
     expect(panel).toContain("showVolume={technical && volumeAvailable && volumeOn}");
     expect(panel.split("copy.disclaimer").length - 1).toBe(1);
     expect(panel).toContain('import { SvgPriceChart } from "@/components/domain/svg-price-chart"');

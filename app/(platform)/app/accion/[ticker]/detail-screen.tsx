@@ -260,8 +260,6 @@ function AccountActions({
   primary,
   secondary,
   symbol,
-  underlying,
-  issuer,
   quote,
   currency,
   rate,
@@ -271,8 +269,6 @@ function AccountActions({
   primary: { href: string; label: string };
   secondary?: { href: string; label: string };
   symbol: string;
-  underlying: string;
-  issuer: Ticker["issuer"];
   quote: Quote | null;
   currency: Currency;
   rate: number | undefined;
@@ -323,8 +319,6 @@ function AccountActions({
       <BuyPriceBox
         divided={false}
         symbol={symbol}
-        underlying={underlying}
-        issuer={issuer}
         quote={quote}
         currency={currency}
         rate={rate}
@@ -337,8 +331,6 @@ function AccountActions({
 function BuyPriceBox({
   divided = true,
   symbol,
-  underlying,
-  issuer,
   quote,
   currency,
   rate,
@@ -346,23 +338,15 @@ function BuyPriceBox({
   /** Hairline superior cuando la caja sigue a un encabezado dentro de la ficha. */
   divided?: boolean;
   symbol: string;
-  underlying: string;
-  issuer: Ticker["issuer"];
   quote: Quote | null;
   currency: Currency;
   rate: number | undefined;
 }) {
-  const { t, language } = useT();
+  const { language } = useT();
   const fxKnown = typeof rate === "number" && Number.isFinite(rate) && rate > 0;
   const shownCurrency: Currency = currency === "CLP" && fxKnown ? "CLP" : "USD";
   const hasPrice = quote !== null && Number.isFinite(quote.priceUsd) && quote.priceUsd > 0;
   const primaryPrice = hasPrice && quote ? shownMoney(quote.priceUsd, shownCurrency, rate) : null;
-  const secondaryPrice =
-    hasPrice && quote && fxKnown && typeof rate === "number"
-      ? shownCurrency === "CLP"
-        ? formatMoney(quote.priceUsd, "USD")
-        : formatMoney(quote.priceUsd * rate, "CLP")
-      : null;
 
   return (
     <div className={cn(divided && "mt-5 border-t border-border pt-5")}>
@@ -375,23 +359,6 @@ function BuyPriceBox({
         )}
         {quote && Number.isFinite(quote.change24hPct) ? <ChangeBadge value={quote.change24hPct} /> : null}
       </div>
-      {secondaryPrice ? (
-        <p className={cn("num mt-2", NOTE)}>
-          {language === "en" ? `Approx. ${secondaryPrice} per share (${underlying})` : `Equivale a ${secondaryPrice} por acción (${underlying})`}
-        </p>
-      ) : null}
-      <dl className="mt-4 border-t border-border">
-        <div className="flex flex-col gap-0.5 border-b border-border py-2.5">
-          <dt className={METRIC_LABEL}>{language === "en" ? "Minimum" : "Inversión mínima"}</dt>
-          <dd className="text-[15px] leading-5 font-medium text-fg">
-            {language === "en" ? "Fractional shares" : "Desde fracciones"}
-          </dd>
-        </div>
-        <div className="flex flex-col gap-0.5 py-2.5">
-          <dt className={METRIC_LABEL}>{t.detail.issuer}</dt>
-          <dd className="text-[15px] leading-5 font-medium text-fg">{issuer}</dd>
-        </div>
-      </dl>
     </div>
   );
 }
@@ -435,8 +402,6 @@ function TradeActions({
   onBuy,
   onSell,
   symbol,
-  underlying,
-  issuer,
   quote,
   currency,
   rate,
@@ -456,8 +421,6 @@ function TradeActions({
   onBuy: () => void;
   onSell: () => void;
   symbol: string;
-  underlying: string;
-  issuer: Ticker["issuer"];
   quote: Quote | null;
   currency: Currency;
   rate: number | undefined;
@@ -589,7 +552,7 @@ function TradeActions({
           {chipText}
         </span>
       </div>
-      <BuyPriceBox symbol={symbol} underlying={underlying} issuer={issuer} quote={quote} currency={currency} rate={rate} />
+      <BuyPriceBox symbol={symbol} quote={quote} currency={currency} rate={rate} />
       <PositionRows
         position={position}
         pending={positionPending}
@@ -956,8 +919,6 @@ export function DetailScreen({
           onBuy={() => openOperar("comprar")}
           onSell={() => openOperar("vender")}
           symbol={ticker.symbol}
-          underlying={ticker.underlying}
-          issuer={ticker.issuer}
           quote={quote}
           currency={currency}
           rate={rate}
@@ -979,8 +940,6 @@ export function DetailScreen({
           aboveTabs
           primary={{ href: resume, label: t.detail.finishSignup }}
           symbol={ticker.symbol}
-          underlying={ticker.underlying}
-          issuer={ticker.issuer}
           quote={quote}
           currency={currency}
           rate={rate}
@@ -994,8 +953,6 @@ export function DetailScreen({
         primary={{ href: create, label: t.detail.signupToInvest }}
         secondary={{ href: enter, label: t.detail.loginToInvest }}
         symbol={ticker.symbol}
-        underlying={ticker.underlying}
-        issuer={ticker.issuer}
         quote={quote}
         currency={currency}
         rate={rate}
@@ -1079,6 +1036,7 @@ export function DetailScreen({
             <PricePanel
               symbol={ticker.symbol}
               name={ticker.name}
+              logoUrl={ticker.logo}
               quote={quote}
               pending={prices.isPending && quote === null}
               onRetry={() => {

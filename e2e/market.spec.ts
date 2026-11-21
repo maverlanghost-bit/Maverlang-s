@@ -7,8 +7,7 @@ import { expect, test } from "@playwright/test";
  *   acciones y ETFs con su contador "N acciones".
  * - Filtro por categoría (panel "Filtros"): ETFs deja sólo ETFs.
  * - Buscador en vivo ( diálogo "Buscar acciones", combobox con listbox).
- * - Cambio de moneda CLP/USD (radiogroup "Moneda" del sidebar; el dólar mock
- *   es 950, así que AAPLx ≈ $216.980 en CLP).
+ * - Precios en USD aunque el navegador conserve una preferencia CLP.
  * - Navegación a la ficha: la ruta real es `/app/accion/NVDAx`.
  */
 
@@ -116,38 +115,18 @@ test("mercado: buscador en vivo lleva a la ficha de NVDAx", async ({ page }) => 
   await expect(page.getByRole("heading", { level: 1, name: "NVIDIA" })).toBeVisible();
 });
 
-test("mercado: cambio de moneda CLP/USD en el sidebar", async ({ page }) => {
+test("mercado: muestra USD con una preferencia CLP anterior", async ({ page }) => {
+  await page.addInitScript(() => window.localStorage.setItem("mv_currency", "CLP"));
   await entrarDemo(page);
   await totalAcciones(page);
   await mostrarFila(page, "/app/accion/AAPLx");
 
-  // Precios en USD por defecto (preferencia inicial de la demo es CLP;
-  // el registro demo la fija en CLP, así que primero pasamos a USD).
-  // El interruptor vive en el menú del perfil del sidebar.
-  // El menú se cierra después de cada cambio para que no tape la lista, así
-  // que cada cambio lo vuelve a abrir.
-  const perfil = page.getByRole("button", { name: /Cuenta demo\. Ir a tu perfil/ });
-  async function elegirMoneda(nombre: "Moneda: USD" | "Moneda: CLP") {
-    await perfil.click();
-    const moneda = page.getByRole("menu", { name: "Ir a tu perfil" }).getByRole("radiogroup", { name: "Moneda" });
-    await moneda.getByRole("radio", { name: nombre }).click();
-    await expect(moneda.getByRole("radio", { name: nombre })).toBeChecked();
-    await perfil.click();
-    await expect(page.getByRole("menu", { name: "Ir a tu perfil" })).toHaveCount(0);
-  }
-  await elegirMoneda("Moneda: USD");
-
-  // Apple a US$ 228,40 (mock): el precio visible cambia de dólares.
   const apple = page.getByRole("region", { name: "Acciones" }).locator('a[href="/app/accion/AAPLx"]').first();
   await expect(apple).toContainText(/US\$228,40/);
-
-  // A CLP con el dólar mock de 950: 228,40 × 950 = 216.980.
-  await elegirMoneda("Moneda: CLP");
-  await expect(apple).toContainText(/\$216\.980/);
-
-  // Volver a USD para no dejar la preferencia cruzada en la sesión mock.
-  await elegirMoneda("Moneda: USD");
-  await expect(apple).toContainText(/US\$228,40/);
+  await page.getByRole("button", { name: /Cuenta demo\. Ir a tu perfil/ }).click();
+  const menu = page.getByRole("menu", { name: "Ir a tu perfil" });
+  await expect(menu).toBeVisible();
+  await expect(menu.getByRole("radiogroup", { name: "Moneda" })).toHaveCount(0);
 });
 
 test("mercado: la fila lleva a la ficha con volver al mercado", async ({ page }) => {

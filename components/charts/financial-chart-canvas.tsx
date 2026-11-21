@@ -100,7 +100,7 @@ export function FinancialChartCanvas(props: FinancialChartProps) {
       layout: { background: { type: ColorType.Solid, color: background }, textColor: "#5b5e63", fontFamily: "Geist, system-ui, sans-serif", fontSize: 11, attributionLogo: true },
       grid: { vertLines: { visible: false }, horzLines: { visible: false } },
       rightPriceScale: { borderVisible: false, scaleMargins: { top: 0.12, bottom: 0.12 }, minimumWidth: 70 },
-      timeScale: { borderVisible: false, rightOffset: 3, timeVisible: true, secondsVisible: false, fixLeftEdge: true },
+      timeScale: { borderVisible: false, rightOffset: 3, timeVisible: true, secondsVisible: false, fixLeftEdge: true, lockVisibleTimeRangeOnResize: true },
       crosshair: { mode: CrosshairMode.Normal, vertLine: { color: "#848484", labelBackgroundColor: "#1f1f1f" }, horzLine: { color: "#848484", labelBackgroundColor: "#1f1f1f" } },
       handleScroll: { mouseWheel: false, pressedMouseMove: true, horzTouchDrag: true, vertTouchDrag: false },
       handleScale: { mouseWheel: false, pinch: true, axisPressedMouseMove: true },
@@ -184,13 +184,20 @@ export function FinancialChartCanvas(props: FinancialChartProps) {
     const expected = new Set(renderedLayers.map((layer) => layer.id));
     const capabilities = chartCapabilities(baseRows, props.metadata);
     const validCandles = !percent && props.chartStyle === "candles" && capabilities.ohlc;
+    const showArea = props.chartStyle === "area" || (!props.chartStyle && !percent && !props.reference);
+    const timeScale = instance.timeScale();
+    const visibleRange = fitted.current === props.datasetKey ? timeScale.getVisibleLogicalRange() : null;
+    let replacedPrimary = false;
     for (const layer of renderedLayers) {
       const layerRows = layer.rows;
       const base = layer.base;
       const convert = (price: number) => percent ? (base > 0 ? (price / base - 1) * 100 : 0) : price * fx;
-      const kind: SeriesType = layer.logicalId === "asset" ? validCandles ? "Candlestick" : percent || props.reference ? "Line" : "Area" : "Line";
+      const kind: SeriesType = layer.logicalId === "asset"
+        ? validCandles ? "Candlestick" : showArea ? "Area" : "Line"
+        : "Line";
       let managed = series.current.get(layer.id);
       if (managed?.kind !== kind) {
+        if (managed && layer.id === "asset") replacedPrimary = true;
         if (managed) instance.removeSeries(managed.api);
         const api = kind === "Area" ? instance.addSeries(AreaSeries) : kind === "Candlestick" ? instance.addSeries(CandlestickSeries) : instance.addSeries(LineSeries);
         managed = { api: api as ISeriesApi<SeriesType>, kind, data: [] };
@@ -248,7 +255,12 @@ export function FinancialChartCanvas(props: FinancialChartProps) {
         return formatter.format(time * 1000);
       } },
     });
-    if (baseRows.length >= 2 && fitted.current !== props.datasetKey) { instance.timeScale().fitContent(); fitted.current = props.datasetKey; }
+    if (baseRows.length >= 2 && fitted.current !== props.datasetKey) {
+      timeScale.fitContent();
+      fitted.current = props.datasetKey;
+    } else if (visibleRange && replacedPrimary) {
+      timeScale.setVisibleLogicalRange(visibleRange);
+    }
   }, [raw, props.datasetKey, props.label, props.lineColor, props.overlays, props.benchmark, props.reference, props.tone, props.chartStyle, props.showVolume, props.metadata, props.showGrid, props.avgCostUsd, props.periodAvgUsd, fx, currency, percent, language, en, dateFormat, tickFormats, display]);
 
   useEffect(() => {

@@ -2,7 +2,7 @@ import { expect, test, type Locator } from "@playwright/test";
 
 /**
  * La demo mock parte con US$10.000 ficticios.
- * Registro → cartera (o su equivalente en CLP con el dólar mock de 950) →
+ * Registro → cartera en USD →
  * comprar US$100 → reiniciar → vuelve al inicial.
  * El estado en memoria lo comparten las pruebas, así que se reinicia
  * primero para partir de un estado conocido.
@@ -37,7 +37,7 @@ test("demo mock: US$10.000, compra US$100 y reinicio", async ({ page }) => {
   await page.getByRole("button", { name: "Reiniciar cuenta demo" }).click();
   await page.getByRole("button", { name: "Reiniciar", exact: true }).click();
   await expect(posicionApple).toHaveCount(0);
-  await expect.poll(() => monto(disponible)).toContain("$9.500.000");
+  await expect.poll(() => monto(disponible)).toContain("US$10.000");
 
   await page.goto("/app/accion/AAPLx");
   await page.getByRole("button", { name: "Comprar", exact: true }).click();
@@ -51,12 +51,12 @@ test("demo mock: US$10.000, compra US$100 y reinicio", async ({ page }) => {
   await sheet.getByRole("link", { name: "Ver en cartera" }).click();
 
   await expect(page).toHaveURL(/\/app\/cartera/);
-  await expect.poll(() => monto(disponible)).toContain("$9.405.000");
+  await expect.poll(() => monto(disponible)).toContain("US$9.900");
   await expect(posicionApple).toBeVisible();
 
   await page.getByRole("button", { name: "Reiniciar cuenta demo" }).click();
   await page.getByRole("button", { name: "Reiniciar", exact: true }).click();
   await expect(posicionApple).toHaveCount(0);
-  await expect.poll(() => monto(disponible)).not.toContain("$9.405.000");
-  await expect.poll(() => monto(disponible)).toContain("$9.500.000");
+  await expect.poll(() => monto(disponible)).not.toContain("US$9.900");
+  await expect.poll(() => monto(disponible)).toContain("US$10.000");
 });

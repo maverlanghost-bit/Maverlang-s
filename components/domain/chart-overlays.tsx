@@ -18,11 +18,9 @@ export const RSI_COLOR = "var(--color-fg, #0a0a0a)";
 const RSI_GUIDE = "#e5e5e5";
 const RSI_LEVELS = [30, 70] as const;
 
-/** Alto fijo de la fila de chips: el skeleton y los toggles ocupan lo mismo. */
-const STUDY_ROW = "mb-2 flex h-11 min-w-0 max-w-full items-center gap-1";
-/* 44 px en móvil (el chip mide h-11): con h-8 el contenedor recortaba los chips. */
+const STUDY_ROW = "flex min-w-0 items-start gap-1";
 const STUDY_SCROLL =
-  "flex h-11 min-w-0 flex-1 flex-nowrap items-center gap-1.5 overflow-x-auto overscroll-x-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:h-8";
+  "flex min-w-0 flex-1 flex-wrap items-center gap-1.5";
 
 function StudyChip({
   pressed,

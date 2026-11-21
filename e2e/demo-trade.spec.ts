@@ -42,8 +42,8 @@ async function reiniciarDemo(page: import("@playwright/test").Page) {
     .locator("xpath=following-sibling::div");
   await page.getByRole("button", { name: "Reiniciar cuenta demo" }).click();
   await page.getByRole("button", { name: "Reiniciar", exact: true }).click();
-  // US$10.000 × 950 (dólar mock) = $9.500.000 en la vista CLP por defecto.
-  await expect.poll(() => monto(disponible)).toContain("$9.500.000");
+  // La demo parte con US$10.000 de saldo.
+  await expect.poll(() => monto(disponible)).toContain("US$10.000");
   return disponible;
 }
 
@@ -81,8 +81,8 @@ test("demo: compra NVDAx por US$100 y la cartera se actualiza", async ({ page })
   await expect(nvda).toBeVisible();
   await expect(nvda).toContainText(/acc\./);
 
-  // El disponible bajó: 10.000 − 100 = 9.900 USD × 950 = $9.405.000.
-  await expect.poll(() => monto(disponible)).toContain("$9.405.000");
+  // El disponible baja US$100.
+  await expect.poll(() => monto(disponible)).toContain("US$9.900");
 });
 
 test("demo: el historial de órdenes registra la compra", async ({ page }) => {
@@ -189,7 +189,7 @@ test("demo: reinicio de cuenta borra posiciones y vuelve al saldo inicial", asyn
   const disponible = page
     .getByRole("heading", { name: "Disponible para invertir" })
     .locator("xpath=following-sibling::div");
-  await expect.poll(() => monto(disponible)).toContain("$9.500.000");
+  await expect.poll(() => monto(disponible)).toContain("US$10.000");
 
   // El historial queda vacío tras el reinicio.
   const historial = page.getByRole("heading", { name: "Historial de órdenes" }).locator("xpath=following-sibling::div");

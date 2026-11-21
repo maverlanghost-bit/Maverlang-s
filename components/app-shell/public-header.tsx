@@ -6,7 +6,6 @@ import { usePathname, useSearchParams } from "next/navigation";
 
 import { BrandMark } from "@/components/app-shell/brand-mark";
 import { StockSearchButton } from "@/components/app-shell/stock-search";
-import { CurrencySwitch } from "@/components/app-shell/currency-switch";
 import { Button } from "@/components/ui/button";
 import { IconButton } from "@/components/ui/icon-button";
 import { IconMenu } from "@/components/ui/icons";
@@ -59,7 +58,6 @@ function PublicHeaderBar({ here }: { here: string }) {
         </nav>
         <div className="ml-auto flex shrink-0 items-center gap-1 min-[400px]:gap-1.5">
           <StockSearchButton variant="icon" />
-          <CurrencySwitch compact className="mr-1 hidden min-[560px]:inline-flex" />
           <Button
             asChild
             variant="ghost"
@@ -103,9 +101,6 @@ function PublicHeaderBar({ here }: { here: string }) {
             </Link>
           ))}
         </nav>
-        <div className="mt-5 flex justify-center">
-          <CurrencySwitch />
-        </div>
       </Sheet>
     </header>
   );

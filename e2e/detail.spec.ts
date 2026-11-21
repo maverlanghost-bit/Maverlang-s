@@ -28,13 +28,6 @@ test("ficha: encabezado, precio y estadísticas clave de NVDAx", async ({ page }
   await expect(page.getByText("NVDAx").first()).toBeVisible();
   await expect(page.getByText("NVDA", { exact: true }).first()).toBeVisible();
 
-  // La demo parte en CLP: pasamos a USD para verificar el precio ancla.
-  // El interruptor vive en el menú del perfil del sidebar.
-  await page.getByRole("button", { name: /Cuenta demo\. Ir a tu perfil/ }).click();
-  const menuPerfil = page.getByRole("menu", { name: "Ir a tu perfil" });
-  await menuPerfil.getByRole("radiogroup", { name: "Moneda" }).getByRole("radio", { name: "Moneda: USD" }).click();
-  await page.getByRole("button", { name: /Cuenta demo\. Ir a tu perfil/ }).click();
-
   // Precio mock de NVDAx: US$131,15.
   await expect(page.getByText(/US\$131,15/).first()).toBeVisible();
 

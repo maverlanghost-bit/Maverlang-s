@@ -3,6 +3,7 @@
 import { memo, useEffect, useId, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type MouseEvent } from "react";
 
 import { cn } from "@/lib/cn";
+import type { ChartStyle } from "@/components/charts/chart-tools";
 import { formatDateTime, formatUsd } from "@/lib/format";
 import {
   CHART_H,
@@ -76,14 +77,15 @@ export interface PriceChartProps {
   livePoint?: PricePoint;
   /** El padre tapa el gráfico (carga o error) y anuncia ese estado. */
   quiet?: boolean;
-  /** Serie de referencia, no es un precio real: línea gris punteada, sin gradiente. */
+  /** Indica precios de referencia con un trazo discontinuo. */
   reference?: boolean;
+  lineColor?: string;
   /** Medias u otras series, en la misma escala Y que el precio (o en % si hay benchmark). */
   overlays?: readonly ChartOverlay[];
   /** SPYx u otra serie de referencia, rebasada a % desde el inicio. */
   benchmark?: ChartBenchmark | null;
-  /** `candles` sólo dibuja si los puntos traen OHLC. Si no, queda la línea. */
-  chartStyle?: "line" | "candles";
+  /** Las velas requieren datos OHLC verificados. */
+  chartStyle?: ChartStyle;
   /** Barras sólo si los puntos traen `v`. No se inventa volumen. */
   showVolume?: boolean;
   volumeLabel?: string;
@@ -617,7 +619,7 @@ function DrawnChart({
           choose(null);
         }}
       >
-        {reference || !area ? null : (
+        {!area ? null : (
           <defs>
             <linearGradient id={gradId} x1="0" x2="0" y1="0" y2="1">
               <stop offset="0%" stopColor={stroke} stopOpacity="0.22" />
@@ -683,7 +685,7 @@ function DrawnChart({
           </g>
         ) : (
           <>
-            {reference || !area ? null : (
+            {!area ? null : (
               <path
                 d={area}
                 fill={`url(#${gradId})`}
@@ -931,7 +933,8 @@ function SvgPriceChartBase({
   reference = false,
   overlays,
   benchmark = null,
-  chartStyle = "line",
+  chartStyle,
+  lineColor,
   showVolume = false,
   volumeLabel = "",
   avgCostUsd = null,
@@ -972,13 +975,15 @@ function SvgPriceChartBase({
     return {
       ...built,
       key: historyKey(points),
-      area: built.percentMode || candleMode ? "" : areaUnder(built.line, built.points),
+      area: !candleMode && (chartStyle === "area" || (!chartStyle && !reference && !built.percentMode))
+        ? areaUnder(built.line, built.points)
+        : "",
       candles: candleMode ? candles : null,
       volume,
     };
-  }, [points, livePoint, overlays, benchmark, chartStyle, showVolume]);
+  }, [points, livePoint, overlays, benchmark, chartStyle, reference, showVolume]);
   const drawn = model !== null && model.points.length >= 2;
-  const stroke = reference ? REFERENCE_STROKE : TONE_STROKE[tone];
+  const stroke = lineColor ?? (reference ? REFERENCE_STROKE : TONE_STROKE[tone]);
   const upColor = reference ? REFERENCE_STROKE : TONE_STROKE.up;
   const downColor = reference ? REFERENCE_STROKE : TONE_STROKE.down;
 
@@ -1012,7 +1017,7 @@ function SvgPriceChartBase({
           showGrid={showGrid}
           axisMode={axisMode}
           showRangeBand={showRangeBand}
-          lineMode={chartStyle === "line"}
+          lineMode={!model.candles}
           showExtremes={showExtremes}
           highlightedLayerId={highlightedLayerId}
           onHighlightLayer={onHighlightLayer}

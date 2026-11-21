@@ -8,6 +8,7 @@ import { QuoteExchangeSummary } from "@/components/domain/quote-exchange-summary
 import { Accordion } from "@/components/ui/accordion";
 import { CostBreakdown } from "@/components/domain/cost-breakdown";
 import { TradeImpactPreview } from "@/components/domain/trade-impact-preview";
+import { LimitOrdersPanel } from "@/components/domain/limit-orders-panel";
 import { MarketStatusPill } from "@/components/domain/market-status-pill";
 import { RealAccountEmpty } from "@/components/domain/real-account-empty";
 import { TickerLogo } from "@/components/domain/ticker-logo";
@@ -16,6 +17,7 @@ import { AmountInput } from "@/components/ui/amount-input";
 import { Button } from "@/components/ui/button";
 import { ErrorState } from "@/components/ui/error-state";
 import { IconBack, IconCheck } from "@/components/ui/icons";
+import { Input } from "@/components/ui/input";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { Sheet } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -29,10 +31,11 @@ import { isRealAccountUiBlocked } from "@/lib/account/real-ui-gate";
 import { cn } from "@/lib/cn";
 import { formatDateTime, formatMoney, formatShares } from "@/lib/format";
 import { useAccountMode } from "@/lib/hooks/use-account-mode";
-import { SPOT_MS, useAssetStatus, useFx, useMarketStatus, usePortfolio, usePrices } from "@/lib/hooks/queries";
+import { SPOT_MS, useAssetStatus, useMarketStatus, usePortfolio, usePrices } from "@/lib/hooks/queries";
 import { useT } from "@/lib/hooks/use-t";
 import { displayPrice } from "@/lib/market/browse";
 import { effectiveMinOrderUsd } from "@/lib/market/asset-status.shared";
+import { formatUnitPrice } from "@/lib/market/price-format";
 import {
   amountBlock,
   convertAmount,
@@ -42,6 +45,7 @@ import {
   type AmountBlock,
   type TradeAmountCurrency,
 } from "@/lib/trade/amount";
+import { addLimitOrder, type LimitOrder, type LimitOrderExpiry } from "@/lib/trade/limit-orders-store";
 import type { Currency, Order, Side, Ticker, TradeQuote } from "@/lib/types";
 
 const DEPOSIT_HREF = "/app/billetera/depositar";
@@ -50,7 +54,7 @@ const POLL_BUDGET_MS = 20_000;
 /** Vigencia nominal de una cotización en la UI; la barra se llena respecto a esto. */
 const QUOTE_VALIDITY_MS = 15_000;
 
-const BUY_CURRENCIES = ["USDC", "CLP", "SHARES"] as const satisfies readonly TradeAmountCurrency[];
+const BUY_CURRENCIES = ["USDC", "SHARES"] as const satisfies readonly TradeAmountCurrency[];
 const SELL_CURRENCIES = ["SHARES", "USDC"] as const satisfies readonly TradeAmountCurrency[];
 
 const solFormatter = new Intl.NumberFormat("es-CL", { maximumFractionDigits: 6 });
@@ -359,12 +363,10 @@ function SheetActionBar({
   );
 }
 
-const clpChipFormat = new Intl.NumberFormat("es-CL", { maximumFractionDigits: 0 });
 const usdcChipFormat = new Intl.NumberFormat("es-CL", { maximumFractionDigits: 2 });
 const sharesChipFormat = new Intl.NumberFormat("es-CL", { maximumFractionDigits: 6 });
 
-function quickChipLabel(value: number, currency: TradeAmountCurrency): string {
-  if (currency === "CLP") return `$${clpChipFormat.format(value)}`;
+function quickChipLabel(value: number, currency: "USDC" | "SHARES"): string {
   if (currency === "SHARES") return sharesChipFormat.format(value);
   return `US$ ${usdcChipFormat.format(value)}`;
 }
@@ -380,13 +382,16 @@ function TradeFlow({ side, ticker, onBusyChange }: { side: Side; ticker: Ticker;
   const queryClient = useQueryClient();
   const portfolio = usePortfolio();
   const prices = usePrices([ticker.symbol], true, SPOT_MS);
-  const fx = useFx();
   const market = useMarketStatus();
   const asset = useAssetStatus(ticker.symbol);
   const hintId = useId();
   const reasonId = useId();
   const [amountRaw, setAmountRaw] = useState("");
-  const [currency, setCurrency] = useState<TradeAmountCurrency>(side === "sell" ? "SHARES" : "USDC");
+  const [currency, setCurrency] = useState<"USDC" | "SHARES">(side === "sell" ? "SHARES" : "USDC");
+  const [orderMode, setOrderMode] = useState<"market" | "limit">("market");
+  const [targetPriceRaw, setTargetPriceRaw] = useState("");
+  const [expiry, setExpiry] = useState<LimitOrderExpiry>("7d");
+  const [limitResult, setLimitResult] = useState<LimitOrder | null>(null);
   const [phase, setPhase] = useState<Phase>("form");
   const [quoteState, setQuoteState] = useState<LiveQuote>(idleQuote);
   const [flowError, setFlowError] = useState<string | null>(null);
@@ -408,22 +413,30 @@ function TradeFlow({ side, ticker, onBusyChange }: { side: Side; ticker: Ticker;
     : { folio: "Folio", date: "Fecha", receive: "Recibes", deliver: "Entregas", paid: "Total pagado", received: "Total recibido" };
   const wallet = session.user?.walletAddress?.trim() ?? "";
   const userId = session.user?.id?.trim() ?? "";
+  const limitEnabled = mode === "demo" && session.status === "authenticated" && userId.length > 0;
+  const isLimit = limitEnabled && orderMode === "limit";
   // La cuenta demo no tiene billetera: se firma con el id de usuario (uuid ≥ 32).
   const pubkey = wallet.length >= 32 ? wallet : mode === "demo" && userId.length >= 32 ? userId : null;
   const position = portfolio.data?.positions.find((item) => item.symbol === ticker.symbol) ?? null;
   const shares = position?.shares ?? 0;
   const cashUsdc = portfolio.data?.cashUsdc ?? 0;
   const priceUsd = prices.data?.find((item) => item.symbol === ticker.symbol)?.priceUsd ?? null;
-  const fxRate = fx.data?.rate ?? null;
+  const fxRate = null;
   const amount = parseAmount(amountRaw);
   const portfolioPending = portfolio.isPending;
-  // Las órdenes se ejecutan en dólares (M40): el monto en CLP se convierte a USD antes de cotizar.
-  const quoteAmount = currency === "CLP" && fxRate && fxRate > 0 ? amount / fxRate : amount;
-  const quoteCurrency = currency === "CLP" ? "USDC" : currency;
+  const quoteAmount = amount;
+  const quoteCurrency = currency;
   // Mínimo por orden del activo (M39/M43b): un solo mínimo coherente, el máximo
   // entre el global y el de la acción. La validación y el mensaje usan el mismo.
   const halted = asset.data?.halted === true;
   const minUsd = effectiveMinOrderUsd(asset.data?.minOrderUsd);
+  const parsedTargetPrice = parseAmount(targetPriceRaw.replace(",", "."));
+  const validTargetPrice = parsedTargetPrice > 0;
+  function nudgeLimitPrice(cents: number) {
+    const base = parsedTargetPrice || priceUsd || 0;
+    setTargetPriceRaw((Math.max(1, Math.round(base * 100) + cents) / 100).toFixed(2));
+  }
+  const sizingPriceUsd = isLimit ? parsedTargetPrice || null : priceUsd;
   const block = amountBlock({
     side,
     currency,
@@ -431,14 +444,15 @@ function TradeFlow({ side, ticker, onBusyChange }: { side: Side; ticker: Ticker;
     cashUsdc,
     shares,
     fx: fxRate,
-    priceUsd,
-    fxPending: fx.isPending,
-    pricePending: prices.isPending,
+    priceUsd: sizingPriceUsd,
+    fxPending: false,
+    pricePending: !isLimit && prices.isPending,
     portfolioPending,
     minUsd,
   });
+  const limitAmountUsd = validTargetPrice ? (currency === "SHARES" ? amount * parsedTargetPrice : amount) : 0;
   const requestKey =
-    block === null
+    !isLimit && block === null
       ? `${side}|${ticker.symbol}|${quoteCurrency}|${quoteAmount}|${refreshKey}|${mockError ?? ""}`
       : "";
   const live = quoteState.key === requestKey ? quoteState : idleQuote;
@@ -448,21 +462,16 @@ function TradeFlow({ side, ticker, onBusyChange }: { side: Side; ticker: Ticker;
   const fresh = quote !== null && !quoting && quoteError === null;
   const remainingMs = quote ? Date.parse(quote.expiresAt) - now : 0;
   const currencies = side === "sell" ? SELL_CURRENCIES : BUY_CURRENCIES;
-  const cap = portfolioPending ? null : maxAmount({ side, currency, cashUsdc, shares, fx: fxRate, priceUsd });
+  const cap = portfolioPending ? null : maxAmount({ side, currency, cashUsdc, shares, fx: fxRate, priceUsd: sizingPriceUsd });
   const busy = phase === "signing" || phase === "submitting" || phase === "done" || phase === "error";
   const minHelp = fill(t.trade.minOrder, { amount: shownMoney(minUsd, displayCurrency, fxRate) });
   // Montos rápidos (M43b): nunca bajo el mínimo efectivo; sin pasar el
   // disponible cuando se puede. La UI conserva el chip Máx.
-  const quickValues = quickTradeAmounts(currency, { minUsd, fx: fxRate, priceUsd, max: cap });
+  const quickValues = quickTradeAmounts(currency, { minUsd, fx: fxRate, priceUsd: sizingPriceUsd, max: cap });
   const quickChips = [
     ...quickValues.map((value) => ({ label: quickChipLabel(value, currency), value })),
     { label: t.trade.max, value: "max" as const },
   ];
-  const dollarsNote =
-    currency === "CLP" && fxRate && fxRate > 0 && amount > 0
-      ? fill(t.trade.executesInDollars, { amount: formatMoney(amount / fxRate, "USD") })
-      : null;
-
   useEffect(() => {
     mounted.current = true;
     return () => {
@@ -629,6 +638,85 @@ function TradeFlow({ side, ticker, onBusyChange }: { side: Side; ticker: Ticker;
     );
   }
 
+  if (phase === "done" && limitResult) {
+    const expiryText =
+      limitResult.expiry === "7d"
+        ? isEnglish
+          ? "7 days"
+          : "7 días"
+        : limitResult.expiry === "30d"
+          ? isEnglish
+            ? "30 days"
+            : "30 días"
+          : isEnglish
+            ? "Good 'til cancelled"
+            : "Hasta cancelar";
+    const sideText =
+      limitResult.side === "buy" ? (isEnglish ? "Buy" : "Compra") : isEnglish ? "Sell" : "Venta";
+
+    return (
+      <div role="status" aria-live="polite" className="flex min-h-0 flex-1 flex-col">
+        <div className="flex flex-col gap-6 pb-8">
+          <div className="flex items-start gap-3">
+            <span
+              aria-hidden="true"
+              className="mt-0.5 grid size-8 shrink-0 place-items-center rounded-full bg-fg text-bg"
+            >
+              <IconCheck className="size-4" />
+            </span>
+            <div className="min-w-0">
+              <p className="text-xl leading-tight text-fg">
+                {isEnglish ? "Demo order saved" : "Orden demo guardada"}
+              </p>
+              <p className="mt-1.5 text-[13px] leading-relaxed text-fg-body">
+                {isEnglish
+                  ? `${sideText} · ${ticker.name}`
+                  : `${sideText} de ${ticker.name}`}
+              </p>
+            </div>
+          </div>
+
+          <dl className="divide-y divide-border border-y border-border">
+            <StatementRow label={doc.folio} value={`#MV-${limitResult.id.slice(0, 8).toUpperCase()}`} />
+            <StatementRow label={doc.date} value={formatDateTime(limitResult.createdAt)} />
+            <StatementRow label={isEnglish ? "Order type" : "Tipo de orden"} value={isEnglish ? "Limit" : "Límite"} />
+            <StatementRow
+              label={isEnglish ? "Limit price" : "Precio límite"}
+              value={formatUnitPrice(limitResult.targetPriceUsd, "USD", language)}
+            />
+            <StatementRow label={isEnglish ? "Expiry" : "Vigencia"} value={expiryText} />
+            <StatementRow
+              label={isEnglish ? "Order amount" : "Monto de la orden"}
+              value={shownMoney(limitResult.amountUsd, displayCurrency, fxRate)}
+              strong
+            />
+          </dl>
+
+          <p className="text-[12px] leading-relaxed text-fg-muted">
+            {isEnglish
+              ? "Saved in this browser for the demo. This order does not execute or reserve funds."
+              : "Se guarda en este navegador para la demo. La orden no se ejecuta ni reserva fondos."}
+          </p>
+        </div>
+
+        <SheetActionBar>
+          <Button
+            type="button"
+            size="lg"
+            className="min-h-12 w-full"
+            onClick={() => {
+              setLimitResult(null);
+              setAmountRaw("");
+              setPhase("form");
+            }}
+          >
+            {isEnglish ? "Back to orders" : "Volver a órdenes"}
+          </Button>
+        </SheetActionBar>
+      </div>
+    );
+  }
+
   if (phase === "done" && result) {
     const summary =
       result.side === "buy"
@@ -732,36 +820,48 @@ function TradeFlow({ side, ticker, onBusyChange }: { side: Side; ticker: Ticker;
     );
   }
 
-  const hint = blockCopy(t, block, side, amount, displayCurrency, fxRate, minUsd);
-  const showDeposit = side === "buy" && block === "funds";
+  const hint = isLimit && !validTargetPrice ? null : blockCopy(t, block, side, amount, displayCurrency, fxRate, minUsd);
+  const showDeposit = !isLimit && side === "buy" && block === "funds";
   const canReview = block === null && fresh && !quoting && !quoteError && !halted;
+  const canSubmitLimit = isLimit && block === null && validTargetPrice && Number.isFinite(limitAmountUsd) && limitAmountUsd > 0 && !halted;
   const canConfirm = phase === "review" && canReview && remainingMs > 0 && pubkey !== null && !halted;
   // Monto que se juega en el paso: pagado al comprar, recibido al vender.
-  const ctaAmount =
-    quote && fresh ? shownMoney(side === "buy" ? quote.inAmountUi : quote.outAmountUi, displayCurrency, fxRate) : null;
+  const ctaAmount = isLimit
+    ? limitAmountUsd > 0
+      ? shownMoney(limitAmountUsd, displayCurrency, fxRate)
+      : null
+    : quote && fresh
+      ? shownMoney(side === "buy" ? quote.inAmountUi : quote.outAmountUi, displayCurrency, fxRate)
+      : null;
   const retry =
-    quoteError !== null
+    !isLimit && quoteError !== null
       ? () => setRefreshKey((key) => key + 1)
-      : block === "fx"
-        ? () => void fx.refetch()
-        : block === "price"
-          ? () => void prices.refetch()
-          : null;
+      : !isLimit && block === "price"
+        ? () => void prices.refetch()
+        : null;
+  const limitTargetError =
+    isLimit && !validTargetPrice
+      ? isEnglish
+        ? "Enter a valid limit price."
+        : "Ingresa un precio límite válido."
+      : null;
   // Un solo motivo, junto al botón: por qué no se puede avanzar todavía.
   const reason = halted
     ? t.detail.tradeHaltedNote
-    : quoteError
+    : !isLimit && quoteError
       ? quoteError
       : block === "wait"
         ? t.states.loading
         : hint
           ? hint
-          : quoting || (block === null && !quote)
-            ? t.trade.quoting
-            : !pubkey && phase === "review"
-              ? t.trade.noWallet
-              : null;
-  const reasonTone = halted || quoteError !== null || hint ? "down" : "muted";
+          : limitTargetError
+            ? limitTargetError
+            : !isLimit && (quoting || (block === null && !quote))
+              ? t.trade.quoting
+              : !isLimit && !pubkey && phase === "review"
+                ? t.trade.noWallet
+                : null;
+  const reasonTone = halted || (!isLimit && quoteError !== null) || hint || limitTargetError ? "down" : "muted";
   const estimate = quote
     ? side === "buy"
       ? fill(t.trade.receiveBuy, { amount: formatShares(quote.outAmountUi), name: ticker.name })
@@ -772,13 +872,13 @@ function TradeFlow({ side, ticker, onBusyChange }: { side: Side; ticker: Ticker;
       ? shownMoney(cashUsdc, displayCurrency, fxRate)
       : currency === "SHARES"
         ? formatShares(shares)
-        : priceUsd && priceUsd > 0
-          ? shownMoney(shares * priceUsd, displayCurrency, fxRate)
+        : sizingPriceUsd && sizingPriceUsd > 0
+          ? shownMoney(shares * sizingPriceUsd, displayCurrency, fxRate)
           : null;
   const availableLabel = templateLabel(
     side === "sell" && currency === "SHARES" ? t.trade.holding : t.trade.available,
   );
-  const labels = { CLP: "CLP", USDC: "USD", SHARES: t.trade.shares, USD: "USD" } as const;
+  const labels = { USDC: "USD", SHARES: t.trade.shares } as const;
 
   if (phase === "review") {
     const rows = quote && fresh ? quoteRows(t, quote, displayCurrency, fxRate) : null;
@@ -856,7 +956,6 @@ function TradeFlow({ side, ticker, onBusyChange }: { side: Side; ticker: Ticker;
             />
           ) : null}
 
-          {dollarsNote ? <p className="text-[12px] leading-4 text-fg-muted">{dollarsNote}</p> : null}
 
           {/* M83: aviso antes de confirmar. Texto borrador hasta la revisión
               del abogado; si la exige, cambia en un solo lugar. */}
@@ -896,6 +995,53 @@ function TradeFlow({ side, ticker, onBusyChange }: { side: Side; ticker: Ticker;
           price={priceUsd ? shownMoney(priceUsd, displayCurrency, fxRate) : "—"}
         />
 
+        {limitEnabled ? (
+          <div className="flex items-center justify-between gap-3 border-y border-border py-2.5 text-sm font-medium">
+            <label htmlFor={`${hintId}-order-type`}>{isEnglish ? "Order type" : "Tipo de orden"}</label>
+            <select
+              id={`${hintId}-order-type`}
+              value={isLimit ? "limit" : "market"}
+              onChange={(event) => setOrderMode(event.target.value === "limit" ? "limit" : "market")}
+              className="min-h-11 rounded-lg border border-border bg-bg px-3 text-sm"
+            >
+              <option value="market">{isEnglish ? "Market" : "A mercado"}</option>
+              <option value="limit">{isEnglish ? "Limit" : "Límite"}</option>
+            </select>
+          </div>
+        ) : null}
+
+        {isLimit ? (
+          <div className="flex flex-col gap-2">
+            <label htmlFor={hintId + "-target"} className="label">
+              {isEnglish ? "Limit price per share (USD)" : "Precio límite por acción (USD)"}
+            </label>
+            <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center rounded-lg border border-border bg-bg px-1">
+              <button
+                type="button"
+                aria-label={isEnglish ? "Decrease limit price" : "Bajar precio límite"}
+                onClick={() => nudgeLimitPrice(-1)}
+                className="size-11 rounded-md hover:bg-surface-1"
+              >−</button>
+              <Input
+                id={hintId + "-target"}
+                type="text"
+                inputMode="decimal"
+                value={targetPriceRaw}
+                onChange={(event) => setTargetPriceRaw(event.target.value)}
+                placeholder="0.00"
+                aria-invalid={!validTargetPrice && targetPriceRaw !== ""}
+                className="num border-0 text-center"
+              />
+              <button
+                type="button"
+                aria-label={isEnglish ? "Increase limit price" : "Subir precio límite"}
+                onClick={() => nudgeLimitPrice(1)}
+                className="size-11 rounded-md hover:bg-surface-1"
+              >+</button>
+            </div>
+          </div>
+        ) : null}
+
         <AmountInput
           id={`${hintId}-amount`}
           label={t.trade.amount}
@@ -927,8 +1073,8 @@ function TradeFlow({ side, ticker, onBusyChange }: { side: Side; ticker: Ticker;
             </p>
           }
           onCurrencyChange={(next) => {
-            if (next !== "CLP" && next !== "USDC" && next !== "SHARES") return;
-            setAmountRaw(convertAmount(amount, currency, next, fxRate, priceUsd));
+            if (next !== "USDC" && next !== "SHARES") return;
+            setAmountRaw(convertAmount(amount, currency, next, fxRate, sizingPriceUsd));
             setCurrency(next);
           }}
         />
@@ -948,11 +1094,9 @@ function TradeFlow({ side, ticker, onBusyChange }: { side: Side; ticker: Ticker;
                   const base =
                     currency === "SHARES"
                       ? shares * preset.pct
-                      : currency === "CLP" && priceUsd && fxRate
-                        ? Math.floor(shares * priceUsd * fxRate * preset.pct)
-                        : priceUsd
-                          ? Number((shares * priceUsd * preset.pct).toFixed(2))
-                          : shares * preset.pct;
+                      : sizingPriceUsd
+                        ? Number((shares * sizingPriceUsd * preset.pct).toFixed(2))
+                        : 0;
                   setAmountRaw(String(Number(base.toFixed(6))));
                 }}
                 className="inline-flex min-h-11 min-w-11 shrink-0 touch-manipulation items-center justify-center rounded-md px-3 text-[12px] font-medium whitespace-nowrap tabular-nums text-fg-muted transition-colors duration-150 outline-none hover:bg-surface-1 hover:text-fg focus-visible:ring-4 focus-visible:ring-fg/20 active:scale-[0.98]"
@@ -963,26 +1107,57 @@ function TradeFlow({ side, ticker, onBusyChange }: { side: Side; ticker: Ticker;
           </div>
         ) : null}
 
+        {isLimit ? (
+          <div className="flex flex-col gap-4 border-t border-border pt-4">
+            <div className="flex flex-col gap-1.5">
+              <span className="label">{isEnglish ? "Expiry" : "Vigencia"}</span>
+              <SegmentedControl
+                label={isEnglish ? "Limit order expiry" : "Vigencia de la orden límite"}
+                value={expiry}
+                onChange={(next) => {
+                  if (next === "7d" || next === "30d" || next === "gtc") {
+                    setExpiry(next);
+                  }
+                }}
+                fullWidth
+                compact
+                options={[
+                  { value: "7d", label: isEnglish ? "7 days" : "7 días" },
+                  { value: "30d", label: isEnglish ? "30 days" : "30 días" },
+                  { value: "gtc", label: isEnglish ? "Good 'til cancelled" : "Hasta cancelar" },
+                ]}
+              />
+            </div>
+
+            <p className="text-[12px] leading-relaxed text-fg-muted">
+              {isEnglish
+                ? "Saved in this browser for the demo. This order does not execute or reserve funds."
+                : "Se guarda en este navegador para la demo. La orden no se ejecuta ni reserva fondos."}
+            </p>
+          </div>
+        ) : null}
+
         <div className="flex flex-col gap-2 border-t border-border pt-3">
           <div className="flex items-baseline justify-between gap-6">
             <span className="text-[12px] leading-4 text-fg-muted">{availableLabel}</span>
             <span className="num text-[13px] leading-4 font-medium text-fg">{availableValue ?? "—"}</span>
           </div>
           {side === "buy" ? <p className="text-[12px] leading-4 text-fg-muted">{minHelp}</p> : null}
-          {dollarsNote ? <p className="text-[12px] leading-4 text-fg-muted">{dollarsNote}</p> : null}
         </div>
 
-        {quote && !quoting && !quoteError ? (
+        {isLimit ? <LimitOrdersPanel symbol={ticker.symbol} ordersOnly /> : null}
+
+        {!isLimit && quote && !quoting && !quoteError ? (
           <QuoteValidity
             remainingMs={remainingMs}
             label={fill(t.trade.expiresIn, { time: countdownLabel(remainingMs) })}
             expiredLabel={t.trade.errors.QUOTE_EXPIRED}
             language={language}
           />
-        ) : (
+        ) : !isLimit ? (
           // Reserva el alto de la línea + barra: cotizar no mueve el formulario.
           <div aria-hidden="true" className="h-[1.625rem]" />
-        )}
+        ) : null}
       </div>
 
       <SheetActionBar reason={reason} reasonId={reasonId} tone={reasonTone} retry={retry} retryLabel={t.states.retry}>
@@ -990,6 +1165,28 @@ function TradeFlow({ side, ticker, onBusyChange }: { side: Side; ticker: Ticker;
           <Button asChild size="lg" className="min-h-12 w-full touch-manipulation text-[15px] md:text-base">
             <Link href={DEPOSIT_HREF}>{t.trade.deposit}</Link>
           </Button>
+        ) : isLimit ? (
+          <ActionButton
+            disabled={!canSubmitLimit}
+            onClick={() => {
+              if (!canSubmitLimit) return;
+              const created = addLimitOrder({
+                symbol: ticker.symbol,
+                name: ticker.name,
+                side,
+                amountUsd: limitAmountUsd,
+                targetPriceUsd: parsedTargetPrice,
+                ownerId: userId,
+                expiry,
+              });
+              setLimitResult(created);
+              setPhase("done");
+            }}
+            amount={ctaAmount}
+            aria-describedby={reason ? reasonId : undefined}
+          >
+            {isEnglish ? "Save demo order" : "Guardar orden demo"}
+          </ActionButton>
         ) : (
           <ActionButton
             disabled={!canReview}

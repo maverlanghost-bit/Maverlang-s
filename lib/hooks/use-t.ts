@@ -10,7 +10,7 @@ const dictionaries: Record<Preferences["language"], Messages> = {
   en,
 };
 
-/** Textos, idioma y moneda única (M40). Sin preferencias, es-CL y CLP. */
+/** Textos, idioma y moneda de visualización. */
 export function useT(): {
   t: Messages;
   language: Preferences["language"];
