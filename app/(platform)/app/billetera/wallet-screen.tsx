@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ErrorState } from "@/components/ui/error-state";
+import { IconChevron, IconHelp } from "@/components/ui/icons";
 import { Input } from "@/components/ui/input";
 import { LoadingState } from "@/components/ui/loading-state";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -454,12 +455,18 @@ export function WalletScreen() {
             onOpen={(id) => setSelection({ id, mode })}
           />
         )}
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 rounded-xl border border-border bg-surface-1 px-4 py-2">
-          <p className="text-sm font-medium text-fg">{en ? "Looking for a movement?" : "¿Falta algún movimiento?"}</p>
-          <Button asChild variant="ghost" size="sm" className="-ml-3 sm:-ml-0">
-            <Link href={MOVEMENT_HELP_HREF}>{en ? "Movement help" : "Ayuda con movimientos"} <span aria-hidden="true">→</span></Link>
-          </Button>
-        </div>
+        <Link href={MOVEMENT_HELP_HREF} className="mt-4 grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 rounded-xl border border-border bg-surface-1 p-3 transition-colors hover:border-border-strong hover:bg-surface-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fg sm:px-4">
+          <span className="grid size-10 place-items-center rounded-lg border border-border bg-bg text-fg">
+            <IconHelp className="size-5" />
+          </span>
+          <span className="min-w-0">
+            <span className="block text-sm font-semibold text-fg">{en ? "Movement help" : "Ayuda con movimientos"}</span>
+            <span className="mt-0.5 block text-xs leading-snug text-fg-muted">
+              {en ? "Missing deposits, pending activity and balance differences" : "Depósitos ausentes, operaciones pendientes y diferencias de saldo"}
+            </span>
+          </span>
+          <IconChevron className="size-4 -rotate-90 text-fg-muted" />
+        </Link>
       </Card>
       {selectedId ? (
         <WalletActivitySheet

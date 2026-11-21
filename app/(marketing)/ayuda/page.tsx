@@ -1,10 +1,10 @@
 import Link from "next/link";
+import { MovementSupport } from "@/components/landing/movement-support";
 import { PageHero } from "@/components/landing/page-hero";
 import { PageLinkCards } from "@/components/landing/page-link-cards";
 import { LandingSection, SectionHeader } from "@/components/landing/section";
-import { Button } from "@/components/ui/button";
 import { DisclosureList, type DisclosureItem } from "@/components/ui/disclosure-list";
-import { site, supportMailto } from "@/config/site";
+import { site } from "@/config/site";
 import { getFaq, type FaqEntry, type FaqPart } from "@/lib/content/faq";
 import { faqPageJsonLd, JsonLd } from "@/lib/seo/jsonld";
 import { brandShort, pageMetadata } from "@/lib/seo/metadata";
@@ -54,12 +54,6 @@ const GUIDES = [
 const inlineLinkClass =
   "font-medium text-fg underline decoration-border underline-offset-4 hover:decoration-fg";
 
-const MOVEMENT_CASES = [
-  { title: "El depósito no aparece", body: "Busca la firma en la billetera de origen. Comprueba que la transferencia se hizo en Solana a la dirección que aparece en Recibir." },
-  { title: "La operación sigue pendiente", body: "Abre el movimiento en tu billetera y selecciona Consultar estado. Guarda el folio y espera la confirmación antes de repetir la operación." },
-  { title: "El saldo se ve distinto", body: "Actualiza la billetera, comprueba si estás en la cuenta demo o real y compara las unidades del activo con las del movimiento." },
-] as const;
-
 function FaqParts({ parts }: { parts: FaqPart[] }) {
   return (
     <>
@@ -104,7 +98,6 @@ function questionCount(count: number): string {
 /** Centro de ayuda: temas arriba, guías por tema y preguntas frecuentes abajo. */
 export default function AyudaPage() {
   const faq = getFaq(site.name);
-  const contactHref = supportMailto();
   const partir = faq.filter((entry) =>
     ["demo", "registro", "contrasena", "que-es"].includes(entry.id),
   );
@@ -128,19 +121,27 @@ export default function AyudaPage() {
 
       <PageHero
         titleId="ayuda-title"
-        eyebrow="Ayuda"
         title="Centro de ayuda"
         aside={
           <nav aria-label="Temas de ayuda">
-            <ul className="grid list-none gap-3">
+            <ul className="grid list-none gap-3 sm:grid-cols-2">
+              <li>
+                <a href="#movimientos" className="flex min-h-full items-center justify-between gap-2 rounded-bento border border-border bg-fg p-4 text-white transition-colors hover:bg-fg-body md:p-5">
+                  <span className="min-w-0">
+                    <span className="block text-base leading-snug font-semibold tracking-tight">Movimientos</span>
+                    <span className="mt-1 block text-[13px] leading-snug text-inverse-muted">Depósitos, operaciones y saldo</span>
+                  </span>
+                  <span className="shrink-0 text-lg" aria-hidden="true">↓</span>
+                </a>
+              </li>
               {groups.map((group) => (
                 <li key={group.id}>
                   <a
                     href={`#${group.id}`}
-                    className="group flex min-h-11 items-center justify-between gap-4 rounded-bento border border-border bg-bg p-5 transition-colors hover:border-border-strong hover:bg-surface-1 motion-reduce:transition-none md:p-6"
+                    className="group flex min-h-full items-center justify-between gap-2 rounded-bento border border-border bg-bg p-4 transition-colors hover:border-border-strong hover:bg-surface-1 motion-reduce:transition-none md:p-5"
                   >
                     <span className="min-w-0">
-                      <span className="block text-lg leading-snug font-semibold tracking-tight text-fg">
+                      <span className="block text-base leading-snug font-semibold tracking-tight text-fg">
                         {group.title}
                       </span>
                       <span className="num mt-1 block text-[13px] leading-snug text-fg-muted">
@@ -149,9 +150,9 @@ export default function AyudaPage() {
                     </span>
                     <span
                       aria-hidden="true"
-                      className="shrink-0 text-lg leading-snug text-fg-muted transition-[color,transform] duration-150 group-hover:translate-x-0.5 group-hover:text-fg motion-reduce:transition-none"
+                      className="shrink-0 text-lg leading-snug text-fg-muted transition-[color,transform] duration-150 group-hover:translate-y-0.5 group-hover:text-fg motion-reduce:transition-none"
                     >
-                      →
+                      ↓
                     </span>
                   </a>
                 </li>
@@ -160,35 +161,14 @@ export default function AyudaPage() {
           </nav>
         }
       >
-        Guías por tema y respuestas cortas. Si partes de cero, empieza por “Para partir”. Términos,
-        privacidad, riesgos y comisiones siguen en borrador.
+        Resuelve dudas sobre tu cuenta, revisa una operación o encuentra la guía que necesitas para empezar.
       </PageHero>
+
+      <MovementSupport />
 
       <LandingSection titleId="ayuda-guias" tone="muted" density="compact">
         <SectionHeader id="ayuda-guias" align="split" title="Guías por tema" />
         <PageLinkCards className="mt-8 md:mt-10" links={GUIDES} />
-      </LandingSection>
-
-      <LandingSection titleId="movimientos" density="compact">
-        <div className="rounded-bento border border-border bg-surface-1 p-5 sm:p-8">
-          <h2 id="movimientos" className="scroll-mt-24 text-2xl font-semibold tracking-tight sm:text-3xl">Ayuda con movimientos</h2>
-          <div className="mt-5 grid divide-y divide-border overflow-hidden rounded-xl border border-border bg-bg sm:grid-cols-3 sm:divide-x sm:divide-y-0">
-            {MOVEMENT_CASES.map(({ title, body }) => (
-              <div key={title} className="p-4 sm:p-5">
-                <h3 className="text-sm font-semibold text-fg">{title}</h3>
-                <p className="mt-2 text-sm leading-relaxed text-fg-muted">{body}</p>
-              </div>
-            ))}
-          </div>
-          {contactHref ? (
-            <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
-              <p className="max-w-lg text-sm leading-relaxed text-fg-muted">
-                Si el problema sigue, comparte el folio o la firma pública y la hora aproximada. Mantén tus claves y códigos de acceso en privado.
-              </p>
-              <Button asChild variant="secondary"><a href={contactHref}>Contactar a soporte</a></Button>
-            </div>
-          ) : null}
-        </div>
       </LandingSection>
 
       {groups.map((group) => (

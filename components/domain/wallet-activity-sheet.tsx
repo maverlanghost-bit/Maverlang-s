@@ -7,7 +7,7 @@ import { activityFolio } from "@/components/domain/activity-item";
 import { Badge, type BadgeTone } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CopyButton } from "@/components/ui/copy-button";
-import { IconCheck, IconClock, IconClose } from "@/components/ui/icons";
+import { IconBack, IconCheck, IconClock, IconClose, IconHelp } from "@/components/ui/icons";
 import { Sheet } from "@/components/ui/sheet";
 import { supportMailto } from "@/config/site";
 import { cn } from "@/lib/cn";
@@ -120,21 +120,31 @@ export function WalletActivitySheet({ id, row, tone, amount, demo, onClose, onRe
           </p>
         </div>
 
-        <div className="rounded-xl border border-border p-4">
-          <h3 className="text-sm font-semibold text-fg">{en ? "Need help?" : "¿Necesitas ayuda?"}</h3>
-          <p className="mt-1 text-sm leading-relaxed text-fg-muted">
-            {en ? "Share your movement reference so support can find it." : "Comparte el folio o el ID para que soporte pueda ubicar el movimiento."}
-          </p>
-          {contactHref ? (
-            <Button asChild variant="secondary" size="sm" className="mt-3">
-              <a href={contactHref}>{en ? "Contact support" : "Contactar a soporte"}</a>
+        <section className="rounded-xl border border-border bg-surface-1 p-4">
+          <div className="grid grid-cols-[auto_minmax(0,1fr)] items-start gap-3">
+            <span className="grid size-10 place-items-center rounded-lg border border-border bg-bg text-fg">
+              <IconHelp className="size-5" />
+            </span>
+            <div>
+              <h3 className="text-sm font-semibold text-fg">{en ? "Need help with this movement?" : "¿Necesitas ayuda con este movimiento?"}</h3>
+              <p className="mt-1 text-sm leading-relaxed text-fg-muted">
+                {contactHref
+                  ? (en ? "Your email draft will include the reference and movement ID." : "El borrador de correo incluirá el folio y el ID del movimiento.")
+                  : (en ? "Find steps for pending movements and balance differences." : "Consulta qué hacer ante un movimiento pendiente o una diferencia de saldo.")}
+              </p>
+            </div>
+          </div>
+          <div className="mt-4 flex flex-wrap gap-2">
+            {contactHref ? (
+              <Button asChild variant="secondary" size="sm">
+                <a href={contactHref}>{en ? "Contact support" : "Contactar a soporte"}<IconBack className="size-3.5 rotate-[135deg]" /></a>
+              </Button>
+            ) : null}
+            <Button asChild variant={contactHref ? "ghost" : "secondary"} size="sm">
+              <Link href={MOVEMENT_HELP_HREF}>{en ? "View help guide" : "Ver guía de ayuda"}<IconBack className="size-3.5 rotate-180" /></Link>
             </Button>
-          ) : (
-            <Button asChild variant="secondary" size="sm" className="mt-3">
-              <Link href={MOVEMENT_HELP_HREF}>{en ? "Movement help" : "Ayuda con movimientos"}</Link>
-            </Button>
-          )}
-        </div>
+          </div>
+        </section>
       </div>
     </Sheet>
   );
