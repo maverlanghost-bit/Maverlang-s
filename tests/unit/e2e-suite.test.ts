@@ -107,7 +107,8 @@ describe("M86: cobertura de rutas y códigos por spec", () => {
 
   it("market.spec.ts cubre /app, filtro, buscador, precios en USD y ficha", () => {
     const source = readE2e("market.spec.ts");
-    expect(source).toContain('"/app"');
+    expect(source).toContain(String.raw`/\/app\/?$/`);
+    expect(source).toContain("toHaveURL(marketUrl.href)");
     expect(source).toContain("/^Filtros/");
     expect(source).toContain('"Categoría"');
     expect(source).toContain('getByRole("dialog", { name: "Filtros", exact: true })');
