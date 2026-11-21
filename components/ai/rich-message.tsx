@@ -1,11 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import type { ReactNode } from "react";
 
-import { IconCheck, IconCopy } from "@/components/ui/icons";
 import { tickerBySymbol } from "@/config/tickers";
-import { cn } from "@/lib/cn";
 
 /**
  * Renderizador rico (estilo Grok / Perplexity Finance) del texto plano que
@@ -158,7 +156,7 @@ function renderBlocks(text: string, onTickerClick: TickerHandler, cursor?: React
       const key = `p-${blockIndex}-${nodes.length}`;
       const attachCursor = isLastBlock && isAtBlockEnd && cursor != null;
       nodes.push(
-        <p key={key} className="text-pretty text-[14.5px] leading-[1.68] whitespace-pre-line text-fg-body">
+        <p key={key} className="text-[15px] leading-[1.68] text-pretty whitespace-pre-line text-fg-body [overflow-wrap:anywhere] sm:text-base">
           {renderInline(joined, onTickerClick, key)}
           {attachCursor ? cursor : null}
         </p>,
@@ -176,7 +174,7 @@ function renderBlocks(text: string, onTickerClick: TickerHandler, cursor?: React
         const isAtBlockEnd = index === lines.length - 1;
         const attachCursor = isLastBlock && isAtBlockEnd && cursor != null;
         nodes.push(
-          <h2 key={key} className="text-pretty text-[16px] font-semibold tracking-[-0.01em] text-fg mt-2 mb-0.5">
+          <h2 key={key} className="mt-2 mb-0.5 text-base font-semibold tracking-tight text-pretty text-fg sm:text-lg">
             {renderInline(h2Match[1].trim(), onTickerClick, key)}
             {attachCursor ? cursor : null}
           </h2>,
@@ -228,7 +226,7 @@ function renderBlocks(text: string, onTickerClick: TickerHandler, cursor?: React
                   <span aria-hidden="true" className="min-w-[1.25rem] shrink-0 text-right text-[13px] font-medium text-fg-muted tabular-nums select-none pt-[0.1em]">
                     {item.num}.
                   </span>
-                  <span className="min-w-0 flex-1 text-pretty text-[14.5px] leading-[1.6] text-fg-body [overflow-wrap:anywhere]">
+                  <span className="min-w-0 flex-1 text-[15px] leading-relaxed text-pretty text-fg-body [overflow-wrap:anywhere] sm:text-base">
                     {renderInline(item.text, onTickerClick, `${key}-n${itemIndex}`)}
                     {attachCursor ? cursor : null}
                   </span>
@@ -258,7 +256,7 @@ function renderBlocks(text: string, onTickerClick: TickerHandler, cursor?: React
               return (
                 <li key={`${key}-i${itemIndex}`} className="flex gap-2.5">
                   <span aria-hidden="true" className="mt-[0.62em] size-1.5 shrink-0 rounded-full bg-fg-subtle" />
-                  <span className="min-w-0 flex-1 text-pretty text-[14.5px] leading-[1.6] text-fg-body [overflow-wrap:anywhere]">
+                  <span className="min-w-0 flex-1 text-[15px] leading-relaxed text-pretty text-fg-body [overflow-wrap:anywhere] sm:text-base">
                     {renderInline(item, onTickerClick, `${key}-i${itemIndex}`)}
                     {attachCursor ? cursor : null}
                   </span>
@@ -300,11 +298,11 @@ function renderBlocks(text: string, onTickerClick: TickerHandler, cursor?: React
         }
         const key = `dl-${blockIndex}-${nodes.length}`;
         nodes.push(
-          <dl key={key} className="max-w-full overflow-hidden rounded-2xl border border-border/70 bg-surface-1/70 px-3.5 py-2 my-1">
+          <dl key={key} className="my-1 max-w-full divide-y divide-border border-y border-border">
             {rows.map((row, rowIndex) => (
               <div
                 key={`${key}-r${rowIndex}`}
-                className="flex items-baseline justify-between gap-3 py-1 text-[13px] leading-snug"
+                className="flex items-baseline justify-between gap-3 py-2 text-sm leading-snug"
               >
                 <dt className="min-w-0 text-fg-muted [overflow-wrap:anywhere]">{renderInline(row.key, onTickerClick, `${key}-k${rowIndex}`)}</dt>
                 <dd className="max-w-[62%] shrink-0 text-right font-medium text-fg tabular-nums break-words">
@@ -338,38 +336,10 @@ export function RichAssistantMessage({
   onFollowUp?: (prompt: string) => void;
   cursor?: ReactNode;
 }) {
-  const [copied, setCopied] = useState(false);
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    return () => {
-      if (timer.current !== null) clearTimeout(timer.current);
-      timer.current = null;
-    };
-  }, []);
-
   const content = typeof text === "string" ? text : "";
   const blocks = content.trim().length > 0 ? renderBlocks(content, onTickerClick, cursor) : [];
 
   if (blocks.length === 0) return null;
-
-  async function handleCopy() {
-    if (typeof navigator === "undefined") return;
-    const clipboard = navigator.clipboard;
-    if (!clipboard || typeof clipboard.writeText !== "function") return;
-
-    try {
-      await clipboard.writeText(content);
-      setCopied(true);
-      if (timer.current !== null) clearTimeout(timer.current);
-      timer.current = setTimeout(() => {
-        setCopied(false);
-        timer.current = null;
-      }, 1500);
-    } catch {
-      setCopied(false);
-    }
-  }
 
   return (
     <div data-ai-rich-message className="flex w-full min-w-0 flex-col gap-3 text-fg-body">
@@ -390,24 +360,7 @@ export function RichAssistantMessage({
         </div>
       ) : null}
 
-      <div className="flex flex-wrap items-center gap-2 border-t border-border/70 pt-2">
-        <p className="min-w-0 text-[11px] leading-snug text-fg-subtle">{DISCLAIMER}</p>
-        <button
-          type="button"
-          onClick={handleCopy}
-          aria-label={copied ? "Copiado" : "Copiar"}
-          className={cn(
-            "ml-auto inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-full border border-transparent px-2.5 py-1.5",
-            "text-[12px] font-medium text-fg-muted transition duration-[140ms] ease-[var(--ease-inout)]",
-            "hover:border-border/70 hover:bg-surface-1 hover:text-fg",
-            "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
-            "motion-reduce:transition-none",
-          )}
-        >
-          {copied ? <IconCheck className="size-3.5" /> : <IconCopy className="size-3.5" />}
-          <span aria-live="polite">{copied ? "Copiado" : "Copiar"}</span>
-        </button>
-      </div>
+      <p className="border-t border-border/70 pt-2 text-[11px] leading-snug text-fg-subtle">{DISCLAIMER}</p>
     </div>
   );
 }

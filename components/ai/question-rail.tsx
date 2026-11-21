@@ -1,15 +1,15 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 
 import type { ChatMessage } from "@/components/ai/model";
 import { cn } from "@/lib/cn";
 
 const DEFAULT_CONTAINER_SELECTOR = "[data-ai-scroll]";
 const MAX_DOTS = 30;
+const DOT_TARGET_HEIGHT = 24;
 /** Altura bajo el borde del contenedor donde un mensaje ya se considera leído. */
 const ACTIVE_TOP_OFFSET = 96;
-const PREVIEW_LIMIT = 60;
 /** Separador que no puede aparecer en un id de mensaje. */
 const ID_SEPARATOR = "\u0000";
 
@@ -35,6 +35,7 @@ export function getQuestionEntries(messages: readonly ChatMessage[]): QuestionEn
       const candidate = messages[nextIndex];
       if (!candidate) continue;
       if (candidate.role === "user") break;
+      if (candidate.notice) continue;
       const text = candidate.text.trim();
       if (text) {
         answer = text;
@@ -94,10 +95,15 @@ function findMessageNode(container: HTMLElement, id: string): HTMLElement | null
   return null;
 }
 
-function clipPreview(text: string): string {
-  const flat = text.replace(/\s+/g, " ").trim();
-  if (flat.length <= PREVIEW_LIMIT) return flat;
-  return `${flat.slice(0, PREVIEW_LIMIT - 1).trimEnd()}…`;
+function clipPreview(text: string, limit: number): string {
+  const flat = text
+    .replace(/^[ \t]*(?:#{1,6}|[-*•])[ \t]+/gm, "")
+    .replace(/\*\*([^*]+)\*\*/g, "$1")
+    .replace(/`+/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (flat.length <= limit) return flat;
+  return `${flat.slice(0, limit - 1).trimEnd()}…`;
 }
 
 type QuestionRailProps = {
@@ -118,7 +124,9 @@ export function QuestionRail({
   const idsKey = useMemo(() => entries.map((entry) => entry.id).join(ID_SEPARATOR), [entries]);
 
   const [rawActiveIndex, setActiveIndex] = useState(0);
-  const [openIndex, setOpenIndex] = useState<number | null>(null);
+  const [visibleCount, setVisibleCount] = useState(14);
+  const [previewId, setPreviewId] = useState<string | null>(null);
+  const tooltipId = useId();
 
   useEffect(() => {
     const container = findContainer(containerSelector);
@@ -137,27 +145,36 @@ export function QuestionRail({
       }
 
       let next = -1;
-      let found = 0;
+      let lastFound = -1;
       ids.forEach((id, index) => {
         const node = byId.get(id);
         if (!node) return;
-        found += 1;
+        lastFound = index;
         if (node.getBoundingClientRect().top <= threshold) next = index;
       });
 
-      if (found === 0) return;
-      const resolved = next < 0 ? 0 : next;
+      if (lastFound < 0) return;
+      const atBottom = container.scrollTop > 0 && container.scrollHeight - container.clientHeight - container.scrollTop <= 1;
+      const resolved = atBottom ? lastFound : Math.max(next, 0);
       setActiveIndex((previous) => (previous === resolved ? previous : resolved));
     };
 
-    const frame = window.requestAnimationFrame(measure);
+    const resize = () => {
+      const capacity = Math.floor((container.clientHeight - 64) / DOT_TARGET_HEIGHT) - 2;
+      setVisibleCount(Math.max(3, Math.min(MAX_DOTS, capacity)));
+      measure();
+    };
+    const frame = window.requestAnimationFrame(resize);
+    const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(resize);
+    observer?.observe(container);
     container.addEventListener("scroll", measure, { passive: true });
-    window.addEventListener("resize", measure);
+    window.addEventListener("resize", resize);
 
     return () => {
       window.cancelAnimationFrame(frame);
       container.removeEventListener("scroll", measure);
-      window.removeEventListener("resize", measure);
+      window.removeEventListener("resize", resize);
+      observer?.disconnect();
     };
   }, [containerSelector, idsKey]);
 
@@ -165,9 +182,12 @@ export function QuestionRail({
 
   const total = entries.length;
   const activeIndex = Math.min(Math.max(0, rawActiveIndex), total - 1);
-  const windowIndices = visibleDotWindow(total, activeIndex, MAX_DOTS);
+  const windowIndices = visibleDotWindow(total, activeIndex, visibleCount);
   const firstVisible = windowIndices[0] ?? 0;
   const lastVisible = windowIndices[windowIndices.length - 1] ?? 0;
+  const previewIndex = entries.findIndex((entry) => entry.id === previewId);
+  const preview = windowIndices.includes(previewIndex) ? entries[previewIndex] : undefined;
+  const answer = preview ? clipPreview(preview.answer, 230) : "";
 
   function goToEntry(index: number, id: string) {
     const container = findContainer(containerSelector);
@@ -188,10 +208,10 @@ export function QuestionRail({
   return (
     <nav
       aria-label="Navegar por tus preguntas"
-      className="absolute left-3 top-1/2 z-20 hidden -translate-y-1/2 flex-col items-center gap-2 md:flex"
+      className="absolute top-1/2 left-0 z-20 hidden -translate-y-1/2 flex-col items-center md:flex"
     >
       {firstVisible > 0 ? (
-        <span aria-hidden="true" className="text-[10px] leading-none text-zinc-400">
+        <span aria-hidden="true" className="grid h-5 place-items-center text-xs text-fg-muted">
           ···
         </span>
       ) : null}
@@ -201,63 +221,61 @@ export function QuestionRail({
         if (!entry) return null;
 
         const isActive = index === activeIndex;
-        const isOpen = openIndex === index;
-        const label = clipPreview(entry.question);
-        const tipId = `question-rail-tip-${index}`;
-
         return (
-          <div
+          <button
             key={entry.id}
-            className="relative flex h-2 w-2 items-center justify-center"
-            onMouseEnter={() => setOpenIndex(index)}
-            onMouseLeave={() => setOpenIndex((previous) => (previous === index ? null : previous))}
-            onFocus={() => setOpenIndex(index)}
-            onBlur={() => setOpenIndex((previous) => (previous === index ? null : previous))}
+            type="button"
+            aria-label={`Pregunta ${index + 1}: ${clipPreview(entry.question, 60)}`}
+            aria-current={isActive ? "location" : undefined}
+            aria-describedby={preview?.id === entry.id ? tooltipId : undefined}
+            onClick={() => goToEntry(index, entry.id)}
+            onPointerEnter={(event) => {
+              if (event.pointerType !== "touch") setPreviewId(entry.id);
+            }}
+            onPointerLeave={(event) => {
+              if (!event.currentTarget.matches(":focus-visible")) {
+                setPreviewId((current) => current === entry.id ? null : current);
+              }
+            }}
+            onFocus={() => setPreviewId(entry.id)}
+            onBlur={() => setPreviewId((current) => current === entry.id ? null : current)}
+            onKeyDown={(event) => {
+              if (event.key === "Escape") setPreviewId(null);
+            }}
+            className="group/dot grid size-6 cursor-pointer place-items-center rounded-full hover:bg-surface-2 focus-visible:bg-surface-2 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-fg"
           >
-            <button
-              type="button"
-              aria-label={`Pregunta ${index + 1}: ${label}`}
-              aria-current={isActive ? "true" : undefined}
-              aria-describedby={isOpen ? tipId : undefined}
-              onClick={() => goToEntry(index, entry.id)}
+            <span
+              aria-hidden="true"
               className={cn(
-                "size-1.5 cursor-pointer rounded-full bg-zinc-300 transition-colors",
-                "hover:bg-zinc-500 focus-visible:outline-none focus-visible:ring-2",
-                "focus-visible:ring-zinc-900/30 focus-visible:ring-offset-2",
-                "motion-reduce:transition-none",
-                isActive && "size-2 bg-zinc-900 hover:bg-zinc-900",
+                "size-1.5 rounded-full bg-fg-muted/60 transition-[background-color,transform] group-hover/dot:scale-125 group-hover/dot:bg-fg motion-reduce:transition-none",
+                isActive && "size-2.5 bg-fg",
               )}
             />
 
-            {isOpen ? (
-              <div
-                id={tipId}
-                role="tooltip"
-                className="absolute left-full top-1/2 z-30 -translate-y-1/2 pl-3"
-              >
-                <div className="w-72 rounded-2xl border border-zinc-200 bg-white p-4 text-left shadow-lg">
-                  <p className="truncate text-sm font-semibold leading-snug text-zinc-900">
-                    {entry.question}
-                  </p>
-                  {entry.answer ? (
-                    <p className="mt-1.5 line-clamp-3 text-xs leading-relaxed text-zinc-500">
-                      {entry.answer}
-                    </p>
-                  ) : null}
-                  <p className="mt-2.5 text-[11px] font-medium tabular-nums text-zinc-400">
-                    {index + 1} de {total}
-                  </p>
-                </div>
-              </div>
-            ) : null}
-          </div>
+          </button>
         );
       })}
 
       {lastVisible < total - 1 ? (
-        <span aria-hidden="true" className="text-[10px] leading-none text-zinc-400">
+        <span aria-hidden="true" className="grid h-5 place-items-center text-xs text-fg-muted">
           ···
         </span>
+      ) : null}
+
+      {preview ? (
+        <div
+          id={tooltipId}
+          role="tooltip"
+          className="pointer-events-none absolute top-1/2 left-full ml-2 w-80 -translate-y-1/2 rounded-2xl border border-border bg-bg px-4 py-3.5 text-left shadow-float"
+        >
+          <p className="line-clamp-2 text-[15px] leading-snug font-semibold text-fg [overflow-wrap:anywhere]">
+            {clipPreview(preview.question, 145)}
+          </p>
+          {answer ? (
+            <p className="mt-2 line-clamp-3 text-sm leading-relaxed text-fg-muted [overflow-wrap:anywhere]">{answer}</p>
+          ) : null}
+          <p className="mt-2 text-xs tabular-nums text-fg-muted">{previewIndex + 1} de {total}</p>
+        </div>
       ) : null}
     </nav>
   );

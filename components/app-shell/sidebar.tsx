@@ -479,7 +479,7 @@ export function Sidebar({
                   <button
                     type="button"
                     onClick={() => dispatchAiCommand({ type: "clear" })}
-                    className={cn(ROW_BASE, ROW_HOVER, "justify-start pr-3 text-fg-body")}
+                    className={cn(ROW_BASE, ROW_HOVER, "justify-start pr-3 text-left text-fg-body")}
                   >
                     <span className="flex size-11 shrink-0 items-center justify-center">
                       <MessageSquarePlusIcon className="size-4 shrink-0 text-fg-muted" />
@@ -513,7 +513,7 @@ export function Sidebar({
                       if (typeof window === "undefined") return;
                       window.dispatchEvent(new CustomEvent(ACTION_EVENT, { detail: { type: "search" } }));
                     }}
-                    className={cn(ROW_BASE, ROW_HOVER, "justify-start pr-3 text-fg-body")}
+                    className={cn(ROW_BASE, ROW_HOVER, "justify-start pr-3 text-left text-fg-body")}
                   >
                     <span className="flex size-11 shrink-0 items-center justify-center">
                       <SearchIcon className="size-4 shrink-0 text-fg-muted" />
@@ -537,7 +537,7 @@ export function Sidebar({
                     </Link>
                   </Tooltip>
                 ) : (
-                  <Link href="/app" className={cn(ROW_BASE, ROW_HOVER, "justify-start pr-3 text-fg-body")}>
+                  <Link href="/app" className={cn(ROW_BASE, ROW_HOVER, "justify-start pr-3 text-left text-fg-body")}>
                     <span className="flex size-11 shrink-0 items-center justify-center">
                       <ArrowLeftIcon className="size-4 shrink-0 text-fg-muted" />
                     </span>

@@ -75,7 +75,7 @@ export function GrokThinkingCard({
     <div
       data-ai-thinking={mode}
       className={cn(
-        "flex items-center gap-2.5 rounded-xl border border-border/60 bg-surface-1/70 px-3.5 py-2 backdrop-blur-xs",
+        "flex min-w-0 flex-wrap items-center gap-x-2.5 gap-y-1 py-1",
         "motion-safe:animate-fade-in motion-reduce:animate-none",
       )}
     >
@@ -97,7 +97,7 @@ export function GrokThinkingCard({
         </span>
       </div>
 
-      <span className="ml-auto shrink-0 rounded-full border border-border/60 bg-surface-1 px-2 py-0.5 text-[10px] font-medium text-fg-muted">
+      <span className="ml-auto shrink-0 text-[11px] font-medium text-fg-muted">
         {MODE_BADGE[mode]}
       </span>
     </div>

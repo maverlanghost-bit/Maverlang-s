@@ -15,9 +15,9 @@ import { ReasoningAccordion } from "@/components/ai/reasoning-accordion";
 import { RichAssistantMessage } from "@/components/ai/rich-message";
 import { SourcesList } from "@/components/ai/tool-accordion";
 import { WelcomeChips } from "@/components/ai/welcome-chips";
+import { IconCheck, IconCopy } from "@/components/ui/icons";
 import { asistenteCopy, type AsistenteCopy, type AsistenteSuggestionId } from "@/content/i18n/extra-asistente";
 import { cn } from "@/lib/cn";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 /** Campos opcionales que el coordinador puede adjuntar al mensaje guardado. */
 type MessageExtras = {
@@ -52,12 +52,8 @@ type TextSegment =
 const EASE_OUT = [0.22, 1, 0.36, 1] as const;
 
 /** Botones de la burbuja del usuario; aparecen al pasar el cursor o al enfocar. */
-const USER_ACTION_BUTTON = cn(
-  "size-11 sm:size-8 rounded-full text-zinc-600 hover:text-zinc-900 bg-white/95 backdrop-blur-xs shadow-xs border border-control/50",
-  "inline-flex items-center justify-center transition",
-  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900/30",
-  "motion-reduce:transition-none",
-);
+const USER_ACTION_BUTTON =
+  "inline-flex size-11 cursor-pointer items-center justify-center rounded-lg text-fg-muted transition-colors hover:bg-surface-2 hover:text-fg focus-visible:outline-2 focus-visible:outline-fg disabled:cursor-default disabled:opacity-45 motion-reduce:transition-none sm:size-8";
 
 /** Lectura segura en SSR: `window` sólo se toca dentro de efectos o handlers. */
 function prefersReducedMotion(): boolean {
@@ -197,8 +193,7 @@ function UserBubble({
   const [copied, setCopied] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const draftRef = useRef<HTMLTextAreaElement>(null);
-  const actionTriggerRef = useRef<HTMLButtonElement>(null);
-  const editRequested = useRef(false);
+  const editButtonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     return () => {
@@ -230,7 +225,6 @@ function UserBubble({
 
   function startEditing() {
     if (busy) return;
-    editRequested.current = true;
     setDraft(message.text);
     setEditing(true);
     requestAnimationFrame(() => draftRef.current?.focus());
@@ -239,14 +233,14 @@ function UserBubble({
   function cancelEditing() {
     setEditing(false);
     setDraft(message.text);
-    requestAnimationFrame(() => actionTriggerRef.current?.focus());
+    requestAnimationFrame(() => editButtonRef.current?.focus({ preventScroll: true }));
   }
 
   function saveEditing() {
     const next = draft.trim();
     if (busy || !next || !onEditMessage) return;
     setEditing(false);
-    requestAnimationFrame(() => actionTriggerRef.current?.focus());
+    requestAnimationFrame(() => editButtonRef.current?.focus({ preventScroll: true }));
     if (next === message.text.trim()) return;
     onEditMessage(message.id, next);
   }
@@ -254,11 +248,11 @@ function UserBubble({
   return (
     <div
       data-user-msg-id={message.id}
-      className="flex justify-end group/user-msg w-full scroll-mt-20"
+      className="flex w-full scroll-mt-20 justify-end"
     >
-      <div className="relative flex flex-col items-end max-w-[min(85%,38rem)] md:max-w-[min(75%,42rem)]">
+      <div className={cn("group/user-msg flex min-w-0 max-w-[92%] flex-col items-end sm:max-w-[min(84%,42rem)]", editing && "w-full")}>
         {editing ? (
-          <div className="w-full min-w-[min(100%,280px)] sm:min-w-[340px] bg-white border border-control/50 rounded-3xl px-4 py-3 shadow-md transition-colors focus-within:border-fg/50">
+          <div className="w-full rounded-3xl border border-control/60 bg-bg px-4 py-3 shadow-raised transition-colors focus-within:border-fg/50 sm:px-5">
             <textarea
               ref={draftRef}
               data-bare-input=""
@@ -273,6 +267,7 @@ function UserBubble({
                 el.style.height = `${Math.min(el.scrollHeight, 240)}px`;
               }}
               onKeyDown={(event) => {
+                if (event.nativeEvent.isComposing) return;
                 if (event.key === "Escape") {
                   event.preventDefault();
                   cancelEditing();
@@ -303,16 +298,16 @@ function UserBubble({
           </div>
         ) : (
           <>
-            <div className="bg-zinc-100/90 text-zinc-900 text-[15px] relative overflow-hidden rounded-2xl px-4 py-3 shadow-2xs border border-zinc-200/70 sm:px-5 sm:py-3.5">
+            <div className="max-w-full overflow-hidden rounded-3xl border border-border bg-bg px-4 py-3 text-[15px] text-fg shadow-raised sm:px-5 sm:text-base">
               <div
                 className={cn(
                   "relative transition-all duration-300 motion-reduce:transition-none",
                   isCollapsed && "max-h-[140px] overflow-hidden",
                 )}
               >
-                <p className="whitespace-pre-wrap leading-relaxed [overflow-wrap:anywhere]">{message.text}</p>
+                <p className="whitespace-pre-wrap leading-6 [overflow-wrap:anywhere]">{message.text}</p>
                 {isCollapsed ? (
-                  <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-zinc-100 via-zinc-100/90 to-transparent pointer-events-none" />
+                  <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-linear-to-t from-bg via-bg/90 to-transparent" />
                 ) : null}
               </div>
 
@@ -330,17 +325,32 @@ function UserBubble({
             </div>
 
             <div
-              className={cn(
-                "mt-1 flex items-center gap-1 transition-all duration-200 motion-reduce:transition-none",
-              )}
+              role="group"
+              aria-label={en ? "Message actions" : "Acciones del mensaje"}
+              className="mt-0.5 flex items-center gap-0.5 pr-1 transition-opacity [@media(hover:hover)_and_(pointer:fine)]:opacity-0 group-hover/user-msg:opacity-100 group-has-[:focus-visible]/user-msg:opacity-100 motion-reduce:transition-none"
             >
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild><button ref={actionTriggerRef} type="button" aria-label={en ? "Message actions" : "Acciones del mensaje"} title={en ? "Message actions" : "Acciones del mensaje"} className={USER_ACTION_BUTTON}><MoreIcon /></button></DropdownMenuTrigger>
-                <DropdownMenuContent align="end" onCloseAutoFocus={(event) => { if (editRequested.current) { event.preventDefault(); editRequested.current = false; } }}>
-                  <DropdownMenuItem onSelect={() => void copyMessage()}>{copied ? <CheckIcon /> : <CopyIcon />}{en ? "Copy message" : "Copiar mensaje"}</DropdownMenuItem>
-                  {onEditMessage ? <DropdownMenuItem onSelect={startEditing} disabled={busy}><PencilIcon />{en ? "Edit message" : "Editar mensaje"}</DropdownMenuItem> : null}
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <button
+                type="button"
+                onClick={() => void copyMessage()}
+                aria-label={en ? "Copy message" : "Copiar mensaje"}
+                title={copied ? (en ? "Copied" : "Copiado") : (en ? "Copy" : "Copiar")}
+                className={cn(USER_ACTION_BUTTON, copied && "text-up hover:text-up")}
+              >
+                {copied ? <IconCheck /> : <IconCopy />}
+              </button>
+              {onEditMessage ? (
+                <button
+                  ref={editButtonRef}
+                  type="button"
+                  onClick={startEditing}
+                  disabled={busy}
+                  aria-label={en ? "Edit message" : "Editar mensaje"}
+                  title={en ? "Edit" : "Editar"}
+                  className={USER_ACTION_BUTTON}
+                >
+                  <PencilIcon />
+                </button>
+              ) : null}
               <span className="sr-only" role="status">{copied ? (en ? "Message copied" : "Mensaje copiado") : ""}</span>
             </div>
           </>
@@ -460,7 +470,7 @@ export function Transcript({
         >
           <ol
             aria-label={copy.transcript}
-            className="pt-16 pb-24 sm:pt-14 md:pb-8 space-y-6 max-w-3xl mx-auto w-full"
+            className="mx-auto w-full max-w-3xl space-y-5 pt-16 pb-24 sm:space-y-7 sm:pt-14 md:pb-8"
           >
             {messages.map((message, index) => {
               const extras = extrasOf(message);
@@ -492,94 +502,80 @@ export function Transcript({
                   ) : null}
 
                   {message.role === "assistant" && !message.notice ? (
-                    <div className="flex group/assistant gap-3.5 w-full items-start">
-                      <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 mt-1 select-none pointer-events-none">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src="/assets/Maverlang Logo-2.png"
-                          alt="AI Assistant"
-                          className={cn(
-                            "w-6 h-6 object-contain",
-                            isStreamingCurrent && "motion-safe:animate-pulse",
-                          )}
+                    <div className="w-full min-w-0">
+                      {sources && sources.length > 0 ? (
+                        <div className="mb-3">
+                          <SourcesList sources={sources} />
+                        </div>
+                      ) : null}
+
+                      {reasoning && reasoning.trim().length > 0 ? (
+                        <div className="mb-2">
+                          <ReasoningAccordion
+                            reasoning={reasoning}
+                            isStreaming={busy && index === last}
+                          />
+                        </div>
+                      ) : null}
+
+                      <div className="max-w-[72ch] text-[15px] leading-relaxed text-fg sm:text-base">
+                        <AssistantText
+                          text={message.text}
+                          onFollowUp={followUpState?.index === index ? undefined : sendPrompt}
+                          cursor={
+                            isStreamingCurrent ? (
+                              <span
+                                aria-hidden="true"
+                                className="size-2 rounded-full bg-brand inline-block ml-1.5 align-middle motion-safe:animate-pulse"
+                              />
+                            ) : undefined
+                          }
                         />
                       </div>
 
-                      <div className="flex-1 min-w-0">
-                        {sources && sources.length > 0 ? (
-                          <div className="mb-3">
-                            <SourcesList sources={sources} />
-                          </div>
-                        ) : null}
+                      {message.widgets && message.widgets.length > 0 ? (
+                        <div className="mt-4 w-full min-w-0">
+                          {renderWidgets(message.widgets)}
+                          {isStreamingCurrent && !message.text?.trim() ? (
+                            <div className="mt-2">
+                              <span
+                                aria-hidden="true"
+                                className="size-2 rounded-full bg-brand inline-block ml-1.5 align-middle motion-safe:animate-pulse"
+                              />
+                            </div>
+                          ) : null}
+                        </div>
+                      ) : null}
 
-                        {reasoning && reasoning.trim().length > 0 ? (
-                          <div className="mb-2">
-                            <ReasoningAccordion
-                              reasoning={reasoning}
-                              isStreaming={busy && index === last}
-                            />
-                          </div>
-                        ) : null}
-
-                        <div className="max-w-[68ch] text-zinc-900 leading-relaxed text-[15px]">
-                          <AssistantText
-                            text={message.text}
-                            onFollowUp={followUpState?.index === index ? undefined : sendPrompt}
-                            cursor={
-                              isStreamingCurrent ? (
-                                <span
-                                  aria-hidden="true"
-                                  className="size-2 rounded-full bg-brand inline-block ml-1.5 align-middle motion-safe:animate-pulse"
-                                />
-                              ) : undefined
-                            }
+                      {followUpState && followUpState.index === index ? (
+                        <div className="mt-4 w-full min-w-0">
+                          <InteractiveQuestionCard
+                            key={`${message.id}:${followUpState.items.join("|")}`}
+                            variant="quick"
+                            data={{
+                              id: `seguimiento-${message.id}`,
+                              question: "¿Qué te gustaría revisar ahora?",
+                              options: followUpState.items.map((text, position) => ({
+                                id: `seguimiento-${position + 1}`,
+                                label: text,
+                              })),
+                              allowCustom: true,
+                            }}
+                            onSubmit={followUpState.onSelect}
                           />
                         </div>
+                      ) : null}
 
-                        {message.widgets && message.widgets.length > 0 ? (
-                          <div className="mt-4 w-full min-w-0">
-                            {renderWidgets(message.widgets)}
-                            {isStreamingCurrent && !message.text?.trim() ? (
-                              <div className="mt-2">
-                                <span
-                                  aria-hidden="true"
-                                  className="size-2 rounded-full bg-brand inline-block ml-1.5 align-middle motion-safe:animate-pulse"
-                                />
-                              </div>
-                            ) : null}
-                          </div>
-                        ) : null}
-
-                        {followUpState && followUpState.index === index ? (
-                          <div className="mt-4 w-full min-w-0">
-                            <InteractiveQuestionCard
-                              key={`${message.id}:${followUpState.items.join("|")}`}
-                              variant="quick"
-                              data={{
-                                id: `seguimiento-${message.id}`,
-                                question: "¿Qué te gustaría revisar ahora?",
-                                options: followUpState.items.map((text, position) => ({
-                                  id: `seguimiento-${position + 1}`,
-                                  label: text,
-                                })),
-                                allowCustom: true,
-                              }}
-                              onSubmit={followUpState.onSelect}
-                            />
-                          </div>
-                        ) : null}
-
-                        <div className="mt-2.5">
-                          <AssistantMessageActions
-                            messageId={message.id}
-                            en={copy === asistenteCopy.en}
-                            content={message.text}
-                            feedback={feedback?.[message.id] ?? null}
-                            onFeedback={onFeedback ? (type) => onFeedback(message.id, type) : undefined}
-                            onRetry={!busy && isLastAssistant ? onRetryAnswer : undefined}
-                            onShare={onShareAnswer ? () => onShareAnswer(message.id) : undefined}
-                          />
-                        </div>
+                      <div className="mt-2.5">
+                        <AssistantMessageActions
+                          messageId={message.id}
+                          en={copy === asistenteCopy.en}
+                          content={message.text}
+                          feedback={feedback?.[message.id] ?? null}
+                          onFeedback={onFeedback ? (type) => onFeedback(message.id, type) : undefined}
+                          onRetry={!busy && isLastAssistant ? onRetryAnswer : undefined}
+                          onShare={onShareAnswer ? () => onShareAnswer(message.id) : undefined}
+                        />
                       </div>
                     </div>
                   ) : null}
@@ -605,19 +601,7 @@ export function Transcript({
 
             {busy && !(messages[last]?.role === "assistant" && (Boolean(messages[last]?.text?.trim()) || Boolean(messages[last]?.widgets?.length))) ? (
               <li className="min-w-0">
-                <div className="flex w-full items-start gap-3.5">
-                  <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 mt-1 select-none pointer-events-none">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src="/assets/Maverlang Logo-2.png"
-                      alt="AI Assistant"
-                      className="w-6 h-6 object-contain motion-safe:animate-pulse"
-                    />
-                  </div>
-                  <div className="flex-1 min-w-0 pt-0.5">
-                    <GrokThinkingCard label={copy.typing} />
-                  </div>
-                </div>
+                <GrokThinkingCard label={copy.typing} />
               </li>
             ) : null}
           </ol>
@@ -659,43 +643,6 @@ function ArrowDownIcon() {
       focusable="false"
     >
       <path d="M8 3v10m0 0 4-4m-4 4-4-4" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
-function MoreIcon() {
-  return <svg viewBox="0 0 16 16" className="size-3.5" fill="currentColor" aria-hidden="true" focusable="false"><circle cx="3" cy="8" r="1.2" /><circle cx="8" cy="8" r="1.2" /><circle cx="13" cy="8" r="1.2" /></svg>;
-}
-
-function CopyIcon() {
-  return (
-    <svg
-      viewBox="0 0 16 16"
-      className="size-3.5"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.4"
-      aria-hidden="true"
-      focusable="false"
-    >
-      <rect x="5.25" y="5.25" width="7.5" height="7.5" rx="1.6" />
-      <path d="M10.75 5.25v-1a1.5 1.5 0 0 0-1.5-1.5h-4a1.5 1.5 0 0 0-1.5 1.5v4a1.5 1.5 0 0 0 1.5 1.5h1" />
-    </svg>
-  );
-}
-
-function CheckIcon() {
-  return (
-    <svg
-      viewBox="0 0 16 16"
-      className="size-3.5"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.7"
-      aria-hidden="true"
-      focusable="false"
-    >
-      <path d="m3.5 8.5 3 3 6-7" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
