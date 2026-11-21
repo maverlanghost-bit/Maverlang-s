@@ -1,5 +1,13 @@
 # PROGRESO — Maverlang
 
+## T78 — Historial y lectura del chat (2026-11-21)
+- El historial del asistente usa una superficie por fila, títulos de 15 px y menú contextual al pasar el cursor o enfocar con teclado. El menú abre fuera del contenedor desplazable y conserva fijar, renombrar, compartir y eliminar.
+- Nuevo chat, Buscar chats y Volver al mercado se alinean a la izquierda. Los chats fijados usan borde oscuro y conservan su prioridad en la lista.
+- Los mensajes del usuario usan una tarjeta blanca con borde suave y muestran copiar y editar como iconos. En pantallas táctiles quedan disponibles a simple vista.
+- La respuesta y el indicador de escritura se leen sin panel gris. Se aligeró el formato de métricas y quedó un solo control para copiar la respuesta completa.
+- El índice de preguntas amplía las áreas de interacción, muestra la pregunta y un adelanto de la respuesta al pasar el cursor o enfocar, y lleva al mensaje al seleccionar el punto.
+- Verificación liviana con ESLint, 64 pruebas focalizadas y una vista aislada en Chromium para probar menús, teclado, desplazamiento y pantalla táctil. Sin compilación completa ni despliegue.
+
 ## T77 — Barra y comandos del asistente (2026-11-21)
 - El compositor conserva el selector Rápido/Pro y quita los interruptores de búsqueda web y razonamiento. Pro mantiene su instrucción de razonamiento actual; la búsqueda automática queda pendiente de integración.
 - La paleta de comandos muestra icono, nombre y descripción. Conserva filtrado y navegación por teclado, el borrador al abrir y cierre exclusivo con el menú de adjuntos.

@@ -11,6 +11,13 @@ import {
 } from "react";
 
 import { groupSavedChatsByDate, type SavedChatItem } from "@/components/ai/sessions-store";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/cn";
 
 /* ───────────────────────────── Iconos (SVG inline) ───────────────────────── */
@@ -418,10 +425,7 @@ function ChatSearchPanel({
 
 /* ────────────────────────── Historial del sidebar ────────────────────────── */
 
-const MENU_ITEM =
-  "flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs font-medium text-zinc-700 outline-none transition-colors hover:bg-zinc-100 hover:text-zinc-900 focus-visible:bg-zinc-100";
-
-const MENU_ICON = "h-3.5 w-3.5 shrink-0 text-zinc-400";
+const MENU_ICON = "size-4 shrink-0 text-fg-muted";
 
 /** Lista compacta de conversaciones para el sidebar del asistente. */
 export function NavChatsHistory({
@@ -449,30 +453,10 @@ export function NavChatsHistory({
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameDraft, setRenameDraft] = useState("");
-  const menuRef = useRef<HTMLDivElement | null>(null);
   const contentId = useId();
   const searchId = useId();
 
   const hasQuery = query.trim().length > 0;
-
-  // Menú abierto: cierra al hacer click fuera o con Escape.
-  useEffect(() => {
-    if (openMenuId === null) return;
-    function handlePointerDown(event: PointerEvent) {
-      const node = menuRef.current;
-      if (node && event.target instanceof Node && node.contains(event.target)) return;
-      setOpenMenuId(null);
-    }
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") setOpenMenuId(null);
-    }
-    document.addEventListener("pointerdown", handlePointerDown);
-    document.addEventListener("keydown", handleKeyDown);
-    return () => {
-      document.removeEventListener("pointerdown", handlePointerDown);
-      document.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [openMenuId]);
 
   const sections = buildSections(chats, query);
 
@@ -590,16 +574,11 @@ export function NavChatsHistory({
             ) : (
               sections.map((section) => (
                 <section key={section.key} aria-label={section.label} className="min-w-0">
-                  {section.key === "pinned" ? (
-                    <p className="flex items-center gap-1 px-3 pb-0.5 pt-2 text-[10px] font-bold uppercase tracking-wider text-amber-500/90">
-                      <Pin className="h-2.5 w-2.5 rotate-45" />
-                      <span>{section.label}</span>
-                    </p>
-                  ) : (
+                  {section.key !== "pinned" ? (
                     <p className="px-3 pb-0.5 pt-2 text-[10px] font-semibold uppercase tracking-wider text-zinc-400">
                       {section.label}
                     </p>
-                  )}
+                  ) : null}
 
                   <ul className="flex min-w-0 flex-col gap-0.5">
                     {section.items.map((chat) => {
@@ -610,8 +589,11 @@ export function NavChatsHistory({
                       return (
                         <li key={chat.id} className="min-w-0">
                           <div
-                            ref={isMenuOpen ? menuRef : null}
-                            className="group relative min-w-0"
+                            className={cn(
+                              "group/chat relative min-w-0 rounded-lg border border-transparent transition-colors hover:bg-surface-2 focus-within:bg-surface-2 motion-reduce:transition-none",
+                              chat.pinned && "border-fg/80",
+                              (isActive || isMenuOpen) && "bg-surface-3 hover:bg-surface-3 focus-within:bg-surface-3",
+                            )}
                           >
                             {isRenaming ? (
                               <form
@@ -654,109 +636,61 @@ export function NavChatsHistory({
                                 </button>
                               </form>
                             ) : (
-                              <div className="flex min-w-0 items-center gap-0.5">
+                              <>
                                 <button
                                   type="button"
                                   onClick={() => onSelectChat(chat.id)}
                                   title={chat.title}
+                                  aria-current={isActive ? "page" : undefined}
                                   className={cn(
-                                    "flex min-w-0 flex-1 items-center gap-2 rounded-lg px-2 py-1.5 text-left outline-none transition-colors focus-visible:ring-2 focus-visible:ring-zinc-300",
-                                    isActive
-                                      ? "bg-zinc-200/60 font-medium text-zinc-900"
-                                      : "text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900",
+                                    "block min-h-10 w-full min-w-0 truncate rounded-lg py-2 pr-11 pl-3 text-left text-[15px] leading-5 text-fg-body focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-fg",
+                                    isActive && "font-semibold text-fg",
+                                    !isMenuOpen && "[@media(hover:hover)_and_(pointer:fine)]:pr-3 group-hover/chat:pr-11 group-has-[:focus-visible]/chat:pr-11",
                                   )}
                                 >
-                                  {chat.pinned ? (
-                                    <Pin className="h-3.5 w-3.5 shrink-0 fill-amber-500/20 text-amber-500" />
-                                  ) : (
-                                    <MessageSquare className="h-3.5 w-3.5 shrink-0 text-zinc-400" />
-                                  )}
-                                  <span className="truncate text-[13px] leading-5">
-                                    {chat.title}
-                                  </span>
+                                  {chat.title}
                                 </button>
-                                <button
-                                  type="button"
-                                  onClick={() => setOpenMenuId(isMenuOpen ? null : chat.id)}
-                                  aria-label={`Opciones de ${chat.title}`}
-                                  aria-haspopup="menu"
-                                  aria-expanded={isMenuOpen}
-                                  title={`Opciones de ${chat.title}`}
-                                  className={cn(
-                                    "flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-zinc-400 transition-colors hover:bg-zinc-200/60 hover:text-zinc-700 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-300 max-sm:opacity-100",
-                                    isMenuOpen
-                                      ? "opacity-100"
-                                      : "opacity-0 group-hover:opacity-100 group-focus-within:opacity-100",
-                                  )}
+                                <DropdownMenu
+                                  modal={false}
+                                  open={isMenuOpen}
+                                  onOpenChange={(open) => {
+                                    setOpenMenuId((current) => open ? chat.id : current === chat.id ? null : current);
+                                  }}
                                 >
-                                  <MoreHorizontal className="h-4 w-4" />
-                                </button>
-                              </div>
+                                  <DropdownMenuTrigger asChild>
+                                    <button
+                                      type="button"
+                                      aria-label={`Opciones de ${chat.title}`}
+                                      title={`Opciones de ${chat.title}`}
+                                      className={cn(
+                                        "absolute top-1/2 right-1 inline-flex size-8 -translate-y-1/2 cursor-pointer items-center justify-center rounded-md text-fg-muted transition-[color,opacity] hover:bg-fg/10 hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-fg motion-reduce:transition-none",
+                                        !isMenuOpen && "[@media(hover:hover)_and_(pointer:fine)]:opacity-0 group-hover/chat:opacity-100 group-has-[:focus-visible]/chat:opacity-100",
+                                      )}
+                                    >
+                                      <MoreHorizontal className="size-4" />
+                                    </button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end" sideOffset={6} aria-label={`Opciones de ${chat.title}`}>
+                                    <DropdownMenuItem onSelect={() => onTogglePinChat(chat.id)}>
+                                      {chat.pinned ? <PinOff className={MENU_ICON} /> : <Pin className={MENU_ICON} />}
+                                      {chat.pinned ? "Desfijar" : "Fijar chat"}
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onSelect={() => startRename(chat)}>
+                                      <Pencil className={MENU_ICON} /> Renombrar
+                                    </DropdownMenuItem>
+                                    {onShareChat ? (
+                                      <DropdownMenuItem onSelect={() => onShareChat(chat.id)}>
+                                        <Share className={MENU_ICON} /> Compartir
+                                      </DropdownMenuItem>
+                                    ) : null}
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem onSelect={() => onDeleteChat(chat.id)} className="text-down focus:bg-down-bg">
+                                      <Trash className="size-4 shrink-0" /> Eliminar chat
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              </>
                             )}
-
-                            {isMenuOpen ? (
-                              <div
-                                role="menu"
-                                aria-label={`Opciones de ${chat.title}`}
-                                className="absolute right-0 top-full z-50 mt-1 w-48 rounded-xl border border-zinc-200/80 bg-white p-1 shadow-lg"
-                              >
-                                <button
-                                  type="button"
-                                  role="menuitem"
-                                  onClick={() => {
-                                    onTogglePinChat(chat.id);
-                                    setOpenMenuId(null);
-                                  }}
-                                  className={MENU_ITEM}
-                                >
-                                  {chat.pinned ? (
-                                    <PinOff className={MENU_ICON} />
-                                  ) : (
-                                    <Pin className={MENU_ICON} />
-                                  )}
-                                  <span>{chat.pinned ? "Desanclar" : "Fijar"}</span>
-                                </button>
-                                <button
-                                  type="button"
-                                  role="menuitem"
-                                  onClick={() => startRename(chat)}
-                                  className={MENU_ITEM}
-                                >
-                                  <Pencil className={MENU_ICON} />
-                                  <span>Renombrar</span>
-                                </button>
-                                {onShareChat ? (
-                                  <button
-                                    type="button"
-                                    role="menuitem"
-                                    onClick={() => {
-                                      onShareChat(chat.id);
-                                      setOpenMenuId(null);
-                                    }}
-                                    className={MENU_ITEM}
-                                  >
-                                    <Share className={MENU_ICON} />
-                                    <span>Compartir</span>
-                                  </button>
-                                ) : null}
-                                <div role="separator" className="my-1 h-px bg-zinc-200/70" />
-                                <button
-                                  type="button"
-                                  role="menuitem"
-                                  onClick={() => {
-                                    onDeleteChat(chat.id);
-                                    setOpenMenuId(null);
-                                  }}
-                                  className={cn(
-                                    MENU_ITEM,
-                                    "text-red-600 hover:bg-red-50 hover:text-red-700 focus-visible:bg-red-50",
-                                  )}
-                                >
-                                  <Trash className="h-3.5 w-3.5 shrink-0" />
-                                  <span>Eliminar</span>
-                                </button>
-                              </div>
-                            ) : null}
                           </div>
                         </li>
                       );
