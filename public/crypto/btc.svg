@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48" fill="none">
+  <defs>
+    <linearGradient id="bg-btc" x1="0" y1="0" x2="48" y2="48" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#F7931A"/>
+      <stop offset="100%" stop-color="#E07B0B"/>
+    </linearGradient>
+  </defs>
+  <circle cx="24" cy="24" r="24" fill="url(#bg-btc)"/>
+  <g transform="rotate(14 24 24)" fill="#FFF">
+      <rect x="20" y="9" width="3" height="30" rx="1.2"/>
+      <rect x="25" y="9" width="3" height="30" rx="1.2"/>
+      <path d="M16 14h11.5c3.8 0 6.5 2.1 6.5 5.2 0 2.3-1.5 4-3.7 4.7 2.8.6 4.7 2.5 4.7 5.3 0 3.6-3 5.8-7.4 5.8H16V14zm4.2 3.6v5.2h6.3c2 0 3.3-1 3.3-2.6s-1.3-2.6-3.3-2.6h-6.3zm0 8.5v5.6h7c2.3 0 3.6-1.1 3.6-2.8s-1.3-2.8-3.6-2.8h-7z"/>
+    </g>
+</svg>

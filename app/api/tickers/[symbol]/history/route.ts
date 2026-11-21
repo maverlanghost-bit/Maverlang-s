@@ -11,6 +11,7 @@ import {
 } from "@/lib/api/contracts";
 import { callService, handle, parseQuery, readOutput, requireVisibleSymbol } from "@/lib/api/handler";
 import { DomainError, ok } from "@/lib/api/result";
+import { withRateLimit } from "@/lib/security/rate-limit";
 import { historyWithSource } from "@/lib/services";
 
 export const runtime = "nodejs";
@@ -31,6 +32,8 @@ function historyJson(fields: ReturnType<typeof historyFields>, cacheControl: str
 
 export function GET(req: Request, ctx: { params: Promise<{ symbol: string }> }) {
   return handle("no-store", async () => {
+    const limited = await withRateLimit(req, "prices");
+    if (limited) return limited;
     try {
       const params = parseContract(historyParamsSchema, await ctx.params);
       const { range } = parseQuery(req, historyQuerySchema);

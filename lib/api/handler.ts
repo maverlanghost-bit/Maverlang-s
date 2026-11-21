@@ -300,10 +300,21 @@ export function assertSameOrigin(req: Request): void {
   } catch {
     throw new DomainError("FORBIDDEN_ORIGIN");
   }
-  if (candidateUrl.origin === siteOriginOf()) return;
+  const configuredOrigin = siteOriginOf();
+  if (configuredOrigin && candidateUrl.origin === configuredOrigin) return;
+  if (process.env.NODE_ENV === "production" && configuredOrigin && candidateUrl.protocol !== "https:") {
+    throw new DomainError("FORBIDDEN_ORIGIN");
+  }
   const allowedHosts = new Set<string>();
-  const forwarded = req.headers.get("x-forwarded-host")?.split(",")[0]?.trim();
-  if (forwarded) allowedHosts.add(forwarded.toLowerCase());
+  const forwardedHeader = req.headers.get("x-forwarded-host");
+  const forwardedParts = forwardedHeader
+    ? forwardedHeader
+        .split(",")
+        .map((part) => part.trim())
+        .filter((part) => part.length > 0)
+    : [];
+  // Solo acepta un host único reenviado por el proxy; rechaza listas separadas por coma.
+  if (forwardedParts.length === 1) allowedHosts.add(forwardedParts[0]!.toLowerCase());
   const hostHeader = req.headers.get("host")?.trim();
   if (hostHeader) allowedHosts.add(hostHeader.toLowerCase());
   allowedHosts.add(url.host.toLowerCase());

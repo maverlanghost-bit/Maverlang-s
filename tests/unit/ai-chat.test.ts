@@ -15,6 +15,7 @@ import { buildSystemPrompt } from "@/lib/ai/system-prompt";
 import { buyHref, executeToolCall, toWeightPcts, type AssistantDeps } from "@/lib/ai/tools";
 import { priceHistory, quoteFor } from "@/lib/mocks/prices";
 import { RATE_LIMIT_POLICIES, __resetRateLimitsForTests } from "@/lib/security/rate-limit";
+import { getServices } from "@/lib/services";
 import type { Range } from "@/lib/types";
 
 const KEY = "unit-test-ai-key";
@@ -49,6 +50,7 @@ function post(body: unknown, headers: Record<string, string> = {}): Request {
     headers: {
       origin: "https://maverlang.test",
       "content-type": "application/json",
+      cookie: "a24_mock_session=1",
       ...headers,
     },
     body: typeof body === "string" ? body : JSON.stringify(body),
@@ -291,6 +293,19 @@ describe("asistente: contrato HTTP", () => {
     expect(urls.some((url) => url.includes("api.x.ai"))).toBe(false);
   });
 
+  it("sin sesión responde 401 y no llama a xAI", async () => {
+    vi.stubEnv("XAI_API_KEY", KEY);
+    const urls: string[] = [];
+    vi.stubGlobal("fetch", async (input: RequestInfo | URL) => {
+      urls.push(String(input));
+      return new Response("no", { status: 500 });
+    });
+    const response = await POST(post({ messages: [{ role: "user", content: "Hola" }] }, { cookie: "" }));
+    expect(response.status).toBe(401);
+    expect(await response.json()).toMatchObject({ ok: false, error: "bad_request" });
+    expect(urls.some((url) => url.includes("api.x.ai"))).toBe(false);
+  });
+
   it("sin clave responde not_configured y no llama a xAI", async () => {
     vi.stubEnv("XAI_API_KEY", "");
     const urls: string[] = [];
@@ -338,9 +353,11 @@ describe("asistente: contrato HTTP", () => {
         choices: [{ message: { role: "assistant", content: "Hola, ¿qué dato revisamos?" } }],
       });
     });
+    const session = await getServices().auth.getSession(post({}));
+    expect(session?.userId).toBeTruthy();
     const ip = "203.0.113.44";
     for (let index = 0; index < RATE_LIMIT_POLICIES.ai.limit; index += 1) {
-      const slot = await takeAiQuota(ip);
+      const slot = await takeAiQuota(session!.userId);
       expect(slot.ok).toBe(true);
     }
     const limited = await POST(

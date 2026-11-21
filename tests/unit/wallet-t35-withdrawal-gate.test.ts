@@ -77,6 +77,8 @@ vi.mock("@/lib/services", () => ({
 vi.mock("@/lib/trade/real-guards", () => ({
   REAL_EXECUTION_LOCKED: false,
   assertRealExecutionLocked: () => undefined,
+  assertRealTradingDataMode: () => undefined,
+  assertRealAccountCompliance: async () => undefined,
   assertRealWithdrawalsEnabled: async () => undefined,
 }));
 

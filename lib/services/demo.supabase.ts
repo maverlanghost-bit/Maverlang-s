@@ -12,6 +12,7 @@ import { demoCryptoAsset, quoteDemoCrypto } from "@/lib/services/demo-crypto-quo
 import type { DemoCryptoAsset } from "@/lib/services/demo-crypto-quote";
 import { DEMO_INITIAL_USD, totalUsdOf, validateDemoFunds, validateDemoTradeInput } from "@/lib/services/demo.logic";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { readSupabaseSecretKey } from "@/lib/supabase/secret";
 import { roundDigits } from "@/lib/mocks/number";
 import { hashSeed } from "@/lib/mocks/prng";
 import { tickerBySymbol } from "@/lib/solana/allowlist";
@@ -118,7 +119,7 @@ type SignedBuildPayload = {
 
 function demoHmacSecret(): string {
   return (
-    process.env.SUPABASE_SECRET_KEY?.trim() ||
+    readSupabaseSecretKey() ||
     process.env.CRON_SECRET?.trim() ||
     "maverlang-demo-stateless-v1"
   );

@@ -146,6 +146,12 @@ export function createLiveTrade(deps: LiveTradeDeps): LiveTradeService {
       if (!(request.amount > 0) || !Number.isFinite(request.amount)) {
         throw new DomainError("VALIDATION", "El monto tiene que ser mayor que cero.");
       }
+      // Garantía 0% comisión: jupiterOrderParams no inyecta platformFeeBps/feeAccount
+      // en la tx firmable, así que si alguien sube FEE_BPS>0 fallamos cerrado para
+      // nunca mostrar o registrar una comisión fantasma no cobrada on-chain.
+      if (feeConfig.bps > 0) {
+        throw new DomainError("REAL_DISABLED", "Comisión de plataforma no configurada on-chain.");
+      }
       // Allowlist por lado (compra exige tradable; venta, existir con mint válido).
       const asset = await requireOperable(request.symbol, request.side);
 
@@ -355,6 +361,9 @@ export function createLiveTrade(deps: LiveTradeDeps): LiveTradeService {
       // Sin dueño no hay fila que leer: el camino real exige sesión (antes un
       // `Map` sin dueño cubría mock/dev y escondía justo esta falla).
       if (!owner) throw new DomainError("NOT_FOUND", "No encontramos esa cotización.");
+      if (feeConfig.bps > 0) {
+        throw new DomainError("REAL_DISABLED", "Comisión de plataforma no configurada on-chain.");
+      }
 
       const stored = await loadQuotedTrade(deps, owner, request.quoteId);
       if (!stored || liveQuoteExpired(stored.payload)) {

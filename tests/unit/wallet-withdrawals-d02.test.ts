@@ -133,6 +133,9 @@ vi.mock("@/lib/trade/real-guards", async (importOriginal) => {
     assertRealWithdrawalsEnabled: async () => {
       if (guardState.locked) actual.assertRealExecutionLocked();
     },
+    assertRealAccountCompliance: async () => {
+      if (guardState.locked) actual.assertRealExecutionLocked();
+    },
   };
 });
 

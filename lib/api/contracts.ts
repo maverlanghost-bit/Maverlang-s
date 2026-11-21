@@ -946,3 +946,26 @@ export const priceAlertCronResponseSchema = z
     truncated: z.boolean(),
   })
   .strict();
+
+export const aiShareCreateSchema = z
+  .object({
+    title: z.string().trim().min(1).max(160),
+    messages: z
+      .array(
+        z
+          .object({
+            role: z.enum(["user", "assistant"]),
+            text: z.string().trim().min(1).max(12_000),
+          })
+          .strict(),
+      )
+      .min(1)
+      .max(40),
+  })
+  .strict();
+
+export const aiShareQuerySchema = z
+  .object({
+    id: z.string().trim().regex(/^[A-Za-z0-9_-]{8,32}$/),
+  })
+  .strict();

@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48" fill="none">
+  <defs>
+    <linearGradient id="bg-trump" x1="0" y1="0" x2="48" y2="48" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#E11D48"/>
+      <stop offset="100%" stop-color="#9F1239"/>
+    </linearGradient>
+  </defs>
+  <circle cx="24" cy="24" r="24" fill="url(#bg-trump)"/>
+  <polygon points="24,10 27.4,17.2 35.4,18.3 29.6,23.9 31,31.8 24,28 17,31.8 18.4,23.9 12.6,18.3 20.6,17.2" fill="#FFF"/>
+     <rect x="14" y="34" width="20" height="2.8" rx="1.4" fill="#FFF" fill-opacity="0.85"/>
+</svg>

@@ -22,11 +22,9 @@ export function isAllowedAdminImporter(relativePath: string): boolean {
   if (normalized === "lib/trade/real-guards.ts") return true;
   // Copiar carteras: el paywall y la vinculación Fraccion Pro leen copy_subscriptions.
   if (/^lib\/copy\/(?:access|fraccion-pro)\.ts$/.test(normalized)) return true;
-  // C1/C2/C3: feed (snapshots), suscripciones, follows y «Mis copias» leen su tabla.
+  // C1/C2/C3: feed (snapshots), suscripciones y billing aún usan su almacén dedicado.
   if (normalized === "lib/copy/feed.ts") return true;
   if (normalized === "lib/billing/store.ts") return true;
-  if (normalized === "app/api/copy/follow/route.ts") return true;
-  if (normalized === "app/(platform)/app/copiar/mis-copias/page.tsx") return true;
   return false;
 }
 

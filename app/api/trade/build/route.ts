@@ -24,6 +24,7 @@ import {
   assertRealTradingDataMode,
   rekeyRealTradeReservation,
 } from "@/lib/trade/real-guards";
+import { requireSessionWalletMatch } from "@/lib/wallet/identity";
 import type { TradeBuildRequest, TradeBuildResponse } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -64,8 +65,10 @@ export function POST(req: Request) {
       // M74: kill switch → beta → límites. La carrera de dos builds
       // simultáneos se corta acá: cada build re-comprueba los topes antes
       // de armar la tx y submit vuelve a comprobarlos al firmar.
-      realOwnerId = userId ?? (await requireSession(services, req)).userId;
+      const activeSession = session ?? (await requireSession(services, req));
+      realOwnerId = activeSession.userId;
       userId = realOwnerId;
+      requireSessionWalletMatch(activeSession.walletAddress, body.userPublicKey);
       // Criptos y staking sólo en la demo (decisión §1.1): el símbolo vive en
       // la cotización real guardada para este `quoteId`. Si es cripto/LST/USDY
       // se corta ANTES de tocar límites y de pedirle la transacción a

@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { historyParamsSchema, parseContract } from "@/lib/api/contracts";
 import { callService, handle, requireVisibleSymbol } from "@/lib/api/handler";
 import { DomainError, ok } from "@/lib/api/result";
+import { withRateLimit } from "@/lib/security/rate-limit";
 import { readCompanyForSymbol } from "@/lib/services/company-facts.supabase";
 
 export const runtime = "nodejs";
@@ -31,6 +32,8 @@ function within<T>(work: Promise<T>, ms: number): Promise<T> {
  */
 export function GET(req: Request, ctx: { params: Promise<{ symbol: string }> }) {
   return handle("no-store", async () => {
+    const limited = await withRateLimit(req, "publicGet");
+    if (limited) return limited;
     const params = parseContract(historyParamsSchema, await ctx.params);
     const symbol = await requireVisibleSymbol(params.symbol);
     const view = await callService(req, () => within(readCompanyForSymbol(symbol), COMPANY_TIMEOUT_MS));

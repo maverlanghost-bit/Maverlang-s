@@ -1,5 +1,5 @@
 import { tradableSymbolSchema } from "@/lib/api/contracts";
-import { assertSameOrigin, parseJson } from "@/lib/api/handler";
+import { assertSameOrigin, parseJson, requireSession } from "@/lib/api/handler";
 import { DomainError } from "@/lib/api/result";
 import {
   MAX_IMPORT_BODY_BYTES,
@@ -37,14 +37,20 @@ export async function POST(req: Request): Promise<Response> {
   const copy = importarText(languageOf(req));
   try {
     assertSameOrigin(req);
+    const session = await requireSession(getServices(), req);
     const body = await parseJson(req, importPortfolioRequestSchema, { maxBytes: MAX_IMPORT_BODY_BYTES });
     if (!hasXaiKey()) {
       return send({ ok: false, error: "not_configured", message: NOT_CONFIGURED_MESSAGE }, 503);
     }
     const image = inspectImageDataUrl(body.image);
     if (!image.ok) return send({ ok: false, error: "bad_request", message: copy.badImage }, 400);
-    const slot = await reserveAiCall(rateSubject(await userIdOf(req), req));
+    const slot = await reserveAiCall(rateSubject(session.userId, req));
     if (!slot.ok) {
+      if (slot.unavailable) {
+        return send({ ok: false, error: "upstream", message: copy.upstream }, 503, {
+          "retry-after": "30",
+        });
+      }
       return send({ ok: false, error: "rate_limited", message: copy.rateLimited }, 429, {
         "retry-after": String(Math.max(1, Math.ceil(slot.resetMs / 1000))),
       });
@@ -59,6 +65,9 @@ export async function POST(req: Request): Promise<Response> {
     return send(result, result.ok ? 200 : statusFor(result.error));
   } catch (error) {
     if (error instanceof DomainError) {
+      if (error.code === "UNAUTHORIZED") {
+        return send({ ok: false, error: "bad_request", message: "Inicia sesión para importar tu cartera." }, 401);
+      }
       const status = error.code === "PAYLOAD_TOO_LARGE" ? 413 : error.code === "FORBIDDEN_ORIGIN" ? 403 : 400;
       const message = error.code === "FORBIDDEN_ORIGIN" ? copy.badOrigin : copy.badImage;
       return send({ ok: false, error: "bad_request", message }, status);
@@ -86,15 +95,6 @@ function statusFor(error: "not_configured" | "rate_limited" | "bad_request" | "u
 function languageOf(req: Request): "es-CL" | "en" {
   const header = req.headers.get("accept-language") ?? "";
   return /^\s*en\b/i.test(header) ? "en" : "es-CL";
-}
-
-async function userIdOf(req: Request): Promise<string | null> {
-  try {
-    const session = await getServices().auth.getSession(req);
-    return session?.userId ?? null;
-  } catch {
-    return null;
-  }
 }
 
 function guardMatched(body: VisionChatResponse): VisionChatResponse {

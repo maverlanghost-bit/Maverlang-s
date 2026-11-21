@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
@@ -14,8 +15,8 @@ import { getCopyIndex, getCopyPortfolio } from "@/lib/copy/feed";
 import { isCopyEnabled } from "@/lib/copy/flags";
 import { canonicalSlug } from "@/lib/copy/slugs";
 import type { CopyPosition } from "@/lib/copy/types";
-import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getServices } from "@/lib/services";
+import { listUserCopyFollows } from "@/lib/services/copy.supabase";
 
 export const metadata: Metadata = {
   title: "Mis copias",
@@ -48,37 +49,36 @@ function dateLabel(value: string): string {
 
 async function currentUserId(): Promise<string> {
   try {
-    const supabase = await createSupabaseServerClient();
-    if (!supabase) return "";
-    const { data, error } = await supabase.auth.getClaims();
-    const sub: unknown = data?.claims?.sub;
-    return !error && typeof sub === "string" ? sub : "";
+    const jar = await cookies();
+    const cookieHeader = jar
+      .getAll()
+      .map((entry) => `${entry.name}=${entry.value}`)
+      .join("; ");
+    const req = new Request("http://localhost/app/copiar/mis-copias", {
+      headers: cookieHeader ? { cookie: cookieHeader } : {},
+    });
+    const session = await getServices().auth.getSession(req);
+    return session?.userId ?? "";
   } catch {
     return "";
   }
 }
 
 /**
- * Lee `copy_follows` con el cliente de servidor, igual que `/api/copy/follow`.
+ * Lee `copy_follows` vía la capa de servicios (`lib/services/copy.supabase.ts`).
  * Si la migración no está aplicada (o no hay Supabase) la consulta falla: se
  * devuelve `null` y la página muestra «Pronto» sin romper.
  */
 async function readFollows(userId: string): Promise<FollowRow[] | null> {
-  let admin: ReturnType<typeof createSupabaseAdminClient>;
   try {
-    admin = createSupabaseAdminClient();
-  } catch {
-    return null;
-  }
-  try {
-    const { data, error } = await admin
-      .from("copy_follows")
-      .select("slug,version_id,weights,created_at")
-      .eq("user_id", userId)
-      .order("created_at", { ascending: false })
-      .limit(MAX_FOLLOWS);
-    if (error) return null;
-    return (data ?? []) as FollowRow[];
+    const { follows, available } = await listUserCopyFollows(userId);
+    if (!available) return null;
+    return follows.map((row) => ({
+      slug: row.slug,
+      version_id: row.versionId,
+      weights: row.weights,
+      created_at: row.createdAt,
+    }));
   } catch {
     return null;
   }

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { emailBienvenidaSchema } from "@/lib/api/contracts";
 import { assertSameOrigin, parseJson, requireSession } from "@/lib/api/handler";
+import { hasConfirmedEmail } from "@/lib/auth/email-verification";
 import { DomainError } from "@/lib/api/result";
 import { enviarEmail, remitenteDefault } from "@/lib/email/resend";
 import { plantillaBienvenida } from "@/lib/email/templates";
@@ -22,7 +23,7 @@ async function emailOfSession(): Promise<string | null> {
     const supabase = await createSupabaseServerClient();
     if (!supabase) return null;
     const { data, error } = await supabase.auth.getUser();
-    if (error || !data.user?.email) return null;
+    if (error || !data.user?.email || !hasConfirmedEmail(data.user)) return null;
     const email = data.user.email.trim();
     if (email.length > 254 || !EMAIL.test(email)) return null;
     return email;

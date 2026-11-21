@@ -51,6 +51,8 @@ const VALUE_PATTERNS = [
   { name: "stripe-live", regex: /sk_live_[A-Za-z0-9]{10,}/g },
   { name: "slack", regex: /xox[baprs]-[A-Za-z0-9-]{10,}/g },
   { name: "aws-key", regex: /AKIA[0-9A-Z]{16}/g },
+  { name: "xai", regex: /xai-[A-Za-z0-9]{20,}/g },
+  { name: "mercadopago", regex: /APP_USR-[0-9]+-[A-Za-z0-9-]+/g },
 ];
 
 /** `sb_publishable_` sólo cuenta fuera de los ejemplos (la pública no es secreta). */
@@ -71,6 +73,10 @@ export const BUNDLE_SECRET_NAMES = [
   "RESEND_API_KEY",
   "UPSTASH_REDIS_REST_TOKEN",
   "HELIUS_API_KEY",
+  "XAI_API_KEY",
+  "COPY_PLAN_HMAC_SECRET",
+  "MERCADOPAGO_ACCESS_TOKEN",
+  "MERCADOPAGO_WEBHOOK_SECRET",
 ];
 
 /** En el bundle, `sb_secret_` sólo cuenta con 20+ caracteres detrás. */

@@ -264,6 +264,7 @@ type QuickCommandId =
   | "market"
   | "screener"
   | "compare"
+  | "mix"
   | "alerts"
   | "portfolio"
   | "assistant"
@@ -355,6 +356,7 @@ function getQuickCommands(language: "es-CL" | "en"): QuickCommand[] {
       { id: "market", href: "/app", label: "Market", hint: "Tokenized U.S. stocks 24/7", keywords: "stocks etfs home" },
       { id: "screener", href: "/app/screener", label: "Screener", hint: "Filter stocks by sector & metrics", keywords: "screener filter stocks sector etf" },
       { id: "compare", href: "/app/comparar", label: "Compare", hint: "Compare stocks side by side", keywords: "compare vs versus performance" },
+      { id: "mix", href: "/app/mix", label: "Build Mix", hint: "Create a custom stock basket", keywords: "mix basket portfolio allocation" },
       { id: "alerts", href: "/app/alertas", label: "Alerts", hint: "Price alerts and targets", keywords: "alerts notifications price target" },
       { id: "portfolio", href: "/app/cartera", label: "Portfolio", hint: "Positions and orders", keywords: "holdings history orders" },
       { id: "assistant", href: "/app/asistente", label: "AI Assistant", hint: `Ask ${site.name} AI`, keywords: "ai chat assistant" },
@@ -369,6 +371,7 @@ function getQuickCommands(language: "es-CL" | "en"): QuickCommand[] {
     { id: "market", href: "/app", label: "Mercado", hint: "Acciones de EE.UU. 24/7", keywords: "acciones etfs inicio" },
     { id: "screener", href: "/app/screener", label: "Screener", hint: "Filtrar acciones por sector y métricas", keywords: "screener filtros acciones sector etf" },
     { id: "compare", href: "/app/comparar", label: "Comparar", hint: "Comparar acciones lado a lado", keywords: "comparar vs rendimiento" },
+    { id: "mix", href: "/app/mix", label: "Armar Mix", hint: "Crear una canasta de acciones", keywords: "mix canasta portafolio ponderacion" },
     { id: "alerts", href: "/app/alertas", label: "Alertas", hint: "Alertas de precio objetivo", keywords: "alertas notificaciones precio objetivo" },
     { id: "portfolio", href: "/app/cartera", label: "Cartera", hint: "Posiciones y órdenes", keywords: "portafolio historial ordenes" },
     { id: "assistant", href: "/app/asistente", label: "Asistente AI", hint: `Preguntar a ${site.name} AI`, keywords: "ia chat asistente" },
@@ -400,6 +403,15 @@ function CommandIcon({ id }: { id: QuickCommandId }) {
             strokeLinecap="round"
             strokeLinejoin="round"
           />
+        </svg>
+      );
+    case "mix":
+      return (
+        <svg viewBox="0 0 16 16" fill="none" className="size-4" aria-hidden>
+          <rect x="2.5" y="2.5" width="4.5" height="4.5" rx="1" stroke="currentColor" strokeWidth="1.5" />
+          <rect x="9" y="2.5" width="4.5" height="4.5" rx="1" stroke="currentColor" strokeWidth="1.5" />
+          <rect x="2.5" y="9" width="4.5" height="4.5" rx="1" stroke="currentColor" strokeWidth="1.5" />
+          <rect x="9" y="9" width="4.5" height="4.5" rx="1" stroke="currentColor" strokeWidth="1.5" />
         </svg>
       );
     case "alerts":

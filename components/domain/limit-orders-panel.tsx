@@ -4,12 +4,16 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useSession } from "@/lib/auth";
 import { cn } from "@/lib/cn";
-import { formatMoney } from "@/lib/format";
+import { formatDateTime, formatMoney } from "@/lib/format";
 import { formatUnitPrice } from "@/lib/market/price-format";
 import { useT } from "@/lib/hooks/use-t";
 import {
   cancelLimitOrder,
+  removeDcaPlan,
+  toggleDcaPlan,
+  useDcaPlans,
   useLimitOrders,
+  type DcaFrequency,
   type LimitOrderExpiry,
 } from "@/lib/trade/limit-orders-store";
 
@@ -19,8 +23,23 @@ function expiryLabel(expiry: LimitOrderExpiry, isEn: boolean): string {
   return isEn ? "Good 'til cancelled" : "Hasta cancelar";
 }
 
+function frequencyLabel(frequency: DcaFrequency, isEn: boolean): string {
+  if (frequency === "weekly") return isEn ? "Weekly" : "Semanal";
+  if (frequency === "biweekly") return isEn ? "Biweekly" : "Quincenal";
+  return isEn ? "Monthly" : "Mensual";
+}
+
+function shortDate(iso: string, isEn: boolean): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return formatDateTime(iso);
+  return new Intl.DateTimeFormat(isEn ? "en-US" : "es-CL", {
+    day: "numeric",
+    month: "short",
+  }).format(date);
+}
+
 /**
- * Panel de órdenes límite guardadas en este navegador.
+ * Panel de órdenes límite simuladas y planes Auto-DCA recurrentes.
  * Acepta `symbol` opcional para filtrar por activo o mostrar todos.
  */
 export function LimitOrdersPanel({
@@ -38,9 +57,10 @@ export function LimitOrdersPanel({
   const ownerId = session.status === "authenticated" ? session.user?.id : undefined;
   const savedOrders = useLimitOrders(symbol, ownerId);
   const limitOrders = ownerId ? savedOrders : [];
+  const dcaPlans = useDcaPlans(symbol);
 
   if (ordersOnly && limitOrders.length === 0) return null;
-  if (limitOrders.length === 0) {
+  if (limitOrders.length === 0 && dcaPlans.length === 0) {
     return (
       <div
         className={cn(
@@ -49,8 +69,8 @@ export function LimitOrdersPanel({
         )}
       >
         {isEn
-          ? "No saved demo orders yet."
-          : "No tienes órdenes demo guardadas."}
+          ? "No saved demo orders or Auto-DCA plans yet."
+          : "No tienes órdenes demo guardadas ni planes Auto-DCA."}
       </div>
     );
   }
@@ -123,6 +143,73 @@ export function LimitOrdersPanel({
         </section>
       ) : null}
 
+      {!ordersOnly && dcaPlans.length > 0 ? (
+        <section aria-label={isEn ? "Auto-DCA plans" : "Planes Auto-DCA"} className="flex flex-col gap-3">
+          <div className="flex items-baseline justify-between gap-2">
+            <h3 className="label">{isEn ? "Auto-DCA plans" : "Planes Auto-DCA"}</h3>
+            <span className="num text-[12px] text-fg-muted">{dcaPlans.length}</span>
+          </div>
+          <ul className="divide-y divide-border rounded-2xl border border-border bg-surface-1">
+            {dcaPlans.map((plan) => (
+              <li
+                key={plan.id}
+                className="flex flex-wrap items-center justify-between gap-3 px-4 py-3.5"
+              >
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="num text-sm font-medium text-fg">{plan.symbol}</span>
+                    <Badge tone={plan.active ? "up" : "warn"}>
+                      {plan.active ? (isEn ? "Active" : "Activo") : isEn ? "Paused" : "Pausado"}
+                    </Badge>
+                  </div>
+                  <p className="mt-1 text-[12px] leading-4 text-fg-muted">
+                    <span className="num font-medium text-fg-body">
+                      {formatMoney(plan.amountUsd, "USD")}
+                    </span>
+                    {" · "}
+                    {frequencyLabel(plan.frequency, isEn)}
+                    {" · "}
+                    {isEn ? "Next" : "Próximo"} {shortDate(plan.nextRunAt, isEn)}
+                  </p>
+                </div>
+
+                <div className="flex shrink-0 items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => toggleDcaPlan(plan.id)}
+                    aria-label={
+                      plan.active
+                        ? isEn
+                          ? `Pause Auto-DCA plan for ${plan.symbol}`
+                          : `Pausar plan Auto-DCA de ${plan.symbol}`
+                        : isEn
+                          ? `Resume Auto-DCA plan for ${plan.symbol}`
+                          : `Reanudar plan Auto-DCA de ${plan.symbol}`
+                    }
+                  >
+                    {plan.active ? (isEn ? "Pause" : "Pausar") : isEn ? "Resume" : "Reanudar"}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => removeDcaPlan(plan.id)}
+                    aria-label={
+                      isEn
+                        ? `Delete Auto-DCA plan for ${plan.symbol}`
+                        : `Eliminar plan Auto-DCA de ${plan.symbol}`
+                    }
+                  >
+                    {isEn ? "Delete" : "Eliminar"}
+                  </Button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
     </div>
   );
 }

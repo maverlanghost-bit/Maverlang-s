@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48" fill="none">
+  <defs>
+    <linearGradient id="bg-jitosol" x1="0" y1="0" x2="48" y2="48" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#0F766E"/>
+      <stop offset="100%" stop-color="#065F46"/>
+    </linearGradient>
+  </defs>
+  <circle cx="24" cy="24" r="24" fill="url(#bg-jitosol)"/>
+  <polygon points="24,9 37,22 24,35 11,22" stroke="#5EEAD4" stroke-width="2.4"/>
+     <path d="M26 14v11c0 2.6-1.8 4.3-4.6 4.3-1.9 0-3.3-.7-4.2-2l2.4-2c.5.6 1 .9 1.7.9 1 0 1.5-.6 1.5-1.6V14H26z" fill="#FFF"/>
+     <rect x="16" y="37" width="16" height="2.5" rx="1.2" fill="#14F195"/>
+</svg>

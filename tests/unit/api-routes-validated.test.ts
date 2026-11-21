@@ -216,6 +216,16 @@ describe("M56: comportamiento del blindaje", () => {
       },
     });
     expect(() => assertSameOrigin(forwarded)).not.toThrow();
+    // (b2) Multi-value x-forwarded-host (comma-injected) no se acepta.
+    const multiForwarded = new Request("http://localhost:3456/api/trade/quote", {
+      method: "POST",
+      headers: {
+        host: "127.0.0.1:3456",
+        "x-forwarded-host": "evil.example, maverlang.vercel.app",
+        origin: "https://evil.example",
+      },
+    });
+    expect(() => assertSameOrigin(multiForwarded)).toThrowError(DomainError);
     // (c) Origen ajeno sigue en 403 aunque el host pedido sea propio.
     const evil = new Request("http://localhost:3456/api/trade/quote", {
       method: "POST",

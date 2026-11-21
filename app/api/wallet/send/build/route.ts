@@ -7,7 +7,12 @@ import { withRateLimit } from "@/lib/security/rate-limit";
 import { getServices, type Services } from "@/lib/services";
 import { livePrices } from "@/lib/services/prices.live";
 import { tickerByMint } from "@/lib/solana/allowlist";
-import { assertRealExecutionLocked, assertRealWithdrawalsEnabled } from "@/lib/trade/real-guards";
+import {
+  assertRealAccountCompliance,
+  assertRealExecutionLocked,
+  assertRealTradingDataMode,
+  assertRealWithdrawalsEnabled,
+} from "@/lib/trade/real-guards";
 import { requireSessionWalletMatch } from "@/lib/wallet/identity";
 import {
   assertSendWithinOperationLimit,
@@ -91,6 +96,10 @@ export function POST(req: Request) {
       ? await withRateLimit(req, "trade", [session.userId])
       : await withRateLimit(req, "trade");
     if (userLimited) return userLimited;
+    if (session) {
+      assertRealTradingDataMode();
+      await assertRealAccountCompliance(session.userId);
+    }
     // D-01: kill switch de salidas, la misma clave `withdrawals_enabled` que
     // muestra el panel en "Salida de dinero" (D-18). Apagado → 503
     // REAL_DISABLED antes de armar cualquier transacción.

@@ -11,6 +11,7 @@ import {
 import { callService, handle, parseQuery, requireVisibleSymbol } from "@/lib/api/handler";
 import { DomainError, ok } from "@/lib/api/result";
 import { CATALOG_SYMBOL } from "@/lib/catalog/symbol";
+import { withRateLimit } from "@/lib/security/rate-limit";
 import { historiesWithSource } from "@/lib/services";
 
 export const runtime = "nodejs";
@@ -41,6 +42,8 @@ const batchHistoryQuerySchema = z
  */
 export function GET(req: Request) {
   return handle("no-store", async () => {
+    const limited = await withRateLimit(req, "prices");
+    if (limited) return limited;
     try {
       const { symbols, range } = parseQuery(req, batchHistoryQuerySchema);
       const unique: string[] = [];

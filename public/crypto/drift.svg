@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48" fill="none">
+  <defs>
+    <linearGradient id="bg-drift" x1="0" y1="0" x2="48" y2="48" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#6D28D9"/>
+      <stop offset="100%" stop-color="#4338CA"/>
+    </linearGradient>
+  </defs>
+  <circle cx="24" cy="24" r="24" fill="url(#bg-drift)"/>
+  <path d="M14 14h9.5c6.5 0 11 4.2 11 10s-4.5 10-11 10H14V14zm4.4 3.8v12.4h5c4.1 0 6.6-2.5 6.6-6.2s-2.5-6.2-6.6-6.2h-5z" fill="#FFF"/>
+     <line x1="10" y1="21" x2="17" y2="21" stroke="#C4B5FD" stroke-width="2.2" stroke-linecap="round"/>
+     <line x1="12" y1="27" x2="17" y2="27" stroke="#C4B5FD" stroke-width="2.2" stroke-linecap="round"/>
+</svg>

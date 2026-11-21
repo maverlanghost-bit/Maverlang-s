@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48" fill="none">
+  <defs>
+    <linearGradient id="bg-xaut0" x1="0" y1="0" x2="48" y2="48" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#F59E0B"/>
+      <stop offset="100%" stop-color="#B45309"/>
+    </linearGradient>
+  </defs>
+  <circle cx="24" cy="24" r="24" fill="url(#bg-xaut0)"/>
+  <polygon points="15,17 33,17 37,32 11,32" fill="#FFF" fill-opacity="0.95"/>
+     <polygon points="17,19 31,19 33.5,29.5 14.5,29.5" fill="#F59E0B" fill-opacity="0.35"/>
+     <rect x="19" y="21" width="10" height="2.4" rx="1" fill="#B45309"/>
+     <rect x="22.8" y="21" width="2.4" height="7" rx="1" fill="#B45309"/>
+</svg>

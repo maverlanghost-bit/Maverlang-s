@@ -20,14 +20,14 @@ export const runtime = "nodejs";
 export function POST(req: Request) {
   return handle("no-store", async () => {
     assertSameOrigin(req);
-    const ipLimited = await withRateLimit(req, "me");
+    const ipLimited = await withRateLimit(req, "billing");
     if (ipLimited) return ipLimited;
 
     const services = getServices();
     const session = await requireSupabaseUser(services, req);
     if (!session) throw new DomainError("UNAUTHORIZED");
 
-    const userLimited = await withRateLimit(req, "me", [session.userId]);
+    const userLimited = await withRateLimit(req, "billing", [session.userId]);
     if (userLimited) return userLimited;
 
     // Sin cuerpo: se acepta vacío o `{}`, y cualquier campo extra es 400.

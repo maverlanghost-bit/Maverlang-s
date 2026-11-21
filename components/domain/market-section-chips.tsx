@@ -14,6 +14,7 @@ const CRYPTO_SUB_TABS = [
 const TOOLS = [
   { id: "screener", href: "/app/screener", es: "Screener", en: "Screener" },
   { id: "compare", href: "/app/comparar", es: "Comparar", en: "Compare" },
+  { id: "mix", href: "/app/mix", es: "Armar Mix", en: "Build a mix" },
   { id: "alerts", href: "/app/alertas", es: "Alertas", en: "Alerts" },
 ] as const;
 const linkClass = "inline-flex min-h-11 shrink-0 items-center justify-center text-[13px] font-medium whitespace-nowrap text-fg-muted hover:text-fg sm:min-h-9";

@@ -288,6 +288,20 @@ describe("textos y ruta", () => {
       return new Response("no", { status: 500 });
     });
     try {
+      const unauth = await importPortfolioPost(
+        new Request("https://maverlang.test/api/ai/import-portfolio", {
+          method: "POST",
+          headers: {
+            origin: "https://maverlang.test",
+            "content-type": "application/json",
+            "x-vercel-ip-country": "CL",
+          },
+          body: JSON.stringify({ image: `data:image/png;base64,${PNG}` }),
+        }),
+      );
+      expect(unauth.status).toBe(401);
+      expect(urls.some((url) => url.includes("api.x.ai"))).toBe(false);
+
       const response = await importPortfolioPost(
         new Request("https://maverlang.test/api/ai/import-portfolio", {
           method: "POST",

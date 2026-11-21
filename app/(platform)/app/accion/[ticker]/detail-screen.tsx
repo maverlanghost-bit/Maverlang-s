@@ -17,6 +17,8 @@ import { OnchainVerificationCard } from "@/components/domain/onchain-verificatio
 import { AlertButton } from "@/components/domain/alert-button";
 import { CompanyCard } from "@/components/domain/company-card";
 import { ExplainChartButton } from "@/components/domain/explain-chart-button";
+import { DcaSimulator } from "@/components/domain/dca-simulator";
+import { LimitOrdersPanel } from "@/components/domain/limit-orders-panel";
 import { WhatIfCalculator } from "@/components/domain/what-if-calculator";
 import { Accordion } from "@/components/ui/accordion";
 import { Tabs } from "@/components/ui/tabs";
@@ -548,7 +550,7 @@ function TradeActions({
       <div className="flex flex-col gap-1">
         <h2 className="text-lg font-medium tracking-tight text-fg">{t.detail.actions}</h2>
         <span className="inline-flex items-center gap-1.5 text-xs leading-5 text-fg-muted">
-          <span className={cn("inline-block size-1.5 shrink-0 align-middle rounded-full", chipDot)} aria-hidden />
+          <span className={cn("size-1.5 shrink-0 rounded-full", chipDot)} aria-hidden />
           {chipText}
         </span>
       </div>
@@ -1070,7 +1072,7 @@ export function DetailScreen({
                 </li>
               ) : statusReady ? (
                 <ContextItem separator={contextItems.length > 0}>
-                  <span className={cn("size-1.5 shrink-0 rounded-full", chipDot)} aria-hidden />
+                  <span className={cn("inline-block size-1.5 shrink-0 align-middle rounded-full", chipDot)} aria-hidden />
                   {chipText}
                 </ContextItem>
               ) : null}
@@ -1142,6 +1144,17 @@ export function DetailScreen({
           currency={currency}
           rate={rate}
         />
+
+        <DcaSimulator
+          symbol={ticker.symbol}
+          name={ticker.name}
+          points={points}
+          currentPriceUsd={points.at(-1)?.p ?? null}
+          currency={currency}
+          rate={rate}
+        />
+
+        <LimitOrdersPanel symbol={ticker.symbol} />
 
 
             </div> }]} />

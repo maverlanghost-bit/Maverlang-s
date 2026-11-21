@@ -51,6 +51,11 @@ describe("isPublicAppPath", () => {
     expect(isPublicAppPath("/app")).toBe(true);
     expect(isPublicAppPath("/app/accion")).toBe(true);
     expect(isPublicAppPath("/app/accion/AAPLx")).toBe(true);
+    expect(isPublicAppPath("/app/screener")).toBe(true);
+    expect(isPublicAppPath("/app/comparar")).toBe(true);
+    expect(isPublicAppPath("/app/mix")).toBe(true);
+    expect(isPublicAppPath("/app/asistente")).toBe(false);
+    expect(isPublicAppPath("/app/asistente/compartido/abc12345")).toBe(true);
     expect(isPublicAppPath("/app/cartera")).toBe(false);
     expect(isPublicAppPath("/app/billetera/enviar")).toBe(false);
     expect(isPublicAppPath("/app/perfil/cuenta")).toBe(false);

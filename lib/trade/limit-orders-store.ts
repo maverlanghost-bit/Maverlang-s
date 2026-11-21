@@ -4,6 +4,7 @@ import { useMemo, useSyncExternalStore } from "react";
 
 export type LimitOrderExpiry = "7d" | "30d" | "gtc";
 export type LimitOrderStatus = "active" | "cancelled";
+export type DcaFrequency = "weekly" | "biweekly" | "monthly";
 
 export interface LimitOrder {
   id: string;
@@ -18,11 +19,21 @@ export interface LimitOrder {
   createdAt: string;
 }
 
+export interface DcaPlan {
+  id: string;
+  symbol: string;
+  name: string;
+  amountUsd: number;
+  frequency: DcaFrequency;
+  nextRunAt: string;
+  active: boolean;
+  createdAt: string;
+}
+
 export interface LimitOrdersStoreState {
   v: 1;
   limitOrders: LimitOrder[];
-  // Conserva otros datos de borradores ya guardados con este esquema.
-  dcaPlans: unknown[];
+  dcaPlans: DcaPlan[];
 }
 
 export type AddLimitOrderInput = {
@@ -33,6 +44,13 @@ export type AddLimitOrderInput = {
   amountUsd: number;
   targetPriceUsd: number;
   expiry: LimitOrderExpiry;
+};
+
+export type AddDcaPlanInput = {
+  symbol: string;
+  name: string;
+  amountUsd: number;
+  frequency: DcaFrequency;
 };
 
 export const LIMIT_ORDERS_STORAGE_KEY = "maverlang_limit_orders_v1";
@@ -64,6 +82,11 @@ function generateId(prefix: string): string {
   return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`;
 }
 
+function computeNextRunAt(frequency: DcaFrequency, fromMs = Date.now()): string {
+  const days = frequency === "weekly" ? 7 : frequency === "biweekly" ? 14 : 30;
+  return new Date(fromMs + days * 24 * 60 * 60 * 1000).toISOString();
+}
+
 const MAX_STORED_ITEMS = 50;
 
 function isValidLimitOrder(value: unknown): value is LimitOrder {
@@ -93,6 +116,30 @@ function isValidLimitOrder(value: unknown): value is LimitOrder {
   );
 }
 
+function isValidDcaPlan(value: unknown): value is DcaPlan {
+  if (!value || typeof value !== "object") return false;
+  const p = value as Partial<DcaPlan>;
+  return (
+    typeof p.id === "string" &&
+    p.id.trim().length > 0 &&
+    p.id.length <= 64 &&
+    typeof p.symbol === "string" &&
+    p.symbol.trim().length > 0 &&
+    p.symbol.length <= 24 &&
+    typeof p.name === "string" &&
+    p.name.length <= 120 &&
+    typeof p.amountUsd === "number" &&
+    Number.isFinite(p.amountUsd) &&
+    p.amountUsd > 0 &&
+    (p.frequency === "weekly" || p.frequency === "biweekly" || p.frequency === "monthly") &&
+    typeof p.nextRunAt === "string" &&
+    p.nextRunAt.length <= 40 &&
+    typeof p.active === "boolean" &&
+    typeof p.createdAt === "string" &&
+    p.createdAt.length <= 40
+  );
+}
+
 function parseState(raw: string | null): LimitOrdersStoreState {
   if (!raw) return EMPTY_STATE;
   try {
@@ -104,7 +151,7 @@ function parseState(raw: string | null): LimitOrdersStoreState {
       ? record.limitOrders.filter(isValidLimitOrder).slice(0, MAX_STORED_ITEMS)
       : [];
     const dcaPlans = Array.isArray(record.dcaPlans)
-      ? record.dcaPlans.slice(0, MAX_STORED_ITEMS)
+      ? record.dcaPlans.filter(isValidDcaPlan).slice(0, MAX_STORED_ITEMS)
       : [];
     return { v: 1, limitOrders, dcaPlans };
   } catch {
@@ -223,6 +270,56 @@ export function cancelLimitOrder(id: string): LimitOrder | null {
   return updated;
 }
 
+/** Agrega un plan Auto-DCA recurrente y lo persiste en el store. */
+export function addDcaPlan(input: AddDcaPlanInput): DcaPlan {
+  const current = readState();
+  const nowMs = Date.now();
+  const plan: DcaPlan = {
+    id: generateId("dca"),
+    symbol: input.symbol,
+    name: input.name,
+    amountUsd: input.amountUsd,
+    frequency: input.frequency,
+    nextRunAt: computeNextRunAt(input.frequency, nowMs),
+    active: true,
+    createdAt: new Date(nowMs).toISOString(),
+  };
+  writeState({
+    ...current,
+    dcaPlans: [plan, ...current.dcaPlans].slice(0, MAX_STORED_ITEMS),
+  });
+  return plan;
+}
+
+/** Pausa o reanuda un plan Auto-DCA por id. */
+export function toggleDcaPlan(id: string): DcaPlan | null {
+  const current = readState();
+  let updated: DcaPlan | null = null;
+  const nextPlans = current.dcaPlans.map((plan) => {
+    if (plan.id !== id) return plan;
+    updated = { ...plan, active: !plan.active };
+    return updated;
+  });
+  if (!updated) return null;
+  writeState({
+    ...current,
+    dcaPlans: nextPlans,
+  });
+  return updated;
+}
+
+/** Elimina un plan Auto-DCA por id. */
+export function removeDcaPlan(id: string): boolean {
+  const current = readState();
+  const nextPlans = current.dcaPlans.filter((plan) => plan.id !== id);
+  if (nextPlans.length === current.dcaPlans.length) return false;
+  writeState({
+    ...current,
+    dcaPlans: nextPlans,
+  });
+  return true;
+}
+
 /** Limpia el store completo (útil en tests). */
 export function clearLimitOrdersStore(): void {
   memoryState = EMPTY_STATE;
@@ -251,5 +348,13 @@ export function useLimitOrders(symbol?: string, ownerId?: string): LimitOrder[] 
   return useMemo(
     () => limitOrders.filter((order) => order.ownerId === ownerId && (!symbol || order.symbol === symbol)),
     [limitOrders, symbol, ownerId],
+  );
+}
+
+export function useDcaPlans(symbol?: string): DcaPlan[] {
+  const { dcaPlans } = useLimitOrdersStore();
+  return useMemo(
+    () => (symbol ? dcaPlans.filter((plan) => plan.symbol === symbol) : dcaPlans),
+    [dcaPlans, symbol],
   );
 }

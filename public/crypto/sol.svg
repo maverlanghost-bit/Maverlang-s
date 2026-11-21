@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48" fill="none">
+  <defs>
+    <linearGradient id="bg-sol" x1="0" y1="0" x2="48" y2="48" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#0F172A"/>
+      <stop offset="100%" stop-color="#1E293B"/>
+    </linearGradient>
+    <linearGradient id="sol-g" x1="10" y1="36" x2="38" y2="12" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#9945FF"/>
+      <stop offset="50%" stop-color="#4396D2"/>
+      <stop offset="100%" stop-color="#14F195"/>
+    </linearGradient>
+  </defs>
+  <circle cx="24" cy="24" r="24" fill="url(#bg-sol)"/>
+  <path d="M13.5 31.2c.3-.3.7-.5 1.2-.5h21.1c.7 0 1 .8.5 1.3l-3.8 3.8c-.3.3-.7.5-1.2.5H10.2c-.7 0-1-.8-.5-1.3l3.8-3.8z" fill="url(#sol-g)"/>
+     <path d="M13.5 12.2c.3-.3.7-.5 1.2-.5h21.1c.7 0 1 .8.5 1.3l-3.8 3.8c-.3.3-.7.5-1.2.5H10.2c-.7 0-1-.8-.5-1.3l3.8-3.8z" fill="url(#sol-g)"/>
+     <path d="M32.5 21.6c-.3-.3-.7-.5-1.2-.5H10.2c-.7 0-1 .8-.5 1.3l3.8 3.8c.3.3.7.5 1.2.5h21.1c.7 0 1-.8.5-1.3l-3.8-3.8z" fill="url(#sol-g)"/>
+</svg>

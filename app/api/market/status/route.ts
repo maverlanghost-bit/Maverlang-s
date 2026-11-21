@@ -1,6 +1,7 @@
 import { assetStatusSchema, marketStatusQuerySchema, marketStatusSchema } from "@/lib/api/contracts";
 import { callService, handle, parseQuery, readOutput } from "@/lib/api/handler";
 import { mockMarketStatus } from "@/lib/mocks/market";
+import { withRateLimit } from "@/lib/security/rate-limit";
 import { getServices } from "@/lib/services";
 
 export const runtime = "nodejs";
@@ -13,6 +14,8 @@ export const dynamic = "force-dynamic";
  */
 export function GET(req: Request) {
   return handle("no-store", async () => {
+    const limited = await withRateLimit(req, "publicGet");
+    if (limited) return limited;
     const params = parseQuery(req, marketStatusQuerySchema);
     if (params.symbol) {
       const data = await callService(req, () => getServices().market.status(params.symbol as string));

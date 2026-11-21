@@ -4,6 +4,7 @@ import { useEffect, useId, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useSession } from "@/lib/auth";
 import { cn } from "@/lib/cn";
 import { useT } from "@/lib/hooks/use-t";
 
@@ -18,12 +19,16 @@ import { useT } from "@/lib/hooks/use-t";
  */
 const STORAGE_KEY = "mv_saved_recipients_v1";
 const MAX_SAVED = 5;
+export const WHITELIST_COOLDOWN_MS = 24 * 60 * 60 * 1000;
 /** Base58 de Solana: sin 0, O, I ni l; entre 32 y 44 caracteres. */
 const BASE58_ADDRESS = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
+
+export type RecipientCooldownStatus = "whitelisted" | "cooldown";
 
 type SavedRecipient = {
   address: string;
   alias: string;
+  addedAt?: string;
 };
 
 function isSolanaAddress(value: string): boolean {
@@ -37,10 +42,15 @@ function shortAddress(address: string): string {
 }
 
 /** Lee la lista tolerando JSON corrupto, claves raras y direcciones inválidas. */
-function readSaved(): SavedRecipient[] {
+function storageKeyFor(userId?: string | null): string {
+  const clean = typeof userId === "string" ? userId.trim() : "";
+  return clean ? `${STORAGE_KEY}:${clean}` : `${STORAGE_KEY}:anon`;
+}
+
+function readSaved(userId?: string | null): SavedRecipient[] {
   if (typeof window === "undefined") return [];
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
+    const raw = window.localStorage.getItem(storageKeyFor(userId));
     if (!raw) return [];
     const parsed: unknown = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
@@ -53,7 +63,9 @@ function readSaved(): SavedRecipient[] {
       if (!isSolanaAddress(address)) continue;
       if (out.some((saved) => saved.address === address)) continue;
       const alias = typeof record.alias === "string" ? record.alias.trim().slice(0, 24) : "";
-      out.push({ address, alias });
+      const addedAtMs = typeof record.addedAt === "string" ? Date.parse(record.addedAt) : Number.NaN;
+      const addedAt = Number.isFinite(addedAtMs) ? new Date(addedAtMs).toISOString() : undefined;
+      out.push(addedAt ? { address, alias, addedAt } : { address, alias });
       if (out.length >= MAX_SAVED) break;
     }
     return out;
@@ -62,11 +74,33 @@ function readSaved(): SavedRecipient[] {
   }
 }
 
+export function resolveRecipientCooldown(
+  addedAt: string | undefined,
+  nowMs: number,
+): RecipientCooldownStatus {
+  if (!addedAt) return "cooldown";
+  const addedMs = Date.parse(addedAt);
+  if (!Number.isFinite(addedMs)) return "cooldown";
+  return nowMs - addedMs >= WHITELIST_COOLDOWN_MS ? "whitelisted" : "cooldown";
+}
+
+export function getSavedRecipientCooldown(
+  address: string,
+  nowMs: number,
+  userId?: string | null,
+): RecipientCooldownStatus | null {
+  const clean = address.trim();
+  if (!isSolanaAddress(clean)) return null;
+  const match = readSaved(userId).find((item) => item.address === clean);
+  if (!match) return null;
+  return resolveRecipientCooldown(match.addedAt, nowMs);
+}
+
 /** Persistencia best-effort: modo privado o cuota llena no rompen la pantalla. */
-function writeSaved(list: readonly SavedRecipient[]): void {
+function writeSaved(list: readonly SavedRecipient[], userId?: string | null): void {
   if (typeof window === "undefined") return;
   try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+    window.localStorage.setItem(storageKeyFor(userId), JSON.stringify(list));
   } catch {
     // Sin almacenamiento disponible la lista queda sólo en memoria.
   }
@@ -75,11 +109,15 @@ function writeSaved(list: readonly SavedRecipient[]): void {
 export function SavedRecipientsBar({
   currentRecipient,
   onSelect,
+  onRecipientsChange,
 }: {
   currentRecipient: string;
   onSelect: (address: string) => void;
+  onRecipientsChange?: () => void;
 }) {
   const { language } = useT();
+  const { user } = useSession();
+  const userId = user?.id ?? null;
   const isEn = language === "en";
 
   const copy = isEn
@@ -101,6 +139,8 @@ export function SavedRecipientsBar({
         remove: "Remove",
         useAddress: "Use this address",
         inUse: "In use",
+        whitelistedBadge: "Saved over 24h ago",
+        cooldownBadge: "Saved under 24h · verify address",
       }
     : {
         title: "Destinatarios frecuentes",
@@ -120,11 +160,14 @@ export function SavedRecipientsBar({
         remove: "Quitar",
         useAddress: "Usar esta dirección",
         inUse: "En uso",
+        whitelistedBadge: "Guardada hace +24 h",
+        cooldownBadge: "Guardada hace menos de 24 h · verifica la dirección",
       };
 
   const aliasId = useId();
   const [saved, setSaved] = useState<SavedRecipient[]>([]);
   const [mounted, setMounted] = useState(false);
+  const [nowMs, setNowMs] = useState(0);
   const [alias, setAlias] = useState("");
   const [feedback, setFeedback] = useState<string | null>(null);
 
@@ -133,11 +176,12 @@ export function SavedRecipientsBar({
   useEffect(() => {
     // En el primer frame tras pintar: sin setState síncrono dentro del efecto.
     const frame = requestAnimationFrame(() => {
-      setSaved(readSaved());
+      setSaved(readSaved(userId));
+      setNowMs(Date.now());
       setMounted(true);
     });
     return () => cancelAnimationFrame(frame);
-  }, []);
+  }, [userId]);
 
   const current = currentRecipient.trim();
   const currentIsValid = isSolanaAddress(current);
@@ -170,18 +214,29 @@ export function SavedRecipientsBar({
       setFeedback(copy.limit);
       return;
     }
-    const next: SavedRecipient[] = [{ address: current, alias: alias.trim().slice(0, 24) }, ...saved];
+    const now = Date.now();
+    const next: SavedRecipient[] = [
+      {
+        address: current,
+        alias: alias.trim().slice(0, 24),
+        addedAt: new Date(now).toISOString(),
+      },
+      ...saved,
+    ];
+    setNowMs(now);
     setSaved(next);
-    writeSaved(next);
+    writeSaved(next, userId);
     setAlias("");
     setFeedback(copy.saved);
+    onRecipientsChange?.();
   }
 
   function handleRemove(address: string) {
     const next = saved.filter((item) => item.address !== address);
     setSaved(next);
-    writeSaved(next);
+    writeSaved(next, userId);
     setFeedback(null);
+    onRecipientsChange?.();
   }
 
   async function handlePaste() {
@@ -228,6 +283,8 @@ export function SavedRecipientsBar({
         <ul className="divide-y divide-border" aria-label={copy.listLabel}>
           {saved.map((item) => {
             const isActive = item.address === current;
+            const cooldownStatus = resolveRecipientCooldown(item.addedAt, nowMs);
+            const isWhitelisted = cooldownStatus === "whitelisted";
             return (
               <li key={item.address} className="flex items-center gap-0.5 pr-1">
                 <button
@@ -252,6 +309,16 @@ export function SavedRecipientsBar({
                         {shortAddress(item.address)}
                       </span>
                     ) : null}
+                    <span className="mt-0.5 inline-flex w-fit items-center gap-1.5 rounded-full border border-border bg-surface-1 px-2 py-0.5 text-[11px] font-medium text-fg-muted">
+                      <span
+                        aria-hidden="true"
+                        className={cn(
+                          "size-1.5 shrink-0 rounded-full",
+                          isWhitelisted ? "bg-up" : "bg-warn",
+                        )}
+                      />
+                      {isWhitelisted ? copy.whitelistedBadge : copy.cooldownBadge}
+                    </span>
                   </span>
                   {isActive ? (
                     <span className="shrink-0 text-[11px] font-medium tracking-[0.045em] text-fg-muted uppercase">

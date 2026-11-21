@@ -46,7 +46,7 @@ function conflict(message: string): Response {
 
 export function POST(req: Request) {
   return handle("no-store", async () => {
-    const ipLimited = await withRateLimit(req, "me");
+    const ipLimited = await withRateLimit(req, "billing");
     if (ipLimited) return ipLimited;
 
     // Primero el candado del cobro: con el flag apagado no se toca nada más.
@@ -59,7 +59,7 @@ export function POST(req: Request) {
     const session = await requireSupabaseUser(services, req);
     if (!session) throw new DomainError("UNAUTHORIZED");
 
-    const userLimited = await withRateLimit(req, "me", [session.userId]);
+    const userLimited = await withRateLimit(req, "billing", [session.userId]);
     if (userLimited) return userLimited;
 
     const body = await parseJson(req, billingCheckoutBodySchema);

@@ -1,5 +1,6 @@
 import { assetStatusBatchQuerySchema, assetStatusBatchResponseSchema } from "@/lib/api/contracts";
 import { callService, handle, parseQuery, readOutput } from "@/lib/api/handler";
+import { withRateLimit } from "@/lib/security/rate-limit";
 import { getServices } from "@/lib/services";
 
 export const runtime = "nodejs";
@@ -22,6 +23,8 @@ export const dynamic = "force-dynamic";
  */
 export function GET(req: Request) {
   return handle("no-store", async () => {
+    const limited = await withRateLimit(req, "publicGet");
+    if (limited) return limited;
     const { symbols } = parseQuery(req, assetStatusBatchQuerySchema);
     const services = getServices();
     const data = await callService(req, () => services.market.statuses(symbols));

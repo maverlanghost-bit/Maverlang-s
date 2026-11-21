@@ -140,10 +140,12 @@ export function aiLimitPolicy(): RateLimitPolicy {
 }
 
 /** Tope de la política `ai`, o el equivalente local si esa política aún no existe. */
-export async function reserveAiCall(subject: string): Promise<{ ok: boolean; resetMs: number }> {
+export async function reserveAiCall(
+  subject: string,
+): Promise<{ ok: boolean; resetMs: number; unavailable?: boolean }> {
   const safe = subject.trim().replace(/:/g, "_").slice(0, 200) || "unknown";
   const result = await limit(`maverlang:rl:ai:${safe}`, aiLimitPolicy());
-  return { ok: result.ok, resetMs: result.resetMs };
+  return { ok: result.ok, resetMs: result.resetMs, unavailable: result.unavailable };
 }
 
 export function rateSubject(userId: string | null, req: Request): string {

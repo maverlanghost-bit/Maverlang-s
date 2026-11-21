@@ -74,7 +74,7 @@ const JWT_RE = /\beyJ[A-Za-z0-9_-]{6,}\.[A-Za-z0-9_-]{6,}\.[A-Za-z0-9_-]{6,}\b/g
 
 /** Claves con prefijo reconocible (Stripe, Supabase, GitHub, Slack, Resend). */
 const PREFIXED_KEY_RE =
-  /\b(?:(?:sk|rk|pk)_(?:live|test)_[A-Za-z0-9]{6,}|sb_secret_[A-Za-z0-9_-]{8,}|sbp_[A-Za-z0-9]{8,}|(?:ghp|gho|ghu|ghs|ghr)_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|AKIA[0-9A-Z]{16}|xox[baprs]-[A-Za-z0-9-]{10,}|re_[A-Za-z0-9]{16,})\b/g;
+  /\b(?:(?:sk|rk|pk)_(?:live|test)_[A-Za-z0-9]{6,}|sb_secret_[A-Za-z0-9_-]{8,}|sbp_[A-Za-z0-9]{8,}|(?:ghp|gho|ghu|ghs|ghr)_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|AKIA[0-9A-Z]{16}|xox[baprs]-[A-Za-z0-9-]{10,}|re_[A-Za-z0-9]{16,}|xai-[A-Za-z0-9]{20,}|APP_USR-[0-9]+-[A-Za-z0-9-]+)\b/g;
 
 /** Correo electrónico (puede venir en un mensaje de Supabase o de un RPC). */
 const EMAIL_RE = /[A-Za-z0-9._%+'-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g;

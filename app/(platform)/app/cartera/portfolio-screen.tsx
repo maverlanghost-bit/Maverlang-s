@@ -9,9 +9,12 @@ import { ChangeBadge } from "@/components/domain/change-badge";
 import { FlashPrice } from "@/components/domain/flash-price";
 import { InfoTip } from "@/components/domain/info-tip";
 import { InvestmentHistory } from "@/components/domain/investment-history";
+import { LimitOrdersPanel } from "@/components/domain/limit-orders-panel";
 import { PortfolioDonut } from "@/components/domain/portfolio-donut";
+import { PortfolioEventsCalendar } from "@/components/domain/portfolio-events-calendar";
 import { PortfolioHealthCard } from "@/components/domain/portfolio-health-card";
 import { PortfolioTaxSummaryCard } from "@/components/domain/portfolio-tax-summary-card";
+import { PortfolioXray } from "@/components/domain/portfolio-xray";
 import { PortfolioValueChart, isPortfolioRange, usePortfolioValueSeries } from "@/components/domain/portfolio-value-chart";
 import { DividendMultiplierCard } from "@/components/domain/dividend-multiplier-card";
 import { PositionDetails } from "@/components/market/position-details";
@@ -794,12 +797,28 @@ export function PortfolioScreen() {
               totalUsd={loaded.totalUsd}
               masked={masked}
             />
+            <PortfolioXray
+              positions={loaded.positions}
+              tickersBySymbol={tickerBySymbol}
+              cashUsdc={loaded.cashUsdc}
+              totalUsd={loaded.totalUsd}
+              currency={currency}
+              rate={rate}
+              masked={masked}
+            />
             <DividendMultiplierCard
               positions={loaded.positions}
               currency={currency}
               rate={rate}
               masked={masked}
             />
+            <section className="border-t border-border pt-8">
+              <h2 className="mb-4 text-lg font-medium tracking-tight text-fg">
+                {language === "en" ? "Limit orders & Auto-DCA" : "Órdenes límite y Auto-DCA"}
+              </h2>
+              <LimitOrdersPanel />
+            </section>
+            <PortfolioEventsCalendar heldSymbols={loaded.positions.map((p) => p.symbol)} />
             <PortfolioTaxSummaryCard
               positions={loaded.positions}
               activities={activity.data ?? []}

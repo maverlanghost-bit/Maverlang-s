@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48" fill="none">
+  <defs>
+    <linearGradient id="bg-avax" x1="0" y1="0" x2="48" y2="48" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#E84142"/>
+      <stop offset="100%" stop-color="#B91C1C"/>
+    </linearGradient>
+  </defs>
+  <circle cx="24" cy="24" r="24" fill="url(#bg-avax)"/>
+  <path d="M24 11L11.5 34h6.8l5.7-10.8L29.7 34h6.8L24 11z" fill="#FFF"/>
+     <polygon points="31.5,25 36.5,34 26.5,34" fill="#FFF"/>
+</svg>

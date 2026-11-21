@@ -50,6 +50,8 @@ export const RATE_LIMIT_POLICIES = {
   ai: { limit: 20, windowMs: 10 * 60_000 },
   /** Vincular billetera: 10 cada 10 min por usuario (desafío y envío). */
   walletLink: { limit: 10, windowMs: 10 * 60_000 },
+  /** Cobros / suscripciones (checkout y cancelación): 10/min por IP o usuario. */
+  billing: { limit: 10, windowMs: 60_000 },
 } as const;
 
 export type RateLimitPolicyName = keyof typeof RATE_LIMIT_POLICIES;
@@ -81,6 +83,9 @@ export const SENSITIVE_RATE_LIMIT_POLICIES = [
   "webhook",
   "cron",
   "walletLink",
+  "bienvenida",
+  "bienvenidaIp",
+  "billing",
 ] as const satisfies readonly RateLimitPolicyName[];
 
 const SENSITIVE_POLICIES: ReadonlySet<RateLimitPolicyName> = new Set(SENSITIVE_RATE_LIMIT_POLICIES);

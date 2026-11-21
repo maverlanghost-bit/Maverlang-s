@@ -145,14 +145,32 @@ function DownloadIcon({ className }: IconProps) {
   );
 }
 
+function LinkIcon({ className }: IconProps) {
+  return (
+    <svg {...svgProps} className={cn("size-4", className)}>
+      <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+      <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+    </svg>
+  );
+}
+
+type ShareLinkStatus = "idle" | "loading" | "ready" | "error";
+
+const MAX_SHARE_ENTRIES = 40;
+
 function ShareDialogCard({ chatTitle, messages, singlePair, onClose }: ShareDialogCardProps) {
   const baseId = useId();
   const titleId = `${baseId}-title`;
   const previewId = `${baseId}-preview`;
   const panelRef = useRef<HTMLDivElement | null>(null);
   const timerRef = useRef<number | null>(null);
+  const linkTimerRef = useRef<number | null>(null);
   const [mode, setMode] = useState<ShareMode>(singlePair ? "pair" : "all");
   const [copied, setCopied] = useState(false);
+  const [shareStatus, setShareStatus] = useState<ShareLinkStatus>("idle");
+  const [shareUrl, setShareUrl] = useState<string | null>(null);
+  const [shareError, setShareError] = useState<string | null>(null);
+  const [linkCopied, setLinkCopied] = useState(false);
 
   const pair = singlePair ?? null;
   const activeMode: ShareMode = pair ? mode : "all";
@@ -160,6 +178,14 @@ function ShareDialogCard({ chatTitle, messages, singlePair, onClose }: ShareDial
     () => buildEntries(activeMode, messages, pair),
     [activeMode, messages, pair],
   );
+
+  function selectMode(nextMode: ShareMode) {
+    setMode(nextMode);
+    setShareStatus("idle");
+    setShareUrl(null);
+    setShareError(null);
+    setLinkCopied(false);
+  }
 
   // Foco inicial en el panel; al desmontarse, vuelve al elemento que abrió el diálogo.
   useEffect(() => {
@@ -175,6 +201,7 @@ function ShareDialogCard({ chatTitle, messages, singlePair, onClose }: ShareDial
   useEffect(() => {
     return () => {
       if (timerRef.current !== null) window.clearTimeout(timerRef.current);
+      if (linkTimerRef.current !== null) window.clearTimeout(linkTimerRef.current);
     };
   }, []);
 
@@ -195,6 +222,53 @@ function ShareDialogCard({ chatTitle, messages, singlePair, onClose }: ShareDial
     timerRef.current = window.setTimeout(() => {
       setCopied(false);
       timerRef.current = null;
+    }, 2000);
+  }
+
+  async function handleGenerateLink() {
+    if (entries.length === 0 || shareStatus === "loading") return;
+    setShareStatus("loading");
+    setShareError(null);
+    setLinkCopied(false);
+    try {
+      const response = await fetch("/api/ai/share", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          title: chatTitle.trim() || "Conversación de Maverlang",
+          messages: entries.slice(0, MAX_SHARE_ENTRIES).map((entry) => ({
+            role: entry.role,
+            text: entry.text,
+          })),
+        }),
+      });
+      const data = (await response.json().catch(() => null)) as {
+        url?: string;
+        error?: string;
+      } | null;
+      if (!response.ok || !data?.url) {
+        setShareStatus("error");
+        setShareError(data?.error ?? "No se pudo generar el enlace público.");
+        return;
+      }
+      const resolvedUrl =
+        typeof window !== "undefined" ? `${window.location.origin}${data.url}` : data.url;
+      setShareUrl(resolvedUrl);
+      setShareStatus("ready");
+    } catch {
+      setShareStatus("error");
+      setShareError("No se pudo conectar para generar el enlace.");
+    }
+  }
+
+  async function handleCopyShareUrl() {
+    if (!shareUrl) return;
+    if (!(await copyToClipboard(shareUrl))) return;
+    setLinkCopied(true);
+    if (linkTimerRef.current !== null) window.clearTimeout(linkTimerRef.current);
+    linkTimerRef.current = window.setTimeout(() => {
+      setLinkCopied(false);
+      linkTimerRef.current = null;
     }, 2000);
   }
 
@@ -261,7 +335,7 @@ function ShareDialogCard({ chatTitle, messages, singlePair, onClose }: ShareDial
             aria-selected={activeMode === "pair"}
             aria-controls={previewId}
             disabled={!pair}
-            onClick={() => setMode("pair")}
+            onClick={() => selectMode("pair")}
             className={cn(
               "inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-[12.5px] font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900/20",
               activeMode === "pair"
@@ -279,7 +353,7 @@ function ShareDialogCard({ chatTitle, messages, singlePair, onClose }: ShareDial
             id={`${baseId}-tab-all`}
             aria-selected={activeMode === "all"}
             aria-controls={previewId}
-            onClick={() => setMode("all")}
+            onClick={() => selectMode("all")}
             className={cn(
               "inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-[12.5px] font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900/20",
               activeMode === "all"
@@ -326,23 +400,62 @@ function ShareDialogCard({ chatTitle, messages, singlePair, onClose }: ShareDial
           </div>
         </div>
 
-        <div className="mt-4 grid grid-cols-2 gap-2">
+        <div className="mt-4 space-y-2.5">
           <button
             type="button"
-            onClick={handleCopyText}
-            className="inline-flex items-center justify-center gap-1.5 rounded-full bg-zinc-900 px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900/30"
+            disabled={entries.length === 0 || shareStatus === "loading"}
+            onClick={handleGenerateLink}
+            className="inline-flex w-full items-center justify-center gap-1.5 rounded-full bg-zinc-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900/30"
           >
-            {copied ? <CheckIcon /> : <CopyIcon />}
-            {copied ? "Copiado" : "Copiar texto"}
+            <LinkIcon />
+            {shareStatus === "loading" ? "Generando enlace..." : "Generar enlace público"}
           </button>
-          <button
-            type="button"
-            onClick={handleDownload}
-            className="inline-flex items-center justify-center gap-1.5 rounded-full border border-zinc-200 px-4 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900/20"
-          >
-            <DownloadIcon />
-            Descargar .md
-          </button>
+
+          {shareStatus === "ready" && shareUrl ? (
+            <div className="flex items-center gap-2 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2">
+              <input
+                type="text"
+                readOnly
+                value={shareUrl}
+                aria-label="Enlace público generado"
+                onFocus={(event) => event.currentTarget.select()}
+                className="min-w-0 flex-1 bg-transparent text-xs text-zinc-700 outline-none"
+              />
+              <button
+                type="button"
+                onClick={handleCopyShareUrl}
+                className="inline-flex shrink-0 items-center gap-1 rounded-full bg-zinc-900 px-3 py-1 text-xs font-semibold text-white transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900/30"
+              >
+                {linkCopied ? <CheckIcon className="size-3.5" /> : <CopyIcon className="size-3.5" />}
+                {linkCopied ? "Copiado" : "Copiar enlace"}
+              </button>
+            </div>
+          ) : null}
+
+          {shareStatus === "error" && shareError ? (
+            <p role="alert" className="text-center text-xs text-rose-600">
+              {shareError}
+            </p>
+          ) : null}
+
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={handleCopyText}
+              className="inline-flex items-center justify-center gap-1.5 rounded-full border border-zinc-200 px-4 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900/20"
+            >
+              {copied ? <CheckIcon /> : <CopyIcon />}
+              {copied ? "Copiado" : "Copiar texto"}
+            </button>
+            <button
+              type="button"
+              onClick={handleDownload}
+              className="inline-flex items-center justify-center gap-1.5 rounded-full border border-zinc-200 px-4 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900/20"
+            >
+              <DownloadIcon />
+              Descargar .md
+            </button>
+          </div>
         </div>
       </div>
     </motion.div>

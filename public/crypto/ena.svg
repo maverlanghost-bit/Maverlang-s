@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48" fill="none">
+  <defs>
+    <linearGradient id="bg-ena" x1="0" y1="0" x2="48" y2="48" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#18181B"/>
+      <stop offset="100%" stop-color="#27272A"/>
+    </linearGradient>
+  </defs>
+  <circle cx="24" cy="24" r="24" fill="url(#bg-ena)"/>
+  <polygon points="24,10 37,24 24,38 11,24" stroke="#FFF" stroke-width="2.4"/>
+     <path d="M19 17h10v3h-6.5v2.5h5.5v3h-5.5V28H29v3H19V17z" fill="#FFF"/>
+</svg>

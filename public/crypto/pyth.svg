@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48" fill="none">
+  <defs>
+    <linearGradient id="bg-pyth" x1="0" y1="0" x2="48" y2="48" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#6D28D9"/>
+      <stop offset="100%" stop-color="#4C1D95"/>
+    </linearGradient>
+  </defs>
+  <circle cx="24" cy="24" r="24" fill="url(#bg-pyth)"/>
+  <path d="M17 13h9c4.4 0 7.5 2.6 7.5 6.8 0 4.2-3.1 6.8-7.5 6.8h-4.5V35H17V13zm4.5 3.8v6h4.2c2.1 0 3.4-1.1 3.4-3s-1.3-3-3.4-3h-4.2z" fill="#FFF"/>
+     <circle cx="31" cy="31" r="3" fill="#C4B5FD"/>
+</svg>

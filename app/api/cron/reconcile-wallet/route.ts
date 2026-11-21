@@ -4,8 +4,10 @@ import { z } from "zod";
 
 import { handle, readOutput } from "@/lib/api/handler";
 import { DomainError } from "@/lib/api/result";
+import { isMissingSchemaError } from "@/lib/supabase/schema-error";
 import { syncSolanaUsdcDeposits } from "@/lib/wallet/deposit-sync";
 import { reconcileWalletMovements } from "@/lib/wallet/reconcile-movements";
+import { reconcileSubmittedWithdrawals } from "@/lib/wallet/reconcile-withdrawals";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -52,6 +54,15 @@ const depositSyncResponseSchema = z.object({
   durationMs: z.number().int().nonnegative(),
 });
 
+const withdrawalReconcileResponseSchema = z.object({
+  reviewed: z.number().int().nonnegative(),
+  confirmed: z.number().int().nonnegative(),
+  failed: z.number().int().nonnegative(),
+  pending: z.number().int().nonnegative(),
+  skipped: z.number().int().nonnegative(),
+  durationMs: z.number().int().nonnegative(),
+});
+
 const reconcileResponseSchema = z.object({
   reviewed: z.number().int().nonnegative(),
   confirmed: z.number().int().nonnegative(),
@@ -62,6 +73,7 @@ const reconcileResponseSchema = z.object({
   durationMs: z.number().int().nonnegative(),
   truncated: z.boolean(),
   deposits: depositSyncResponseSchema,
+  withdrawals: withdrawalReconcileResponseSchema,
 });
 
 /**
@@ -87,8 +99,29 @@ async function runWalletCron(req: Request): Promise<Response> {
     const deposits = await syncSolanaUsdcDeposits();
     // La conciliación de pendientes corre igual aunque el barrido falle.
     const summary = await reconcileWalletMovements();
+    let withdrawals = {
+      reviewed: 0,
+      confirmed: 0,
+      failed: 0,
+      pending: 0,
+      skipped: 0,
+      durationMs: 0,
+    };
+    try {
+      withdrawals = await reconcileSubmittedWithdrawals();
+    } catch (error) {
+      const schemaErr =
+        error && typeof error === "object"
+          ? (error as { code?: string; message?: string })
+          : null;
+      if (!isMissingSchemaError(schemaErr)) {
+        // Registramos fallos reales de conciliación de salidas, pero nunca
+        // bloqueamos la acreditación de depósitos ni movimientos ya confirmados.
+        console.error("cron reconcile-wallet withdrawals:", error instanceof Error ? error.message : error);
+      }
+    }
     if (!deposits.ok) throw new DomainError("UPSTREAM");
-    return readOutput(reconcileResponseSchema, { ...summary, deposits });
+    return readOutput(reconcileResponseSchema, { ...summary, deposits, withdrawals });
   });
 }
 

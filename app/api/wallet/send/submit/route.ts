@@ -3,7 +3,12 @@ import { parseJson, assertSameOrigin, assertRealTradingEnabled, callService, han
 import { apiOperateBlock } from "@/lib/compliance/real-quote";
 import { withRateLimit } from "@/lib/security/rate-limit";
 import { getServices } from "@/lib/services";
-import { assertRealExecutionLocked, assertRealWithdrawalsEnabled } from "@/lib/trade/real-guards";
+import {
+  assertRealAccountCompliance,
+  assertRealExecutionLocked,
+  assertRealTradingDataMode,
+  assertRealWithdrawalsEnabled,
+} from "@/lib/trade/real-guards";
 import { submitWithdrawal } from "@/lib/wallet/withdrawal-store";
 
 export const runtime = "nodejs";
@@ -35,6 +40,10 @@ export function POST(req: Request) {
       ? await withRateLimit(req, "trade", [session.userId])
       : await withRateLimit(req, "trade");
     if (userLimited) return userLimited;
+    if (session) {
+      assertRealTradingDataMode();
+      await assertRealAccountCompliance(session.userId);
+    }
     // D-01: kill switch de salidas, la misma clave `withdrawals_enabled` que
     // muestra el panel en "Salida de dinero" (D-18). Apagado → 503
     // REAL_DISABLED antes de gastar la firma que trae el cliente.

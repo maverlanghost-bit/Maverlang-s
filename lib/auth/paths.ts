@@ -5,8 +5,12 @@
  */
 export function isPublicAppPath(pathname: string): boolean {
   if (pathname === "/app" || pathname === "/app/accion" || pathname.startsWith("/app/accion/")) return true;
+  if (pathname === "/app/screener" || pathname.startsWith("/app/screener/")) return true;
+  if (pathname === "/app/comparar" || pathname.startsWith("/app/comparar/")) return true;
+  if (pathname === "/app/mix" || pathname.startsWith("/app/mix/")) return true;
   if (pathname === "/app/cripto" || pathname.startsWith("/app/cripto/")) return true;
   if (pathname === "/app/ganar" || pathname.startsWith("/app/ganar/")) return true;
+  if (pathname === "/app/asistente/compartido" || pathname.startsWith("/app/asistente/compartido/")) return true;
   return pathname === "/app/ajustes" || pathname.startsWith("/app/ajustes/");
 }
 

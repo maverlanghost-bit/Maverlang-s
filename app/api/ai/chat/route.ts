@@ -1,6 +1,6 @@
 import { aiMessages } from "@/content/i18n/extra-b";
 import { symbolSchema } from "@/lib/api/contracts";
-import { assertSameOrigin, parseJson } from "@/lib/api/handler";
+import { assertSameOrigin, parseJson, requireSession } from "@/lib/api/handler";
 import { DomainError } from "@/lib/api/result";
 import { takeAiQuota } from "@/lib/ai/limit";
 import { runChat } from "@/lib/ai/run-chat";
@@ -8,7 +8,6 @@ import { AI_MAX_BODY_BYTES, aiChatRequestSchema, type AiChatBody } from "@/lib/a
 import type { AiChatResponse } from "@/lib/ai/types";
 import { readXaiSettings, XaiNotConfiguredError, XaiUpstreamError } from "@/lib/ai/xai";
 import { apiOperateBlock } from "@/lib/compliance/real-quote";
-import { ipOfRequest } from "@/lib/security/rate-limit";
 import { getServices } from "@/lib/services";
 
 export const runtime = "nodejs";
@@ -24,16 +23,6 @@ function aiResponse(body: AiChatResponse, status: number, extra?: HeadersInit): 
   headers.set("cache-control", "private, no-store");
   headers.set("x-content-type-options", "nosniff");
   return Response.json(body, { status, headers });
-}
-
-async function subjectOf(req: Request): Promise<string> {
-  try {
-    const session = await getServices().auth.getSession(req);
-    if (session?.userId) return session.userId;
-  } catch {
-    console.error("ai chat session");
-  }
-  return ipOfRequest(req) ?? "unknown";
 }
 
 /** `accept` con `text/event-stream` pide el protocolo SSE de §1.4. */
@@ -114,6 +103,7 @@ export async function POST(req: Request): Promise<Response> {
   const stream = wantsStream(req);
   try {
     assertSameOrigin(req);
+    const session = await requireSession(getServices(), req);
     const declared = Number(req.headers.get("content-length"));
     if (Number.isFinite(declared) && declared > AI_MAX_BODY_BYTES) {
       return aiResponse({ ok: false, error: "bad_request", message: copy.tooLarge }, 413);
@@ -122,8 +112,13 @@ export async function POST(req: Request): Promise<Response> {
     if (!readXaiSettings().apiKey) {
       return aiResponse({ ok: false, error: "not_configured", message: copy.notConfigured }, 503);
     }
-    const quota = await takeAiQuota(await subjectOf(req));
+    const quota = await takeAiQuota(session.userId);
     if (!quota.ok) {
+      if (quota.unavailable) {
+        return aiResponse({ ok: false, error: "upstream", message: copy.upstream }, 503, {
+          "Retry-After": "30",
+        });
+      }
       const retry = String(Math.max(1, Math.ceil(quota.resetMs / 1000)));
       return aiResponse({ ok: false, error: "rate_limited", message: copy.rateLimited }, 429, {
         "Retry-After": retry,
@@ -140,6 +135,9 @@ export async function POST(req: Request): Promise<Response> {
     return aiResponse({ ok: true, text: result.text, widgets: result.widgets }, 200);
   } catch (error) {
     if (error instanceof DomainError) {
+      if (error.code === "UNAUTHORIZED") {
+        return aiResponse({ ok: false, error: "bad_request", message: "Inicia sesión para usar el asistente." }, 401);
+      }
       if (error.code === "FORBIDDEN_ORIGIN") {
         return aiResponse({ ok: false, error: "bad_request", message: copy.badOrigin }, 403);
       }

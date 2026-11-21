@@ -14,7 +14,11 @@ import { Input } from "@/components/ui/input";
 import { LoadingState } from "@/components/ui/loading-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { Select } from "@/components/ui/select";
-import { SavedRecipientsBar } from "@/components/wallet/saved-recipients-bar";
+import {
+  SavedRecipientsBar,
+  getSavedRecipientCooldown,
+  type RecipientCooldownStatus,
+} from "@/components/wallet/saved-recipients-bar";
 import { AddressVerificationBadge } from "@/components/wallet/address-verification-badge";
 import { WithdrawalLimitsCard } from "@/components/wallet/withdrawal-limits-card";
 import { ApiError, buildSend, getSendStatus, submitSend } from "@/lib/api/client";
@@ -130,6 +134,8 @@ export function SendScreen() {
   const [draft, setDraft] = useState<Draft | null>(null);
   const [flowError, setFlowError] = useState<string | null>(null);
   const [signature, setSignature] = useState<string | null>(null);
+  const [recipientCooldown, setRecipientCooldown] = useState<RecipientCooldownStatus | null>(null);
+  const [recipientTick, setRecipientTick] = useState(0);
   const mounted = useRef(true);
   const confirming = useRef(false);
 
@@ -139,6 +145,15 @@ export function SendScreen() {
       mounted.current = false;
     };
   }, []);
+
+  const sessionUserId = session.user?.id ?? null;
+
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => {
+      setRecipientCooldown(getSavedRecipientCooldown(destination, Date.now(), sessionUserId));
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [destination, recipientTick, sessionUserId]);
 
   if (session.status === "loading" || balances.isPending) {
     return <LoadingState label={t.states.loading} />;
@@ -386,11 +401,35 @@ export function SendScreen() {
           className="num"
         />
         <AddressVerificationBadge id={addressStatusId} address={destination} valid={addressOk} />
+        {addressOk && recipientCooldown ? (
+          <div className="flex items-center gap-2 rounded-xl border border-border bg-surface-1 px-3 py-2 text-xs text-fg-muted">
+            <span
+              aria-hidden="true"
+              className={
+                recipientCooldown === "whitelisted"
+                  ? "size-1.5 shrink-0 rounded-full bg-up"
+                  : "size-1.5 shrink-0 rounded-full bg-warn"
+              }
+            />
+            <span>
+              {recipientCooldown === "whitelisted"
+                ? language === "en"
+                  ? "Saved over 24h ago"
+                  : "Guardada hace +24 h"
+                : language === "en"
+                  ? "Saved under 24h · verify address"
+                  : "Guardada hace menos de 24 h · verifica la dirección"}
+            </span>
+          </div>
+        ) : null}
         {own ? <p className="text-[13px] leading-relaxed text-warn">{t.wallet.ownAddress}</p> : null}
         <SavedRecipientsBar
           currentRecipient={destination}
           onSelect={(addr) => {
             setDestination(addr);
+          }}
+          onRecipientsChange={() => {
+            setRecipientTick((n) => n + 1);
           }}
         />
       </div>

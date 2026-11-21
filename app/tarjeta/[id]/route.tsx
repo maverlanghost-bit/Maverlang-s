@@ -1,6 +1,7 @@
 import { ImageResponse } from "next/og";
 
 import { site, siteOrigin } from "@/config/site";
+import { withRateLimit } from "@/lib/security/rate-limit";
 import { resolvePublicAsset } from "@/lib/seo/public-catalog";
 import { formatSharePct, parseSharePct } from "@/lib/share-card";
 
@@ -114,6 +115,8 @@ function ShareCard({
 }
 
 export async function GET(request: Request, context: { params: Promise<{ id: string }> }) {
+  const limited = await withRateLimit(request, "publicGet");
+  if (limited) return limited;
   const { id } = await context.params;
 
   let asset: Awaited<ReturnType<typeof resolvePublicAsset>> = null;
