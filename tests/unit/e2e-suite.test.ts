@@ -105,9 +105,10 @@ describe("M86: cobertura de rutas y códigos por spec", () => {
     expect(source).toContain('"Español (Chile)"');
   });
 
-  it("market.spec.ts cubre /app, filtro, buscador, moneda CLP/USD y ficha", () => {
+  it("market.spec.ts cubre /app, filtro, buscador, precios en USD y ficha", () => {
     const source = readE2e("market.spec.ts");
-    expect(source).toContain('"/app"');
+    expect(source).toContain(String.raw`/\/app\/?$/`);
+    expect(source).toContain("toHaveURL(marketUrl.href)");
     expect(source).toContain("/^Filtros/");
     expect(source).toContain('"Categoría"');
     expect(source).toContain('getByRole("dialog", { name: "Filtros", exact: true })');
@@ -115,8 +116,9 @@ describe("M86: cobertura de rutas y códigos por spec", () => {
     expect(source).toContain('selectOption("etf")');
     expect(source).toContain("Quitar filtro: ETFs");
     expect(source).toContain("Buscar acciones");
-    expect(source).toContain('"Moneda"');
-    expect(source).toMatch(/Moneda: (CLP|USD)/);
+    expect(source).toContain('localStorage.setItem("mv_currency", "CLP")');
+    expect(source).toContain(String.raw`expect(apple).toContainText(/US\$228,40/)`);
+    expect(source).toContain('getByRole("radiogroup", { name: "Moneda" })).toHaveCount(0)');
     expect(source).toContain("/app/accion/NVDAx");
     expect(source).toContain("totalAcciones");
   });

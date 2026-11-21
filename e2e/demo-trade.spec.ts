@@ -67,9 +67,11 @@ test("demo: compra NVDAx por US$100 y la cartera se actualiza", async ({ page })
   await expect(sheet.getByText(/Recibes ≈ .+ de NVIDIA/)).toBeVisible();
   await review.click();
 
-  // Revisión con desglose de costos y confirmación.
-  await expect(sheet.getByText("Precio estimado")).toBeVisible();
-  await expect(sheet.getByText("Comisión de red")).toBeVisible();
+  // Revisión con montos, costos de red y detalle de ejecución.
+  const resumen = sheet.getByRole("region", { name: "Montos estimados" });
+  await expect(resumen.getByText("Comisión de red")).toBeVisible();
+  await sheet.getByRole("button", { name: "Detalle de ejecución" }).click();
+  await expect(sheet.getByRole("region", { name: "Detalle de ejecución" }).getByText("Precio estimado")).toBeVisible();
   await sheet.getByRole("button", { name: "Confirmar" }).click();
 
   await expect(sheet.getByText("¡Listo!")).toBeVisible();
@@ -142,11 +144,11 @@ test("demo: venta parcial desde la cartera", async ({ page }) => {
   const reviewVenta = sheetVenta.getByRole("button", { name: "Revisar" });
   await expect(reviewVenta).toBeEnabled();
   await reviewVenta.click();
-  const resumen = sheetVenta.getByRole("region", { name: "Resumen de la cotización" });
-  const pagas = resumen.getByText("Pagas", { exact: true }).locator("xpath=following-sibling::dd");
+  const resumen = sheetVenta.getByRole("region", { name: "Montos estimados" });
+  const vendes = resumen.getByText("Vendes", { exact: true }).locator("xpath=following-sibling::dd");
   const recibes = resumen.getByText("Recibes", { exact: true }).locator("xpath=following-sibling::dd");
-  await expect(pagas).toHaveText("0,5 acc. NVDAx");
-  await expect(recibes).toContainText(/\$\s?[\d.]+/);
+  await expect(vendes).toHaveText("0,5 acc. NVDAx");
+  await expect(recibes).toContainText(/US\$\d/);
   await sheetVenta.getByRole("button", { name: "Confirmar" }).click();
   await expect(sheetVenta.getByText("¡Listo!")).toBeVisible();
 

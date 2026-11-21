@@ -19,10 +19,11 @@ test("portada: demo gratis, lista de espera y logos", async ({ page }) => {
   await expect(page).toHaveURL(/\/app\/registro/);
 
   await page.goto("/");
-  const avisoDemo = page.getByRole("region", { name: "Cotizaciones" }).getByText("Practica con US$10.000 ficticios.");
+  const hero = page.getByRole("region", { name: "Acciones de EE.UU. tokenizadas, en tu billetera" });
+  const avisoDemo = hero.getByText("Practica con US$10.000 ficticios.");
   await expect(avisoDemo).toBeVisible();
   await expect(avisoDemo).not.toContainText("precios reales");
-  await expect(page.getByRole("link", { name: "Avísame cuando abra la cuenta Real" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Reserva tu lugar para la cuenta Real" })).toBeVisible();
 
   let correoEnviado: unknown = null;
   let consentEnviado: unknown = null;

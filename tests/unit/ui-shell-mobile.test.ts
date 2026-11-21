@@ -25,13 +25,13 @@ describe("UI Shell & Mobile Broker Header (x.ai/bot light aesthetic)", () => {
     expect(src).toContain("/app/perfil");
   });
 
-  it("El chip flotante tiene estilos Liquid Glass al final de liquid-glass.css y CurrencySwitch vive en el perfil", () => {
+  it("El chip flotante tiene estilos Liquid Glass y el perfil prescinde del selector de moneda", () => {
     const css = readRepoFile("components/app-shell/liquid-glass.css");
     expect(css).toContain("/* === floating chips (Agent C) === */");
     expect(css).toContain(".liquid-glass--chip");
     expect(css).toContain("backdrop-filter");
     expect(readRepoFile("components/app-shell/stock-search.tsx")).toContain('"chip"');
-    expect(readRepoFile("app/(platform)/app/perfil/profile-screen.tsx")).toContain("CurrencySwitch");
+    expect(readRepoFile("app/(platform)/app/perfil/profile-screen.tsx")).not.toContain("CurrencySwitch");
   });
   it("PublicHeader usa BrandMark con compactOnMobile en móvil y acabado translúcido", () => {
     const src = readRepoFile("components/app-shell/public-header.tsx");

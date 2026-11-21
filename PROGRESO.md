@@ -8,6 +8,15 @@
 - Verificado en producción: portada y ayuda a 390 y 1280 px, mercado, acceso protegido al asistente y API de salud. La consulta de estado en modo real devolvió `503 REAL_DISABLED`.
 - La publicación usó una copia separada para conservar los cambios locales pendientes. Sin migraciones ni cambios de configuración. Órdenes límite reales pendientes de un ejecutor y los requisitos de `docs/PENDIENTES-PRODUCCION.md`.
 
+## T71 — Preparación de publicación y compatibilidad de SDK (2026-11-18)
+- Base: `0885f5a` ya contiene las 16 mejoras en GitHub. Vercel reportó fallo y el control TypeScript de GitHub identificó una importación de `SegmentedControl` ausente en el commit de la hoja de compra/venta. El árbol local anterior tenía la importación.
+- Se añade la importación en `components/domain/trade-sheet.tsx`. Se ajustan pruebas de portada y seguridad para mantener sus comprobaciones sobre las secciones y controles del diseño publicado en GitHub.
+- Dependencias: Next y eslint-config-next 16.4.6, Privy React 3.51.4 y Zod 4.6.7 para x402, Coinbase CDP y Reown. El SDK oficial de Privy conserva sus funciones de billetera. El lock se generó con npm 11.19.0.
+- `scripts/migrate-wallet-sdk-schemas.mjs` aplica en postinstall la clave explícita de los mapas Zod 4 en x402 y Coinbase. Verifica versión y SHA-256 de cada archivo antes de editar y permite repetir la instalación. Revisar el script al actualizar esos SDK.
+- `npm run audit:deps` pasa con cero avisos altos o críticos pendientes, 19 moderados y sin excepciones nuevas. El paywall independiente de x402 conserva código embebido de terceros. Las trazas y chunks revisados lo excluyen del sitio.
+- Compatibilidad local: 13 pruebas de validación y auditoría aprobadas. Se verificaron importación CommonJS/ESM, DTO de pago, EIP-712 y mensajes Reown. Firma, recuperación y exportación con cuentas reales quedan fuera de las pruebas demo.
+- Verificación del candidato: build y TypeScript correctos (546 páginas), lint dirigido y escaneo del bundle limpios, 1.959/1.959 unitarios y 14 casos de navegador aprobados entre la corrida y el reintento de legales. La primera compilación incremental incorporó la importación sólo en TypeScript; se reconstruyó antes de aprobar navegador.
+- Cambios preparados en la rama aislada `codex/release-ui-20261117`. Se conserva el estado de dinero real. Evidencia local en `tmp/ui-approved-baseline/t71-*.log`.
 ## T81 — Confirmaciones para la web (2026-11-21)
 - Comprobante compartido con onda para compras y ventas de acciones a mercado y compraventas de cripto cuando la orden queda confirmada. Se conservan los controles de acceso y ejecución existentes.
 - La orden límite guardada en la demo usa un fundido neutro y estado visible «Pendiente».

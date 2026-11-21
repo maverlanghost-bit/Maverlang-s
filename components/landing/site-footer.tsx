@@ -135,12 +135,12 @@ export function SiteFooter() {
           </div>
         </div>
 
-        {/* Cierre: nombre de la marca en grande y en gris muy suave. Es decorativo
+        {/* Cierre: nombre de la marca en grande. Es decorativo
             (el logo de arriba ya nombra la marca), por eso queda fuera del árbol accesible. */}
         <div className="mt-12 lg:mt-16">
           <p
             aria-hidden="true"
-            className="overflow-hidden pb-[0.14em] text-[clamp(2rem,10.5vw,8rem)] leading-none font-semibold tracking-[-0.05em] whitespace-nowrap text-surface-3 select-none"
+            className="overflow-hidden pb-[0.14em] text-[clamp(2rem,10.5vw,8rem)] leading-none font-semibold tracking-[-0.05em] whitespace-nowrap text-fg-subtle select-none"
           >
             {site.name}
           </p>

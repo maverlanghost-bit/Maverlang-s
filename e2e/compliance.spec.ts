@@ -262,9 +262,10 @@ test("API: idoneidad vía consents versionados (POST y GET)", async ({ page }) =
   // El perfil legal de la UI los muestra (idoneidad registrada).
   await page.goto("/app/perfil/legal");
   await expect(page.getByRole("heading", { name: "Documentos legales" })).toBeVisible();
-  await expect(page.getByText("Términos y condiciones")).toBeVisible();
-  await expect(page.getByText("Política de privacidad")).toBeVisible();
-  await expect(page.getByText("Divulgación de riesgos")).toBeVisible();
+  const aceptados = page.getByRole("listitem").filter({ hasText: "2026-10-draft" });
+  await expect(aceptados.getByText("Términos y condiciones")).toBeVisible();
+  await expect(aceptados.getByText("Política de privacidad")).toBeVisible();
+  await expect(aceptados.getByText("Divulgación de riesgos")).toBeVisible();
 });
 
 test("API: consent con documento inválido se rechaza con 400", async ({ page }) => {
