@@ -12,6 +12,7 @@ import { LimitOrdersPanel } from "@/components/domain/limit-orders-panel";
 import { MarketStatusPill } from "@/components/domain/market-status-pill";
 import { RealAccountEmpty } from "@/components/domain/real-account-empty";
 import { TickerLogo } from "@/components/domain/ticker-logo";
+import { preloadTradeConfirmationWave, TradeConfirmationWave } from "@/components/domain/trade-confirmation-wave";
 import { TradeExecutionStepper } from "@/components/domain/trade-execution-stepper";
 import { AmountInput } from "@/components/ui/amount-input";
 import { Button } from "@/components/ui/button";
@@ -404,6 +405,7 @@ function TradeFlow({ side, ticker, onBusyChange }: { side: Side; ticker: Ticker;
   const seqRef = useRef(0);
   const mounted = useRef(true);
   const confirming = useRef(false);
+  const confirmationCheck = useRef<HTMLSpanElement>(null);
 
   const isEnglish = language === "en";
   const doc = isEnglish
@@ -413,6 +415,7 @@ function TradeFlow({ side, ticker, onBusyChange }: { side: Side; ticker: Ticker;
   const userId = session.user?.id?.trim() ?? "";
   const limitEnabled = mode === "demo" && session.status === "authenticated" && userId.length > 0;
   const isLimit = limitEnabled && orderMode === "limit";
+  const demoMarketBuy = mode === "demo" && side === "buy" && !isLimit;
   // La cuenta demo no tiene billetera: se firma con el id de usuario (uuid ≥ 32).
   const pubkey = wallet.length >= 32 ? wallet : mode === "demo" && userId.length >= 32 ? userId : null;
   const position = portfolio.data?.positions.find((item) => item.symbol === ticker.symbol) ?? null;
@@ -476,6 +479,10 @@ function TradeFlow({ side, ticker, onBusyChange }: { side: Side; ticker: Ticker;
       mounted.current = false;
     };
   }, []);
+
+  useEffect(() => {
+    if (phase === "review" && demoMarketBuy) preloadTradeConfirmationWave();
+  }, [phase, demoMarketBuy]);
 
   useEffect(() => {
     const id = window.setInterval(() => setNow(Date.now()), 1000);
@@ -716,6 +723,7 @@ function TradeFlow({ side, ticker, onBusyChange }: { side: Side; ticker: Ticker;
   }
 
   if (phase === "done" && result) {
+    const showConfirmationWave = demoMarketBuy && result.side === "buy" && result.status === "confirmed";
     const summary =
       result.side === "buy"
         ? fill(t.trade.doneBuy, { amount: formatShares(result.outAmountUi), name: ticker.name })
@@ -729,14 +737,22 @@ function TradeFlow({ side, ticker, onBusyChange }: { side: Side; ticker: Ticker;
     return (
       <div role="status" aria-live="polite" className="flex min-h-0 flex-1 flex-col">
         <div className="flex flex-col gap-6 pb-8">
-          <div className="flex items-start gap-3">
+          <div className={cn(
+            "flex items-start gap-3",
+            showConfirmationWave && "relative isolate overflow-hidden rounded-2xl border border-up/15 bg-bg p-3.5 sm:p-4",
+          )}>
+            {showConfirmationWave ? <TradeConfirmationWave key={result.id} source={confirmationCheck} /> : null}
             <span
+              ref={confirmationCheck}
               aria-hidden="true"
-              className="mt-0.5 grid size-8 shrink-0 place-items-center rounded-full bg-fg text-bg"
+              className={cn(
+                "mt-0.5 grid size-8 shrink-0 place-items-center rounded-full bg-fg text-bg",
+                showConfirmationWave && "relative z-10 bg-up text-white",
+              )}
             >
               <IconCheck className="size-4" />
             </span>
-            <div className="min-w-0">
+            <div className={cn("min-w-0", showConfirmationWave && "relative z-10")}>
               <p className="text-xl leading-tight text-fg">{t.trade.done}</p>
               <p className="mt-1.5 text-[13px] leading-relaxed text-fg-body">{summary}</p>
             </div>

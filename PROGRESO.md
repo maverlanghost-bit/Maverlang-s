@@ -1,5 +1,10 @@
 # PROGRESO — Maverlang
 
+## T80 — Onda de confirmación en compras demo (2026-11-21)
+- Dependencia `distortion-waves` 0.1.0 para el efecto visual del comprobante. Se limita a compras a mercado confirmadas de la cuenta demo y se carga de forma diferida.
+- `trade-sheet.tsx` precarga el módulo al revisar. `trade-confirmation-wave.tsx` dibuja una onda verde de alrededor de medio segundo detrás del encabezado y libera el canvas. El comprobante aparece de inmediato y el efecto usa una capa decorativa sin capturar datos del DOM.
+- ESLint, tipos del componente y flujo de compra simulado en Chromium a 390 y 1280 px verificados. Probados movimiento reducido, WebGL deshabilitado, fallo de descarga, venta y rechazo. Pendiente comprobar fluidez en un móvil físico antes de extender el efecto. La compilación completa queda para cuando Manu la indique.
+
 ## T79 — Evaluación de Distortion Waves (2026-11-21)
 - Revisados documentación y paquete publicado `distortion-waves` 0.1.0. Licencia MIT, React y React DOM 18+, sin dependencias de ejecución adicionales. Entrada ESM de 32 kB con gzip, medida sobre el archivo publicado.
 - Propuesta para demo: onda breve desde el check del comprobante de una compra a mercado, una vez por orden `confirmed`. Carga diferida y comprobante disponible inmediatamente, con transición ligera según dispositivo y preferencia de movimiento.
