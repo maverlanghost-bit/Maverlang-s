@@ -27,7 +27,6 @@ type ContextPickerProps = {
 
 type PickerOption = {
   item: ContextItem;
-  logoUrl: string | null;
   subtitle: string;
 };
 
@@ -56,6 +55,7 @@ function stockItem(ticker: Ticker): ContextItem {
     kind: "stock",
     symbol: ticker.symbol,
     name: ticker.name,
+    logoUrl: ticker.logo || null,
   };
 }
 
@@ -63,8 +63,7 @@ function marketOption(row: MarketSearchItem): PickerOption {
   const isIndex = row.category === "etf" || INDEX_SYMBOLS.some((symbol) => symbol === row.symbol);
   const kind: ContextItem["kind"] = isIndex ? "index" : "stock";
   return {
-    item: { id: `${kind}:${row.symbol}`, kind, symbol: row.symbol, name: row.name },
-    logoUrl: row.logoUrl,
+    item: { id: `${kind}:${row.symbol}`, kind, symbol: row.symbol, name: row.name, logoUrl: row.logoUrl },
     subtitle: row.symbol,
   };
 }
@@ -180,7 +179,7 @@ function OptionRow({
       <TickerLogo
         symbol={option.item.symbol}
         name={option.item.name}
-        logoUrl={option.logoUrl}
+        logoUrl={option.item.logoUrl}
         size={36}
         decorative
         loading="lazy"
@@ -318,7 +317,6 @@ function ContextPickerDialog({
       .sort((a, b) => a.name.localeCompare(b.name, "es"));
     return rows.slice(0, 8).map((ticker) => ({
       item: stockItem(ticker),
-      logoUrl: ticker.logo || null,
       subtitle: ticker.symbol,
     }));
   }, [tickers.data]);
@@ -332,8 +330,8 @@ function ContextPickerDialog({
           kind: "index" as const,
           symbol,
           name: ticker?.name ?? symbol,
+          logoUrl: ticker?.logo ?? null,
         },
-        logoUrl: ticker?.logo ?? null,
         subtitle: ticker?.name ? symbol : "ETF",
       };
     });
@@ -551,6 +549,7 @@ function ContextPickerDialog({
                       kind: "stock",
                       symbol: position.symbol,
                       name,
+                      logoUrl: ticker?.logo ?? null,
                     };
                     const added = isInContext(selected, item.id);
                     const atLimit = !added && selected.length >= MAX_CONTEXT_ITEMS;
@@ -563,7 +562,7 @@ function ContextPickerDialog({
                         <TickerLogo
                           symbol={position.symbol}
                           name={name}
-                          logoUrl={ticker?.logo ?? null}
+                          logoUrl={item.logoUrl}
                           size={36}
                           decorative
                           loading="lazy"

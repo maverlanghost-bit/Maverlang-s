@@ -3,9 +3,11 @@
 import {
   useCallback,
   useEffect,
+  useId,
   useRef,
   useState,
   type ChangeEvent,
+  type ComponentType,
   type FormEvent,
   type RefObject,
 } from "react";
@@ -15,69 +17,76 @@ import { isCodeSnippet } from "@/components/ai/code-block";
 import type { ContextItem } from "@/components/ai/context-types";
 import { ModelSelector } from "@/components/ai/model-selector";
 import { useVoiceInput } from "@/components/ai/use-voice-input";
+import { TickerLogo } from "@/components/domain/ticker-logo";
+import { IconClock, IconCopy, IconPortfolio } from "@/components/ui/icons";
 import type { AsistenteCopy, AsistenteSuggestionId } from "@/content/i18n/extra-asistente";
 import { cn } from "@/lib/cn";
 
-export type SlashCommand = {
+type SlashCommand = {
   id: string;
   command: string;
-  argHint?: string;
+  requiresArgs?: boolean;
   desc: string;
-  eg?: string;
+  icon: ComponentType<GlyphProps>;
 };
 
-export const SLASH_COMMANDS: readonly SlashCommand[] = [
+const SLASH_COMMANDS: readonly SlashCommand[] = [
   {
     id: "grafico",
     command: "/grafico",
-    argHint: "<acción>",
-    desc: "Gráfico interactivo y precio en vivo",
-    eg: "/grafico NVDA",
+    requiresArgs: true,
+    desc: "Muestra el gráfico y el precio de una acción",
+    icon: LineChartGlyph,
   },
   {
     id: "cartera",
     command: "/cartera",
-    desc: "Resumen, peso y salud de tu portafolio",
+    desc: "Resume tus posiciones y su peso en la cartera",
+    icon: IconPortfolio,
   },
   {
     id: "comparar",
     command: "/comparar",
-    argHint: "<A> <B>",
-    desc: "Comparar dos acciones lado a lado",
-    eg: "/comparar AAPL MSFT",
+    requiresArgs: true,
+    desc: "Compara el rendimiento de dos acciones",
+    icon: ScaleGlyph,
   },
   {
     id: "empresa",
     command: "/empresa",
-    argHint: "<acción>",
-    desc: "Datos SEC, múltiplos y resultados",
-    eg: "/empresa AMZN",
+    requiresArgs: true,
+    desc: "Consulta datos financieros de una empresa",
+    icon: BarChartGlyph,
   },
   {
     id: "simular",
     command: "/simular",
-    argHint: "<acción> <USD>",
-    desc: "Simular compra o aporte mensual",
-    eg: "/simular NVDA 500",
+    requiresArgs: true,
+    desc: "Simula una compra de acciones",
+    icon: AreaChartGlyph,
   },
   {
     id: "alerta",
     command: "/alerta",
-    argHint: "<acción> <precio>",
-    desc: "Configurar alerta de precio objetivo",
-    eg: "/alerta TSLA 300",
+    requiresArgs: true,
+    desc: "Prepara una alerta para un precio objetivo",
+    icon: TargetGlyph,
   },
   {
     id: "resumen",
     command: "/resumen",
-    desc: "Pulso diario de tus activos y mercado",
+    desc: "Obtén un resumen del día y tus activos",
+    icon: IconClock,
   },
   {
     id: "copiar",
     command: "/copiar",
-    desc: "Ver portafolios de Copy Trading",
+    desc: "Explora portafolios de Copy Trading",
+    icon: IconCopy,
   },
 ];
+
+const SLASH_TOKEN = /^\/\S*$/;
 
 /** Frases del placeholder animado, en el mismo orden que chat-input.tsx. */
 const CHAT_INPUT_PLACEHOLDERS = [
@@ -92,6 +101,7 @@ const CHAT_INPUT_PLACEHOLDERS = [
 ] as const;
 
 type MenuView = "main" | "charts" | "analysis";
+type ComposerPopover = "attachments" | "commands";
 type ToolCategory = "charts" | "analysis";
 
 type AdvancedTool = {
@@ -141,6 +151,7 @@ export function Composer({
   suggestions,
   onDraft,
   onSubmit,
+  onCommand,
   onSuggest,
   onAttach,
   onFile,
@@ -148,8 +159,6 @@ export function Composer({
   fileRef,
   selectedModel,
   onSelectModel,
-  webSearchEnabled,
-  onToggleWebSearch,
   activeTools = [],
   onToggleTool,
   onStop,
@@ -165,6 +174,7 @@ export function Composer({
   suggestions: boolean;
   onDraft: (value: string) => void;
   onSubmit: () => void;
+  onCommand: (command: string) => void;
   onSuggest: (id: AsistenteSuggestionId, text: string) => void;
   onAttach: () => void;
   onFile: (event: ChangeEvent<HTMLInputElement>) => void;
@@ -172,8 +182,6 @@ export function Composer({
   fileRef: RefObject<HTMLInputElement | null>;
   selectedModel?: "fast" | "pro";
   onSelectModel?: (model: "fast" | "pro") => void;
-  webSearchEnabled?: boolean;
-  onToggleWebSearch?: () => void;
   activeTools?: readonly string[];
   onToggleTool?: (toolId: string) => void;
   onStop?: () => void;
@@ -186,16 +194,15 @@ export function Composer({
   const showStop = typing && onStop != null;
   const codePasted = isCodeSnippet(draft);
 
-  // La búsqueda web puede venir controlada por el coordinador o vivir aquí.
-  const [localWebSearch, setLocalWebSearch] = useState(false);
-  const webSearchOn = webSearchEnabled ?? localWebSearch;
-  const [deepReasoning, setDeepReasoning] = useState(false);
-
-  const [menuOpen, setMenuOpen] = useState(false);
+  const [popover, setPopover] = useState<ComposerPopover | null>(null);
   const [menuView, setMenuView] = useState<MenuView>("main");
   const menuRef = useRef<HTMLDivElement | null>(null);
-  const menuResetTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const attachmentButtonRef = useRef<HTMLButtonElement | null>(null);
+  const commandButtonRef = useRef<HTMLButtonElement | null>(null);
+  const paletteRef = useRef<HTMLDivElement | null>(null);
   const [favorites, setFavorites] = useState<readonly string[]>([]);
+  const menuOpen = popover === "attachments";
+  const showSlashPalette = popover === "commands";
 
   // Dictado por voz: cada frase se agrega al borrador, nunca se envía sola.
   const {
@@ -214,42 +221,61 @@ export function Composer({
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
   // Paleta de comandos slash (/)
-  const isSlashMode = draft.startsWith("/") && !draft.includes(" ") && !draft.includes("\n");
-  const slashQuery = isSlashMode ? draft.toLowerCase().trim() : "";
-  const filteredCommands = isSlashMode
-    ? SLASH_COMMANDS.filter((cmd) => cmd.command.toLowerCase().startsWith(slashQuery))
+  const isSlashMode = SLASH_TOKEN.test(draft);
+  const slashQuery = isSlashMode
+    ? draft.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    : "/";
+  const filteredCommands = showSlashPalette
+    ? SLASH_COMMANDS.filter((cmd) => cmd.command.startsWith(slashQuery))
     : [];
   const [slashSelection, setSlashSelection] = useState<{ query: string; index: number }>({
     query: "",
     index: 0,
   });
-  const [dismissedQuery, setDismissedQuery] = useState<string | null>(null);
-
   const slashIndex =
     slashSelection.query === slashQuery && filteredCommands.length > 0
       ? Math.min(slashSelection.index, filteredCommands.length - 1)
       : 0;
-  const slashDismissed = isSlashMode && dismissedQuery === slashQuery;
-  const showSlashPalette = isSlashMode && !slashDismissed && filteredCommands.length > 0;
+  const paletteId = useId();
+  const activeCommand = filteredCommands[slashIndex];
+  const activeCommandId = activeCommand ? `${paletteId}-${activeCommand.id}` : undefined;
+
+  const closePopover = useCallback(() => {
+    setPopover(null);
+    setMenuView("main");
+  }, []);
+
+  function changeDraft(value: string) {
+    onDraft(value);
+    if (SLASH_TOKEN.test(value)) {
+      setPopover("commands");
+    } else if (showSlashPalette) {
+      closePopover();
+    }
+  }
 
   function selectSlashCommand(cmd: SlashCommand) {
-    if (!cmd.argHint) {
-      onDraft("");
-      (onSuggest as unknown as (arg1: string, arg2?: string) => void)(cmd.command, cmd.command);
-    } else {
-      onDraft(`${cmd.command} `);
-      textareaRef.current?.focus();
+    if (typing && !cmd.requiresArgs) return;
+    closePopover();
+    if (!cmd.requiresArgs) {
+      if (isSlashMode) onDraft("");
+      onCommand(cmd.command);
+      return;
     }
-    setDismissedQuery(slashQuery);
+
+    const prefix = `${cmd.command} `;
+    const argumentsDraft = isSlashMode ? "" : draft.trimStart().replace(/^\/\S+\s+/, "");
+    onDraft(`${prefix}${argumentsDraft}`);
+    textareaRef.current?.focus();
+    requestAnimationFrame(() => textareaRef.current?.setSelectionRange(prefix.length, prefix.length));
   }
 
   function toggleSlashShortcut() {
-    if (draft === "/") {
-      onDraft("");
-      setDismissedQuery(null);
-    } else if (!draft.startsWith("/")) {
-      onDraft("/");
-      setDismissedQuery(null);
+    if (showSlashPalette) {
+      closePopover();
+    } else {
+      setSlashSelection({ query: slashQuery, index: 0 });
+      setPopover("commands");
     }
     textareaRef.current?.focus();
   }
@@ -335,35 +361,39 @@ export function Composer({
     resizeTextarea();
   }, [draft, resizeTextarea]);
 
-  // Al desmontar: cortar cualquier timer pendiente del menú.
   useEffect(() => {
-    return () => {
-      if (menuResetTimer.current) clearTimeout(menuResetTimer.current);
-    };
-  }, []);
+    const list = paletteRef.current;
+    const option = activeCommandId ? document.getElementById(activeCommandId) : null;
+    if (!list || !option) return;
+    const top = option.offsetTop;
+    const bottom = top + option.offsetHeight;
+    if (top < list.scrollTop) list.scrollTop = top;
+    if (bottom > list.scrollTop + list.clientHeight) list.scrollTop = bottom - list.clientHeight;
+  }, [activeCommandId]);
 
-  // Popover de adjuntos: cierra con click fuera y con Escape.
+  // Ambos menús comparten el estado de apertura y el cierre por interacción externa.
   useEffect(() => {
-    if (!menuOpen) return;
-    const onPointerDown = (event: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        setMenuOpen(false);
-        setMenuView("main");
-      }
+    if (!popover) return;
+    const onPointerDown = (event: PointerEvent) => {
+      if (!(event.target instanceof Node)) return;
+      const target = event.target;
+      const inside = popover === "attachments"
+        ? menuRef.current?.contains(target)
+        : [paletteRef.current, textareaRef.current, commandButtonRef.current].some((node) => node?.contains(target));
+      if (!inside) closePopover();
     };
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setMenuOpen(false);
-        setMenuView("main");
-      }
+      if (event.key !== "Escape" || event.defaultPrevented) return;
+      closePopover();
+      if (popover === "attachments") attachmentButtonRef.current?.focus();
     };
-    document.addEventListener("mousedown", onPointerDown);
+    document.addEventListener("pointerdown", onPointerDown);
     document.addEventListener("keydown", onKeyDown);
     return () => {
-      document.removeEventListener("mousedown", onPointerDown);
+      document.removeEventListener("pointerdown", onPointerDown);
       document.removeEventListener("keydown", onKeyDown);
     };
-  }, [menuOpen]);
+  }, [closePopover, popover]);
 
   function submit(event: FormEvent) {
     event.preventDefault();
@@ -371,42 +401,23 @@ export function Composer({
     onSubmit();
   }
 
-  function toggleWebSearch() {
-    if (onToggleWebSearch) {
-      onToggleWebSearch();
-      return;
-    }
-    setLocalWebSearch((prev) => !prev);
-  }
-
-  function closeMenu() {
-    setMenuOpen(false);
-    setMenuView("main");
-  }
-
   function toggleMenu() {
     if (menuOpen) {
-      closeMenu();
+      closePopover();
       return;
     }
     setMenuView("main");
-    setMenuOpen(true);
-  }
-
-  function scheduleViewReset() {
-    if (menuResetTimer.current) clearTimeout(menuResetTimer.current);
-    menuResetTimer.current = setTimeout(() => setMenuView("main"), 200);
+    setPopover("attachments");
   }
 
   function uploadFile() {
-    closeMenu();
+    closePopover();
     onAttach();
   }
 
   function pickTool(id: string) {
     onToggleTool?.(id);
-    setMenuOpen(false);
-    scheduleViewReset();
+    closePopover();
   }
 
   function toggleFavorite(id: string) {
@@ -481,81 +492,54 @@ export function Composer({
         </p>
       ) : null}
 
-      {/* Paleta flotante de comandos slash (/). */}
-      <AnimatePresence>
-        {showSlashPalette ? (
-          <motion.div
-            initial={{ opacity: 0, y: openUpward ? 6 : -6, scale: 0.98 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: openUpward ? 6 : -6, scale: 0.98 }}
-            transition={{ duration: 0.15, ease: [0.22, 1, 0.36, 1] }}
-            role="listbox"
-            aria-label="Comandos del asistente"
+      {showSlashPalette ? (
+          <div
+            ref={paletteRef}
+            id={paletteId}
+            role={activeCommand ? "listbox" : "status"}
+            aria-label={activeCommand ? "Comandos rápidos" : undefined}
             className={cn(
-              "absolute left-0 z-40 w-full max-w-lg overflow-hidden rounded-2xl border border-border/80 bg-white/95 p-1.5 shadow-2xl backdrop-blur-md",
-              openUpward ? "bottom-full mb-2.5" : "top-full mt-2.5",
+              "absolute inset-x-0 z-40 grid max-h-[min(21rem,36dvh)] w-full content-start gap-0.5 overflow-y-auto overscroll-contain rounded-2xl border border-border bg-bg p-1.5 shadow-float motion-safe:animate-fade-in sm:p-2",
+              openUpward ? "bottom-full mb-2" : "top-full mt-2",
             )}
           >
-            <div className="flex items-center justify-between border-b border-border/50 bg-surface-1/70 px-3 py-1.5 text-[11px] font-semibold text-fg-muted">
-              <span className="flex items-center gap-1.5">
-                <span className="font-mono text-xs font-bold text-brand">/</span>
-                <span>Comandos del asistente</span>
-              </span>
-              <span className="font-mono text-[10px] text-fg-subtle">
-                ↑↓ navegar · ↵ elegir · Esc cerrar
-              </span>
-            </div>
-
-            <div className="max-h-60 overflow-y-auto overscroll-contain p-1 space-y-0.5">
-              {filteredCommands.map((cmd, idx) => {
-                const isSelected = idx === slashIndex;
-                return (
-                  <div
-                    key={cmd.id}
-                    id={`slash-cmd-${cmd.id}`}
-                    role="option"
-                    aria-selected={isSelected}
-                    onClick={() => selectSlashCommand(cmd)}
-                    onMouseEnter={() => setSlashSelection({ query: slashQuery, index: idx })}
-                    className={cn(
-                      "group flex items-center justify-between gap-3 px-3 py-2 rounded-xl cursor-pointer transition-colors text-left",
-                      isSelected
-                        ? "bg-zinc-100/90 text-zinc-950 font-medium"
-                        : "text-zinc-700 hover:bg-zinc-50/80",
-                    )}
-                  >
-                    <div className="flex items-baseline gap-2 min-w-0">
-                      <span className="font-mono text-[13px] font-semibold text-zinc-950 shrink-0">
-                        {cmd.command}
-                      </span>
-                      {cmd.argHint ? (
-                        <span className="font-mono text-[11px] text-zinc-400 shrink-0">
-                          {cmd.argHint}
-                        </span>
-                      ) : null}
-                      <span className="text-[12px] text-zinc-500 truncate">
-                        {cmd.desc}
-                      </span>
-                    </div>
-
-                    <div className="shrink-0 flex items-center gap-1.5">
-                      {cmd.argHint ? (
-                        <span className="font-mono text-[10px] text-zinc-400 tabular-nums">
-                          {cmd.eg}
-                        </span>
-                      ) : (
-                        <span className="rounded-full bg-brand/10 text-brand px-2 py-0.5 text-[10px] font-medium">
-                          Instantáneo
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </motion.div>
-        ) : null}
-      </AnimatePresence>
+            {filteredCommands.map((cmd, idx) => {
+              const selected = idx === slashIndex;
+              const disabled = typing && !cmd.requiresArgs;
+              const Icon = cmd.icon;
+              return (
+                <div
+                  key={cmd.id}
+                  id={`${paletteId}-${cmd.id}`}
+                  role="option"
+                  aria-selected={selected}
+                  aria-disabled={disabled || undefined}
+                  onClick={() => selectSlashCommand(cmd)}
+                  onMouseDown={(event) => event.preventDefault()}
+                  onMouseMove={() => {
+                    if (!selected) setSlashSelection({ query: slashQuery, index: idx });
+                  }}
+                  className={cn(
+                    "grid min-h-11 cursor-pointer grid-cols-[auto_minmax(0,1fr)] items-center gap-x-3 rounded-xl px-2 py-1.5 text-left transition-colors sm:min-h-9 sm:px-2.5 sm:py-1",
+                    selected && "bg-surface-2",
+                    disabled && "cursor-default opacity-60",
+                  )}
+                >
+                  <span className={cn("grid size-7 place-items-center rounded-lg border border-border bg-surface-1 text-fg-muted", selected && "border-fg bg-fg text-white")}>
+                    <Icon className="size-3.5" />
+                  </span>
+                  <span className="flex min-w-0 flex-col gap-0.5 sm:flex-row sm:items-baseline sm:gap-4">
+                    <span className="font-mono text-[13px] leading-tight font-semibold text-fg sm:w-24 sm:shrink-0">{cmd.command}</span>
+                    <span className="text-xs leading-tight text-fg-muted sm:text-[13px]">{cmd.desc}</span>
+                  </span>
+                </div>
+              );
+            })}
+            {filteredCommands.length === 0 ? (
+              <p className="px-3 py-2.5 text-sm text-fg-muted">No hay comandos que coincidan.</p>
+            ) : null}
+          </div>
+      ) : null}
 
       {/* Caja contenedora del input. */}
       <div
@@ -639,16 +623,23 @@ export function Composer({
             {contextItems.map((item) => (
               <span
                 key={item.id}
-                className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-zinc-200 bg-zinc-100 px-2.5 py-1 text-xs text-zinc-800"
+                title={item.name}
+                className="inline-flex max-w-full items-center gap-2 rounded-full border border-border bg-surface-1 pl-2 text-xs text-fg sm:py-1 sm:pr-1"
               >
-                <span className="font-semibold">{item.symbol}</span>
-                <span className="max-w-28 truncate text-zinc-500">{item.name}</span>
+                {item.kind === "portfolio" ? (
+                  <span className="grid size-6 shrink-0 place-items-center rounded-full border border-border bg-bg text-fg-muted">
+                    <IconPortfolio className="size-3.5" />
+                  </span>
+                ) : (
+                  <TickerLogo symbol={item.symbol} name={item.name} logoUrl={item.logoUrl} size={24} decorative />
+                )}
+                <span className="truncate font-semibold">{item.kind === "portfolio" ? "Cartera" : item.symbol}</span>
                 <button
                   type="button"
                   onClick={() => onRemoveContext?.(item.id)}
                   aria-label={`Quitar ${item.symbol} del contexto`}
                   title={`Quitar ${item.symbol} del contexto`}
-                  className="-my-2 -mr-1 ml-0.5 inline-flex h-11 w-11 shrink-0 cursor-pointer touch-manipulation items-center justify-center rounded-full text-zinc-600 transition-colors hover:bg-zinc-200 hover:text-zinc-900 sm:my-0 sm:mr-0 sm:h-5 sm:w-5"
+                  className="inline-flex size-11 shrink-0 cursor-pointer touch-manipulation items-center justify-center rounded-full text-fg-muted transition-colors hover:bg-surface-3 hover:text-fg focus-visible:outline-2 focus-visible:outline-fg sm:size-6"
                 >
                   <XGlyph className="h-3 w-3" />
                 </button>
@@ -674,39 +665,34 @@ export function Composer({
             placeholder={displayedPlaceholder}
             aria-label={copy.placeholder}
             aria-describedby={photoError ? "ai-composer-error ai-composer-note" : "ai-composer-note"}
-            aria-activedescendant={showSlashPalette ? `slash-cmd-${filteredCommands[slashIndex]?.id}` : undefined}
-            onChange={(event) => onDraft(event.target.value)}
+            aria-controls={showSlashPalette ? paletteId : undefined}
+            aria-autocomplete="list"
+            aria-activedescendant={activeCommandId}
+            onChange={(event) => changeDraft(event.target.value)}
             onInput={resizeTextarea}
             onFocus={keepComposerVisible}
             onKeyDown={(event) => {
+              if (event.nativeEvent.isComposing) return;
               if (showSlashPalette) {
-                if (event.key === "ArrowDown") {
-                  event.preventDefault();
-                  setSlashSelection({
-                    query: slashQuery,
-                    index: (slashIndex + 1) % filteredCommands.length,
-                  });
-                  return;
-                }
-                if (event.key === "ArrowUp") {
-                  event.preventDefault();
-                  setSlashSelection({
-                    query: slashQuery,
-                    index: (slashIndex - 1 + filteredCommands.length) % filteredCommands.length,
-                  });
-                  return;
-                }
-                if (event.key === "Enter" || event.key === "Tab") {
-                  event.preventDefault();
-                  const target = filteredCommands[slashIndex] ?? filteredCommands[0];
-                  if (target) {
-                    selectSlashCommand(target);
-                  }
-                  return;
-                }
                 if (event.key === "Escape") {
                   event.preventDefault();
-                  setDismissedQuery(slashQuery);
+                  closePopover();
+                  return;
+                }
+                if (activeCommand && (event.key === "ArrowDown" || event.key === "ArrowUp")) {
+                  event.preventDefault();
+                  const count = filteredCommands.length;
+                  const step = event.key === "ArrowDown" ? 1 : -1;
+                  setSlashSelection({ query: slashQuery, index: (slashIndex + step + count) % count });
+                  return;
+                }
+                if (activeCommand && !event.shiftKey && (event.key === "Enter" || event.key === "Tab")) {
+                  if (event.key === "Tab" && typing && !activeCommand.requiresArgs) {
+                    closePopover();
+                    return;
+                  }
+                  event.preventDefault();
+                  selectSlashCommand(activeCommand);
                   return;
                 }
               }
@@ -721,11 +707,12 @@ export function Composer({
         </div>
 
         {/* Fila inferior de controles. */}
-        <div className="mt-1 flex items-center justify-between px-1">
-          <div className="flex items-center gap-2">
+        <div className="mt-1 flex flex-wrap items-center justify-between gap-y-1 sm:px-1">
+          <div className="flex items-center gap-1 sm:gap-2">
             {/* Menú de adjuntos y herramientas (botón +). */}
             <div ref={menuRef} className="relative shrink-0">
               <button
+                ref={attachmentButtonRef}
                 type="button"
                 onClick={toggleMenu}
                 aria-label="Opciones de adjuntos"
@@ -738,12 +725,10 @@ export function Composer({
                 <PlusGlyph className={cn("h-5 w-5 transition-transform duration-300", menuOpen && "rotate-45")} />
               </button>
 
-              <AnimatePresence>
-                {menuOpen ? (
+              {menuOpen ? (
                   <motion.div
                     initial={{ opacity: 0, y: openUpward ? 10 : -10, scale: 0.95 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: openUpward ? 10 : -10, scale: 0.95 }}
                     transition={{ type: "spring", damping: 20, stiffness: 300 }}
                     className={cn(
                       "absolute left-0 z-40 flex max-h-[min(350px,55dvh)] w-[min(17rem,calc(100vw-2rem))] flex-col overflow-hidden overscroll-contain rounded-2xl border border-border bg-white p-2.5 shadow-2xl",
@@ -897,62 +882,31 @@ export function Composer({
                       )}
                     </div>
                   </motion.div>
-                ) : null}
-              </AnimatePresence>
+              ) : null}
             </div>
 
             {/* Atajo de comandos rápidos (/). */}
             <button
+              ref={commandButtonRef}
               type="button"
               onClick={toggleSlashShortcut}
               aria-label="Comandos rápidos"
               title="Comandos (/)"
+              aria-expanded={showSlashPalette}
+              aria-controls={showSlashPalette ? paletteId : undefined}
               className={cn(
-                "inline-flex h-11 w-11 shrink-0 cursor-pointer touch-manipulation items-center justify-center rounded-full border text-xs font-mono font-semibold transition-all duration-200 sm:h-9 sm:w-9",
-                showSlashPalette || draft.startsWith("/")
-                  ? "border-zinc-900 bg-zinc-900 text-white shadow-xs"
-                  : "border-border/70 bg-zinc-50/60 text-zinc-600 hover:border-zinc-400 hover:bg-zinc-100 hover:text-zinc-900",
+                "inline-flex size-11 shrink-0 cursor-pointer touch-manipulation items-center justify-center gap-1.5 rounded-full border text-xs font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fg sm:h-9 sm:w-auto sm:px-3",
+                showSlashPalette
+                  ? "border-fg bg-fg text-white"
+                  : "border-border bg-surface-1 text-fg-muted hover:border-border-strong hover:bg-surface-2 hover:text-fg",
               )}
             >
-              /
+              <span aria-hidden="true" className="font-mono text-sm font-semibold">/</span>
+              <span className="hidden sm:inline">Comandos</span>
             </button>
-
-            {/* Píldoras sólo-icono: búsqueda web y razonamiento profundo. */}
-            <div className="flex items-center gap-1.5 select-none">
-              <button
-                type="button"
-                onClick={toggleWebSearch}
-                aria-pressed={webSearchOn}
-                aria-label="Buscar en la web"
-                title="Buscar en la web"
-                className={cn(
-                  "inline-flex h-11 w-11 shrink-0 cursor-pointer touch-manipulation items-center justify-center rounded-full border px-0 transition-colors sm:h-7 sm:w-auto sm:px-3",
-                  webSearchOn
-                    ? "border-zinc-900 bg-zinc-900 text-white !bg-zinc-900 !text-white !border-zinc-900"
-                    : "border-zinc-200 bg-zinc-50/50 text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900",
-                )}
-              >
-                <GlobeGlyph className="h-4 w-4" />
-              </button>
-              <button
-                type="button"
-                onClick={() => setDeepReasoning((prev) => !prev)}
-                aria-pressed={deepReasoning}
-                aria-label="Razonamiento profundo"
-                title="Razonamiento profundo"
-                className={cn(
-                  "inline-flex h-11 w-11 shrink-0 cursor-pointer touch-manipulation items-center justify-center rounded-full border px-0 transition-colors sm:h-7 sm:w-auto sm:px-3",
-                  deepReasoning
-                    ? "border-zinc-900 bg-zinc-900 text-white !bg-zinc-900 !text-white !border-zinc-900"
-                    : "border-zinc-200 bg-zinc-50/50 text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900",
-                )}
-              >
-                <SparklesGlyph className="h-4 w-4" />
-              </button>
-            </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="ml-auto flex items-center gap-1 sm:gap-2">
             <ModelSelector variant="inline" selectedModel={selectedModel} onSelectModel={onSelectModel} />
 
             {voiceSupported ? (
@@ -1130,44 +1084,6 @@ function MicGlyph({ className }: GlyphProps) {
     >
       <rect x="9" y="2.5" width="6" height="11" rx="3" />
       <path d="M5.5 11v.6a6.5 6.5 0 0 0 13 0V11M12 18.2v3M9 21.2h6" />
-    </svg>
-  );
-}
-
-function GlobeGlyph({ className }: GlyphProps) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      className={cn("h-4 w-4", className)}
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-      focusable="false"
-    >
-      <circle cx="12" cy="12" r="9" />
-      <path d="M3 12h18M12 3c2.4 2.5 3.6 5.6 3.6 9s-1.2 6.5-3.6 9c-2.4-2.5-3.6-5.6-3.6-9S9.6 5.5 12 3Z" />
-    </svg>
-  );
-}
-
-function SparklesGlyph({ className }: GlyphProps) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      className={cn("h-4 w-4", className)}
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.7"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-      focusable="false"
-    >
-      <path d="M11 3l1.9 4.9L17.8 9.8l-4.9 1.9L11 16.6l-1.9-4.9L4.2 9.8l4.9-1.9L11 3Z" />
-      <path d="M18.5 14.5l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8.8-2.2Z" />
     </svg>
   );
 }

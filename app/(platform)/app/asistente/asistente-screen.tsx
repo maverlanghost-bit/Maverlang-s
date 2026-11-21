@@ -163,7 +163,6 @@ export function AsistenteScreen({
   const [announcement, setAnnouncement] = useState("");
   const [active, setActive] = useState<{ key: string | null; id: string | null }>({ key: null, id: null });
   const [selectedModel, setSelectedModel] = useState<"fast" | "pro">("fast");
-  const [webSearchEnabled, setWebSearchEnabled] = useState(false);
   const [activeTools, setActiveTools] = useState<AdvancedToolId[]>([]);
   const [feedback, setFeedback] = useState<Record<string, Feedback>>({});
   const [shareOpen, setShareOpen] = useState(false);
@@ -362,22 +361,25 @@ export function AsistenteScreen({
     notifySessionsChanged();
   }
 
-  /** Las herramientas y la búsqueda web entran como instrucción al modelo. */
+  /** El contexto y las herramientas entran como instrucciones al modelo. */
   function applyDirectives(list: readonly ChatMessage[]): ChatMessage[] {
     const hints: string[] = [];
     // El contexto adjunto va primero para que el modelo lo lea antes que el resto.
     const contextDirective = buildContextDirective(contextItems, contextSnapshot);
     if (contextDirective) hints.push(contextDirective);
     if (selectedModel === "pro") hints.push("Razona con profundidad antes de responder.");
-    if (webSearchEnabled) hints.push("Busca en la web y cita las fuentes que uses.");
     if (activeTools.length > 0) {
       hints.push(`Usa estas herramientas de análisis: ${activeTools.map((id) => TOOL_LABELS[id]).join(", ")}.`);
     }
     if (hints.length === 0) return [...list];
-    const prefix = `${hints.join(" ")}\n\n`;
+    const instructions = hints.join(" ");
     const lastUser = [...list].reverse().find((message) => message.role === "user");
     if (!lastUser) return [...list];
-    return list.map((message) => (message.id === lastUser.id ? { ...message, text: `${prefix}${message.text}` } : message));
+    // El servidor reconoce los comandos por su primera línea.
+    const text = lastUser.text.startsWith("/")
+      ? `${lastUser.text}\n\n${instructions}`
+      : `${instructions}\n\n${lastUser.text}`;
+    return list.map((message) => (message.id === lastUser.id ? { ...message, text } : message));
   }
 
   function buildBody(list: readonly ChatMessage[], image: string | null): ReturnType<typeof buildAiRequest> {
@@ -761,6 +763,7 @@ export function AsistenteScreen({
         announcement={typing ? copy.typing : announcement}
         onDraft={setDraft}
         onSubmit={() => void send()}
+        onCommand={(command) => void send(command, null)}
         onSuggest={onSuggest}
         onAttach={() => fileRef.current?.click()}
         onFile={(event) => void onFile(event)}
@@ -787,8 +790,6 @@ export function AsistenteScreen({
           if (activeChatId) deleteChat(activeChatId);
         }}
         onOpenSearch={() => setSearchOpen(true)}
-        webSearchEnabled={webSearchEnabled}
-        onToggleWebSearch={() => setWebSearchEnabled((current) => !current)}
         activeTools={activeTools}
         onToggleTool={toggleTool}
         contextItems={contextItems}

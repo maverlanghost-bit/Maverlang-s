@@ -28,6 +28,7 @@ type ChatViewProps = {
   announcement: string;
   onDraft: (value: string) => void;
   onSubmit: () => void;
+  onCommand: (command: string) => void;
   onSuggest: (id: AsistenteSuggestionId, text: string) => void;
   onAttach: () => void;
   onFile: (event: ChangeEvent<HTMLInputElement>) => void;
@@ -50,8 +51,6 @@ type ChatViewProps = {
   contextItems?: readonly ContextItem[];
   onToggleContext?: (item: ContextItem) => void;
   onRemoveContext?: (id: string) => void;
-  webSearchEnabled?: boolean;
-  onToggleWebSearch?: () => void;
   activeTools?: readonly string[];
   onToggleTool?: (id: string) => void;
   onStop?: () => void;
@@ -74,6 +73,7 @@ export function ChatView({
   announcement,
   onDraft,
   onSubmit,
+  onCommand,
   onSuggest,
   onAttach,
   onFile,
@@ -96,8 +96,6 @@ export function ChatView({
   contextItems,
   onToggleContext,
   onRemoveContext,
-  webSearchEnabled,
-  onToggleWebSearch,
   activeTools,
   onToggleTool,
   onStop,
@@ -132,6 +130,7 @@ export function ChatView({
         suggestions={false}
         onDraft={onDraft}
         onSubmit={onSubmit}
+        onCommand={onCommand}
         onSuggest={onSuggest}
         onAttach={onAttach}
         onFile={onFile}
@@ -141,8 +140,6 @@ export function ChatView({
         onRemoveContext={onRemoveContext}
         selectedModel={selectedModel}
         onSelectModel={onSelectModel}
-        webSearchEnabled={webSearchEnabled}
-        onToggleWebSearch={onToggleWebSearch}
         activeTools={activeTools}
         onToggleTool={onToggleTool}
         onStop={onStop}

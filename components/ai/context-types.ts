@@ -11,6 +11,7 @@ export type ContextItem = {
   kind: "stock" | "index" | "portfolio";
   symbol: string;
   name: string;
+  logoUrl?: string | null;
 };
 
 export type ContextSnapshot = {
