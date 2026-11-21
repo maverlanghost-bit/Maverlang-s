@@ -132,14 +132,15 @@ test("mercado: muestra USD con una preferencia CLP anterior", async ({ page }) =
 test("mercado: la fila lleva a la ficha con volver al mercado", async ({ page }) => {
   await entrarDemo(page);
   await mostrarFila(page, NVDA_HREF);
+  const marketUrl = new URL(page.url());
   const nvda = page.getByRole("region", { name: "Acciones" }).locator(`a[href="${NVDA_HREF}"]`);
   await nvda.click();
   await expect(page).toHaveURL(new RegExp(`${NVDA_HREF.replace("/", "\\/")}$`));
   await expect(page.getByRole("heading", { level: 1, name: "NVIDIA" })).toBeVisible();
 
   const volver = page.getByRole("link", { name: "Volver al mercado" });
-  await expect(volver).toHaveAttribute("href", "/app");
+  await expect(volver).toHaveAttribute("href", marketUrl.pathname + marketUrl.search);
   await volver.click();
-  await expect(page).toHaveURL(/\/app\/?$/);
+  await expect(page).toHaveURL(marketUrl.href);
   await expect(page.getByRole("heading", { name: "Mercado" })).toBeVisible();
 });

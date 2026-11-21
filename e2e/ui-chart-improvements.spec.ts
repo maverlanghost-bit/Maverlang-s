@@ -228,8 +228,8 @@ test("fixture OHLCV: velas, volumen y tabla con unidades explícitas", async ({ 
   await tableButton.focus();
   await tableButton.click();
   let data = page.getByRole("dialog", { name: "Datos del gráfico" });
-  await expect(data.getByRole("columnheader", { name: "Apertura (CLP)" })).toBeVisible();
-  await expect(data.getByRole("columnheader", { name: "Cierre (CLP)" })).toBeVisible();
+  await expect(data.getByRole("columnheader", { name: "Apertura (USD)" })).toBeVisible();
+  await expect(data.getByRole("columnheader", { name: "Cierre (USD)" })).toBeVisible();
   await expect(data.getByRole("columnheader", { name: "Volumen del subyacente (acciones)" })).toBeVisible();
   await expect(data.getByRole("row")).toHaveCount(31);
   await page.keyboard.press("Escape");
@@ -242,7 +242,7 @@ test("fixture OHLCV: velas, volumen y tabla con unidades explícitas", async ({ 
   await tableButton.focus();
   await tableButton.click();
   data = page.getByRole("dialog", { name: "Datos del gráfico" });
-  await expect(data.getByRole("columnheader", { name: "Precio (CLP)" })).toBeVisible();
+  await expect(data.getByRole("columnheader", { name: "Precio (USD)" })).toBeVisible();
   await expect(data.getByRole("columnheader", { name: "Variación desde inicio (%)" })).toBeVisible();
   await expect(data.getByRole("columnheader", { name: "Volumen del subyacente (acciones)" })).toBeVisible();
 });
