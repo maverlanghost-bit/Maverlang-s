@@ -1,5 +1,10 @@
 # PROGRESO — Maverlang
 
+## T74 — Lista de pendientes para publicar la plataforma (2026-11-21)
+- Nueva guía en `docs/PENDIENTES-PRODUCCION.md` con pasos y condiciones para publicar la demo, habilitar fondos reales y habilitar órdenes límite.
+- Incluye configuración y verificación de Upstash, estado del ejecutor de órdenes y qué falta validar en Vercel, Supabase, retiros, cumplimiento y operación.
+- Distingue código versionado, trabajo local y comprobaciones pendientes en los entornos reales. Documentación revisada sin compilación, suite, cambios de infraestructura ni despliegue.
+
 ## T73 — Preparación de órdenes límite estrictas para xStocks (2026-11-21)
 - Decisión de Manu: máximo al comprar y mínimo al vender por acción mostrada. La liquidación del par usa USDC.
 - `stock-limit-terms.ts`: conversión exacta a unidades atómicas con enteros, multiplicador binary64 y redondeo que protege el límite. Compra por monto en USDC y venta por cantidad de acciones.
