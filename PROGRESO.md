@@ -1,5 +1,13 @@
 # PROGRESO — Maverlang
 
+## T82 — Publicación de la demo (2026-11-21)
+- Vercel publicó `a9a9f2564a56cf5ecb7b6a948e05a8753001277c` desde `main` en https://maverlang.com. El PR #18 integra T72–T81 sobre la corrección del SDK de T71 que ya estaba en producción.
+- Incluye gráficos y montos en USD, órdenes límite demo, ayuda con movimientos, mejoras del asistente y animaciones de confirmación.
+- Compatibilidad de `activity-item.tsx` con Cartera y Billetera, contraste del pie público y verificaciones de cotización, gráficos, navegación y documentos.
+- CI de `main` verificó compilación, tipos, lint, 1972 pruebas unitarias y escaneo de secretos del código y del bundle. Playwright pasó 87 flujos y omitió 2.
+- Verificado en producción: portada y ayuda a 390 y 1280 px, mercado, acceso protegido al asistente y API de salud. La consulta de estado en modo real devolvió `503 REAL_DISABLED`.
+- La publicación usó una copia separada para conservar los cambios locales pendientes. Sin migraciones ni cambios de configuración. Órdenes límite reales pendientes de un ejecutor y los requisitos de `docs/PENDIENTES-PRODUCCION.md`.
+
 ## T81 — Confirmaciones para la web (2026-11-21)
 - Comprobante compartido con onda para compras y ventas de acciones a mercado y compraventas de cripto cuando la orden queda confirmada. Se conservan los controles de acceso y ejecución existentes.
 - La orden límite guardada en la demo usa un fundido neutro y estado visible «Pendiente».
