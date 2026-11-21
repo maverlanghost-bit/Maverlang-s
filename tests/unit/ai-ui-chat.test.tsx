@@ -195,6 +195,7 @@ describe("chat del asistente", () => {
         suggestions: true,
         onDraft: () => {},
         onSubmit: () => {},
+        onCommand: () => {},
         onSuggest: () => {},
         onAttach: () => {},
         onFile: () => {},

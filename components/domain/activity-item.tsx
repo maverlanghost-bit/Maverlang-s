@@ -14,28 +14,52 @@ export function activityFolio(id: string) {
  * Fila de actividad: qué pasó y cuándo, con el estado a la derecha. Sin
  * contenedor propio; vive sobre los hairlines de la lista que la usa.
  */
-export function ActivityItem({
-  title,
-  detail,
-  time,
-  dateTime,
-  status,
-  tone,
-  onOpen,
-}: {
+type ActivityItemProps = {
   title: string;
   detail: ReactNode;
   time: string;
   dateTime: string;
   status: string;
   tone: BadgeTone;
-  onOpen: () => void;
-}) {
+} & (
+  | { onOpen: () => void }
+  | { explorerHref: string | null; explorerLabel: string; explorerNew: string }
+);
+
+export function ActivityItem(props: ActivityItemProps) {
+  const { title, detail, time, dateTime, status, tone } = props;
+
+  if (!("onOpen" in props)) {
+    const { explorerHref, explorerLabel, explorerNew } = props;
+    return (
+      <div className="flex flex-col gap-2 py-4 sm:flex-row sm:items-center sm:gap-6">
+        <div className="min-w-0 flex-1">
+          <p className="line-clamp-2 text-[15px] leading-tight font-medium tracking-tight text-balance text-fg sm:line-clamp-1">{title}</p>
+          <p className="num mt-1 text-[13px] leading-tight tabular-nums text-fg-muted">{detail}</p>
+        </div>
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 sm:justify-end">
+          <Badge tone={tone}>{status}</Badge>
+          <time dateTime={dateTime} className="text-[13px] whitespace-nowrap tabular-nums text-fg-muted">{time}</time>
+          {explorerHref ? (
+            <a
+              href={explorerHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="relative text-[13px] font-medium text-fg-muted underline decoration-fg-subtle underline-offset-4 transition-colors after:absolute after:-inset-x-2 after:-inset-y-[0.9rem] after:content-[''] hover:text-fg hover:decoration-fg"
+            >
+              {explorerLabel}<span className="sr-only"> {explorerNew}</span>
+            </a>
+          ) : null}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <button
       type="button"
       aria-haspopup="dialog"
-      onClick={onOpen}
+      onClick={props.onOpen}
       className="group grid min-h-16 w-full cursor-pointer grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-2 rounded-lg px-2 py-3 text-left transition-colors hover:bg-surface-1 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-fg sm:gap-4 sm:px-3"
     >
       <span className="min-w-0">
