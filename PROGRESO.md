@@ -1,5 +1,12 @@
 # PROGRESO — Maverlang
 
+## T87 — Chat de IA en celular (2026-11-22)
+- Causa del "menú inferior con volver" en el chat: `liquid-glass.css` (sin capa) forzaba `display:flex` en `.liquid-nav` bajo 64rem y le ganaba a la utilidad `hidden`. Así se veía el dock vacío con flecha sobre el compositor. Ahora `BottomTabs` devuelve `null` en `/app/asistente` (después de sus hooks).
+- `chat-view.tsx`: el nuevo `useCompactChat` (< lg; en el servidor asume celular) deja el compositor siempre abajo, también con el chat vacío, con padding de área segura. En escritorio sigue centrado en la portada.
+- `transcript.tsx`: bajo lg la portada muestra el isotipo de la barra lateral (`BrandFavicon` w-36, 144 px, 2,5× según pidió Manu) centrado en vez del logo ancho. Las sugerencias (`WelcomeChips`) quedan sólo desde lg.
+- Verificación: `tsc` limpio, ESLint y 304/304 pruebas relacionadas. En navegador, a 375 px se revisaron el chat vacío y con mensajes (sin barra inferior, compositor en y≈693, sin desborde) y a 1280 px la portada de escritorio sin cambios.
+- Nota: el servidor de desarrollo dejó de generar clases Tailwind nuevas hasta reiniciarlo. Si una clase nueva "no aplica" en dev, reiniciar antes de depurar.
+
 ## T86 — Perfil más simple (menú del usuario en celular) (2026-11-22)
 - `profile-screen.tsx` rehecho como menú:
   - Tarjeta de identidad con avatar de 56 px, nombre, correo e insignia «Cuenta demo/real». El país sólo aparece si existe.

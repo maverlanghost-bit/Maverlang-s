@@ -15,6 +15,7 @@ import { ReasoningAccordion } from "@/components/ai/reasoning-accordion";
 import { RichAssistantMessage } from "@/components/ai/rich-message";
 import { SourcesList } from "@/components/ai/tool-accordion";
 import { WelcomeChips } from "@/components/ai/welcome-chips";
+import { BrandFavicon } from "@/components/app-shell/brand-image";
 import { IconCheck, IconCopy } from "@/components/ui/icons";
 import { asistenteCopy, type AsistenteCopy, type AsistenteSuggestionId } from "@/content/i18n/extra-asistente";
 import { cn } from "@/lib/cn";
@@ -425,20 +426,22 @@ export function Transcript({
       </div>
 
       {isEmpty ? (
-        <div onScroll={handleScroll} className="flex-1 flex flex-col items-center justify-start px-4 pt-[16vh] sm:pt-[20vh] pb-6 relative min-h-full overflow-x-hidden overflow-y-auto scrollbar-hide">
+        <div onScroll={handleScroll} className="flex-1 flex flex-col items-center justify-center px-4 pb-12 lg:justify-start lg:pt-[20vh] lg:pb-6 relative min-h-full overflow-x-hidden overflow-y-auto scrollbar-hide">
           <div className="w-full max-w-4xl mx-auto flex flex-col items-center justify-start">
             <motion.div
               initial={prefersReducedMotion() ? false : { opacity: 0, y: -10, scale: 0.98 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               transition={{ duration: 0.45, ease: EASE_OUT }}
-              className="text-center mb-8"
+              className="text-center lg:mb-8"
             >
               <div className="flex items-center justify-center">
+                {/* Celular: el isotipo de la barra lateral. Escritorio: el logo ancho. */}
+                <BrandFavicon className="w-36 select-none pointer-events-none lg:hidden" />
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src="/assets/maverlang-logo.png"
                   alt="Maverlang Logo"
-                  className="h-12 sm:h-14 w-auto object-contain select-none pointer-events-none"
+                  className="hidden h-14 w-auto object-contain select-none pointer-events-none lg:block"
                 />
               </div>
             </motion.div>
@@ -456,7 +459,7 @@ export function Transcript({
               initial={prefersReducedMotion() ? false : { opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.45, ease: EASE_OUT, delay: 0.16 }}
-              className="w-full mt-3 flex justify-center"
+              className="w-full mt-3 hidden justify-center lg:flex"
             >
               <WelcomeChips onSendMessage={sendPrompt} />
             </motion.div>
