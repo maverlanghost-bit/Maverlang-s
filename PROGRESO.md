@@ -1,5 +1,12 @@
 # PROGRESO — Maverlang
 
+## T88 — Publicación de las mejoras de celular (2026-11-22)
+- A pedido de Manu se publicaron en `main` sólo T84–T87, aplicados con cherry-pick sobre `origin/main` (`a9a9f25..28d6502`), sin conflictos. T83 (auditoría) y el WIP previo quedan sólo en `fix/auditoria-v3` (subida a GitHub). No se mezclan a `main` hasta cargar las variables de Vercel, aplicar las migraciones 0045→0059 en producción y resolver el plan de los crons (`docs/PRODUCCION-CHECKLIST.md`).
+- Riesgo conocido: el repo es público y `fix/auditoria-v3` expone las correcciones de T83 antes de desplegarlas. Manu eligió subirla igual.
+- Verificación de la copia de `main`: `tsc`, ESLint completo, 199/199 archivos de pruebas, `next build --webpack` (547 páginas) y escaneo de secretos con bundle (385 JS) limpios.
+- Vercel marcó `28d6502` como «Deployment has completed». En producción respondieron 200 `/`, `/app`, `/app/asistente`, `/app/accion/NVDAx` y `/api/health` (`{"ok":true}`). No se revisaron las pantallas con sesión en producción.
+- Copia temporal eliminada. La rama local `release/mobile-t84-t87` se conserva.
+
 ## T87 — Chat de IA en celular (2026-11-22)
 - Causa del "menú inferior con volver" en el chat: `liquid-glass.css` (sin capa) forzaba `display:flex` en `.liquid-nav` bajo 64rem y le ganaba a la utilidad `hidden`. Así se veía el dock vacío con flecha sobre el compositor. Ahora `BottomTabs` devuelve `null` en `/app/asistente` (después de sus hooks).
 - `chat-view.tsx`: el nuevo `useCompactChat` (< lg; en el servidor asume celular) deja el compositor siempre abajo, también con el chat vacío, con padding de área segura. En escritorio sigue centrado en la portada.
