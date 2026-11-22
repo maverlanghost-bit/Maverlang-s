@@ -112,7 +112,7 @@ export function MoverCard({
         <span className="min-w-0 truncate text-[13px] leading-5 text-fg-muted" title={card.name}>
           {card.name}
         </span>
-        </span><span className="text-[11px] leading-4 text-fg-muted">{provenance(card, language)}</span>
+        </span><span className="hidden text-[11px] leading-4 text-fg-muted sm:inline">{provenance(card, language)}</span>
       </span>
       <Sparkline
         data={card.spark}
@@ -166,7 +166,7 @@ export function SpyChip({
           className="hidden min-[360px]:block"
         />
         <ChangeText value={card.changePct} />
-        <span className="text-[11px] leading-4 text-fg-muted">{provenance(card, language)}</span>
+        <span className="hidden text-[11px] leading-4 text-fg-muted sm:inline">{provenance(card, language)}</span>
       </span>
     </div>
   );

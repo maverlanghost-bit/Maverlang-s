@@ -1,5 +1,34 @@
 # PROGRESO — Maverlang
 
+## T84 — Pulido de la plataforma en celular, primera tanda (2026-11-21)
+- Pedido de Manu en 4 puntos. Se implementó con 3 agentes Sonnet 5.5 de razonamiento medio, con archivos separados, y se cerró con una revisión propia.
+- Barra inferior (`liquid-glass.css`, `bottom-tabs.tsx`): vidrio translúcido (58 %, `saturate(180%) blur(22px)`), con realce interior, brillo especular y píldora activa de vidrio. Respaldos para `@supports`, `prefers-reduced-transparency`, `prefers-reduced-motion` y `forced-colors`. El tab de IA es sólo el texto "AI", sin burbuja.
+- Mercado (`market-screen.tsx`, `mover-card.tsx`): "Tu día" no se monta bajo `md` (`useIsPhone` + `hidden md:block`). Las líneas de procedencia por tarjeta se ocultan en móvil y el aviso del pie tiene versión corta. La procedencia sigue en cada ficha y en el `aria-label`.
+- Ficha (`detail-screen.tsx`, `price-panel.tsx`, `company-card`, `token-gap-card`, `onchain-verification-card`): logo, nombre (hasta 2 líneas en móvil) y tres iconos (alerta, favorita, compartir) en una sola fila. La alerta pasa a sólo icono también en escritorio.
+- Gráfico: al recorrerlo ya no aparece la fecha bajo el precio, y su posición queda fija (medido: 504,77 px antes y después). La fecha sigue en el tooltip del gráfico.
+- Información: secciones en tarjetas `rounded-3xl bg-surface-1`, `KeyStats` en grilla 2/3 columnas (`StatCell`), cifras largas reducidas sin partirse y notas de procedencia en un acordeón. La descripción se recorta con «Ver más».
+- Verificación: `tsc` limpio, ESLint de los 8 archivos y 90/90 pruebas focalizadas. Revisión en navegador con demo mock a 375 y 360 px: barra, Mercado, NVDAx (scrub y secciones) y AAOIon (nombre largo), sin desborde horizontal. Sin e2e, build ni teléfono físico.
+- Pendiente: medir el contraste de los labels sobre fondos saturados. En celular, "Tu día" puede montarse un instante durante la hidratación. Revisar en escritorio el cambio de la alerta a icono y las tarjetas.
+
+## T83 — Auditoría de seguridad v3 y endurecimiento para producción (2026-11-21)
+- Rama `fix/auditoria-v3` (sin push): base WIP previa commiteada aparte, `origin/main` (T71–T82) integrado, Next 16.4.6 y `audit:deps` en verde.
+- DB: 0053 restaurada a lo publicado; nuevas 0055–0059 (copy_follows sin escritura de cliente, MFA restrictiva en tablas de usuario y RPC, topes por usuario, baja de cuenta con anonimización y FKs `RESTRICT`, revocación/expiración de chats compartidos, índices únicos de wallet primaria y RUT). Probadas en Postgres 17 embebido: 18/18 y 14/14.
+- Dinero (latente, sigue apagado): `send:` rechazado en trade/submit, firma Ed25519 verificada antes del claim, conciliación compara el mensaje on-chain, precio de referencia en ambos lados, tope 300 bps, Jupiter decodificado y host fijado, destino de retiro validado, sesión obligatoria con `DATA_MODE=live`, webhook on-ramp con HMAC y ventana de 5 min.
+- Auth/web: `/auth/callback` ya no verifica OTP por GET (`/auth/confirmar` + POST mismo origen), admin con `getUser`, cookies `secure`, matcher sólo excluye estáticos, purga de localStorage al salir, logs redactados, baja de cuenta vía `request_my_deletion`.
+- IA: respuestas firmadas con HMAC para compartir, aviso y neutralización en la página pública, revocar enlace, cuotas unificadas con tope diario y disyuntor global, imagen validada por magic bytes, `/tarjeta` sólo muestra % firmado desde la cartera real.
+- Ops: `.gitignore` ampliado, hook pre-commit con `scan:secrets --staged`, nuevos patrones del escáner, Environment `production-data` en workflows, Sentry edge, `docs/INCIDENTES.md`.
+- Env: producción estricta también con `VERCEL_ENV=production`; nuevas obligatorias `DEMO_TOKEN_SECRET`, `SHARE_SIGNING_SECRET` (≥32), Upstash, `REVALIDATE_SECRET`, `COPY_PLAN_HMAC_SECRET`. **Cargarlas en Vercel antes de mergear o el deploy falla a propósito.**
+- Verificación: `tsc` limpio, suite unitaria completa, `next build --webpack`, arneses SQL. Sin navegador ni e2e.
+- Pendientes manuales: `docs/PRODUCCION-CHECKLIST.md` (repo privado, rotación, migraciones 0045→0059 en staging y prod, ajustes de Supabase Auth, env de Vercel). Dinero real sigue NO GO (KYC/AML, legal, validar Jupiter gasless/ALT y conciliación en staging).
+
+## T82 — Publicación de la demo (2026-11-21)
+- Vercel publicó `a9a9f2564a56cf5ecb7b6a948e05a8753001277c` desde `main` en https://maverlang.com. El PR #18 integra T72–T81 sobre la corrección del SDK de T71 que ya estaba en producción.
+- Incluye gráficos y montos en USD, órdenes límite demo, ayuda con movimientos, mejoras del asistente y animaciones de confirmación.
+- Compatibilidad de `activity-item.tsx` con Cartera y Billetera, contraste del pie público y verificaciones de cotización, gráficos, navegación y documentos.
+- CI de `main` verificó compilación, tipos, lint, 1972 pruebas unitarias y escaneo de secretos del código y del bundle. Playwright pasó 87 flujos y omitió 2.
+- Verificado en producción: portada y ayuda a 390 y 1280 px, mercado, acceso protegido al asistente y API de salud. La consulta de estado en modo real devolvió `503 REAL_DISABLED`.
+- La publicación usó una copia separada para conservar los cambios locales pendientes. Sin migraciones ni cambios de configuración. Órdenes límite reales pendientes de un ejecutor y los requisitos de `docs/PENDIENTES-PRODUCCION.md`.
+
 ## T71 — Preparación de publicación y compatibilidad de SDK (2026-11-18)
 - Base: `0885f5a` ya contiene las 16 mejoras en GitHub. Vercel reportó fallo y el control TypeScript de GitHub identificó una importación de `SegmentedControl` ausente en el commit de la hoja de compra/venta. El árbol local anterior tenía la importación.
 - Se añade la importación en `components/domain/trade-sheet.tsx`. Se ajustan pruebas de portada y seguridad para mantener sus comprobaciones sobre las secciones y controles del diseño publicado en GitHub.

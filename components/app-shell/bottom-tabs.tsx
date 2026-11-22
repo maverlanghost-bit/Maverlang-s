@@ -106,7 +106,7 @@ export function BottomTabs() {
                       <span className="liquid-tab__ai" aria-hidden="true">
                         AI
                       </span>
-                      <span className={cn("liquid-tab__label", active && "text-bg")}>{label}</span>
+                      <span className="liquid-tab__label">{label}</span>
                     </>
                   ) : (
                     <>

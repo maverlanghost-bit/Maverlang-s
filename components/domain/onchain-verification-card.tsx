@@ -57,11 +57,11 @@ export function OnchainVerificationCard({
   )}`;
 
   return (
-    <section className="border-t border-border pt-8" data-onchain-verification={symbol}>
+    <section className="rounded-3xl border border-border bg-surface-1 p-5 md:p-6" data-onchain-verification={symbol}>
       <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-2">
         <div className="min-w-0">
           <p className="label">Respaldo y verificación on-chain</p>
-          <h2 className="mt-1.5 text-lg font-medium tracking-tight text-fg">
+          <h2 className="mt-1.5 text-base font-medium tracking-tight text-fg md:text-lg">
             Custodia y trazabilidad en Solana
           </h2>
         </div>
