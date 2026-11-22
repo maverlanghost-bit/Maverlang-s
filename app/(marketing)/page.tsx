@@ -1,12 +1,11 @@
-import { CostsSection } from "@/components/landing/costs-section";
+import { AlwaysOpenBand } from "@/components/landing/always-open-band";
+import { CostsStrip } from "@/components/landing/costs-strip";
 import { FaqSection } from "@/components/landing/faq";
-import { FeatureGrid } from "@/components/landing/feature-grid";
 import { FinalCTA } from "@/components/landing/final-cta";
+import { FractionSection } from "@/components/landing/fraction-section";
 import { Hero } from "@/components/landing/hero";
-import { HoursBand } from "@/components/landing/hours-band";
-import { HowItWorks } from "@/components/landing/how-it-works";
 import { LiveLandingPrices } from "@/components/landing/live-landing-prices";
-import { SecuritySection } from "@/components/landing/security-section";
+import { OwnershipSection } from "@/components/landing/ownership-section";
 import { TickerMarquee } from "@/components/landing/ticker-marquee";
 import { getLandingQuotes } from "@/lib/landing/live-quotes";
 import { HOME_DESCRIPTION, HOME_TITLE } from "@/lib/seo/copy";
@@ -18,11 +17,10 @@ import { pageMetadata } from "@/lib/seo/metadata";
  * una vez y los números se refrescan en cliente cada 20 s. Revalida cada
  * 30 s sin cambiar el estático del resto del marketing.
  *
- * T70 — ocho bloques, ninguno repite la composición del anterior:
- * hero con bento de producto → cinta → pasos (dividido) → por qué (bento
- * sobre gris) → banda 24/7 (negro) → costos (dividido) → qué tienes y qué no
- * → preguntas y cierre. La ficha suelta «Mira una acción de cerca» pasó a ser
- * una tarjeta del bento del hero.
+ * T90 (docs/PLAN-PORTADA-V2.md): hero con el teléfono de la demo en bucle →
+ * cinta → calculadora de fracciones → banda negra 24/7 → qué tienes y qué no →
+ * costos en una franja → preguntas y cierre. "Seis reglas" y "Tres pasos"
+ * salieron de la portada (los pasos siguen en /como-funciona).
  */
 export const revalidate = 30;
 
@@ -43,12 +41,11 @@ export default async function HomePage() {
       <LiveLandingPrices symbols={symbols} live={live} initial={quotes}>
         <Hero quotes={quotes} live={live} />
         <TickerMarquee quotes={quotes} live={live} />
-        <HowItWorks quotes={quotes} live={live} />
+        <FractionSection quotes={quotes} />
       </LiveLandingPrices>
-      <FeatureGrid />
-      <HoursBand />
-      <CostsSection />
-      <SecuritySection />
+      <AlwaysOpenBand />
+      <OwnershipSection />
+      <CostsStrip />
       <FaqSection />
       <FinalCTA />
     </>

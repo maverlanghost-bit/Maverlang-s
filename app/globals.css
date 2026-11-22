@@ -132,6 +132,11 @@
     from { opacity: 0.55; transform: scale(1); }
     to { opacity: 0; transform: scale(1.9); }
   }
+  /* T90: punto que viaja de la billetera al token (portada), dos pasadas. */
+  @keyframes token-travel {
+    from { transform: translateX(-100%); }
+    to { transform: translateX(300%); }
+  }
   @keyframes check-draw {
     from { stroke-dashoffset: 1; }
     to { stroke-dashoffset: 0; }

@@ -76,8 +76,8 @@ export function FaqSection() {
       <div className="grid gap-10 lg:grid-cols-12 lg:gap-14">
         {/* Titular fijo a la izquierda mientras se recorre el acordeón (lg). */}
         <Reveal className="lg:sticky lg:top-24 lg:col-span-5 lg:self-start">
-          <SectionHeader id="preguntas-title" eyebrow="Preguntas frecuentes" title="Antes de abrir la cuenta">
-            Siete respuestas cortas. El detalle legal sigue en borrador.
+          <SectionHeader id="preguntas-title" title="Antes de abrir la cuenta">
+            Respuestas cortas a lo que más se pregunta. El detalle legal sigue en borrador.
           </SectionHeader>
           <p className="mt-6 hidden lg:block">
             <Link href="/ayuda" className={actionLinkClass}>

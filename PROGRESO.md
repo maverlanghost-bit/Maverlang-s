@@ -1,5 +1,18 @@
 # PROGRESO — Maverlang
 
+## T90 — Portada v2: menos texto, producto vivo (2026-11-22)
+- Plan en `docs/PLAN-PORTADA-V2.md`. Antislop en modo "durante" (elección de Manu en la sesión), dirección "broker premium vivo", diales ENERGY 2 / RHYTHM 3 / MOTION 2.
+- Hero dividido (`hero.tsx` + `hero-phone-demo.tsx`): H1 igual. A la derecha, un teléfono con el flujo real de la demo en bucle (mercado en vivo → toque en Apple → hoja → burbuja US$50 → «Compra realizada»), con pausa, detención fuera de vista y modo estático con movimiento reducido. Debajo, tres datos del producto en mono.
+- Secciones nuevas:
+  - `fraction-section` + `fraction-calculator`: acción y monto → acciones recibidas y anillo de la fracción, al precio en vivo.
+  - `always-open-band`: barra de 24 h de Nueva York con marcador «ahora» del navegador y la semana, sin afirmar abierto/cerrado.
+  - `ownership-section`: «El token es tuyo. La acción, no.», en dos tarjetas de distinto peso.
+  - `costs-strip`: 0 % y los conceptos de `COST_ROWS`, exportado de `costs-section`.
+- Salen de la portada «Seis reglas», «Tres pasos» (siguen en /como-funciona), el bento, la píldora sobre el H1 y los rótulos en mono mayúscula de las preguntas y del cierre. Se borraron `hero-bento`, `hero-quote-card`, `hero-ticket-card`, `announcement-pill`, `hours-band` y `feature-grid`.
+- Alto: escritorio de 9.968 a 6.053 px; 375 px de 16.192 a 8.275 px, sin desborde.
+- Verificación liviana (por indicación de Manu): `tsc`, ESLint de lo tocado y 4 archivos de pruebas (29/29). `landing-copy` ahora apunta a `fraction-section` y el hero conserva `landingNotice`.
+- En navegador a 1440 y 375 px se recorrieron la calculadora, la pausa, las preguntas y los 7 enlaces (200). Sin build, suite completa ni e2e; quedan para cuando Manu lo pida.
+
 ## T89 — Compra en tarjeta inferior y chat con historial en celular (2026-11-22)
 - Ficha (`detail-screen.tsx`): sin barra inferior en `/app/accion/*` (`bottom-tabs.tsx`). La barra pasa a `PeekCard`, una tarjeta redondeada con asa, precio, 24 h, posición y Comprar/Vender. Arrastrar hacia arriba (> 56 px) o tocar el asa abre la hoja. Los botones conservan su toque.
 - Hoja (`sheet.tsx`, `overlay.tsx`): `hideTitleOnMobile` deja el título sólo para lectores de pantalla y quita la línea. La fila superior de 48 px tiene el asa y la X.
