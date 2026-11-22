@@ -74,6 +74,7 @@ async function readStream(response: Response, onDelta: (textSoFar: string) => vo
       type?: unknown;
       text?: unknown;
       widgets?: unknown;
+      sig?: unknown;
       error?: unknown;
       message?: unknown;
     };
@@ -88,7 +89,12 @@ async function readStream(response: Response, onDelta: (textSoFar: string) => vo
       return null;
     }
     if (event.type === "done") {
-      const done = aiChatResponseSchema.safeParse({ ok: true, text: event.text, widgets: event.widgets });
+      const done = aiChatResponseSchema.safeParse({
+        ok: true,
+        text: event.text,
+        widgets: event.widgets,
+        sig: typeof event.sig === "string" ? event.sig : undefined,
+      });
       return done.success ? done.data : upstream();
     }
     if (event.type === "error") {

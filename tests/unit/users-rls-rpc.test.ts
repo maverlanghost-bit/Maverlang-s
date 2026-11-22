@@ -114,3 +114,33 @@ describe("users.rls — escrituras por RPC (0043)", () => {
     expect(rpc).not.toHaveBeenCalled();
   });
 });
+
+describe("users.rls — baja de cuenta (0058)", () => {
+  it("requestDeletion llama request_my_deletion y devuelve la hora", async () => {
+    rpc.mockResolvedValue({ data: "2026-11-21T10:00:00+00:00", error: null });
+    const result = await rlsUsers.requestDeletion("u-1");
+    expect(rpc).toHaveBeenCalledWith("request_my_deletion");
+    expect(result).toEqual({ requestedAt: "2026-11-21T10:00:00.000Z" });
+  });
+
+  it("falla cerrado si la RPC no existe (0058 sin aplicar)", async () => {
+    rpc.mockResolvedValue({
+      data: null,
+      error: { code: "PGRST202", message: "Could not find the function public.request_my_deletion in the schema cache" },
+    });
+    await expect(rlsUsers.requestDeletion("u-1")).rejects.toMatchObject({ code: "INTERNAL" });
+  });
+
+  it("sin MFA (42501) responde no autorizado y otro id no llega a la RPC", async () => {
+    rpc.mockResolvedValue({ data: null, error: { code: "42501", message: "mfa_requerida" } });
+    await expect(rlsUsers.requestDeletion("u-1")).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+    rpc.mockClear();
+    await expect(rlsUsers.requestDeletion("otro")).rejects.toMatchObject({ code: "NOT_FOUND" });
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it("una respuesta sin fecha no finge éxito", async () => {
+    rpc.mockResolvedValue({ data: null, error: null });
+    await expect(rlsUsers.requestDeletion("u-1")).rejects.toMatchObject({ code: "INTERNAL" });
+  });
+});

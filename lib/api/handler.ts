@@ -23,6 +23,7 @@ import { findAssetBySymbol } from "@/lib/catalog/assets";
 import { CRYPTO_ASSETS } from "@/lib/catalog/crypto";
 import { LST_ASSETS } from "@/lib/catalog/lst";
 import { withMockError } from "@/lib/mocks/latency";
+import { redactText } from "@/lib/observability/redact";
 import type { Services } from "@/lib/services";
 import { isOfficialMint } from "@/lib/solana/allowlist";
 
@@ -125,7 +126,8 @@ function newRequestId(): string {
 
 function logApiError(requestId: string, code: ApiErrorCode, error: unknown): void {
   const stack = error instanceof Error ? error.stack ?? error.message : String(error);
-  console.error(`api ${requestId} ${code}: ${stack}`);
+  // OPS-6: el stack puede arrastrar correos, tokens o URLs con clave; se redacta antes de loguear.
+  console.error(`api ${requestId} ${code}: ${redactText(stack)}`);
 }
 
 function errorResult(

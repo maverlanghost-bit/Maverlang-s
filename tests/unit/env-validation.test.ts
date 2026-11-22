@@ -35,6 +35,13 @@ function prodSource(): EnvSource {
     CATALOG_SCOPE: "curated",
     DATA_MODE: "mock",
     REAL_TRADING_READY: "false",
+    // OPS-3
+    UPSTASH_REDIS_REST_URL: "https://upstash-unit-test.example.com",
+    UPSTASH_REDIS_REST_TOKEN: "unit-test-upstash-token",
+    REVALIDATE_SECRET: "unit-test-revalidate",
+    COPY_PLAN_HMAC_SECRET: "unit-test-copy-plan",
+    DEMO_TOKEN_SECRET: "d".repeat(32),
+    SHARE_SIGNING_SECRET: "s".repeat(32),
   };
 }
 
@@ -48,12 +55,13 @@ function previewSource(): EnvSource {
 }
 
 describe("M59: resolucion del entorno", () => {
-  it("NODE_ENV y VERCEL_ENV no activan el modo estricto", () => {
+  it("NODE_ENV solo no activa el modo estricto; VERCEL_ENV=production sí", () => {
     expect(resolveAppEnv({ NODE_ENV: "production", VERCEL_ENV: "production" })).toBe("development");
     expect(resolveStrictMode({ APP_ENV: undefined, SUPABASE_PROJECT_ENV: undefined })).toBeNull();
+    // OPS-3: VERCEL_ENV=production sí es estricto (fail-closed).
     expect(
       resolveStrictMode({ APP_ENV: undefined, SUPABASE_PROJECT_ENV: undefined, VERCEL_ENV: "production" }),
-    ).toBeNull();
+    ).toBe("production");
     expect(
       resolveStrictMode({ APP_ENV: "preview", SUPABASE_PROJECT_ENV: undefined, VERCEL_ENV: "production" }),
     ).toBe("preview");
@@ -85,6 +93,61 @@ describe("M59: production estricta", () => {
       mode: "production",
       strict: true,
     });
+  });
+
+  it("OPS-3: exige los secretos y servicios de produccion", () => {
+    for (const name of [
+      "UPSTASH_REDIS_REST_URL",
+      "UPSTASH_REDIS_REST_TOKEN",
+      "REVALIDATE_SECRET",
+      "COPY_PLAN_HMAC_SECRET",
+      "DEMO_TOKEN_SECRET",
+      "SHARE_SIGNING_SECRET",
+    ]) {
+      expect(() => assertServerEnv({ ...prodSource(), [name]: undefined })).toThrow(new RegExp(name));
+    }
+  });
+
+  it("OPS-3: PRIVY_APP_SECRET solo con NEXT_PUBLIC_PRIVY_APP_ID; ALLOW_MOCK_AUTH prohibido", () => {
+    const withPrivy = { ...prodSource(), NEXT_PUBLIC_PRIVY_APP_ID: "privy-unit" };
+    expect(() => assertServerEnv(withPrivy)).toThrow(/PRIVY_APP_SECRET/);
+    expect(assertServerEnv({ ...withPrivy, PRIVY_APP_SECRET: "privy-secret" }).strict).toBe(true);
+    expect(() => assertServerEnv({ ...prodSource(), ALLOW_MOCK_AUTH: "true" })).toThrow(/ALLOW_MOCK_AUTH/);
+  });
+
+  it("OPS-3: VERCEL_ENV=production sin APP_ENV falla por APP_ENV", () => {
+    expect(() => assertServerEnv({ ...prodSource(), APP_ENV: undefined, VERCEL_ENV: "production" })).toThrow(/APP_ENV/);
+    expect(assertServerEnv({ ...prodSource(), VERCEL_ENV: "production" }).strict).toBe(true);
+  });
+
+  it("OPS-3: sin SENTRY_DSN solo avisa", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    expect(assertServerEnv(prodSource()).strict).toBe(true);
+    expect(String(warn.mock.calls[0]?.[0])).toContain("SENTRY_DSN");
+  });
+
+  it("OPS-7: rechaza NEXT_PUBLIC_* con api-key sin imprimir el valor", () => {
+    let message = "";
+    try {
+      assertServerEnv({
+        ...prodSource(),
+        NEXT_PUBLIC_SOLANA_RPC_URL: "https://mainnet.helius-rpc.com/?api-key=sentinel-abc123",
+      });
+    } catch (error) {
+      message = error instanceof Error ? error.message : String(error);
+    }
+    expect(message).toContain("NEXT_PUBLIC_SOLANA_RPC_URL");
+    expect(message).not.toContain("sentinel-abc123");
+  });
+
+  it("topa el slippage y la desviacion en 300 bps", () => {
+    expect(() => assertServerEnv({ ...prodSource(), DEFAULT_SLIPPAGE_BPS: "301" })).toThrow();
+    expect(() => assertServerEnv({ ...prodSource(), PRICE_DEVIATION_MAX_BPS: "5000" })).toThrow();
+    expect(assertServerEnv({ ...prodSource(), DEFAULT_SLIPPAGE_BPS: "300" }).strict).toBe(true);
+  });
+
+  it("DEMO_TOKEN_SECRET corto no pasa el esquema", () => {
+    expect(() => assertServerEnv({ ...prodSource(), DEMO_TOKEN_SECRET: "corto" })).toThrow();
   });
 
   it("rechaza AUTH_MODE=mock", () => {
@@ -172,21 +235,18 @@ describe("M59: development acepta vacio y solo avisa", () => {
     expect(String(warn.mock.calls[0]?.[0])).toContain("AUTH_MODE");
   });
 
-  it("VERCEL_ENV=production sin explicitas: no falla, solo avisa nombres", () => {
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+  it("VERCEL_ENV=production sin explicitas: falla (OPS-3) con nombres, sin valores", () => {
     const sentinel = "http://insecure.example.com/sentinel-9zqx";
-    const result = assertServerEnv({
-      NODE_ENV: "production",
-      VERCEL_ENV: "production",
-      NEXT_PUBLIC_SITE_URL: sentinel,
-    });
-    expect(result).toEqual({ mode: "development", strict: false });
-    expect(warn).toHaveBeenCalledTimes(1);
-    const message = String(warn.mock.calls[0]?.[0]);
+    let message = "";
+    try {
+      assertServerEnv({ NODE_ENV: "production", VERCEL_ENV: "production", NEXT_PUBLIC_SITE_URL: sentinel });
+    } catch (error) {
+      message = error instanceof Error ? error.message : String(error);
+    }
     expect(message).toContain("AUTH_MODE");
+    expect(message).toContain("APP_ENV");
     expect(message).toContain("NEXT_PUBLIC_SITE_URL");
     expect(message).not.toContain("sentinel-9zqx");
-    expect(message).not.toContain(sentinel);
   });
 
   it("APP_ENV=production con faltantes: falla", () => {
@@ -225,6 +285,16 @@ const MANAGED_KEYS = [
   "CATALOG_SCOPE",
   "DATA_MODE",
   "REAL_TRADING_READY",
+  "UPSTASH_REDIS_REST_URL",
+  "UPSTASH_REDIS_REST_TOKEN",
+  "REVALIDATE_SECRET",
+  "COPY_PLAN_HMAC_SECRET",
+  "DEMO_TOKEN_SECRET",
+  "SHARE_SIGNING_SECRET",
+  "PRIVY_APP_SECRET",
+  "NEXT_PUBLIC_PRIVY_APP_ID",
+  "ALLOW_MOCK_AUTH",
+  "SENTRY_DSN",
   // M75
   "US_PERSON_DECLARATION_VERSION",
   "DEMO_FOR_BLOCKED",

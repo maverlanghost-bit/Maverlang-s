@@ -8,11 +8,11 @@ import { DomainError } from "@/lib/api/result";
 import { findAssetBySymbol } from "@/lib/catalog/assets";
 import { requireOperable } from "@/lib/catalog/tradable";
 import { getServices } from "@/lib/services";
+import { demoHmacSecret } from "@/lib/services/demo-token-secret";
 import { demoCryptoAsset, quoteDemoCrypto } from "@/lib/services/demo-crypto-quote";
 import type { DemoCryptoAsset } from "@/lib/services/demo-crypto-quote";
 import { DEMO_INITIAL_USD, totalUsdOf, validateDemoFunds, validateDemoTradeInput } from "@/lib/services/demo.logic";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { readSupabaseSecretKey } from "@/lib/supabase/secret";
 import { roundDigits } from "@/lib/mocks/number";
 import { hashSeed } from "@/lib/mocks/prng";
 import { tickerBySymbol } from "@/lib/solana/allowlist";
@@ -116,14 +116,6 @@ type SignedBuildPayload = {
   buildExpiresAt: string;
   nonce: string;
 };
-
-function demoHmacSecret(): string {
-  return (
-    readSupabaseSecretKey() ||
-    process.env.CRON_SECRET?.trim() ||
-    "maverlang-demo-stateless-v1"
-  );
-}
 
 function encodeSignedToken<T>(prefix: "q1" | "b1" | "o1", payload: T): string {
   const body = Buffer.from(JSON.stringify(payload), "utf8").toString("base64url");

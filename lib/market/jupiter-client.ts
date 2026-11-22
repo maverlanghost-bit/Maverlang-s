@@ -14,6 +14,8 @@
  *   principal; aquí sólo hablamos de `/order` y `/build`, que sí cuentan.
  */
 
+import { assertTrustedJupiterBase } from "@/lib/market/jupiter-order";
+
 export interface JupiterClientOptions {
   /** Base de la API, p. ej. https://api.jup.ag. */
   base: string;
@@ -73,7 +75,9 @@ export async function fetchJupiterOrder(
     sleep = defaultSleep,
     now = () => Date.now(),
   } = input;
-  void base; // la URL ya viene armada por el llamador
+  // La URL ya viene armada por el llamador; el host se valida igual (MON-10).
+  assertTrustedJupiterBase(base);
+  assertTrustedJupiterBase(url);
 
   let lastError: Error = new Error("Jupiter: sin respuesta");
   for (let attempt = 0; attempt <= maxRetries; attempt += 1) {

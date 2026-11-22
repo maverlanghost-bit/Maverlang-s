@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { SHARED_NOTICE, neutralizeSharedText, sharedPageTitle } from "@/lib/ai/share-text";
 import { getSharedChat, isValidShareId } from "@/lib/ai/share-store";
 
 export const dynamic = "force-dynamic";
@@ -14,7 +15,8 @@ export async function generateMetadata({
   const { shareId } = await params;
   const chat = isValidShareId(shareId) ? await getSharedChat(shareId) : null;
   return {
-    title: chat ? `${chat.title} · Maverlang AI` : "Conversación compartida · Maverlang AI",
+    // El título lo escribe quien comparte: nunca va solo ni al principio como si fuera la marca.
+    title: sharedPageTitle(chat ? chat.title : null),
     robots: { index: false, follow: false },
   };
 }
@@ -50,7 +52,7 @@ export default async function SharedChatPage({
             Conversación compartida · Solo lectura
           </span>
           <h1 className="mt-3 break-words text-xl font-semibold tracking-tight text-zinc-900 sm:text-2xl">
-            {chat.title}
+            «{neutralizeSharedText(chat.title)}»
           </h1>
           {formattedDate ? (
             <p className="mt-1 text-xs text-zinc-500">Compartida el {formattedDate}</p>
@@ -64,6 +66,13 @@ export default async function SharedChatPage({
         </Link>
       </header>
 
+      <p
+        role="note"
+        className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-900"
+      >
+        {SHARED_NOTICE}
+      </p>
+
       <section
         aria-label="Transcripción de la conversación"
         className="mt-6 space-y-5 rounded-2xl border border-zinc-200/80 bg-white p-5 shadow-sm sm:p-6"
@@ -71,9 +80,11 @@ export default async function SharedChatPage({
         {chat.messages.map((message, index) =>
           message.role === "user" ? (
             <div key={`user-${index}`} className="flex flex-col items-end gap-1">
-              <span className="px-1 text-[11px] font-medium text-zinc-400">Usuario</span>
+              <span className="px-1 text-[11px] font-medium text-zinc-500">
+                Escrito por quien compartió (no por Maverlang)
+              </span>
               <div className="max-w-[85%] whitespace-pre-wrap break-words rounded-3xl bg-zinc-100 px-4 py-3 text-sm leading-relaxed text-zinc-900">
-                {message.text}
+                {neutralizeSharedText(message.text)}
               </div>
             </div>
           ) : (

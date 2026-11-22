@@ -20,10 +20,8 @@ import type { Consent, LegalDoc, Preferences, UserProfile } from "@/lib/types";
  * ni las llama; igual el guard de cada método corta antes del fetch.
  * RLS está activo y sin políticas públicas. La identidad es el DID de Privy.
  * `language` y `display_currency` viven en `profiles`. Las notificaciones, en `preferences`.
- * La baja no tiene columna en `0001_init.sql`: se anota en `audit_log` y no borra la fila.
+ * Camino legado: las escrituras de perfil y la baja están deshabilitadas (AUTH-6); van por `users.rls`.
  */
-
-const DELETION_ACTION = "account_deletion_requested";
 
 const PROFILE_SELECT =
   "id,email,display_name,country,is_us_person,wallet_address,onboarding_completed,language,display_currency,created_at";
@@ -53,10 +51,6 @@ const consentRowSchema = z.object({
   doc: z.enum(["terminos", "privacidad", "riesgos", "us_person"]),
   version: z.string().min(1),
   accepted_at: z.string().min(1),
-});
-
-const deletionRowSchema = z.object({
-  created_at: z.string().min(1),
 });
 
 type ProfileRow = z.infer<typeof profileRowSchema>;
@@ -181,27 +175,6 @@ async function readProfile(id: string): Promise<UserProfile> {
   return toProfile(row);
 }
 
-function profilePatch(patch: Partial<UserProfile>): Record<string, unknown> {
-  const column: Partial<Record<keyof UserProfile, string>> = {
-    email: "email",
-    displayName: "display_name",
-    country: "country",
-    walletAddress: "wallet_address",
-    onboardingCompleted: "onboarding_completed",
-    language: "language",
-    displayCurrency: "display_currency",
-  };
-  const body: Record<string, unknown> = {};
-  for (const key of Object.keys(column) as (keyof UserProfile)[]) {
-    if (patch[key] === undefined) continue;
-    const name = column[key];
-    if (!name) continue;
-    body[name] = patch[key];
-  }
-  if (Object.keys(body).length > 0) body.updated_at = new Date().toISOString();
-  return body;
-}
-
 export const supabaseUsers = {
   async get(id: string): Promise<UserProfile> {
     return readProfile(id);
@@ -212,7 +185,6 @@ export const supabaseUsers = {
     // "no" explícito. El sí y la falta de respuesta se rechazan antes del REST,
     // y la versión se compara contra `serverEnv` (nunca contra el cliente).
     if (patch.isUsPerson === true) throw new DomainError("VALIDATION", US_RESIDENT_MESSAGE);
-    const body = profilePatch(patch);
     const compliance = complianceDbColumns(
       {
         country: patch.country,
@@ -228,18 +200,11 @@ export const supabaseUsers = {
       const reason = (compliance as { blocked: DeclarationBlockReason }).blocked;
       throw new DomainError("VALIDATION", usPersonDeclarationErrorMessage(reason));
     }
-    if (compliance) Object.assign(body, compliance);
-    if (Object.keys(body).length === 0) return readProfile(id);
-    body.updated_at = new Date().toISOString();
-    const written = await rest("profiles", {
-      method: "PATCH",
-      query: `${eq("id", id)}&select=${PROFILE_SELECT}`,
-      prefer: "return=representation",
-      body,
-    });
-    const row = parseProfile(written);
-    if (!row) throw new DomainError("NOT_FOUND", "No encontramos esa cuenta.");
-    return toProfile(row);
+    // AUTH-6/DB-D: el PATCH con clave de servidor se quitó (escribía columnas
+    // que no existen y saltaba RLS). Las escrituras de perfil van por
+    // `users.rls` (RPC `update_my_profile`) con la sesión de la persona.
+    void id;
+    throw new DomainError("INTERNAL", "La actualización de perfil con clave de servidor está deshabilitada.");
   },
 
   async addConsent(row: Consent): Promise<Consent> {
@@ -276,28 +241,14 @@ export const supabaseUsers = {
     });
   },
 
-  async deletionStatus(id: string): Promise<{ requestedAt: string | null }> {
-    await readProfile(id);
-    return { requestedAt: await firstDeletion(id) };
+  async deletionStatus(): Promise<{ requestedAt: string | null }> {
+    // `audit_log` no existe: el estado real vive en `deletion_requests` y sólo se lee con RLS.
+    return { requestedAt: null };
   },
 
-  async requestDeletion(id: string): Promise<{ requestedAt: string }> {
-    await readProfile(id);
-    const existing = await firstDeletion(id);
-    if (existing) return { requestedAt: existing };
-    const written = await rest("audit_log", {
-      method: "POST",
-      query: "select=created_at",
-      prefer: "return=representation",
-      body: {
-        user_id: id,
-        action: DELETION_ACTION,
-        meta: { source: "app" },
-      },
-    });
-    const parsed = deletionRowSchema.safeParse(asRows(written)[0]);
-    if (!parsed.success) throw new DomainError("INTERNAL");
-    return { requestedAt: parsed.data.created_at };
+  async requestDeletion(): Promise<{ requestedAt: string }> {
+    // AUTH-6/DB-D: la baja sólo se registra con la sesión de la persona (RPC `request_my_deletion`, RLS).
+    throw new DomainError("INTERNAL", "La baja de la cuenta con clave de servidor está deshabilitada.");
   },
 
   async prefs(id: string): Promise<Preferences> {
@@ -390,15 +341,4 @@ function toConsent(row: z.infer<typeof consentRowSchema>): Consent {
     version: row.version,
     acceptedAt: row.accepted_at,
   };
-}
-
-async function firstDeletion(id: string): Promise<string | null> {
-  const body = await rest("audit_log", {
-    query: `${eq("user_id", id)}&${eq("action", DELETION_ACTION)}&select=created_at&order=created_at.asc&limit=1`,
-  });
-  const rows = asRows(body);
-  if (rows.length === 0) return null;
-  const parsed = deletionRowSchema.safeParse(rows[0]);
-  if (!parsed.success) throw new DomainError("INTERNAL");
-  return parsed.data.created_at;
 }

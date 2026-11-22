@@ -423,8 +423,13 @@ describe("M62: /api/health* exento de rate limit y geobloqueo", () => {
   it("el matcher del middleware excluye /api (los monitores no pasan por el gate ni el rate limit)", async () => {
     const { readFile } = await import("node:fs/promises");
     const source = await readFile("middleware.ts", "utf8");
-    // El matcher literal del fuente lleva `.*\\..*` (backslash escapado).
-    expect(source).toContain('matcher: ["/((?!api|_next|.*\\\\..*).*)"]');
+    // AUTH-8: el matcher ya no salta rutas con punto, pero sigue excluyendo /api.
+    const block = /matcher: \[\s*"([^"\n]+)",?\s*\]/.exec(source);
+    expect(block).not.toBeNull();
+    const re = new RegExp(`^${JSON.parse(`"${block![1]}"`) as string}$`);
+    expect(re.test("/api/health")).toBe(false);
+    expect(re.test("/api/health/deep")).toBe(false);
+    expect(re.test("/app")).toBe(true);
   });
 });
 

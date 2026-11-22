@@ -6,10 +6,9 @@
 -- create or replace, drop policy/trigger if exists). Las semillas usan
 -- on conflict do nothing: una segunda pasada NO enciende un flag que el
 -- operador ya cambió.
--- RLS: el usuario lee lo suyo en copy_subscriptions, copy_follows y copy_runs.
--- Todas las escrituras en copy_follows, copy_subscriptions, billing_events,
--- copy_runs y copy_feed_snapshots las hace sólo service_role tras validar
--- suscripción/paywall y pesos en el servidor.
+-- RLS: el usuario lee lo suyo en copy_subscriptions, copy_follows y copy_runs,
+-- y escribe SÓLO sus copy_follows (máximo 10 por usuario). copy_subscriptions,
+-- billing_events, copy_runs y copy_feed_snapshots los escribe sólo service_role.
 -- Sin datos de tarjeta: billing_events guarda sólo el hash del payload.
 -- Fechas con now(). Sin pg_catalog.current_date.
 
@@ -34,7 +33,6 @@ create table if not exists public.copy_subscriptions (
 );
 
 alter table public.copy_subscriptions enable row level security;
-alter table public.copy_subscriptions force row level security;
 
 -- El usuario ve su suscripción; nadie escribe desde el cliente.
 drop policy if exists "copy_subscriptions_select_own" on public.copy_subscriptions;
@@ -69,7 +67,6 @@ create table if not exists public.billing_events (
 );
 
 alter table public.billing_events enable row level security;
-alter table public.billing_events force row level security;
 
 revoke all on table public.billing_events from public, anon, authenticated;
 grant all on table public.billing_events to service_role;
@@ -95,7 +92,6 @@ create table if not exists public.copy_follows (
 );
 
 alter table public.copy_follows enable row level security;
-alter table public.copy_follows force row level security;
 
 drop policy if exists "copy_follows_select_own" on public.copy_follows;
 create policy "copy_follows_select_own"
@@ -105,11 +101,29 @@ create policy "copy_follows_select_own"
   using (auth.uid() = user_id);
 
 drop policy if exists "copy_follows_insert_own" on public.copy_follows;
+create policy "copy_follows_insert_own"
+  on public.copy_follows
+  for insert
+  to authenticated
+  with check (auth.uid() = user_id);
+
 drop policy if exists "copy_follows_update_own" on public.copy_follows;
+create policy "copy_follows_update_own"
+  on public.copy_follows
+  for update
+  to authenticated
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+
 drop policy if exists "copy_follows_delete_own" on public.copy_follows;
+create policy "copy_follows_delete_own"
+  on public.copy_follows
+  for delete
+  to authenticated
+  using (auth.uid() = user_id);
 
 revoke all on table public.copy_follows from public, anon, authenticated;
-grant select on table public.copy_follows to authenticated;
+grant select, insert, update, delete on table public.copy_follows to authenticated;
 grant all on table public.copy_follows to service_role;
 
 create unique index if not exists copy_follows_user_slug_idx
@@ -171,7 +185,6 @@ create table if not exists public.copy_runs (
 );
 
 alter table public.copy_runs enable row level security;
-alter table public.copy_runs force row level security;
 
 drop policy if exists "copy_runs_select_own" on public.copy_runs;
 create policy "copy_runs_select_own"
@@ -213,7 +226,6 @@ create table if not exists public.copy_feed_snapshots (
 );
 
 alter table public.copy_feed_snapshots enable row level security;
-alter table public.copy_feed_snapshots force row level security;
 
 revoke all on table public.copy_feed_snapshots from public, anon, authenticated;
 grant all on table public.copy_feed_snapshots to service_role;

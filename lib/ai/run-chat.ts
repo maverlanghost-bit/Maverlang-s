@@ -90,6 +90,21 @@ function toHistory(system: string, messages: AiChatRequest["messages"], image?: 
   return out;
 }
 
+/**
+ * WEB-2: la imagen viaja sólo en la primera llamada al modelo. En las rondas
+ * siguientes (herramientas, cierre) queda el texto de la pregunta.
+ */
+function dropImageParts(history: XaiMessage[]): void {
+  for (const message of history) {
+    if (message.role !== "user" || !Array.isArray(message.content)) continue;
+    const text = message.content
+      .filter((part): part is Extract<XaiContentPart, { type: "text" }> => part.type === "text")
+      .map((part) => part.text)
+      .join(String.fromCharCode(10));
+    message.content = text;
+  }
+}
+
 export interface ParsedSlashCommand {
   name: string;
   arguments: string;
@@ -325,7 +340,7 @@ export async function runChat(
     // transmite (§1.4): así el cliente ve el texto mientras se genera. Las
     // rondas de herramientas (con tools) siguen sin streaming.
     if (typeof onDelta === "function" && toolRounds > 0) {
-      const streamed = await streamer(history, { onDelta });
+      const streamed = await Promise.resolve(streamer(history, { onDelta })).finally(() => dropImageParts(history));
       if (streamed.content.trim() !== "") {
         return { text: withDisclaimer(streamed.content, stockRelated), widgets };
       }
@@ -333,7 +348,7 @@ export async function runChat(
       const closing = await complete(history, {});
       return { text: withDisclaimer(closing.content, stockRelated), widgets };
     }
-    const completion = await complete(history, { tools: AI_TOOLS });
+    const completion = await Promise.resolve(complete(history, { tools: AI_TOOLS })).finally(() => dropImageParts(history));
     if (completion.toolCalls.length === 0) {
       const text = withDisclaimer(completion.content, stockRelated);
       if (typeof onDelta === "function" && completion.content.trim() !== "") onDelta(completion.content);

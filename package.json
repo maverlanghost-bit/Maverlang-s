@@ -19,6 +19,7 @@
     "check:env": "node scripts/check-env.mjs",
     "sync:xstocks": "node scripts/sync-xstocks.mjs",
     "scan:secrets": "node scripts/scan-secrets.mjs",
+    "hooks:install": "node scripts/install-git-hooks.mjs",
     "prices:underlying": "node --experimental-strip-types scripts/underlying-prices.mjs",
     "postinstall": "node scripts/migrate-wallet-sdk-schemas.mjs"
   },

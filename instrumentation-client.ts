@@ -36,5 +36,7 @@ if (dsn) {
     // compartidas (sin `server-only`, para que corran en el bundle cliente).
     beforeSend: (event) => scrubSentryEvent(event),
     beforeBreadcrumb: (breadcrumb) => scrubSentryBreadcrumb(breadcrumb),
+    // OBS-01: ver sentry.server.config.ts (beforeSendTransaction no corre en v11).
+    beforeSendSpan: (span) => scrubSentryEvent(span),
   });
 }

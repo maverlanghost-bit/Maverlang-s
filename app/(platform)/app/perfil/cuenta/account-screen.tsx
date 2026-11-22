@@ -111,6 +111,8 @@ export function AccountScreen() {
       const next = await requestDeletion();
       queryClient.setQueryData(["deletion"], next);
       toast({ title: t.profile.deleteDone, tone: "up" });
+      // El servidor ya cerró todas las sesiones; se limpia también la local.
+      void logout();
     } catch {
       toast({ title: t.profile.deleteError, tone: "down" });
     } finally {

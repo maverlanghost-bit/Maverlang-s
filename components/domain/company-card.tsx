@@ -118,9 +118,9 @@ export function CompanyCard({ symbol }: { symbol: string }) {
       ) : null}
       <p className="mt-3 text-xs leading-5 text-fg-muted">
         <span className="sr-only">{copy.sourceLabel}: </span>
-        {view.sourceUrl ? (
+        {safeHttpsUrl(view.sourceUrl) ? (
           <a
-            href={view.sourceUrl}
+            href={safeHttpsUrl(view.sourceUrl) ?? undefined}
             target="_blank"
             rel="noreferrer noopener"
             className="text-fg underline-offset-2 hover:underline"
@@ -139,6 +139,17 @@ export function CompanyCard({ symbol }: { symbol: string }) {
 }
 
 type Load = { symbol: string; status: "absent" } | { symbol: string; status: "ready"; view: CompanyFactsView };
+
+/** WEB-13: sólo se enlaza una fuente con esquema https (nunca javascript:, data:, http:). */
+function safeHttpsUrl(value: string | null | undefined): string | null {
+  if (!value) return null;
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" ? url.href : null;
+  } catch {
+    return null;
+  }
+}
 
 function CompanySkeleton({ label }: { label: string }) {
   return (

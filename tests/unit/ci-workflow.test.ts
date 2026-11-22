@@ -230,3 +230,39 @@ describe("CI-04: Dependabot cubre las GitHub Actions fijadas", () => {
     expect(semanales.length).toBeGreaterThanOrEqual(2);
   });
 });
+
+describe("OPS-8: workflows con SUPABASE_SECRET_KEY usan un Environment protegido", () => {
+  const SENSIBLES = [".github/workflows/company-facts.yml", ".github/workflows/underlying-prices.yml"];
+
+  it("declaran environment: production-data en el job", () => {
+    for (const file of SENSIBLES) {
+      expect(read(file), file).toMatch(/^\s{4}environment:\s*production-data\s*$/m);
+    }
+  });
+
+  it("mantienen permisos de sólo lectura, npm ci --ignore-scripts y sin permisos de escritura", () => {
+    for (const file of SENSIBLES) {
+      const texto = read(file);
+      expect(texto, file).toMatch(/permissions:\s*(?:\{\s*contents: read\s*\}|\n\s+contents: read)/);
+      expect(texto, file).toContain("npm ci --ignore-scripts");
+      expect(texto, file).not.toMatch(/\b(?:contents|id-token|actions|pull-requests):\s*write\b/);
+    }
+  });
+
+  it("el CI principal (sin --ignore-scripts) deja correr el postinstall del parche de wallet-sdk", () => {
+    const ci = read(".github/workflows/ci.yml");
+    expect(ci).not.toContain("--ignore-scripts");
+    expect(read("package.json")).toContain('"postinstall": "node scripts/migrate-wallet-sdk-schemas.mjs"');
+  });
+});
+
+describe("OPS-2: documentación del hook y del Environment", () => {
+  const ops = read("docs/OPERACION.md");
+
+  it("OPERACION.md documenta hooks:install, core.hooksPath y production-data", () => {
+    expect(ops).toContain("npm run hooks:install");
+    expect(ops).toContain("git config core.hooksPath .githooks");
+    expect(ops).toContain("production-data");
+    expect(ops).toContain("INCIDENTES.md");
+  });
+});

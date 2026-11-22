@@ -38,5 +38,8 @@ if (dsn) {
     // M-02: los breadcrumbs de fetch/XHR y de console también se limpian
     // (una URL de RPC con ?api-key no debe viajar como contexto del error).
     beforeBreadcrumb: (breadcrumb) => scrubSentryBreadcrumb(breadcrumb),
+    // OBS-01: en v11 `beforeSendTransaction` se ignora con span streaming (por
+    // defecto); los spans (URLs, atributos) se limpian con `beforeSendSpan`.
+    beforeSendSpan: (span) => scrubSentryEvent(span),
   });
 }

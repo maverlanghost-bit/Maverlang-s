@@ -13,6 +13,7 @@ import {
 import { MOCK_ONBOARDING_COOKIE, MOCK_SESSION_COOKIE } from "@/lib/auth/cookies";
 import { DEMO_SESSION_USER } from "@/lib/auth/demo-user";
 import { ExportWalletProvider, exportMockWallet } from "@/lib/auth/export-wallet";
+import { purgePrivateBrowserStorage } from "@/lib/auth/private-storage";
 import { purgePrivateQueryCache } from "@/lib/auth/private-cache";
 import { SessionProvider } from "@/lib/auth/session-context";
 import { SignerProvider, signDemoTransaction } from "@/lib/auth/sign-transaction";
@@ -49,6 +50,7 @@ export function MockAuthProvider({ children }: { children: ReactNode }) {
     // observer montado, su refetch ya no puede volver a leer datos privados.
     clearClientCookie(MOCK_SESSION_COOKIE);
     clearClientCookie(MOCK_ONBOARDING_COOKIE);
+    purgePrivateBrowserStorage();
     await purgePrivateQueryCache(queryClient);
     router.push("/");
     router.refresh();

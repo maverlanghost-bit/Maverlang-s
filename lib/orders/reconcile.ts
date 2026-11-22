@@ -40,11 +40,13 @@ import {
   readTradeReservation,
   releaseTradeReservation,
 } from "@/lib/services/trade-reservations.supabase";
+import { createTradeQuoteStore } from "@/lib/services/trade-quotes.supabase";
 import { redactRpcSecrets, translateSolanaError } from "@/lib/solana/tx-errors";
 import {
   orderIntegrityIssue,
   orderNotionalFromRow,
   reservationExceedsTolerance,
+  transactionMessageBytesOf,
 } from "@/lib/trade/integrity";
 
 /** Lectura normalizada de `getSignatureStatuses` (una por firma pedida). */
@@ -54,6 +56,13 @@ export interface SignatureStatusRead {
   /** Error de ejecución on-chain; `null` = la tx corrió bien. */
   err: unknown;
 }
+
+/**
+ * MON-2: ¿la transacción on-chain de esa firma es la que armó el servidor?
+ * `unknown` = no se pudo comprobar (sin tx armada guardada, RPC sin la tx);
+ * se trata como no verificada: la orden va a revisión, nunca se cierra.
+ */
+export type OnchainTransactionCheck = "match" | "mismatch" | "unknown";
 
 export interface ReconcileDeps {
   /** Reloj inyectable (tests). Default: hora del sistema. */
@@ -89,6 +98,11 @@ export interface ReconcileDeps {
   ) => Promise<{ amountUsd: number; status: string; expiresAt: string } | null>;
   /** Libera la reserva cuando la orden falla/expira. Default: Supabase. */
   releaseReservation?: (userId: string, requestId: string) => Promise<boolean>;
+  /**
+   * Compara la tx on-chain de la firma con la armada por el servidor. Default:
+   * `getTransaction` + la tx armada guardada en la reserva (producción).
+   */
+  verifyOnchainTransaction?: (row: ReconcileRow, signature: string) => Promise<OnchainTransactionCheck>;
   /** Log de avisos (RPC caído). Default: `console.warn` redactado. */
   log?: (message: string) => void;
 }
@@ -207,6 +221,35 @@ async function defaultGetSignatureStatuses(signatures: string[]): Promise<(Signa
 }
 
 /**
+ * Default de MON-2: el mensaje on-chain (`getTransaction`, versión 0) debe ser
+ * byte a byte el mensaje que armó el servidor y guardó en la reserva. Si la
+ * firma pertenece a OTRA transacción (firma pegada de mainnet), no coincide.
+ */
+async function defaultVerifyOnchainTransaction(
+  row: ReconcileRow,
+  signature: string,
+): Promise<OnchainTransactionCheck> {
+  if (!row.user_id || !row.request_id) return "unknown";
+  const stored = await createTradeQuoteStore().readQuote(row.user_id, row.request_id);
+  const built = stored?.payload.builtTransactionBase64;
+  if (!built) return "unknown";
+  const { Connection } = await import("@solana/web3.js");
+  const rpcUrl = process.env.SOLANA_RPC_URL?.trim() || "https://api.mainnet-beta.solana.com";
+  const connection = new Connection(rpcUrl, "confirmed");
+  const tx = await connection.getTransaction(signature, {
+    maxSupportedTransactionVersion: 0,
+    commitment: "confirmed",
+  });
+  if (!tx) return "unknown";
+  const onchain = tx.transaction.message.serialize();
+  const expected = await transactionMessageBytesOf(built);
+  if (onchain.length !== expected.length) return "mismatch";
+  let diff = 0;
+  for (let i = 0; i < expected.length; i += 1) diff |= (onchain[i] ?? 0) ^ (expected[i] ?? 0);
+  return diff === 0 ? "match" : "mismatch";
+}
+
+/**
  * Concilia las órdenes reales abiertas. Nunca lanza: una corrida que no
  * pudo leer la base se reporta `ok: false` con ceros.
  */
@@ -242,6 +285,8 @@ export async function reconcilePendingOrders(deps: ReconcileDeps = {}): Promise<
   const listOpen = deps.listOpen ?? ((opts: { cutoffIso: string; limit: number }) => listOpenRealOrders({ ...opts, admin: deps.admin }));
   const update = deps.update ?? ((id: string, patch: ReconcileOrderPatch) => updateOrderReconciled(id, patch, deps.admin));
   const getSignatureStatuses = deps.getSignatureStatuses ?? defaultGetSignatureStatuses;
+  const verifyOnchainTransaction =
+    deps.verifyOnchainTransaction ?? (hasInjectedAccess ? undefined : defaultVerifyOnchainTransaction);
   const log = deps.log ?? ((message: string) => console.warn(message));
   // Con acceso inyectado (tests) no se cae a Supabase por accidente. En
   // producción sin inyección, la reserva y su liberación son reales.
@@ -300,16 +345,18 @@ export async function reconcilePendingOrders(deps: ReconcileDeps = {}): Promise<
   let needsReview = 0;
   for (const row of rows) {
     let patch: ReconcileOrderPatch | null = null;
+    let review = false;
 
-    // 1. Integridad de la fila: montos corruptos no se confirman ni quedan
-    //    abiertos para siempre. Los fixtures viejos sin columnas de monto no
-    //    se marcan (la lectura real siempre las trae).
+    // 1. Integridad de la fila: montos corruptos o reserva inconsistente. Los
+    //    fixtures viejos sin columnas de monto no se marcan (la lectura real
+    //    siempre las trae).
+    let integrityPatch: ReconcileOrderPatch | null = null;
     const hasAmountColumns =
       (row.side === "buy" || row.side === "sell") &&
       (row.in_amount_ui !== undefined || row.out_amount_ui !== undefined);
     const integrity = hasAmountColumns ? orderIntegrityIssue(row) : null;
     if (integrity) {
-      patch = {
+      integrityPatch = {
         status: "failed",
         error_code: integrity,
         error: "No pudimos validar los montos de la orden.",
@@ -318,7 +365,7 @@ export async function reconcilePendingOrders(deps: ReconcileDeps = {}): Promise<
 
     // 2. Reserva atómica: una reserva liberada o que no coincide con el
     //    notional de la orden es una señal de manipulación/carrera.
-    if (!patch && readReservation && row.user_id && row.request_id) {
+    if (!integrityPatch && readReservation && row.user_id && row.request_id) {
       let reservation: { amountUsd: number; status: string; expiresAt: string } | null = null;
       try {
         reservation = await readReservation(row.user_id, row.request_id);
@@ -326,7 +373,7 @@ export async function reconcilePendingOrders(deps: ReconcileDeps = {}): Promise<
         reservation = null;
       }
       if (reservation?.status === "released") {
-        patch = {
+        integrityPatch = {
           status: "failed",
           error_code: "RESERVATION_RELEASED",
           error: "La reserva de la operación fue liberada antes de confirmarse.",
@@ -334,7 +381,7 @@ export async function reconcilePendingOrders(deps: ReconcileDeps = {}): Promise<
       } else if (reservation && reservation.amountUsd > 0) {
         const notional = orderNotionalFromRow(row);
         if (notional !== null && reservationExceedsTolerance(reservation.amountUsd, notional)) {
-          patch = {
+          integrityPatch = {
             status: "failed",
             error_code: "AMOUNT_MISMATCH",
             error: "El monto de la orden no coincide con el cupo reservado.",
@@ -343,19 +390,46 @@ export async function reconcilePendingOrders(deps: ReconcileDeps = {}): Promise<
       }
     }
 
-    // 3. Estado on-chain / evidencia de ejecución (D-05). Sólo se decide con
-    //    una firma conocida: sin firma no hay forma de probar que la
-    //    operación NO se ejecutó, así que la orden queda abierta.
-    if (!patch && row.tx_signature) {
-      patch = decideSubmitted(row, statuses.get(row.tx_signature), nowMs, submittedExpireMinutes);
-    } else if (!patch && row.status === "pending" && !row.tx_signature) {
+    // 3. Estado on-chain / evidencia de ejecución (D-05). Con firma conocida
+    //    la cadena decide PRIMERO (MON-5): una discrepancia de integridad ya no
+    //    marca `failed` ni libera cupo de una orden que pudo ejecutarse; va a
+    //    revisión humana. Sin firma no hay forma de probar que la operación NO
+    //    se ejecutó, así que la orden queda abierta.
+    if (row.tx_signature) {
+      let onchainPatch = decideSubmitted(row, statuses.get(row.tx_signature), nowMs, submittedExpireMinutes);
+      // MON-2: confirmar o fallar exige que la tx de esa firma sea la armada
+      // por el servidor. Si no se puede comprobar, no se cierra.
+      if (onchainPatch && (onchainPatch.status === "confirmed" || onchainPatch.status === "failed") && verifyOnchainTransaction) {
+        let check: OnchainTransactionCheck = "unknown";
+        try {
+          check = await verifyOnchainTransaction(row, row.tx_signature);
+        } catch {
+          check = "unknown";
+        }
+        if (check !== "match") {
+          log(`[reconcile-orders] orden ${row.id}: la tx on-chain no coincide con la armada (${check}); requiere revisión manual`);
+          onchainPatch = null;
+          review = true;
+        }
+      }
+      if (integrityPatch) {
+        // Sólo un fallo on-chain verificado es un hecho; todo lo demás se revisa.
+        if (onchainPatch?.status === "failed") patch = onchainPatch;
+        else review = true;
+      } else {
+        patch = onchainPatch;
+      }
+    } else if (integrityPatch) {
+      patch = integrityPatch;
+    } else if (row.status === "pending") {
       if (pendingQuoteExpired(row, nowMs, pendingExpireMinutes)) {
         // Pudo haberse enviado y perdido la respuesta: ni `expired` ni
         // liberación de cupo. Se reporta para revisión humana.
-        needsReview += 1;
+        review = true;
         log(`[reconcile-orders] orden ${row.id} pending sin firma: requiere revisión manual`);
       }
     }
+    if (review) needsReview += 1;
 
     // `confirmed`/`failed`/`expired` no llegan por la lectura y una fila
     // ajena al spec no se toca: la idempotencia es doble (SELECT + guard).

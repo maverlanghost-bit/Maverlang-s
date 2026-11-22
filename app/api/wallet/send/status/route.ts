@@ -5,12 +5,14 @@ import {
   handle,
   parseQuery,
   readOutput,
-  requireSupabaseUser,
 } from "@/lib/api/handler";
+import { DomainError } from "@/lib/api/result";
+import { serverEnv } from "@/lib/env";
 import { withRateLimit } from "@/lib/security/rate-limit";
 import { getServices } from "@/lib/services";
 import { assertRealExecutionLocked, assertRealWithdrawalsEnabled } from "@/lib/trade/real-guards";
 import { getWithdrawalStatus } from "@/lib/wallet/withdrawal-store";
+import { requireWalletSession } from "@/lib/wallet/live-session";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -37,7 +39,7 @@ export function GET(req: Request) {
     const services = getServices();
     // En supabase exige usuario verificado; en mock devuelve null y la salida
     // se lee del servicio demo de siempre.
-    const session = await requireSupabaseUser(services, req);
+    const session = await requireWalletSession(services, req);
     const userLimited = session
       ? await withRateLimit(req, "trade", [session.userId])
       : await withRateLimit(req, "trade");
@@ -52,6 +54,10 @@ export function GET(req: Request) {
       const data = await getWithdrawalStatus({ userId: session.userId, id });
       return readOutput(orderSchema, data);
     }
+    // MON-8: con DATA_MODE=live `requireWalletSession` ya exigió sesión, así que
+    // acá sólo se llega en mock. Si alguna vez llegara sin sesión en live,
+    // falla cerrado en vez de leer una orden ajena con el cliente admin.
+    if (serverEnv.DATA_MODE === "live") throw new DomainError("UNAUTHORIZED");
     const data = await callService(req, () => services.trade.status(id));
     return readOutput(orderSchema, data);
   });

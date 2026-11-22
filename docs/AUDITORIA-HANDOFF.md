@@ -1,5 +1,9 @@
 # Handoff de auditoría — Maverlang / Queior
 
+> **Actualización 2026-11-21 (T83):** la auditoría v3 y sus correcciones están en la rama
+> `fix/auditoria-v3`. Para salir a producción seguir `docs/PRODUCCION-CHECKLIST.md`; para la base,
+> `docs/MIGRACIONES-PROD.md` (0045 → 0059). El resto de este documento describe el estado al 03-nov.
+
 > **Estado al 2026-11-03.** Este documento es el handoff completo para el próximo LLM o desarrollador. Leerlo entero antes de tocar el proyecto. No asumir que todo lo auditado está corregido ni desplegado: el estado real está en la sección 1.
 
 ---

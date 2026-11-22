@@ -15,8 +15,9 @@
  * `--env production` (o `preview`) cuenta como producción/preview
  * explícita: con faltantes sale con código 1. Sin `--env` ni `APP_ENV`,
  * el modo es demo/desarrollo: muestra avisos y sale con 0.
- * `SUPABASE_PROJECT_ENV=prod` en el origen activa el estricto de
- * producción aunque no haya `--env` (nunca se ignora en silencio).
+ * `SUPABASE_PROJECT_ENV=prod` o `VERCEL_ENV=production` en el origen activan
+ * el estricto de producción aunque no haya `--env` (nunca se ignora en silencio;
+ * OPS-3). Con `VERCEL_ENV=production` además `APP_ENV` debe ser `production`.
  */
 
 import { readFileSync } from "node:fs";
@@ -107,9 +108,27 @@ function present(value) {
   return isSet(value) ? "invalid" : "missing";
 }
 
+const KEYED_URL_RE = /api[-_]?key=/i;
+
+/** Nombres de NEXT_PUBLIC_* cuyo valor lleva una API key (OPS-7). Nunca imprime valores. */
+function publicKeyLeaks(source) {
+  return Object.entries(source)
+    .filter(([name, value]) => name.startsWith("NEXT_PUBLIC_") && typeof value === "string" && KEYED_URL_RE.test(value))
+    .map(([name]) => name);
+}
+
+function secret32(name) {
+  return { name, want: ">= 32 caracteres", check: (s) => (norm(s[name]).length >= 32 ? "ok" : present(s[name])) };
+}
+
 function buildRows(mode) {
   const production = mode === "production";
   return [
+    {
+      name: "NEXT_PUBLIC_* sin api-key",
+      want: "ningun NEXT_PUBLIC_* con api-key=",
+      check: (s) => (publicKeyLeaks(s).length === 0 ? "ok" : "invalid"),
+    },
     {
       name: "AUTH_MODE",
       want: "supabase",
@@ -212,6 +231,38 @@ function buildRows(mode) {
     ...(production
       ? [
           {
+            name: "APP_ENV",
+            want: "production (obligatorio con VERCEL_ENV=production)",
+            check: (s) => (lower(s.APP_ENV) === "production" ? "ok" : present(s.APP_ENV)),
+          },
+          {
+            name: "UPSTASH_REDIS_REST_URL",
+            want: "definida",
+            check: (s) => (isSet(s.UPSTASH_REDIS_REST_URL) ? "ok" : "missing"),
+          },
+          {
+            name: "UPSTASH_REDIS_REST_TOKEN",
+            want: "definida",
+            check: (s) => (isSet(s.UPSTASH_REDIS_REST_TOKEN) ? "ok" : "missing"),
+          },
+          {
+            name: "COPY_PLAN_HMAC_SECRET",
+            want: "definida",
+            check: (s) => (isSet(s.COPY_PLAN_HMAC_SECRET) ? "ok" : "missing"),
+          },
+          secret32("DEMO_TOKEN_SECRET"),
+          secret32("SHARE_SIGNING_SECRET"),
+          {
+            name: "PRIVY_APP_SECRET",
+            want: "definida si NEXT_PUBLIC_PRIVY_APP_ID existe",
+            check: (s) => (!isSet(s.NEXT_PUBLIC_PRIVY_APP_ID) || isSet(s.PRIVY_APP_SECRET) ? "ok" : "missing"),
+          },
+          {
+            name: "ALLOW_MOCK_AUTH",
+            want: "false con AUTH_MODE=supabase",
+            check: (s) => (lower(s.AUTH_MODE) === "supabase" && lower(s.ALLOW_MOCK_AUTH) === "true" ? "invalid" : "ok"),
+          },
+          {
             name: "SUPABASE_PROD_URL_EXPECTED",
             want: "definida e igual a NEXT_PUBLIC_SUPABASE_URL",
             check: (s) => {
@@ -300,13 +351,15 @@ async function main() {
 
   const explicitApp = validAppEnv(source.APP_ENV);
   const project = lower(source.SUPABASE_PROJECT_ENV);
+  const vercelProd = lower(source.VERCEL_ENV) === "production";
   let strict = null;
   const triggers = [];
-  if (cliEnv === "production" || explicitApp === "production" || project === "prod") {
+  if (cliEnv === "production" || explicitApp === "production" || project === "prod" || vercelProd) {
     strict = "production";
     if (cliEnv === "production") triggers.push("--env production");
     if (explicitApp === "production") triggers.push("APP_ENV explicito");
     if (project === "prod") triggers.push("SUPABASE_PROJECT_ENV=prod");
+    if (vercelProd) triggers.push("VERCEL_ENV=production");
   } else if (cliEnv === "preview" || explicitApp === "preview") {
     strict = "preview";
     if (cliEnv === "preview") triggers.push("--env preview");
@@ -317,7 +370,7 @@ async function main() {
 
   console.log(`check:env modo=${mode} ${strictLabel}`);
   const vercelEnv = norm(source.VERCEL_ENV);
-  console.log(`VERCEL_ENV: ${vercelEnv === "" ? "no definido (solo informativo)" : "definido (solo informativo)"}`);
+  console.log(`VERCEL_ENV: ${vercelEnv === "" ? "no definido" : "definido"}`);
   if (file) console.log(`origen: entorno actual + archivo (el archivo manda)`);
 
   const rows = strict ? buildRows(strict) : buildRows("production");
@@ -337,6 +390,9 @@ async function main() {
     );
   }
   console.log("");
+  if (strict === "production" && !isSet(source.SENTRY_DSN)) {
+    console.log("AVISO check:env: falta SENTRY_DSN (no bloquea)");
+  }
   if (strict) {
     console.log(`Resumen: ${ok} OK, ${missing} FALTA, ${invalid} INVALIDA`);
     if (missing + invalid > 0) {

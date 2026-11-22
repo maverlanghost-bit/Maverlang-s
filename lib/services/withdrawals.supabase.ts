@@ -1,5 +1,7 @@
 import "server-only";
 
+import { VersionedTransaction } from "@solana/web3.js";
+
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { isMissingSchemaError } from "@/lib/supabase/schema-error";
 import type {
@@ -389,6 +391,20 @@ export interface SubmittedWithdrawalRow {
   reference: string;
   signature: string | null;
   createdAt?: string | null;
+  /** MON-6: blockhash de la transacción reservada (decodificada del libro). */
+  blockhash?: string | null;
+  /** MON-6: sólo si el libro lo registra; hoy no hay columna. */
+  lastValidBlockHeight?: number | null;
+}
+
+/** Blockhash de una transacción v0/legacy en base64; `null` si no se decodifica. */
+function blockhashOfBuiltTransaction(base64: unknown): string | null {
+  if (typeof base64 !== "string" || !base64) return null;
+  try {
+    return VersionedTransaction.deserialize(Buffer.from(base64, "base64")).message.recentBlockhash;
+  } catch {
+    return null;
+  }
 }
 
 /** Lista retiros `submitted` con firma registrada para conciliar on-chain. */
@@ -396,7 +412,7 @@ export async function listSubmittedWithdrawalRows(limit: number): Promise<Submit
   const admin = createSupabaseAdminClient();
   const { data, error } = await admin
     .from("wallet_withdrawals")
-    .select("id, user_id, request_id, reference, signature, created_at")
+    .select("id, user_id, request_id, reference, signature, created_at, built_transaction_base64")
     .eq("status", "submitted")
     .not("signature", "is", null)
     .order("created_at", { ascending: true })
@@ -419,50 +435,8 @@ export async function listSubmittedWithdrawalRows(limit: number): Promise<Submit
     const signature = typeof row.signature === "string" ? row.signature : null;
     const createdAt = typeof row.created_at === "string" ? row.created_at : null;
     if (!id || !userId || !requestId || !reference) continue;
-    out.push({ id, userId, requestId, reference, signature, createdAt });
+    const blockhash = blockhashOfBuiltTransaction(row.built_transaction_base64);
+    out.push({ id, userId, requestId, reference, signature, createdAt, blockhash });
   }
   return out;
-}
-
-/** Expira reservas `submitting` vencidas que nunca reclamaron firma ni envío. */
-export async function expireStaleSubmittingWithdrawals(limit = 50): Promise<string[]> {
-  const admin = createSupabaseAdminClient();
-  const nowIso = new Date().toISOString();
-  const { data, error } = await admin
-    .from("wallet_withdrawals")
-    .select("id, reference")
-    .eq("status", "submitting")
-    .lt("expires_at", nowIso)
-    .order("created_at", { ascending: true })
-    .limit(limit);
-
-  if (error) {
-    if (isMissingSchemaError(error)) return [];
-    throw new Error(`MV_WITHDRAWAL_EXPIRE_LIST: ${error.message}`);
-  }
-
-  const rows = Array.isArray(data) ? data : [];
-  const expiredRefs: string[] = [];
-  for (const raw of rows) {
-    if (!raw || typeof raw !== "object") continue;
-    const row = raw as Record<string, unknown>;
-    const id = typeof row.id === "string" ? row.id : "";
-    const reference = typeof row.reference === "string" ? row.reference : "";
-    if (!id) continue;
-    const { data: updated, error: updateErr } = await admin
-      .from("wallet_withdrawals")
-      .update({
-        status: "failed",
-        error: "La reserva expiró antes de enviarse.",
-        finalized_at: nowIso,
-      })
-      .eq("id", id)
-      .eq("status", "submitting")
-      .select("reference")
-      .maybeSingle();
-    if (!updateErr && updated && reference) {
-      expiredRefs.push(reference);
-    }
-  }
-  return expiredRefs;
 }

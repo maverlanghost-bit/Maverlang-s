@@ -2,6 +2,7 @@ import "server-only";
 
 import { TRIAL_DAYS_MS, isBillingPlanId, type BillingPlanId } from "@/lib/billing/plans";
 import type { BillingStatus } from "@/lib/billing/provider";
+import { redactText } from "@/lib/observability/redact";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
 /**
@@ -91,10 +92,11 @@ function toSubscriptionRow(value: unknown, fallbackUserId: string): BillingSubsc
   };
 }
 
+/** OPS-6: el texto de los errores de Supabase puede traer correos, tokens o URLs con clave; sale redactado. */
 function errorText(error: unknown): string {
-  if (error instanceof Error) return error.message;
+  if (error instanceof Error) return redactText(error.message);
   const record = asRecord(error);
-  return readString(record?.message) ?? "error desconocido";
+  return redactText(readString(record?.message) ?? "error desconocido");
 }
 
 /**

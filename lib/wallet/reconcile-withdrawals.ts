@@ -12,8 +12,13 @@ import "server-only";
  *
  * Reglas:
  * - En `DATA_MODE=mock` (sin `deps` inyectadas) es no-op y devuelve ceros.
- * - Si el RPC devuelve `null` o `processed`, el retiro sigue `submitted`
- *   (nunca se marca `failed` sin evidencia de error on-chain).
+ * - Si el RPC devuelve `null` o `processed`, el retiro sigue `submitted`.
+ *   Sólo se marca `failed` por expiración cuando el blockhash de la
+ *   transacción ya no es válido (MON-6): con `lastValidBlockHeight` se compara
+ *   contra `getBlockHeight`; con sólo el blockhash se consulta
+ *   `isBlockhashValid`. Sin ninguno de los dos datos (o sin respuesta del RPC)
+ *   el retiro va a revisión manual (`needsReview`) y sigue `submitted`: un
+ *   `null` puede ser una transacción que sí aterrizó.
  * - Si el RPC devuelve `confirmed` / `finalized` sin `err`, finaliza como
  *   `confirmed` y actualiza `wallet_movements` en best-effort.
  * - Si el RPC devuelve `err !== null`, finaliza como `failed` con mensaje
@@ -21,8 +26,8 @@ import "server-only";
  */
 
 import { updateWalletMovementStatus } from "@/lib/services/wallet-movements.supabase";
+import { serverEnv } from "@/lib/env";
 import {
-  expireStaleSubmittingWithdrawals,
   finalizeWithdrawalRow,
   listSubmittedWithdrawalRows,
   type SubmittedWithdrawalRow,
@@ -41,6 +46,8 @@ export interface ReconcileWithdrawalsSummary {
   confirmed: number;
   failed: number;
   pending: number;
+  /** MON-6: sin rastro on-chain y sin forma de probar que expiró. */
+  needsReview: number;
   skipped: number;
   durationMs: number;
 }
@@ -56,12 +63,15 @@ export interface ReconcileWithdrawalsDeps {
     error: string | null,
   ) => Promise<boolean>;
   updateMovementStatus?: (reference: string, status: "confirmed" | "failed") => Promise<boolean>;
-  expireStaleSubmitting?: () => Promise<string[]>;
+  /** Altura de bloque actual (para comparar con `lastValidBlockHeight`). */
+  getBlockHeight?: () => Promise<number>;
+  /** ¿Sigue siendo válido el blockhash? (RPC `isBlockhashValid`). */
+  isBlockhashValid?: (blockhash: string) => Promise<boolean>;
   submittedExpireMs?: number;
 }
 
 function isLiveDataMode(): boolean {
-  return (process.env.DATA_MODE?.trim() || "mock") === "live";
+  return serverEnv.DATA_MODE === "live";
 }
 
 function emptySummary(durationMs = 0): ReconcileWithdrawalsSummary {
@@ -70,6 +80,7 @@ function emptySummary(durationMs = 0): ReconcileWithdrawalsSummary {
     confirmed: 0,
     failed: 0,
     pending: 0,
+    needsReview: 0,
     skipped: 0,
     durationMs,
   };
@@ -78,7 +89,13 @@ function emptySummary(durationMs = 0): ReconcileWithdrawalsSummary {
 function liveWithdrawalsDeps(): ReconcileWithdrawalsDeps {
   return {
     listSubmittedWithdrawals: (limit) => listSubmittedWithdrawalRows(limit),
-    expireStaleSubmitting: () => expireStaleSubmittingWithdrawals(),
+    getBlockHeight: () => getServerConnection().getBlockHeight("confirmed"),
+    isBlockhashValid: async (blockhash) => {
+      const { value } = await getServerConnection().isBlockhashValid(blockhash, {
+        commitment: "confirmed",
+      });
+      return value;
+    },
     getSignatureStatuses: async (signatures) => {
       if (signatures.length === 0) return [];
       const { value } = await getServerConnection().getSignatureStatuses(signatures, {
@@ -106,6 +123,30 @@ async function updateMovementQuietly(
 }
 
 /**
+ * MON-6: ¿se puede probar que la transacción ya no puede aterrizar?
+ * - `expired`: el blockhash venció (altura > lastValidBlockHeight o RPC dice inválido).
+ * - `valid`: aún puede aterrizar, el retiro sigue pendiente.
+ * - `unknown`: faltan datos o el RPC falló → revisión manual, nunca `failed`.
+ */
+async function blockhashVerdict(
+  deps: ReconcileWithdrawalsDeps,
+  row: SubmittedWithdrawalRow,
+): Promise<"expired" | "valid" | "unknown"> {
+  try {
+    if (typeof row.lastValidBlockHeight === "number" && deps.getBlockHeight) {
+      const height = await deps.getBlockHeight();
+      return height > row.lastValidBlockHeight ? "expired" : "valid";
+    }
+    if (row.blockhash && deps.isBlockhashValid) {
+      return (await deps.isBlockhashValid(row.blockhash)) ? "valid" : "expired";
+    }
+  } catch {
+    return "unknown";
+  }
+  return "unknown";
+}
+
+/**
  * Concilia retiros en estado `submitted` que ya tienen firma on-chain.
  * En `DATA_MODE=mock` (sin `deps`) retorna ceros sin tocar red ni base.
  */
@@ -119,17 +160,6 @@ export async function reconcileSubmittedWithdrawals(
   const resolved = deps ?? liveWithdrawalsDeps();
   const startedAt = Date.now();
   const expireMs = resolved.submittedExpireMs ?? DEFAULT_SUBMITTED_EXPIRE_MS;
-
-  if (resolved.expireStaleSubmitting) {
-    try {
-      const expiredRefs = await resolved.expireStaleSubmitting();
-      for (const ref of expiredRefs) {
-        await updateMovementQuietly(resolved.updateMovementStatus, ref, "failed");
-      }
-    } catch {
-      // Best-effort para limpiar reservas `submitting` vencidas.
-    }
-  }
 
   const batch = await resolved.listSubmittedWithdrawals(WITHDRAWAL_RECONCILE_BATCH_LIMIT);
   const withSignature: Array<SubmittedWithdrawalRow & { signature: string }> = [];
@@ -150,6 +180,7 @@ export async function reconcileSubmittedWithdrawals(
       confirmed: 0,
       failed: 0,
       pending: 0,
+      needsReview: 0,
       skipped,
       durationMs: Date.now() - startedAt,
     };
@@ -160,17 +191,27 @@ export async function reconcileSubmittedWithdrawals(
   let confirmed = 0;
   let failed = 0;
   let pending = 0;
+  let needsReview = 0;
 
   for (let i = 0; i < withSignature.length; i += 1) {
     const row = withSignature[i]!;
     const rpcStatus = statuses[i] ?? null;
     const decision = signatureStatusToOrder(rpcStatus);
 
-    const createdAtMs = typeof row.createdAt === "string" ? Date.parse(row.createdAt) : Number.NaN;
-    const expiredWithoutChain =
-      rpcStatus === null &&
-      Number.isFinite(createdAtMs) &&
-      Date.now() - createdAtMs >= expireMs;
+    let expiredWithoutChain = false;
+    if (decision.status === "submitted" && rpcStatus === null) {
+      const createdAtMs =
+        typeof row.createdAt === "string" ? Date.parse(row.createdAt) : Number.NaN;
+      const old = Number.isFinite(createdAtMs) && Date.now() - createdAtMs >= expireMs;
+      if (old) {
+        const verdict = await blockhashVerdict(resolved, row);
+        if (verdict === "expired") expiredWithoutChain = true;
+        else if (verdict === "unknown") {
+          needsReview += 1;
+          continue;
+        }
+      }
+    }
 
     if (decision.status === "submitted" && !expiredWithoutChain) {
       pending += 1;
@@ -210,6 +251,7 @@ export async function reconcileSubmittedWithdrawals(
     confirmed,
     failed,
     pending,
+    needsReview,
     skipped,
     durationMs: Date.now() - startedAt,
   };

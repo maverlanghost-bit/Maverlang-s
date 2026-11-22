@@ -48,6 +48,14 @@ export const RATE_LIMIT_POLICIES = {
   bienvenidaIp: { limit: 3, windowMs: 3_600_000 },
   /** Asistente IA: 20 cada 10 min por usuario o, si no hay sesión, por IP. */
   ai: { limit: 20, windowMs: 10 * 60_000 },
+  /** Asistente IA, tope diario por usuario (chat e importación comparten cupo): 100/día. */
+  aiDaily: { limit: 100, windowMs: 24 * 3_600_000 },
+  /** Asistente IA, imágenes por usuario: 20/día. */
+  aiImageDaily: { limit: 20, windowMs: 24 * 3_600_000 },
+  /** Asistente IA, disyuntor global entre todos los usuarios: 5000/día. */
+  aiGlobalDaily: { limit: 5000, windowMs: 24 * 3_600_000 },
+  /** Crear enlaces públicos de chats compartidos: 10/h por usuario. */
+  aiShare: { limit: 10, windowMs: 3_600_000 },
   /** Vincular billetera: 10 cada 10 min por usuario (desafío y envío). */
   walletLink: { limit: 10, windowMs: 10 * 60_000 },
   /** Cobros / suscripciones (checkout y cancelación): 10/min por IP o usuario. */
@@ -77,6 +85,10 @@ export const SENSITIVE_RATE_LIMIT_POLICIES = [
   "trade",
   "tradeIp",
   "ai",
+  "aiDaily",
+  "aiImageDaily",
+  "aiGlobalDaily",
+  "aiShare",
   "waitlist",
   "search",
   "prices",

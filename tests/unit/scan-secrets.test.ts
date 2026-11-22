@@ -111,3 +111,80 @@ describe("M46: escáner de secretos", () => {
     expect(supabaseRefOf("no-es-url")).toBeNull();
   });
 });
+
+describe("OPS-7: patrones nuevos del escáner", () => {
+  // Los valores se arman en runtime: el fuente nunca los trae contiguos.
+  const real = ["Zq8", "Lm2", "Xv9", "Tp4", "Rk7"].join("");
+  const scan = (text: string, file = "lib/x.ts") => findWorktreeSecrets(text, file).map((f) => f.name);
+
+  it("detecta asignaciones de secretos con valor real", () => {
+    for (const name of [
+      "UPSTASH_REDIS_REST_TOKEN",
+      "PRIVY_APP_SECRET",
+      "JUPITER_API_KEY",
+      "CRON_SECRET",
+      "REVALIDATE_SECRET",
+      "FRACCION_REVALIDATE_SECRET",
+      "DEMO_TOKEN_SECRET",
+      "SHARE_SIGNING_SECRET",
+      "ONRAMP_WEBHOOK_SECRET",
+      "COPY_PLAN_HMAC_SECRET",
+    ]) {
+      expect(scan(`${name}=${real}`, "docs/x.md"), name).toEqual([`env-assign:${name}`]);
+    }
+  });
+
+  it("ignora vacíos, placeholders y código", () => {
+    for (const value of ['""', "***", "<tu-secreto>", "xxx", "changeme", "", "${{ secrets.X }}", "optionalText()"]) {
+      expect(scan(`CRON_SECRET=${value}`, "docs/x.md"), value).toEqual([]);
+    }
+    expect(scan("CRON_SECRET: optionalText(),", "lib/env.ts")).toEqual([]);
+  });
+
+  it("no marca .env.example ni tests", () => {
+    expect(scan(`CRON_SECRET=${real}`, ".env.example")).toEqual([]);
+    expect(scan(`CRON_SECRET=${real}`, "tests/unit/a.test.ts")).toEqual([]);
+  });
+
+  it("detecta api-key en query con valor real y no con placeholder", () => {
+    expect(scan(`https://rpc.test/?api-key=${real}`)).toEqual(["api-key-param"]);
+    expect(scan(`https://rpc.test/?apikey=${real}&x=1`)).toEqual(["api-key-param"]);
+    expect(scan("https://rpc.test/?api_key=<TU_CLAVE>")).toEqual([]);
+    expect(scan("https://rpc.test/?api-key=")).toEqual([]);
+  });
+
+  it("detecta base58 de 87-88 caracteres y no direcciones de 44", () => {
+    const alphabet = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+    const b58 = (n: number) => Array.from({ length: n }, (_, i) => alphabet[(i * 7) % alphabet.length]).join("");
+    expect(scan(`k="${b58(88)}"`)).toEqual(["base58-secret-key"]);
+    expect(scan(`k="${b58(87)}"`)).toEqual(["base58-secret-key"]);
+    expect(scan(`k="${b58(44)}"`)).toEqual([]);
+  });
+
+  it("detecta el arreglo JSON de 64 enteros de un keypair de Solana", () => {
+    const arr = `[${Array.from({ length: 64 }, (_, i) => i * 3).join(",")}]`;
+    expect(scan(arr)).toContain("solana-key-array");
+  });
+
+  it("el bundle rechaza los nombres nuevos", async () => {
+    const { BUNDLE_SECRET_NAMES } = await import("../../scripts/scan-secrets.mjs");
+    for (const n of ["DEMO_TOKEN_SECRET", "SHARE_SIGNING_SECRET", "ONRAMP_WEBHOOK_SECRET", "FRACCION_REVALIDATE_SECRET"]) {
+      expect(BUNDLE_SECRET_NAMES).toContain(n);
+    }
+  });
+});
+
+describe("OPS-2: hook pre-commit y .gitignore", () => {
+  it(".githooks/pre-commit corre el escáner con --staged", () => {
+    const hook = readFileSync(path.join(ROOT, ".githooks", "pre-commit"), "utf8");
+    expect(hook.startsWith("#!/bin/sh")).toBe(true);
+    expect(hook).toContain("node scripts/scan-secrets.mjs --staged");
+  });
+
+  it(".gitignore cubre la basura de la raíz", () => {
+    const ignore = readFileSync(path.join(ROOT, ".gitignore"), "utf8");
+    for (const p of ["scratch*/", "*.zip", "continuo/", "relanzar_*.ps1", "STOP_*.txt", ".claude/"]) {
+      expect(ignore).toContain(p);
+    }
+  });
+});

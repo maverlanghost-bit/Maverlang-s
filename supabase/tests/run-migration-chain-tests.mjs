@@ -66,6 +66,19 @@ function readMigration(name) {
   return readFileSync(path.join(MIGRATIONS, name), "utf8");
 }
 
+/**
+ * `update_my_profile` vivo = cuerpo de 0046 + el chequeo MFA que inyecta 0056
+ * justo después del `begin` de nivel superior.
+ */
+function withMfaCheck(body) {
+  const injected = body.replace(
+    /\nbegin[ \t]*\r?\n/,
+    "\nbegin\n  if public.mfa_step_pending() then raise exception 'mfa_requerido' using errcode = '42501'; end if;\n",
+  );
+  assert.notEqual(injected, body, "no se encontró el begin de update_my_profile");
+  return injected;
+}
+
 function collapse(sql) {
   return sql.replace(/\r\n/g, "\n").replace(/\s+/g, " ").trim();
 }
@@ -298,14 +311,16 @@ try {
   }
 
   if (failures.length === 0) {
-    await test("0001..0051 se aplican en orden, sin archivos faltantes ni duplicados", async () => {
+    await test("0001..0059 se aplican en orden, sin archivos faltantes ni duplicados", async () => {
+      // Brecha conocida: no existe 0052 (49 archivos hasta 0059).
       assert.equal(
         MIGRATION_FILES.length,
-        42,
+        49,
         "la cadena cambió: actualizar la lista esperada del arnés",
       );
       assert.match(MIGRATION_FILES[0], /^0001_/);
-      assert.match(MIGRATION_FILES.at(-1), /^0051_/);
+      assert.match(MIGRATION_FILES.at(-1), /^0059_/);
+      assert.equal(MIGRATION_FILES.some((f) => f.startsWith("0052_")), false);
       assert.deepEqual(applied, MIGRATION_FILES);
     });
 
@@ -337,7 +352,7 @@ try {
       assert.equal(rows[0].ok, true);
     });
 
-    await test("la función viva update_my_profile es exactamente la de 0046", async () => {
+    await test("la función viva update_my_profile es la de 0046 más el chequeo MFA de 0056", async () => {
       const body = extractFunctionBody(
         readMigration("0046_profiles_onboarding_declaration.sql"),
         "update_my_profile(p_patch jsonb)",
@@ -349,7 +364,11 @@ try {
           and p.proname = 'update_my_profile'
       `);
       assert.equal(rows.length, 1, "debe existir una sola update_my_profile");
-      assert.equal(collapse(rows[0].prosrc), collapse(body), "la función no es la de 0046");
+      assert.equal(
+        collapse(rows[0].prosrc),
+        collapse(withMfaCheck(body)),
+        "la función no es la de 0046 + MFA de 0056",
+      );
       assert.match(rows[0].prosrc, /declaracion_solo_al_completar/);
       assert.match(rows[0].prosrc, /version_declaracion_no_vigente/);
       assert.equal(rows[0].prosecdef, true, "debe ser security definer");
@@ -1068,7 +1087,11 @@ try {
         where p.pronamespace = 'public'::regnamespace
           and p.proname = 'update_my_profile'
       `);
-      assert.equal(collapse(udfRows.rows[0].prosrc), collapse(body), "la segunda pasada no dejó 0046");
+      assert.equal(
+        collapse(udfRows.rows[0].prosrc),
+        collapse(withMfaCheck(body)),
+        "la segunda pasada no dejó 0046 + MFA de 0056",
+      );
       const handleRows = await admin.query(`
         select p.prosrc
         from pg_proc p

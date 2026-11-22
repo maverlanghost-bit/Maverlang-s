@@ -387,3 +387,57 @@ describe("send-build: transacción compilada", () => {
     ).rejects.toMatchObject({ code: "UPSTREAM" });
   });
 });
+
+describe("send-build: MON-4 validación del destino", () => {
+  const baseOwners = {
+    [USDC_MINT]: TOKEN_PROGRAM_ID,
+    [usdcSource]: TOKEN_PROGRAM_ID,
+  };
+  const args = (rpc: SendRpc, dest: PublicKey) => ({
+    connection: rpc,
+    mint: new PublicKey(USDC_MINT),
+    kind: "usdc" as const,
+    owner,
+    to: dest,
+    rawAmount: BigInt(1_000_000),
+    recentBlockhash: BLOCKHASH,
+  });
+  const balances = { [usdcSource]: "5000000" };
+
+  it("rechaza un destino fuera de la curva", async () => {
+    const pda = PublicKey.findProgramAddressSync([Buffer.from("x")], TOKEN_PROGRAM_ID)[0];
+    const rpc = fakeRpc({ owners: baseOwners, balances });
+    await expect(buildSendTransaction(args(rpc, pda))).rejects.toMatchObject({ code: "VALIDATION" });
+  });
+
+  it("rechaza enviarse a sí mismo", async () => {
+    const rpc = fakeRpc({ owners: baseOwners, balances });
+    await expect(buildSendTransaction(args(rpc, owner))).rejects.toMatchObject({ code: "VALIDATION" });
+  });
+
+  it("rechaza token accounts, mints y Token-2022 como destino", async () => {
+    for (const program of [TOKEN_PROGRAM_ID, TOKEN_2022_PROGRAM_ID]) {
+      const rpc = fakeRpc({ owners: { ...baseOwners, [to.toBase58()]: program }, balances });
+      await expect(buildSendTransaction(args(rpc, to))).rejects.toMatchObject({ code: "VALIDATION" });
+    }
+  });
+
+  it("rechaza programas ejecutables", async () => {
+    const rpc = fakeRpc({ owners: baseOwners, balances });
+    const exec = {
+      ...rpc,
+      getAccountInfo: async (a: PublicKey) =>
+        a.equals(to) ? ({ owner: SystemProgram.programId, executable: true } as never) : rpc.getAccountInfo(a),
+    } as unknown as SendRpc;
+    await expect(buildSendTransaction(args(exec, to))).rejects.toMatchObject({ code: "VALIDATION" });
+  });
+
+  it("acepta una billetera del sistema o inexistente", async () => {
+    const rpc = fakeRpc({
+      owners: { ...baseOwners, [to.toBase58()]: SystemProgram.programId, [usdcDestination]: null },
+      balances,
+    });
+    const built = await buildSendTransaction(args(rpc, to));
+    expect(built.transactionBase64.length).toBeGreaterThan(0);
+  });
+});

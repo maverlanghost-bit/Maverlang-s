@@ -52,11 +52,27 @@ export async function assertAdmin(deps: AdminGuardDeps): Promise<{ userId: strin
   return { userId: session.userId };
 }
 
+/**
+ * AUTH-4: `getClaims` valida la firma del JWT, pero no sabe si la sesión se
+ * revocó (cierre global, usuario borrado). Por eso además se llama a
+ * `getUser()` (ida y vuelta a Auth) y el `sub` de ambos tiene que coincidir.
+ * El nivel `aal2` sigue saliendo del claim.
+ */
+export async function readAdminSession(
+  supabase: Pick<NonNullable<Awaited<ReturnType<typeof createSupabaseServerClient>>>, "auth">,
+): Promise<AdminSession | null> {
+  const { data, error } = await supabase.auth.getClaims();
+  const session = sessionFromClaims(data?.claims ?? null, Boolean(error));
+  if (!session) return null;
+  const { data: userData, error: userError } = await supabase.auth.getUser();
+  if (userError || !userData?.user || userData.user.id !== session.userId) return null;
+  return session;
+}
+
 async function readSessionFromClaims(): Promise<AdminSession | null> {
   const supabase = await createSupabaseServerClient();
   if (!supabase) return null;
-  const { data, error } = await supabase.auth.getClaims();
-  return sessionFromClaims(data?.claims ?? null, Boolean(error));
+  return readAdminSession(supabase);
 }
 
 async function isAppAdmin(userId: string): Promise<boolean> {

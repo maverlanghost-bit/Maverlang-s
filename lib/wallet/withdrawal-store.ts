@@ -14,6 +14,7 @@ import { translateSolanaError } from "@/lib/solana/tx-errors";
 import {
   assertSignedTransactionMatchesBuilt,
   readTransactionSignature,
+  verifySignedTransactionSignatures,
 } from "@/lib/trade/integrity";
 import type { Order, TradeSubmitResponse } from "@/lib/types";
 
@@ -669,6 +670,8 @@ export async function submitWithdrawal(
   );
 
   // 5
+  // MON-2: las firmas se verifican (Ed25519) antes de guardar evidencia.
+  await verifySignedTransactionSignatures(signedTransactionBase64);
   const signature = await readTransactionSignature(signedTransactionBase64);
   if (!signature) {
     throw new DomainError("VALIDATION", "La transacción no está firmada.");

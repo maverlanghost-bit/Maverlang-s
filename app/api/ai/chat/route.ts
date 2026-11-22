@@ -1,9 +1,11 @@
+import { stripInlineNotice } from "@/components/ai/model";
 import { aiMessages } from "@/content/i18n/extra-b";
 import { symbolSchema } from "@/lib/api/contracts";
 import { assertSameOrigin, parseJson, requireSession } from "@/lib/api/handler";
 import { DomainError } from "@/lib/api/result";
 import { takeAiQuota } from "@/lib/ai/limit";
 import { runChat } from "@/lib/ai/run-chat";
+import { signAssistantReply } from "@/lib/ai/share-signing";
 import { AI_MAX_BODY_BYTES, aiChatRequestSchema, type AiChatBody } from "@/lib/ai/schema";
 import type { AiChatResponse } from "@/lib/ai/types";
 import { readXaiSettings, XaiNotConfiguredError, XaiUpstreamError } from "@/lib/ai/xai";
@@ -51,7 +53,12 @@ function streamFailure(error: unknown): StreamError {
  * así que el estado es 200 y los fallos viajan como evento `error`. Nunca se
  * copia el cuerpo del proveedor.
  */
-function streamResponse(req: Request, body: AiChatBody): Response {
+/** Firma lo que el cliente va a guardar (sin el aviso inline) para poder compartirlo. */
+function replySig(userId: string, text: string): string | undefined {
+  return signAssistantReply(userId, stripInlineNotice(text)) ?? undefined;
+}
+
+function streamResponse(req: Request, body: AiChatBody, userId: string): Response {
   const encoder = new TextEncoder();
   const events = new ReadableStream<Uint8Array>({
     async start(controller) {
@@ -71,7 +78,13 @@ function streamResponse(req: Request, body: AiChatBody): Response {
           undefined,
           { onDelta: (chunk) => send({ type: "delta", text: chunk }) },
         );
-        send({ type: "done", ok: true, text: result.text, widgets: result.widgets });
+        send({
+          type: "done",
+          ok: true,
+          text: result.text,
+          widgets: result.widgets,
+          sig: replySig(userId, result.text),
+        });
       } catch (error) {
         const failure = streamFailure(error);
         console.error(`ai chat stream ${failure.error}`);
@@ -112,7 +125,7 @@ export async function POST(req: Request): Promise<Response> {
     if (!readXaiSettings().apiKey) {
       return aiResponse({ ok: false, error: "not_configured", message: copy.notConfigured }, 503);
     }
-    const quota = await takeAiQuota(session.userId);
+    const quota = await takeAiQuota(session.userId, { image: body.image !== undefined });
     if (!quota.ok) {
       if (quota.unavailable) {
         return aiResponse({ ok: false, error: "upstream", message: copy.upstream }, 503, {
@@ -125,14 +138,17 @@ export async function POST(req: Request): Promise<Response> {
         "X-RateLimit-Remaining": "0",
       });
     }
-    if (stream) return streamResponse(req, body);
+    if (stream) return streamResponse(req, body, session.userId);
     const result = await runChat({
       messages: body.messages,
       image: body.image,
       context: body.context,
       req,
     });
-    return aiResponse({ ok: true, text: result.text, widgets: result.widgets }, 200);
+    return aiResponse(
+      { ok: true, text: result.text, widgets: result.widgets, sig: replySig(session.userId, result.text) },
+      200,
+    );
   } catch (error) {
     if (error instanceof DomainError) {
       if (error.code === "UNAUTHORIZED") {

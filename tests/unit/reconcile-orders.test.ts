@@ -185,7 +185,7 @@ describe("Auditoría 2026-11: integridad y reservas en la conciliación", () => 
     expect(released).toEqual(["u-1:req-1"]);
   });
 
-  it("cierra como failed si la reserva fue liberada antes de confirmar", async () => {
+  it("MON-5: reserva liberada con la tx confirmada on-chain va a revisión, no a failed", async () => {
     const row = makeRow({
       id: "o-released",
       status: "submitted",
@@ -209,11 +209,12 @@ describe("Auditoría 2026-11: integridad y reservas en la conciliación", () => 
         return true;
       },
     });
-    expect(summary.failed).toBe(1);
-    expect(applied.get("o-released")?.error_code).toBe("RESERVATION_RELEASED");
+    expect(summary.failed).toBe(0);
+    expect(summary.needsReview).toBe(1);
+    expect(applied.size).toBe(0);
   });
 
-  it("cierra como failed si el notional se despega de la reserva", async () => {
+  it("MON-5: notional despegado de la reserva con la tx confirmada va a revisión, no a failed", async () => {
     const row = makeRow({
       id: "o-mismatch",
       status: "submitted",
@@ -237,7 +238,7 @@ describe("Auditoría 2026-11: integridad y reservas en la conciliación", () => 
         return true;
       },
     });
-    expect(applied.get("o-mismatch")?.error_code).toBe("AMOUNT_MISMATCH");
+    expect(applied.size).toBe(0);
   });
 
   it("una orden confirmada no libera la reserva consumida", async () => {

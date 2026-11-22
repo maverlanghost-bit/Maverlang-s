@@ -5,6 +5,8 @@ import { DomainError } from "@/lib/api/result";
 import { apiOperateBlock } from "@/lib/compliance/real-quote";
 import { withRateLimit } from "@/lib/security/rate-limit";
 import { getServices } from "@/lib/services";
+import { assertOnrampEnabled } from "@/lib/trade/limits";
+import { realWithdrawalGuardDeps } from "@/lib/trade/real-guards";
 import { requireSessionWalletMatch } from "@/lib/wallet/identity";
 
 export const runtime = "nodejs";
@@ -20,6 +22,8 @@ export function POST(req: Request) {
     // apagado en servidor y falla cerrado (PESO_DEPOSITS_ENABLED=false),
     // aunque REAL_TRADING_READY se encienda. La implementación sigue intacta.
     if (PESO_DEPOSITS_ENABLED !== true) throw new DomainError("REAL_DISABLED");
+    // MON-9: kill switch de entrada de dinero (`onramp_enabled`), fail-closed.
+    await assertOnrampEnabled(realWithdrawalGuardDeps());
     const ipLimited = await withRateLimit(req, "tradeIp");
     if (ipLimited) return ipLimited;
     const services = getServices();

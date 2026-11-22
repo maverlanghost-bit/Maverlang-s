@@ -28,6 +28,7 @@ describe("reconcileSubmittedWithdrawals", () => {
       confirmed: 0,
       failed: 0,
       pending: 0,
+      needsReview: 0,
       skipped: 0,
       durationMs: 0,
     });
@@ -114,31 +115,74 @@ describe("reconcileSubmittedWithdrawals", () => {
     expect(updateMovementStatus).not.toHaveBeenCalled();
   });
 
-  it("expira retiros `submitted` viejos sin rastro en RPC para destrabar el tope diario", async () => {
-    const oldIso = new Date(Date.now() - 45 * 60 * 1000).toISOString();
-    const finalizeWithdrawal = vi.fn(async () => true);
-    const updateMovementStatus = vi.fn(async () => true);
+  const oldIso = () => new Date(Date.now() - 45 * 60 * 1000).toISOString();
 
+  it("MON-6: viejo, sin rastro y sin datos de blockhash → revisión manual, no failed", async () => {
+    const finalizeWithdrawal = vi.fn(async () => true);
     const summary = await reconcileSubmittedWithdrawals({
       listSubmittedWithdrawals: async () => [
-        { id: "w-old", userId: "u1", requestId: "r-old", reference: "ref-old", signature: "sig-old", createdAt: oldIso },
+        { id: "w-old", userId: "u1", requestId: "r-old", reference: "ref-old", signature: "sig-old", createdAt: oldIso() },
       ],
       getSignatureStatuses: async () => [null],
       finalizeWithdrawal,
-      updateMovementStatus,
       submittedExpireMs: 30 * 60 * 1000,
     });
+    expect(summary.failed).toBe(0);
+    expect(summary.needsReview).toBe(1);
+    expect(finalizeWithdrawal).not.toHaveBeenCalled();
+  });
 
-    expect(summary.failed).toBe(1);
-    expect(summary.pending).toBe(0);
-    expect(finalizeWithdrawal).toHaveBeenCalledWith(
-      "u1",
-      "r-old",
-      "failed",
-      "sig-old",
-      "La transacción expiró sin confirmarse en la red.",
+  it("MON-6: con lastValidBlockHeight sólo falla cuando la altura ya lo superó", async () => {
+    const row = { id: "w", userId: "u1", requestId: "r", reference: "ref", signature: "sig", createdAt: oldIso(), lastValidBlockHeight: 1000 };
+    const run = async (height: number) => {
+      const finalizeWithdrawal = vi.fn(async () => true);
+      const summary = await reconcileSubmittedWithdrawals({
+        listSubmittedWithdrawals: async () => [row],
+        getSignatureStatuses: async () => [null],
+        finalizeWithdrawal,
+        getBlockHeight: async () => height,
+        submittedExpireMs: 30 * 60 * 1000,
+      });
+      return { summary, finalizeWithdrawal };
+    };
+    const vivo = await run(900);
+    expect(vivo.summary.pending).toBe(1);
+    expect(vivo.finalizeWithdrawal).not.toHaveBeenCalled();
+    const vencido = await run(1001);
+    expect(vencido.summary.failed).toBe(1);
+    expect(vencido.finalizeWithdrawal).toHaveBeenCalledWith(
+      "u1", "r", "failed", "sig", "La transacción expiró sin confirmarse en la red.",
     );
-    expect(updateMovementStatus).toHaveBeenCalledWith("ref-old", "failed");
+  });
+
+  it("MON-6: con blockhash válido sigue pendiente; inválido → failed", async () => {
+    const row = { id: "w", userId: "u1", requestId: "r", reference: "ref", signature: "sig", createdAt: oldIso(), blockhash: "bh" };
+    const run = async (valid: boolean) =>
+      reconcileSubmittedWithdrawals({
+        listSubmittedWithdrawals: async () => [row],
+        getSignatureStatuses: async () => [null],
+        finalizeWithdrawal: async () => true,
+        isBlockhashValid: async () => valid,
+        submittedExpireMs: 30 * 60 * 1000,
+      });
+    expect((await run(true)).pending).toBe(1);
+    expect((await run(false)).failed).toBe(1);
+  });
+
+  it("MON-6: si el RPC de blockhash falla va a revisión manual", async () => {
+    const summary = await reconcileSubmittedWithdrawals({
+      listSubmittedWithdrawals: async () => [
+        { id: "w", userId: "u1", requestId: "r", reference: "ref", signature: "sig", createdAt: oldIso(), blockhash: "bh" },
+      ],
+      getSignatureStatuses: async () => [null],
+      finalizeWithdrawal: async () => true,
+      isBlockhashValid: async () => {
+        throw new Error("rpc caído");
+      },
+      submittedExpireMs: 30 * 60 * 1000,
+    });
+    expect(summary.needsReview).toBe(1);
+    expect(summary.failed).toBe(0);
   });
 });
 

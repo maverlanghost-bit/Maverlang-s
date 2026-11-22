@@ -8,6 +8,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { clearClientCookie } from "@/lib/auth/browser-cookies";
 import { MOCK_ONBOARDING_COOKIE, MOCK_SESSION_COOKIE } from "@/lib/auth/cookies";
 import { ExportWalletProvider, unavailableExportWallet } from "@/lib/auth/export-wallet";
+import { purgePrivateBrowserStorage } from "@/lib/auth/private-storage";
 import { purgePrivateQueryCache } from "@/lib/auth/private-cache";
 import { SessionProvider } from "@/lib/auth/session-context";
 import { SignerProvider, type SignTrade } from "@/lib/auth/sign-transaction";
@@ -84,6 +85,7 @@ export function SupabaseAuthProvider({ children }: { children: ReactNode }) {
       // privados ocurre igual en el `finally`.
       await supabase?.auth.signOut({ scope: "local" });
     } finally {
+      purgePrivateBrowserStorage();
       await purgePrivateQueryCache(queryClient);
       router.push("/");
       router.refresh();

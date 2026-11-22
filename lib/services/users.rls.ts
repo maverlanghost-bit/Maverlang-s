@@ -311,8 +311,19 @@ export const rlsUsers = {
   async deletionStatus(): Promise<{ requestedAt: string | null }> {
     return { requestedAt: null };
   },
-  async requestDeletion(): Promise<{ requestedAt: string }> {
-    throw new DomainError("VALIDATION", "La baja de la cuenta todavía no está disponible.");
+  /**
+   * AUTH-6/DB-D: la baja se registra con la RPC `request_my_deletion()` (0058,
+   * security definer, exige MFA y hace upsert de una solicitud pendiente).
+   * Sin la RPC falla cerrado (`throwDb` → migración pendiente), nunca finge éxito.
+   */
+  async requestDeletion(id: string): Promise<{ requestedAt: string }> {
+    const { supabase, userId } = await sessionClient();
+    sameUser(id, userId);
+    const { data, error } = await supabase.rpc("request_my_deletion");
+    if (error) throwDb(error);
+    const stamp = typeof data === "string" ? new Date(data) : null;
+    if (!stamp || Number.isNaN(stamp.getTime())) throw new DomainError("INTERNAL");
+    return { requestedAt: stamp.toISOString() };
   },
 
   async prefs(id: string): Promise<Preferences> {

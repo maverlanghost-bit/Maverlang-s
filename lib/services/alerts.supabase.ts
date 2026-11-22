@@ -174,6 +174,9 @@ export async function dbListOpenAlerts(): Promise<CronAlert[]> {
     .select(COLUMNS)
     .eq("active", true)
     .is("triggered_at", null)
+    // Orden estable: con el tope de 2000, ninguna cuenta queda siempre fuera.
+    .order("created_at", { ascending: true })
+    .order("id", { ascending: true })
     .limit(2000);
   if (error) throwDb(error);
   const alerts: CronAlert[] = [];

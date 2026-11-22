@@ -6,6 +6,7 @@ import { gateFromComplianceRows } from "@/lib/auth/registro-schema";
 import { warnAuthOnce } from "@/lib/auth/mode";
 import { serverEnv } from "@/lib/env";
 import { readSupabasePublicConfig } from "@/lib/supabase/config";
+import { supabaseCookieOptions } from "@/lib/supabase/cookie-options";
 
 const SESSION_WARN = "No se pudo verificar la sesión de Supabase. Se trata como sin sesión.";
 
@@ -59,6 +60,7 @@ export async function updateSession(
   }
 
   const supabase = createServerClient(config.url, config.publishableKey, {
+    cookieOptions: supabaseCookieOptions(),
     cookies: {
       getAll() {
         return request.cookies.getAll();

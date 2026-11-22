@@ -956,6 +956,8 @@ export const aiShareCreateSchema = z
           .object({
             role: z.enum(["user", "assistant"]),
             text: z.string().trim().min(1).max(12_000),
+            /** Firma HMAC que emitió el servidor con la respuesta; obligatoria para `assistant`. */
+            sig: z.string().trim().max(128).optional(),
           })
           .strict(),
       )

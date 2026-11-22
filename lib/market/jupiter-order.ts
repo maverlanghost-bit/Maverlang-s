@@ -95,6 +95,28 @@ function asNumber(value: string | number | undefined, fallback = 0): number {
   return fallback;
 }
 
+/** Hosts de Jupiter que el servidor acepta en producción (MON-10). */
+export const JUPITER_ALLOWED_HOSTS: readonly string[] = ["api.jup.ag", "lite-api.jup.ag"];
+
+/**
+ * MON-10: en producción la base de Jupiter se fija a hosts conocidos y https.
+ * Un `JUPITER_BASE_URL` apuntando a otro lado entregaría transacciones
+ * armadas por un tercero y la `x-api-key`. Fuera de producción (dev/tests con
+ * mocks locales) no se restringe. Lanza Error; los llamadores lo mapean a UPSTREAM.
+ */
+export function assertTrustedJupiterBase(base: string, nodeEnv: string | undefined = process.env.NODE_ENV): void {
+  if (nodeEnv !== "production") return;
+  let parsed: URL;
+  try {
+    parsed = new URL(base);
+  } catch {
+    throw new Error("Jupiter: base no válida");
+  }
+  if (parsed.protocol !== "https:" || !JUPITER_ALLOWED_HOSTS.includes(parsed.hostname)) {
+    throw new Error("Jupiter: host no permitido");
+  }
+}
+
 /** Arma la URL de un endpoint del swap sobre el base (sin barra final duplicada). */
 export function jupiterSwapUrl(base: string, path: string): string {
   return `${base.replace(/\/$/, "")}${path.startsWith("/") ? path : `/${path}`}`;

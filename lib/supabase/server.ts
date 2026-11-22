@@ -5,6 +5,7 @@ import { cookies } from "next/headers";
 import { cache } from "react";
 
 import { readSupabasePublicConfig } from "@/lib/supabase/config";
+import { supabaseCookieOptions } from "@/lib/supabase/cookie-options";
 
 /** Tope de Auth y del resto de lecturas con este cliente. Un JWT colgado no llega a 60 s. */
 const SUPABASE_FETCH_MS = 4_000;
@@ -26,6 +27,7 @@ export const createSupabaseServerClient = cache(async function createSupabaseSer
 
   return createServerClient(config.url, config.publishableKey, {
     global: { fetch: fetchWithTimeout },
+    cookieOptions: supabaseCookieOptions(),
     cookies: {
       getAll() {
         return cookieStore.getAll();

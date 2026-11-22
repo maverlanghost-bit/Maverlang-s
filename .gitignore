@@ -28,3 +28,24 @@ tmp/
 *.pem
 *.tsbuildinfo
 next-env.d.ts
+
+# Basura de la raíz que `git add -A` commitearía (OPS-2). Ninguno está versionado.
+scratch*/
+scratch*.zip
+*.zip
+continuo/
+*.err
+*.log.err
+relanzar_*.ps1
+lanzar_*.ps1
+STOP_*.txt
+HERMES_*.md
+prompt_*.md
+opencode.json
+FRACCION_*.md
+supabase/.temp/
+.claude/
+.next-verify/
+ram_*.log
+npmci_*.log
+hermes_*.log

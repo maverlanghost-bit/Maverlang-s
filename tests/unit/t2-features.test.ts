@@ -28,7 +28,8 @@ describe("porcentaje de la tarjeta para compartir", () => {
 
   it("arma la ruta de la tarjeta con y sin porcentaje", () => {
     expect(shareCardPath("apple")).toBe("/tarjeta/apple");
-    expect(shareCardPath("apple", 12.3)).toBe("/tarjeta/apple?pct=12.3");
+    expect(shareCardPath("apple", 12.3)).toBe("/tarjeta/apple");
+    expect(shareCardPath("apple", 12.3, "sig")).toBe("/tarjeta/apple?pct=12.3&s=sig");
     expect(shareCardPath("apple", null)).toBe("/tarjeta/apple");
     expect(shareCardPath("a b")).toBe("/tarjeta/a%20b");
   });

@@ -1,5 +1,7 @@
 import "server-only";
 
+import { createPublicKey, verify as cryptoVerify } from "node:crypto";
+
 import { DomainError } from "@/lib/api/result";
 import { encodeBase58 } from "@/lib/solana/address";
 
@@ -224,6 +226,136 @@ export async function readTransactionSignature(value: string): Promise<string | 
   } catch {
     return null;
   }
+}
+
+/** Prefijo DER (SPKI) de una clave pública Ed25519 de 32 bytes. */
+const ED25519_SPKI_PREFIX = Buffer.from("302a300506032b6570032100", "hex");
+
+/** ¿La firma es válida (Ed25519) para esa clave pública sobre ese mensaje? */
+function ed25519Verify(publicKey: Uint8Array, message: Uint8Array, signature: Uint8Array): boolean {
+  if (publicKey.length !== 32 || signature.length !== 64) return false;
+  try {
+    const key = createPublicKey({
+      key: Buffer.concat([ED25519_SPKI_PREFIX, Buffer.from(publicKey)]),
+      format: "der",
+      type: "spki",
+    });
+    return cryptoVerify(null, Buffer.from(message), key, Buffer.from(signature));
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * MON-2: verifica criptográficamente las firmas de la transacción que mandó el
+ * cliente ANTES de guardar nada como evidencia. Falla cerrado.
+ *
+ * - Cada firma presente (no toda en ceros) debe ser una firma Ed25519 válida
+ *   de la clave correspondiente sobre los bytes serializados del mensaje.
+ * - La firma del pagador de comisión (índice 0) es la que identifica la tx en
+ *   la cadena y la que el usuario DEBE aportar: en cero o inválida → rechazo.
+ *   Otros firmantes (p. ej. un market maker de Jupiter que firma después al
+ *   ejecutar) pueden venir todavía en ceros; si traen firma, tiene que ser válida.
+ *
+ * Devuelve la firma base58 del índice 0, que es la evidencia a guardar.
+ */
+export async function verifySignedTransactionSignatures(value: string): Promise<string> {
+  const bytes = decodeBase64(value);
+  const { VersionedTransaction } = await import("@solana/web3.js");
+  let tx: InstanceType<typeof VersionedTransaction>;
+  try {
+    tx = VersionedTransaction.deserialize(bytes);
+  } catch {
+    throw new DomainError("VALIDATION", "La transacción no se pudo leer.");
+  }
+  const message = tx.message.serialize();
+  const required = tx.message.header.numRequiredSignatures;
+  const keys = tx.message.staticAccountKeys;
+  if (required < 1 || tx.signatures.length !== required || keys.length < required) {
+    throw new DomainError("VALIDATION", "La transacción no tiene las firmas esperadas.");
+  }
+  const invalid = () =>
+    new DomainError("VALIDATION", "La firma de la transacción no es válida. Pide una nueva cotización.");
+  for (let i = 0; i < required; i += 1) {
+    const signature = tx.signatures[i];
+    const key = keys[i];
+    if (!signature || !key) throw invalid();
+    const unsigned = signature.every((byte) => byte === 0);
+    if (i === 0 && unsigned) {
+      throw new DomainError("VALIDATION", "La transacción no está firmada.");
+    }
+    if (unsigned) continue;
+    if (!ed25519Verify(key.toBytes(), message, signature)) throw invalid();
+  }
+  return encodeBase58(tx.signatures[0] as Uint8Array);
+}
+
+const TOKEN_PROGRAM_ID = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
+const TOKEN_2022_PROGRAM_ID = "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb";
+const ASSOCIATED_TOKEN_PROGRAM_ID = "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL";
+
+/**
+ * MON-10: la transacción que devuelve Jupiter se decodifica y se afirma antes
+ * de entregarla al usuario para que la firme. Falla cerrado:
+ *
+ * - el pagador de comisión es el `taker` (el modo gasless de Jupiter no está
+ *   configurado, así que otro pagador no se acepta);
+ * - el taker es firmante requerido;
+ * - la cuenta de token del taker (o el mint) de entrada y de salida aparece en
+ *   la transacción: no se puede firmar un swap entre otros mints.
+ *
+ * Las cuentas que vienen por Address Lookup Table no se resuelven (sin RPC);
+ * las cuentas del usuario y los mints del swap son estáticas en las rutas de
+ * Jupiter, así que su ausencia se trata como desajuste.
+ */
+export async function assertJupiterTransactionSafe(
+  transactionBase64: string,
+  expected: { taker: string; inputMint: string; outputMint: string },
+): Promise<void> {
+  const bytes = decodeBase64(transactionBase64);
+  const { VersionedTransaction, PublicKey } = await import("@solana/web3.js");
+  const mismatch = (detail: string) =>
+    new DomainError("UPSTREAM", `Jupiter devolvió una transacción inesperada (${detail}).`);
+  let tx: InstanceType<typeof VersionedTransaction>;
+  try {
+    tx = VersionedTransaction.deserialize(bytes);
+  } catch {
+    throw mismatch("ilegible");
+  }
+  const keys = tx.message.staticAccountKeys.map((key) => key.toBase58());
+  const required = tx.message.header.numRequiredSignatures;
+  const taker = expected.taker.trim();
+  if (keys[0] !== taker) throw mismatch("pagador distinto del usuario");
+  if (required < 1) throw mismatch("el usuario no firma");
+  let owner: InstanceType<typeof PublicKey>;
+  try {
+    owner = new PublicKey(taker);
+  } catch {
+    throw mismatch("billetera inválida");
+  }
+  const present = new Set(keys);
+  const touches = (mint: string): boolean => {
+    if (present.has(mint)) return true;
+    try {
+      const mintKey = new PublicKey(mint);
+      return [TOKEN_PROGRAM_ID, TOKEN_2022_PROGRAM_ID].some((program) => {
+        const [ata] = PublicKey.findProgramAddressSync(
+          [owner.toBuffer(), new PublicKey(program).toBuffer(), mintKey.toBuffer()],
+          new PublicKey(ASSOCIATED_TOKEN_PROGRAM_ID),
+        );
+        return present.has(ata.toBase58());
+      });
+    } catch {
+      return false;
+    }
+  };
+  if (!touches(expected.inputMint)) throw mismatch("mint de entrada");
+  if (!touches(expected.outputMint)) throw mismatch("mint de salida");
+}
+
+/** Mensaje serializado de una transacción (bytes), para compararlo con la cadena. */
+export async function transactionMessageBytesOf(value: string): Promise<Uint8Array> {
+  return transactionMessageBytes(value);
 }
 
 /** Fila mínima de `orders` para revisar integridad antes de conciliar. */

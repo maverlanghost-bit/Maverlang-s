@@ -13,13 +13,15 @@ type ShareChatDialogProps = {
   onOpenChange: (open: boolean) => void;
   chatTitle: string;
   messages: readonly ChatMessage[];
-  singlePair?: { question: string; answer: string } | null;
+  singlePair?: SharePair | null;
 };
+
+type SharePair = { question: string; answer: string; answerSig?: string };
 
 type ShareDialogCardProps = {
   chatTitle: string;
   messages: readonly ChatMessage[];
-  singlePair: { question: string; answer: string } | null;
+  singlePair: SharePair | null;
   onClose: () => void;
 };
 
@@ -27,6 +29,8 @@ type PreviewEntry = {
   key: string;
   role: "user" | "assistant";
   text: string;
+  /** Firma del servidor; sin ella una respuesta del asistente no se puede publicar. */
+  sig?: string;
 };
 
 const USER_LABEL = "Tú";
@@ -51,17 +55,22 @@ function slugify(value: string): string {
 function buildEntries(
   mode: ShareMode,
   messages: readonly ChatMessage[],
-  pair: { question: string; answer: string } | null,
+  pair: SharePair | null,
 ): PreviewEntry[] {
   if (mode === "pair" && pair) {
     return [
       { key: "pair-question", role: "user" as const, text: pair.question },
-      { key: "pair-answer", role: "assistant" as const, text: pair.answer },
+      { key: "pair-answer", role: "assistant" as const, text: pair.answer, sig: pair.answerSig },
     ].filter((entry) => entry.text.trim().length > 0);
   }
   return messages
     .filter((message) => message.text.trim().length > 0)
-    .map((message) => ({ key: message.id, role: message.role, text: message.text }));
+    .map((message) => ({ key: message.id, role: message.role, text: message.text, sig: message.sig }));
+}
+
+/** Para el enlace público: las respuestas sin firma del servidor se dejan fuera. */
+function publishable(entries: readonly PreviewEntry[]): PreviewEntry[] {
+  return entries.filter((entry) => entry.role === "user" || Boolean(entry.sig));
 }
 
 function buildPlainText(entries: readonly PreviewEntry[]): string {
@@ -171,6 +180,8 @@ function ShareDialogCard({ chatTitle, messages, singlePair, onClose }: ShareDial
   const [shareUrl, setShareUrl] = useState<string | null>(null);
   const [shareError, setShareError] = useState<string | null>(null);
   const [linkCopied, setLinkCopied] = useState(false);
+  const [shareId, setShareId] = useState<string | null>(null);
+  const [revoking, setRevoking] = useState(false);
 
   const pair = singlePair ?? null;
   const activeMode: ShareMode = pair ? mode : "all";
@@ -183,6 +194,7 @@ function ShareDialogCard({ chatTitle, messages, singlePair, onClose }: ShareDial
     setMode(nextMode);
     setShareStatus("idle");
     setShareUrl(null);
+    setShareId(null);
     setShareError(null);
     setLinkCopied(false);
   }
@@ -226,7 +238,8 @@ function ShareDialogCard({ chatTitle, messages, singlePair, onClose }: ShareDial
   }
 
   async function handleGenerateLink() {
-    if (entries.length === 0 || shareStatus === "loading") return;
+    const toPublish = publishable(entries);
+    if (toPublish.length === 0 || shareStatus === "loading") return;
     setShareStatus("loading");
     setShareError(null);
     setLinkCopied(false);
@@ -236,13 +249,15 @@ function ShareDialogCard({ chatTitle, messages, singlePair, onClose }: ShareDial
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           title: chatTitle.trim() || "Conversación de Maverlang",
-          messages: entries.slice(0, MAX_SHARE_ENTRIES).map((entry) => ({
+          messages: toPublish.slice(0, MAX_SHARE_ENTRIES).map((entry) => ({
             role: entry.role,
             text: entry.text,
+            ...(entry.role === "assistant" && entry.sig ? { sig: entry.sig } : {}),
           })),
         }),
       });
       const data = (await response.json().catch(() => null)) as {
+        id?: string;
         url?: string;
         error?: string;
       } | null;
@@ -254,10 +269,36 @@ function ShareDialogCard({ chatTitle, messages, singlePair, onClose }: ShareDial
       const resolvedUrl =
         typeof window !== "undefined" ? `${window.location.origin}${data.url}` : data.url;
       setShareUrl(resolvedUrl);
+      setShareId(data.id ?? null);
       setShareStatus("ready");
     } catch {
       setShareStatus("error");
       setShareError("No se pudo conectar para generar el enlace.");
+    }
+  }
+
+  async function handleRevoke() {
+    if (!shareId || revoking) return;
+    setRevoking(true);
+    try {
+      const response = await fetch(`/api/ai/share?id=${encodeURIComponent(shareId)}`, {
+        method: "DELETE",
+        credentials: "same-origin",
+      });
+      if (!response.ok && response.status !== 404) {
+        setShareError("No se pudo revocar el enlace. Inténtalo de nuevo.");
+        setShareStatus("error");
+        return;
+      }
+      setShareUrl(null);
+      setShareId(null);
+      setShareError("Enlace revocado: ya no se puede abrir.");
+      setShareStatus("error");
+    } catch {
+      setShareError("No se pudo conectar para revocar el enlace.");
+      setShareStatus("error");
+    } finally {
+      setRevoking(false);
     }
   }
 
@@ -403,7 +444,7 @@ function ShareDialogCard({ chatTitle, messages, singlePair, onClose }: ShareDial
         <div className="mt-4 space-y-2.5">
           <button
             type="button"
-            disabled={entries.length === 0 || shareStatus === "loading"}
+            disabled={publishable(entries).length === 0 || shareStatus === "loading"}
             onClick={handleGenerateLink}
             className="inline-flex w-full items-center justify-center gap-1.5 rounded-full bg-zinc-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900/30"
           >
@@ -430,6 +471,23 @@ function ShareDialogCard({ chatTitle, messages, singlePair, onClose }: ShareDial
                 {linkCopied ? "Copiado" : "Copiar enlace"}
               </button>
             </div>
+          ) : null}
+
+          {shareStatus === "ready" && shareId ? (
+            <button
+              type="button"
+              disabled={revoking}
+              onClick={() => void handleRevoke()}
+              className="w-full text-center text-xs font-medium text-rose-600 underline underline-offset-4 hover:text-rose-700 disabled:opacity-50"
+            >
+              {revoking ? "Revocando..." : "Revocar enlace"}
+            </button>
+          ) : null}
+
+          {publishable(entries).length < entries.length ? (
+            <p className="text-center text-xs text-zinc-500">
+              Las respuestas antiguas o sin verificar no se incluyen en el enlace público.
+            </p>
           ) : null}
 
           {shareStatus === "error" && shareError ? (

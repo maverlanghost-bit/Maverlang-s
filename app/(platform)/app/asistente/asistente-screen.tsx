@@ -167,7 +167,7 @@ export function AsistenteScreen({
   const [feedback, setFeedback] = useState<Record<string, Feedback>>({});
   const [shareOpen, setShareOpen] = useState(false);
   const [shareChatId, setShareChatId] = useState<string | null>(null);
-  const [sharePair, setSharePair] = useState<{ question: string; answer: string } | null>(null);
+  const [sharePair, setSharePair] = useState<{ question: string; answer: string; answerSig?: string } | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
   const [contextItems, setContextItems] = useState<ContextItem[]>([]);
 
@@ -463,7 +463,7 @@ export function AsistenteScreen({
           ? copy.rateBody
           : copy.errorBody;
     const message: ChatMessage = result.ok
-      ? { id: draftId, role: "assistant", text: result.text, widgets: result.widgets }
+      ? { id: draftId, role: "assistant", text: result.text, widgets: result.widgets, sig: result.sig }
       : {
           id: draftId,
           role: "assistant",
@@ -708,7 +708,7 @@ export function AsistenteScreen({
       }
     }
     setShareChatId(null);
-    setSharePair({ question, answer: answer.text });
+    setSharePair({ question, answer: answer.text, answerSig: answer.sig });
     setShareOpen(true);
   }
 

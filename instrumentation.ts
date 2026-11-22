@@ -17,8 +17,9 @@ export async function register(): Promise<void> {
 
   // Observabilidad: registra Sentry en el servidor si hay DSN (errores reales
   // de cotizar/armar/enviar operaciones llegan a Sentry en vez de perderse).
-  if (process.env.SENTRY_DSN?.trim() && process.env.NEXT_RUNTIME === "nodejs") {
-    await import("./sentry.server.config");
+  if (process.env.SENTRY_DSN?.trim()) {
+    if (process.env.NEXT_RUNTIME === "nodejs") await import("./sentry.server.config");
+    if (process.env.NEXT_RUNTIME === "edge") await import("./sentry.edge.config");
   }
 }
 

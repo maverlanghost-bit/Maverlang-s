@@ -11,13 +11,13 @@ import { resolveCspMode } from "@/lib/security/csp";
  * El cliente sigue leyendo la marca y la URL en `config/site.ts`
  * (`NEXT_PUBLIC_*` inline). No importar `serverEnv` ni `publicEnv` desde componentes cliente.
  *
- * Entornos (M59): el modo estricto de producción se activa con
- * `APP_ENV=production` o con `SUPABASE_PROJECT_ENV=prod`. El de preview,
- * sólo con `APP_ENV=preview` explícito. `NODE_ENV` y `VERCEL_ENV` no
- * activan el modo estricto (`npm run build` siempre usa
- * `NODE_ENV=production`; Vercel pone `VERCEL_ENV=production`). Sin modo
- * estricto, lo que falte de producción sólo genera un `console.warn`
- * (nombres, nunca valores).
+ * Entornos (M59 + OPS-3): el modo estricto de producción se activa con
+ * `APP_ENV=production`, con `SUPABASE_PROJECT_ENV=prod` o con
+ * `VERCEL_ENV=production` (fail-closed: en ese caso además `APP_ENV` debe
+ * ser `production`). El de preview, sólo con `APP_ENV=preview` explícito.
+ * `NODE_ENV` solo no activa el modo estricto (`npm run build` siempre usa
+ * `NODE_ENV=production`). Sin modo estricto, lo que falte de producción
+ * sólo genera un `console.warn` (nombres, nunca valores).
  */
 
 export type AppEnv = "production" | "preview" | "development" | "test";
@@ -42,6 +42,11 @@ function cleanEnv(value: unknown): string | undefined {
 
 function optionalText() {
   return z.preprocess((value) => cleanEnv(value), z.string().optional());
+}
+
+/** Secreto opcional de al menos 32 caracteres (en producción estricta es obligatorio: `productionGaps`). */
+function secretText32() {
+  return z.preprocess((value) => cleanEnv(value), z.string().min(32).optional());
 }
 
 function requiredText(fallback: string) {
@@ -202,8 +207,9 @@ function buildServerSchema(source: EnvSource) {
     COINGECKO_API_KEY: optionalText(),
     FEE_BPS: intEnv(0, 10_000),
     FEE_WALLET: optionalText(),
-    PRICE_DEVIATION_MAX_BPS: intEnv(150, 10_000),
-    DEFAULT_SLIPPAGE_BPS: intEnv(50, 10_000),
+    /** Tope de 300 bps (3 %): un valor mayor deja pasar swaps con precio muy desviado (P0-8). */
+    PRICE_DEVIATION_MAX_BPS: intEnv(150, 300),
+    DEFAULT_SLIPPAGE_BPS: intEnv(50, 300),
     SPONSOR_ENABLED: boolEnv(false),
     SUPABASE_SECRET_KEY: supabaseSecretEnv(source),
     ONRAMP_PROVIDER: enumEnv(["koywe", "onramper"] as const, "koywe"),
@@ -288,6 +294,16 @@ function buildServerSchema(source: EnvSource) {
      * sin valor la ruta responde 503 y el resto de la app no cambia.
      */
     REVALIDATE_SECRET: optionalText(),
+    /** Firma HMAC de los planes de copy (`lib/copy/plan-token.ts`). Obligatoria en producción estricta. */
+    COPY_PLAN_HMAC_SECRET: optionalText(),
+    /** Firma de los tokens de la cuenta demo (>= 32 caracteres). Obligatoria en producción estricta. */
+    DEMO_TOKEN_SECRET: secretText32(),
+    /** Firma de los enlaces compartidos (>= 32 caracteres). Obligatoria en producción estricta. */
+    SHARE_SIGNING_SECRET: secretText32(),
+    /** Webhook del on-ramp de depósitos en pesos (>= 32 caracteres). Sólo se exige cuando el on-ramp está encendido. */
+    ONRAMP_WEBHOOK_SECRET: secretText32(),
+    /** DSN de Sentry (en producción estricta sólo se avisa si falta). */
+    SENTRY_DSN: optionalText(),
     /** Clave de Sentry para subir sourcemaps (M61). Sólo servidor, nunca `NEXT_PUBLIC_*`. */
     SENTRY_AUTH_TOKEN: optionalText(),
     /** Clave de Resend para correos (M51). Sólo servidor. */
@@ -381,17 +397,18 @@ export function resolveAppEnv(source: EnvSource = process.env): AppEnv {
 }
 
 /**
- * Modo estricto (M59): `preview` sólo con `APP_ENV=preview` explícito y
- * `production` con `APP_ENV=production` o `SUPABASE_PROJECT_ENV=prod`.
- * `VERCEL_ENV` se acepta en la firma para que un `process.env` de Vercel
- * no active el modo: con `VERCEL_ENV=production` y faltantes sólo se avisa.
- * `NODE_ENV=production` solo tampoco alcanza (el build local también lo pone).
+ * Modo estricto (M59 + OPS-3): `preview` sólo con `APP_ENV=preview` explícito y
+ * `production` con `APP_ENV=production`, `SUPABASE_PROJECT_ENV=prod` o
+ * `VERCEL_ENV=production`. `NODE_ENV=production` solo no alcanza (el build
+ * local también lo pone).
  */
 export function resolveStrictMode(
   env: Pick<ServerEnv, "APP_ENV" | "SUPABASE_PROJECT_ENV"> & { VERCEL_ENV?: string | null },
 ): StrictMode | null {
   if (env.APP_ENV === "preview") return "preview";
   if (env.APP_ENV === "production" || env.SUPABASE_PROJECT_ENV === "prod") return "production";
+  // OPS-3: Vercel production sin APP_ENV explícito también es estricto (y falla por APP_ENV en `productionGaps`).
+  if (env.VERCEL_ENV?.trim().toLowerCase() === "production") return "production";
   return null;
 }
 
@@ -418,6 +435,15 @@ function normalizeUrl(value: string): string {
   return value.trim().replace(/\/+$/, "");
 }
 
+const KEYED_URL_RE = /api[-_]?key=/i;
+
+/** Nombres (nunca valores) de variables `NEXT_PUBLIC_*` cuyo valor contiene `api-key=`/`apikey=`/`api_key=`. */
+export function publicKeyLeaks(env: Record<string, unknown>): string[] {
+  return Object.entries(env)
+    .filter(([name, value]) => name.startsWith("NEXT_PUBLIC_") && typeof value === "string" && KEYED_URL_RE.test(value))
+    .map(([name]) => name);
+}
+
 function baseStrictGaps(env: ServerEnv): string[] {
   const gaps: string[] = [];
   if (env.AUTH_MODE !== "supabase") gaps.push("AUTH_MODE");
@@ -438,6 +464,8 @@ function baseStrictGaps(env: ServerEnv): string[] {
     gaps.push("GEO_BLOCKED_COUNTRIES");
   }
   if (env.CATALOG_SCOPE === "all") gaps.push("CATALOG_SCOPE");
+  // OPS-7: ningún NEXT_PUBLIC_* puede llevar una API key (viaja al bundle del navegador).
+  for (const name of publicKeyLeaks(env)) gaps.push(name);
   // DATA_MODE=live sólo si REAL_TRADING_READY=true (lo enciende M90);
   // hasta entonces la cuenta Real sigue en "Próximamente" con DATA_MODE=mock.
   if (env.DATA_MODE === "live" && env.REAL_TRADING_READY !== true) gaps.push("DATA_MODE");
@@ -447,6 +475,16 @@ function baseStrictGaps(env: ServerEnv): string[] {
 /** Nombres (nunca valores) de lo que le falta al env para producción estricta. */
 export function productionGaps(env: ServerEnv): string[] {
   const gaps = baseStrictGaps(env);
+  // OPS-3: `VERCEL_ENV=production` exige la etiqueta explícita.
+  if (env.APP_ENV !== "production") gaps.push("APP_ENV");
+  if (!env.UPSTASH_REDIS_REST_URL) gaps.push("UPSTASH_REDIS_REST_URL");
+  if (!env.UPSTASH_REDIS_REST_TOKEN) gaps.push("UPSTASH_REDIS_REST_TOKEN");
+  if (!env.REVALIDATE_SECRET) gaps.push("REVALIDATE_SECRET");
+  if (!env.COPY_PLAN_HMAC_SECRET) gaps.push("COPY_PLAN_HMAC_SECRET");
+  if (!env.DEMO_TOKEN_SECRET) gaps.push("DEMO_TOKEN_SECRET");
+  if (!env.SHARE_SIGNING_SECRET) gaps.push("SHARE_SIGNING_SECRET");
+  if (env.NEXT_PUBLIC_PRIVY_APP_ID && !env.PRIVY_APP_SECRET) gaps.push("PRIVY_APP_SECRET");
+  if (env.AUTH_MODE === "supabase" && env.ALLOW_MOCK_AUTH === true) gaps.push("ALLOW_MOCK_AUTH");
   if (env.SUPABASE_PROJECT_ENV !== "prod") {
     gaps.push("SUPABASE_PROJECT_ENV");
   } else {
@@ -487,6 +525,11 @@ function warnProductionGaps(env: ServerEnv, vercelEnv: string | undefined): void
   );
 }
 
+/** Aviso (no falla) cuando producción estricta no tiene `SENTRY_DSN`. */
+function warnMissingSentry(env: ServerEnv): void {
+  if (!env.SENTRY_DSN) console.warn("[env] Aviso: falta SENTRY_DSN en producción (sin reporte de errores).");
+}
+
 /** Reinicia el aviso único (sólo tests). */
 export function resetEnvWarningsForTests(): void {
   warnedGapsKey = null;
@@ -510,6 +553,7 @@ export function assertServerEnv(source: EnvSource = process.env): {
     if (gaps.length > 0) {
       throw new Error(`[env] Faltan variables para production: ${gaps.join(", ")}`);
     }
+    warnMissingSentry(parsed);
     return { mode: strict, strict: true };
   }
   if (strict === "preview") {
@@ -534,6 +578,7 @@ if (strictAtBoot === "production") {
   if (gaps.length > 0) {
     throw new Error(`[env] Faltan variables para production: ${gaps.join(", ")}`);
   }
+  warnMissingSentry(serverEnv);
 } else if (strictAtBoot === "preview") {
   const gaps = previewGaps(serverEnv);
   if (gaps.length > 0) {

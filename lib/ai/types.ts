@@ -54,6 +54,8 @@ export interface AiMessage {
   text: string;
   widgets?: AiWidget[];
   imageDataUrl?: string;
+  /** Firma emitida por el servidor para respuestas del asistente. */
+  sig?: string;
 }
 
 export interface AiChatRequest {
@@ -68,6 +70,8 @@ export type AiChatResponse =
       ok: true;
       text: string;
       widgets: AiWidget[];
+      /** HMAC de la respuesta (chats compartidos); ausente si no hay secreto de firma. */
+      sig?: string;
     }
   | {
       ok: false;

@@ -9,6 +9,8 @@ concurrency: { group: underlying-prices, cancel-in-progress: false }
 permissions: { contents: read }
 jobs:
   prices:
+    # OPS-8: ver company-facts.yml (Environment con revisores obligatorios).
+    environment: production-data
     runs-on: ubuntu-latest
     # Solo las acciones que hoy se pueden comprar (~446, misma regla que la app).
     timeout-minutes: 30

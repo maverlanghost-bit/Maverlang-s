@@ -20,6 +20,7 @@ import { MOCK_ONBOARDING_COOKIE, MOCK_SESSION_COOKIE } from "@/lib/auth/cookies"
 import { ExportWalletProvider, type ExportWallet } from "@/lib/auth/export-wallet";
 import { privyAppId } from "@/lib/auth/mode";
 import { MockAuthProvider } from "@/lib/auth/mock-provider";
+import { purgePrivateBrowserStorage } from "@/lib/auth/private-storage";
 import { purgePrivateQueryCache } from "@/lib/auth/private-cache";
 import { PrivyTradeSigner } from "@/lib/auth/privy-signer";
 import { SessionProvider } from "@/lib/auth/session-context";
@@ -111,6 +112,7 @@ function PrivySession({ children }: { children: ReactNode }) {
         } finally {
           // Se purga después del cierre de Privy: las respuestas privadas que
           // alcanzaron a completarse durante el `await` también se descartan.
+          purgePrivateBrowserStorage();
           await purgePrivateQueryCache(queryClient);
           router.push("/");
           router.refresh();

@@ -2,6 +2,8 @@ import "server-only";
 
 import { z } from "zod";
 
+import { inspectImageDataUrl } from "@/lib/ai/vision-import";
+
 /** Tope del data URL (jpg/png). El cuerpo deja un margen para los mensajes. */
 export const AI_MAX_IMAGE_CHARS = 4 * 1024 * 1024;
 export const AI_MAX_BODY_BYTES = AI_MAX_IMAGE_CHARS + 96 * 1024;
@@ -15,7 +17,9 @@ export function isAiImageDataUrl(value: string): boolean {
   const payload = value.slice(value.indexOf(",") + 1);
   if (payload.length < 8) return false;
   const bytes = Math.floor((payload.length * 3) / 4);
-  return bytes > 0 && bytes <= AI_MAX_IMAGE_CHARS;
+  if (!(bytes > 0 && bytes <= AI_MAX_IMAGE_CHARS)) return false;
+  // WEB-7: mismos magic bytes (PNG/JPEG) que la importación por foto.
+  return inspectImageDataUrl(value).ok;
 }
 
 /**

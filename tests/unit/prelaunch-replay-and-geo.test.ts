@@ -678,6 +678,8 @@ async function transactionBase64(): Promise<string> {
       lamports: 1,
     }),
   );
+  // MON-2: el submit verifica la firma Ed25519 del pagador sobre el mensaje.
+  tx.sign(payer);
   const bytes = tx.serialize({ requireAllSignatures: false, verifySignatures: false });
   return Buffer.from(bytes).toString("base64");
 }

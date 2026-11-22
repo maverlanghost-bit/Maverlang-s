@@ -1,6 +1,6 @@
 import { USDC_MINT } from "@/config/tickers";
 import { sendBuildRequestSchema, tradeBuildResponseSchema } from "@/lib/api/contracts";
-import { parseJson, assertSameOrigin, assertRealTradingEnabled, callService, handle, readOutput, requireMint, requireSupabaseUser } from "@/lib/api/handler";
+import { parseJson, assertSameOrigin, assertRealTradingEnabled, callService, handle, readOutput, requireMint } from "@/lib/api/handler";
 import { DomainError, type ApiErrorCode } from "@/lib/api/result";
 import { apiOperateBlock } from "@/lib/compliance/real-quote";
 import { withRateLimit } from "@/lib/security/rate-limit";
@@ -14,6 +14,7 @@ import {
   assertRealWithdrawalsEnabled,
 } from "@/lib/trade/real-guards";
 import { requireSessionWalletMatch } from "@/lib/wallet/identity";
+import { requireWalletSession } from "@/lib/wallet/live-session";
 import {
   assertSendWithinOperationLimit,
   sendNotionalUsd,
@@ -91,7 +92,7 @@ export function POST(req: Request) {
     const ipLimited = await withRateLimit(req, "tradeIp");
     if (ipLimited) return ipLimited;
     const services = getServices();
-    const session = await requireSupabaseUser(services, req);
+    const session = await requireWalletSession(services, req);
     const userLimited = session
       ? await withRateLimit(req, "trade", [session.userId])
       : await withRateLimit(req, "trade");

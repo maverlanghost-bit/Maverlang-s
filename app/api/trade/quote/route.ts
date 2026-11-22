@@ -67,8 +67,13 @@ async function requireSymbolForBuyGuard(symbol: string, side: "buy" | "sell"): P
  * Rechaza la compra si la cotización real se despega sobre los umbrales
  * (M70; en demo la desviación es de juguete y nunca salta).
  */
-function assertLiveBuyCost(side: "buy" | "sell", priceDeviationBps: number): void {
-  if (side === "buy" && priceDeviationBps > SAFETY_THRESHOLDS.maxDeviationBps) {
+function assertLiveBuyCost(
+  side: "buy" | "sell",
+  priceDeviationBps: number,
+  /** MON-3: en la cuenta real la venta también se acota (la demo queda igual). */
+  bothSides = false,
+): void {
+  if ((bothSides || side === "buy") && priceDeviationBps > SAFETY_THRESHOLDS.maxDeviationBps) {
     throw new DomainError("ASSET_UNAVAILABLE");
   }
 }
@@ -165,7 +170,7 @@ export function POST(req: Request) {
     // build/submit rechazan un quoteId de otra cuenta.
     const quote = services.trade.quote as OwnerScopedQuote;
     const data = await callService(req, () => quote({ ...body, symbol }, userId ?? undefined));
-    assertLiveBuyCost(body.side, data.priceDeviationBps);
+    assertLiveBuyCost(body.side, data.priceDeviationBps, realAccount);
     if (realAccount && realOwnerId) {
       // Integridad de la cotización. El cupo y la cotización quedan guardados
       // por el motor live en la MISMA fila de `trade_reservations` (ola 6):

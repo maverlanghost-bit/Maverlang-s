@@ -29,6 +29,8 @@ import {
   isValidShareId,
 } from "@/lib/ai/share-store";
 import { GET, POST } from "@/app/api/ai/share/route";
+import { signAssistantReply } from "@/lib/ai/share-signing";
+import { getServices } from "@/lib/services";
 import SharedChatPage from "@/app/(platform)/app/asistente/compartido/[shareId]/page";
 
 const tempDirs: string[] = [];
@@ -122,7 +124,7 @@ describe("ai-share-store — live mode", () => {
     const created = await createSharedChat(
       {
         title: "Consulta AAPLx",
-        ownerId: "not-a-uuid",
+        ownerId: "3f1b2c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d",
         messages: [
           { role: "user", text: "¿Cómo viene Apple?" },
           { role: "assistant", text: "Resumen de AAPLx." },
@@ -130,13 +132,15 @@ describe("ai-share-store — live mode", () => {
       },
       {
         dataMode: () => "live",
+        countActiveLive: async () => 0,
         insertLive: async (row) => {
-          expect(row.owner_id).toBeNull();
+          expect(row.owner_id).toBe("3f1b2c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d");
           const saved = {
             id: row.id,
             title: row.title,
             messages: row.messages,
-            created_at: "2026-11-15T12:00:00.000Z",
+            created_at: new Date().toISOString(),
+            expires_at: new Date(Date.now() + 3_600_000).toISOString(),
           };
           stored.set(row.id, saved);
           return saved;
@@ -172,6 +176,11 @@ describe("API /api/ai/share y página compartida", () => {
     );
     expect(unauthRes.status).toBe(401);
 
+    const mockSession = await getServices().auth.getSession(
+      new Request("http://localhost:3000/", { headers: { cookie: "a24_mock_session=1" } }),
+    );
+    const replyText = "Tu exposición en TSLAx es moderada.";
+    const replySig = signAssistantReply(mockSession!.userId, replyText);
     const postReq = new Request("http://localhost:3000/api/ai/share", {
       method: "POST",
       headers: {
@@ -184,7 +193,7 @@ describe("API /api/ai/share y página compartida", () => {
         title: "Portafolio Tech",
         messages: [
           { role: "user", text: "Resume mi exposición en TSLAx" },
-          { role: "assistant", text: "Tu exposición en TSLAx es moderada." },
+          { role: "assistant", text: replyText, sig: replySig },
         ],
       }),
     });
@@ -209,6 +218,7 @@ describe("API /api/ai/share y página compartida", () => {
     });
     const html = renderToStaticMarkup(element as React.ReactElement);
     expect(html).toContain("Conversación compartida · Solo lectura");
+    expect(html).toContain("Conversación compartida por un usuario. No es una comunicación oficial de Maverlang.");
     expect(html).toContain("Portafolio Tech");
     expect(html).toContain("/app/asistente");
 

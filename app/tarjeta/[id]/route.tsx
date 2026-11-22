@@ -1,6 +1,7 @@
 import { ImageResponse } from "next/og";
 
 import { site, siteOrigin } from "@/config/site";
+import { verifyShareCard } from "@/lib/ai/share-signing";
 import { withRateLimit } from "@/lib/security/rate-limit";
 import { resolvePublicAsset } from "@/lib/seo/public-catalog";
 import { formatSharePct, parseSharePct } from "@/lib/share-card";
@@ -132,7 +133,11 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
     });
   }
 
-  const pct = parseSharePct(new URL(request.url).searchParams.get("pct"));
+  // WEB-5: el porcentaje sólo se dibuja con una firma válida del servidor.
+  const params = new URL(request.url).searchParams;
+  const requested = parseSharePct(params.get("pct"));
+  const pct =
+    requested !== null && verifyShareCard(asset.symbol, requested, params.get("s")) ? requested : null;
 
   return new ImageResponse(
     <ShareCard name={asset.name} ticker={asset.ticker} symbol={asset.symbol} pct={pct} host={SHARE_HOST} />,

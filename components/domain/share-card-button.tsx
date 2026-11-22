@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { IconShare } from "@/components/ui/icons";
 import { site } from "@/config/site";
 import { cn } from "@/lib/cn";
-import { formatSharePct, parseSharePct, shareCardPath } from "@/lib/share-card";
+import { formatSharePct, parseSharePct } from "@/lib/share-card";
 
 type ShareStatus = "idle" | "working" | "copied" | "failed";
 
@@ -28,7 +28,9 @@ function fileNameFor(id: string): string {
 /**
  * Botón "Compartir" de la tarjeta 1200×630. Intenta la hoja del sistema con el
  * PNG y el enlace; si el navegador no la soporta, abre la imagen y copia el
- * enlace. Nunca muestra montos: sólo el porcentaje que recibe por `pct`.
+ * enlace. Nunca muestra montos. `pct` sólo indica que la persona tiene una
+ * posición: el porcentaje real y su firma los entrega `/api/share-card` desde
+ * la cartera del servidor (el valor del cliente no se usa).
  */
 export function ShareCardButton({
   id,
@@ -64,8 +66,22 @@ export function ShareCardButton({
       timer.current = null;
     }
 
-    const pctValue = parseSharePct(pct === null ? null : String(pct));
-    const path = shareCardPath(id, pctValue);
+    let path = `/tarjeta/${encodeURIComponent(id.trim())}`;
+    let pctValue: number | null = null;
+    if (pct !== null) {
+      try {
+        const signed = await fetch(`/api/share-card?id=${encodeURIComponent(id)}`, { credentials: "same-origin" });
+        if (signed.ok) {
+          const data = (await signed.json()) as { path?: unknown; pct?: unknown };
+          if (typeof data.path === "string" && data.path.startsWith("/tarjeta/")) {
+            path = data.path;
+            pctValue = parseSharePct(typeof data.pct === "number" ? String(data.pct) : null);
+          }
+        }
+      } catch {
+        // Sin enlace firmado se comparte la tarjeta sin porcentaje.
+      }
+    }
     const url = new URL(path, window.location.origin).toString();
     const text =
       pctValue === null ? `${name} en ${site.name}` : `${name}: ${formatSharePct(pctValue)} en mi cartera`;

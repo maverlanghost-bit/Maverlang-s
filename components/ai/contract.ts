@@ -50,6 +50,7 @@ export interface AiMessage {
   text: string;
   widgets?: AiWidget[];
   imageDataUrl?: string;
+  sig?: string;
 }
 
 export interface AiChatRequest {
@@ -59,5 +60,5 @@ export interface AiChatRequest {
 }
 
 export type AiChatResponse =
-  | { ok: true; text: string; widgets: AiWidget[] }
+  | { ok: true; text: string; widgets: AiWidget[]; sig?: string }
   | { ok: false; error: "not_configured" | "rate_limited" | "bad_request" | "upstream"; message: string };

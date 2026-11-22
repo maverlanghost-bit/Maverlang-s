@@ -71,6 +71,47 @@ export async function resolveTokenProgram(
   return expected;
 }
 
+/**
+ * MON-4: el destino tiene que ser una billetera común. Se rechaza:
+ * - una clave fuera de la curva (PDA / dirección sin llave privada);
+ * - la propia billetera de origen;
+ * - una cuenta que ya es token account, mint (programa Token / Token-2022) o
+ *   un programa ejecutable: pegar ahí la dirección deja los fondos
+ *   irrecuperables. Cuenta del sistema o inexistente → OK.
+ */
+export async function assertSafeDestinationOwner(
+  connection: SendRpc,
+  to: PublicKey,
+  owner: PublicKey,
+): Promise<void> {
+  if (to.equals(owner)) {
+    throw new DomainError("VALIDATION", "El destino no puede ser tu propia billetera.");
+  }
+  if (!PublicKey.isOnCurve(to.toBytes())) {
+    throw new DomainError(
+      "VALIDATION",
+      "Esa dirección no es una billetera válida para recibir fondos.",
+    );
+  }
+  let info: Awaited<ReturnType<SendRpc["getAccountInfo"]>>;
+  try {
+    info = await connection.getAccountInfo(to, "confirmed");
+  } catch {
+    throw new DomainError("UPSTREAM", "No se pudo verificar la cuenta en la cadena.");
+  }
+  if (!info) return;
+  if (
+    info.executable ||
+    info.owner.equals(TOKEN_PROGRAM_ID) ||
+    info.owner.equals(TOKEN_2022_PROGRAM_ID)
+  ) {
+    throw new DomainError(
+      "VALIDATION",
+      "Esa dirección es una cuenta de token, un mint o un programa, no una billetera. Pega la dirección de la billetera del destinatario.",
+    );
+  }
+}
+
 export interface SendInstructionInput {
   mint: PublicKey;
   owner: PublicKey;
@@ -158,6 +199,7 @@ export async function buildSendTransaction(
   input: BuildSendTransactionInput,
 ): Promise<BuiltSendTransaction> {
   const programId = await resolveTokenProgram(input.connection, input.mint, input.kind);
+  await assertSafeDestinationOwner(input.connection, input.to, input.owner);
   const { source, destination, instructions } = buildSendInstructions({
     mint: input.mint,
     owner: input.owner,

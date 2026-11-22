@@ -20,6 +20,7 @@
  *   node scripts/scan-secrets.mjs                    (árbol de trabajo + bundle)
  *   node scripts/scan-secrets.mjs --history          (además todo el historial)
  *   node scripts/scan-secrets.mjs --require-bundle   (falla si no hay build)
+ *   node scripts/scan-secrets.mjs --staged           (sólo el índice; hook pre-commit)
  *   npm run scan:secrets [-- --require-bundle]
  *
  * `--require-bundle` es para CI: después de `npm run build` el bundle tiene
@@ -55,6 +56,57 @@ const VALUE_PATTERNS = [
   { name: "mercadopago", regex: /APP_USR-[0-9]+-[A-Za-z0-9-]+/g },
 ];
 
+/** Valores que no son secretos reales: vacío, comodines y ejemplos. */
+const PLACEHOLDER_VALUE =
+  /^(?:|\*+|x{3,}|changeme\w*|change-me\w*|todo|tbd|none|null|undefined|example\w*|dummy\w*|test\w*|mock\w*|fake\w*|your[-_\w]*|<[^>]*>|\$\{[^}]*\}|\$[A-Z_]+|process\.env\..*|[.…]+)$/i;
+
+/** Variables cuya asignación con un valor real es un hallazgo (OPS-7). */
+const ASSIGNED_SECRET_NAMES = [
+  "UPSTASH_REDIS_REST_TOKEN",
+  "PRIVY_APP_SECRET",
+  "JUPITER_API_KEY",
+  "CRON_SECRET",
+  "REVALIDATE_SECRET",
+  "FRACCION_REVALIDATE_SECRET",
+  "DEMO_TOKEN_SECRET",
+  "SHARE_SIGNING_SECRET",
+  "ONRAMP_WEBHOOK_SECRET",
+];
+const ASSIGNED_SECRET_REGEX = new RegExp(
+  `(?:^|[^A-Za-z0-9_])(${ASSIGNED_SECRET_NAMES.join("|")}|[A-Z][A-Z0-9_]*_HMAC_SECRET)\\s*[=:]\\s*["']?([^\\s"'#,;()]*)(\\()?`,
+  "g",
+);
+const API_KEY_PARAM_REGEX = /[?&;]api[-_]?key=([^&\s"'`)#]*)/gi;
+// Clave secreta de Solana en base58 (64 bytes = 87-88 caracteres).
+const BASE58_SECRET_REGEX = /(?<![1-9A-HJ-NP-Za-km-z])[1-9A-HJ-NP-Za-km-z]{87,88}(?![1-9A-HJ-NP-Za-km-z])/g;
+
+/** Ejemplos y pruebas arman valores falsos a propósito (los tests los construyen en runtime). */
+const ASSIGN_EXEMPT = /(?:^|\/)\.env\.example$|(?:^|\/)tests?\/|\.test\.[cm]?[jt]sx?$/;
+
+function isPlaceholder(value) {
+  const v = String(value).trim();
+  // Un valor real tiene largo; los cortos son ejemplos.
+  return PLACEHOLDER_VALUE.test(v) || v.length < 8;
+}
+
+/** Hallazgos por asignación `NOMBRE=valor`, `?api-key=valor` y base58 de 87-88. */
+function findAssignedSecrets(text) {
+  const out = [];
+  ASSIGNED_SECRET_REGEX.lastIndex = 0;
+  let m;
+  while ((m = ASSIGNED_SECRET_REGEX.exec(text)) !== null) {
+    // `NOMBRE: optionalText()` es código (esquema zod), no un valor.
+    if (!m[3] && !isPlaceholder(m[2])) out.push({ name: `env-assign:${m[1]}`, match: m[2] });
+  }
+  API_KEY_PARAM_REGEX.lastIndex = 0;
+  while ((m = API_KEY_PARAM_REGEX.exec(text)) !== null) {
+    if (!isPlaceholder(m[1])) out.push({ name: "api-key-param", match: m[1] });
+  }
+  BASE58_SECRET_REGEX.lastIndex = 0;
+  while ((m = BASE58_SECRET_REGEX.exec(text)) !== null) out.push({ name: "base58-secret-key", match: m[0] });
+  return out;
+}
+
 /** `sb_publishable_` sólo cuenta fuera de los ejemplos (la pública no es secreta). */
 const PUBLISHABLE_PATTERN = { name: "sb_publishable", regex: /sb_publishable_[A-Za-z0-9_-]{10,}/g };
 const PUBLISHABLE_EXEMPT = new Set([".env.example", "docs/.env.example"]);
@@ -77,6 +129,10 @@ export const BUNDLE_SECRET_NAMES = [
   "COPY_PLAN_HMAC_SECRET",
   "MERCADOPAGO_ACCESS_TOKEN",
   "MERCADOPAGO_WEBHOOK_SECRET",
+  "FRACCION_REVALIDATE_SECRET",
+  "DEMO_TOKEN_SECRET",
+  "SHARE_SIGNING_SECRET",
+  "ONRAMP_WEBHOOK_SECRET",
 ];
 
 /** En el bundle, `sb_secret_` sólo cuenta con 20+ caracteres detrás. */
@@ -109,6 +165,7 @@ export function findWorktreeSecrets(text, relPath) {
     let m;
     while ((m = regex.exec(text)) !== null) out.push({ name, match: m[0] });
   }
+  if (!ASSIGN_EXEMPT.test(relPath ?? "")) out.push(...findAssignedSecrets(text));
   if (!PUBLISHABLE_EXEMPT.has(relPath)) {
     PUBLISHABLE_PATTERN.regex.lastIndex = 0;
     let m;
@@ -176,6 +233,32 @@ export function scanWorktree() {
     const text = readTextFile(path.join(ROOT, file));
     if (text === null) continue;
     const lines = text.split("\n");
+    for (let i = 0; i < lines.length; i += 1) {
+      for (const { name, match } of findWorktreeSecrets(lines[i], file)) {
+        findings.push({ file, line: i + 1, name, masked: maskSecret(match) });
+      }
+    }
+  }
+  return findings;
+}
+
+/** Escanea el contenido del índice (`git show :ruta`) de los archivos añadidos/copiados/modificados. */
+export function scanStaged() {
+  const res = spawnSync("git", ["diff", "--cached", "--name-only", "--diff-filter=ACM", "-z"], {
+    cwd: ROOT,
+    encoding: "utf8",
+    maxBuffer: 64 * 1024 * 1024,
+  });
+  if (res.status !== 0) throw new Error("scan:secrets: no se pudo leer git diff --cached");
+  const findings = [];
+  for (const file of res.stdout.split("\0").filter((f) => f.length > 0)) {
+    if (file === ".env.local") {
+      findings.push({ file, line: 0, name: "env-local-tracked", masked: ".env.l…" });
+      continue;
+    }
+    const show = spawnSync("git", ["show", `:${file}`], { cwd: ROOT, maxBuffer: 16 * 1024 * 1024 });
+    if (show.status !== 0 || looksBinary(show.stdout)) continue;
+    const lines = show.stdout.toString("utf8").split("\n");
     for (let i = 0; i < lines.length; i += 1) {
       for (const { name, match } of findWorktreeSecrets(lines[i], file)) {
         findings.push({ file, line: i + 1, name, masked: maskSecret(match) });
@@ -285,6 +368,17 @@ function printFinding(f) {
 }
 
 async function main() {
+  if (process.argv.includes("--staged")) {
+    const staged = scanStaged();
+    for (const f of staged) printFinding(f);
+    if (staged.length > 0) {
+      console.log(`scan:secrets --staged: ${staged.length} hallazgo(s). Commit bloqueado.`);
+      process.exitCode = 1;
+      return;
+    }
+    console.log("scan:secrets --staged: limpio.");
+    return;
+  }
   const withHistory = process.argv.includes("--history");
   const requireBundle = process.argv.includes("--require-bundle");
   const worktree = scanWorktree();

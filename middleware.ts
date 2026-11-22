@@ -135,6 +135,16 @@ export async function middleware(request: NextRequest) {
   return applySecurity(redirect, security);
 }
 
+/**
+ * AUTH-8/WEB-6: el matcher viejo (`.*\\..*`) saltaba CUALQUIER ruta con un punto,
+ * p. ej. `/app/accion/BRK.B`, y esas páginas quedaban sin gate, sin sesión y
+ * sin CSP. Ahora sólo se excluyen `api`, `_next` y archivos estáticos reales
+ * por extensión. Las rutas de metadata sin extensión (opengraph-image, icon)
+ * sí pasan por el middleware. La expresión es literal porque Next la analiza
+ * en build; `tests/unit/middleware-matcher.test.ts` la prueba.
+ */
 export const config = {
-  matcher: ["/((?!api|_next|.*\\..*).*)"],
+  matcher: [
+    "/((?!api(?:/|$)|_next(?:/|$)|.*\\.(?:png|jpe?g|gif|svg|ico|webp|avif|txt|xml|webmanifest|js|css|map|woff2?|ttf)$).*)",
+  ],
 };

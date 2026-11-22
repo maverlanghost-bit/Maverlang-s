@@ -12,7 +12,8 @@ import {
 } from "@/content/i18n/extra-importar";
 import { isCatalogSymbol } from "@/lib/catalog/symbol";
 import { fold } from "@/lib/market/browse";
-import { ipOfRequest, limit, RATE_LIMIT_POLICIES, type RateLimitPolicy } from "@/lib/security/rate-limit";
+import { takeAiQuota } from "@/lib/ai/limit";
+import { ipOfRequest, RATE_LIMIT_POLICIES, type RateLimitPolicy } from "@/lib/security/rate-limit";
 import type { Ticker } from "@/lib/types";
 
 /**
@@ -139,13 +140,16 @@ export function aiLimitPolicy(): RateLimitPolicy {
   return LOCAL_AI_POLICY;
 }
 
-/** Tope de la política `ai`, o el equivalente local si esa política aún no existe. */
+/**
+ * Cupo del asistente para la importación por foto: la misma clave por usuario
+ * que el chat (`takeAiQuota`), siempre contando como imagen.
+ */
 export async function reserveAiCall(
   subject: string,
 ): Promise<{ ok: boolean; resetMs: number; unavailable?: boolean }> {
-  const safe = subject.trim().replace(/:/g, "_").slice(0, 200) || "unknown";
-  const result = await limit(`maverlang:rl:ai:${safe}`, aiLimitPolicy());
-  return { ok: result.ok, resetMs: result.resetMs, unavailable: result.unavailable };
+  const result = await takeAiQuota(subject, { image: true });
+  if (result.ok) return { ok: true, resetMs: 0 };
+  return { ok: false, resetMs: result.resetMs, unavailable: result.unavailable };
 }
 
 export function rateSubject(userId: string | null, req: Request): string {

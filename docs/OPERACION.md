@@ -71,3 +71,52 @@ Cómo saber en menos de 5 minutos si la app, Supabase, Jupiter, xStocks, el RPC 
 - Tests: `tests/unit/health.test.ts` (rutas, lógica pura, probes con fetch falso, determinismo en mock, exclusiones, sin secretos).
 - El token del deep se compara en tiempo constante (`timingSafeEqual`), igual que los crons (M55).
 - `koywe` queda `skipped` hasta que M80 defina el endpoint de auth.
+
+## Hook pre-commit contra secretos (OPS-2)
+
+El repo trae un pre-commit sin dependencias en `.githooks/pre-commit`: corre
+`node scripts/scan-secrets.mjs --staged` y bloquea el commit si el contenido
+del índice (`git show :ruta`) trae claves. Cada clon lo activa una vez:
+
+```sh
+npm run hooks:install        # sólo imprime el comando
+git config core.hooksPath .githooks
+```
+
+Se desactiva con `git config --unset core.hooksPath`. El `.gitignore` ya cubre la
+basura de la raíz (`scratch*/`, `*.zip`, `continuo/`, `relanzar_*.ps1`,
+`STOP_*.txt`, `.claude/`, etc.) para que `git add -A` no la suba. El escáner también
+detecta `?api-key=`, claves base58 de Solana (87-88 caracteres), keypairs en JSON
+y asignaciones `CRON_SECRET=`, `PRIVY_APP_SECRET=`, etc. con valores reales
+(se ignoran vacíos y placeholders; `.env.example` y `tests/` están exentos).
+
+## Secreto de service-role en un Environment protegido (OPS-8)
+
+`company-facts.yml` y `underlying-prices.yml` declaran `environment: production-data`.
+Hoy leen `SUPABASE_SECRET_KEY` de los secretos del repositorio; para que sólo
+esos jobs lo vean y requieran aprobación (pasos en la interfaz de GitHub, a cargo de Manu):
+
+1. Settings > Environments > New environment > `production-data`.
+2. Required reviewers: agrega a Manu (y a un segundo revisor si existe).
+   Deployment branches: sólo `main`.
+3. En ese Environment, Add secret: `SUPABASE_SECRET_KEY`, `SUPABASE_SERVICE_ROLE_KEY`
+   (si se usa), `SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_URL`, `APP_URL`, `REVALIDATE_SECRET`.
+4. Borra esos mismos secretos de Settings > Secrets and variables > Actions (nivel repo).
+5. Prueba con `workflow_dispatch` y `dry_run`: el job queda "Waiting" hasta aprobar.
+
+Ojo: con revisores obligatorios, las corridas programadas (cron) esperan aprobación
+manual. Si eso no es aceptable, deja sin revisores pero con restricción de rama
+`main`, y rota la clave igual (ver `docs/INCIDENTES.md`). El CI principal usa
+`npm ci` completo (corre el `postinstall` del parche de wallet-sdk); los dos
+workflows de datos usan `--ignore-scripts` porque no cargan ese SDK.
+
+## Sentry en edge (OBS-01)
+
+`sentry.edge.config.ts` replica la política del servidor (sin PII, `scrubSentryEvent`
+en eventos y spans). `instrumentation.ts` lo registra con `NEXT_RUNTIME === "edge"` y
+`SENTRY_DSN`. En `@sentry/nextjs` 11 `beforeSendTransaction` no corre con span
+streaming (por defecto), así que se limpia con `beforeSendSpan`.
+
+## Incidentes
+
+Runbook de respuesta: [`docs/INCIDENTES.md`](./INCIDENTES.md).

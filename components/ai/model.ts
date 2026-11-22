@@ -18,6 +18,8 @@ export interface ChatMessage {
   widgets?: AiWidget[];
   imageDataUrl?: string;
   notice?: ChatNotice;
+  /** Firma del servidor de una respuesta del asistente: permite compartirla. */
+  sig?: string;
 }
 
 export type AiEndpoint = "/api/ai/chat" | "/api/ai/import-portfolio";
@@ -229,11 +231,13 @@ const okSchema = z
     ok: z.literal(true),
     text: z.string(),
     widgets: z.array(z.unknown()),
+    sig: z.string().max(128).optional(),
   })
   .transform((value) => ({
     ok: true as const,
     text: stripInlineNotice(value.text),
     widgets: parseWidgets(value.widgets),
+    ...(value.sig ? { sig: value.sig } : {}),
   }));
 
 const errSchema = z.object({
@@ -250,6 +254,7 @@ const storedMessageSchema = z.object({
   text: z.string(),
   widgets: z.array(z.unknown()).optional(),
   imageDataUrl: z.string().optional(),
+  sig: z.string().max(128).optional(),
   notice: z
     .object({
       kind: z.enum(["not_configured", "rate_limited", "bad_request", "upstream"]),
@@ -311,6 +316,7 @@ export function parseStoredMessage(input: unknown): ChatMessage | null {
     message.imageDataUrl = image;
   }
   if (parsed.data.notice) message.notice = parsed.data.notice;
+  if (parsed.data.role === "assistant" && parsed.data.sig) message.sig = parsed.data.sig;
   return message;
 }
 

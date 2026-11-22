@@ -12,24 +12,30 @@ import { livePrices } from "@/lib/services/prices.live";
 import {
   claimOrderExecution,
   finalizeOrderExecution,
-  getOrderById,
   getOrderByIdForUser,
   updateOrderStatus,
 } from "@/lib/services/orders.supabase";
 import { createTradeReservationStore } from "@/lib/services/trade-reservations.supabase";
 import { createTradeQuoteStore } from "@/lib/services/trade-quotes.supabase";
 import { translateSolanaError } from "@/lib/solana/tx-errors";
-import { getWithdrawalStatus, submitWithdrawal } from "@/lib/wallet/withdrawal-store";
+import { getWithdrawalStatus } from "@/lib/wallet/withdrawal-store";
 import { buildSwapParams, parsedOrderToTradeQuote } from "@/lib/market/jupiter-tx";
 import { fetchJupiterOrder } from "@/lib/market/jupiter-client";
-import { jupiterSwapUrl, jupiterOrderParams, parseJupiterOrder } from "@/lib/market/jupiter-order";
+import {
+  assertTrustedJupiterBase,
+  jupiterSwapUrl,
+  jupiterOrderParams,
+  parseJupiterOrder,
+} from "@/lib/market/jupiter-order";
 import { parseJupiterExecute } from "@/lib/market/jupiter-order";
 import {
   assertBuiltAmountsMatch,
+  assertJupiterTransactionSafe,
   assertQuoteIntegrity,
   assertSignedTransactionMatchesBuilt,
   computeNotionalUsd,
   readTransactionSignature,
+  verifySignedTransactionSignatures,
 } from "@/lib/trade/integrity";
 import {
   claimQuotedTradeBuild,
@@ -82,6 +88,14 @@ import type {
 const QUOTE_TTL_MS = 60_000;
 const USDC_DECIMALS = 6;
 const STOCK_DECIMALS = 8;
+/**
+ * Topes duros aplicados en el punto de uso (MON-5): aunque el entorno permita
+ * más, el slippage y la desviación de precio nunca pasan de 300 bps.
+ */
+const SLIPPAGE_HARD_CAP_BPS = 300;
+const PRICE_DEVIATION_HARD_CAP_BPS = 300;
+const effectiveSlippageBps = Math.min(defaultSlippageBps, SLIPPAGE_HARD_CAP_BPS);
+const effectivePriceDeviationMaxBps = Math.min(priceDeviationMaxBps, PRICE_DEVIATION_HARD_CAP_BPS);
 
 /** Piezas compartidas del motor real: cupo (0042/0047) y cotización (0049). */
 export type LiveTradeDeps = LiveQuoteStores;
@@ -168,14 +182,17 @@ export function createLiveTrade(deps: LiveTradeDeps): LiveTradeService {
         fxRate = fx.rate;
       }
 
-      const needsSpot =
-        request.amountCurrency === "SHARES" ||
-        request.amountCurrency === "CLP" ||
-        (request.side === "sell" && request.amountCurrency === "USDC");
-      const [spot] = needsSpot
-        ? await livePrices.list([asset.symbol])
-        : [{ priceUsd: 0 } as { priceUsd: number }];
-      const price = needsSpot && spot && spot.priceUsd > 0 ? spot.priceUsd : 0;
+      // MON-3: el precio de referencia se pide SIEMPRE y para ambos lados (antes
+      // las compras en USDC y las ventas en acciones/CLP lo saltaban). Sin
+      // referencia no hay cómo acotar la desviación: falla cerrado.
+      const [spot] = await livePrices.list([asset.symbol]).catch(() => []);
+      const price = spot && Number.isFinite(spot.priceUsd) && spot.priceUsd > 0 ? spot.priceUsd : 0;
+      if (price <= 0) {
+        throw new DomainError(
+          "UPSTREAM",
+          "No pudimos verificar el precio de referencia. Intenta de nuevo en un momento.",
+        );
+      }
 
       // Conexión sólo para leer el multiplicador del mint (1 si falla).
       const rpcUrl = serverEnv.SOLANA_RPC_URL ?? "https://api.mainnet-beta.solana.com";
@@ -220,7 +237,7 @@ export function createLiveTrade(deps: LiveTradeDeps): LiveTradeService {
         inputMint: params.inputMint,
         outputMint: params.outputMint,
         amountRaw: params.amountRaw,
-        slippageBps: defaultSlippageBps,
+        slippageBps: effectiveSlippageBps,
       });
 
       let body: unknown;
@@ -258,10 +275,7 @@ export function createLiveTrade(deps: LiveTradeDeps): LiveTradeService {
       }
 
       // Desviación on-chain vs referencia (CATALOGO-SEGURIDAD §7). Con spot real.
-      let priceDeviationBps = 0;
-      if (needsSpot && price > 0) {
-        priceDeviationBps = (Math.abs(parsed.pricePerShareUsd - price) / price) * 10_000;
-      }
+      const priceDeviationBps = (Math.abs(parsed.pricePerShareUsd - price) / price) * 10_000;
 
       const quote = parsedOrderToTradeQuote({
         parsed,
@@ -283,7 +297,7 @@ export function createLiveTrade(deps: LiveTradeDeps): LiveTradeService {
         quote.estimatedTotalClp = Math.round(quote.inAmountUi * fxRate);
       }
 
-      if (buy && priceDeviationBps > priceDeviationMaxBps) {
+      if (!Number.isFinite(priceDeviationBps) || priceDeviationBps > effectivePriceDeviationMaxBps) {
         throw new DomainError("PRICE_DEVIATION");
       }
 
@@ -392,7 +406,7 @@ export function createLiveTrade(deps: LiveTradeDeps): LiveTradeService {
         inputMint: stored.payload.inputMint,
         outputMint: stored.payload.outputMint,
         amountRaw: BigInt(stored.payload.amountRaw),
-        slippageBps: defaultSlippageBps,
+        slippageBps: effectiveSlippageBps,
         taker: userPublicKey,
       });
 
@@ -419,6 +433,14 @@ export function createLiveTrade(deps: LiveTradeDeps): LiveTradeService {
         // Jupiter cotizó pero no pudo armar la tx (ver errorCode en la respuesta).
         throw new DomainError("UPSTREAM", "Jupiter no pudo armar la transacción.");
       }
+
+      // MON-10: los bytes de Jupiter no se aceptan a ciegas. Pagador = usuario,
+      // usuario firmante y mints de entrada/salida presentes en la tx.
+      await assertJupiterTransactionSafe(transaction, {
+        taker: userPublicKey,
+        inputMint: stored.payload.inputMint,
+        outputMint: stored.payload.outputMint,
+      });
 
       // Revalidación de montos: el build con `taker` vuelve a cotizar. El monto
       // de entrada no puede cambiar y la salida sólo dentro del slippage. La
@@ -451,7 +473,7 @@ export function createLiveTrade(deps: LiveTradeDeps): LiveTradeService {
           pricePerShareUsd: stored.payload.priceUsd,
         },
         builtParsed,
-        defaultSlippageBps + 100,
+        effectiveSlippageBps + 100,
       );
 
       // Se persiste en la reserva compartida ANTES de devolver la tx: si no se
@@ -503,12 +525,14 @@ export function createLiveTrade(deps: LiveTradeDeps): LiveTradeService {
       // en `trade_quotes`. El `requestId` de un envío lo marca el armado
       // (`send:...`), así que se delega con la misma idempotencia y la misma
       // comparación mensaje-armado/mensaje-firmado, sin pasar por Jupiter.
+      // MON-1: este camino ya NO transmite retiros. Los envíos sólo entran por
+      // `/api/wallet/send/submit` (que valida el interruptor de retiros y
+      // llama a `submitWithdrawal` directo); delegarlos acá saltaba el kill switch.
       if (request.requestId.startsWith("send:")) {
-        return submitWithdrawal({
-          userId: owner,
-          requestId: request.requestId,
-          signedTransactionBase64,
-        });
+        throw new DomainError(
+          "VALIDATION",
+          "Los envíos se confirman desde la pantalla Enviar, no por este camino.",
+        );
       }
       const stored: StoredLiveQuote | null = await loadQuotedTrade(
         deps,
@@ -552,6 +576,11 @@ export function createLiveTrade(deps: LiveTradeDeps): LiveTradeService {
       // reclamo, antes de llamar a Jupiter. Si `/execute` se pierde, la orden
       // queda `pending` con firma y la conciliación puede consultar la cadena
       // en vez de cerrarla como `expired` y liberar cupo sin evidencia.
+      //
+      // MON-2: antes de guardar la firma como evidencia se verifica en Ed25519
+      // que sea del pagador y esté hecha sobre ESTE mensaje. Pegar la firma de
+      // otra tx de mainnet ya no sirve: falla cerrado, sin claim ni envío.
+      await verifySignedTransactionSignatures(signedTransactionBase64);
       const signedSignature = await readTransactionSignature(signedTransactionBase64);
       let claim: Awaited<ReturnType<typeof claimOrderExecution>>;
       try {
@@ -591,6 +620,16 @@ export function createLiveTrade(deps: LiveTradeDeps): LiveTradeService {
 
       // Ejecutamos contra Jupiter.
       const executeUrl = jupiterSwapUrl(serverEnv.JUPITER_BASE_URL, "/swap/v2/execute");
+      try {
+        assertTrustedJupiterBase(executeUrl);
+      } catch {
+        await finalizeOrderExecution(claim.id, {
+          status: "failed",
+          signature: null,
+          error: "Jupiter no disponible.",
+        }).catch(() => false);
+        throw new DomainError("UPSTREAM", "No pudimos enviar la operación. No se envió nada.");
+      }
       let result: { status: "submitted" | "failed"; signature: string | null; error?: string };
       try {
         const response = await fetch(executeUrl, {
@@ -655,16 +694,16 @@ export function createLiveTrade(deps: LiveTradeDeps): LiveTradeService {
      * confirmación llega en el siguiente tick).
      */
     async status(id: string, userId?: string): Promise<Order> {
-      // Con sesión, la consulta exige `user_id`: un id ajeno nunca se lee ni
-      // se actualiza. Sin sesión (mock/dev) se mantiene la lectura directa.
-      const data = userId ? await getOrderByIdForUser(id, userId) : await getOrderById(id);
+      // DB-J: el dueño es obligatorio. La lectura con el cliente admin SIEMPRE
+      // se acota por `user_id`; sin usuario no se lee nada (antes caía a una
+      // lectura por id que servía órdenes ajenas).
+      const owner = requireOwner(userId);
+      const data = await getOrderByIdForUser(id, owner);
       if (!data) {
-        // T42: un envío no vive en `orders` sino en `wallet_withdrawals`. Con
-        // sesión se intenta el libro (que exige dueño); sin sesión se mantiene
-        // el 404 de siempre. La lectura por `orders` va primero para no
+        // T42: un envío no vive en `orders` sino en `wallet_withdrawals`. El
+        // libro también exige dueño. La lectura por `orders` va primero para no
         // cambiar el camino de compra/venta.
-        if (userId) return getWithdrawalStatus({ userId, id });
-        throw new DomainError("NOT_FOUND", "No encontramos esa orden.");
+        return getWithdrawalStatus({ userId: owner, id });
       }
 
       let status = data.status;

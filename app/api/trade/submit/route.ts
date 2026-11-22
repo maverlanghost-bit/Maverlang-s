@@ -10,6 +10,7 @@ import {
   isRealAccountRequest,
   isUserDemoRequest,
 } from "@/lib/api/handler";
+import { DomainError } from "@/lib/api/result";
 import { apiOperateBlock } from "@/lib/compliance/real-quote";
 import { withRateLimit } from "@/lib/security/rate-limit";
 import { getServices } from "@/lib/services";
@@ -42,6 +43,15 @@ export function POST(req: Request) {
     const userLimited = await withRateLimit(req, "trade", [session.userId]);
     if (userLimited) return userLimited;
     const body = await parseJson(req, tradeSubmitRequestSchema);
+    // MON-1: los retiros (`send:...`) sólo se transmiten por
+    // `/api/wallet/send/submit`, que valida el interruptor de retiros. Por acá
+    // se rechazan siempre (antes saltaban `assertRealWithdrawalsEnabled`).
+    if (body.requestId.startsWith("send:")) {
+      throw new DomainError(
+        "VALIDATION",
+        "Los envíos se confirman desde la pantalla Enviar, no por este camino.",
+      );
+    }
     if (realAccount) {
       // M46: el camino real se apaga (503 REAL_DISABLED) hasta que
       // REAL_TRADING_READY=true. Con el flag encendido, pasa al motor live.
@@ -54,10 +64,8 @@ export function POST(req: Request) {
       // Reserva atómica: se consume antes de enviar. Un reintento con la
       // reserva ya consumida es idempotente (el request_id único de orders
       // impide ejecutar dos veces); una reserva liberada/vencida corta acá.
-      // T42: un envío (`send:...`) no reserva cupo en `trade_reservations`:
-      // su reclamo atómico vive en el libro de retiros (`wallet_withdrawals`),
-      // así que la guardia de reservas de trading no aplica.
-      if (!body.requestId.startsWith("send:")) {
+      // Los `send:...` ya se rechazaron arriba (MON-1): acá sólo hay trades.
+      {
         // Criptos y staking sólo en la demo (decisión §1.1): el símbolo se
         // reconoce por la cotización real guardada para este `requestId`. Va
         // ANTES de consumir la reserva: una operación rechazada por política

@@ -1,5 +1,5 @@
 import { tradeSubmitRequestSchema, tradeSubmitResponseSchema } from "@/lib/api/contracts";
-import { parseJson, assertSameOrigin, assertRealTradingEnabled, callService, handle, readOutput, requireSupabaseUser } from "@/lib/api/handler";
+import { parseJson, assertSameOrigin, assertRealTradingEnabled, callService, handle, readOutput } from "@/lib/api/handler";
 import { apiOperateBlock } from "@/lib/compliance/real-quote";
 import { withRateLimit } from "@/lib/security/rate-limit";
 import { getServices } from "@/lib/services";
@@ -10,6 +10,7 @@ import {
   assertRealWithdrawalsEnabled,
 } from "@/lib/trade/real-guards";
 import { submitWithdrawal } from "@/lib/wallet/withdrawal-store";
+import { requireWalletSession } from "@/lib/wallet/live-session";
 
 export const runtime = "nodejs";
 
@@ -35,7 +36,7 @@ export function POST(req: Request) {
     // En supabase el usuario tiene que estar verificado; en mock no hay sesión
     // (null) y sigue el flujo demo. La sesión se lee antes del límite por
     // usuario para poder contar por `userId` y no sólo por IP.
-    const session = await requireSupabaseUser(services, req);
+    const session = await requireWalletSession(services, req);
     const userLimited = session
       ? await withRateLimit(req, "trade", [session.userId])
       : await withRateLimit(req, "trade");

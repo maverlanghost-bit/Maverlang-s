@@ -42,9 +42,12 @@ export function formatSharePct(pct: number): string {
   return `${pctFormatter.format(value)} %`;
 }
 
-/** `/tarjeta/{id}` y `?pct=` sólo cuando hay un porcentaje válido. */
-export function shareCardPath(id: string, pct?: number | null): string {
+/**
+ * `/tarjeta/{id}`; `?pct=` y `&s=` (firma HMAC) sólo cuando hay un porcentaje
+ * válido Y su firma. Sin firma el porcentaje no se muestra (WEB-5).
+ */
+export function shareCardPath(id: string, pct?: number | null, sig?: string | null): string {
   const path = `/tarjeta/${encodeURIComponent(id.trim())}`;
-  if (pct === null || pct === undefined || !Number.isFinite(pct)) return path;
-  return `${path}?pct=${clampPct(pct)}`;
+  if (pct === null || pct === undefined || !Number.isFinite(pct) || !sig) return path;
+  return `${path}?pct=${clampPct(pct)}&s=${encodeURIComponent(sig)}`;
 }

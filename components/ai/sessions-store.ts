@@ -141,6 +141,9 @@ function sanitizeMessage(input: unknown): ChatMessage | null {
 
   const widgets = sanitizeWidgets(input.widgets);
   if (widgets) message.widgets = widgets;
+  if (role === "assistant" && typeof input.sig === "string" && input.sig.length <= 128) {
+    message.sig = input.sig;
+  }
 
   const image = input.imageDataUrl;
   if (
