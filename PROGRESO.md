@@ -1,5 +1,16 @@
 # PROGRESO — Maverlang
 
+## T86 — Perfil más simple (menú del usuario en celular) (2026-11-22)
+- `profile-screen.tsx` rehecho como menú:
+  - Tarjeta de identidad con avatar de 56 px, nombre, correo e insignia «Cuenta demo/real». El país sólo aparece si existe.
+  - Tarjeta «Tipo de cuenta» con selector y botón de reinicio de la demo.
+  - Dos grupos de filas con icono en círculo y chevron: Cuenta, Seguridad y Notificaciones; Ajustes, Documentos legales y Ayuda.
+  - Grupo «Más» con «Resumen de seguridad» y «Logros de aprendizaje» plegables (`<details>`). Las tarjetas originales quedan adentro, sin cambios.
+  - Cerrar sesión en rojo con su icono, y la versión centrada.
+- Iconos locales (escudo, campana, documento, trofeo) al estilo de `icons.tsx`. Sin dependencias. `ui.tsx` no cambia, así que las subpantallas siguen igual.
+- Resultado a 375 px: la página pasa de 2.596 a 1.236 px de alto, sin desborde horizontal. Los plegables abren con clic y teclado (nativos).
+- Verificación: `tsc` limpio, ESLint y 227/227 pruebas relacionadas. El menú desplegable del perfil en la barra lateral de escritorio no se tocó.
+
 ## T85 — Hoja de compra/venta como tarjeta en celular y comprobante animado (2026-11-22)
 - `Sheet` admite `mobile="card"`. En celular la hoja es una tarjeta al 92 dvh, con esquinas superiores de 22 px, sombra de flotante y X.
 - El asa (`SheetGrip`) responde al arrastre: hacia arriba la lleva a pantalla completa, hacia abajo la devuelve o la cierra (> 110 px o gesto rápido). Tocar el asa o usar el teclado alterna entre los dos altos (`aria-expanded`).
