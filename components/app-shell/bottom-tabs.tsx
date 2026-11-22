@@ -62,6 +62,10 @@ export function BottomTabs() {
   const activeIndex = activeMobileTab(pathname);
   useTabsHeight(navRef, assistantRoute);
 
+  // El chat tiene su propio compositor abajo y su barra superior: la barra
+  // inferior no se monta (antes quedaba un dock vacío con "volver" encima del chat).
+  if (assistantRoute) return null;
+
   return (
     <nav
       ref={navRef}

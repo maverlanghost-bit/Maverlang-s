@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRef, useState, type ChangeEvent, type RefObject } from "react";
+import { useRef, useState, useSyncExternalStore, type ChangeEvent, type RefObject } from "react";
 
 import { AssistantNavbar } from "@/components/ai/assistant-navbar";
 import { Composer } from "@/components/ai/composer";
@@ -16,6 +16,25 @@ import type { AsistenteCopy, AsistenteSuggestionId } from "@/content/i18n/extra-
 import { cn } from "@/lib/cn";
 
 type ChatFeedback = Readonly<Record<string, "like" | "dislike">>;
+
+/** Bajo `lg` no hay sidebar: el chat se usa como en un teléfono. */
+const COMPACT_QUERY = "(max-width: 1023.98px)";
+
+/**
+ * Celular/tablet. En el servidor se asume celular (la mayoría del tráfico),
+ * así la primera pintura ya deja el compositor abajo.
+ */
+function useCompactChat(): boolean {
+  return useSyncExternalStore(
+    (notify) => {
+      const query = window.matchMedia(COMPACT_QUERY);
+      query.addEventListener("change", notify);
+      return () => query.removeEventListener("change", notify);
+    },
+    () => window.matchMedia(COMPACT_QUERY).matches,
+    () => true,
+  );
+}
 
 type ChatViewProps = {
   copy: AsistenteCopy;
@@ -110,6 +129,9 @@ export function ChatView({
   useChatViewport(panelRef);
   const [contextOpen, setContextOpen] = useState(false);
   const isEmpty = messages.length === 0 && !typing;
+  const compact = useCompactChat();
+  // En celular la barra de escribir siempre va abajo, también sin mensajes.
+  const composerAtBottom = !isEmpty || compact;
 
   // Los atajos del estado vacío envían de inmediato: `onSuggest` ya resuelve
   // el endpoint y la foto; el compositor sólo aporta el borrador manual.
@@ -195,7 +217,7 @@ export function ChatView({
           onRetry={onRetry}
           onSuggest={onSuggest}
           renderWidgets={(widgets) => <AiWidgetStack widgets={widgets} copy={copy} />}
-          landingComposer={isEmpty ? renderComposer("landing") : undefined}
+          landingComposer={isEmpty && !compact ? renderComposer("landing") : undefined}
           onSendPrompt={sendPrompt}
           onEditMessage={onEditMessage}
           feedback={feedback}
@@ -208,8 +230,8 @@ export function ChatView({
         {/* Riel de preguntas: se posiciona en absolute respecto de este wrapper. */}
         {messages.length > 0 ? <QuestionRail messages={messages} /> : null}
 
-        {!isEmpty ? (
-          <div className="bg-gradient-to-t from-white via-white/95 to-transparent px-3 pb-3 pt-2 shrink-0 sm:px-4 sm:pb-4">
+        {composerAtBottom ? (
+          <div className="bg-gradient-to-t from-white via-white/95 to-transparent px-3 pt-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] shrink-0 sm:px-4 sm:pb-4">
             <div className="max-w-3xl mx-auto w-full">{renderComposer("bottom")}</div>
           </div>
         ) : null}
