@@ -32,7 +32,7 @@ import { getHistory } from "@/lib/api/client";
 import { chartCapabilities, chartVolumeLabel, compatibleSpot, observedSeries } from "@/lib/charts/data";
 import { comparisonSeries } from "@/lib/charts/comparison";
 import { cn } from "@/lib/cn";
-import { formatDateTime, formatMoney, formatPercent } from "@/lib/format";
+import { formatMoney, formatPercent } from "@/lib/format";
 import { useChartMode } from "@/lib/hooks/use-chart-mode";
 import { useChartFullscreen } from "@/lib/hooks/use-chart-fullscreen";
 import { useHistory } from "@/lib/hooks/queries";
@@ -732,7 +732,7 @@ export function PricePanel({
             </span>
           ) : null}
         </div>
-        <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
+        <div className="flex min-h-6 min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
           <span className="text-xs text-fg-muted">{point ? (language === "en" ? "Historical observation" : "Registro histórico") : quote.source === "mock" ? (language === "en" ? "Demo quote" : "Cotización de demostración") : quote.reference ? t.detail.referencePrice : (language === "en" ? "Token quote" : "Cotización del token")} · {priceCurrency}</span>
           {point === null ? <PriceFreshness
             at={quote.updatedAt || priceUpdatedAt}
@@ -778,10 +778,6 @@ export function PricePanel({
                   {deltaFormatted}
                 </span>
               ) : null}
-              <p className="num min-w-0 truncate text-[13px] text-fg-muted">
-                <span className="sr-only">{t.detail.onChart}. </span>
-                <time dateTime={pointIso}>{formatDateTime(pointIso)}</time>
-              </p>
             </div>
           ) : plotMove === null ? (
             <span className="num text-[13px] text-fg-muted">—</span>

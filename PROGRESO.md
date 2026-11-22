@@ -1,5 +1,15 @@
 # PROGRESO — Maverlang
 
+## T84 — Pulido de la plataforma en celular, primera tanda (2026-11-21)
+- Pedido de Manu en 4 puntos. Se implementó con 3 agentes Sonnet 5.5 de razonamiento medio, con archivos separados, y se cerró con una revisión propia.
+- Barra inferior (`liquid-glass.css`, `bottom-tabs.tsx`): vidrio translúcido (58 %, `saturate(180%) blur(22px)`), con realce interior, brillo especular y píldora activa de vidrio. Respaldos para `@supports`, `prefers-reduced-transparency`, `prefers-reduced-motion` y `forced-colors`. El tab de IA es sólo el texto "AI", sin burbuja.
+- Mercado (`market-screen.tsx`, `mover-card.tsx`): "Tu día" no se monta bajo `md` (`useIsPhone` + `hidden md:block`). Las líneas de procedencia por tarjeta se ocultan en móvil y el aviso del pie tiene versión corta. La procedencia sigue en cada ficha y en el `aria-label`.
+- Ficha (`detail-screen.tsx`, `price-panel.tsx`, `company-card`, `token-gap-card`, `onchain-verification-card`): logo, nombre (hasta 2 líneas en móvil) y tres iconos (alerta, favorita, compartir) en una sola fila. La alerta pasa a sólo icono también en escritorio.
+- Gráfico: al recorrerlo ya no aparece la fecha bajo el precio, y su posición queda fija (medido: 504,77 px antes y después). La fecha sigue en el tooltip del gráfico.
+- Información: secciones en tarjetas `rounded-3xl bg-surface-1`, `KeyStats` en grilla 2/3 columnas (`StatCell`), cifras largas reducidas sin partirse y notas de procedencia en un acordeón. La descripción se recorta con «Ver más».
+- Verificación: `tsc` limpio, ESLint de los 8 archivos y 90/90 pruebas focalizadas. Revisión en navegador con demo mock a 375 y 360 px: barra, Mercado, NVDAx (scrub y secciones) y AAOIon (nombre largo), sin desborde horizontal. Sin e2e, build ni teléfono físico.
+- Pendiente: medir el contraste de los labels sobre fondos saturados. En celular, "Tu día" puede montarse un instante durante la hidratación. Revisar en escritorio el cambio de la alerta a icono y las tarjetas.
+
 ## T83 — Auditoría de seguridad v3 y endurecimiento para producción (2026-11-21)
 - Rama `fix/auditoria-v3` (sin push): base WIP previa commiteada aparte, `origin/main` (T71–T82) integrado, Next 16.4.6 y `audit:deps` en verde.
 - DB: 0053 restaurada a lo publicado; nuevas 0055–0059 (copy_follows sin escritura de cliente, MFA restrictiva en tablas de usuario y RPC, topes por usuario, baja de cuenta con anonimización y FKs `RESTRICT`, revocación/expiración de chats compartidos, índices únicos de wallet primaria y RUT). Probadas en Postgres 17 embebido: 18/18 y 14/14.

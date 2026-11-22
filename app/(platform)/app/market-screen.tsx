@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useId, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useQueries } from "@tanstack/react-query";
@@ -37,6 +37,21 @@ import { rememberMarketEntry, takeMarketScroll } from "@/lib/market/return-navig
 const PAGE_SIZE = 20;
 const SEARCH_STALE_MS = 30_000;
 const PRICE_MS = 15_000;
+
+const PHONE_QUERY = "(max-width: 767.98px)";
+
+/** Verdadero sólo en celular (< md). En el servidor es falso: el HTML inicial es el de escritorio. */
+function useIsPhone(): boolean {
+  return useSyncExternalStore(
+    (notify) => {
+      const query = window.matchMedia(PHONE_QUERY);
+      query.addEventListener("change", notify);
+      return () => query.removeEventListener("change", notify);
+    },
+    () => window.matchMedia(PHONE_QUERY).matches,
+    () => false,
+  );
+}
 
 function canonicalSearch(search: string): string {
   const params = new URLSearchParams(search);
@@ -573,13 +588,19 @@ export function MarketScreen({
   /** Ningún precio del lote todavía: la fila muestra marcador, nunca un cero. */
   const pricePending = quotesBySymbol.size === 0 && (firstPrices?.isPending ?? true);
   const noPriceLabel = language === "en" ? "No price" : "Sin precio";
+  const isPhone = useIsPhone();
 
   return (
     <div className="flex min-w-0 flex-col gap-8 lg:gap-10">
       <h1 className="sr-only">{t.pages.market.title}</h1>
       {sections ? <div className="-mx-5 min-w-0 px-5 sm:mx-0 sm:px-0">{sections}</div> : null}
 
-      {!draft && filter === "all" ? <MarketToday /> : null}
+      {/* «Tu día» sólo en escritorio: en celular no se monta (ni consulta datos). */}
+      {!draft && filter === "all" && !isPhone ? (
+        <div className="hidden md:block">
+          <MarketToday />
+        </div>
+      ) : null}
 
       <section
         aria-labelledby={listTitleId}
@@ -623,7 +644,7 @@ export function MarketScreen({
             </>
           ) : null}
           <PriceFreshness at={freshestAt} stale={anyStale} className="text-[13px] leading-5" />
-          {freshestAt ? <span className="text-xs">{language === "en" ? "Oldest observation in this batch" : "Observación más antigua del lote"}</span> : null}
+          {freshestAt ? <span className="hidden text-xs sm:inline">{language === "en" ? "Oldest observation in this batch" : "Observación más antigua del lote"}</span> : null}
         </div>
 
         <div className="flex w-full min-w-0 flex-wrap items-end gap-3">
@@ -639,7 +660,8 @@ export function MarketScreen({
         ]} onClear={clearFilters} /></div>
         {draft.trim() !== query ? <p role="status" className="w-full text-xs text-fg-muted">{t.states.loading}</p> : null}
         {sort === "gain" || sort === "loss" || filter === "favorites" ? <p className="w-full text-xs text-fg-muted">{language === "en" ? `Filtered and ranked among ${items.length} loaded stocks. Load more to expand the universe.` : `Filtro y orden entre ${items.length} acciones cargadas. Carga más para ampliar el universo.`}</p> : null}
-        <p className="w-full text-xs text-fg-muted">{hasDemo ? (language === "en" ? "Demo prices. " : "Precios de demostración. ") : ""}{hasReference ? (language === "en" ? "Includes reference prices. " : "Incluye precios de referencia. ") : ""}{language === "en" ? "Weekly trends may show the underlying reference; source details are in each stock." : "La tendencia semanal puede mostrar la referencia del subyacente; la procedencia está en cada ficha."}</p>
+        <p className="w-full text-xs text-fg-muted sm:hidden">{hasDemo ? (language === "en" ? "Demo prices. " : "Precios de demostración. ") : ""}{language === "en" ? "Source details are in each stock." : "La procedencia está en cada ficha."}</p>
+        <p className="hidden w-full text-xs text-fg-muted sm:block">{hasDemo ? (language === "en" ? "Demo prices. " : "Precios de demostración. ") : ""}{hasReference ? (language === "en" ? "Includes reference prices. " : "Incluye precios de referencia. ") : ""}{language === "en" ? "Weekly trends may show the underlying reference; source details are in each stock." : "La tendencia semanal puede mostrar la referencia del subyacente; la procedencia está en cada ficha."}</p>
 
         {currencyNote ? (
           <p

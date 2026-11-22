@@ -174,6 +174,48 @@ function DataRow({ label, children, mono = true }: { label: string; children: Re
   );
 }
 
+/** Métrica en tarjeta: rótulo pequeño arriba, cifra mono debajo; va en grilla de 2 columnas. */
+function StatCell({ label, children, mono = true }: { label: string; children: ReactNode; mono?: boolean }) {
+  return (
+    <div className="@container min-w-0 rounded-2xl border border-border bg-bg px-3.5 py-3">
+      <dt className="font-mono text-[11px] leading-4 tracking-[0.08em] text-fg-muted uppercase">{label}</dt>
+      <dd
+        className={cn(
+          "mt-1 min-w-0 leading-5 font-medium text-fg tabular-nums",
+          /* Las cifras no se parten: las largas bajan de tamaño con el ancho de la celda. */
+          mono
+            ? cn("font-mono whitespace-nowrap", typeof children === "string" && children.length > 11 ? "text-[min(15px,11cqw)]" : "text-[15px]")
+            : "font-sans text-[15px] [overflow-wrap:anywhere]",
+        )}
+      >
+        {children}
+      </dd>
+    </div>
+  );
+}
+
+/** Texto largo acotado a 4 líneas con "Ver más"; sin botón si es corto. */
+function ClampedText({ text, className }: { text: string; className?: string }) {
+  const { language } = useT();
+  const [open, setOpen] = useState(false);
+  const long = text.length > 240;
+  return (
+    <div className="min-w-0">
+      <p className={cn(className, long && !open && "line-clamp-4")}>{text}</p>
+      {long ? (
+        <button
+          type="button"
+          aria-expanded={open}
+          onClick={() => setOpen((value) => !value)}
+          className="mt-1 inline-flex min-h-11 items-center rounded-sm text-[13px] font-medium text-fg underline underline-offset-4 outline-none focus-visible:ring-4 focus-visible:ring-fg/20"
+        >
+          {open ? (language === "en" ? "See less" : "Ver menos") : language === "en" ? "See more" : "Ver más"}
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
 function PositionRows({
   position,
   pending,
@@ -242,7 +284,7 @@ function StockTokenGuide() {
   const { language } = useT();
   const copy = carteraCopy(language);
   return (
-    <section aria-label={copy.tokenGuideTitle}>
+    <section aria-label={copy.tokenGuideTitle} className="rounded-3xl border border-border bg-surface-1 px-5 md:px-6 [&>div]:border-y-0">
       <Accordion items={[{ id: "stock-token", title: copy.tokenGuideTitle, content: copy.tokenGuideBody }]} />
     </section>
   );
@@ -548,7 +590,7 @@ function TradeActions({
   return (
     <Card className="border-border bg-bg p-5 lg:p-6">
       <div className="flex flex-col gap-1">
-        <h2 className="text-lg font-medium tracking-tight text-fg">{t.detail.actions}</h2>
+        <h2 className="text-base font-medium tracking-tight text-fg md:text-lg">{t.detail.actions}</h2>
         <span className="inline-flex items-center gap-1.5 text-xs leading-5 text-fg-muted">
           <span className={cn("size-1.5 shrink-0 rounded-full", chipDot)} aria-hidden />
           {chipText}
@@ -670,70 +712,85 @@ function KeyStats({
           : t.detail.operable;
 
   return (
-    <section className="border-t border-border pt-8">
-      <h2 className="text-lg font-medium tracking-tight text-fg">{t.detail.stats}</h2>
+    <section className="rounded-3xl border border-border bg-surface-1 p-5 md:p-6">
+      <h2 className="text-base font-medium tracking-tight text-fg md:text-lg">{t.detail.stats}</h2>
       <p className="mt-2 text-xs leading-relaxed text-fg-muted">{quote ? quote.source === "mock" ? (en ? "Demo quote" : "Cotización de demostración") : quote.reference ? (en ? "Reference quote" : "Cotización de referencia") : (en ? "Token quote" : "Cotización del token") : (en ? "No quote" : "Sin cotización")} · {shownCurrency}</p>
-      <p className="mt-1 text-xs leading-relaxed text-fg-muted">{historyDescription(historySource, en)} · {bars ? (en ? "Extremes of verified bars" : "Extremos de barras verificadas") : (en ? "Extremes of available observations" : "Extremos de registros disponibles")}{shownCurrency === "CLP" ? (en ? " · converted at current reference FX" : " · convertidos al dólar de referencia actual") : ""}</p>
       {historyRefreshFailed ? <p role="status" className="mt-2 text-xs text-warn">{en ? "Refresh failed; previous observations are shown." : "No se pudo actualizar; se muestran los registros anteriores."}</p> : null}
-      <dl className="mt-3 grid grid-cols-1 gap-x-12 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
+      <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-3 sm:gap-x-6 lg:grid-cols-2 xl:grid-cols-3">
         {/* Precio actual: mismo `quote.priceUsd` del titular, en tu moneda. */}
-        <DataRow label={shownCurrency === "CLP" ? t.detail.priceClp : t.detail.priceUsd}>
+        <StatCell label={shownCurrency === "CLP" ? t.detail.priceClp : t.detail.priceUsd}>
           {quoteCellPending ? (
-            <Skeleton className="ml-auto h-4 w-20" />
+            <Skeleton className="h-4 w-20" />
           ) : priceNow === null ? (
             <MissingFigure label={t.detail.unavailable} />
           ) : (
             priceNow
           )}
-        </DataRow>
+        </StatCell>
         {/* 24 h: quote.change24hPct. En vivo es Jupiter priceChange24h, igual que el mercado. */}
-        <DataRow label={t.detail.change24h}>
+        <StatCell label={t.detail.change24h}>
           {quoteCellPending ? (
-            <Skeleton className="ml-auto h-4 w-16" />
+            <Skeleton className="h-4 w-16" />
           ) : quote && Number.isFinite(quote.change24hPct) ? (
             <ChangeBadge value={quote.change24hPct} className="align-middle" />
           ) : (
             <MissingFigure label={t.detail.unavailable} />
           )}
-        </DataRow>
-        <DataRow label={fill(t.detail.rangeChange, { range: caption })}>
+        </StatCell>
+        <StatCell label={fill(t.detail.rangeChange, { range: caption })}>
           {historyPending ? (
-            <Skeleton className="ml-auto h-4 w-16" />
+            <Skeleton className="h-4 w-16" />
           ) : move === null ? (
             <MissingFigure label={rangeMissing} />
           ) : (
             <ChangeBadge value={move} className="align-middle" />
           )}
-        </DataRow>
-        <DataRow label={`${highLabel} · ${caption}`}>
-          {historyPending ? <Skeleton className="ml-auto h-4 w-20" /> : high === null ? <MissingFigure label={rangeMissing} /> : high}
-        </DataRow>
-        <DataRow label={`${lowLabel} · ${caption}`}>
-          {historyPending ? <Skeleton className="ml-auto h-4 w-20" /> : low === null ? <MissingFigure label={rangeMissing} /> : low}
-        </DataRow>
-        <DataRow label={t.detail.marketPrice}>
+        </StatCell>
+        <StatCell label={`${highLabel} · ${caption}`}>
+          {historyPending ? <Skeleton className="h-4 w-20" /> : high === null ? <MissingFigure label={rangeMissing} /> : high}
+        </StatCell>
+        <StatCell label={`${lowLabel} · ${caption}`}>
+          {historyPending ? <Skeleton className="h-4 w-20" /> : low === null ? <MissingFigure label={rangeMissing} /> : low}
+        </StatCell>
+        <StatCell label={t.detail.marketPrice}>
           {quoteCellPending ? (
-            <Skeleton className="ml-auto h-4 w-20" />
+            <Skeleton className="h-4 w-20" />
           ) : quote?.marketPriceUsd !== undefined && Number.isFinite(quote.marketPriceUsd) ? (
             moneyText(quote.marketPriceUsd, shownCurrency, rate)
           ) : (
             <MissingFigure label={t.detail.unavailable} />
           )}
-        </DataRow>
-        <DataRow label={t.detail.poolLiquidity}>
+        </StatCell>
+        <StatCell label={t.detail.poolLiquidity}>
           {quoteCellPending ? (
-            <Skeleton className="ml-auto h-4 w-20" />
+            <Skeleton className="h-4 w-20" />
           ) : quote?.liquidityUsd !== undefined && Number.isFinite(quote.liquidityUsd) ? (
             formatMoney(quote.liquidityUsd, "USD")
           ) : (
             <MissingFigure label={t.detail.unavailable} />
           )}
-        </DataRow>
+        </StatCell>
         {/* Ficha del activo: sólo campos que existen en `ticker` (sin cifras inventadas). */}
-        <DataRow label={t.detail.issuer} mono={false}>{issuer}</DataRow>
-        <DataRow label={t.detail.category} mono={false}>{categoryLabel}</DataRow>
-        <DataRow label={t.detail.status} mono={false}>{estadoText}</DataRow>
+        <StatCell label={t.detail.issuer} mono={false}>{issuer}</StatCell>
+        <StatCell label={t.detail.category} mono={false}>{categoryLabel}</StatCell>
+        <StatCell label={t.detail.status} mono={false}>{estadoText}</StatCell>
       </dl>
+      <div className="mt-4">
+        <Accordion
+          items={[
+            {
+              id: "stats-provenance",
+              title: en ? "Data origin and notes" : "Origen y notas de los datos",
+              content: (
+                <p className="text-xs leading-relaxed text-fg-muted">
+                  {historyDescription(historySource, en)} · {bars ? (en ? "Extremes of verified bars" : "Extremos de barras verificadas") : (en ? "Extremes of available observations" : "Extremos de registros disponibles")}
+                  {shownCurrency === "CLP" ? (en ? " · converted at current reference FX" : " · convertidos al dólar de referencia actual") : ""}
+                </p>
+              ),
+            },
+          ]}
+        />
+      </div>
     </section>
   );
 }
@@ -995,7 +1052,7 @@ export function DetailScreen({
             {t.detail.backToMarket}
           </Link>
 
-          <header className="flex flex-wrap items-center gap-x-4 gap-y-3">
+          <header className="flex items-center gap-x-3 sm:gap-x-4">
             <span className="shrink-0">
               <TickerLogo
                 symbol={ticker.symbol}
@@ -1007,11 +1064,11 @@ export function DetailScreen({
                 sizes="56px"
               />
             </span>
-            <div className="min-w-0 flex-1 basis-44">
-              <h1 className="max-w-full text-[27px] leading-[1.08] break-words text-balance sm:text-[32px]">
+            <div className="min-w-0 flex-1">
+              <h1 className="line-clamp-2 max-w-full text-xl leading-[1.15] [overflow-wrap:anywhere] sm:line-clamp-1 sm:text-[32px] sm:leading-[1.08]">
                 {ticker.name}
               </h1>
-              <p className="num mt-1.5 max-w-full text-xs leading-5 break-words text-fg-muted">
+              <p className="num mt-1 max-w-full truncate text-xs leading-5 text-fg-muted sm:mt-1.5">
                 <span className="font-medium text-fg">{ticker.symbol}</span>
                 <span aria-hidden> · </span>
                 <span className="font-sans">
@@ -1020,11 +1077,11 @@ export function DetailScreen({
                 </span>
               </p>
             </div>
-            <div className="flex w-full min-w-0 items-center justify-end gap-0.5 sm:w-auto sm:basis-auto">
-              <span className="mr-auto hidden sm:block">
+            <div className="-mr-1.5 flex shrink-0 items-center justify-end gap-0 sm:mr-0 sm:gap-0.5">
+              <span className="mr-2 hidden sm:block">
                 <AskAiButton ticker={ticker.symbol} />
               </span>
-              <AlertButton labeled={false} symbol={ticker.symbol} name={ticker.name} priceUsd={quote?.priceUsd ?? null} />
+              <AlertButton iconOnly symbol={ticker.symbol} name={ticker.name} priceUsd={quote?.priceUsd ?? null} />
               <FavoriteButton pressed={saved} label={favoriteLabel} onToggle={() => toggle(ticker.symbol)} />
               <ShareButton name={ticker.name} />
             </div>
@@ -1162,19 +1219,20 @@ export function DetailScreen({
           { value: "company", label: language === "en" ? "Company" : "Empresa", content: <div className="flex min-w-0 flex-col gap-8">
         <CompanyCard symbol={ticker.symbol} />
 
-        <section className="flex flex-col gap-3 border-t border-border pt-8">
-          <h2 className="text-lg font-medium tracking-tight text-fg">{t.detail.aboutTitle}</h2>
-          <p className={NOTE}>{t.detail.aboutNote}</p>
-          <p className="max-w-prose text-[15px] leading-relaxed text-pretty text-fg-body">
-            {aboutText ?? t.detail.aboutMissing}
-          </p>
+        <section className="flex flex-col gap-3 rounded-3xl border border-border bg-surface-1 p-5 md:p-6">
+          <h2 className="text-base font-medium tracking-tight text-fg md:text-lg">{t.detail.aboutTitle}</h2>
+          <ClampedText
+            text={aboutText ?? t.detail.aboutMissing}
+            className="max-w-prose text-[15px] leading-relaxed text-pretty text-fg-body"
+          />
+          <p className={cn("border-t border-border pt-3", NOTE)}>{t.detail.aboutNote}</p>
         </section>
 
 
           </div> },
           { value: "token", label: language === "en" ? "Token and risks" : "Token y riesgos", content: <div className="flex min-w-0 flex-col gap-8">
-        <section className="flex flex-col gap-4 border-t border-border pt-8">
-          <h2 className="text-lg font-medium tracking-tight text-fg">{t.detail.tokenTitle}</h2>
+        <section className="flex flex-col gap-4 rounded-3xl border border-border bg-surface-1 p-5 md:p-6">
+          <h2 className="text-base font-medium tracking-tight text-fg md:text-lg">{t.detail.tokenTitle}</h2>
           <p className="max-w-prose text-sm leading-relaxed text-pretty text-fg-body">
             {fill(t.detail.tokenLead, { issuer: ticker.issuer, brand: site.name, name: ticker.name })}
           </p>
