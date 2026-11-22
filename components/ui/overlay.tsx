@@ -176,6 +176,8 @@ export function OverlayPanel({
   panelStyle,
   grabber = false,
   dismissible = true,
+  beforeTitle,
+  panelState,
 }: {
   open: boolean;
   onClose: () => void;
@@ -187,6 +189,10 @@ export function OverlayPanel({
   panelStyle?: CSSProperties;
   grabber?: boolean;
   dismissible?: boolean;
+  /** Se pinta antes del título (p. ej. el asa de arrastre de la hoja). Debe ser un `<span>`. */
+  beforeTitle?: ReactNode;
+  /** Se publica como `data-state` del panel para estilos por estado. */
+  panelState?: string;
 }) {
   const close = () => { if (dismissible) onClose(); };
   const { panel, setPanel } = useOverlay(open, close);
@@ -212,9 +218,11 @@ export function OverlayPanel({
           aria-describedby={description ? descriptionId : undefined}
           tabIndex={-1}
           style={panelStyle}
+          data-state={panelState}
           className={cn("relative z-10 outline-none", panelClassName)}
         >
           {grabber ? <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-surface-3 md:hidden" aria-hidden /> : null}
+          {beforeTitle}
           <h2 id={titleId} className="pr-16 text-lg font-medium text-balance text-fg">
             {title}
           </h2>

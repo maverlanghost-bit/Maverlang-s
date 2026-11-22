@@ -91,6 +91,10 @@
   --animate-sheet-up: sheet-up 240ms var(--ease-spring) both;
   --animate-sheet-side: sheet-side 240ms var(--ease-spring) both;
   --animate-tab: tab-in 240ms var(--ease-spring) both;
+  --animate-success-pop: success-pop 560ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  --animate-success-ring: success-ring 1100ms var(--ease-inout) both;
+  --animate-check-draw: check-draw 420ms var(--ease-inout) both;
+  --animate-success-text: tab-in 360ms var(--ease-spring) both;
 
   @keyframes marquee {
     from { transform: translateX(0); }
@@ -119,6 +123,18 @@
   @keyframes tab-in {
     from { opacity: 0; transform: translateY(8px); }
     to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes success-pop {
+    from { opacity: 0; transform: scale(0.4); }
+    to { opacity: 1; transform: scale(1); }
+  }
+  @keyframes success-ring {
+    from { opacity: 0.55; transform: scale(1); }
+    to { opacity: 0; transform: scale(1.9); }
+  }
+  @keyframes check-draw {
+    from { stroke-dashoffset: 1; }
+    to { stroke-dashoffset: 0; }
   }
 }
 

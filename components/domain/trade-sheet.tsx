@@ -12,7 +12,7 @@ import { LimitOrdersPanel } from "@/components/domain/limit-orders-panel";
 import { MarketStatusPill } from "@/components/domain/market-status-pill";
 import { RealAccountEmpty } from "@/components/domain/real-account-empty";
 import { TickerLogo } from "@/components/domain/ticker-logo";
-import { preloadTradeConfirmationWave, TradeConfirmationHeading } from "@/components/domain/trade-confirmation-wave";
+import { doneTitle, preloadTradeConfirmationWave, TradeConfirmationHeading } from "@/components/domain/trade-confirmation-wave";
 import { TradeExecutionStepper } from "@/components/domain/trade-execution-stepper";
 import { AmountInput } from "@/components/ui/amount-input";
 import { Button } from "@/components/ui/button";
@@ -739,7 +739,12 @@ function TradeFlow({ side, ticker, onBusyChange }: { side: Side; ticker: Ticker;
     return (
       <div role="status" aria-live="polite" className="flex min-h-0 flex-1 flex-col">
         <div className="flex flex-col gap-6 pb-8">
-          <TradeConfirmationHeading key={result.id} title={t.trade.done} summary={summary} animate={result.status === "confirmed"} />
+          <TradeConfirmationHeading
+            key={result.id}
+            title={result.status === "confirmed" ? doneTitle(result.side, isEnglish) : t.trade.done}
+            summary={summary}
+            animate={result.status === "confirmed"}
+          />
 
           <dl className="divide-y divide-border border-y border-border">
             <StatementRow label={doc.folio} value={`#MV-${result.id.slice(0, 8).toUpperCase()}`} />
@@ -1235,7 +1240,7 @@ export function TradeSheet({
   const title = fill(side === "sell" ? t.detail.tradeSell : t.detail.tradeBuy, { name: ticker.name });
 
   return (
-    <Sheet open={open} onOpenChange={(next) => { if (!executing) onOpenChange(next); }} title={title} fill dismissible={!executing}>
+    <Sheet open={open} onOpenChange={(next) => { if (!executing) onOpenChange(next); }} title={title} fill dismissible={!executing} mobile="card">
       {onSideChange ? <div className="mb-4 shrink-0"><SegmentedControl label={language === "en" ? "Operation" : "Operación"} value={side} fullWidth options={[{ value: "buy", label: t.detail.buy, disabled: executing || !allowBuy }, { value: "sell", label: t.detail.sell, disabled: executing || !allowSell }]} onChange={(next) => { if (!executing && (next === "buy" ? allowBuy : allowSell)) onSideChange(next === "sell" ? "sell" : "buy"); }} /></div> : null}
       <TradeFlow key={`${side}:${ticker.symbol}`} side={side} ticker={ticker} onBusyChange={setExecuting} />
     </Sheet>
