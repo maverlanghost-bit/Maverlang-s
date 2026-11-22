@@ -220,7 +220,7 @@ export function AmountInput({
         <div className="mt-2.5 min-h-5 text-[13px] leading-5 text-fg-muted">{caption}</div>
       ) : null}
 
-      <div className={cn("mt-2 flex flex-wrap items-center gap-x-1", chipsClassName)}>
+      <div className={cn("mt-3 flex flex-wrap items-center gap-2", chipsClassName)}>
         {shownChips.map((chip) => {
           const target = chip.value === "max" ? (max === undefined ? null : asRaw(max, currency)) : asRaw(chip.value, currency);
           const pressed = target !== null && value === target;
@@ -232,10 +232,13 @@ export function AmountInput({
               disabled={chip.value === "max" && max === undefined}
               onClick={() => applyQuick(chip.value)}
               className={cn(
-                "inline-flex min-h-11 min-w-11 touch-manipulation items-center justify-center rounded-md px-2 text-[12px] leading-none font-medium tracking-[0.01em] tabular-nums transition-colors duration-150 hover:bg-surface-1 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50 sm:min-h-9",
+                // Burbuja: píldora con borde; la elegida se rellena en negro.
+                "relative inline-flex h-9 min-w-14 touch-manipulation items-center justify-center rounded-full border px-3.5 text-[13px] leading-none font-medium tabular-nums transition-[background-color,border-color,color,transform] duration-150 active:scale-[0.97] disabled:pointer-events-none disabled:opacity-50",
+                // Área táctil de 44 px sin agrandar la burbuja.
+                "before:absolute before:-inset-y-1 before:inset-x-0 before:content-['']",
                 pressed
-                  ? "text-fg underline decoration-fg decoration-1 underline-offset-4"
-                  : "text-fg-muted hover:text-fg",
+                  ? "border-fg bg-fg text-bg"
+                  : "border-border bg-surface-1 text-fg-body hover:border-border-strong hover:text-fg",
                 chipClassName,
               )}
             >

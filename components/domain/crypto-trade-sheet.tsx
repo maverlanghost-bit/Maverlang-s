@@ -857,6 +857,7 @@ export function CryptoTradeSheet({
       dismissible={!executing}
       fill
       mobile="card"
+      hideTitleOnMobile
     >
       <CryptoFlow
         key={`${symbol}:${mode}`}

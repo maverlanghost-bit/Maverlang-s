@@ -436,7 +436,7 @@ export function Transcript({
             >
               <div className="flex items-center justify-center">
                 {/* Celular: el isotipo de la barra lateral. Escritorio: el logo ancho. */}
-                <BrandFavicon className="w-36 select-none pointer-events-none lg:hidden" />
+                <BrandFavicon sizes="144px" className="w-36 select-none pointer-events-none lg:hidden" />
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src="/assets/maverlang-logo.png"

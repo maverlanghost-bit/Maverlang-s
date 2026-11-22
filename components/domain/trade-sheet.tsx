@@ -1240,7 +1240,7 @@ export function TradeSheet({
   const title = fill(side === "sell" ? t.detail.tradeSell : t.detail.tradeBuy, { name: ticker.name });
 
   return (
-    <Sheet open={open} onOpenChange={(next) => { if (!executing) onOpenChange(next); }} title={title} fill dismissible={!executing} mobile="card">
+    <Sheet open={open} onOpenChange={(next) => { if (!executing) onOpenChange(next); }} title={title} fill dismissible={!executing} mobile="card" hideTitleOnMobile>
       {onSideChange ? <div className="mb-4 shrink-0"><SegmentedControl label={language === "en" ? "Operation" : "Operación"} value={side} fullWidth options={[{ value: "buy", label: t.detail.buy, disabled: executing || !allowBuy }, { value: "sell", label: t.detail.sell, disabled: executing || !allowSell }]} onChange={(next) => { if (!executing && (next === "buy" ? allowBuy : allowSell)) onSideChange(next === "sell" ? "sell" : "buy"); }} /></div> : null}
       <TradeFlow key={`${side}:${ticker.symbol}`} side={side} ticker={ticker} onBusyChange={setExecuting} />
     </Sheet>

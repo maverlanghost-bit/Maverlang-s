@@ -60,11 +60,14 @@ export function BottomTabs() {
     pathname === "/app/asistente" || pathname.startsWith("/app/asistente/");
   const mode = assistantRoute ? "composer" : "nav";
   const activeIndex = activeMobileTab(pathname);
-  useTabsHeight(navRef, assistantRoute);
+  // La ficha de una acción usa su propia tarjeta inferior de Comprar/Vender.
+  const stockDetailRoute = pathname.startsWith("/app/accion/");
+  const hidden = assistantRoute || stockDetailRoute;
+  useTabsHeight(navRef, hidden);
 
   // El chat tiene su propio compositor abajo y su barra superior: la barra
   // inferior no se monta (antes quedaba un dock vacío con "volver" encima del chat).
-  if (assistantRoute) return null;
+  if (hidden) return null;
 
   return (
     <nav

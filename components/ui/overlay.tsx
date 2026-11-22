@@ -178,6 +178,7 @@ export function OverlayPanel({
   dismissible = true,
   beforeTitle,
   panelState,
+  onScrimClick,
 }: {
   open: boolean;
   onClose: () => void;
@@ -193,6 +194,8 @@ export function OverlayPanel({
   beforeTitle?: ReactNode;
   /** Se publica como `data-state` del panel para estilos por estado. */
   panelState?: string;
+  /** Reemplaza el cierre al tocar el fondo (p. ej. una hoja que sólo se cierra arrastrando). */
+  onScrimClick?: () => void;
 }) {
   const close = () => { if (dismissible) onClose(); };
   const { panel, setPanel } = useOverlay(open, close);
@@ -207,7 +210,7 @@ export function OverlayPanel({
       <div className={cn("fixed inset-0 z-50", frameClassName)}>
         <div
           className="absolute inset-0 animate-fade-in touch-none bg-fg/50"
-          onClick={close}
+          onClick={onScrimClick ?? close}
           aria-hidden
         />
         <div
