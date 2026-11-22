@@ -15,7 +15,7 @@ import {
 import { QuoteExchangeSummary } from "@/components/domain/quote-exchange-summary";
 import { Accordion } from "@/components/ui/accordion";
 import { CostBreakdown } from "@/components/domain/cost-breakdown";
-import { preloadTradeConfirmationWave, TradeConfirmationHeading } from "@/components/domain/trade-confirmation-wave";
+import { doneTitle, preloadTradeConfirmationWave, TradeConfirmationHeading } from "@/components/domain/trade-confirmation-wave";
 import { AmountInput } from "@/components/ui/amount-input";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -520,7 +520,12 @@ function CryptoFlow({
     return (
       <div className="flex min-h-0 flex-1 flex-col">
         <div className="flex flex-col gap-6 pb-8">
-          <TradeConfirmationHeading key={result.id} title={t.trade.done} summary={summary} animate={result.status === "confirmed"} />
+          <TradeConfirmationHeading
+            key={result.id}
+            title={result.status === "confirmed" ? doneTitle(result.side, language === "en") : t.trade.done}
+            summary={summary}
+            animate={result.status === "confirmed"}
+          />
 
           <dl className="divide-y divide-border border-y border-border">
             <StatementRow label="Folio" value={`#MV-${result.id.slice(0, 8).toUpperCase()}`} />
@@ -851,6 +856,7 @@ export function CryptoTradeSheet({
       title={title}
       dismissible={!executing}
       fill
+      mobile="card"
     >
       <CryptoFlow
         key={`${symbol}:${mode}`}

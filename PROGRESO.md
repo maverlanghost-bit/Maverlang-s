@@ -1,5 +1,14 @@
 # PROGRESO — Maverlang
 
+## T85 — Hoja de compra/venta como tarjeta en celular y comprobante animado (2026-11-22)
+- `Sheet` admite `mobile="card"`. En celular la hoja es una tarjeta al 92 dvh, con esquinas superiores de 22 px, sombra de flotante y X.
+- El asa (`SheetGrip`) responde al arrastre: hacia arriba la lleva a pantalla completa, hacia abajo la devuelve o la cierra (> 110 px o gesto rápido). Tocar el asa o usar el teclado alterna entre los dos altos (`aria-expanded`).
+- `OverlayPanel` suma `beforeTitle` y `panelState` (`data-state`). En escritorio sigue el panel lateral. La usan `trade-sheet.tsx` y `crypto-trade-sheet.tsx`.
+- Comprobante (`trade-confirmation-wave.tsx`): en una orden confirmada, un velo con la onda verde cubre toda la tarjeta (~760 ms) y se desvanece. Luego aparecen un círculo verde de 80 px con check blanco que se dibuja, un halo que se expande y el título «Compra realizada» / «Venta realizada» (`doneTitle`). Las órdenes no confirmadas mantienen «¡Listo!» con un check neutro.
+- Keyframes nuevos en `globals.css`: `success-pop`, `success-ring` y `check-draw`. Sin WebGL o con movimiento reducido no hay onda y el check aparece sin espera.
+- Verificación: `tsc` limpio, ESLint de los 5 archivos y 208/208 pruebas relacionadas. En navegador a 375 px se probaron la apertura, el arrastre a pantalla completa, el cierre al arrastrar y una compra demo de US$10 de NVDAx hasta el comprobante. En escritorio a 1280 px el panel lateral sigue igual. Sin e2e, build ni teléfono físico.
+- Pendiente: medir la fluidez de la onda a pantalla completa en un teléfono real; el panel del navegador estaba oculto y retrasó los tiempos. El selector Comprar/Vender sigue visible en el comprobante.
+
 ## T84 — Pulido de la plataforma en celular, primera tanda (2026-11-21)
 - Pedido de Manu en 4 puntos. Se implementó con 3 agentes Sonnet 5.5 de razonamiento medio, con archivos separados, y se cerró con una revisión propia.
 - Barra inferior (`liquid-glass.css`, `bottom-tabs.tsx`): vidrio translúcido (58 %, `saturate(180%) blur(22px)`), con realce interior, brillo especular y píldora activa de vidrio. Respaldos para `@supports`, `prefers-reduced-transparency`, `prefers-reduced-motion` y `forced-colors`. El tab de IA es sólo el texto "AI", sin burbuja.
