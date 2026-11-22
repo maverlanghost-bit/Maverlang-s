@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRef, useState, useSyncExternalStore, type ChangeEvent, type RefObject } from "react";
 
 import { AssistantNavbar } from "@/components/ai/assistant-navbar";
+import { ChatHistoryButton } from "@/components/ai/chat-history-drawer";
 import { Composer } from "@/components/ai/composer";
 import { ContextPicker } from "@/components/ai/context-picker";
 import type { ContextItem } from "@/components/ai/context-types";
@@ -198,6 +199,8 @@ export function ChatView({
         contextCount={contextItems?.length ?? 0}
         onOpenContext={() => setContextOpen(true)}
         leading={
+          <>
+          <ChatHistoryButton />
           <Link
             href="/app"
             aria-label={backLabel}
@@ -205,6 +208,7 @@ export function ChatView({
           >
             <ArrowLeftIcon />
           </Link>
+          </>
         }
       />
 

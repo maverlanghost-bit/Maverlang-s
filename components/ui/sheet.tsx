@@ -119,14 +119,16 @@ function SheetGrip({
         onPointerMove={onPointerMove}
         onPointerUp={onPointerEnd}
         onPointerCancel={onPointerEnd}
-        onClick={() => {
+        onClick={(event) => {
           if (skipClick.current) {
             skipClick.current = false;
             return;
           }
-          onExpandedChange(!expanded);
+          // El toque no hace nada (la tarjeta se mueve arrastrando); Enter/Espacio
+          // (detail 0) sí alterna los dos altos para quien no puede arrastrar.
+          if (event.detail === 0) onExpandedChange(!expanded);
         }}
-        className="flex h-7 w-full cursor-grab touch-none items-end justify-center outline-none active:cursor-grabbing focus-visible:[&>span]:bg-fg"
+        className="flex h-12 w-full cursor-grab touch-none items-start justify-center pt-2.5 outline-none active:cursor-grabbing focus-visible:[&>span]:bg-fg"
       >
         <span aria-hidden className="h-1.5 w-11 rounded-full bg-surface-3 transition-colors" />
       </button>
@@ -157,6 +159,7 @@ export function Sheet({
   fill = false,
   dismissible = true,
   mobile = "full",
+  hideTitleOnMobile = false,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -166,6 +169,8 @@ export function Sheet({
   fill?: boolean;
   dismissible?: boolean;
   mobile?: "full" | "card";
+  /** Tarjeta en celular: el título queda sólo para lectores de pantalla y sin línea bajo la cabecera. */
+  hideTitleOnMobile?: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
   const card = mobile === "card";
@@ -182,6 +187,8 @@ export function Sheet({
       description={description}
       dismissible={dismissible}
       panelState={card ? (expanded ? "expanded" : "peek") : undefined}
+      // En celular la tarjeta se cierra arrastrando hacia abajo o con la X, no tocando el fondo.
+      onScrimClick={card ? () => { if (window.matchMedia(DESKTOP).matches && dismissible) close(); } : undefined}
       beforeTitle={
         card ? (
           <SheetGrip expanded={expanded} onExpandedChange={setExpanded} onDismiss={close} dismissible={dismissible} />
@@ -196,7 +203,13 @@ export function Sheet({
               "h-[92dvh] rounded-t-[22px] border-t border-border px-5 pt-0 shadow-[0_-12px_40px_rgb(0_0_0/0.14)]",
               "transition-[height,border-radius] duration-[240ms] ease-[cubic-bezier(0.25,1,0.5,1)] motion-reduce:transition-none",
               "data-[state=expanded]:h-[100dvh] data-[state=expanded]:rounded-t-none data-[state=expanded]:pt-[env(safe-area-inset-top)]",
-              "[&>button]:top-4 data-[state=expanded]:[&>button]:top-[calc(env(safe-area-inset-top)+1rem)]",
+              hideTitleOnMobile
+                ? [
+                    // Fila superior de 48 px: asa al centro y X a la derecha; sin título ni línea.
+                    "max-md:[&>h2]:sr-only max-md:[&>div]:border-t-0 max-md:[&>div]:pt-1",
+                    "[&>button]:top-1 data-[state=expanded]:[&>button]:top-[calc(env(safe-area-inset-top)+0.25rem)]",
+                  ]
+                : "[&>button]:top-4 data-[state=expanded]:[&>button]:top-[calc(env(safe-area-inset-top)+1rem)]",
             ]
           : [
               // Móvil: pantalla completa, sin esquinas ni hueco sobre el scrim.
@@ -214,7 +227,7 @@ export function Sheet({
         "md:inset-y-0 md:right-0 md:left-auto md:h-full md:max-h-none md:w-[26rem] md:rounded-l-xl md:rounded-tr-none md:border-t-0 md:border-l md:border-border md:px-7 md:pt-5 md:shadow-none md:animate-sheet-side lg:w-[28rem]",
         "md:[&>button]:top-5 md:[&>div]:-mx-7 md:[&>div]:px-7",
         description ? "[&>h2]:pb-1 [&>p]:pb-3" : "[&>h2]:pb-3",
-        card && "[&>h2]:pt-1",
+        card && !hideTitleOnMobile && "[&>h2]:pt-1",
         fill ? "pb-0 [&>div]:flex [&>div]:flex-col" : "pb-[max(1.5rem,env(safe-area-inset-bottom))] md:pb-7",
       )}
     >

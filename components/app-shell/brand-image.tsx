@@ -15,8 +15,14 @@ import { cn } from "@/lib/cn";
 const FAVICON_FRAME = "598 / 198";
 const FAVICON_FOCUS = "center 47.5%";
 
-/** El mismo archivo que el favicon, recortado a la tinta. */
-export function BrandFavicon({ className }: { className?: string }) {
+/**
+ * El mismo archivo que el favicon, recortado a la tinta.
+ *
+ * `sizes` debe reflejar el ancho real en pantalla: con el valor por defecto
+ * (40px) el navegador pide la variante de 48-64 px y la estira, y se ve borroso
+ * en tamaños grandes. Para 144 px pasar "144px" (elige la de 640 px).
+ */
+export function BrandFavicon({ className, sizes = "40px" }: { className?: string; sizes?: string }) {
   return (
     <span className={cn("relative block overflow-hidden", className)} style={{ aspectRatio: FAVICON_FRAME }}>
       <Image
@@ -24,7 +30,7 @@ export function BrandFavicon({ className }: { className?: string }) {
         alt=""
         fill
         loading="eager"
-        sizes="40px"
+        sizes={sizes}
         className="object-cover"
         style={{ objectPosition: FAVICON_FOCUS }}
       />

@@ -1,5 +1,15 @@
 # PROGRESO — Maverlang
 
+## T89 — Compra en tarjeta inferior y chat con historial en celular (2026-11-22)
+- Ficha (`detail-screen.tsx`): sin barra inferior en `/app/accion/*` (`bottom-tabs.tsx`). La barra pasa a `PeekCard`, una tarjeta redondeada con asa, precio, 24 h, posición y Comprar/Vender. Arrastrar hacia arriba (> 56 px) o tocar el asa abre la hoja. Los botones conservan su toque.
+- Hoja (`sheet.tsx`, `overlay.tsx`): `hideTitleOnMobile` deja el título sólo para lectores de pantalla y quita la línea. La fila superior de 48 px tiene el asa y la X.
+- Hoja, gestos: en celular tocar el fondo o el asa ya no la cierra ni la cambia de tamaño (`onScrimClick`). Se mueve arrastrando y el teclado alterna con Enter/Espacio. Aplica a acciones y cripto.
+- Montos rápidos (`amount-input.tsx`): burbujas de 36 px con área táctil de 44; la elegida se rellena en negro. Aplica en acciones, cripto y billetera.
+- Chat (agente Sonnet 5.5): el isotipo se veía borroso por `sizes="40px"`. `BrandFavicon` acepta `sizes` y el chat pide la variante de 640 px desde el PNG de 598 (~4× a 144 px).
+- Chat, historial: nuevo `chat-history-drawer.tsx`, un botón «Abrir conversaciones» a la izquierda de volver que abre un panel izquierdo con Nuevo chat, Buscar y `NavChatsHistory`. Usa los eventos existentes.
+- Verificación: `tsc`, ESLint de los archivos tocados y 210/210 archivos de pruebas. En navegador a 375 px se comprobaron el arrastre que abre la hoja, que el fondo no cierre, el cierre arrastrando hacia abajo, las burbujas, el panel de conversaciones (Escape cierra) y la nitidez del logo.
+- Pendiente: el panel repite el encabezado «Chats» de `NavChatsHistory` y no tiene animación de entrada. La ficha de cripto conserva su barra inferior. Sin push.
+
 ## T88 — Publicación de las mejoras de celular (2026-11-22)
 - A pedido de Manu se publicaron en `main` sólo T84–T87, aplicados con cherry-pick sobre `origin/main` (`a9a9f25..28d6502`), sin conflictos. T83 (auditoría) y el WIP previo quedan sólo en `fix/auditoria-v3` (subida a GitHub). No se mezclan a `main` hasta cargar las variables de Vercel, aplicar las migraciones 0045→0059 en producción y resolver el plan de los crons (`docs/PRODUCCION-CHECKLIST.md`).
 - Riesgo conocido: el repo es público y `fix/auditoria-v3` expone las correcciones de T83 antes de desplegarlas. Manu eligió subirla igual.

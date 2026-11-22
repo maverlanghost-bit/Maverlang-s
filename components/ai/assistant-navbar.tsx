@@ -205,7 +205,7 @@ export function AssistantNavbar({
 
   return (
     <>
-      {leading ? <div className="absolute left-3 top-3 z-30 flex items-center">{leading}</div> : null}
+      {leading ? <div className="absolute left-3 top-3 z-30 flex items-center gap-2.5">{leading}</div> : null}
 
       <div className={cn("absolute right-3 top-3 z-30 flex items-center gap-2.5", className)}>
         <button

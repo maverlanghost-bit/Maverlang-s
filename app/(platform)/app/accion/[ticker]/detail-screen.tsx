@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode, type RefObject } from "react";
+import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode, type RefObject } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -346,12 +346,12 @@ function AccountActions({
     return (
       <div
         ref={barRef}
-        className="fixed inset-x-0 z-20 border-t border-border bg-bg/95 px-4 pt-3 backdrop-blur-xl lg:hidden"
-        style={
-          aboveTabs
-            ? { bottom: "var(--app-tabs-height)" }
-            : { bottom: 0, paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }
-        }
+        className="fixed inset-x-0 z-20 rounded-t-[22px] border-t border-border bg-bg px-4 pt-4 shadow-[0_-10px_32px_rgb(0_0_0/0.10)] lg:hidden"
+        style={{
+          // En la ficha la barra inferior no se monta (`--app-tabs-height` = 0); se conserva por si cambia.
+          bottom: aboveTabs ? "var(--app-tabs-height)" : 0,
+          paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))",
+        }}
       >
         <div className="mx-auto max-w-6xl">{buttons}</div>
       </div>
@@ -369,6 +369,93 @@ function AccountActions({
       />
       <div className="mt-5 border-t border-border pt-5">{buttons}</div>
     </Card>
+  );
+}
+
+/** Arrastre hacia arriba (px) que abre el panel de compra/venta. */
+const PEEK_OPEN_PX = 56;
+
+/**
+ * Tarjeta inferior de la ficha en celular: asoma con el precio y Comprar/Vender.
+ * Arrastrarla hacia arriba (o tocar su asa) abre la hoja completa para operar.
+ */
+function PeekCard({
+  barRef,
+  onPull,
+  pullLabel,
+  children,
+}: {
+  barRef: RefObject<HTMLDivElement | null>;
+  onPull: (() => void) | null;
+  pullLabel: string;
+  children: ReactNode;
+}) {
+  const [lift, setLift] = useState(0);
+  const drag = useRef<{ y0: number; moved: boolean } | null>(null);
+  const skipClick = useRef(false);
+
+  function onPointerDown(event: ReactPointerEvent<HTMLDivElement>) {
+    if (!onPull || event.button !== 0) return;
+    // Los botones de la tarjeta conservan su toque; el arrastre nace del asa o del precio.
+    const target = event.target as HTMLElement;
+    if (target.closest("button:not([data-peek-grip]), a")) return;
+    drag.current = { y0: event.clientY, moved: false };
+    event.currentTarget.setPointerCapture(event.pointerId);
+  }
+
+  function onPointerMove(event: ReactPointerEvent<HTMLDivElement>) {
+    const d = drag.current;
+    if (!d) return;
+    const dy = d.y0 - event.clientY;
+    if (Math.abs(dy) > 4) d.moved = true;
+    // Resistencia: la tarjeta sube menos que el dedo y nunca baja.
+    setLift(dy > 0 ? Math.min(dy * 0.6, 96) : 0);
+  }
+
+  function onPointerEnd(event: ReactPointerEvent<HTMLDivElement>) {
+    const d = drag.current;
+    drag.current = null;
+    if (!d) return;
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+    const dy = d.y0 - event.clientY;
+    setLift(0);
+    if (d.moved) {
+      skipClick.current = true;
+      if (dy > PEEK_OPEN_PX) onPull?.();
+    }
+  }
+
+  return (
+    <div
+      ref={barRef}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerEnd}
+      onPointerCancel={onPointerEnd}
+      className={cn(
+        "fixed inset-x-0 bottom-0 z-20 rounded-t-[22px] border-t border-border bg-bg px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-[0_-10px_32px_rgb(0_0_0/0.10)] lg:hidden",
+        lift === 0 && "transition-transform duration-[240ms] ease-[cubic-bezier(0.25,1,0.5,1)] motion-reduce:transition-none",
+      )}
+      style={lift ? { transform: `translateY(${-lift}px)` } : undefined}
+    >
+      <button
+        type="button"
+        data-peek-grip
+        aria-label={pullLabel}
+        disabled={!onPull}
+        onClick={() => {
+          if (skipClick.current) {
+            skipClick.current = false;
+            return;
+          }
+          onPull?.();
+        }}
+        className="flex h-6 w-full cursor-grab touch-none items-start justify-center pt-2 outline-none disabled:cursor-default focus-visible:[&>span]:bg-fg"
+      >
+        <span aria-hidden className="h-1.5 w-11 rounded-full bg-surface-3" />
+      </button>
+      <div className="mx-auto max-w-6xl touch-none">{children}</div>
+    </div>
   );
 }
 
@@ -568,22 +655,33 @@ function TradeActions({
     ) : null;
 
   if (variant === "bar") {
+    const openTrade = () => {
+      if (!buyDisabled) onBuy();
+      else if (!sellDisabled) onSell();
+    };
     return (
-      <div
-        ref={barRef}
-        className="fixed inset-x-0 z-20 border-t border-border bg-bg/95 px-4 pt-3 backdrop-blur-xl lg:hidden"
-        style={{ bottom: "var(--app-tabs-height)" }}
+      <PeekCard
+        barRef={barRef}
+        onPull={buyDisabled && sellDisabled ? null : openTrade}
+        pullLabel={language === "en" ? "Open trade panel" : "Abrir panel para operar"}
       >
-        <div className="mx-auto max-w-6xl">
-          {positionLine}
-          {buttons}
-          {blockedReason ? (
-            <p id={blockedId} className="mt-2 text-center text-xs leading-relaxed text-fg-muted">
-              {blockedReason}
+        <div className="mb-3 flex min-w-0 items-center justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-xs leading-4 text-fg-muted">{symbol}</p>
+            <p className="num truncate text-lg leading-6 font-medium text-fg">
+              {quote ? shownMoney(quote.priceUsd, currency, rate) : "—"}
             </p>
-          ) : null}
+          </div>
+          {quote && Number.isFinite(quote.change24hPct) ? <ChangeBadge value={quote.change24hPct} /> : null}
         </div>
-      </div>
+        {positionLine}
+        {buttons}
+        {blockedReason ? (
+          <p id={blockedId} className="mt-2 text-center text-xs leading-relaxed text-fg-muted">
+            {blockedReason}
+          </p>
+        ) : null}
+      </PeekCard>
     );
   }
 
