@@ -46,8 +46,7 @@ export function FinalCTA() {
   return (
     <LandingSection titleId="cta-final-title" tone="muted">
       <Reveal className="mx-auto flex max-w-3xl flex-col items-center text-center">
-        <p className="label">Demo gratis</p>
-        <h2 id="cta-final-title" className="mt-4 text-title text-balance">
+        <h2 id="cta-final-title" className="text-title text-balance">
           Prueba la demo antes de usar dinero real
         </h2>
         <p className="mt-5 max-w-[52ch] text-lead text-pretty text-fg-body">
@@ -80,8 +79,8 @@ export function FinalCTA() {
           className="scroll-mt-24 rounded-bento border border-border bg-bg p-6 text-left md:p-8"
         >
           <div className="flex flex-col gap-1 sm:flex-row sm:flex-wrap sm:items-baseline sm:justify-between sm:gap-x-4">
-            <p className="label">Lista de espera</p>
-            <p className="text-sm text-fg-muted">Acceso prioritario · Cuenta Real</p>
+            <p className="text-sm font-medium text-fg">Lista de espera</p>
+            <p className="text-sm text-fg-muted">Acceso prioritario a la cuenta Real</p>
           </div>
 
           <h3 className="mt-3 text-xl leading-snug font-semibold tracking-tight text-fg sm:text-2xl">

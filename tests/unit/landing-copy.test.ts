@@ -11,7 +11,7 @@ function read(relative: string): string {
 describe("M45: copy de la portada alineado con el producto", () => {
   const files = [
     "components/landing/hero.tsx",
-    "components/landing/feature-grid.tsx",
+    "components/landing/fraction-section.tsx",
     "components/landing/final-cta.tsx",
   ];
 
@@ -39,6 +39,6 @@ describe("M45: copy de la portada alineado con el producto", () => {
 
   it("el mínimo del copy sale de la constante del código", () => {
     expect(read("components/landing/hero.tsx")).toContain("LANDING_MIN_ORDER_USD");
-    expect(read("components/landing/feature-grid.tsx")).toContain("LANDING_MIN_ORDER_USD");
+    expect(read("components/landing/fraction-section.tsx")).toContain("LANDING_MIN_ORDER_USD");
   });
 });

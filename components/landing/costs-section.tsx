@@ -5,7 +5,7 @@ import { Reveal } from "@/components/landing/reveal";
 import { site } from "@/config/site";
 import { REVEAL_STAGGER_MS } from "@/lib/hooks/reveal-motion";
 
-const rows: { concept: string; detail: string }[] = [
+export const COST_ROWS: { concept: string; detail: string }[] = [
   {
     concept: `Comisión ${site.name}`,
     detail: "0% en el lanzamiento.",
@@ -116,7 +116,7 @@ export function CostsSection({ showIntro = true }: { showIntro?: boolean }) {
               aria-label="Desglose de costos"
               className="mt-5 divide-y divide-border border-y border-border sm:hidden"
             >
-              {rows.map((row) => (
+              {COST_ROWS.map((row) => (
                 <div key={row.concept} className="py-4">
                   <dt className="text-[15px] font-medium leading-relaxed text-fg">{row.concept}</dt>
                   <dd className="mt-2 text-[15px] leading-relaxed text-fg-body">{row.detail}</dd>
@@ -139,7 +139,7 @@ export function CostsSection({ showIntro = true }: { showIntro?: boolean }) {
                   </tr>
                 </thead>
                 <tbody>
-                  {rows.map((row) => (
+                  {COST_ROWS.map((row) => (
                     <tr
                       key={row.concept}
                       className="border-b border-border transition-colors last:border-b-0 hover:bg-surface-1 motion-reduce:transition-none"
