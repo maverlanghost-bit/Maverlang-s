@@ -1,5 +1,12 @@
 # PROGRESO — Maverlang
 
+## T92 — Publicación de T89-T91 y estimación de capacidad (2026-11-23)
+- Publicación: T89-T91 a `main` por cherry-pick (`35ae8f3`). Vercel lo bloqueó ("Deployment was blocked"): con el repo privado, el plan Hobby sólo publica commits del dueño y los commits salen como Mbrop-13. Manu volvió el repo a público y un commit vacío (`a51f449`) disparó el despliegue: Vercel "success".
+- Verificado en producción: portada nueva, `/app`, ficha NVDAx y `/api/health` en 200. El historial de NVDAx sale de GeckoTerminal y de la CDN (`X-Vercel-Cache: HIT`).
+- Capacidad: `docs/CAPACIDAD-500-USUARIOS.md`. Estima ~10-15 peticiones por minuto por usuario (~85-125 por segundo en el borde, ~25 por segundo a funciones con 500 usuarios). Riesgos: plan Hobby de Vercel, límites por IP con CGNAT móvil, cupo de Upstash, GeckoTerminal gratis, planes de Supabase y Privy, tope global de IA.
+- Medición propuesta: k6 contra una vista previa (no producción), desde varias IPs, en escalones de 50/200/500. No se corrió.
+- Pendiente: el repo volvió a ser público con T83 (auditoría) en `fix/auditoria-v3`. Para pasarlo a privado sin perder despliegues hay que usar Vercel Pro o hacer los commits con la cuenta dueña del proyecto en Vercel.
+
 ## T91 — Gráficos del token en vivo y plataforma en gris frío (2026-11-22)
 - Causa: la ficha mostraba el precio del token (Jupiter, ~US$135) y el gráfico cierres de NVDA en Yahoo (~US$218 en 1M). Un historial "real" nunca se refrescaba.
 - Investigación (agente Sonnet 5.5): TradingView sólo lista xStocks de Kraken (24/5, sin operaciones, precio de Kraken), así que no sirve como gráfico principal. GeckoTerminal sí da velas del pool más líquido del token en Solana.
