@@ -595,7 +595,7 @@ export function MarketScreen({
     <div className="flex min-w-0 flex-col gap-8 lg:gap-10">
       <h1 className="sr-only">{t.pages.market.title}</h1>
       {/* T94: en celular la tarjeta de saldo va arriba; las secciones quedan debajo. */}
-      <MobileBalanceCard className="-mb-3 lg:hidden" />
+      <MobileBalanceCard className="-mx-2 -mb-3 lg:hidden" />
       {sections ? <div className="-mx-5 min-w-0 px-5 sm:mx-0 sm:px-0">{sections}</div> : null}
 
       {/* «Tu día» sólo en escritorio: en celular no se monta (ni consulta datos). */}

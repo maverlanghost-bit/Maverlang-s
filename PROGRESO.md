@@ -1,5 +1,11 @@
 # PROGRESO — Maverlang
 
+## T97 — Tarjeta de saldo en vidrio claro (2026-11-23)
+- `mobile-balance-card.tsx` pasa de negra a vidrio claro: `bg-white/60`, `backdrop-blur-xl` con saturación, borde blanco, realces interiores y degradados fríos para la profundidad, y una sombra muy suave.
+- Se quitaron «Saldo total» y la etiqueta «Demo». El ojo queda junto al monto, así que el relleno es igual arriba y abajo (16 px).
+- Más ancha en celular: `-mx-2` en `market-screen`, con 12 px de margen lateral en vez de 20. «Depositar» va en negro y «Ver cartera» en vidrio. El resultado usa los colores `up`/`down` del sistema.
+- Verificación: `tsc`, ESLint y navegador a 375 px (sin desborde). Sin publicar.
+
 ## T96 — Publicación de T92-T95 en producción (2026-11-23)
 - Cherry-pick de T92-T95 sobre `main`, sin la auditoría T83.
 - Conflictos resueltos con la versión de `main`:
