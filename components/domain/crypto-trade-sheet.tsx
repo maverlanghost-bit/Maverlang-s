@@ -28,13 +28,14 @@ import {
   CRYPTO_REAL_BLOCK_MESSAGE,
   LST_YIELD_NOTICE,
   NON_CUSTODY_LINE,
+  STAKING_RETIRED_MESSAGE,
   USDY_YIELD_NOTICE,
 } from "@/content/crypto-legal";
 import { ApiError, buildTrade, getTradeStatus, quoteTrade, submitTrade } from "@/lib/api/client";
 import { useSession } from "@/lib/auth";
 import { signDemoTransaction } from "@/lib/auth/sign-transaction";
 import { findCryptoBySymbol } from "@/lib/catalog/crypto";
-import { findEarnBySymbol } from "@/lib/catalog/lst";
+import { findEarnBySymbol, isLstSymbol } from "@/lib/catalog/lst";
 import { cn } from "@/lib/cn";
 import { pricePrecision } from "@/lib/charts/data";
 import { formatDateTime, formatMoney } from "@/lib/format";
@@ -903,6 +904,8 @@ export function CryptoBuyPanel({
   const cash = portfolio.data?.cashUsdc ?? null;
   const held = portfolio.data?.positions.find((item) => item.symbol === symbol)?.shares ?? 0;
   const real = accountMode === "real";
+  // T95: staking retirado. Un LST (que no es cripto del catálogo) ya no se compra; se puede vender.
+  const retired = !crypto && isLstSymbol(symbol);
 
   return (
     <Card className="flex flex-col gap-4">
@@ -950,17 +953,23 @@ export function CryptoBuyPanel({
           {CRYPTO_REAL_BLOCK_MESSAGE}
         </p>
       ) : (
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-          <Button
-            size="lg"
-            className="min-h-12 w-full touch-manipulation text-base"
-            onClick={() => {
-              setMode("buy");
-              setOpen(true);
-            }}
-          >
-            Comprar {symbol}
-          </Button>
+        <div className={retired ? "grid grid-cols-1 gap-2" : "grid grid-cols-1 gap-2 sm:grid-cols-2"}>
+          {retired ? (
+            <p role="status" className="rounded-2xl bg-surface-1 px-4 py-3 text-sm leading-relaxed text-fg-body">
+              {STAKING_RETIRED_MESSAGE}
+            </p>
+          ) : (
+            <Button
+              size="lg"
+              className="min-h-12 w-full touch-manipulation text-base"
+              onClick={() => {
+                setMode("buy");
+                setOpen(true);
+              }}
+            >
+              Comprar {symbol}
+            </Button>
+          )}
           <Button
             variant="secondary"
             size="lg"
@@ -979,7 +988,7 @@ export function CryptoBuyPanel({
 
       {!real && portfolio.isSuccess && !(held > 0) ? (
         <p className="text-[13px] leading-5 text-fg-muted">
-          Aún no tienes {symbol}: primero compra para poder vender.
+          {retired ? `No tienes ${symbol}.` : `Aún no tienes ${symbol}: primero compra para poder vender.`}
         </p>
       ) : null}
 

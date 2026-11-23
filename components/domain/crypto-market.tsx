@@ -964,7 +964,7 @@ export function CryptoMarket({ sections }: { sections?: ReactNode }) {
 
       {/* a) Encabezado de subsección */}
       <div className="flex min-w-0 flex-wrap items-center justify-between gap-x-6 gap-y-2 border-b border-border pb-3">
-        <CryptoSubTabs active="tokens" />
+        <CryptoSubTabs />
         <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs leading-5 text-fg-muted">
           <span>Tokens en Solana</span>
           {!listQuery.isPending && !failed && assets.length > 0 ? (
@@ -1105,29 +1105,6 @@ export function CryptoMarket({ sections }: { sections?: ReactNode }) {
                   </p>
                 )}
               </div>
-
-              {/* Tarjeta puente hacia /app/ganar */}
-              <Link
-                href="/app/ganar"
-                className="group flex min-w-0 items-center justify-between gap-4 rounded-xl border border-border bg-surface-1 px-4 py-3.5 transition-colors duration-150 hover:border-border-strong hover:bg-surface-2 focus-visible:ring-2 focus-visible:ring-fg focus-visible:outline-none"
-              >
-                <div className="min-w-0">
-                  <p className="text-sm leading-5 font-medium text-fg">
-                    {isEn
-                      ? "Holding SOL or dollars? Check APY yields in Earn →"
-                      : "¿Tienes SOL o dólares? Revisa rendimientos APY en Ganar →"}
-                  </p>
-                  <p className="mt-0.5 text-xs leading-4 text-fg-muted">
-                    {isEn
-                      ? "Liquid staking (JitoSOL, mSOL, bSOL) and USDY via Jupiter swaps."
-                      : "Staking líquido (JitoSOL, mSOL, bSOL) y USDY mediante swaps en Jupiter."}
-                  </p>
-                </div>
-                <IconChevron
-                  aria-hidden
-                  className="size-4 shrink-0 -rotate-90 text-fg-muted transition-transform duration-150 group-hover:translate-x-0.5 group-hover:text-fg"
-                />
-              </Link>
             </div>
 
             {/* Derecha: Compra rápida cripto */}

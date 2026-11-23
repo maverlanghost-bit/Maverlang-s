@@ -271,7 +271,7 @@ export function MarketScreen({
   initialQuery?: string;
   initialPage?: string;
   initialView?: string;
-  /** Navegación de secciones del mercado (Acciones · Cripto · Ganar · Copiar). */
+  /** Navegación de secciones del mercado (Acciones · Cripto · Copiar · Herramientas). */
   sections?: ReactNode;
 }) {
   const { t, currency, language } = useT();

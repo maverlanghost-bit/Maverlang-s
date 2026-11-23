@@ -20,7 +20,7 @@ export default async function MercadoPage({
 }) {
   const params = await searchParams;
   const showCopy = await isCopyEnabled();
-  // Las secciones del mercado (Acciones · Cripto · Ganar · Copiar) son
+  // Las secciones del mercado (Acciones · Cripto · Copiar) son
   // subnavegación del encabezado: van dentro de la pantalla, bajo el H1.
   return (
     <MarketScreen

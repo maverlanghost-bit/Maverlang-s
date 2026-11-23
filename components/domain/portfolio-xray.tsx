@@ -124,7 +124,7 @@ export function PortfolioXray({
   const rawBuckets: { key: AssetBucketKey; label: string; valueUsd: number }[] = [
     { key: "stocks", label: isEn ? "US Stocks" : "Acciones EE.UU.", valueUsd: stocksUsd },
     { key: "etfs", label: "ETFs", valueUsd: etfsUsd },
-    { key: "crypto", label: isEn ? "Crypto & Staking" : "Cripto & Staking", valueUsd: cryptoUsd },
+    { key: "crypto", label: isEn ? "Crypto" : "Cripto", valueUsd: cryptoUsd },
     { key: "cash", label: isEn ? "USDC Cash" : "Efectivo USDC", valueUsd: safeCashUsd },
   ];
 

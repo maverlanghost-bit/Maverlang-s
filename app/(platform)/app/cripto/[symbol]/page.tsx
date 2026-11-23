@@ -145,8 +145,8 @@ export default async function CriptoFichaPage({ params }: { params: Promise<{ sy
   const accountMode = await readAccountMode();
   const isLst = asset.group === "lst";
   const isUsdy = asset.symbol === "USDY";
-  const backHref = isLst ? "/app/ganar" : "/app/cripto";
-  const backLabel = isLst ? "Volver a Ganar" : "Volver a Cripto";
+  const backHref = "/app/cripto";
+  const backLabel = "Volver a Cripto";
 
   return (
     <div className="flex min-w-0 max-w-full flex-col gap-6">
