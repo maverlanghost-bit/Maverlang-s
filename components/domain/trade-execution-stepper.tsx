@@ -9,6 +9,10 @@ import { useT } from "@/lib/hooks/use-t";
  * firma en la billetera → ruteo vía Jupiter → confirmación on-chain.
  * El contenedor es el `role="status"` que anuncia el texto de accesibilidad
  * (`signingLabel` / `submittingLabel`) que llega por props.
+ *
+ * Vertical y de alto fijo: el paso activo se destaca con un fondo suave y un
+ * anillo que gira; la línea que une los pasos se llena al avanzar. Ningún paso
+ * cambia de tamaño, así nada salta al pasar de uno a otro.
  */
 export function TradeExecutionStepper({
   phase,
@@ -22,9 +26,6 @@ export function TradeExecutionStepper({
   const { language } = useT();
   const isEnglish = language === "en";
   const isSigning = phase === "signing";
-
-  // Progreso aproximado: la firma deja el primer paso cerrado, el ruteo el segundo.
-  const progressPct = isSigning ? 33 : 66;
 
   const steps: readonly {
     title: string;
@@ -55,77 +56,76 @@ export function TradeExecutionStepper({
   ];
 
   return (
-    <div role="status" aria-live="polite" className="flex w-full min-w-0 flex-col gap-5">
-      <div>
-        <p className="label">{isEnglish ? "Executing order" : "Ejecutando orden"}</p>
-        {/* Barra de actividad, no de porcentaje: no promete un avance exacto. */}
-        <div aria-hidden="true" className="mt-3 h-px w-full overflow-hidden bg-border">
-          <div
-            className="h-full bg-fg transition-[width] duration-500 ease-out motion-reduce:transition-none"
-            style={{ width: `${progressPct}%` }}
-          />
-        </div>
-      </div>
+    <div role="status" aria-live="polite" className="flex w-full min-w-0 flex-col gap-4">
+      <p className="label">{isEnglish ? "Executing order" : "Ejecutando orden"}</p>
 
       <ol className="flex flex-col">
         {steps.map((step, index) => {
           const isDone = step.state === "done";
           const isActive = step.state === "active";
-          const isLastWaiting = step.state === "waiting" && index === steps.length - 1;
+          const isLast = index === steps.length - 1;
           return (
             <li
               key={step.title}
               aria-current={isActive ? "step" : undefined}
-              className="relative grid grid-cols-[1.25rem_minmax(0,1fr)] gap-x-3.5 pb-4 last:pb-0"
+              className={cn(
+                "relative grid grid-cols-[1.5rem_minmax(0,1fr)] gap-x-3.5 rounded-2xl px-3 py-3.5 transition-colors duration-500 motion-reduce:transition-none",
+                isActive && "bg-surface-1",
+              )}
             >
-              {index < steps.length - 1 ? (
-                <span
-                  aria-hidden="true"
-                  className="absolute top-5 bottom-0 left-2.5 w-px bg-border"
-                />
+              {!isLast ? (
+                <span aria-hidden="true" className="absolute top-[2.5rem] -bottom-3.5 left-[1.4375rem] w-0.5 overflow-hidden rounded-full bg-border">
+                  <span
+                    className={cn(
+                      "block w-full bg-fg transition-[height] duration-700 ease-out motion-reduce:transition-none",
+                      isDone ? "h-full" : "h-0",
+                    )}
+                  />
+                </span>
               ) : null}
               <span
                 aria-hidden="true"
                 className={cn(
-                  "relative z-10 mt-0.5 grid size-5 place-items-center rounded-full border bg-bg transition-colors duration-300",
-                  isDone && "border-fg bg-fg text-bg",
-                  isActive && "border-fg text-fg",
-                  step.state === "waiting" && "border-control",
-                  isLastWaiting && "motion-safe:animate-pulse motion-reduce:animate-none",
+                  "relative z-10 mt-px grid size-6 place-items-center rounded-full transition-colors duration-500 motion-reduce:transition-none",
+                  isDone && "bg-fg text-bg",
+                  isActive && "bg-bg text-fg",
+                  step.state === "waiting" && "bg-surface-2 text-fg-muted",
                 )}
               >
                 {isDone ? (
-                  <IconCheck className="size-3" />
+                  <IconCheck className="size-3.5" />
                 ) : isActive ? (
-                  <span className="size-1.5 rounded-full bg-fg motion-safe:animate-pulse motion-reduce:animate-none" />
-                ) : null}
+                  <>
+                    <span className="absolute inset-0 rounded-full border-2 border-border" />
+                    <span className="absolute inset-0 rounded-full border-2 border-transparent border-t-fg motion-safe:animate-spin motion-reduce:border-fg" />
+                    <span className="size-1.5 rounded-full bg-fg" />
+                  </>
+                ) : (
+                  <span className="num text-[11px] leading-none font-medium">{index + 1}</span>
+                )}
               </span>
 
               <div className="min-w-0">
                 <p
                   className={cn(
-                    "text-sm leading-5 font-medium text-balance",
-                    step.state === "waiting" ? "text-fg-muted" : "text-fg",
+                    "text-sm leading-6 text-balance transition-colors duration-500 motion-reduce:transition-none",
+                    isActive ? "font-medium text-fg" : isDone ? "font-medium text-fg-body" : "text-fg-muted",
                   )}
                 >
                   {step.title}
                 </p>
-                <p className="mt-0.5 text-[13px] leading-relaxed text-fg-muted">{step.detail}</p>
+                <p className={cn("mt-0.5 text-[13px] leading-relaxed", isActive ? "text-fg-body" : "text-fg-muted")}>
+                  {step.detail}
+                </p>
               </div>
             </li>
           );
         })}
       </ol>
 
-      <div className="flex items-start gap-2.5 border-t border-border pt-4">
-        <span
-          aria-hidden="true"
-          className="mt-[0.4375rem] size-1.5 shrink-0 rounded-full bg-fg motion-safe:animate-pulse motion-reduce:animate-none"
-        />
-        <p className="text-sm leading-relaxed text-balance text-fg-body">
-          {isSigning ? signingLabel : submittingLabel}
-        </p>
-      </div>
+      <p className="px-3 text-[13px] leading-relaxed text-balance text-fg-muted">
+        {isSigning ? signingLabel : submittingLabel}
+      </p>
     </div>
   );
 }

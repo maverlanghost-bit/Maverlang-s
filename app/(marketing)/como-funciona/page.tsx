@@ -186,7 +186,7 @@ export default async function ComoFuncionaPage() {
         actions={
           <>
             <Button asChild>
-              <Link href="/app/registro">Probar la demo</Link>
+              <Link href="/app/registro">Conoce la plataforma</Link>
             </Button>
             <Button asChild variant="secondary">
               <Link href="/acciones">Ver acciones</Link>

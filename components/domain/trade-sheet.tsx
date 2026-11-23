@@ -12,7 +12,7 @@ import { LimitOrdersPanel } from "@/components/domain/limit-orders-panel";
 import { MarketStatusPill } from "@/components/domain/market-status-pill";
 import { RealAccountEmpty } from "@/components/domain/real-account-empty";
 import { TickerLogo } from "@/components/domain/ticker-logo";
-import { doneTitle, preloadTradeConfirmationWave, TradeConfirmationHeading } from "@/components/domain/trade-confirmation-wave";
+import { doneTitle, preloadTradeConfirmationWave, receiptRowDelay, TradeConfirmationHeading } from "@/components/domain/trade-confirmation-wave";
 import { TradeExecutionStepper } from "@/components/domain/trade-execution-stepper";
 import { AmountInput } from "@/components/ui/amount-input";
 import { Button } from "@/components/ui/button";
@@ -44,6 +44,7 @@ import {
   maxAmount,
   parseAmount,
   quickTradeAmounts,
+  resolveSellRequest,
   type AmountBlock,
   type TradeAmountCurrency,
 } from "@/lib/trade/amount";
@@ -191,25 +192,47 @@ function blockCopy(
 }
 
 /**
- * Barra fina de validez de la cotización: se vacía a medida que pasa el tiempo
- * y avisa en ámbar/rojo cuando queda poco. Sólo informa, no es interactiva.
+ * Anillo fino de validez de la cotización: se vacía con el tiempo y pasa a
+ * ámbar/rojo cuando queda poco. Sólo informa, no es interactivo.
  */
-function QuoteValidityBar({ remainingMs, language }: { remainingMs: number; language: "es-CL" | "en" }) {
+function QuoteValidityRing({ remainingMs, language }: { remainingMs: number; language: "es-CL" | "en" }) {
   const pct = Math.max(0, Math.min(100, (remainingMs / QUOTE_VALIDITY_MS) * 100));
-  const tone = pct < 15 ? "bg-down" : pct < 30 ? "bg-warn" : "bg-fg";
+  const tone = pct < 15 ? "text-down" : pct < 30 ? "text-warn" : "text-fg";
+  const radius = 7;
+  const circumference = 2 * Math.PI * radius;
   return (
-    <div
+    <svg
       role="progressbar"
       aria-valuemin={0}
       aria-valuemax={100}
       aria-valuenow={Math.round(pct)}
       aria-label={language === "en" ? "Quote validity" : "Validez de la cotización"}
-      className="h-0.5 w-full overflow-hidden rounded-full bg-border"
+      viewBox="0 0 18 18"
+      className={cn("size-[18px] shrink-0 -rotate-90", tone)}
+      fill="none"
     >
-      <div
-        className={cn(tone, "h-full rounded-full transition-[width,background-color] duration-1000 ease-linear motion-reduce:transition-none")}
-        style={{ width: `${pct}%` }}
+      <circle cx="9" cy="9" r={radius} stroke="currentColor" strokeOpacity="0.16" strokeWidth="2" />
+      <circle
+        cx="9"
+        cy="9"
+        r={radius}
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeDasharray={circumference}
+        strokeDashoffset={circumference * (1 - pct / 100)}
+        className="transition-[stroke-dashoffset] duration-1000 ease-linear motion-reduce:transition-none"
       />
+    </svg>
+  );
+}
+
+/** Fila rótulo/valor de los paneles compactos (formulario y revisión). */
+function PanelRow({ label, children }: { label: ReactNode; children: ReactNode }) {
+  return (
+    <div className="flex min-h-6 items-center justify-between gap-4">
+      <dt className="min-w-0 text-[13px] leading-5 text-fg-muted">{label}</dt>
+      <dd className="num flex items-center gap-2 text-right text-[13px] leading-5 font-medium text-fg">{children}</dd>
     </div>
   );
 }
@@ -252,9 +275,23 @@ function AmountSentence({ template, amount, name }: { template: string; amount: 
 }
 
 /** Fila de documento: rótulo mono a la izquierda, cifra mono a la derecha. */
-function StatementRow({ label, value, strong = false }: { label: string; value: ReactNode; strong?: boolean }) {
+function StatementRow({
+  label,
+  value,
+  strong = false,
+  delay,
+}: {
+  label: string;
+  value: ReactNode;
+  strong?: boolean;
+  /** ms antes de aparecer (comprobante): las filas entran una a una. */
+  delay?: number;
+}) {
   return (
-    <div className="grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-6 py-3">
+    <div
+      className={cn("grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-6 py-3", delay !== undefined && "motion-safe:animate-tab")}
+      style={delay !== undefined ? { animationDelay: `${delay}ms` } : undefined}
+    >
       <dt className="label min-w-0">{label}</dt>
       <dd
         className={cn(
@@ -268,7 +305,7 @@ function StatementRow({ label, value, strong = false }: { label: string; value: 
   );
 }
 
-/** Vigencia de la cotización: una línea y la barra. Al vencer, el texto lo dice. */
+/** Vigencia de la cotización: texto a la izquierda y anillo a la derecha. Al vencer, el texto lo dice. */
 function QuoteValidity({
   remainingMs,
   label,
@@ -282,11 +319,11 @@ function QuoteValidity({
 }) {
   const expired = remainingMs <= 0;
   return (
-    <div className="flex flex-col gap-2">
-      <span className={cn("text-[12px] leading-4 tabular-nums", expired ? "font-medium text-down" : "text-fg-muted")}>
+    <div className="flex min-h-6 items-center justify-between gap-4">
+      <span className={cn("text-[13px] leading-5 tabular-nums", expired ? "font-medium text-down" : "text-fg-muted")}>
         {expired ? expiredLabel : label}
       </span>
-      <QuoteValidityBar remainingMs={remainingMs} language={language} />
+      <QuoteValidityRing remainingMs={remainingMs} language={language} />
     </div>
   );
 }
@@ -333,7 +370,7 @@ function SheetActionBar({
   children: ReactNode;
 }) {
   return (
-    <div className="sticky bottom-0 z-10 -mx-5 mt-auto border-t border-border bg-bg px-5 pt-3 pb-[max(0.5rem,env(safe-area-inset-bottom))] md:-mx-7 md:px-7 md:pb-4">
+    <div className="sticky bottom-0 z-10 -mx-5 mt-auto bg-bg px-5 pt-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] before:pointer-events-none before:absolute before:inset-x-0 before:-top-6 before:h-6 before:bg-linear-to-t before:from-bg before:to-bg/0 before:content-[''] md:-mx-7 md:px-7 md:pb-4">
       {reason ? (
         <p
           id={reasonId}
@@ -424,8 +461,13 @@ function TradeFlow({ side, ticker, onBusyChange }: { side: Side; ticker: Ticker;
   const fxRate = null;
   const amount = parseAmount(amountRaw);
   const portfolioPending = portfolio.isPending;
-  const quoteAmount = amount;
-  const quoteCurrency = currency;
+  // Al vender en USD el máximo se cotiza como el saldo exacto en acciones.
+  const sellRequest =
+    side === "sell" && !isLimit
+      ? resolveSellRequest({ currency, amount, shares, priceUsd })
+      : { amount, currency: currency as TradeAmountCurrency };
+  const quoteAmount = sellRequest.amount;
+  const quoteCurrency = sellRequest.currency as "USDC" | "SHARES";
   // Mínimo por orden del activo (M39/M43b): un solo mínimo coherente, el máximo
   // entre el global y el de la acción. La validación y el mensaje usan el mismo.
   const halted = asset.data?.halted === true;
@@ -464,7 +506,6 @@ function TradeFlow({ side, ticker, onBusyChange }: { side: Side; ticker: Ticker;
   const currencies = side === "sell" ? SELL_CURRENCIES : BUY_CURRENCIES;
   const cap = portfolioPending ? null : maxAmount({ side, currency, cashUsdc, shares, fx: fxRate, priceUsd: sizingPriceUsd });
   const busy = phase === "signing" || phase === "submitting" || phase === "done" || phase === "error";
-  const minHelp = fill(t.trade.minOrder, { amount: shownMoney(minUsd, displayCurrency, fxRate) });
   // Montos rápidos (M43b): nunca bajo el mínimo efectivo; sin pasar el
   // disponible cuando se puede. La UI conserva el chip Máx.
   const quickValues = quickTradeAmounts(currency, { minUsd, fx: fxRate, priceUsd: sizingPriceUsd, max: cap });
@@ -631,9 +672,9 @@ function TradeFlow({ side, ticker, onBusyChange }: { side: Side; ticker: Ticker;
           submittingLabel={t.trade.submitting}
         />
         {quote ? (
-          <div className="mt-auto flex items-baseline justify-between gap-6 border-t border-border pt-4">
-            <span className="text-[12px] leading-4 text-fg-muted">{t.trade.youReceive}</span>
-            <span className="num text-right text-sm leading-5 text-fg">
+          <div className="mt-auto flex items-baseline justify-between gap-6 rounded-2xl bg-surface-1 px-4 py-3">
+            <span className="text-[13px] leading-5 text-fg-muted">{t.trade.youReceive}</span>
+            <span className="num text-right text-[15px] leading-5 font-medium text-fg">
               {side === "buy" ? formatShares(quote.outAmountUi) : shownMoney(quote.outAmountUi, displayCurrency, fxRate)}
             </span>
           </div>
@@ -660,7 +701,7 @@ function TradeFlow({ side, ticker, onBusyChange }: { side: Side; ticker: Ticker;
 
     return (
       <div role="status" aria-live="polite" className="flex min-h-0 flex-1 flex-col">
-        <div className="flex flex-col gap-6 pb-8">
+        <div className="flex flex-col gap-5 pb-6">
           <div className="relative isolate flex items-start gap-3 overflow-hidden rounded-2xl border border-border bg-bg p-3.5 sm:p-4">
             <div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-surface-1 motion-safe:animate-fade-in" />
             <span
@@ -731,6 +772,7 @@ function TradeFlow({ side, ticker, onBusyChange }: { side: Side; ticker: Ticker;
         ? fill(t.trade.doneBuy, { amount: formatShares(result.outAmountUi), name: ticker.name })
         : fill(t.trade.doneSell, { amount: formatShares(result.inAmountUi), name: ticker.name });
     const totalLabel = result.side === "buy" ? doc.paid : doc.received;
+    const rowDelay = (index: number) => (result.status === "confirmed" ? receiptRowDelay(index) : undefined);
     const totalValue = shownMoney(
       result.side === "buy" ? result.inAmountUi : result.outAmountUi,
       displayCurrency,
@@ -738,7 +780,7 @@ function TradeFlow({ side, ticker, onBusyChange }: { side: Side; ticker: Ticker;
     );
     return (
       <div role="status" aria-live="polite" className="flex min-h-0 flex-1 flex-col">
-        <div className="flex flex-col gap-6 pb-8">
+        <div className="flex flex-col gap-5 pb-6">
           <TradeConfirmationHeading
             key={result.id}
             title={result.status === "confirmed" ? doneTitle(result.side, isEnglish) : t.trade.done}
@@ -747,9 +789,10 @@ function TradeFlow({ side, ticker, onBusyChange }: { side: Side; ticker: Ticker;
           />
 
           <dl className="divide-y divide-border border-y border-border">
-            <StatementRow label={doc.folio} value={`#MV-${result.id.slice(0, 8).toUpperCase()}`} />
-            <StatementRow label={doc.date} value={formatDateTime(result.createdAt)} />
+            <StatementRow label={doc.folio} value={`#MV-${result.id.slice(0, 8).toUpperCase()}`} delay={rowDelay(0)} />
+            <StatementRow label={doc.date} value={formatDateTime(result.createdAt)} delay={rowDelay(1)} />
             <StatementRow
+              delay={rowDelay(2)}
               label={result.side === "buy" ? doc.receive : doc.deliver}
               value={
                 result.side === "buy"
@@ -757,9 +800,10 @@ function TradeFlow({ side, ticker, onBusyChange }: { side: Side; ticker: Ticker;
                   : formatShares(result.inAmountUi)
               }
             />
-            <StatementRow label={totalLabel} value={totalValue} strong />
+            <StatementRow label={totalLabel} value={totalValue} strong delay={rowDelay(3)} />
             {quote ? (
               <StatementRow
+                delay={rowDelay(4)}
                 label={fill(t.trade.fee, { brand: site.name })}
                 value={
                   quote.costs.platformFeeBps === 0
@@ -899,7 +943,7 @@ function TradeFlow({ side, ticker, onBusyChange }: { side: Side; ticker: Ticker;
 
     return (
       <div className="flex min-h-0 flex-1 flex-col">
-        <div className="flex flex-col gap-6 pb-8">
+        <div className="flex flex-col gap-5 pb-6">
           <div className="flex items-center justify-between gap-3">
             <button
               type="button"
@@ -920,16 +964,17 @@ function TradeFlow({ side, ticker, onBusyChange }: { side: Side; ticker: Ticker;
             to={to}
             feeLabel={isEnglish ? "Fees and network costs" : "Comisiones y costos de red"}
             fees={breakdown?.fees}
+            footer={
+              quote && !quoting && !quoteError ? (
+                <QuoteValidity
+                  remainingMs={remainingMs}
+                  label={fill(t.trade.expiresIn, { time: countdownLabel(remainingMs) })}
+                  expiredLabel={t.trade.errors.QUOTE_EXPIRED}
+                  language={language}
+                />
+              ) : undefined
+            }
           />
-
-          {quote && !quoting && !quoteError ? (
-            <QuoteValidity
-              remainingMs={remainingMs}
-              label={fill(t.trade.expiresIn, { time: countdownLabel(remainingMs) })}
-              expiredLabel={t.trade.errors.QUOTE_EXPIRED}
-              language={language}
-            />
-          ) : null}
 
           {halted ? (
             <MarketStatusPill open={false} halted label={t.detail.assetHalted} />
@@ -1003,7 +1048,7 @@ function TradeFlow({ side, ticker, onBusyChange }: { side: Side; ticker: Ticker;
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="flex flex-col gap-5 pb-8">
+      <div className="flex flex-1 flex-col gap-5 pb-4">
         <TradeHeader
           ticker={ticker}
           priceLabel={t.trade.price}
@@ -1057,6 +1102,8 @@ function TradeFlow({ side, ticker, onBusyChange }: { side: Side; ticker: Ticker;
           </div>
         ) : null}
 
+        {/* my-auto: el espacio libre se reparte alrededor de la cifra, no queda un hueco sobre el botón. */}
+        <div className="my-auto flex flex-col gap-3 py-2">
         <AmountInput
           id={`${hintId}-amount`}
           label={t.trade.amount}
@@ -1121,6 +1168,7 @@ function TradeFlow({ side, ticker, onBusyChange }: { side: Side; ticker: Ticker;
             ))}
           </div>
         ) : null}
+        </div>
 
         {isLimit ? (
           <div className="flex flex-col gap-4 border-t border-border pt-4">
@@ -1152,27 +1200,31 @@ function TradeFlow({ side, ticker, onBusyChange }: { side: Side; ticker: Ticker;
           </div>
         ) : null}
 
-        <div className="flex flex-col gap-2 border-t border-border pt-3">
-          <div className="flex items-baseline justify-between gap-6">
-            <span className="text-[12px] leading-4 text-fg-muted">{availableLabel}</span>
-            <span className="num text-[13px] leading-4 font-medium text-fg">{availableValue ?? "—"}</span>
-          </div>
-          {side === "buy" ? <p className="text-[12px] leading-4 text-fg-muted">{minHelp}</p> : null}
+        <div className="flex flex-col gap-1 rounded-2xl bg-surface-1 px-4 py-3">
+          <dl className="flex flex-col gap-1">
+            <PanelRow label={availableLabel}>{availableValue ?? "—"}</PanelRow>
+            {side === "buy" ? (
+              <PanelRow label={templateLabel(t.trade.minOrder).replace(/:\s*$/, "")}>
+                {shownMoney(minUsd, displayCurrency, fxRate)}
+              </PanelRow>
+            ) : null}
+          </dl>
+          {!isLimit ? (
+            quote && !quoting && !quoteError ? (
+              <QuoteValidity
+                remainingMs={remainingMs}
+                label={fill(t.trade.expiresIn, { time: countdownLabel(remainingMs) })}
+                expiredLabel={t.trade.errors.QUOTE_EXPIRED}
+                language={language}
+              />
+            ) : (
+              // Reserva el alto de la fila: cotizar no mueve el formulario.
+              <div aria-hidden="true" className="min-h-6" />
+            )
+          ) : null}
         </div>
 
         {isLimit ? <LimitOrdersPanel symbol={ticker.symbol} ordersOnly /> : null}
-
-        {!isLimit && quote && !quoting && !quoteError ? (
-          <QuoteValidity
-            remainingMs={remainingMs}
-            label={fill(t.trade.expiresIn, { time: countdownLabel(remainingMs) })}
-            expiredLabel={t.trade.errors.QUOTE_EXPIRED}
-            language={language}
-          />
-        ) : !isLimit ? (
-          // Reserva el alto de la línea + barra: cotizar no mueve el formulario.
-          <div aria-hidden="true" className="h-[1.625rem]" />
-        ) : null}
       </div>
 
       <SheetActionBar reason={reason} reasonId={reasonId} tone={reasonTone} retry={retry} retryLabel={t.states.retry}>

@@ -1,5 +1,18 @@
 # PROGRESO — Maverlang
 
+## T94 — Tarjeta de saldo, gráfico en tarjeta, hoja de compra pulida y venta MAX en USD (2026-11-23)
+- Web: «Prueba la demo gratis» pasa a «Entra a la plataforma» (hero y cierre) y «Probar la demo» a «Conoce la plataforma» (header y páginas internas). Se actualizaron las pruebas y los e2e que fijaban esos textos.
+- Mercado en celular: `mobile-balance-card.tsx`, tarjeta negra con saldo total, resultado (US$ y %), disponible e invertido, ojo para ocultar (`useHideBalance`) y accesos Depositar y Ver cartera, con estados de carga y error. Va arriba bajo lg; las pestañas quedan debajo para no perder Cripto y Herramientas.
+- Ficha: fuera de pantalla completa, el gráfico va en una tarjeta blanca redondeada.
+- Hoja de compra (agente Sonnet 5.5):
+  - el resumen de disponible, mínimo y vencimiento pasa a un panel compacto con un anillo de cuenta regresiva;
+  - se quitó el espacio muerto y la línea sobre «Revisar»;
+  - la revisión muestra «Recibes» como cifra principal;
+  - la X va sin borde y el paso de ejecución es un stepper vertical;
+  - la animación de éxito dura ~1,4 s y las filas del comprobante entran escalonadas.
+- Bug: vender con MAX en USD daba «acciones insuficientes». El monto en USD se redondea al centavo y el chequeo toleraba 1e-8. `resolveSellRequest` (`lib/trade/amount.ts`) vende el saldo exacto de acciones cuando el USD cubre el valor de la posición menos un centavo. Prueba nueva en `trade-sell-max-usd.test.ts`. Verificado en navegador: NVDAx, USD + Máx, US$10,31 sin error y «Revisar» activo.
+- Verificación liviana: `tsc`, ESLint y 40 archivos de pruebas (443/443). Navegador a 375 px: tarjeta de saldo, gráfico en tarjeta y formulario de venta. No se recorrieron completas la revisión y la animación de éxito. Sin build ni e2e.
+
 ## T93 — Preparación para 500 usuarios en vivo (2026-11-23)
 - Topes por IP en `lib/security/rate-limit.ts` aptos para CGNAT móvil: `prices` de 120 a 600/min, `publicGet` de 60 a 300 y `search` de 60 a 120. Las políticas por usuario no cambian.
 - Cualquier tope se ajusta desde el entorno con `RATE_LIMIT_<POLÍTICA>` (`rateLimitEnvKey`, entero 1..1.000.000), sin desplegar. Sirve también para el disyuntor de IA.

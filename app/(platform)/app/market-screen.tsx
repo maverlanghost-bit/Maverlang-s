@@ -9,6 +9,7 @@ import { ActiveFilters, FilterPanel } from "@/components/market/filter-panel";
 import { AssetMarketRow as MarketListRow } from "@/components/market/asset-row";
 import { MarketHeatmap } from "@/components/domain/market-heatmap";
 import { MarketToday } from "@/components/domain/market-today/market-today";
+import { MobileBalanceCard } from "@/components/domain/mobile-balance-card";
 import { FloatingMarketOrb } from "@/components/domain/market-status-pill";
 import { PriceFreshness } from "@/components/domain/price-freshness";
 import { Button } from "@/components/ui/button";
@@ -593,6 +594,8 @@ export function MarketScreen({
   return (
     <div className="flex min-w-0 flex-col gap-8 lg:gap-10">
       <h1 className="sr-only">{t.pages.market.title}</h1>
+      {/* T94: en celular la tarjeta de saldo va arriba; las secciones quedan debajo. */}
+      <MobileBalanceCard className="-mb-3 lg:hidden" />
       {sections ? <div className="-mx-5 min-w-0 px-5 sm:mx-0 sm:px-0">{sections}</div> : null}
 
       {/* «Tu día» sólo en escritorio: en celular no se monta (ni consulta datos). */}

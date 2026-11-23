@@ -12,7 +12,7 @@ import { HERO_SYMBOLS, type LandingQuote } from "@/lib/mocks/landing";
  *
  * Copy: H1 "Acciones de EE.UU. tokenizadas, en tu billetera". Bajada con el
  * mínimo (constante del código), el 24/7 y la frase de no custodia. CTA
- * principal "Prueba la demo gratis" → /app/registro; secundario como enlace.
+ * principal "Entra a la plataforma" → /app/registro; secundario como enlace.
  * Debajo, tres datos del producto en mono (no son estadísticas de uso).
  * El origen de los precios lo dice la etiqueta del teléfono y la cinta.
  */
@@ -46,7 +46,7 @@ export function Hero({ quotes, live }: { quotes: LandingQuote[]; live: boolean }
 
           <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-6">
             <Button asChild size="lg" className="w-full sm:w-auto">
-              <Link href="/app/registro">Prueba la demo gratis</Link>
+              <Link href="/app/registro">Entra a la plataforma</Link>
             </Button>
             <Link
               href="/acciones"

@@ -275,7 +275,7 @@ export default async function GuiaPage({ params }: { params: Promise<{ slug: str
               </p>
               <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
                 <Button asChild>
-                  <Link href="/app/registro">Probar la demo</Link>
+                  <Link href="/app/registro">Conoce la plataforma</Link>
                 </Button>
                 <Link href="/acciones" className={textLinkClass}>
                   Ver acciones

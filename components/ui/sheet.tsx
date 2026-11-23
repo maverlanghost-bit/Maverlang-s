@@ -221,8 +221,9 @@ export function Sheet({
         // Cuerpo: único que desplaza, con el rebote contenido.
         "[&>div]:mt-0 [&>div]:min-h-0 [&>div]:flex-1 [&>div]:overflow-y-auto [&>div]:overscroll-contain [&>div]:[scrollbar-width:thin]",
         "[&>div]:-mx-5 [&>div]:border-t [&>div]:border-border [&>div]:px-5 [&>div]:pt-5",
-        // Cierre evidente y táctil (44 px): botón con borde propio, no un icono flotando.
-        "[&>button]:right-3 [&>button]:border [&>button]:border-control [&>button]:bg-bg [&>button]:text-fg",
+        // Cierre limpio y táctil (44 px): icono sin borde, fondo suave al pasar o presionar.
+        "[&>button]:right-3 [&>button]:rounded-full [&>button]:border-0 [&>button]:bg-transparent [&>button]:text-fg-body",
+        "[&>button]:transition-colors [&>button:hover]:bg-surface-2 [&>button:hover]:text-fg [&>button:active]:bg-surface-3",
         // Desktop: panel lateral a alto completo.
         "md:inset-y-0 md:right-0 md:left-auto md:h-full md:max-h-none md:w-[26rem] md:rounded-l-xl md:rounded-tr-none md:border-t-0 md:border-l md:border-border md:px-7 md:pt-5 md:shadow-none md:animate-sheet-side lg:w-[28rem]",
         "md:[&>button]:top-5 md:[&>div]:-mx-7 md:[&>div]:px-7",

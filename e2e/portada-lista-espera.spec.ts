@@ -12,7 +12,7 @@ import { WAITLIST_SUCCESS_MESSAGE } from "../lib/waitlist/message";
 test("portada: demo gratis, lista de espera y logos", async ({ page }) => {
   await page.goto("/");
 
-  const cta = page.getByRole("link", { name: "Prueba la demo gratis" }).first();
+  const cta = page.getByRole("link", { name: "Entra a la plataforma" }).first();
   await expect(cta).toBeVisible();
   await expect(cta).toHaveAttribute("href", "/app/registro");
   await cta.click();

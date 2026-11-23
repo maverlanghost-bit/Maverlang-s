@@ -98,7 +98,7 @@ describe("M86: cobertura de rutas y códigos por spec", () => {
       expect(source, `landing debe cubrir ${route}`).toContain(route);
     }
     expect(source).toContain("/api/waitlist");
-    expect(source).toContain("Prueba la demo gratis");
+    expect(source).toContain("Entra a la plataforma");
     // Idioma ES/EN vía ajustes de la plataforma.
     expect(source).toContain("/app/ajustes");
     expect(source).toContain('"English"');

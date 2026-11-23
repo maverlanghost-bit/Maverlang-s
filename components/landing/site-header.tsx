@@ -38,7 +38,7 @@ const NAV_PRODUCT = [
 
 const LOGIN_HREF = "/app/ingresar";
 const DEMO_HREF = "/app/registro";
-const DEMO_LABEL = "Probar la demo";
+const DEMO_LABEL = "Conoce la plataforma";
 
 const SCROLL_OFFSET = 8;
 

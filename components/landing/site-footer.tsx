@@ -6,7 +6,7 @@ import { site, supportMailto } from "@/config/site";
  * Cuatro columnas en orden de lectura: descubrir → entender → resolver → cumplir.
  * El correo de soporte cierra «Ayuda» cuando está configurado; si no, la columna
  * termina en «Preguntas», que es el mismo destino de soporte.
- * Los CTA («Entrar», «Probar la demo») no se repiten aquí: viven en el header.
+ * Los CTA («Entrar», «Conoce la plataforma») no se repiten aquí: viven en el header.
  */
 type FooterColumn = { title: string; links: { href: string; label: string }[] };
 

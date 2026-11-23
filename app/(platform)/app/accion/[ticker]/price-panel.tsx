@@ -914,7 +914,14 @@ export function PricePanel({
           {tvActive ? (
             <TradingViewChart symbol={symbol} underlying={underlying} range={range} fullscreen={fullscreen} />
           ) : null}
-          <div className={cn("relative min-w-0 max-w-full", tvActive && "hidden")}>
+          {/* T94: fuera de pantalla completa el gráfico va en una tarjeta blanca redondeada sobre el lienzo gris. */}
+          <div
+            className={cn(
+              "relative min-w-0 max-w-full",
+              !fullscreen && "overflow-hidden rounded-3xl border border-border bg-bg p-2 sm:p-3",
+              tvActive && "hidden",
+            )}
+          >
             <PriceChart
               datasetKey={`${seriesKey}:${history.data?.metadata?.provider ?? "unknown"}:${history.data?.metadata?.resolution ?? "unknown"}`}
               currency={priceCurrency}

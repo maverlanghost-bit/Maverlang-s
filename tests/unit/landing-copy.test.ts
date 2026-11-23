@@ -31,9 +31,9 @@ describe("M45: copy de la portada alineado con el producto", () => {
   });
 
   it("hero y CTA final: llevan al registro de la demo", () => {
-    expect(read("components/landing/hero.tsx")).toContain("Prueba la demo gratis");
+    expect(read("components/landing/hero.tsx")).toContain("Entra a la plataforma");
     expect(read("components/landing/hero.tsx")).toContain('href="/app/registro"');
-    expect(read("components/landing/final-cta.tsx")).toContain("Prueba la demo gratis");
+    expect(read("components/landing/final-cta.tsx")).toContain("Entra a la plataforma");
     expect(read("components/landing/final-cta.tsx")).toContain('href="/app/registro"');
   });
 
