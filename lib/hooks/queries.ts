@@ -104,14 +104,33 @@ export function usePrices(symbols?: readonly string[], enabled = true, intervalM
   });
 }
 
+/**
+ * Velas del token (GeckoTerminal): el gráfico se refresca solo. Intradía cada
+ * minuto, 1M cada 2 min y los rangos diarios cada 5. Entre refrescos, el
+ * precio en vivo mueve la última barra (ver `observedSeries`).
+ */
+export const LIVE_HISTORY_REFRESH_MS: Readonly<Record<Range, number>> = {
+  "1D": 60_000,
+  "1W": 60_000,
+  "1M": 120_000,
+  "3M": 300_000,
+  "1Y": 300_000,
+  ALL: 300_000,
+};
+
+function livePoolRefreshMs(data: unknown, range: Range): number | false {
+  const row = data as { real?: unknown; metadata?: { provider?: unknown } } | undefined;
+  return row?.real === true && row.metadata?.provider === "geckoterminal" ? LIVE_HISTORY_REFRESH_MS[range] : false;
+}
+
 export function useHistory(symbol: string, range: Range = "1M") {
   const trimmed = symbol.trim();
   return useQuery({
     queryKey: ["history", trimmed, range] as const,
     queryFn: () => getHistory(trimmed, range),
     enabled: trimmed.length > 0,
-    staleTime: (query) => historyStaleMs(query.state.data, HISTORY_MS),
-    refetchInterval: (query) => historyPollMs(query.state.data, HISTORY_REFETCH_MS),
+    staleTime: (query) => livePoolRefreshMs(query.state.data, range) || historyStaleMs(query.state.data, HISTORY_MS),
+    refetchInterval: (query) => livePoolRefreshMs(query.state.data, range) || historyPollMs(query.state.data, HISTORY_REFETCH_MS),
     refetchIntervalInBackground: false,
     refetchOnWindowFocus: true,
   });

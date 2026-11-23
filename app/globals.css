@@ -8,24 +8,27 @@
 
   --color-bg: #ffffff;
   --color-fg: #0a0a0a;
-  --color-fg-body: #1f1f1f;
+  --color-fg-body: #1d1f23;
   /* AA medido sobre las tres superficies claras (blanco / surface-1 / surface-2):
-     `fg-muted` #5b5e63 → 6,51 / 6,02 / 5,71:1.
-     `fg-subtle` #6a6d72 → 5,19 / 4,81 / 4,56:1. Antes #73767b daba
+     `fg-muted` #585e67 (T91, frío) ≈ 6,6 / 6,0 / 5,7:1 (antes #5b5e63).
+     `fg-subtle` #676d76 (T91) ≈ 5,2 / 4,8 / 4,6:1 (antes #6a6d72). Antes #73767b daba
      4,56 / 4,22 / 4,00: pasaba sólo en blanco y fallaba AA en toda superficie.
      #8a8a8a (3,45:1) queda sólo para `disabled` y decoración. */
-  --color-fg-muted: #5b5e63;
-  --color-fg-subtle: #6a6d72;
-  --color-surface-1: #f6f6f6;
-  --color-surface-2: #f0f0f0;
-  --color-surface-3: #e6e6e6;
-  --color-border: #e6e6e6;
-  --color-border-strong: #c4c4c4;
+  --color-fg-muted: #585e67;
+  --color-fg-subtle: #676d76;
+  /* T91: grises fríos (leve tinte azul): junto al blanco puro los neutros se
+     leían cálidos. `canvas` es el fondo de la plataforma; tarjetas en blanco. */
+  --color-canvas: #f4f5f7;
+  --color-surface-1: #f5f6f8;
+  --color-surface-2: #eef0f3;
+  --color-surface-3: #e3e6ea;
+  --color-border: #e3e6ea;
+  --color-border-strong: #c4c9d0;
   /* D1: 3,74:1 en blanco (WCAG 1.4.11). Único gris admitido para el contorno
      de un control (secundario, chip, buscador, input). Se declara dos veces
      para que `border-control` y `border-border-control` sean válidas. */
-  --color-control: #848484;
-  --color-border-control: #848484;
+  --color-control: #838a94;
+  --color-border-control: #838a94;
   /* Mismo matiz, un paso más oscuro, para llegar a 4,5:1 en precios chicos y en el badge. */
   --color-up: #0f7a32;
   --color-up-bg: #e8f5ef;

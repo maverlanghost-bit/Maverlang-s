@@ -3,6 +3,8 @@ import type { PricePoint, Range } from "@/lib/types";
 const DAY_MS = 86_400_000;
 /** Serie real: misma ventana que el `s-maxage` del historial. */
 export const HISTORY_FRESH_MS = 60_000;
+/** Velas del token que se refrescan solas en la ficha. */
+export const HISTORY_LIVE_FRESH_MS = 30_000;
 /** Vacío o referencia: no se guarda el tiempo de una serie real. */
 export const HISTORY_EMPTY_FRESH_MS = 15_000;
 
@@ -50,6 +52,12 @@ export function scaleCloses(closes: readonly PricePoint[], multiplier: number): 
 }
 
 /** Cuánto se puede reutilizar una serie ya armada. Un vacío no queda un minuto. */
-export function historyMemoTtl(value: { points: readonly unknown[]; source: string }): number {
-  return value.points.length >= 2 && value.source !== "mock" ? HISTORY_FRESH_MS : HISTORY_EMPTY_FRESH_MS;
+export function historyMemoTtl(value: {
+  points: readonly unknown[];
+  source: string;
+  metadata?: { provider?: string };
+}): number {
+  if (value.points.length < 2 || value.source === "mock") return HISTORY_EMPTY_FRESH_MS;
+  // Velas del pozo: el proveedor ya guarda 45 s; encima no se acumula otro minuto.
+  return value.metadata?.provider === "geckoterminal" ? HISTORY_LIVE_FRESH_MS : HISTORY_FRESH_MS;
 }

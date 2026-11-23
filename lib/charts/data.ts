@@ -39,8 +39,46 @@ export function compatibleSpot(
     : undefined;
 }
 
-/** Preserves historical prices; never rescales them to the current quote. */
-export function observedSeries(points: readonly FinancialPoint[], spot?: PricePoint): FinancialPoint[] {
+const BAR_MS: Partial<Record<HistoryMetadata["resolution"], number>> = {
+  "15m": 900_000,
+  "1h": 3_600_000,
+  "1d": 86_400_000,
+  "1wk": 7 * 86_400_000,
+};
+
+/** Duración de una barra según la resolución observada; undefined si no es regular. */
+export function barDurationMs(resolution: HistoryMetadata["resolution"] | undefined): number | undefined {
+  return resolution ? BAR_MS[resolution] : undefined;
+}
+
+/**
+ * Lleva el precio actual a la última barra del token: la cierra en el spot y
+ * ensancha su máximo/mínimo. Si ya empezó otra barra, agrega una que abre en el
+ * cierre anterior. No toca barras anteriores ni inventa aperturas.
+ */
+function spotIntoBars(rows: FinancialPoint[], spot: PricePoint, barMs: number): FinancialPoint[] {
+  const last = rows[rows.length - 1];
+  if (!last || spot.t < last.t || !Number.isFinite(spot.p) || spot.p <= 0) return rows;
+  const bucket = Math.floor(spot.t / barMs) * barMs;
+  const prevClose = last.c ?? last.p;
+  if (bucket <= last.t) {
+    const merged: FinancialPoint = {
+      ...last,
+      p: spot.p,
+      c: spot.p,
+      h: Math.max(last.h ?? prevClose, spot.p),
+      l: Math.min(last.l ?? prevClose, spot.p),
+    };
+    return [...rows.slice(0, -1), merged];
+  }
+  return [...rows, { t: bucket, p: spot.p, o: prevClose, h: Math.max(prevClose, spot.p), l: Math.min(prevClose, spot.p), c: spot.p }];
+}
+
+/**
+ * Preserves historical prices; never rescales them to the current quote.
+ * `barMs` (sólo series de barras del token) deja que el spot actualice la barra en curso.
+ */
+export function observedSeries(points: readonly FinancialPoint[], spot?: PricePoint, barMs?: number): FinancialPoint[] {
   const rows = chartPoints(points);
   const last = rows[rows.length - 1];
   // Compare real observation times before chartPoints rounds to seconds; an
@@ -49,6 +87,7 @@ export function observedSeries(points: readonly FinancialPoint[], spot?: PricePo
   // A quote is not a complete bar. Keep the provider's bars intact even when
   // token spot and historical instrument happen to be compatible.
   const hasBars = rows.some((row) => [row.o, row.h, row.l, row.c, row.v].some((value) => value !== undefined));
+  if (spot && last && hasBars && barMs && spot.t >= lastObservedAt) return spotIntoBars(rows, spot, barMs);
   if (!spot || !last || spot.t < lastObservedAt || hasBars) return rows;
   return chartPoints([...rows, spot]);
 }
@@ -120,7 +159,8 @@ export function pricePrecision(value: number, currency: Currency = "USD"): numbe
   return Math.min(12, Math.max(4, Math.ceil(-Math.log10(abs)) + 2));
 }
 
-export function historyDescription(source: string | undefined, en: boolean): string {
+export function historyDescription(source: string | undefined, en: boolean, provider?: HistoryMetadata["provider"]): string {
+  if (source === "ticks" && provider === "geckoterminal") return en ? "Token price on Solana · on-chain pools" : "Precio del token en Solana · pozos on-chain";
   if (source === "ticks") return en ? "Token price history" : "Historial del precio del token";
   if (source === "closes") return en ? "Underlying closes · reference" : "Cierres del subyacente · referencia";
   if (source === "mock") return en ? "Demonstration history" : "Historial de demostración";

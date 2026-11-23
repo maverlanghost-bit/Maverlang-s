@@ -177,7 +177,7 @@ function DataRow({ label, children, mono = true }: { label: string; children: Re
 /** Métrica en tarjeta: rótulo pequeño arriba, cifra mono debajo; va en grilla de 2 columnas. */
 function StatCell({ label, children, mono = true }: { label: string; children: ReactNode; mono?: boolean }) {
   return (
-    <div className="@container min-w-0 rounded-2xl border border-border bg-bg px-3.5 py-3">
+    <div className="@container min-w-0 rounded-2xl bg-surface-1 px-3.5 py-3">
       <dt className="font-mono text-[11px] leading-4 tracking-[0.08em] text-fg-muted uppercase">{label}</dt>
       <dd
         className={cn(
@@ -284,7 +284,7 @@ function StockTokenGuide() {
   const { language } = useT();
   const copy = carteraCopy(language);
   return (
-    <section aria-label={copy.tokenGuideTitle} className="rounded-3xl border border-border bg-surface-1 px-5 md:px-6 [&>div]:border-y-0">
+    <section aria-label={copy.tokenGuideTitle} className="rounded-3xl border border-border bg-bg px-5 md:px-6 [&>div]:border-y-0">
       <Accordion items={[{ id: "stock-token", title: copy.tokenGuideTitle, content: copy.tokenGuideBody }]} />
     </section>
   );
@@ -810,7 +810,7 @@ function KeyStats({
           : t.detail.operable;
 
   return (
-    <section className="rounded-3xl border border-border bg-surface-1 p-5 md:p-6">
+    <section className="rounded-3xl border border-border bg-bg p-5 md:p-6">
       <h2 className="text-base font-medium tracking-tight text-fg md:text-lg">{t.detail.stats}</h2>
       <p className="mt-2 text-xs leading-relaxed text-fg-muted">{quote ? quote.source === "mock" ? (en ? "Demo quote" : "Cotización de demostración") : quote.reference ? (en ? "Reference quote" : "Cotización de referencia") : (en ? "Token quote" : "Cotización del token") : (en ? "No quote" : "Sin cotización")} · {shownCurrency}</p>
       {historyRefreshFailed ? <p role="status" className="mt-2 text-xs text-warn">{en ? "Refresh failed; previous observations are shown." : "No se pudo actualizar; se muestran los registros anteriores."}</p> : null}
@@ -1317,7 +1317,7 @@ export function DetailScreen({
           { value: "company", label: language === "en" ? "Company" : "Empresa", content: <div className="flex min-w-0 flex-col gap-8">
         <CompanyCard symbol={ticker.symbol} />
 
-        <section className="flex flex-col gap-3 rounded-3xl border border-border bg-surface-1 p-5 md:p-6">
+        <section className="flex flex-col gap-3 rounded-3xl border border-border bg-bg p-5 md:p-6">
           <h2 className="text-base font-medium tracking-tight text-fg md:text-lg">{t.detail.aboutTitle}</h2>
           <ClampedText
             text={aboutText ?? t.detail.aboutMissing}
@@ -1329,7 +1329,7 @@ export function DetailScreen({
 
           </div> },
           { value: "token", label: language === "en" ? "Token and risks" : "Token y riesgos", content: <div className="flex min-w-0 flex-col gap-8">
-        <section className="flex flex-col gap-4 rounded-3xl border border-border bg-surface-1 p-5 md:p-6">
+        <section className="flex flex-col gap-4 rounded-3xl border border-border bg-bg p-5 md:p-6">
           <h2 className="text-base font-medium tracking-tight text-fg md:text-lg">{t.detail.tokenTitle}</h2>
           <p className="max-w-prose text-sm leading-relaxed text-pretty text-fg-body">
             {fill(t.detail.tokenLead, { issuer: ticker.issuer, brand: site.name, name: ticker.name })}

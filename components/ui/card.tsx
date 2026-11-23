@@ -13,7 +13,7 @@ export function Card({ className, ...props }: ComponentProps<"div">) {
            (`shadow-float` en onboarding) perdía el filo entero, porque
            tailwind-merge reemplaza `shadow-card`. Ahora el borde no depende
            de la sombra. Radio xl: la misma curva que diálogos y popovers. */
-        "rounded-xl border border-border bg-surface-1 p-6 transition-colors md:p-8",
+        "rounded-xl border border-border bg-bg p-6 transition-colors md:p-8",
         className,
       )}
       {...props}

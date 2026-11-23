@@ -29,7 +29,7 @@ import { indexFromKey } from "@/components/ui/keys";
 import { graficoCopy } from "@/content/i18n/extra-grafico";
 import { historyStaleMs } from "@/lib/api/contracts";
 import { getHistory } from "@/lib/api/client";
-import { chartCapabilities, chartVolumeLabel, compatibleSpot, observedSeries } from "@/lib/charts/data";
+import { barDurationMs, chartCapabilities, chartVolumeLabel, compatibleSpot, observedSeries } from "@/lib/charts/data";
 import { comparisonSeries } from "@/lib/charts/comparison";
 import { cn } from "@/lib/cn";
 import { formatMoney, formatPercent } from "@/lib/format";
@@ -310,7 +310,9 @@ export function PricePanel({
   // The screen already polls the spot. Reuse that quote instead of a second cache/poller.
   const rawPoints = history.data?.points ?? NO_POINTS;
   const effectiveLivePoint = useMemo(() => compatibleSpot(history.data?.source, quote), [history.data?.source, quote]);
-  const points = useMemo(() => observedSeries(rawPoints, effectiveLivePoint), [rawPoints, effectiveLivePoint]);
+  // Velas del token: el precio en vivo (el del titular) mueve la última barra entre refrescos.
+  const barMs = history.data?.metadata?.provider === "geckoterminal" ? barDurationMs(history.data.metadata.resolution) : undefined;
+  const points = useMemo(() => observedSeries(rawPoints, effectiveLivePoint, barMs), [rawPoints, effectiveLivePoint, barMs]);
   const period = periodBounds(points, undefined);
   const move = rangeMove(points);
   const stats = !history.isPending ? rangeBounds(points) : null;

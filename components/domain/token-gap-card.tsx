@@ -40,7 +40,7 @@ function GapLine({ template, pct }: { template: string; pct: string }) {
 
 function GapSkeleton({ label }: { label: string }) {
   return (
-    <section className="rounded-3xl border border-border bg-surface-1 p-5 md:p-6" aria-busy="true">
+    <section className="rounded-3xl border border-border bg-bg p-5 md:p-6" aria-busy="true">
       <span className="sr-only">{label}</span>
       <Skeleton className="h-5 w-44 max-w-full" />
       <Skeleton className="mt-3 h-4 w-4/5 max-w-sm" />
@@ -117,7 +117,7 @@ export function TokenGapCard({ symbol, quote }: { symbol: string; quote: Quote |
   const explanation = isEn ? "Compares the token quote with the last available underlying observation at the dates shown. The prices are not simultaneous." : "Compara la cotización del token con el último registro disponible del subyacente, en las fechas indicadas. Los precios no son simultáneos.";
 
   return (
-    <section className="rounded-3xl border border-border bg-surface-1 p-5 md:p-6" data-token-gap={symbol}>
+    <section className="rounded-3xl border border-border bg-bg p-5 md:p-6" data-token-gap={symbol}>
       <div className="flex items-start justify-between gap-3">
         <h2 className="min-w-0 text-base font-medium tracking-tight text-fg md:text-lg">{title}</h2>
         <InfoTip className="-mt-1 shrink-0" label={`${copy.whatIsThis}. ${title}`} text={`${explanation} ${copy.gapWhy}`} />

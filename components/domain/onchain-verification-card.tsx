@@ -57,7 +57,7 @@ export function OnchainVerificationCard({
   )}`;
 
   return (
-    <section className="rounded-3xl border border-border bg-surface-1 p-5 md:p-6" data-onchain-verification={symbol}>
+    <section className="rounded-3xl border border-border bg-bg p-5 md:p-6" data-onchain-verification={symbol}>
       <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-2">
         <div className="min-w-0">
           <p className="label">Respaldo y verificación on-chain</p>

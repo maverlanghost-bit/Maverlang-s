@@ -21,12 +21,12 @@ export function ChartContext({ source, points, currency = "USD", range, underlyi
   const last = points.findLast((point) => !point.gap);
   const lastTime = last?.observedAt ?? last?.t;
   const resolution = resolutionLabel(metadata?.resolution, en);
-  const provider = metadata?.provider === "yahoo" ? "Yahoo Finance" : metadata?.provider === "jupiter" ? "Jupiter" : metadata?.provider === "coingecko" ? "CoinGecko" : undefined;
+  const provider = metadata?.provider === "yahoo" ? "Yahoo Finance" : metadata?.provider === "jupiter" ? "Jupiter" : metadata?.provider === "coingecko" ? "CoinGecko" : metadata?.provider === "geckoterminal" ? "GeckoTerminal" : undefined;
   const volume = metadata?.capabilities.volume ? chartVolumeLabel(metadata, en) : undefined;
   const underlyingSymbol = underlying || metadata?.providerSymbol;
   const unit = metadata?.priceUnit === "usd_per_share" ? en ? "per share" : "por acción" : metadata?.priceUnit === "usd_per_token" ? en ? "per token" : "por token" : null;
   const underlyingBars = source === "closes" && metadata?.instrument === "underlying" && metadata.capabilities.ohlc;
-  const description = underlyingBars ? en ? "Underlying bars · reference" : "Barras del subyacente · referencia" : historyDescription(source, en);
+  const description = underlyingBars ? en ? "Underlying bars · reference" : "Barras del subyacente · referencia" : historyDescription(source, en, metadata?.provider);
   return (
     <div className="flex flex-col gap-1 text-xs leading-relaxed text-fg-muted" data-chart-source={source ?? "unavailable"}>
       <p>
@@ -41,7 +41,9 @@ export function ChartContext({ source, points, currency = "USD", range, underlyi
       {underlyingBars ? <p>{en ? "The last bar may still be forming and may change as the source updates; a confirmed close is not available." : "La última barra puede estar en formación y cambiar cuando se actualiza la fuente; no se dispone de confirmación de cierre."}</p> : null}
       {metadata?.priceAdjustment === "stored" ? <p>{en ? "Stored closes; the historical corporate-action adjustment is not specified." : "Cierres almacenados; el ajuste histórico por eventos corporativos no está especificado."}</p> : null}
       {currency === "CLP" ? <p>{en ? "Converted at the current reference exchange rate; this is not a historical return in CLP." : "Conversión al dólar de referencia actual; no representa la rentabilidad histórica en pesos."}</p> : null}
-      {range === "1D" ? <p>{source === "ticks"
+      {range === "1D" ? <p>{source === "ticks" && metadata?.provider === "geckoterminal"
+        ? en ? "1D shows the last 24 hours in 15-minute bars from on-chain pools." : "1D muestra las últimas 24 horas en barras de 15 minutos de los pozos on-chain."
+        : source === "ticks"
         ? en ? "1D includes up to two days of token price samples; it is not strictly the last 24 hours." : "1D incluye hasta dos días de sondeos del precio del token; no corresponde estrictamente a las últimas 24 horas."
         : source === "closes"
           ? en ? "1D shows available underlying observations at the source resolution; market sessions may span more than 24 hours." : "1D muestra los registros disponibles del subyacente según la resolución de la fuente; las jornadas pueden abarcar más de 24 horas."

@@ -62,7 +62,7 @@ export interface PricePoint {
 /** Capacidades de la serie entregada, no promesas sobre la cobertura del proveedor. */
 export interface HistoryMetadata {
   instrument: "token" | "underlying" | "demo";
-  provider: "yahoo" | "jupiter" | "coingecko" | "mixed" | "mock" | "unknown";
+  provider: "yahoo" | "jupiter" | "coingecko" | "geckoterminal" | "mixed" | "mock" | "unknown";
   providerSymbol?: string;
   /** Resolución observada; el rango visible se solicita por separado. */
   resolution: "15m" | "1h" | "1d" | "1wk" | "irregular" | "unknown";
