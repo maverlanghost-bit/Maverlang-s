@@ -112,7 +112,8 @@ function AssetMarketRowBase({
             ) : null}
           </span>
           <span className="mt-0.5 block text-[13px] leading-4 text-fg-muted">
-            <span className="break-words">{name}</span>
+            {/* T98: en celular una línea (la fila lleva gráfico); desde sm el nombre envuelve completo. */}
+            <span className="line-clamp-1 break-all sm:line-clamp-none sm:break-words">{name}</span>
             {detail ? <span className="mt-1 hidden text-xs text-fg-subtle sm:block">{detail}</span> : null}
             {lowLiquidityLabel ? <span className="whitespace-nowrap"> · {lowLiquidityLabel}</span> : null}
             {reviewLabel ? (
@@ -124,7 +125,11 @@ function AssetMarketRowBase({
           </span>
         </span>
         {sparkline ? (
-          <span className="hidden shrink-0 sm:block" title={trendLabel}><Sparkline data={sparkline} change={(sparkline.at(-1) ?? 0) - (sparkline[0] ?? 0)} width={88} height={32} /><span className="sr-only">{trendLabel}</span></span>
+          <>
+            {/* T98: en celular también se ve la semana, más chica; el texto accesible va una sola vez. */}
+            <span aria-hidden className="shrink-0 sm:hidden"><Sparkline data={sparkline} change={(sparkline.at(-1) ?? 0) - (sparkline[0] ?? 0)} width={52} height={26} /></span>
+            <span className="hidden shrink-0 sm:block" title={trendLabel}><Sparkline data={sparkline} change={(sparkline.at(-1) ?? 0) - (sparkline[0] ?? 0)} width={88} height={32} /><span className="sr-only">{trendLabel}</span></span>
+          </>
         ) : null}
         <span className="flex shrink-0 flex-col items-end gap-1 pl-1 text-right">
           {price === null ? (
