@@ -592,7 +592,7 @@ export function MarketScreen({
   const isPhone = useIsPhone();
 
   return (
-    <div className="flex min-w-0 flex-col gap-8 lg:gap-10">
+    <div className="flex min-w-0 flex-col gap-5 sm:gap-8 lg:gap-10">
       <h1 className="sr-only">{t.pages.market.title}</h1>
       {/* T94: en celular la tarjeta de saldo va arriba; las secciones quedan debajo. */}
       <MobileBalanceCard className="-mx-2 -mb-3 lg:hidden" />
@@ -624,7 +624,7 @@ export function MarketScreen({
 
         {/* Conteo real y frescura en una sola línea de dato. Sin cifras hasta
             que el catálogo llegue. */}
-        <div className="flex w-full min-w-0 flex-wrap items-center gap-x-2.5 gap-y-1 border-t border-border pt-4 text-[13px] leading-5 text-fg-muted">
+        <div className="hidden w-full min-w-0 flex-wrap items-center gap-x-2.5 gap-y-1 border-t border-border pt-4 text-[13px] leading-5 text-fg-muted sm:flex">
           {total > 0 ? (
             <>
               <span
@@ -651,11 +651,28 @@ export function MarketScreen({
         </div>
 
         <div className="flex w-full min-w-0 flex-wrap items-end gap-3">
-          <label className="flex min-w-40 flex-1 flex-col gap-1.5 text-xs text-fg-muted">{t.market.searchLabel}<input type="search" value={draft} maxLength={64} onChange={(event) => { setDraft(event.target.value); setPage(1); }} placeholder={language === "en" ? "Name or symbol" : "Nombre o símbolo"} className="min-h-11 rounded-lg border border-border-control bg-bg px-3 text-base text-fg sm:text-sm" /></label>
+          <label className="flex min-w-40 flex-1 flex-col gap-1.5 text-xs text-fg-muted"><span className="sr-only sm:not-sr-only">{t.market.searchLabel}</span><input type="search" value={draft} maxLength={64} onChange={(event) => { setDraft(event.target.value); setPage(1); }} placeholder={language === "en" ? "Search a stock" : "Buscar una acción"} className="min-h-11 rounded-full border border-border bg-bg px-4 text-base text-fg sm:rounded-lg sm:border-border-control sm:px-3 sm:text-sm" /></label>
           <FilterPanel activeCount={filter === "all" ? 0 : 1}>
             <label className="flex flex-col gap-1.5 text-xs text-fg-muted">{filtersTitle}<select value={filter} onChange={(event) => onFilterChange(parseFilter(event.target.value))} className="min-h-11 rounded-lg border border-border-control bg-bg px-3 text-base text-fg sm:text-sm">{filterOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
           </FilterPanel>
-          <label className="flex w-40 flex-col gap-1.5 text-xs text-fg-muted">{t.market.sortLabel}<select value={sort} onChange={(event) => onSortChange(parseSort(event.target.value))} className="min-h-11 rounded-lg border border-border-control bg-bg px-3 text-base text-fg sm:text-sm">{sortOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
+          <label className="hidden w-40 flex-col gap-1.5 text-xs text-fg-muted sm:flex">{t.market.sortLabel}<select value={sort} onChange={(event) => onSortChange(parseSort(event.target.value))} className="min-h-11 rounded-lg border border-border-control bg-bg px-3 text-base text-fg sm:text-sm">{sortOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
+        </div>
+        {/* T98: en celular el orden va en burbujas deslizables (el select queda desde sm). */}
+        <div role="group" aria-label={t.market.sortLabel} className="-mx-5 -mt-1 flex w-[calc(100%+2.5rem)] gap-2 overflow-x-auto px-5 pb-1 [scrollbar-width:none] sm:hidden">
+          {sortOptions.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              aria-pressed={sort === option.value}
+              onClick={() => onSortChange(option.value)}
+              className={cn(
+                "inline-flex h-9 shrink-0 items-center rounded-full border px-4 text-[13px] font-medium transition-colors active:scale-[0.97]",
+                sort === option.value ? "border-fg bg-fg text-bg" : "border-border bg-bg text-fg-body hover:border-border-strong",
+              )}
+            >
+              {option.label}
+            </button>
+          ))}
         </div>
         <div className="w-full"><ActiveFilters language={language} filters={[
           ...(draft ? [{ id: "q", label: draft, remove: () => { setDraft(""); setQuery(""); setPage(1); } }] : []),
@@ -663,12 +680,12 @@ export function MarketScreen({
         ]} onClear={clearFilters} /></div>
         {draft.trim() !== query ? <p role="status" className="w-full text-xs text-fg-muted">{t.states.loading}</p> : null}
         {sort === "gain" || sort === "loss" || filter === "favorites" ? <p className="w-full text-xs text-fg-muted">{language === "en" ? `Filtered and ranked among ${items.length} loaded stocks. Load more to expand the universe.` : `Filtro y orden entre ${items.length} acciones cargadas. Carga más para ampliar el universo.`}</p> : null}
-        <p className="w-full text-xs text-fg-muted sm:hidden">{hasDemo ? (language === "en" ? "Demo prices. " : "Precios de demostración. ") : ""}{language === "en" ? "Source details are in each stock." : "La procedencia está en cada ficha."}</p>
+        <p className="order-last w-full text-xs text-fg-muted sm:hidden">{hasDemo ? (language === "en" ? "Demo prices. " : "Precios de demostración. ") : ""}{language === "en" ? "Source details are in each stock." : "La procedencia está en cada ficha."}</p>
         <p className="hidden w-full text-xs text-fg-muted sm:block">{hasDemo ? (language === "en" ? "Demo prices. " : "Precios de demostración. ") : ""}{hasReference ? (language === "en" ? "Includes reference prices. " : "Incluye precios de referencia. ") : ""}{language === "en" ? "Weekly trends may show the underlying reference; source details are in each stock." : "La tendencia semanal puede mostrar la referencia del subyacente; la procedencia está en cada ficha."}</p>
 
         {currencyNote ? (
           <p
-            className="w-full text-[13px] leading-5 text-fg-muted"
+            className="order-last w-full text-[13px] leading-5 text-fg-muted sm:order-none"
             title={currency === "CLP" && !fxKnown ? t.detail.fxFallback : undefined}
           >
             {currencyNote}
@@ -729,7 +746,7 @@ export function MarketScreen({
               <span className="label-xs">Precio / Var. 24 h</span>
             </div>
 
-            <ul className="flex w-full min-w-0 flex-col divide-y divide-border border-t border-border">
+            <ul className="-mx-2 flex w-[calc(100%+1rem)] min-w-0 flex-col divide-y divide-border rounded-3xl border border-border bg-bg px-2 sm:mx-0 sm:w-full sm:rounded-none sm:border-x-0 sm:border-b-0 sm:bg-transparent sm:px-0">
               {listRows.map((entry) => {
                 const shownPrice = entry.quote
                   ? priceRows([{ item: entry.item, quote: entry.quote, index: entry.index }], currency, rate)[0]

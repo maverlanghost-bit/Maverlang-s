@@ -1,5 +1,15 @@
 # PROGRESO — Maverlang
 
+## T98 — Lista de acciones del mercado en celular (2026-11-23)
+- Bajo la tarjeta de saldo, en celular:
+  - sin la línea «Mostrando 20 de 446 · Actualizado hace…» (sigue desde sm) y sin rótulos visibles sobre el buscador (quedan para lectores de pantalla);
+  - buscador en píldora «Buscar una acción» y orden en burbujas deslizables (Popular, Mayor alza, Mayor baja, A–Z); el select queda desde sm;
+  - las notas de procedencia y moneda bajan al final.
+- La lista va en una tarjeta blanca redondeada.
+- `asset-row.tsx`: mini gráfico semanal también en celular (52×26) y nombre en una línea con puntos suspensivos; desde sm todo sigue igual.
+- Espacio entre bloques del mercado: `gap-5` en celular.
+- Verificación: `tsc`, ESLint, 4 archivos de pruebas relacionados (36/36) y navegador a 375 px (sin desborde). Sin publicar.
+
 ## T97 — Tarjeta de saldo en vidrio claro (2026-11-23)
 - `mobile-balance-card.tsx` pasa de negra a vidrio claro: `bg-white/60`, `backdrop-blur-xl` con saturación, borde blanco, realces interiores y degradados fríos para la profundidad, y una sombra muy suave.
 - Se quitaron «Saldo total» y la etiqueta «Demo». El ojo queda junto al monto, así que el relleno es igual arriba y abajo (16 px).
