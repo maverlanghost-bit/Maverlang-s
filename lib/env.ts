@@ -200,6 +200,12 @@ function buildServerSchema(source: EnvSource) {
     JUPITER_BASE_URL: urlEnv("https://api.jup.ag"),
     JUPITER_API_KEY: optionalText(),
     COINGECKO_API_KEY: optionalText(),
+    /**
+     * T93: plan de la clave de CoinGecko. `demo` (gratis, ~30/min, api.coingecko.com)
+     * o `pro` (de pago, pro-api.coingecko.com). Con clave, las velas del token
+     * usan su API on-chain en vez de GeckoTerminal sin clave (~10/min).
+     */
+    COINGECKO_API_PLAN: enumEnv(["demo", "pro"] as const, "demo"),
     FEE_BPS: intEnv(0, 10_000),
     FEE_WALLET: optionalText(),
     PRICE_DEVIATION_MAX_BPS: intEnv(150, 10_000),

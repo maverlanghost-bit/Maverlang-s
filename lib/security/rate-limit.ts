@@ -26,10 +26,14 @@ export const RATE_LIMIT_POLICIES = {
   tradeIp: { limit: 60, windowMs: 60_000 },
   /** Reinicio de la demo: 5/h por usuario. */
   demoReset: { limit: 5, windowMs: 3_600_000 },
-  /** Búsqueda del mercado: 60/min por IP (cuida la cuota de Jupiter). */
-  search: { limit: 60, windowMs: 60_000 },
-  /** Precios: 120/min por IP. */
-  prices: { limit: 120, windowMs: 60_000 },
+  /** Búsqueda del mercado: 120/min por IP (la CDN ya sirve 60 s; T93: margen para IP compartida). */
+  search: { limit: 120, windowMs: 60_000 },
+  /**
+   * Precios: 600/min por IP (T93). Los operadores móviles chilenos comparten IP
+   * entre muchos clientes (CGNAT): con 120/min, diez personas en una ficha ya
+   * recibían 429. El costo de Jupiter lo protegen la CDN (15 s) y el lote.
+   */
+  prices: { limit: 600, windowMs: 60_000 },
   /** Lecturas y escrituras de `/api/me/*`: 60/min por usuario. */
   me: { limit: 60, windowMs: 60_000 },
   /** Webhooks: 300/min por IP (las firmas se verifican aparte). */
@@ -40,8 +44,8 @@ export const RATE_LIMIT_POLICIES = {
   waitlist: { limit: 5, windowMs: 3_600_000 },
   /** Comprar o vender en la demo: 30/min por usuario. */
   demoTrade: { limit: 30, windowMs: 60_000 },
-  /** GET públicas (fx, geo, cartera): 60/min por IP. */
-  publicGet: { limit: 60, windowMs: 60_000 },
+  /** GET públicas (fx, geo, estado de mercado): 300/min por IP (T93: IP compartida/CGNAT). */
+  publicGet: { limit: 300, windowMs: 60_000 },
   /** Correo de bienvenida: 3/h por usuario. */
   bienvenida: { limit: 3, windowMs: 3_600_000 },
   /** Correo de bienvenida: 3/h por IP. */
@@ -140,8 +144,25 @@ function warnUnavailableOnce(reason: string): void {
  * Techo efectivo. Sólo en desarrollo `RATE_LIMIT_TEST_SEARCH` baja la
  * búsqueda (p. ej. `=5`: la sexta en 1 min da 429). En producción se ignora.
  */
+/**
+ * T93: `RATE_LIMIT_<POLÍTICA>` en mayúsculas y con guion bajo (p. ej.
+ * `RATE_LIMIT_PRICES=900`, `RATE_LIMIT_AI_GLOBAL_DAILY=20000`) reemplaza el
+ * tope de esa política sin desplegar código. Entero entre 1 y 1.000.000; si
+ * no, se ignora y rige el valor del código. La ventana no cambia.
+ */
+export function rateLimitEnvKey(name: RateLimitPolicyName): string {
+  return `RATE_LIMIT_${name.replace(/([a-z0-9])([A-Z])/g, "$1_$2").toUpperCase()}`;
+}
+
+function envLimitOverride(name: RateLimitPolicyName): number | null {
+  const raw = Number(process.env[rateLimitEnvKey(name)]?.trim());
+  return Number.isInteger(raw) && raw >= 1 && raw <= 1_000_000 ? raw : null;
+}
+
 export function resolvePolicy(name: RateLimitPolicyName): RateLimitPolicy {
-  const base = RATE_LIMIT_POLICIES[name];
+  const code = RATE_LIMIT_POLICIES[name];
+  const override = envLimitOverride(name);
+  const base = override === null ? code : { limit: override, windowMs: code.windowMs };
   if (name === "search" && process.env.NODE_ENV !== "production") {
     const raw = Number(process.env.RATE_LIMIT_TEST_SEARCH);
     if (Number.isInteger(raw) && raw > 0) return { limit: raw, windowMs: base.windowMs };

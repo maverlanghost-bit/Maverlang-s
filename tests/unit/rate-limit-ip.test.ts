@@ -196,8 +196,8 @@ describe("A-02: producción sin Upstash falla cerrada en políticas sensibles", 
   });
 
   it("el techo de las políticas sigue siendo el documentado", () => {
-    expect(RATE_LIMIT_POLICIES.search.limit).toBe(60);
-    expect(RATE_LIMIT_POLICIES.prices.limit).toBe(120);
+    expect(RATE_LIMIT_POLICIES.search.limit).toBe(120);
+    expect(RATE_LIMIT_POLICIES.prices.limit).toBe(600);
     expect(RATE_LIMIT_POLICIES.tradeIp.limit).toBe(60);
     expect(RATE_LIMIT_POLICIES.ai.limit).toBe(20);
   });

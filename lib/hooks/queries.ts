@@ -31,8 +31,12 @@ import { depositConfirmationStatus } from "@/lib/wallet/activity";
 const HOUR_MS = 3_600_000;
 /** Polling de precios en vivo (M41): 15 s en listas, también al volver a la pestaña. */
 export const PRICE_MS = 15_000;
-/** Detalle y hoja de compra (N13): 5 s. Requiere key de Jupiter (1 req/s en Free). */
-export const SPOT_MS = 5_000;
+/**
+ * Detalle y hoja de compra (N13): 10 s (T93; antes 5 s). La CDN renueva
+ * `/api/prices` cada 15 s, así que sondear más seguido no traía datos nuevos
+ * y duplicaba las peticiones con 500 usuarios.
+ */
+export const SPOT_MS = 10_000;
 /** Historial con datos: fresco 5 min. El precio en vivo cubre el último punto. */
 export const HISTORY_MS = 5 * 60_000;
 /**

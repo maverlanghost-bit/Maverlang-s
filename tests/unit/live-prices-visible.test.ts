@@ -86,8 +86,8 @@ describe("M41: opciones de polling", () => {
     expect(block).toContain("intervalMs = PRICE_MS");
   });
 
-  it("SPOT_MS en 5 s y detalle/compra lo usan", () => {
-    expect(source).toContain("export const SPOT_MS = 5_000");
+  it("SPOT_MS en 10 s y detalle/compra lo usan", () => {
+    expect(source).toContain("export const SPOT_MS = 10_000");
     const detail = readFileSync(
       path.join(ROOT, "app", "(platform)", "app", "accion", "[ticker]", "detail-screen.tsx"),
       "utf8",

@@ -11,8 +11,17 @@ import type { PricePoint } from "@/lib/types";
  * falla, devuelve null: no inventa una serie.
  */
 
-const MARKETS_URL = "https://api.coingecko.com/api/v3/coins/markets";
-const CHART_URL = "https://api.coingecko.com/api/v3/coins";
+/**
+ * T93: con `COINGECKO_API_PLAN=pro` (y clave) se usa la API de pago; si no, la
+ * pública/demo de siempre. Se lee en cada llamada para respetar el entorno.
+ */
+function coingeckoPro(): boolean {
+  return process.env.COINGECKO_API_PLAN?.trim().toLowerCase() === "pro" && Boolean(process.env.COINGECKO_API_KEY?.trim());
+}
+
+function coingeckoRoot(): string {
+  return coingeckoPro() ? "https://pro-api.coingecko.com/api/v3" : "https://api.coingecko.com/api/v3";
+}
 
 export const COINGECKO_CATEGORIES = ["xstocks-ecosystem", "ondo-tokenized-assets"] as const;
 const PER_PAGE = 250;
@@ -55,13 +64,13 @@ export function coingeckoSymbol(symbol: string): string {
 
 /** Primera página de xStocks. El test del mapa compara esta URL tal cual. */
 export function coingeckoMarketsUrl(category: string, page: number): string {
-  return `${MARKETS_URL}?vs_currency=usd&category=${encodeURIComponent(category)}&per_page=${PER_PAGE}&page=${page}`;
+  return `${coingeckoRoot()}/coins/markets?vs_currency=usd&category=${encodeURIComponent(category)}&per_page=${PER_PAGE}&page=${page}`;
 }
 
 function coingeckoHeaders(apiKey?: string): Record<string, string> {
   const headers: Record<string, string> = { accept: "application/json" };
   const key = apiKey?.trim();
-  if (key) headers["x-cg-demo-api-key"] = key;
+  if (key) headers[coingeckoPro() ? "x-cg-pro-api-key" : "x-cg-demo-api-key"] = key;
   return headers;
 }
 
@@ -166,7 +175,7 @@ export async function resolveCoinGeckoId(
 }
 
 function chartUrl(id: string, days: number, interval: string | null): string {
-  const base = `${CHART_URL}/${encodeURIComponent(id)}/market_chart?vs_currency=usd&days=${days}`;
+  const base = `${coingeckoRoot()}/coins/${encodeURIComponent(id)}/market_chart?vs_currency=usd&days=${days}`;
   return interval ? `${base}&interval=${interval}` : base;
 }
 

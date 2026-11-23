@@ -1,5 +1,17 @@
 # PROGRESO — Maverlang
 
+## T93 — Preparación para 500 usuarios en vivo (2026-11-23)
+- Topes por IP en `lib/security/rate-limit.ts` aptos para CGNAT móvil: `prices` de 120 a 600/min, `publicGet` de 60 a 300 y `search` de 60 a 120. Las políticas por usuario no cambian.
+- Cualquier tope se ajusta desde el entorno con `RATE_LIMIT_<POLÍTICA>` (`rateLimitEnvKey`, entero 1..1.000.000), sin desplegar. Sirve también para el disyuntor de IA.
+- Menos carga: `/api/market/status` y `/status/batch` pasan a caché "short" (60 s CDN, son públicos). `SPOT_MS` va de 5 s a 10 s, porque la CDN de precios renueva cada 15 s.
+- Velas del token: `tokenOhlcvSource` usa la API on-chain de CoinGecko cuando existe `COINGECKO_API_KEY`, según `COINGECKO_API_PLAN`:
+  - `demo`: api.coingecko.com, 25/min;
+  - `pro`: pro-api.coingecko.com, 400/min;
+  - sin clave: GeckoTerminal, 8/min.
+  `coingecko-history` (relleno de historial) también respeta el plan pro.
+- Lista para Manu en `docs/PENDIENTES-MANU.md` (Vercel Pro, repo privado, Jupiter, Upstash, Supabase, CoinGecko, Privy, IA, monitoreo, prueba k6 y requisitos de T83).
+- Verificación liviana: `tsc`, ESLint de lo tocado y 31 archivos de pruebas (358/358; nuevos: `rate-limit-env`, `token-ohlcv-source`). Se actualizaron las pruebas que fijaban 120/min y SPOT_MS 5 s. Sin build ni e2e.
+
 ## T92 — Publicación de T89-T91 y estimación de capacidad (2026-11-23)
 - Publicación: T89-T91 a `main` por cherry-pick (`35ae8f3`). Vercel lo bloqueó ("Deployment was blocked"): con el repo privado, el plan Hobby sólo publica commits del dueño y los commits salen como Mbrop-13. Manu volvió el repo a público y un commit vacío (`a51f449`) disparó el despliegue: Vercel "success".
 - Verificado en producción: portada nueva, `/app`, ficha NVDAx y `/api/health` en 200. El historial de NVDAx sale de GeckoTerminal y de la CDN (`X-Vercel-Cache: HIT`).

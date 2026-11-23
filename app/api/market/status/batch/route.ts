@@ -21,7 +21,7 @@ export const dynamic = "force-dynamic";
  *   mock, sin inventar estados a partir de `enabled` del catálogo.
  */
 export function GET(req: Request) {
-  return handle("no-store", async () => {
+  return handle("short", async () => {
     const { symbols } = parseQuery(req, assetStatusBatchQuerySchema);
     const services = getServices();
     const data = await callService(req, () => services.market.statuses(symbols));
