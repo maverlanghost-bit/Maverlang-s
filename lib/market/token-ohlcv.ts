@@ -1,3 +1,4 @@
+import { serverEnv } from "@/lib/env";
 import type { HistoryMetadata, PricePoint, Range } from "@/lib/types";
 
 /**
@@ -20,6 +21,9 @@ import type { HistoryMetadata, PricePoint, Range } from "@/lib/types";
  */
 
 export const GECKO_BASE_URL = "https://api.geckoterminal.com/api/v2/networks/solana";
+/** T93: misma API on-chain servida por CoinGecko con clave (más cupo). */
+export const COINGECKO_DEMO_ONCHAIN_URL = "https://api.coingecko.com/api/v3/onchain/networks/solana";
+export const COINGECKO_PRO_ONCHAIN_URL = "https://pro-api.coingecko.com/api/v3/onchain/networks/solana";
 const REQUEST_TIMEOUT_MS = 2_500;
 const POOL_TTL_MS = 6 * 3_600_000;
 const POOL_MISS_TTL_MS = 10 * 60_000;
@@ -27,7 +31,10 @@ const POOL_MISS_TTL_MS = 10 * 60_000;
 export const MIN_POOL_RESERVE_USD = 1_000;
 const STALE_MAX_MS = 15 * 60_000;
 const RATE_WINDOW_MS = 60_000;
+/** Llamadas por minuto por instancia: sin clave (GeckoTerminal ~10/min) se deja margen. */
 const RATE_MAX_CALLS = 8;
+/** Con clave: demo ~30/min, pro (Analyst) ~500/min. */
+export const RATE_MAX_CALLS_BY_PLAN = { free: RATE_MAX_CALLS, demo: 25, pro: 400 } as const;
 const COOLDOWN_MS = 60_000;
 /** La última vela no puede alejarse más de esto del precio que informa el pozo. */
 const MAX_DEVIATION = 0.5;
@@ -64,6 +71,25 @@ export interface TokenOhlcvOptions {
   fetchImpl?: typeof fetch;
   now?: () => number;
   baseUrl?: string;
+  /** Cabeceras extra (la clave de CoinGecko). */
+  headers?: Record<string, string>;
+  /** Tope de llamadas por minuto de esta instancia. */
+  rateMaxCalls?: number;
+}
+
+export type TokenOhlcvPlan = keyof typeof RATE_MAX_CALLS_BY_PLAN;
+
+/**
+ * Origen según la clave: sin clave GeckoTerminal público; con clave la API
+ * on-chain de CoinGecko (demo o pro) y su cupo. La clave nunca sale al cliente.
+ */
+export function tokenOhlcvSource(apiKey: string | undefined, plan: "demo" | "pro"): Required<Pick<TokenOhlcvOptions, "baseUrl" | "headers" | "rateMaxCalls">> & { plan: TokenOhlcvPlan } {
+  const key = apiKey?.trim();
+  if (!key) return { plan: "free", baseUrl: GECKO_BASE_URL, headers: {}, rateMaxCalls: RATE_MAX_CALLS_BY_PLAN.free };
+  if (plan === "pro") {
+    return { plan, baseUrl: COINGECKO_PRO_ONCHAIN_URL, headers: { "x-cg-pro-api-key": key }, rateMaxCalls: RATE_MAX_CALLS_BY_PLAN.pro };
+  }
+  return { plan, baseUrl: COINGECKO_DEMO_ONCHAIN_URL, headers: { "x-cg-demo-api-key": key }, rateMaxCalls: RATE_MAX_CALLS_BY_PLAN.demo };
 }
 
 interface PoolInfo {
@@ -147,6 +173,8 @@ export function createTokenOhlcv(options: TokenOhlcvOptions = {}) {
   const fetchImpl = options.fetchImpl ?? fetch;
   const clock = options.now ?? Date.now;
   const baseUrl = (options.baseUrl ?? GECKO_BASE_URL).replace(/\/$/, "");
+  const extraHeaders = options.headers ?? {};
+  const rateMaxCalls = options.rateMaxCalls ?? RATE_MAX_CALLS;
   const pools = new Map<string, PoolRecord>();
   const poolInflight = new Map<string, Promise<PoolInfo | null>>();
   const series = new Map<string, SeriesRecord>();
@@ -159,13 +187,13 @@ export function createTokenOhlcv(options: TokenOhlcvOptions = {}) {
     const now = clock();
     if (now < cooldownUntil) throw new Error("cooldown");
     while (calls.length > 0 && now - calls[0]! >= RATE_WINDOW_MS) calls.shift();
-    if (calls.length >= RATE_MAX_CALLS) throw new Error("rate-budget");
+    if (calls.length >= rateMaxCalls) throw new Error("rate-budget");
     calls.push(now);
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
     try {
       const response = await fetchImpl(url, {
-        headers: { accept: "application/json;version=20230302" },
+        headers: { accept: "application/json;version=20230302", ...extraHeaders },
         signal: controller.signal,
         cache: "no-store",
       });
@@ -250,6 +278,10 @@ let shared: ReturnType<typeof createTokenOhlcv> | undefined;
 
 /** Instancia del proceso: comparte pozos, series y cupo entre todas las peticiones. */
 export function tokenOhlcv(): ReturnType<typeof createTokenOhlcv> {
-  shared ??= createTokenOhlcv();
+  if (!shared) {
+    // T93: con `COINGECKO_API_KEY` se usa la API on-chain de CoinGecko (más cupo).
+    const { baseUrl, headers, rateMaxCalls } = tokenOhlcvSource(serverEnv.COINGECKO_API_KEY, serverEnv.COINGECKO_API_PLAN);
+    shared = createTokenOhlcv({ baseUrl, headers, rateMaxCalls });
+  }
   return shared;
 }

@@ -13,7 +13,7 @@ export const dynamic = "force-dynamic";
  * (live → catálogo → mock).
  */
 export function GET(req: Request) {
-  return handle("no-store", async () => {
+  return handle("short", async () => {
     const limited = await withRateLimit(req, "publicGet");
     if (limited) return limited;
     const params = parseQuery(req, marketStatusQuerySchema);
