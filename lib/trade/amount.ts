@@ -54,8 +54,9 @@ export function maxAmount(input: {
   return Math.max(0, shares * priceUsd);
 }
 
-function overMax(amount: number, max: number, currency: TradeAmountCurrency): boolean {
-  const epsilon = currency === "CLP" ? 0.49 : 1e-8;
+function overMax(amount: number, max: number, currency: TradeAmountCurrency, side?: Side): boolean {
+  // Vender en USD: el tope mostrado va redondeado al centavo, se tolera ese centavo.
+  const epsilon = currency === "CLP" ? 0.49 : side === "sell" && currency === "USDC" ? 0.01 + 1e-9 : 1e-8;
   return amount > max + epsilon;
 }
 
@@ -92,7 +93,7 @@ export function amountBlock(input: {
     if (maxUsd !== null && maxUsd + 1e-9 < floor) return "funds";
     return "empty";
   }
-  if (overMax(amount, max, currency)) return "funds";
+  if (overMax(amount, max, currency, side)) return "funds";
   const usd = notionalUsd(amount, currency, fx, priceUsd);
   if (usd === null) return currency === "CLP" ? "fx" : "price";
   if (usd + 1e-9 < floor) return "min";
@@ -186,4 +187,41 @@ export function quickTradeAmounts(
   if (valid.length > 0) return [...valid];
   if (!maxKnown || (max as number) + eps >= minCur) return [minCur];
   return [];
+}
+
+/** Un centavo: lo que separa el monto mostrado (redondeado) del valor real de la posición. */
+export const SELL_USD_TOLERANCE = 0.01;
+/** Diferencia en acciones que se trata como «todo el saldo» (ruido de coma flotante). */
+const SELL_SHARES_TOLERANCE = 1e-6;
+
+/** Baja a 8 decimales sin pasarse del saldo (el contrato admite 8). */
+function floorShares(value: number): number {
+  return Math.floor(value * 1e8 + 1e-6) / 1e8;
+}
+
+/**
+ * Qué se le pide al servidor al vender. En USD, el monto «Máx» o «100 %» sale de
+ * `acciones × precio` redondeado al centavo, y `monto / precio` puede dar un
+ * pelo más que el saldo (o el precio se mueve unos centavos): el servidor
+ * respondía «no tienes acciones suficientes». Si el monto cubre el valor de la
+ * posición menos un centavo, se vende exactamente el saldo en acciones, nunca
+ * más. En acciones, un sobrante de ruido también se recorta al saldo.
+ */
+export function resolveSellRequest(input: {
+  currency: TradeAmountCurrency;
+  amount: number;
+  shares: number;
+  priceUsd: number | null;
+}): { amount: number; currency: TradeAmountCurrency } {
+  const { currency, amount, shares, priceUsd } = input;
+  if (!(amount > 0) || !(shares > 0)) return { amount, currency };
+  if (currency === "SHARES") {
+    if (amount > shares && amount - shares <= SELL_SHARES_TOLERANCE) return { amount: floorShares(shares), currency };
+    return { amount, currency };
+  }
+  if (currency === "USDC" && priceUsd && priceUsd > 0) {
+    const positionUsd = shares * priceUsd;
+    if (amount + SELL_USD_TOLERANCE + 1e-9 >= positionUsd) return { amount: floorShares(shares), currency: "SHARES" };
+  }
+  return { amount, currency };
 }

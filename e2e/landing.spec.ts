@@ -19,7 +19,7 @@ test("portada: héroe, CTAs y aviso de demo", async ({ page }) => {
     page.getByRole("heading", { level: 1, name: "Acciones de EE.UU. tokenizadas, en tu billetera" }),
   ).toBeVisible();
 
-  const demo = page.getByRole("link", { name: "Prueba la demo gratis" }).first();
+  const demo = page.getByRole("link", { name: "Entra a la plataforma" }).first();
   await expect(demo).toHaveAttribute("href", "/app/registro");
 
   const acciones = page.getByRole("link", { name: "Ver acciones" }).first();
@@ -141,7 +141,7 @@ test("seguridad: la página explica custodia y enlaza los riesgos", async ({ pag
   for (let index = 0; index < totalRiesgos; index += 1) {
     await expect(riesgos.nth(index)).toHaveAttribute("href", "/legal/riesgos");
   }
-  const demo = page.getByRole("main").getByRole("link", { name: "Probar la demo", exact: true });
+  const demo = page.getByRole("main").getByRole("link", { name: "Conoce la plataforma", exact: true });
   await expect(demo).toHaveAttribute("href", "/app/registro");
 });
 

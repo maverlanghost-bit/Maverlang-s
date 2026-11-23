@@ -229,7 +229,7 @@ export default function SeguridadPage() {
           </SectionHeader>
           <p className="mt-8">
             <Button asChild>
-              <Link href="/app/registro">Probar la demo</Link>
+              <Link href="/app/registro">Conoce la plataforma</Link>
             </Button>
           </p>
         </div>

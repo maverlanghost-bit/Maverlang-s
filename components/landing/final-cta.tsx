@@ -56,7 +56,7 @@ export function FinalCTA() {
         {/* Un solo CTA primario en la vista: la demo. */}
         <div className="mt-8 flex w-full flex-col items-stretch justify-center gap-2 sm:w-auto sm:flex-row sm:items-center">
           <Button asChild size="lg" className="w-full sm:w-auto">
-            <Link href="/app/registro">Prueba la demo gratis</Link>
+            <Link href="/app/registro">Entra a la plataforma</Link>
           </Button>
           <Button asChild variant="ghost" size="lg" className="w-full sm:w-auto">
             <Link href="/app">{esCL.guest.seeStocks}</Link>

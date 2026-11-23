@@ -108,6 +108,15 @@ export function TradeConfirmationWave({ source }: { source: RefObject<HTMLSpanEl
   );
 }
 
+/**
+ * Retraso de la fila `index` del comprobante: aparecen una a una después del
+ * check. Sin onda (movimiento reducido, sin WebGL) o sin animar, ninguno.
+ */
+export function receiptRowDelay(index: number): number {
+  if (typeof window === "undefined" || window.matchMedia(REDUCED_MOTION).matches) return 0;
+  return (readyWave ? FLOOD_MS - 120 : 0) + 400 + index * 60;
+}
+
 /** Título del comprobante de una orden confirmada. */
 export function doneTitle(side: "buy" | "sell", english: boolean) {
   if (english) return side === "buy" ? "Purchase complete" : "Sale complete";
@@ -115,8 +124,10 @@ export function doneTitle(side: "buy" | "sell", english: boolean) {
 }
 
 /** Lo que dura la onda antes de que el velo empiece a desvanecerse. */
-const FLOOD_MS = 760;
-const FLOOD_FADE_MS = 420;
+const FLOOD_MS = 960;
+const FLOOD_FADE_MS = 480;
+/** Onda más lenta que la de la hoja de billetera: el comprobante merece una pausa. */
+const FLOOD_STYLE: WaveStyleInput = { ...WAVE_STYLE, travel: 0.82, linger: 0.1 };
 
 /**
  * Onda que cubre toda la hoja (no sólo el encabezado): el velo blanco tapa el
@@ -167,7 +178,7 @@ function TradeConfirmationFlood({ source, Wave }: { source: RefObject<HTMLSpanEl
           type="center"
           source={source}
           palette="#18844c"
-          waveStyle={WAVE_STYLE}
+          waveStyle={FLOOD_STYLE}
           capture={false}
           live={false}
           prewarm={false}
@@ -201,7 +212,10 @@ export function TradeConfirmationHeading({ title, summary, animate }: {
     animate && typeof window !== "undefined" && !window.matchMedia(REDUCED_MOTION).matches ? readyWave : undefined,
   );
   const delay = Wave ? FLOOD_MS - 120 : 0;
-  const after = (ms: number) => ({ animationDelay: `${delay + ms}ms` });
+  const after = (ms: number, duration?: number) => ({
+    animationDelay: `${delay + ms}ms`,
+    ...(duration ? { animationDuration: `${duration}ms` } : null),
+  });
 
   useEffect(() => {
     if (animate) check.current?.scrollIntoView({ block: "nearest" });
@@ -217,18 +231,18 @@ export function TradeConfirmationHeading({ title, summary, animate }: {
           "relative grid shrink-0 place-items-center rounded-full",
           animate ? "size-20 bg-up text-white motion-safe:animate-success-pop" : "size-12 bg-fg text-bg",
         )}
-        style={animate ? after(0) : undefined}
+        style={animate ? after(0, 720) : undefined}
       >
         {animate ? (
           <>
-            <span className="absolute inset-0 rounded-full bg-up motion-safe:animate-success-ring" style={after(120)} />
+            <span className="absolute inset-0 rounded-full bg-up motion-safe:animate-success-ring" style={after(160, 1300)} />
             <svg viewBox="0 0 24 24" className="relative size-10" fill="none" stroke="currentColor" strokeWidth={2.6} strokeLinecap="round" strokeLinejoin="round">
               <path
                 d="M5 12.5 9.5 17 19 7.5"
                 pathLength={1}
                 strokeDasharray={1}
                 className="motion-safe:animate-check-draw"
-                style={after(220)}
+                style={after(300, 620)}
               />
             </svg>
           </>
@@ -236,7 +250,7 @@ export function TradeConfirmationHeading({ title, summary, animate }: {
           <IconCheck className="size-5" />
         )}
       </span>
-      <div className={cn("min-w-0", animate && "motion-safe:animate-success-text")} style={animate ? after(280) : undefined}>
+      <div className={cn("min-w-0", animate && "motion-safe:animate-success-text")} style={animate ? after(480, 520) : undefined}>
         <p className={cn("leading-tight text-fg", animate ? "text-2xl font-medium" : "text-xl")}>{title}</p>
         <p className="mx-auto mt-1.5 max-w-xs text-sm leading-relaxed text-balance text-fg-body">{summary}</p>
       </div>
