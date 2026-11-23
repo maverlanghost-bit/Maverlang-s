@@ -13,6 +13,13 @@ const nextConfig: NextConfig = {
     deviceSizes: [640, 828, 1080, 1200],
     imageSizes: [40, 48, 64, 96, 128],
   },
+  // T95: el staking (Ganar) se retiró. Los enlaces viejos llevan a Cripto.
+  async redirects() {
+    return [
+      { source: "/app/ganar", destination: "/app/cripto", permanent: true },
+      { source: "/app/ganar/:path*", destination: "/app/cripto", permanent: true },
+    ];
+  },
   async headers() {
     const pageHeaders = buildStaticHeaders({ isProd }).map(({ key, value }) => ({ key, value }));
     return [

@@ -124,7 +124,6 @@ function isNavigatePath(pathname: string): boolean {
   if (pathname === "/bloqueado") return true;
   if (pathname === "/app" || pathname === "/app/accion" || pathname.startsWith("/app/accion/")) return true;
   if (pathname === "/app/cripto" || pathname.startsWith("/app/cripto/")) return true;
-  if (pathname === "/app/ganar" || pathname.startsWith("/app/ganar/")) return true;
   return pathname !== "/app" && !pathname.startsWith("/app/");
 }
 

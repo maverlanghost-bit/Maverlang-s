@@ -25,7 +25,7 @@ export function PositionDetails({ position, name, logoUrl, href, currency, rate,
   const money = (value: number | null) => masked ? "••••" : pendingFx ? "…" : value === null || !Number.isFinite(value) ? missing : formatMoney(value * multiplier, shownCurrency);
   const ratio = (value: number | null) => masked ? "••••" : value === null || !Number.isFinite(value) ? missing : formatPercent(value);
   const rows = [
-    [en ? "Asset type" : "Tipo de activo", earn ? (en ? "Earn token" : "Token en Ganar") : token ? (en ? "Crypto / token" : "Cripto / token") : (en ? "Tokenized stock" : "Acción tokenizada")],
+    [en ? "Asset type" : "Tipo de activo", earn ? (en ? "Staking token" : "Token de staking") : token ? (en ? "Crypto / token" : "Cripto / token") : (en ? "Tokenized stock" : "Acción tokenizada")],
     [token ? (en ? "Tokens" : "Tokens") : (en ? "Shares displayed" : "Acciones mostradas"), masked ? "••••" : formatShares(position.shares)],
     [en ? "Current value" : "Valor actual", money(position.valueUsd)],
     [en ? "Price per unit" : "Precio por unidad", money(position.priceUsd)],
@@ -38,7 +38,7 @@ export function PositionDetails({ position, name, logoUrl, href, currency, rate,
     <DropdownMenu><DropdownMenuTrigger asChild><IconButton ref={trigger} label={`${en ? "Position options" : "Opciones de posición"}: ${name}`}><span aria-hidden className="text-lg">⋯</span></IconButton></DropdownMenuTrigger><DropdownMenuContent align="end" onCloseAutoFocus={(event) => { if (open) event.preventDefault(); }}>
       <DropdownMenuItem onSelect={() => setOpen(true)}>{en ? "View position details" : "Ver detalle de la posición"}</DropdownMenuItem>
       <DropdownMenuItem asChild><Link href={href}>{en ? "Open asset" : "Abrir ficha del activo"}</Link></DropdownMenuItem>
-      {position.shares > 0 ? <><DropdownMenuSeparator /><DropdownMenuItem asChild><Link href={earn ? href : `${href}?operar=vender`}>{earn ? (en ? "Open Earn to sell" : "Abrir Ganar para vender") : t.detail.sell}</Link></DropdownMenuItem></> : null}
+      {position.shares > 0 ? <><DropdownMenuSeparator /><DropdownMenuItem asChild><Link href={earn ? href : `${href}?operar=vender`}>{earn ? (en ? "Open to sell" : "Abrir para vender") : t.detail.sell}</Link></DropdownMenuItem></> : null}
     </DropdownMenuContent></DropdownMenu>
     <Sheet open={open} onOpenChange={(next) => { setOpen(next); if (!next) window.requestAnimationFrame(() => trigger.current?.focus()); }} title={en ? "Position details" : "Detalle de la posición"}>
       <div className="flex flex-col gap-5">
@@ -46,7 +46,7 @@ export function PositionDetails({ position, name, logoUrl, href, currency, rate,
         <dl className="divide-y divide-border">{rows.map(([label, value]) => <div key={label} className="flex items-start justify-between gap-4 py-3 text-sm"><dt className="text-fg-muted">{label}</dt><dd className="num text-right">{value}</dd></div>)}</dl>
         {!token ? <p className="text-xs text-fg-muted">{en ? "Share quantities already include the issuer multiplier." : "Las cantidades de acciones ya incluyen el multiplicador del emisor."}</p> : null}
         <p className="text-xs text-fg-muted">{shownCurrency}{shownCurrency === "CLP" ? (en ? " · conversion at current reference FX" : " · conversión al dólar de referencia actual") : currency === "CLP" ? (en ? " · exchange rate unavailable" : " · sin tipo de cambio disponible") : ""} · {en ? "Unknown cost or profit remains unknown." : "Los costes o resultados desconocidos se muestran sin dato."}</p>
-        <Button asChild variant="secondary"><Link href={href}>{earn ? (en ? "View in Earn" : "Ver en Ganar") : (en ? "View asset" : "Ver ficha del activo")}</Link></Button>
+        <Button asChild variant="secondary"><Link href={href}>{en ? "View asset" : "Ver ficha del activo"}</Link></Button>
       </div>
     </Sheet>
   </>;

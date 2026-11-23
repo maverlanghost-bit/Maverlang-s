@@ -4,31 +4,36 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useQueries } from "@tanstack/react-query";
 
-import { AssetMarketRow } from "@/components/market/asset-row";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { IconButton } from "@/components/ui/icon-button";
 import { AlertButton } from "@/components/domain/alert-button";
 import { AlertsPanel } from "@/components/domain/alert-panel";
-import { PriceFreshness } from "@/components/domain/price-freshness";
+import { ChangeBadge } from "@/components/domain/change-badge";
+import { FavoriteButton } from "@/components/domain/favorite-button";
+import { FlashPrice } from "@/components/domain/flash-price";
+import { Sparkline } from "@/components/domain/sparkline";
+import { TickerLogo } from "@/components/domain/ticker-logo";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ErrorState } from "@/components/ui/error-state";
-import { SegmentedControl } from "@/components/ui/segmented-control";
 import { Skeleton } from "@/components/ui/skeleton";
 import { alertasText, fillAlert } from "@/content/i18n/extra-alertas";
+import { cn } from "@/lib/cn";
 import { getPrices } from "@/lib/api/client";
 import { isCatalogSymbol } from "@/lib/catalog/symbol";
 import { useFavorites, useSyncFavorites } from "@/lib/hooks/use-favorites";
 import { PRICE_MS, priceQueryKey, useFx, useHistories } from "@/lib/hooks/queries";
 import { useT } from "@/lib/hooks/use-t";
 import { isRealSparkHistory, downsample, displayPrice } from "@/lib/market/browse";
-import { chunkSymbols, sortFavoriteRows, uniqueSymbols, type FavoriteSort } from "@/lib/services/alerts-logic";
+import { chunkSymbols, sortFavoriteRows, uniqueSymbols } from "@/lib/services/alerts-logic";
 import type { Quote } from "@/lib/types";
 import { useFavoriteCatalog } from "./use-favorite-catalog";
 
 function tickerHref(symbol: string) {
   return `/app/accion/${encodeURIComponent(symbol)}`;
 }
+
+type Sort = "up" | "down" | "name";
 
 type Row = {
   symbol: string;
@@ -76,7 +81,7 @@ export function FavoritasScreen() {
   const { symbols, toggle } = useFavorites();
   useSyncFavorites();
   const fx = useFx();
-  const [sort, setSort] = useState<FavoriteSort>("change");
+  const [sort, setSort] = useState<Sort>("up");
   const emptyCopy = FAVORITES_EMPTY[language];
 
   const favoriteKey = (symbols ?? []).join("\n");
@@ -154,18 +159,6 @@ export function FavoritasScreen() {
     return map;
   }, [priceQueries]);
 
-  /** Frescura de la lista: el `updatedAt` más reciente de las cotizaciones. */
-  const freshestAt = useMemo(() => {
-    const times = [...quotes.values()].map((quote) => Date.parse(quote.updatedAt)).filter(Number.isFinite);
-    return times.length ? Math.min(...times) : null;
-  }, [quotes]);
-  const anyStale = useMemo(() => {
-    for (const quote of quotes.values()) {
-      if (quote.stale === true) return true;
-    }
-    return false;
-  }, [quotes]);
-
   // Sparklines en paralelo con los precios: ya no esperan a que llegue la cotización.
   // El lote de historial admite hasta 50 símbolos por llamada.
   const sparkSymbols = useMemo(() => priceSymbols.slice(0, 50), [priceSymbols]);
@@ -200,7 +193,12 @@ export function FavoritasScreen() {
         underReview: item?.underReview === true,
       };
     });
-    return sortFavoriteRows(built, sort);
+    if (sort === "down") {
+      const sorted = sortFavoriteRows(built, "change");
+      const withChange = sorted.filter((row) => row.change24hPct != null).reverse();
+      return [...withChange, ...sorted.filter((row) => row.change24hPct == null)];
+    }
+    return sortFavoriteRows(built, sort === "name" ? "name" : "change");
   }, [favoriteSymbols, catalogBySymbol, quotes, sparkBySymbol, sort]);
 
   const pendingFavorites = symbols === null;
@@ -218,93 +216,136 @@ export function FavoritasScreen() {
     if (currency === "CLP") void fx.refetch();
   }
 
+  const ready = !pendingFavorites && !searching && !searchFailed;
+  const pricesPending = priceQueries.some((query) => query.isPending);
+  const en = language === "en";
+  const known = rows.filter((row) => row.change24hPct != null);
+  const upCount = known.filter((row) => (row.change24hPct ?? 0) > 0).length;
+  const downCount = known.filter((row) => (row.change24hPct ?? 0) < 0).length;
+  const sortOptions: { value: Sort; label: string }[] = [
+    { value: "up", label: en ? "Top gainers" : "Mayor alza" },
+    { value: "down", label: en ? "Top losers" : "Mayor baja" },
+    { value: "name", label: "A–Z" },
+  ];
+  const demoPrices = [...quotes.values()].some((quote) => quote.source === "mock");
+  const referencePrices = [...quotes.values()].some((quote) => quote.reference);
+  const footnote = [
+    shownCurrency === "CLP" ? (en ? "CLP at the current reference FX" : "CLP al dólar de referencia actual") : null,
+    demoPrices ? (en ? "Demo prices" : "Precios demo") : null,
+    referencePrices ? (en ? "Includes reference prices" : "Incluye precios de referencia") : null,
+  ].filter(Boolean);
+
   return (
-    <div className="flex min-w-0 flex-col gap-6">
-      <h1 className="sr-only">{copy.pageTitle}</h1>
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-fg-muted"><span>{shownCurrency}{shownCurrency === "CLP" ? (language === "en" ? " · current reference FX" : " · dólar de referencia actual") : ""}</span><PriceFreshness at={freshestAt} stale={anyStale} />{freshestAt ? <span>{language === "en" ? "Oldest observation in the batch" : "Observación más antigua del lote"}</span> : null}{[...quotes.values()].some((quote) => quote.source === "mock") ? <span>{language === "en" ? "Demo prices" : "Precios demo"}</span> : null}{[...quotes.values()].some((quote) => quote.reference) ? <span>{language === "en" ? "Includes reference prices" : "Incluye precios de referencia"}</span> : null}</div>
-      {priceQueries.some((query) => query.isError) ? <ErrorState title={language === "en" ? "Some prices could not be refreshed" : "No se pudieron actualizar algunos precios"} onRetry={retry} retryLabel={copy.retry} /> : null}
-      {favoriteSymbols.length > 0 ? (
-        <div className="flex max-w-full">
-          <SegmentedControl
-            label={copy.sortLabel}
-            value={sort}
-            compact
-            onChange={(value) => {
-              if (value === "change" || value === "name") setSort(value);
-            }}
-            options={[
-              { value: "change", label: `${copy.sortChange} ↓` },
-              { value: "name", label: `${copy.sortName} A–Z` },
-            ]}
-          />
-        </div>
+    <div className="flex min-w-0 flex-col gap-5 sm:gap-6">
+      <header className="flex min-w-0 flex-col gap-1">
+        <h1 className="flex items-baseline gap-2 text-2xl leading-tight font-semibold tracking-tight text-fg sm:text-3xl">
+          {copy.pageTitle}
+          {ready && rows.length > 0 ? (
+            <span className="num text-base font-medium text-fg-muted sm:text-lg">{rows.length}</span>
+          ) : null}
+        </h1>
+        {ready && rows.length > 0 ? (
+          <p className="text-sm leading-5 text-fg-muted">
+            {known.length === 0
+              ? en
+                ? "Waiting for today's prices."
+                : "Esperando los precios de hoy."
+              : en
+                ? `Today: ${upCount} up, ${downCount} down.`
+                : `Hoy: ${upCount} ${upCount === 1 ? "sube" : "suben"}, ${downCount} ${downCount === 1 ? "baja" : "bajan"}.`}
+          </p>
+        ) : null}
+      </header>
+      {priceQueries.some((query) => query.isError) ? (
+        <ErrorState
+          title={en ? "Some prices could not be refreshed" : "No se pudieron actualizar algunos precios"}
+          onRetry={retry}
+          retryLabel={copy.retry}
+        />
       ) : null}
-      {currency === "CLP" && !fxKnown && !fx.isPending && favoriteSymbols.length > 0 ? (
-        <p className="text-[13px] leading-5 text-fg-muted">{t.detail.fxFallback}</p>
+      {ready && rows.length > 1 ? (
+        <div role="group" aria-label={copy.sortLabel} className="no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4 sm:mx-0 sm:px-0">
+          {sortOptions.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              aria-pressed={sort === option.value}
+              onClick={() => setSort(option.value)}
+              className={cn(
+                "inline-flex min-h-11 shrink-0 items-center rounded-full border px-4 text-[13px] font-medium transition-colors duration-150 motion-reduce:transition-none sm:min-h-9",
+                sort === option.value
+                  ? "border-fg bg-fg text-bg"
+                  : "border-border bg-bg text-fg-muted hover:border-fg-muted hover:text-fg",
+              )}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
       ) : null}
       {pendingFavorites || searching ? <ListSkeleton label={copy.loading} /> : null}
       {!pendingFavorites && searchFailed ? (
         <ErrorState title={copy.listError} onRetry={retry} retryLabel={copy.retry} label={copy.listError} />
       ) : null}
-      {!pendingFavorites && !searching && !searchFailed && favoriteSymbols.length === 0 ? (
-        <EmptyState
-          media={<FavoritesEmptyArt />}
-          title={copy.emptyTitle}
-          description={emptyCopy.body}
-          action={
-            <div className="flex w-full flex-col items-center gap-3">
-              <ol className="mx-auto flex w-full max-w-xs flex-col gap-1.5 text-left text-sm leading-relaxed text-fg-muted">
-                {emptyCopy.steps.map((step, index) => (
-                  <li key={step} className="flex items-start gap-2">
-                    <span
-                      className="mt-0.5 inline-flex size-5 shrink-0 items-center justify-center rounded-full border border-border/70 bg-surface-1 text-[11px] font-medium text-fg"
-                      aria-hidden="true"
-                    >
-                      {index + 1}
-                    </span>
-                    <span>{step}</span>
-                  </li>
-                ))}
-              </ol>
-              <Button asChild size="lg" className="min-h-11 w-full whitespace-nowrap sm:w-auto">
-                <Link href="/app">{copy.emptyAction}</Link>
-              </Button>
-            </div>
-          }
-        />
-      ) : null}
-      {!pendingFavorites && !searching && rows.length > 0 ? (
-        <div className="flex min-w-0 flex-col">
-          <div
-            aria-hidden
-            className="hidden items-center justify-end border-b border-border pb-2 pr-[5.75rem] sm:flex"
-          >
-            <span className="label-xs">Precio / Var. 24 h</span>
-          </div>
-          <ul className="flex min-w-0 flex-col divide-y divide-border">
-            {rows.map((row) => {
-              const shown =
-                row.priceUsd != null ? displayPrice(row.priceUsd, shownCurrency, fxKnown ? rate : undefined) : null;
-              return (
-                <li key={row.symbol}>
-                  <FavoriteRow
-                    row={row}
-                    shown={shown}
-                    pending={priceQueries.some((query) => query.isPending)}
-                    currency={shownCurrency}
-                    noPrice={copy.noPrice}
-                    noChange={copy.noChange}
-                    lowLiquidityLabel={row.lowLiquidity ? t.market.lowLiquidity : null}
-                    reviewLabel={row.underReview ? t.market.underReview : null}
-                    reviewHint={row.underReview ? t.market.underReviewHint : null}
-                    favoriteLabel={fillAlert(t.market.favoriteOn, { name: row.name })}
-                    onToggle={() => toggle(storedSymbolByKey.get(row.symbol.toLowerCase()) ?? row.symbol)}
-                  />
-                </li>
-              );
-            })}
-          </ul>
+      {ready && favoriteSymbols.length === 0 ? (
+        <div className="rounded-3xl border border-border bg-bg px-5 py-10 sm:py-14">
+          <EmptyState
+            className="py-0 sm:py-0"
+            media={<FavoritesEmptyArt />}
+            title={copy.emptyTitle}
+            description={emptyCopy.body}
+            action={
+              <div className="flex w-full flex-col items-center gap-5">
+                <ol className="mx-auto flex w-full max-w-xs flex-col gap-2 text-left text-sm leading-relaxed text-fg-muted">
+                  {emptyCopy.steps.map((step, index) => (
+                    <li key={step} className="flex items-start gap-2.5">
+                      <span
+                        className="num mt-0.5 inline-flex size-5 shrink-0 items-center justify-center rounded-full bg-surface-2 text-[11px] font-medium text-fg"
+                        aria-hidden="true"
+                      >
+                        {index + 1}
+                      </span>
+                      <span>{step}</span>
+                    </li>
+                  ))}
+                </ol>
+                <Button asChild size="lg" className="min-h-11 w-full whitespace-nowrap sm:w-auto">
+                  <Link href="/app">{copy.emptyAction}</Link>
+                </Button>
+              </div>
+            }
+          />
         </div>
+      ) : null}
+      {ready && rows.length > 0 ? (
+        <ul className="flex min-w-0 flex-col divide-y divide-border overflow-hidden rounded-3xl border border-border bg-bg">
+          {rows.map((row) => {
+            const shown =
+              row.priceUsd != null ? displayPrice(row.priceUsd, shownCurrency, fxKnown ? rate : undefined) : null;
+            return (
+              <li key={row.symbol}>
+                <FavoriteRow
+                  row={row}
+                  shown={shown}
+                  pending={pricesPending}
+                  currency={shownCurrency}
+                  noPrice={copy.noPrice}
+                  noChange={copy.noChange}
+                  lowLiquidityLabel={row.lowLiquidity ? t.market.lowLiquidity : null}
+                  reviewLabel={row.underReview ? t.market.underReview : null}
+                  favoriteLabel={fillAlert(t.market.favoriteOn, { name: row.name })}
+                  onToggle={() => toggle(storedSymbolByKey.get(row.symbol.toLowerCase()) ?? row.symbol)}
+                />
+              </li>
+            );
+          })}
+        </ul>
+      ) : null}
+      {ready && currency === "CLP" && !fxKnown && !fx.isPending && favoriteSymbols.length > 0 ? (
+        <p className="text-[13px] leading-5 text-fg-muted">{t.detail.fxFallback}</p>
+      ) : null}
+      {ready && rows.length > 0 && footnote.length > 0 ? (
+        <p className="text-xs leading-5 text-fg-muted">{footnote.join(" · ")}</p>
       ) : null}
       <AlertsPanel />
     </div>
@@ -319,7 +360,6 @@ function FavoriteRow({
   noChange,
   lowLiquidityLabel,
   reviewLabel,
-  reviewHint,
   favoriteLabel,
   onToggle,
   pending = false,
@@ -332,17 +372,85 @@ function FavoriteRow({
   noChange: string;
   lowLiquidityLabel: string | null;
   reviewLabel: string | null;
-  reviewHint: string | null;
   favoriteLabel: string;
   onToggle: () => void;
 }) {
   const { language } = useT();
   const en = language === "en";
   const peer = row.symbol.toLowerCase() === "spyx" ? "QQQx" : "SPYx";
-  return <div className="flex min-w-0 items-center">
-    <div className="min-w-0 flex-1"><AssetMarketRow href={tickerHref(row.symbol)} symbol={row.symbol} name={row.name} logoUrl={row.logoUrl} price={shown} currency={currency} change={row.change24hPct} pricePending={pending} sparkline={row.sparkline} trendLabel={en ? "1 week · source in stock details" : "1 semana · fuente en la ficha"} lowLiquidityLabel={lowLiquidityLabel} reviewLabel={reviewLabel} reviewHint={reviewHint} favoritePressed favoriteLabel={favoriteLabel} onToggleFavorite={() => onToggle()} hideFavorite noPriceLabel={noPrice} unavailableLabel={noChange} /></div>
-    <div className="flex shrink-0 items-center"><span className="hidden sm:inline-flex"><AlertButton symbol={row.symbol} name={row.name} priceUsd={row.priceUsd} iconOnly /></span><DropdownMenu><DropdownMenuTrigger asChild><IconButton label={`${en ? "Favorite options" : "Opciones de favorita"}: ${row.name}`}><span aria-hidden className="text-lg">⋯</span></IconButton></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem asChild><Link href={tickerHref(row.symbol)}>{en ? "Open stock" : "Abrir ficha"}</Link></DropdownMenuItem><DropdownMenuItem asChild><Link href={`/app/comparar?activos=${encodeURIComponent([row.symbol, peer].join(","))}`}>{en ? "Compare" : "Comparar"}</Link></DropdownMenuItem><DropdownMenuSeparator /><DropdownMenuItem onSelect={onToggle}>{en ? "Remove favorite" : "Quitar favorita"}</DropdownMenuItem></DropdownMenuContent></DropdownMenu></div>
-  </div>;
+  const spark = row.sparkline;
+  return (
+    <div className="flex min-w-0 items-center pr-1 transition-colors duration-150 hover:bg-surface-1/70 motion-reduce:transition-none sm:pr-2">
+      <Link href={tickerHref(row.symbol)} className="flex min-h-[72px] min-w-0 flex-1 items-center gap-3 py-3 pl-4 sm:gap-4 sm:pl-5">
+        <TickerLogo symbol={row.symbol} name={row.name} logoUrl={row.logoUrl} size={40} decorative loading="lazy" sizes="40px" />
+        <span className="min-w-0 flex-1">
+          <span className="block font-mono text-sm leading-5 font-semibold tracking-tight text-fg">{row.symbol}</span>
+          <span className="block text-[13px] leading-4 break-words text-fg-muted">
+            {row.name}
+            {lowLiquidityLabel ? <span className="whitespace-nowrap"> · {lowLiquidityLabel}</span> : null}
+            {reviewLabel ? <span className="whitespace-nowrap text-warn"> · {reviewLabel}</span> : null}
+          </span>
+        </span>
+        {spark ? (
+          <span className="shrink-0" title={en ? "1 week" : "1 semana"}>
+            <Sparkline data={spark} change={(spark.at(-1) ?? 0) - (spark[0] ?? 0)} width={56} height={28} />
+            <span className="sr-only">{en ? "1 week trend" : "Tendencia de 1 semana"}</span>
+          </span>
+        ) : null}
+        <span className="flex min-w-[76px] shrink-0 flex-col items-end gap-1 text-right">
+          {shown === null ? (
+            pending ? (
+              <>
+                <span aria-hidden className="block h-5 w-16 rounded-sm bg-surface-2" />
+                <span aria-hidden className="block h-4 w-12 rounded-full bg-surface-2" />
+              </>
+            ) : (
+              <span className="text-[13px] leading-5 whitespace-nowrap text-fg-muted">{noPrice}</span>
+            )
+          ) : (
+            <>
+              <FlashPrice value={shown} currency={currency} size="sm" className="font-medium" />
+              {row.change24hPct === null ? (
+                <span className="text-xs leading-4 text-fg-muted">
+                  <span aria-hidden>—</span>
+                  <span className="sr-only">{noChange}</span>
+                </span>
+              ) : (
+                <ChangeBadge value={row.change24hPct} size="sm" />
+              )}
+            </>
+          )}
+        </span>
+      </Link>
+      <div className="flex shrink-0 items-center">
+        <FavoriteButton pressed label={favoriteLabel} onToggle={onToggle} />
+        <span className="hidden sm:inline-flex">
+          <AlertButton symbol={row.symbol} name={row.name} priceUsd={row.priceUsd} iconOnly />
+        </span>
+        <span className="hidden sm:inline-flex">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <IconButton label={`${en ? "Favorite options" : "Opciones de favorita"}: ${row.name}`}>
+                <span aria-hidden className="text-lg">⋯</span>
+              </IconButton>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem asChild>
+                <Link href={tickerHref(row.symbol)}>{en ? "Open stock" : "Abrir ficha"}</Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href={`/app/comparar?activos=${encodeURIComponent([row.symbol, peer].join(","))}`}>
+                  {en ? "Compare" : "Comparar"}
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onSelect={onToggle}>{en ? "Remove favorite" : "Quitar favorita"}</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </span>
+      </div>
+    </div>
+  );
 }
 
 /** Ilustración del estado vacío de favoritas: una estrella con el mismo trazo del design system. */
@@ -364,22 +472,18 @@ function ListSkeleton({ label }: { label: string }) {
   return (
     <div role="status" aria-live="polite" aria-busy="true" className="flex flex-col">
       <span className="sr-only">{label}</span>
-      <div className="flex flex-col divide-y divide-border" aria-hidden>
+      <div className="flex flex-col divide-y divide-border overflow-hidden rounded-3xl border border-border bg-bg" aria-hidden>
         {["a", "b", "c", "d"].map((key) => (
-          // Misma retícula que la fila real: logo, símbolo + nombre, precio y estrella.
-          <div key={key} className="flex min-h-16 items-center gap-3 px-1 py-2 sm:gap-4">
-            <Skeleton className="size-9 shrink-0 rounded-full" />
+          <div key={key} className="flex min-h-[72px] items-center gap-3 py-3 pr-4 pl-4 sm:gap-4 sm:pl-5">
+            <Skeleton className="size-10 shrink-0 rounded-full" />
             <div className="flex min-w-0 flex-1 flex-col gap-1.5">
               <Skeleton className="h-4 w-16" />
               <Skeleton className="h-3 w-32 max-w-full" />
             </div>
-            <Skeleton className="hidden h-7 w-[72px] shrink-0 sm:block" />
-            <div className="flex shrink-0 flex-col items-end gap-1">
+            <Skeleton className="h-7 w-14 shrink-0" />
+            <div className="flex min-w-[76px] shrink-0 flex-col items-end gap-1.5">
               <Skeleton className="h-4 w-16" />
               <Skeleton className="h-5 w-12 rounded-full" />
-            </div>
-            <div className="flex size-11 shrink-0 items-center justify-center">
-              <Skeleton className="size-4 rounded-full" />
             </div>
           </div>
         ))}

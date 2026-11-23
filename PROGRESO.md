@@ -1,5 +1,19 @@
 # PROGRESO — Maverlang
 
+## T95 — Staking retirado y Favoritas rediseñada (2026-11-23)
+- Staking ("Ganar") retirado por decisión de Manu:
+  - se eliminaron `/app/ganar`, `earn-screen`, `/api/earn/apy`, `lib/market/lst-apy.ts` y su prueba;
+  - `/app/ganar` y sus subrutas redirigen con 308 a `/app/cripto` (`next.config.ts`);
+  - salen la subpestaña, la tarjeta puente en Cripto, el atajo y los resultados LST del buscador, `CRYPTO_PATHS` y la excepción de `gate`/`paths`.
+- Sin fondos atrapados: `requireOperable` rechaza la compra de un LST con `ASSET_UNAVAILABLE` y `STAKING_RETIRED_MESSAGE`, pero permite venderlo. USDY sigue comprable como cripto. La ficha de un LST muestra sólo «Vender» y el aviso; la cartera enlaza a `/app/cripto/<símbolo>`; la radiografía ya no dice «& Staking». El catálogo LST se conserva sólo para mostrar y vender lo que ya se tiene.
+- Favoritas (agente Sonnet 5.5):
+  - título con conteo y «Hoy: N suben, M bajan» (sólo con cambios reales);
+  - chips de orden y filas en tarjeta blanca con mini gráfico semanal, precio, variación y estrella fuera del enlace;
+  - estado vacío con pasos y carga coherente;
+  - se quitó la línea «USD · Actualizado hace X s · Observación más antigua del lote».
+- Pruebas actualizadas: `crypto-allowlist` (LST no se compra y se vende; USDY se compra), `nav-liquid-glass` (sin `/app/ganar`) y `herramientas-cartera-ui` (orden con `aria-pressed`).
+- Verificación: `tsc` y ESLint limpios; 60 archivos de pruebas relacionados (716/716 tras los ajustes). Navegador: redirección 308, API 404, ficha de JitoSOL sólo con Vender, y Favoritas a 375 px vacía y con 2 favoritas (las de prueba se quitaron). Sin build ni e2e.
+
 ## T94 — Tarjeta de saldo, gráfico en tarjeta, hoja de compra pulida y venta MAX en USD (2026-11-23)
 - Web: «Prueba la demo gratis» pasa a «Entra a la plataforma» (hero y cierre) y «Probar la demo» a «Conoce la plataforma» (header y páginas internas). Se actualizaron las pruebas y los e2e que fijaban esos textos.
 - Mercado en celular: `mobile-balance-card.tsx`, tarjeta negra con saldo total, resultado (US$ y %), disponible e invertido, ojo para ocultar (`useHideBalance`) y accesos Depositar y Ver cartera, con estados de carga y error. Va arriba bajo lg; las pestañas quedan debajo para no perder Cripto y Herramientas.

@@ -106,7 +106,7 @@ function fill(template: string, values: Record<string, string>) {
 
 function tickerHref(symbol: string) {
   const meta = positionMeta(symbol);
-  if (meta?.kind === "lst") return "/app/ganar";
+  // Cripto y tokens de staking ya comprados (T95: staking retirado) se ven y venden desde su ficha de cripto.
   const base = meta ? "/app/cripto" : "/app/accion";
   return `${base}/${encodeURIComponent(symbol)}`;
 }

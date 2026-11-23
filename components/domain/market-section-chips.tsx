@@ -6,11 +6,6 @@ import { useT } from "@/lib/hooks/use-t";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 export type MarketSectionId = "stocks" | "crypto" | "screener" | "compare" | "mix" | "alerts" | "copy";
-type CryptoSubTabId = "tokens" | "earn";
-const CRYPTO_SUB_TABS = [
-  { id: "tokens", href: "/app/cripto", label: "Tokens" },
-  { id: "earn", href: "/app/ganar", label: "Ganar" },
-] as const;
 const TOOLS = [
   { id: "screener", href: "/app/screener", es: "Screener", en: "Screener" },
   { id: "compare", href: "/app/comparar", es: "Comparar", en: "Compare" },
@@ -34,13 +29,7 @@ export function MarketSectionChips({ active, showCopy = false }: { active: Marke
   </nav>;
 }
 
-export function CryptoSubTabs({ active }: { active: CryptoSubTabId }) {
-  const { language } = useT();
-  const en = language === "en";
-  return <div className="flex min-w-0 flex-col gap-3">
-    <MarketSectionChips active="crypto" />
-    <nav aria-label={en ? "Crypto subsections" : "Subsecciones de cripto"} className="inline-flex w-fit items-center gap-1 rounded-full border border-border bg-surface-1 p-1">
-      {CRYPTO_SUB_TABS.map((tab) => <Link key={tab.id} href={tab.href} aria-current={tab.id === active ? "page" : undefined} className={cn("inline-flex min-h-11 items-center justify-center rounded-full px-4 text-[13px] font-medium transition-colors sm:min-h-9", tab.id === active ? "bg-bg text-fg shadow-xs ring-1 ring-border/60" : "text-fg-muted hover:text-fg")}>{tab.id === "earn" && en ? "Earn" : tab.label}</Link>)}
-    </nav>
-  </div>;
+/** Encabezado de Cripto: las secciones del mercado con Cripto activa. T95: sin subpestaña Ganar (staking retirado). */
+export function CryptoSubTabs() {
+  return <MarketSectionChips active="crypto" />;
 }

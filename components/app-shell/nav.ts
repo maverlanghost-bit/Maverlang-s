@@ -159,7 +159,7 @@ export function shellTabLabel(
 const MARKET_PATHS = ["/app/accion", "/app/copiar", "/app/screener", "/app/comparar", "/app/mix", "/app/alertas"] as const;
 
 /** Rutas que dependen de la sección Cripto (Tokens y Ganar). */
-const CRYPTO_PATHS = ["/app/cripto", "/app/ganar"] as const;
+const CRYPTO_PATHS = ["/app/cripto"] as const;
 
 export function isShellSectionActive(pathname: string, id: string): boolean {
   if (id === "market") {

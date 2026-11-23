@@ -44,9 +44,8 @@ describe("pulido de favoritas y avisos", () => {
   const screen = read("app/(platform)/app/favoritas/favoritas-screen.tsx");
   const panel = read("components/domain/alert-panel.tsx");
 
-  it("el orden es un segmentado compacto y la fila trae campana", () => {
-    expect(screen).toContain("compact");
-    expect(screen).not.toContain("fullWidth");
+  it("el orden son chips y la fila trae campana", () => {
+    expect(screen).toContain("aria-pressed");
     expect(screen).toContain("AlertButton");
     expect(screen).toContain("Sparkline");
     expect(screen).toContain("Skeleton");

@@ -76,9 +76,7 @@ describe("barra inferior liquid glass", () => {
     expect(primaryIds).toContain("crypto");
     expect(isShellSectionActive("/app/cripto", "crypto")).toBe(true);
     expect(isShellSectionActive("/app/cripto/BTC", "crypto")).toBe(true);
-    expect(isShellSectionActive("/app/ganar", "crypto")).toBe(true);
     expect(isShellSectionActive("/app/cripto", "market")).toBe(false);
-    expect(isShellSectionActive("/app/ganar", "market")).toBe(false);
   });
 
   it("esconde al bajar, muestra al subir y no se mueve con un temblor", () => {

@@ -11,6 +11,10 @@
  * §1.8 — Texto visible en Ganar y en cada ficha de LST.
  * El rendimiento está en SOL, no en dólares, y no es una promesa.
  */
+/** T95: el staking se retiró del producto; los tokens que ya se tienen se pueden vender. */
+export const STAKING_RETIRED_MESSAGE =
+  "El staking ya no está disponible en Maverlang. Puedes vender los tokens de staking que ya tienes.";
+
 export const LST_YIELD_NOTICE =
   "El rendimiento está en SOL: estos tokens suelen valer más SOL con el tiempo, pero no es una promesa ni un ahorro garantizado. Puede bajar. Esto es una demo con saldo ficticio.";
 

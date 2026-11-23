@@ -4,8 +4,9 @@ import { ONDO_MINTS, ONDO_TICKERS } from "@/config/ondo.generated";
 import { TICKERS } from "@/config/tickers";
 import { DomainError } from "@/lib/api/result";
 import { findAssetByMint, findAssetBySymbol } from "@/lib/catalog/assets";
-import { CRYPTO_ASSETS } from "@/lib/catalog/crypto";
-import { LST_ASSETS } from "@/lib/catalog/lst";
+import { CRYPTO_ASSETS, isCryptoSymbol } from "@/lib/catalog/crypto";
+import { LST_ASSETS, isLstSymbol } from "@/lib/catalog/lst";
+import { STAKING_RETIRED_MESSAGE } from "@/content/crypto-legal";
 
 /**
  * Allowlist dinámica (M54/M52b, sólo servidor). La COMPRA exige que el activo
@@ -138,7 +139,14 @@ export async function requireOperable(
   if (!wanted) throw new DomainError("MINT_NOT_ALLOWED");
   // Cripto/LST (K1/K2): compra y venta por símbolo exacto, sin I/O.
   const listed = catalogAssetBySymbol(wanted);
-  if (listed) return listed;
+  if (listed) {
+    // T95: el staking (LST) se retiró. Ya no se compra; quien tenga tokens los
+    // puede vender. USDY sigue operable como cripto (no es un LST).
+    if (side === "buy" && isLstSymbol(listed.symbol) && !isCryptoSymbol(listed.symbol)) {
+      throw new DomainError("ASSET_UNAVAILABLE", STAKING_RETIRED_MESSAGE);
+    }
+    return listed;
+  }
   if (side === "buy") {
     const asset = await tradableBySymbol(wanted, deps);
     if (!asset) throw new DomainError("MINT_NOT_ALLOWED");

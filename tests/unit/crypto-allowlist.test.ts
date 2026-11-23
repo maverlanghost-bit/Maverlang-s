@@ -103,10 +103,19 @@ describe("allowlist de cripto (§1.3 y §1.4)", () => {
     });
   });
 
-  it("un LST de Ganar se opera con su mint exacto", async () => {
-    const jito = await requireOperable("JitoSOL", "buy");
+  it("T95: un LST (staking retirado) ya no se compra, pero se vende con su mint exacto", async () => {
+    expect(await domainFailure(() => requireOperable("JitoSOL", "buy"))).toMatchObject({
+      code: "ASSET_UNAVAILABLE",
+      message: expect.stringContaining("staking ya no está disponible"),
+    });
+    const jito = await requireOperable("JitoSOL", "sell");
     expect(jito.mint).toBe("J1toso1uCk3RLmjorhTtrVwY9HJ7X8V9yYac6Y7kGCPn");
     expect(await isTradableMint("J1toso1uCk3RLmjorhTtrVwY9HJ7X8V9yYac6Y7kGCPn")).toBe(true);
+  });
+
+  it("T95: USDY sigue comprándose como cripto (no es un LST)", async () => {
+    const usdy = await requireOperable("USDY", "buy");
+    expect(usdy.symbol).toBe("USDY");
   });
 
   it("las acciones de fixture siguen comprando igual", async () => {

@@ -36,7 +36,6 @@ import { ENABLED_TICKERS } from "@/config/tickers";
 import { site } from "@/config/site";
 import { getPrices, searchMarket, type MarketSearchItem } from "@/lib/api/client";
 import { CRYPTO_ASSETS, type CryptoAsset } from "@/lib/catalog/crypto";
-import { LST_ASSETS, type LstAsset } from "@/lib/catalog/lst";
 import { cn } from "@/lib/cn";
 import { formatUnitPrice } from "@/lib/market/price-format";
 import { priceQueryKey, useFx } from "@/lib/hooks/queries";
@@ -49,7 +48,6 @@ import type { Currency, Quote, Ticker } from "@/lib/types";
 const SEARCH_MS = 220;
 const PAGE_SIZE = 20;
 const MAX_CRYPTO_MATCHES = 6;
-const MAX_EARN_MATCHES = 6;
 const MAX_INSTANT_STOCKS = 8;
 
 const FEATURED_STOCK_SYMBOLS = ["NVDAx", "AAPLx", "TSLAx", "MSFTx", "SPYx"] as const;
@@ -270,7 +268,6 @@ type QuickCommandId =
   | "wallet"
   | "favorites"
   | "crypto"
-  | "earn"
   | "settings";
 
 type QuickCommand = {
@@ -284,7 +281,6 @@ type QuickCommand = {
 type SearchOption =
   | { kind: "stock"; id: string; href: string; stock: StockRowItem; price: number | null; change: number | null }
   | { kind: "crypto"; id: string; href: string; asset: CryptoAsset; price: number | null; change: number | null }
-  | { kind: "earn"; id: string; href: string; asset: LstAsset; price: number | null }
   | { kind: "command"; id: string; href: string; command: QuickCommand };
 
 function formatSearchPrice(value: number, currency: Currency): string {
@@ -361,7 +357,6 @@ function getQuickCommands(language: "es-CL" | "en"): QuickCommand[] {
       { id: "wallet", href: "/app/billetera", label: "Wallet", hint: "USDC balance, deposit & send", keywords: "usdc balance deposit withdraw send" },
       { id: "favorites", href: "/app/favoritas", label: "Favorites", hint: "Saved stocks", keywords: "watchlist starred" },
       { id: "crypto", href: "/app/cripto", label: "Crypto", hint: "Solana tokens, dollars & gold", keywords: "bitcoin solana crypto tokens" },
-      { id: "earn", href: "/app/ganar", label: "Earn", hint: "Liquid staking & yield", keywords: "staking lst apy yield" },
       { id: "settings", href: "/app/ajustes", label: "Currency & language settings", hint: "USD / CLP and preferences", keywords: "currency language clp usd settings" },
     ];
   }
@@ -375,7 +370,6 @@ function getQuickCommands(language: "es-CL" | "en"): QuickCommand[] {
     { id: "wallet", href: "/app/billetera", label: "Billetera", hint: "Saldo USDC, depósitos y retiros", keywords: "saldo usdc depositar retirar enviar" },
     { id: "favorites", href: "/app/favoritas", label: "Favoritas", hint: "Acciones guardadas", keywords: "watchlist estrella" },
     { id: "crypto", href: "/app/cripto", label: "Cripto", hint: "Tokens en Solana, dólar y oro", keywords: "criptomonedas bitcoin solana dolares oro" },
-    { id: "earn", href: "/app/ganar", label: "Ganar", hint: "Staking líquido y dólares", keywords: "staking lst apy rendimiento" },
     { id: "settings", href: "/app/ajustes", label: "Ajustes de moneda e idioma", hint: "USD / CLP y preferencias", keywords: "configuracion moneda idioma clp usd" },
   ];
 }
@@ -438,13 +432,6 @@ function CommandIcon({ id }: { id: QuickCommandId }) {
         <svg viewBox="0 0 16 16" fill="none" className="size-4" aria-hidden>
           <circle cx="8" cy="8" r="5.5" stroke="currentColor" strokeWidth="1.5" />
           <path d="M6.5 5.75h2.25a1.25 1.25 0 0 1 0 2.5H6.5m0 0h2.5a1.25 1.25 0 0 1 0 2.5H6.5m0-5v5" stroke="currentColor" strokeWidth="1.35" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-      );
-    case "earn":
-      return (
-        <svg viewBox="0 0 16 16" fill="none" className="size-4" aria-hidden>
-          <path d="M3 11.5 6.5 8l2.5 2.5L13 5.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-          <path d="M10 5.5h3v3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       );
   }
@@ -511,7 +498,6 @@ function StockSearchPanel({
   const inputId = useId();
   const groupStocksId = useId();
   const groupCryptoId = useId();
-  const groupEarnId = useId();
   const groupCommandsId = useId();
 
   const [draft, setDraft] = useState("");
@@ -623,15 +609,6 @@ function StockSearchPanel({
     }).slice(0, MAX_CRYPTO_MATCHES);
   }, [isAppRoute, foldedDraft, language]);
 
-  const earnItems: LstAsset[] = useMemo(() => {
-    if (!isAppRoute || !foldedDraft) return [];
-    return LST_ASSETS.filter((asset) =>
-      [asset.symbol, asset.name, asset.issuerName, "staking lst"].some((field) =>
-        fold(field).includes(foldedDraft),
-      ),
-    ).slice(0, MAX_EARN_MATCHES);
-  }, [isAppRoute, foldedDraft]);
-
   const commandItems: QuickCommand[] = useMemo(() => {
     if (!isAppRoute) return [];
     const all = getQuickCommands(language);
@@ -645,9 +622,8 @@ function StockSearchPanel({
     for (const c of cryptoItems) {
       if (c.decimals !== null) list.push(c.symbol);
     }
-    for (const e of earnItems) list.push(e.symbol);
     return priceQueryKey(list);
-  }, [stockItems, cryptoItems, earnItems]);
+  }, [stockItems, cryptoItems]);
 
   const prices = useQuery({
     queryKey: ["prices", priceSymbols] as const,
@@ -670,7 +646,7 @@ function StockSearchPanel({
   const fxKnown = typeof rate === "number" && Number.isFinite(rate) && rate > 0;
   const shown: Currency = currency === "CLP" && fxKnown ? "CLP" : "USD";
 
-  const { stockOptions, cryptoOptions, earnOptions, commandOptions, flatOptions } = useMemo(() => {
+  const { stockOptions, cryptoOptions, commandOptions, flatOptions } = useMemo(() => {
     const stocks: Extract<SearchOption, { kind: "stock" }>[] = stockItems.map((stock) => {
       const quote = quotes.get(stock.symbol.toLowerCase());
       const price = quote ? displayPrice(quote.priceUsd, shown, fxKnown ? rate : undefined) : null;
@@ -703,22 +679,6 @@ function StockSearchPanel({
       };
     });
 
-    const earns: Extract<SearchOption, { kind: "earn" }>[] = earnItems.map((asset) => {
-      const quote = quotes.get(asset.symbol.toLowerCase());
-      const liveQuote =
-        quote && quote.source === "jupiter" && quote.reference !== true && Number.isFinite(quote.priceUsd) && quote.priceUsd > 0
-          ? quote
-          : undefined;
-      const price = liveQuote ? displayPrice(liveQuote.priceUsd, shown, fxKnown ? rate : undefined) : null;
-      return {
-        kind: "earn",
-        id: `earn-${asset.symbol}`,
-        href: "/app/ganar",
-        asset,
-        price,
-      };
-    });
-
     const commands: Extract<SearchOption, { kind: "command" }>[] = commandItems.map((command) => ({
       kind: "command",
       id: `cmd-${command.id}`,
@@ -729,11 +689,10 @@ function StockSearchPanel({
     return {
       stockOptions: stocks,
       cryptoOptions: cryptos,
-      earnOptions: earns,
       commandOptions: commands,
-      flatOptions: [...stocks, ...cryptos, ...earns, ...commands] as SearchOption[],
+      flatOptions: [...stocks, ...cryptos, ...commands] as SearchOption[],
     };
-  }, [stockItems, cryptoItems, earnItems, commandItems, quotes, shown, fxKnown, rate]);
+  }, [stockItems, cryptoItems, commandItems, quotes, shown, fxKnown, rate]);
 
   const totalOptions = flatOptions.length;
   const activeIndex = totalOptions === 0 ? 0 : Math.min(active, totalOptions - 1);
@@ -771,12 +730,10 @@ function StockSearchPanel({
 
   const stocksOffset = 0;
   const cryptoOffset = stockOptions.length;
-  const earnOffset = cryptoOffset + cryptoOptions.length;
-  const commandOffset = earnOffset + earnOptions.length;
+  const commandOffset = cryptoOffset + cryptoOptions.length;
 
   const stocksHeading = language === "en" ? "Tokenized stocks" : "Acciones tokenizadas";
   const cryptoHeading = language === "en" ? "Crypto" : "Cripto";
-  const earnHeading = language === "en" ? "Earn" : "Ganar";
   const commandsHeading = language === "en" ? "Jump to" : "Ir a";
 
   return createPortal(
@@ -1043,61 +1000,6 @@ function StockSearchPanel({
                             </span>
                           )}
                           {opt.change === null ? null : <ChangeBadge value={opt.change} />}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              ) : null}
-
-              {earnOptions.length > 0 ? (
-                <div role="group" aria-labelledby={groupEarnId} className="flex flex-col gap-0.5">
-                  <div
-                    id={groupEarnId}
-                    role="presentation"
-                    className="px-2.5 pt-1.5 pb-1 font-mono text-[11px] font-medium uppercase tracking-[0.06em] text-fg-muted"
-                  >
-                    {earnHeading}
-                  </div>
-                  {earnOptions.map((opt, idx) => {
-                    const globalIdx = earnOffset + idx;
-                    const selected = globalIdx === activeIndex;
-                    return (
-                      <button
-                        key={opt.id}
-                        type="button"
-                        role="option"
-                        tabIndex={-1}
-                        id={`${listId}-opt-${globalIdx}`}
-                        aria-selected={selected}
-                        onMouseEnter={() => setActive(globalIdx)}
-                        onClick={() => navigateTo(opt.href)}
-                        className={cn(
-                          "group grid min-h-12 w-full cursor-pointer grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 rounded-xl px-2.5 py-2 text-left transition-colors duration-100",
-                          selected ? "bg-surface-2" : "hover:bg-surface-1",
-                        )}
-                      >
-                        <AssetMonogram symbol={opt.asset.symbol} />
-                        <span className="min-w-0">
-                          <span className="block truncate text-sm font-medium text-fg">{opt.asset.name}</span>
-                          <span className="mt-0.5 flex min-w-0 items-center gap-1.5">
-                            <span className="num shrink-0 text-xs tracking-[0.02em] text-fg-muted">
-                              {opt.asset.symbol}
-                            </span>
-                            <span aria-hidden className="text-xs text-fg-muted">
-                              ·
-                            </span>
-                            <span className="truncate text-xs text-fg-muted">{opt.asset.issuerName}</span>
-                          </span>
-                        </span>
-                        <span className="flex shrink-0 items-center gap-2">
-                          {opt.price !== null ? (
-                            <span className="num text-[13px] leading-5 text-fg tabular-nums">
-                              {formatSearchPrice(opt.price, shown)}
-                            </span>
-                          ) : (
-                            <Badge tone="neutral">{earnHeading}</Badge>
-                          )}
                         </span>
                       </button>
                     );
