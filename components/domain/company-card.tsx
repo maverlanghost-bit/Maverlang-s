@@ -82,7 +82,7 @@ export function CompanyCard({ symbol }: { symbol: string }) {
   const dated = sourceDate(view, locale);
 
   return (
-    <section aria-labelledby={titleId} className="rounded-3xl border border-border bg-surface-1 p-5 md:p-6">
+    <section aria-labelledby={titleId} className="rounded-3xl border border-border bg-bg p-5 md:p-6">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <h2 id={titleId} className="text-base font-medium tracking-tight text-fg md:text-lg">
@@ -142,7 +142,7 @@ type Load = { symbol: string; status: "absent" } | { symbol: string; status: "re
 
 function CompanySkeleton({ label }: { label: string }) {
   return (
-    <section className="rounded-3xl border border-border bg-surface-1 p-5 md:p-6" aria-busy="true">
+    <section className="rounded-3xl border border-border bg-bg p-5 md:p-6" aria-busy="true">
       <span className="sr-only">{label}</span>
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">

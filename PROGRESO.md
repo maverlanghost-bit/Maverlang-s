@@ -1,5 +1,21 @@
 # PROGRESO — Maverlang
 
+## T91 — Gráficos del token en vivo y plataforma en gris frío (2026-11-22)
+- Causa: la ficha mostraba el precio del token (Jupiter, ~US$135) y el gráfico cierres de NVDA en Yahoo (~US$218 en 1M). Un historial "real" nunca se refrescaba.
+- Investigación (agente Sonnet 5.5): TradingView sólo lista xStocks de Kraken (24/5, sin operaciones, precio de Kraken), así que no sirve como gráfico principal. GeckoTerminal sí da velas del pool más líquido del token en Solana.
+- Proveedor nuevo `lib/market/token-ohlcv.ts` (agente Sonnet 5.5):
+  - Elige el pool de mayor reserva y lo guarda 6 h. Las velas por rango van en caché de 45 a 90 s.
+  - Límites: tope de 8 llamadas por minuto y pausa de 60 s tras un 429. Si falla, sirve la serie anterior hasta 15 min y después vuelve a la fuente de siempre.
+  - Descarta la serie si se aleja más de 50 % del precio del pool.
+  - Sólo se usa con `PRICES_MODE=live` y sólo en la ruta de historial de una acción. La ruta de sparklines no gasta cupo.
+- Cliente: `useHistory` se refresca solo con esta fuente (60 s en 1D/1S, 120 s en 1M, 300 s en el resto) y `observedSeries` mete el precio en vivo en la última vela. La leyenda dice «Precio del token en Solana · pozos on-chain · GeckoTerminal», con velas OHLC reales.
+- Verificado con NVDAx: los 6 rangos vienen del pool y la última vela coincide con el precio mostrado (134,90). Se ve la caída real del token en el mes (−36 %).
+- Colores: grises fríos (`surface-*`, `border*`, `fg-muted` #585e67, `fg-subtle` #676d76, `control`) y token `canvas` #f4f5f7 de fondo de la plataforma. Barra lateral, `Card` y secciones de la ficha y del perfil en blanco. Contraste AA medido, de 4,57 a 6,54:1.
+- Verificación liviana: `tsc`, ESLint de lo tocado y 36 archivos de pruebas (334/334, incluidos 17 nuevos del proveedor). Una prueba se actualizó al nuevo `fg-muted`. Sin build ni e2e.
+- Riesgos:
+  - Cupo gratuito de 10/min por IP: en Vercel, con varias instancias o mucho tráfico habrá respaldos a la fuente vieja, que en 1M de Yahoo aún muestra ~218. Para producción conviene CoinGecko con clave o un recolector propio que guarde velas en la BD.
+  - Sin volumen del pool. Pueden faltar velas fuera de horario.
+
 ## T90 — Portada v2: menos texto, producto vivo (2026-11-22)
 - Plan en `docs/PLAN-PORTADA-V2.md`. Antislop en modo "durante" (elección de Manu en la sesión), dirección "broker premium vivo", diales ENERGY 2 / RHYTHM 3 / MOTION 2.
 - Hero dividido (`hero.tsx` + `hero-phone-demo.tsx`): H1 igual. A la derecha, un teléfono con el flujo real de la demo en bucle (mercado en vivo → toque en Apple → hoja → burbuja US$50 → «Compra realizada»), con pausa, detención fuera de vista y modo estático con movimiento reducido. Debajo, tres datos del producto en mono.

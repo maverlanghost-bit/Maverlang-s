@@ -12,6 +12,7 @@ import {
   type AssetStatus,
   type AssetStatusBatchItem,
 } from "@/lib/market/asset-status";
+import { tokenOhlcv } from "@/lib/market/token-ohlcv";
 import { yahooSymbol } from "@/lib/market/underlying-move";
 import type { TodayBoard } from "@/lib/market/movers";
 import { marketMovers } from "@/lib/services/market-movers";
@@ -167,8 +168,30 @@ const historyInflight = new Map<string, Promise<HistoryResult>>();
 
 const HISTORY_EMPTY: HistoryResult = { points: [], source: "mock" };
 
-function historyKey(symbol: string, range: Range): string {
-  return `${symbol.trim()}:${range}`;
+const TOKEN_POOL_BUDGET_MS = 3_500;
+
+/** `token`: la ficha pide velas del token (GeckoTerminal). Las listas y sparklines no. */
+export interface HistoryOptions {
+  token?: boolean;
+}
+
+function historyKey(symbol: string, range: Range, token = false): string {
+  return `${symbol.trim()}:${range}${token ? ":token" : ""}`;
+}
+
+/**
+ * Velas del propio token en Solana, en la unidad del titular (USD por acción
+ * mostrada; ver `lib/market/token-ohlcv.ts`). Sólo con precios reales: en mock
+ * el titular también es mock y las dos cosas deben seguir coherentes.
+ * null → se usa la fuente de siempre (ticks o cierres del subyacente).
+ */
+async function tokenPoolHistory(symbol: string, range: Range): Promise<HistoryResult | null> {
+  if (serverEnv.PRICES_MODE !== "live") return null;
+  if (isCryptoSymbol(symbol) || isEarnSymbol(symbol)) return null;
+  const ticker = tickerBySymbol(symbol);
+  if (!ticker?.mint) return null;
+  const result = await tokenOhlcv().history(ticker.mint, range).catch(() => null);
+  return result ? { points: result.points, source: "ticks", metadata: result.metadata } : null;
 }
 
 async function underlyingSymbol(symbol: string): Promise<string> {
@@ -222,7 +245,12 @@ async function realHistory(
   return { points: [], source: "closes" };
 }
 
-async function loadHistory(symbol: string, range: Range): Promise<HistoryResult> {
+async function loadHistory(symbol: string, range: Range, token = false): Promise<HistoryResult> {
+  if (token) {
+    // Tope propio: si el pozo tarda, queda margen del presupuesto para la fuente de siempre.
+    const pool = await within(tokenPoolHistory(symbol, range).catch(() => null), TOKEN_POOL_BUDGET_MS, null);
+    if (pool) return pool;
+  }
   const pricesLive = serverEnv.PRICES_MODE === "live";
   const dataLive = serverEnv.DATA_MODE === "live";
   if (!pricesLive && !dataLive) {
@@ -263,8 +291,13 @@ function within<T>(work: Promise<T>, ms: number, fallback: T): Promise<T> {
 }
 
 /** Mock intacto si precios y datos están en mock. Si no: cierres cacheados (1W+) o ticks (1D) → []. */
-export async function historyWithSource(symbol: string, range: Range): Promise<HistoryResult> {
-  const key = historyKey(symbol, range);
+export async function historyWithSource(
+  symbol: string,
+  range: Range,
+  options: HistoryOptions = {},
+): Promise<HistoryResult> {
+  const token = options.token === true;
+  const key = historyKey(symbol, range, token);
   const cached = historyMemo.get(key);
   if (cached && Date.now() - cached.at < historyMemoTtl(cached.value)) return cached.value;
 
@@ -273,7 +306,7 @@ export async function historyWithSource(symbol: string, range: Range): Promise<H
 
   let settled = false;
   const slot: { current?: Promise<HistoryResult> } = {};
-  const job = loadHistory(symbol, range)
+  const job = loadHistory(symbol, range, token)
     .then((value) => {
       settled = true;
       return rememberHistory(key, value);

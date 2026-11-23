@@ -80,7 +80,7 @@ describe("UI Shell & Mobile Broker Header (x.ai/bot light aesthetic)", () => {
 
   it("globals.css conserva contraste WCAG 2.2 AA (#66696e) y define .no-scrollbar y --shadow-card", () => {
     const css = readRepoFile("app/globals.css");
-    expect(css).toContain("--color-fg-muted: #5b5e63");
+    expect(css).toContain("--color-fg-muted: #585e67");
     expect(css).toContain("no-scrollbar");
     expect(css).toContain("--shadow-card");
   });

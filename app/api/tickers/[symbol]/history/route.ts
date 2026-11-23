@@ -35,7 +35,7 @@ export function GET(req: Request, ctx: { params: Promise<{ symbol: string }> }) 
       const params = parseContract(historyParamsSchema, await ctx.params);
       const { range } = parseQuery(req, historyQuerySchema);
       const symbol = await requireVisibleSymbol(params.symbol);
-      const { points, source, metadata } = await callService(req, () => historyWithSource(symbol, range));
+      const { points, source, metadata } = await callService(req, () => historyWithSource(symbol, range, { token: true }));
       const fields = historyFields(points, source, metadata);
       // Con datos: s-maxage=60 + SWR. Vacío, mock o error: como máximo 30 s y sin CDN.
       return historyJson(fields, historyCacheControl(fields));

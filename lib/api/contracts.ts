@@ -673,7 +673,7 @@ export const quotesResponseSchema = z.array(quoteSchema);
  */
 export const historyMetadataSchema = z.object({
   instrument: z.enum(["token", "underlying", "demo"]),
-  provider: z.enum(["yahoo", "jupiter", "coingecko", "mixed", "mock", "unknown"]),
+  provider: z.enum(["yahoo", "jupiter", "coingecko", "geckoterminal", "mixed", "mock", "unknown"]),
   providerSymbol: z.string().min(1).optional(),
   resolution: z.enum(["15m", "1h", "1d", "1wk", "irregular", "unknown"]),
   priceUnit: z.enum(["usd_per_share", "usd_per_token"]),
@@ -694,6 +694,8 @@ export const historyResponseSchema = z.object({
 
 /** Serie con datos: CDN 60 s y revalidación en segundo plano. */
 export const HISTORY_CACHE_DATA = "public, s-maxage=60, stale-while-revalidate=300";
+/** Serie del token que se refresca sola: 30 s en CDN y poca tolerancia a lo viejo. */
+export const HISTORY_CACHE_LIVE = "public, s-maxage=30, stale-while-revalidate=30";
 /**
  * Vacío o error: sólo el navegador, 30 s como máximo.
  * `private` evita que un CDN guarde el fallo durante horas.
@@ -718,13 +720,16 @@ export function historySourceOf(source: string): HistorySourceName {
  */
 export function historyFields(points: readonly PricePoint[], source: string, metadata?: HistoryMetadata) {
   const safeSource = historySourceOf(source);
+  // Velas observadas: cierres del subyacente (Yahoo) o velas del pozo del token (GeckoTerminal).
+  const poolBars = safeSource === "ticks" && metadata?.instrument === "token" && metadata.provider === "geckoterminal";
+  const barSource = safeSource === "closes" || poolBars;
   const safePoints: PricePoint[] = [];
   for (const point of points) {
     if (!Number.isFinite(point.t) || !Number.isFinite(point.p) || point.t < 0 || point.p < 0) continue;
     const t = Math.round(point.t);
     if (!Number.isInteger(t)) continue;
     const safePoint: PricePoint = { t, p: point.p };
-    if (safeSource === "closes" && completeHistoryBar(point)) {
+    if (barSource && completeHistoryBar(point)) {
       safePoint.o = point.o;
       safePoint.h = point.h;
       safePoint.l = point.l;
@@ -738,13 +743,17 @@ export function historyFields(points: readonly PricePoint[], source: string, met
   const parsedMetadata = historyMetadataSchema.safeParse(metadata);
   const safeMetadata = parsedMetadata.success ? parsedMetadata.data : undefined;
   if (safeMetadata) {
-    const observedBars = safeSource === "closes" && safeMetadata.instrument === "underlying" &&
+    const underlyingBars = safeSource === "closes" && safeMetadata.instrument === "underlying" &&
       safeMetadata.provider === "yahoo" && safeMetadata.reference && safeMetadata.priceUnit === "usd_per_share" &&
       safeMetadata.resolution !== "unknown" && safeMetadata.resolution !== "irregular" &&
       safeMetadata.priceAdjustment === "provider_quote";
+    const tokenBars = poolBars && safeMetadata.instrument === "token" && safeMetadata.provider === "geckoterminal" &&
+      !safeMetadata.reference && safeMetadata.priceUnit === "usd_per_share" &&
+      safeMetadata.resolution !== "unknown" && safeMetadata.resolution !== "irregular";
+    const observedBars = underlyingBars || tokenBars;
     safeMetadata.capabilities = {
       ohlc: observedBars && safeMetadata.capabilities.ohlc && safePoints.length >= 2 && safePoints.every(completeHistoryBar),
-      volume: observedBars && safeMetadata.capabilities.volume && safePoints.length >= 2 &&
+      volume: underlyingBars && safeMetadata.capabilities.volume && safePoints.length >= 2 &&
         safeMetadata.volumeUnit === "underlying_shares" && safeMetadata.volumeScope === "underlying_market" &&
         safePoints.every((point) => point.v !== undefined && Number.isFinite(point.v) && point.v >= 0),
     };
@@ -758,9 +767,13 @@ export function historyFields(points: readonly PricePoint[], source: string, met
 }
 
 /** Con datos se puede cachear 60 s. Vacío, mock o error: como máximo 30 s y nunca en CDN. */
-export function historyCacheControl(data: { points: readonly unknown[]; real: boolean; source: string }): string {
+export function historyCacheControl(
+  data: { points: readonly unknown[]; real: boolean; source: string; metadata?: { provider?: string } },
+): string {
   const cacheable = data.points.length >= 2 && data.real === true && data.source !== "mock";
-  return cacheable ? HISTORY_CACHE_DATA : HISTORY_CACHE_MISS;
+  if (!cacheable) return HISTORY_CACHE_MISS;
+  // Velas del pozo: el gráfico se refresca cada minuto, el CDN no puede retener 6 min.
+  return data.metadata?.provider === "geckoterminal" ? HISTORY_CACHE_LIVE : HISTORY_CACHE_DATA;
 }
 
 /** Los cierres de Supabase sólo entran a `unstable_cache` si hay serie. Un vacío no se guarda. */

@@ -147,7 +147,7 @@ function Identity({
   badge?: ReactNode;
 }) {
   return (
-    <div className="flex min-w-0 items-center gap-4 rounded-3xl border border-border bg-surface-1 p-4 md:p-5">
+    <div className="flex min-w-0 items-center gap-4 rounded-3xl border border-border bg-bg p-4 md:p-5">
       <Avatar alt={heading} fallback={heading} size="lg" className="size-14 text-base" />
       <div className="min-w-0 flex-1">
         <p className="truncate text-[17px] leading-6 font-medium text-fg">{heading}</p>

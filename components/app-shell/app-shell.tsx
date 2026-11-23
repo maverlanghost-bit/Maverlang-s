@@ -110,7 +110,7 @@ function ShellFrame({
 
   return (
     <div
-      className="relative min-h-dvh bg-bg"
+      className="relative min-h-dvh bg-canvas"
       style={
         {
           "--app-sidebar-width": `${collapsed ? SIDEBAR_WIDTH.collapsed : SIDEBAR_WIDTH.expanded}px`,
