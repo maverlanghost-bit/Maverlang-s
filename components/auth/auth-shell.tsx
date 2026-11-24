@@ -39,9 +39,6 @@ const FORM_COLUMN_OVERRIDES = cn(
   "[&_h1]:font-semibold",
 );
 
-const footLinkClass =
-  "inline-flex min-h-11 items-center rounded-sm px-1.5 text-[13px] text-fg-muted underline decoration-transparent underline-offset-4 transition-colors hover:text-fg hover:decoration-fg";
-
 const glassCard = "rounded-3xl border border-border/60 bg-bg/75 shadow-sm backdrop-blur-md";
 
 /** Acciones de la vista de ejemplo. Sin precios ni variaciones: sólo el catálogo. */
@@ -205,22 +202,6 @@ export function AuthShell({ children }: { children: ReactNode }) {
             <div className={cn(MOBILE_CARD, "rounded-[28px] p-5 sm:p-6")}>{children}</div>
           </div>
         </main>
-        {/* Sólo escritorio: enlaces bajo el formulario. */}
-        <div className="mx-auto hidden w-full max-w-sm lg:block">
-          <footer className="border-t border-border pt-2">
-            <nav aria-label="Ayuda y documentos legales" className="-mx-1.5 flex flex-wrap gap-x-2">
-              <Link href="/ayuda" className={footLinkClass}>
-                Ayuda
-              </Link>
-              <Link href="/legal/terminos" className={footLinkClass}>
-                Términos
-              </Link>
-              <Link href="/legal/privacidad" className={footLinkClass}>
-                Privacidad
-              </Link>
-            </nav>
-          </footer>
-        </div>
       </div>
       <AuthAside />
     </div>

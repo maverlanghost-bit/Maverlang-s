@@ -472,8 +472,9 @@ export function registroSchemaAt(today: Date, account: boolean) {
 }
 
 /**
- * Esquema del registro demo (M43): correo, contraseña (mín. 8),
- * repetición igual y un solo checkbox legal obligatorio.
+ * Esquema del alta mínima: correo, contraseña (mín. 8), repetición igual y
+ * `aceptaLegal`, que el formulario fija en true al enviar (clickwrap bajo el
+ * botón; ya no es una casilla del usuario).
  */
 export function registroDemoSchema() {
   return z

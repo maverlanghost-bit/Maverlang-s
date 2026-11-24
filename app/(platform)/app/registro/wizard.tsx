@@ -23,7 +23,6 @@ import {
   CredentialField,
 } from "@/components/auth/auth-frame";
 import { FormAlert } from "@/components/auth/form-alert";
-import { GoogleButton, OrDivider } from "@/components/auth/google-button";
 import { PasswordStrengthMeter } from "@/components/auth/password-strength-meter";
 import { WizardProgress } from "@/components/auth/wizard-progress";
 import { Button, buttonClasses } from "@/components/ui/button";
@@ -37,10 +36,10 @@ import { useSession } from "@/lib/auth";
 import { writeClientCookie } from "@/lib/auth/browser-cookies";
 import { MOCK_ONBOARDING_COOKIE, ONBOARDING_DONE } from "@/lib/auth/cookies";
 import { authMode, clientAuthModeInput } from "@/lib/auth/mode";
-import { ingresarPath, onboardingPath } from "@/lib/auth/paths";
-import { publishRegistroMetadata, resendRegistro, signUpDemo, signUpRegistro } from "@/lib/auth/registro-client";
+import { ingresarPath } from "@/lib/auth/paths";
+import { publishRegistroMetadata, resendRegistro, signUpDemo } from "@/lib/auth/registro-client";
+import { GoogleButton, OrDivider } from "@/components/auth/google-button";
 import {
-  DEMO_LEGAL_MESSAGE,
   formatRut,
   normalizePhone,
   registroDemoSchema,
@@ -77,13 +76,6 @@ const TITLES: Record<Step, string> = {
   3: "Términos y riesgos",
 };
 
-/** Nombre corto de cada paso para el indicador (sólo presentación). */
-const STEP_NAMES: Record<Step, string> = {
-  1: "Cuenta",
-  2: "Tus datos",
-  3: "Términos",
-};
-
 function messageFrom(error: unknown): string {
   if (isProfileMigrationMessage(error)) return PROFILE_MIGRATION_MESSAGE;
   if (error instanceof ApiError) return error.message;
@@ -104,11 +96,9 @@ function Shell({ children }: { children: ReactNode }) {
 function MailScreen({
   email,
   next,
-  realFlow = false,
 }: {
   email: string;
   next: string | null;
-  realFlow?: boolean;
 }) {
   const headingRef = useRef<HTMLHeadingElement>(null);
   const [left, setLeft] = useState(60);
@@ -147,19 +137,6 @@ function MailScreen({
       <p className="mt-3 text-sm leading-relaxed text-pretty text-fg-body">
         Te enviamos un enlace a <span className="font-medium break-all text-fg">{email}</span>. Ábrelo para confirmar la cuenta.
       </p>
-      {realFlow ? (
-        <div className="mt-4 border-l-2 border-border pl-4">
-          <p className="max-w-[60ch] text-sm leading-relaxed text-pretty text-fg-body">
-            Cuando confirmes el correo, completa tu registro para cuenta real antes de operar. Hasta entonces la
-            cuenta queda en modo demo y no habilita operaciones reales.
-          </p>
-          <p>
-            <Link href="/app/onboarding" className={authLinkClass}>
-              Completar mi registro
-            </Link>
-          </p>
-        </div>
-      ) : null}
       {error ? <FormAlert>{error}</FormAlert> : null}
       <div className="mt-6">
         <Button type="button" size="lg" className="w-full" loading={busy} disabled={left > 0} onClick={() => void resend()}>
@@ -252,62 +229,30 @@ export function RegistroWizard({
   versions,
   declarationVersion,
   demoForBlocked = false,
-  realRegistration = false,
 }: {
   mode: Mode;
   next: string | null;
   versions: RegistroVersions;
   declarationVersion?: string;
   demoForBlocked?: boolean;
-  /**
-   * DB-03: con Supabase activo, el alta real es el camino principal y la demo
-   * queda como opción explícita. En mock (sin cuentas reales) la demo sigue
-   * siendo el único alta disponible.
-   */
-  realRegistration?: boolean;
 }) {
   const { status, login } = useSession();
-  const [sentEmail, setSentEmail] = useState<{ email: string; real: boolean } | null>(null);
-  const [flow, setFlow] = useState<"real" | "demo">(() => (realRegistration ? "real" : "demo"));
+  const [sentEmail, setSentEmail] = useState<string | null>(null);
 
-  if (sentEmail) return <MailScreen email={sentEmail.email} next={next} realFlow={sentEmail.real} />;
+  if (sentEmail) return <MailScreen email={sentEmail} next={next} />;
+  // El alta pide sólo correo y contraseña; los datos y la declaración van en /app/onboarding.
   if (mode === "alta") {
-    if (realRegistration && flow === "real") {
-      return (
-        <RegistroForm
-          mode="alta"
-          next={next}
-          versions={versions}
-          declarationVersion={declarationVersion}
-          demoForBlocked={demoForBlocked}
-          onSent={(email) => setSentEmail({ email, real: true })}
-          login={login}
-          onUseDemo={() => setFlow("demo")}
-        />
-      );
-    }
-    return (
-      <DemoRegistroForm
-        next={next}
-        versions={versions}
-        onSent={(email) => setSentEmail({ email, real: false })}
-        login={login}
-        onUseReal={realRegistration ? () => setFlow("real") : undefined}
-      />
-    );
+    return <AltaForm next={next} versions={versions} onSent={setSentEmail} login={login} />;
   }
   if (status === "loading") return <LoadingCard />;
   if (status !== "authenticated") return <NeedSession />;
 
   return (
     <RegistroForm
-      mode={mode}
       next={next}
       versions={versions}
       declarationVersion={declarationVersion}
       demoForBlocked={demoForBlocked}
-      onSent={(email) => setSentEmail({ email, real: false })}
-      login={login}
     />
   );
 }
@@ -316,26 +261,25 @@ const DEMO_EMPTY: RegistroDemoValues = {
   email: "",
   password: "",
   passwordConfirm: "",
-  aceptaLegal: false,
+  aceptaLegal: true,
 };
 
 /**
- * Alta demo mínima (M43): un solo paso con correo, contraseña,
- * repetir contraseña y el checkbox legal obligatorio.
- * Sin RUT, teléfono, nombre, país ni fecha.
+ * Alta mínima: un solo paso con correo, contraseña y repetir contraseña.
+ * Sin RUT, teléfono, nombre, país ni fecha. Los Términos y la Privacidad se
+ * aceptan por clickwrap al enviar (`aceptaLegal` se fija en true); los riesgos
+ * y la declaración de persona de EE.UU. van en /app/onboarding.
  */
-function DemoRegistroForm({
+function AltaForm({
   next,
   versions,
   onSent,
   login,
-  onUseReal,
 }: {
   next: string | null;
   versions: RegistroVersions;
   onSent: (email: string) => void;
   login: (method?: "email" | "google") => Promise<void>;
-  onUseReal?: () => void;
 }) {
   const router = useRouter();
   const { toast } = useToast();
@@ -366,17 +310,12 @@ function DemoRegistroForm({
     setBusy(true);
     setFormError(null);
     try {
-      const parsed = schema.safeParse(getValues());
+      const parsed = schema.safeParse({ ...getValues(), aceptaLegal: true });
       if (!parsed.success) {
-        const legal = parsed.error.issues.find((issue) => issue.path[0] === "aceptaLegal");
-        setFormError(legal?.message ?? "Revisa los datos del formulario.");
+        setFormError("Revisa los datos del formulario.");
         return;
       }
       const values = parsed.data;
-      if (!values.aceptaLegal) {
-        setFormError(DEMO_LEGAL_MESSAGE);
-        return;
-      }
       if (authMode(clientAuthModeInput()) !== "supabase") {
         await login("email");
         writeClientCookie(MOCK_ONBOARDING_COOKIE, ONBOARDING_DONE);
@@ -415,10 +354,10 @@ function DemoRegistroForm({
   return (
     <Shell>
       <form className="mt-6" onSubmit={(event) => void onSubmit(event)} noValidate>
-        <h1 className={authTitleClass}>Crea tu cuenta demo</h1>
+        <h1 className={authTitleClass}>Crea tu cuenta</h1>
         <p className="mt-3 max-w-[60ch] text-sm leading-relaxed text-pretty text-fg-body">
-          Te damos US$10.000 ficticios para practicar. Crea tu cuenta, explora el mercado y haz tu primera
-          compra sin dinero real. La demo no habilita operaciones reales.
+          Entra con tu correo. Puedes practicar con US$10.000 ficticios; tus datos te los pedimos sólo cuando
+          quieras invertir con dinero real.
         </p>
         <CredentialField
           id="registro-email"
@@ -446,58 +385,36 @@ function DemoRegistroForm({
           error={errors.passwordConfirm?.message}
           {...register("passwordConfirm")}
         />
-        <div className="mt-5">
-          <Controller
-            name="aceptaLegal"
-            control={control}
-            render={({ field, fieldState }) => (
-              <CheckField
-                checked={field.value}
-                onChange={field.onChange}
-                onBlur={field.onBlur}
-                inputRef={field.ref}
-                error={fieldState.error?.message}
-                label={
-                  <>
-                    Acepto los{" "}
-                    <Link
-                      href="/legal/terminos"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="rounded-sm font-medium underline decoration-border underline-offset-4 hover:decoration-fg"
-                    >
-                      Términos y Condiciones
-                    </Link>{" "}
-                    y la{" "}
-                    <Link
-                      href="/legal/privacidad"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="rounded-sm font-medium underline decoration-border underline-offset-4 hover:decoration-fg"
-                    >
-                      Política de Privacidad
-                    </Link>
-                    .
-                  </>
-                }
-              />
-            )}
-          />
-        </div>
-        <p className="mt-4 text-[13px] leading-relaxed text-fg-muted">Borrador. [REVISIÓN ABOGADO]</p>
         {formError ? <FormAlert>{formError}</FormAlert> : null}
         <div className="mt-6">
           <Button type="submit" size="lg" className="w-full" loading={busy}>
-            {t.auth.createDemoAccount}
+            Crear cuenta
           </Button>
         </div>
-        {onUseReal ? (
-          <p className="mt-1 text-center text-[13px] leading-relaxed text-fg-muted">
-            <button type="button" onClick={onUseReal} className={authLinkClass}>
-              Crear una cuenta real
-            </button>
-          </p>
-        ) : null}
+        <OrDivider />
+        <GoogleButton disabled />
+        <p className="mt-3 text-center text-[13px] leading-relaxed text-fg-muted">
+          Al crear tu cuenta aceptas los{" "}
+          <Link
+            href="/legal/terminos"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="rounded-sm font-medium underline decoration-border underline-offset-4 hover:decoration-fg"
+          >
+            Términos y Condiciones
+          </Link>{" "}
+          y la{" "}
+          <Link
+            href="/legal/privacidad"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="rounded-sm font-medium underline decoration-border underline-offset-4 hover:decoration-fg"
+          >
+            Política de Privacidad
+          </Link>
+          .
+        </p>
+        <p className="mt-1 text-center text-[13px] leading-relaxed text-fg-muted">Borrador. [REVISIÓN ABOGADO]</p>
         <p className="mt-1 text-center text-[13px] leading-relaxed text-fg-muted">
           <Link href={enter} className={authLinkClass}>
             Ya tengo cuenta
@@ -508,36 +425,27 @@ function DemoRegistroForm({
   );
 }
 
+/** Completar datos con sesión (pasos 2 y 3). El alta ya no pasa por aquí. */
 function RegistroForm({
-  mode,
   next,
   versions,
   declarationVersion,
   demoForBlocked,
-  onSent,
-  login,
-  onUseDemo,
 }: {
-  mode: Mode;
   next: string | null;
   versions: RegistroVersions;
   declarationVersion?: string;
   demoForBlocked: boolean;
-  onSent: (email: string) => void;
-  login: (method?: "email" | "google") => Promise<void>;
-  onUseDemo?: () => void;
 }) {
   const router = useRouter();
-  const { toast } = useToast();
-  const { t } = useT();
   const headingRef = useRef<HTMLHeadingElement>(null);
   const skipFocus = useRef(true);
   const lock = useRef(false);
   const today = useMemo(() => new Date(), []);
-  const schema = useMemo(() => registroSchemaAt(today, mode === "alta"), [today, mode]);
+  const schema = useMemo(() => registroSchemaAt(today, false), [today]);
   const countries = useMemo(() => countryOptions(), []);
   const birthLimit = useMemo(() => maxBirth(today), [today]);
-  const steps: Step[] = mode === "alta" ? [1, 2, 3] : [2, 3];
+  const steps: Step[] = [2, 3];
   const [step, setStep] = useState<Step>(steps[0] ?? 2);
   const [formError, setFormError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -559,7 +467,6 @@ function RegistroForm({
 
   const pais = useWatch({ control, name: "pais" });
   const nacionalidad = useWatch({ control, name: "nacionalidad" });
-  const password = useWatch({ control, name: "password" });
   const unavailable = step === 2 && (isOperationBlocked(pais) || isOperationBlocked(nacionalidad));
   const stepIndex = Math.max(0, steps.indexOf(step));
 
@@ -602,37 +509,6 @@ function RegistroForm({
       const values = parsed.data;
       if (isOperationBlocked(values.pais) || isOperationBlocked(values.nacionalidad)) {
         leaveBlocked();
-        return;
-      }
-      if (mode === "alta" && authMode(clientAuthModeInput()) !== "supabase") {
-        await login("email");
-        writeClientCookie(MOCK_ONBOARDING_COOKIE, ONBOARDING_DONE);
-        router.push(next ?? "/app");
-        router.refresh();
-        return;
-      }
-      if (mode === "alta") {
-        const result = await signUpRegistro(
-          values,
-          {
-            ...versions,
-            usPersonDeclarationVersion: declarationVersion ?? versions.usPersonDeclarationVersion,
-          },
-          next,
-        );
-        if (!result.ok) {
-          setFormError(result.message);
-          return;
-        }
-        if (result.destination.kind === "email") {
-          onSent(result.email);
-          return;
-        }
-        toast({ title: t.auth.accountCreated, tone: "up" });
-        router.refresh();
-        // DB-03: el alta real no termina en la demo. El perfil nace sin
-        // onboarding_completed; el paso siguiente es el onboarding real.
-        router.push(onboardingPath(result.destination.path));
         return;
       }
       if (!versions.terminos || !versions.privacidad || !versions.riesgos) {
@@ -678,11 +554,9 @@ function RegistroForm({
     if (busy || unavailable) return;
     setFormError(null);
     const names =
-      step === 1
-        ? (["email", "password", "passwordConfirm"] as const)
-        : step === 2
-          ? (["nombre", "pais", "nacionalidad", "rut", "fechaNacimiento", "telefono", "usPersonDeclaration"] as const)
-          : (["terminos", "privacidad", "riesgos"] as const);
+      step === 2
+        ? (["nombre", "pais", "nacionalidad", "rut", "fechaNacimiento", "telefono", "usPersonDeclaration"] as const)
+        : (["terminos", "privacidad", "riesgos"] as const);
     const ok = await trigger([...names]);
     if (!ok) return;
     clearErrors();
@@ -700,49 +574,14 @@ function RegistroForm({
 
   const title = unavailable ? "No disponible" : TITLES[step];
   const canGoBack = steps.indexOf(step) > 0 && !unavailable;
-  const enter = ingresarPath(next ?? "/app");
 
   return (
     <Shell>
-      <WizardProgress
-        step={stepIndex + 1}
-        total={steps.length}
-        labels={mode === "alta" ? steps.map((item) => STEP_NAMES[item]) : undefined}
-      />
+      <WizardProgress step={stepIndex + 1} total={steps.length} />
       <form className="mt-6" onSubmit={onSubmit} noValidate>
         <h1 ref={headingRef} tabIndex={-1} className={authTitleClass}>
           {title}
         </h1>
-        {step === 1 ? (
-          <div>
-            <CredentialField
-              id="registro-email"
-              label="Correo"
-              type="email"
-              autoComplete="email"
-              inputMode="email"
-              error={errors.email?.message}
-              {...register("email")}
-            />
-            <CredentialField
-              id="registro-password"
-              label="Contraseña"
-              type="password"
-              autoComplete="new-password"
-              error={errors.password?.message}
-              {...register("password")}
-            />
-            <PasswordStrengthMeter password={password ?? ""} />
-            <CredentialField
-              id="registro-password-confirm"
-              label="Confirmar contraseña"
-              type="password"
-              autoComplete="new-password"
-              error={errors.passwordConfirm?.message}
-              {...register("passwordConfirm")}
-            />
-          </div>
-        ) : null}
         {step === 2 && !unavailable ? (
           <div>
             <CredentialField
@@ -874,41 +713,20 @@ function RegistroForm({
         {!unavailable ? (
           <div className="mt-6">
             <Button type="submit" size="lg" className="w-full" loading={busy}>
-              {step === 3 ? (mode === "alta" ? "Crear cuenta" : "Guardar") : "Continuar"}
+              {step === 3 ? "Guardar" : "Continuar"}
             </Button>
           </div>
         ) : null}
-        {canGoBack || mode === "completar" ? (
-          <div className={`${unavailable ? "mt-2" : "mt-1"} flex items-center justify-between gap-2`}>
-            {canGoBack ? (
-              <Button type="button" variant="ghost" size="md" className="px-2" onClick={goBack} disabled={busy}>
-                Atrás
-              </Button>
-            ) : (
-              <span aria-hidden="true" />
-            )}
-            {mode === "completar" ? <LogoutButton variant="ghost" size="md" className="w-auto px-2" /> : null}
-          </div>
-        ) : null}
-        {step === 1 ? (
-          <>
-            <OrDivider />
-            <GoogleButton disabled />
-            <p className="mt-3 text-center text-[13px] leading-relaxed text-fg-muted">
-              <Link href={enter} className={authLinkClass}>
-                Ya tengo cuenta
-              </Link>
-            </p>
-            {onUseDemo ? (
-              <div className="mt-3 border-t border-border pt-4">
-                <p className="text-sm leading-relaxed text-fg-muted">¿Solo quieres probar?</p>
-                <Button type="button" variant="secondary" size="md" className="mt-2 w-full" onClick={onUseDemo}>
-                  Usar la cuenta demo
-                </Button>
-              </div>
-            ) : null}
-          </>
-        ) : null}
+        <div className={`${unavailable ? "mt-2" : "mt-1"} flex items-center justify-between gap-2`}>
+          {canGoBack ? (
+            <Button type="button" variant="ghost" size="md" className="px-2" onClick={goBack} disabled={busy}>
+              Atrás
+            </Button>
+          ) : (
+            <span aria-hidden="true" />
+          )}
+          <LogoutButton variant="ghost" size="md" className="w-auto px-2" />
+        </div>
       </form>
     </Shell>
   );

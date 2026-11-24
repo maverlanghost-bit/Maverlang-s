@@ -1,5 +1,12 @@
 # PROGRESO — Maverlang
 
+## T102 — Registro sólo con correo y contraseña (2026-11-23)
+- `/app/registro` usa siempre el alta corta (`signUpDemo`): correo, contraseña y repetir. Título «Crea tu cuenta», botón «Crear cuenta», Google deshabilitado («Pronto») y línea clickwrap de Términos y Privacidad (consentimiento con la misma metadata; sin casilla). Sin «Crear una cuenta real» ni «¿Solo quieres probar?».
+- Datos personales, declaración US person (DB-03), riesgos y documentos quedan en `/app/onboarding` para operar real. Hoy nada redirige ahí automáticamente: el interruptor «Real» muestra «disponible pronto» y `real-guards.ts` corta en servidor.
+- Sin Ayuda · Términos · Privacidad al pie de ingreso/registro (`auth-shell.tsx`).
+- Pendiente: FAQ (`lib/content/faq.ts`) y correo de bienvenida siguen hablando de «cuenta demo».
+- Verificación: `tsc`, 10 archivos de pruebas de auth/registro/onboarding (98/98) y navegador a 390 px y escritorio.
+
 ## T101 — [EXPERIMENTO] Barra inferior original, tarjeta de invitado y nuevas acciones (2026-11-23)
 - `bottom-tabs.tsx` vuelve a la versión de vidrio de T99 y ahora también se monta para invitados en celular (`PublicFrame`; sale `ClearPrivateTabs`).
 - Invitado: tarjeta «Tu saldo · Crea tu cuenta gratis» con «Crear cuenta» y «Ya tengo cuenta» en el lugar del saldo.

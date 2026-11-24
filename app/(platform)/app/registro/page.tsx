@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 
 import { AuthShell } from "@/components/auth/auth-shell";
 import { site } from "@/config/site";
-import { isSupabaseAuth } from "@/lib/auth/mode";
 import { safeNextPath } from "@/lib/auth/paths";
 import { serverEnv } from "@/lib/env";
 
@@ -39,7 +38,6 @@ export default async function RegistroPage({
         }}
         declarationVersion={serverEnv.US_PERSON_DECLARATION_VERSION}
         demoForBlocked={serverEnv.DEMO_FOR_BLOCKED}
-        realRegistration={isSupabaseAuth()}
       />
     </AuthShell>
   );
