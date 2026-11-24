@@ -10,6 +10,10 @@ import { AssetMarketRow as MarketListRow } from "@/components/market/asset-row";
 import { MarketHeatmap } from "@/components/domain/market-heatmap";
 import { MarketToday } from "@/components/domain/market-today/market-today";
 import { MobileBalanceCard } from "@/components/domain/mobile-balance-card";
+import { MobileAssetRow } from "@/components/domain/mobile-asset-row";
+import { MobilePromoCarousel, MobileQuickActions, MobileShortcuts } from "@/components/domain/mobile-home";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { IconChevron, IconSearch } from "@/components/ui/icons";
 import { FloatingMarketOrb } from "@/components/domain/market-status-pill";
 import { PriceFreshness } from "@/components/domain/price-freshness";
 import { Button } from "@/components/ui/button";
@@ -265,6 +269,7 @@ export function MarketScreen({
   initialPage = "",
   initialView = "",
   sections,
+  showCopy = false,
 }: {
   initialFilter: string;
   initialSort: string;
@@ -273,6 +278,8 @@ export function MarketScreen({
   initialView?: string;
   /** Navegación de secciones del mercado (Acciones · Cripto · Copiar · Herramientas). */
   sections?: ReactNode;
+  /** Muestra el acceso a Copiar en los accesos del celular. */
+  showCopy?: boolean;
 }) {
   const { t, currency, language } = useT();
   const router = useRouter();
@@ -284,6 +291,7 @@ export function MarketScreen({
   const [sort, setSort] = useState<MarketSort>(() => parseSort(initialSort));
   const [page, setPage] = useState(() => pageNumber(initialPage));
   const [view, setView] = useState<MarketView>(initialView === "heatmap" ? "heatmap" : "list");
+  const [searchOpen, setSearchOpen] = useState(false);
   const [draft, setDraft] = useState(initialQuery.slice(0, 64));
   const [query, setQuery] = useState(initialQuery.trim().slice(0, 64));
   useEffect(() => {
@@ -594,9 +602,14 @@ export function MarketScreen({
   return (
     <div className="flex min-w-0 flex-col gap-5 sm:gap-8 lg:gap-10">
       <h1 className="sr-only">{t.pages.market.title}</h1>
-      {/* T94: en celular la tarjeta de saldo va arriba; las secciones quedan debajo. */}
-      <MobileBalanceCard className="-mx-2 -mb-3 lg:hidden" />
-      {sections ? <div className="-mx-5 min-w-0 px-5 sm:mx-0 sm:px-0">{sections}</div> : null}
+      {/* Inicio en celular: saldo, acciones principales, accesos y carrusel. */}
+      <MobileBalanceCard className="lg:hidden" />
+      <div className="flex min-w-0 flex-col gap-7 md:hidden">
+        <MobileQuickActions />
+        <MobileShortcuts showCopy={showCopy} />
+        <MobilePromoCarousel />
+      </div>
+      {sections ? <div className="-mx-5 hidden min-w-0 px-5 md:block sm:mx-0 sm:px-0">{sections}</div> : null}
 
       {/* «Tu día» sólo en escritorio: en celular no se monta (ni consulta datos). */}
       {!draft && filter === "all" && !isPhone ? (
@@ -606,21 +619,70 @@ export function MarketScreen({
       ) : null}
 
       <section
+        id="acciones"
         aria-labelledby={listTitleId}
-        className="flex min-w-0 flex-wrap items-center gap-x-6 gap-y-4"
+        className="flex min-w-0 scroll-mt-20 flex-wrap items-center gap-x-6 gap-y-4"
       >
-        <h2 id={listTitleId} className="min-w-0 flex-1 text-xl leading-tight tracking-tight text-fg">
-          {t.market.list}
+        <h2
+          id={listTitleId}
+          className={cn("min-w-0 flex-1 leading-tight tracking-tight text-fg", isPhone ? "text-[26px] font-semibold" : "text-xl")}
+        >
+          {isPhone ? (language === "en" ? "Stocks" : "Acciones") : t.market.list}
         </h2>
-        {/* Vista: mismo criterio de texto que el orden y las categorías. */}
-        <div className="min-w-0 max-w-full shrink-0">
-          <ChipGroup
-            ariaLabel={language === "en" ? "Market view" : "Vista del mercado"}
-            value={view}
-            options={viewOptions}
-            onChange={setView}
-          />
-        </div>
+        {isPhone ? (
+          <div className="flex shrink-0 items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setSearchOpen((open) => !open)}
+              aria-expanded={searchOpen || draft !== ""}
+              aria-label={language === "en" ? "Search and filter" : "Buscar y filtrar"}
+              className={cn(
+                "grid size-11 place-items-center rounded-full outline-none transition-colors focus-visible:ring-2 focus-visible:ring-fg",
+                searchOpen || draft !== "" || filter !== "all" ? "bg-fg text-bg" : "bg-surface-1 text-fg",
+              )}
+            >
+              <IconSearch className="size-5" />
+            </button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  className="inline-flex h-11 items-center gap-1.5 rounded-full bg-surface-1 px-4 text-[14px] font-medium text-fg outline-none focus-visible:ring-2 focus-visible:ring-fg"
+                >
+                  {sortOptions.find((option) => option.value === sort)?.label}
+                  <IconChevron className="size-3.5" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuLabel>{t.market.sortLabel}</DropdownMenuLabel>
+                {sortOptions.map((option) => (
+                  <DropdownMenuItem key={option.value} onSelect={() => onSortChange(option.value)}>
+                    {option.label}
+                    {sort === option.value ? <span className="ml-auto" aria-hidden>✓</span> : null}
+                  </DropdownMenuItem>
+                ))}
+                <DropdownMenuSeparator />
+                <DropdownMenuLabel>{language === "en" ? "View" : "Vista"}</DropdownMenuLabel>
+                {viewOptions.map((option) => (
+                  <DropdownMenuItem key={option.value} onSelect={() => setView(option.value)}>
+                    {option.label}
+                    {view === option.value ? <span className="ml-auto" aria-hidden>✓</span> : null}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        ) : (
+          /* Vista: mismo criterio de texto que el orden y las categorías. */
+          <div className="min-w-0 max-w-full shrink-0">
+            <ChipGroup
+              ariaLabel={language === "en" ? "Market view" : "Vista del mercado"}
+              value={view}
+              options={viewOptions}
+              onChange={setView}
+            />
+          </div>
+        )}
 
         {/* Conteo real y frescura en una sola línea de dato. Sin cifras hasta
             que el catálogo llegue. */}
@@ -650,7 +712,7 @@ export function MarketScreen({
           {freshestAt ? <span className="hidden text-xs sm:inline">{language === "en" ? "Oldest observation in this batch" : "Observación más antigua del lote"}</span> : null}
         </div>
 
-        <div className="flex w-full min-w-0 flex-wrap items-end gap-3">
+        <div className={cn("w-full min-w-0 flex-wrap items-end gap-3", isPhone && !searchOpen && !draft && filter === "all" ? "hidden" : "flex")}>
           <label className="flex min-w-40 flex-1 flex-col gap-1.5 text-xs text-fg-muted"><span className="sr-only sm:not-sr-only">{t.market.searchLabel}</span><input type="search" value={draft} maxLength={64} onChange={(event) => { setDraft(event.target.value); setPage(1); }} placeholder={language === "en" ? "Search a stock" : "Buscar una acción"} className="min-h-11 rounded-full border border-border bg-bg px-4 text-base text-fg sm:rounded-lg sm:border-border-control sm:px-3 sm:text-sm" /></label>
           <FilterPanel activeCount={filter === "all" ? 0 : 1}>
             <label className="flex flex-col gap-1.5 text-xs text-fg-muted">{filtersTitle}<select value={filter} onChange={(event) => onFilterChange(parseFilter(event.target.value))} className="min-h-11 rounded-lg border border-border-control bg-bg px-3 text-base text-fg sm:text-sm">{filterOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
@@ -658,22 +720,7 @@ export function MarketScreen({
           <label className="hidden w-40 flex-col gap-1.5 text-xs text-fg-muted sm:flex">{t.market.sortLabel}<select value={sort} onChange={(event) => onSortChange(parseSort(event.target.value))} className="min-h-11 rounded-lg border border-border-control bg-bg px-3 text-base text-fg sm:text-sm">{sortOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
         </div>
         {/* T98: en celular el orden va en burbujas deslizables (el select queda desde sm). */}
-        <div role="group" aria-label={t.market.sortLabel} className="-mx-5 -mt-1 flex w-[calc(100%+2.5rem)] gap-2 overflow-x-auto px-5 pb-1 [scrollbar-width:none] sm:hidden">
-          {sortOptions.map((option) => (
-            <button
-              key={option.value}
-              type="button"
-              aria-pressed={sort === option.value}
-              onClick={() => onSortChange(option.value)}
-              className={cn(
-                "inline-flex h-9 shrink-0 items-center rounded-full border px-4 text-[13px] font-medium transition-colors active:scale-[0.97]",
-                sort === option.value ? "border-fg bg-fg text-bg" : "border-border bg-bg text-fg-body hover:border-border-strong",
-              )}
-            >
-              {option.label}
-            </button>
-          ))}
-        </div>
+        {/* El orden en celular vive en la píldora junto al título. */}
         <div className="w-full"><ActiveFilters language={language} filters={[
           ...(draft ? [{ id: "q", label: draft, remove: () => { setDraft(""); setQuery(""); setPage(1); } }] : []),
           ...(filter !== "all" ? [{ id: "category", label: activeFilterLabel, remove: () => onFilterChange("all") }] : []),
@@ -746,7 +793,7 @@ export function MarketScreen({
               <span className="label-xs">Precio / Var. 24 h</span>
             </div>
 
-            <ul className="-mx-2 flex w-[calc(100%+1rem)] min-w-0 flex-col divide-y divide-border rounded-3xl border border-border bg-bg px-2 sm:mx-0 sm:w-full sm:rounded-none sm:border-x-0 sm:border-b-0 sm:bg-transparent sm:px-0">
+            <ul className="flex w-full min-w-0 flex-col sm:border-t sm:border-border sm:divide-y sm:divide-border">
               {listRows.map((entry) => {
                 const shownPrice = entry.quote
                   ? priceRows([{ item: entry.item, quote: entry.quote, index: entry.index }], currency, rate)[0]
@@ -756,6 +803,23 @@ export function MarketScreen({
                   entry.quote && Number.isFinite(entry.quote.change24hPct) ? entry.quote.change24hPct : null;
                 return (
                   <li key={entry.item.symbol}>
+                    {isPhone ? (
+                      <MobileAssetRow
+                        href={tickerHref(entry.item.symbol)}
+                        symbol={entry.item.symbol}
+                        name={entry.item.name}
+                        logoUrl={entry.item.logoUrl}
+                        price={shownPrice?.price ?? null}
+                        currency={shownPrice?.currency ?? "USD"}
+                        change={change}
+                        pricePending={pricePending}
+                        favoritePressed={favorite}
+                        favoriteLabel={withName(favorite ? t.market.favoriteOn : t.market.favoriteOff, entry.item.name)}
+                        onToggleFavorite={toggle}
+                        noPriceLabel={noPriceLabel}
+                        unavailableLabel={t.detail.unavailable}
+                      />
+                    ) : (
                     <MarketListRow
                       href={tickerHref(entry.item.symbol)}
                       symbol={entry.item.symbol}
@@ -777,6 +841,7 @@ export function MarketScreen({
                       noPriceLabel={noPriceLabel}
                       unavailableLabel={t.detail.unavailable}
                     />
+                    )}
                   </li>
                 );
               })}

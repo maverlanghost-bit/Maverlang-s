@@ -128,7 +128,7 @@ function ShellFrame({
             <div
               className={cn(
                 "mx-auto flex w-full max-w-6xl min-w-0 flex-1 flex-col px-5 pb-[var(--app-tabs-height)] lg:px-8 lg:pb-0 lg:pt-8",
-                assistantRoute ? "pt-0" : "pt-[calc(env(safe-area-inset-top)+3.875rem)]",
+                assistantRoute ? "pt-0" : "pt-[calc(env(safe-area-inset-top)+4rem)]",
               )}
             >
               <main id="contenido" tabIndex={-1} className="min-w-0 flex-1 scroll-mt-16 outline-none">

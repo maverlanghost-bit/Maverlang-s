@@ -1,5 +1,11 @@
 # PROGRESO — Maverlang
 
+## T100 — [EXPERIMENTO, rama `exp/movil-estilo-coinbase`] Inicio móvil estilo Coinbase (2026-11-23)
+- Barra superior móvil (`top-bar.tsx`): menú de 9 puntos → `/app/perfil`, píldora «Buscar una acción» (abre `stock-search`) y campana → `/app/alertas`. Barra inferior (`bottom-tabs.tsx`) blanca sólida con ícono + etiqueta; sin vidrio.
+- Inicio `/app` en celular (`mobile-home.tsx`, `mobile-asset-row.tsx`, `mobile-balance-card.tsx`): saldo grande sin tarjeta, 4 acciones (Comprar, Vender, Depositar, Billetera), 8 accesos, carrusel con hechos del producto y lista «Acciones» con píldora de orden. Sin mini gráfico del saldo: no hay serie histórica.
+- Pendiente: `tests/unit/nav-liquid-glass.test.ts` fallará (describe la barra de vidrio); revisar con sesión iniciada (saldo y barras sólo se ven logueado). Decidir si se integra a `fix/auditoria-v3`.
+- Verificación: `tsc` y navegador a 390 px como invitado (sin desborde).
+
 ## T99 — Pulido de portada, ingreso/registro y pie (2026-11-23)
 - Portada: texto del hero arriba (`items-start`); banda 24/7 en hora de Chile con una sola cinta semanal y cifras calculadas (32,5 h vs 168 h); sale la sección «El token es tuyo» (`ownership-section.tsx` queda sin uso).
 - Pie: wordmark gigante (`footer-wordmark.tsx`) con letras que suben ligadas al scroll; sin el bloque de avisos (token ≠ acción, marcas, «No disponible para personas de EE.UU.»): **pendiente reubicar esos avisos** en un lugar visible. Enlaces del pie subrayados sólo en hover/foco.

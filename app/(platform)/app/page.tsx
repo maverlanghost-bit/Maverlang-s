@@ -29,6 +29,7 @@ export default async function MercadoPage({
       initialQuery={one(params.q)}
       initialPage={one(params.paginas)}
       initialView={one(params.vista)}
+      showCopy={showCopy}
       sections={<MarketSectionChips active="stocks" showCopy={showCopy} />}
     />
   );
