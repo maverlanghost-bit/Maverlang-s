@@ -605,7 +605,7 @@ export function MarketScreen({
       {/* Inicio en celular: saldo, acciones principales, accesos y carrusel. */}
       <MobileBalanceCard className="lg:hidden" />
       <div className="flex min-w-0 flex-col gap-7 md:hidden">
-        <MobileQuickActions />
+        <MobileQuickActions showCopy={showCopy} />
         <MobileShortcuts showCopy={showCopy} />
         <MobilePromoCarousel />
       </div>

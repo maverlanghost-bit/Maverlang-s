@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect, useRef, type RefObject } from "react";
+import { useEffect, useRef, type CSSProperties, type RefObject } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+
+import "./liquid-glass.css";
 
 import {
   AI_DOCK_SLOT_ID,
@@ -10,21 +12,22 @@ import {
   mobileTabs,
   shellTabLabel,
 } from "@/components/app-shell/nav";
-import { IconStar } from "@/components/ui/icons";
+import { IconBack, IconStar } from "@/components/ui/icons";
 import { cn } from "@/lib/cn";
 import { useT } from "@/lib/hooks/use-t";
 
 /**
- * Publica el alto de la barra para la barra de compra, los toasts y el padding
- * del contenido. En /app/asistente y en la ficha la barra no se monta: alto 0px.
+ * Publica el alto de la barra (o del dock de IA) para la barra de compra, los toasts
+ * y el padding del contenido. El ResizeObserver lo actualiza cuadro a cuadro durante el morph.
+ * En /app/asistente la barra está oculta, así que el alto se fuerza a 0px sin medir.
  */
-function useTabsHeight(ref: RefObject<HTMLElement | null>, hidden: boolean) {
+function useTabsHeight(ref: RefObject<HTMLElement | null>, assistantRoute: boolean) {
   useEffect(() => {
     const root = document.documentElement;
     const query = window.matchMedia("(min-width: 1024px)");
     const apply = () => {
       const nav = ref.current;
-      if (hidden || query.matches || !nav) {
+      if (assistantRoute || query.matches || !nav) {
         root.style.setProperty("--app-tabs-height", "0px");
         return;
       }
@@ -42,13 +45,12 @@ function useTabsHeight(ref: RefObject<HTMLElement | null>, hidden: boolean) {
       window.removeEventListener("resize", apply);
       root.style.removeProperty("--app-tabs-height");
     };
-  }, [ref, hidden]);
+  }, [ref, assistantRoute]);
 }
 
 /**
- * Barra inferior móvil (< lg): blanca sólida, borde superior fino, cinco
- * pestañas con ícono de 24px y etiqueta de 11px. La activa va en `text-fg`
- * semibold con un trazo superior; las demás en `text-fg-muted`.
+ * Barra inferior fija: sin transform por scroll, sin ocultarse nunca.
+ * En /app/asistente el mismo vidrio se transforma (morph) en el dock del chat.
  */
 export function BottomTabs() {
   const pathname = usePathname();
@@ -56,53 +58,90 @@ export function BottomTabs() {
   const navRef = useRef<HTMLElement>(null);
   const assistantRoute =
     pathname === "/app/asistente" || pathname.startsWith("/app/asistente/");
+  const mode = assistantRoute ? "composer" : "nav";
   const activeIndex = activeMobileTab(pathname);
   // La ficha de una acción usa su propia tarjeta inferior de Comprar/Vender.
   const stockDetailRoute = pathname.startsWith("/app/accion/");
   const hidden = assistantRoute || stockDetailRoute;
   useTabsHeight(navRef, hidden);
 
-  // El chat tiene su propio compositor y barra superior: aquí no se monta.
+  // El chat tiene su propio compositor abajo y su barra superior: la barra
+  // inferior no se monta (antes quedaba un dock vacío con "volver" encima del chat).
   if (hidden) return null;
 
   return (
     <nav
       ref={navRef}
+      role="navigation"
       aria-label={t.nav.label}
-      data-hidden="false"
-      className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-bg pb-[env(safe-area-inset-bottom)] lg:hidden"
+      data-hidden="false" /* Barra fija sin oscilaciones de nextTabBarHidden */
+      data-mode={mode}
+      data-assistant={assistantRoute ? "true" : "false"}
+      className={cn(
+        "liquid-nav pointer-events-none fixed inset-x-0 bottom-0 z-30 flex justify-center px-4 pb-[calc(0.75rem+env(safe-area-inset-bottom))] md:hidden",
+        assistantRoute && "hidden",
+      )}
     >
-      {/* Ranura del dock de IA (la usa el compositor del asistente; vacía fuera de él). */}
-      <div id={AI_DOCK_SLOT_ID} className="empty:hidden" />
-      <ul className="mx-auto grid h-16 max-w-xl grid-cols-5">
-        {mobileTabs.map((item, index) => {
-          const active = index === activeIndex;
-          const Icon = item.icon;
-          const label = shellTabLabel(language, item.id, t.nav);
-          return (
-            <li key={item.id} className="min-w-0">
-              <Link
-                href={item.href}
-                aria-current={active ? "page" : undefined}
-                className={cn(
-                  "relative flex h-full min-h-11 w-full touch-manipulation flex-col items-center justify-center gap-1 px-0.5 text-[11px] leading-none outline-none transition-colors focus-visible:outline-2 focus-visible:-outline-offset-4 focus-visible:outline-fg",
-                  active ? "font-semibold text-fg" : "font-medium text-fg-muted",
-                )}
-              >
-                {active ? (
-                  <span aria-hidden className="absolute top-0 h-0.5 w-8 rounded-full bg-fg" />
-                ) : null}
-                {item.id === "favorites" ? (
-                  <IconStar filled={active} className="size-6" />
-                ) : (
-                  <Icon className="size-6" />
-                )}
-                <span className="max-w-full truncate">{label}</span>
-              </Link>
-            </li>
-          );
-        })}
-      </ul>
+      <div
+        className="liquid-glass backdrop-blur-xl border border-border/70"
+        data-mode={mode}
+        data-assistant={assistantRoute ? "true" : "false"}
+      >
+        <span
+          className="liquid-glass__pill"
+          data-hidden={activeIndex < 0 || assistantRoute ? "true" : undefined}
+          style={{ "--tab-index": activeIndex < 0 ? 0 : activeIndex } as CSSProperties}
+          aria-hidden="true"
+        />
+        <ul className="liquid-glass__tabs">
+          {mobileTabs.map((item) => {
+            const active = activeIndex >= 0 && mobileTabs[activeIndex]?.id === item.id;
+            const Icon = item.icon;
+            const label = shellTabLabel(language, item.id, t.nav);
+            const center = item.id === "assistant";
+            return (
+              <li key={item.id}>
+                <Link
+                  href={item.href}
+                  aria-current={active ? "page" : undefined}
+                  data-state={active ? "active" : "inactive"}
+                  tabIndex={assistantRoute ? -1 : undefined}
+                  className={cn("liquid-tab", center && "liquid-tab--center")}
+                >
+                  {center ? (
+                    <>
+                      <span className="liquid-tab__ai" aria-hidden="true">
+                        AI
+                      </span>
+                      <span className="liquid-tab__label">{label}</span>
+                    </>
+                  ) : (
+                    <>
+                      {item.id === "favorites" ? (
+                        <IconStar filled={active} className="liquid-tab__icon" />
+                      ) : (
+                        <Icon className="liquid-tab__icon" />
+                      )}
+                      <span className="liquid-tab__label">{label}</span>
+                    </>
+                  )}
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+        <div className="liquid-glass__dockwrap">
+          <Link
+            href="/app"
+            aria-label={language === "en" ? "Back to market" : "Volver al mercado"}
+            tabIndex={assistantRoute ? undefined : -1}
+            className="liquid-glass__back"
+          >
+            <IconBack className="size-4" />
+          </Link>
+          <div id={AI_DOCK_SLOT_ID} className="liquid-glass__dock" />
+        </div>
+      </div>
     </nav>
   );
 }

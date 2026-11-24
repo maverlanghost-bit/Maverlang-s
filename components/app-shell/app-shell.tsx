@@ -3,7 +3,6 @@
 import {
   useCallback,
   useEffect,
-  useLayoutEffect,
   useState,
   type CSSProperties,
   type ReactNode,
@@ -62,18 +61,6 @@ function SyncToastOffset({ includeTabs }: { includeTabs: boolean }) {
  * las capas fijas —el chat de IA— sepan cuánto espacio tienen a la derecha.
  */
 const SIDEBAR_WIDTH = { collapsed: 68, expanded: 212 } as const;
-
-/** Sin tabs privadas, la barra de la ficha queda al borde de la pantalla. */
-function ClearPrivateTabs() {
-  useLayoutEffect(() => {
-    const root = document.documentElement;
-    root.style.setProperty("--app-tabs-height", "0px");
-    return () => {
-      root.style.removeProperty("--app-tabs-height");
-    };
-  }, []);
-  return null;
-}
 
 function SkipLink({ label }: { label: string }) {
   return (
@@ -155,12 +142,11 @@ function PublicFrame({ children }: { children: ReactNode }) {
       style={{ "--app-sidebar-width": "0px" } as CSSProperties}
     >
       <SyncDocumentLanguage language={language} />
-      <ClearPrivateTabs />
-      <SyncToastOffset includeTabs={false} />
+      <SyncToastOffset includeTabs />
       <SkipLink label={t.shell.skip} />
       <StockSearchRoot>
         <PublicHeader />
-        <div className="mx-auto flex min-h-[calc(100dvh-4rem)] w-full max-w-6xl flex-col px-5 pt-4 sm:pt-6 lg:px-8 lg:pt-10">
+        <div className="mx-auto flex min-h-[calc(100dvh-4rem)] w-full max-w-6xl flex-col px-5 pt-4 pb-[var(--app-tabs-height)] sm:pt-6 lg:px-8 lg:pt-10 lg:pb-0">
           <main id="contenido" tabIndex={-1} className="min-w-0 flex-1 scroll-mt-16 outline-none">
             {children}
           </main>
@@ -168,6 +154,7 @@ function PublicFrame({ children }: { children: ReactNode }) {
             <p className="border-t border-border pt-4 text-[13px] leading-relaxed text-fg-muted">{t.disclaimer}</p>
           </footer>
         </div>
+        <BottomTabs />
       </StockSearchRoot>
     </div>
   );

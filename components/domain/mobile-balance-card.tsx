@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 import { IconEye, IconEyeOff } from "@/components/ui/icons";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/cn";
@@ -8,6 +10,7 @@ import { useAccountMode } from "@/lib/hooks/use-account-mode";
 import { useHideBalance } from "@/lib/hooks/use-hide-balance";
 import { useFx, usePortfolio } from "@/lib/hooks/queries";
 import { useT } from "@/lib/hooks/use-t";
+import { LANDING_MIN_ORDER_USD } from "@/lib/market/asset-status.shared";
 import type { Currency } from "@/lib/types";
 
 /**
@@ -33,7 +36,33 @@ export function MobileBalanceCard({ className }: { className?: string }) {
   const portfolio = usePortfolio();
   const fx = useFx();
 
-  if (!userId) return null;
+  if (!userId) {
+    return (
+      <section aria-label={en ? "Your balance" : "Tu saldo"} className={cn("rounded-[28px] border border-border bg-surface-1 p-5", className)}>
+        <p className="text-[15px] leading-5 text-fg-muted">{en ? "Your balance" : "Tu saldo"}</p>
+        <p className="mt-1 text-[28px] leading-8 font-semibold tracking-tight text-fg">
+          {en ? "Create your free account" : "Crea tu cuenta gratis"}
+        </p>
+        <p className="mt-2 text-[15px] leading-5 text-fg-body">
+          {en
+            ? `Practice with US$10,000 in play money or invest from US$${LANDING_MIN_ORDER_USD}.`
+            : `Practica con US$10.000 ficticios o invierte desde US$${LANDING_MIN_ORDER_USD}.`}
+        </p>
+        <Link
+          href="/app/registro"
+          className="mt-4 inline-flex min-h-12 w-full items-center justify-center rounded-full bg-fg px-6 text-[16px] font-semibold text-bg outline-none focus-visible:ring-2 focus-visible:ring-fg focus-visible:ring-offset-2 focus-visible:ring-offset-bg"
+        >
+          {en ? "Create account" : "Crear cuenta"}
+        </Link>
+        <Link
+          href="/app/ingresar"
+          className="mt-1 flex min-h-11 items-center justify-center text-[15px] font-medium text-fg underline underline-offset-4"
+        >
+          {en ? "I already have an account" : "Ya tengo cuenta"}
+        </Link>
+      </section>
+    );
+  }
 
   const rate = fx.data?.rate;
   const fxKnown = typeof rate === "number" && Number.isFinite(rate) && rate > 0;

@@ -25,8 +25,6 @@ function glyph(props: SvgProps, children: ReactNode) {
   );
 }
 
-const GlyphPlus = (p: SvgProps) => glyph(p, <path d="M12 5v14M5 12h14" />);
-const GlyphSell = (p: SvgProps) => glyph(p, <path d="M5 12h14" />);
 const GlyphDeposit = (p: SvgProps) => glyph(p, <path d="M12 4v11m0 0-4-4m4 4 4-4M5 20h14" />);
 const GlyphCrypto = (p: SvgProps) =>
   glyph(p, <><circle cx="12" cy="12" r="8" /><path d="M10 8h3a1.8 1.8 0 0 1 0 3.6h-3m0 0h3.4a1.8 1.8 0 0 1 0 3.6H10m0-7.2v7.2" /></>);
@@ -41,15 +39,17 @@ const GlyphAlert = (p: SvgProps) =>
   glyph(p, <path d="M6 17V11a6 6 0 0 1 12 0v6l1.5 2h-15L6 17Zm4 4h4" />);
 const GlyphClock = (p: SvgProps) => glyph(p, <><circle cx="12" cy="12" r="8" /><path d="M12 8v4l3 2" /></>);
 
-export function MobileQuickActions({ className }: { className?: string }) {
+export function MobileQuickActions({ showCopy = false, className }: { showCopy?: boolean; className?: string }) {
   const { language } = useT();
   const en = language === "en";
   const { userId } = useHideBalance();
-  // Sin sesión, las acciones llevan al registro; Comprar baja a la lista.
+  // Sin sesión, Depositar y Billetera llevan al registro; Cripto y Copiar van a su ruta.
   const gate = "/app/registro";
   const actions = [
-    { id: "buy", label: en ? "Buy" : "Comprar", href: "#acciones", icon: <GlyphPlus className="size-6" /> },
-    { id: "sell", label: en ? "Sell" : "Vender", href: userId ? "/app/cartera" : gate, icon: <GlyphSell className="size-6" /> },
+    { id: "crypto", label: en ? "Crypto" : "Cripto", href: "/app/cripto", icon: <GlyphCrypto className="size-6" /> },
+    showCopy
+      ? { id: "copy", label: en ? "Copy" : "Copiar", href: "/app/copiar", icon: <GlyphCopy className="size-6" /> }
+      : { id: "mix", label: "Mix", href: "/app/mix", icon: <GlyphMix className="size-6" /> },
     { id: "deposit", label: en ? "Deposit" : "Depositar", href: userId ? "/app/billetera/depositar" : gate, icon: <GlyphDeposit className="size-6" /> },
     { id: "wallet", label: en ? "Wallet" : "Billetera", href: userId ? "/app/billetera" : gate, icon: <IconWallet className="size-6" /> },
   ];
@@ -67,14 +67,14 @@ export function MobileQuickActions({ className }: { className?: string }) {
   );
 }
 
-export function MobileShortcuts({ showCopy, className }: { showCopy: boolean; className?: string }) {
+export function MobileShortcuts({ showCopy = false, className }: { showCopy?: boolean; className?: string }) {
   const { language } = useT();
   const en = language === "en";
+  // Cripto y Copiar viven en los círculos; si Copiar está apagado, Mix pasa arriba y no se repite aquí.
   const items = [
     { href: "/app/favoritas", label: en ? "Favorites" : "Favoritas", icon: <IconStar className="size-7" /> },
-    { href: "/app/cripto", label: en ? "Crypto" : "Cripto", icon: <GlyphCrypto className="size-7" /> },
-    ...(showCopy ? [{ href: "/app/copiar", label: en ? "Copy" : "Copiar", icon: <GlyphCopy className="size-7" /> }] : []),
-    { href: "/app/mix", label: "Mix", icon: <GlyphMix className="size-7" /> },
+    { href: "/app/cartera", label: en ? "Portfolio" : "Cartera", icon: <IconPortfolio className="size-7" /> },
+    ...(showCopy ? [{ href: "/app/mix", label: "Mix", icon: <GlyphMix className="size-7" /> }] : []),
     { href: "/app/screener", label: "Screener", icon: <GlyphScreener className="size-7" /> },
     { href: "/app/asistente", label: en ? "AI assistant" : "Asistente IA", icon: <GlyphAssistant className="size-7" /> },
     { href: "/app/comparar", label: en ? "Compare" : "Comparar", icon: <GlyphCompare className="size-7" /> },

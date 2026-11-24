@@ -1,5 +1,11 @@
 # PROGRESO — Maverlang
 
+## T101 — [EXPERIMENTO] Barra inferior original, tarjeta de invitado y nuevas acciones (2026-11-23)
+- `bottom-tabs.tsx` vuelve a la versión de vidrio de T99 y ahora también se monta para invitados en celular (`PublicFrame`; sale `ClearPrivateTabs`).
+- Invitado: tarjeta «Tu saldo · Crea tu cuenta gratis» con «Crear cuenta» y «Ya tengo cuenta» en el lugar del saldo.
+- Círculos: Cripto, Copiar (o Mix si el flag está apagado), Depositar, Billetera. Grilla: Favoritas, Cartera, Mix, Screener, Asistente IA, Comparar, Alertas.
+- Verificación: `tsc` y navegador a 390 px como invitado.
+
 ## T100 — [EXPERIMENTO, rama `exp/movil-estilo-coinbase`] Inicio móvil estilo Coinbase (2026-11-23)
 - Barra superior móvil (`top-bar.tsx`): menú de 9 puntos → `/app/perfil`, píldora «Buscar una acción» (abre `stock-search`) y campana → `/app/alertas`. Barra inferior (`bottom-tabs.tsx`) blanca sólida con ícono + etiqueta; sin vidrio.
 - Inicio `/app` en celular (`mobile-home.tsx`, `mobile-asset-row.tsx`, `mobile-balance-card.tsx`): saldo grande sin tarjeta, 4 acciones (Comprar, Vender, Depositar, Billetera), 8 accesos, carrusel con hechos del producto y lista «Acciones» con píldora de orden. Sin mini gráfico del saldo: no hay serie histórica.
