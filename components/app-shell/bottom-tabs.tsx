@@ -98,7 +98,6 @@ export function BottomTabs() {
             const active = activeIndex >= 0 && mobileTabs[activeIndex]?.id === item.id;
             const Icon = item.icon;
             const label = shellTabLabel(language, item.id, t.nav);
-            const center = item.id === "assistant";
             return (
               <li key={item.id}>
                 <Link
@@ -106,25 +105,14 @@ export function BottomTabs() {
                   aria-current={active ? "page" : undefined}
                   data-state={active ? "active" : "inactive"}
                   tabIndex={assistantRoute ? -1 : undefined}
-                  className={cn("liquid-tab", center && "liquid-tab--center")}
+                  className="liquid-tab"
                 >
-                  {center ? (
-                    <>
-                      <span className="liquid-tab__ai" aria-hidden="true">
-                        AI
-                      </span>
-                      <span className="liquid-tab__label">{label}</span>
-                    </>
+                  {item.id === "favorites" ? (
+                    <IconStar filled={active} className="liquid-tab__icon" />
                   ) : (
-                    <>
-                      {item.id === "favorites" ? (
-                        <IconStar filled={active} className="liquid-tab__icon" />
-                      ) : (
-                        <Icon className="liquid-tab__icon" />
-                      )}
-                      <span className="liquid-tab__label">{label}</span>
-                    </>
+                    <Icon className="liquid-tab__icon" />
                   )}
+                  <span className="liquid-tab__label">{label}</span>
                 </Link>
               </li>
             );

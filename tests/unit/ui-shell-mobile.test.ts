@@ -9,18 +9,19 @@ function readRepoFile(relPath: string): string {
 }
 
 describe("UI Shell & Mobile Broker Header (x.ai/bot light aesthetic)", () => {
-  it("TopBar móvil: menú, píldora de búsqueda y campana (T100), sin logotipo ni título", () => {
+  it("TopBar móvil: avatar y píldora de búsqueda flotantes, sin campana, logotipo ni título", () => {
     const src = readRepoFile("components/app-shell/top-bar.tsx");
     expect(src).not.toContain("<BrandMark");
     expect(src).not.toContain("sectionTitle");
     expect(src).not.toContain("CurrencySwitch");
     expect(src).not.toContain("lg:block");
     expect(src).toContain("fixed");
+    expect(src).not.toContain("/app/alertas");
+    expect(src).not.toContain("bg-bg ");
     expect(src).toContain("env(safe-area-inset-top)");
     expect(src).toContain("openStockSearch");
     expect(src).toContain("lg:hidden");
     expect(src).toContain("/app/perfil");
-    expect(src).toContain("/app/alertas");
   });
 
   it("El chip flotante tiene estilos Liquid Glass y el perfil prescinde del selector de moneda", () => {

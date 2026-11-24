@@ -18,7 +18,7 @@ import { PositionDetails } from "@/components/market/position-details";
 import { PositionRow, POSITION_ACTION_WIDTH, POSITION_ROW_GRID } from "@/components/domain/position-row";
 import { PriceFreshness } from "@/components/domain/price-freshness";
 import { RealAccountEmpty } from "@/components/domain/real-account-empty";
-import { ResetDemoButton } from "@/components/domain/reset-demo-button";
+import { RealAccountCta } from "@/components/domain/real-account-cta";
 import { FinancialChart } from "@/components/charts/financial-chart";
 import { TONE_STROKE } from "@/components/domain/svg-price-chart";
 import { comparisonSeries } from "@/lib/charts/comparison";
@@ -37,6 +37,7 @@ import { positionMeta } from "@/lib/catalog/position-meta";
 import { cn } from "@/lib/cn";
 import { formatDateTime, formatMoney, formatShares, type MoneyCurrency } from "@/lib/format";
 import { useAccountMode } from "@/lib/hooks/use-account-mode";
+import { HideBalanceToggle } from "@/components/domain/hide-balance-toggle";
 import { useHideBalance } from "@/lib/hooks/use-hide-balance";
 import {
   useActivity,
@@ -53,7 +54,6 @@ import type { AssetStatus } from "@/lib/market/asset-status.shared";
 import { DETAIL_RANGES, rangeMove, toneOf } from "@/lib/market/series";
 import { portfolioPerformance, type PortfolioPerformance } from "@/lib/portfolio/performance";
 import { balancedPortions, sumUsd, sumsMatch, tradeActivity } from "@/lib/portfolio/series";
-import { DEMO_INITIAL_USD } from "@/lib/services/demo.logic";
 import type { Activity, Currency, OrderStatus, Position, PricePoint, Range, Ticker } from "@/lib/types";
 
 const DEPOSIT_HREF = "/app/billetera/depositar";
@@ -98,11 +98,6 @@ function receiptStatusOf(status: OrderStatus): ReceiptStatus {
   return RECEIPT_STATUS[status] ?? "pending";
 }
 
-function fill(template: string, values: Record<string, string>) {
-  let next = template;
-  for (const [key, value] of Object.entries(values)) next = next.split(`{${key}}`).join(value);
-  return next;
-}
 
 function tickerHref(symbol: string) {
   const meta = positionMeta(symbol);
@@ -268,21 +263,24 @@ function PatrimonyHero({
       <div className="mt-3 flex flex-col gap-6 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between sm:gap-x-12">
         {/* A 360 px manda la cifra: 28 px, tabular y sin partirse. El número
             nunca se trunca; si no cabe, baja el tamaño antes que recortarlo. */}
-        <div className="min-w-0">
-          {masked ? (
-            <Masked label={hiddenLabel} className="num block text-[1.75rem] tracking-[0.14em] sm:text-[2.25rem]" />
-          ) : pendingFx ? (
-            <Skeleton className="h-7 w-52 max-w-full sm:h-9" />
-          ) : (
-            <span className="-ml-1 block">
-              <FlashPrice
-                value={shown.amount}
-                currency={shown.currency}
-                size="lg"
-                className="block text-[1.75rem] leading-[1.05] font-medium tracking-tight tabular-nums whitespace-nowrap sm:text-[2.25rem]"
-              />
-            </span>
-          )}
+        <div className="flex min-w-0 items-center gap-1">
+          <div className="min-w-0">
+            {masked ? (
+              <Masked label={hiddenLabel} className="num block text-[1.75rem] tracking-[0.14em] sm:text-[2.25rem]" />
+            ) : pendingFx ? (
+              <Skeleton className="h-7 w-52 max-w-full sm:h-9" />
+            ) : (
+              <span className="-ml-1 block">
+                <FlashPrice
+                  value={shown.amount}
+                  currency={shown.currency}
+                  size="lg"
+                  className="block text-[1.75rem] leading-[1.05] font-medium tracking-tight tabular-nums whitespace-nowrap sm:text-[2.25rem]"
+                />
+              </span>
+            )}
+          </div>
+          <HideBalanceToggle />
         </div>
 
         <dl className="flex flex-wrap items-end gap-x-10 gap-y-4">
@@ -338,7 +336,7 @@ function PatrimonyHero({
                 {formatMoney(cash.amount, cash.currency)}
               </span>
             )}
-            <span className="text-[13px] text-fg-muted">{t.portfolio.availableNote}</span>
+            <span className="hidden text-[13px] text-fg-muted sm:inline">{t.portfolio.availableNote}</span>
           </div>
         </div>
 
@@ -352,7 +350,7 @@ function PatrimonyHero({
             </Button>
             <Link
               href={SEND_HREF}
-              className="inline-flex min-h-11 items-center justify-center text-[13px] font-medium text-fg-muted underline-offset-4 transition-colors hover:text-fg hover:underline sm:px-3 lg:justify-start"
+              className="hidden min-h-11 items-center justify-center text-[13px] font-medium text-fg-muted underline-offset-4 sm:inline-flex transition-colors hover:text-fg hover:underline sm:px-3 lg:justify-start"
             >
               {t.wallet.send}
             </Link>
@@ -617,7 +615,7 @@ export function PortfolioScreen() {
                   {formatMoney(moneyView(loaded.cashUsdc, currency, rate).amount, moneyView(loaded.cashUsdc, currency, rate).currency)}
                 </span>
               )}
-              <span className="text-[13px] text-fg-muted">{t.portfolio.availableNote}</span>
+              <span className="hidden text-[13px] text-fg-muted sm:inline">{t.portfolio.availableNote}</span>
             </div>
           </section>
         )}
@@ -681,7 +679,7 @@ export function PortfolioScreen() {
                   <InfoTip label={`${copy.whatIsThis}. ${copy.avgCost}`} text={ui.positionsTip} />
                 </div>
 
-                <dl className="flex w-full flex-col gap-1.5 sm:w-auto sm:flex-row sm:flex-wrap sm:items-baseline sm:gap-x-6 sm:gap-y-2">
+                <dl className="hidden w-full flex-col gap-1.5 md:flex sm:w-auto sm:flex-row sm:flex-wrap sm:items-baseline sm:gap-x-6 sm:gap-y-2">
                   <div className="flex min-w-0 items-baseline gap-2">
                     <dt className="label shrink-0">{copy.best}</dt>
                     <dd className="flex min-w-0 items-center gap-2">
@@ -890,23 +888,9 @@ export function PortfolioScreen() {
     <div className="flex flex-col gap-6">
       <h1 className="sr-only">{page.title}</h1>
       {mode === "demo" ? (
-        <div className="flex flex-col gap-2">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className="flex items-center gap-2 text-xs leading-relaxed text-fg-muted">
-              <Badge tone="warn">{t.account.badge}</Badge>
-              <span>{t.account.note}</span>
-            </p>
-            <ResetDemoButton />
-          </div>
-          <p className="text-xs leading-relaxed text-fg-muted">
-            {currency === "CLP" && fxKnown && typeof rate === "number"
-              ? fill(t.account.demoBalanceClp, {
-                  amount: new Intl.NumberFormat("es-CL", { maximumFractionDigits: 0 }).format(
-                    DEMO_INITIAL_USD * rate,
-                  ),
-                })
-              : t.account.demoBalance}
-          </p>
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge tone="warn">{t.account.badge}</Badge>
+          <RealAccountCta />
         </div>
       ) : null}
       {body}

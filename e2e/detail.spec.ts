@@ -132,9 +132,11 @@ test("ficha: vender deshabilitado sin posición; guest ve CTA de cuenta", async 
   // Con sesión demo sin posición: Vender deshabilitado con su hint.
   // El estado demo es compartido: se reinicia para garantizar cero posiciones.
   await entrarDemo(page);
-  await page.goto("/app/cartera");
+  await page.goto("/app/ajustes");
   await page.getByRole("button", { name: "Reiniciar cuenta demo" }).click();
   await page.getByRole("button", { name: "Reiniciar", exact: true }).click();
+  await expect(page.getByText("Cuenta demo reiniciada")).toBeVisible();
+  await page.goto("/app/cartera");
   const posicion = page.locator("section")
     .filter({ has: page.getByRole("heading", { name: "Tus acciones", exact: true }) })
     .getByRole("listitem").filter({ has: page.locator('a[href="/app/accion/NVDAx"]') });

@@ -1,5 +1,12 @@
 # PROGRESO — Maverlang
 
+## T103 — Ingreso/registro en una pantalla, avatar flotante, Herramientas, cartera y billetera limpias (2026-11-23)
+- Ingreso/registro sin bajadas, sin «Borrador. [REVISIÓN ABOGADO]» (sigue en las páginas legales) y compactos: caben sin scroll a 375×667; en escritorio `lg:h-dvh` sin scroll de página. Medidor de clave en una línea.
+- Barra superior móvil: avatar + píldora de búsqueda flotantes de vidrio (base: la original), sin campana. Barra inferior: Mercado, Favoritas, Cartera, Billetera.
+- Nueva `/app/herramientas` (Screener, Comparar, Armar Mix, Alertas); agregada a las listas públicas de `lib/auth/gate.ts` y `paths.ts` como screener. Accesos del inicio: Cartera, Herramientas, Asistente, Alertas. Carrusel de invitado vs. con sesión («Completa tu registro», «Deja lista tu cuenta real»; sin depósitos porque lo real está apagado).
+- Cartera: sin banner de práctica ni «Reiniciar demo» (ahora sólo en `/app/ajustes`); chip «Crear cuenta real». Billetera: sin «Bóveda autocustodia»; Depositar/Enviar/Recibir sólo en modo real, en demo `RealAccountCta`. Ojo de saldo compartido (`hide-balance-toggle.tsx`) en ambas.
+- Verificación: `tsc`, todos los tests unitarios (213 archivos) y navegador como invitado. Cartera y billetera con sesión: sin revisar visualmente.
+
 ## T102 — Registro sólo con correo y contraseña (2026-11-23)
 - `/app/registro` usa siempre el alta corta (`signUpDemo`): correo, contraseña y repetir. Título «Crea tu cuenta», botón «Crear cuenta», Google deshabilitado («Pronto») y línea clickwrap de Términos y Privacidad (consentimiento con la misma metadata; sin casilla). Sin «Crear una cuenta real» ni «¿Solo quieres probar?».
 - Datos personales, declaración US person (DB-03), riesgos y documentos quedan en `/app/onboarding` para operar real. Hoy nada redirige ahí automáticamente: el interruptor «Real» muestra «disponible pronto» y `real-guards.ts` corta en servidor.

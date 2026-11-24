@@ -42,22 +42,12 @@ test("billetera: USDC, SOL, dirección y accesos", async ({ page }) => {
 
   await expect(page.getByRole("heading", { level: 1, name: "Billetera" })).toBeVisible();
   await expect(page.getByText("USDC disponible")).toBeVisible();
-  await expect(page.getByText("Con esto compras acciones.")).toBeVisible();
   await expect(page.getByText("SOL para comisiones de red")).toBeVisible();
 
-  // Accesos de la billetera.
-  await expect(page.getByRole("link", { name: "Depositar", exact: true })).toHaveAttribute(
-    "href",
-    "/app/billetera/depositar",
-  );
-  await expect(page.getByRole("link", { name: "Enviar", exact: true })).toHaveAttribute(
-    "href",
-    "/app/billetera/enviar",
-  );
-  await expect(page.getByRole("link", { name: "Recibir", exact: true })).toHaveAttribute(
-    "href",
-    "/app/billetera/recibir",
-  );
+  // En demo no hay Depositar/Enviar/Recibir: se ofrece el paso hacia la cuenta real.
+  await expect(page.getByRole("link", { name: "Depositar", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "Enviar", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "Recibir", exact: true })).toHaveCount(0);
 
   // En la demo no hay dirección de cobro: se avisa y no se ofrece copiar ni QR.
   await expect(page.getByRole("heading", { name: "Estás en la demo" })).toBeVisible();

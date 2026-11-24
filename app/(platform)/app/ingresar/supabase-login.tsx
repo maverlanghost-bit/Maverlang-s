@@ -4,7 +4,7 @@ import { useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
-import { AuthFrame, AuthLegal, authLinkClass, CredentialField } from "@/components/auth/auth-frame";
+import { AuthCard, AuthLegal, authLinkClass, authTitleClass, CredentialField } from "@/components/auth/auth-frame";
 import { FormAlert } from "@/components/auth/form-alert";
 import { GoogleButton, OrDivider } from "@/components/auth/google-button";
 import { Button } from "@/components/ui/button";
@@ -88,8 +88,9 @@ export function SupabaseLogin({
   const alertIsError = alert !== null && alert !== "Te reenviamos el correo de confirmación.";
 
   return (
-    <AuthFrame title="Ingresa" lead="Usa el correo y la contraseña de tu cuenta.">
-      <form className="mt-5" noValidate aria-busy={busy} onSubmit={(event) => void submit(event)}>
+    <AuthCard>
+      <h1 className={authTitleClass}>Ingresa</h1>
+      <form noValidate aria-busy={busy} onSubmit={(event) => void submit(event)}>
         <CredentialField
           id="correo"
           label="Correo"
@@ -109,12 +110,12 @@ export function SupabaseLogin({
           error={fields.password}
           onChange={(event) => setPassword(event.target.value)}
         />
-        <p className="mt-1 flex justify-end">
+        <p className="flex justify-end">
           <Link href="/app/recuperar" className={authLinkClass}>
             Olvidé mi contraseña
           </Link>
         </p>
-        <Button type="submit" className="mt-4 w-full" size="lg" loading={busy}>
+        <Button type="submit" className="mt-1 w-full" size="lg" loading={busy}>
           Ingresar
         </Button>
       </form>
@@ -126,12 +127,12 @@ export function SupabaseLogin({
           Reenviar correo de confirmación
         </Button>
       ) : null}
-      <p className="mt-1 text-center text-[13px] leading-relaxed text-fg-muted">
+      <p className="text-center text-[13px] leading-relaxed text-fg-muted">
         <Link href={createHref} className={authLinkClass}>
           Crear cuenta
         </Link>
       </p>
       <AuthLegal />
-    </AuthFrame>
+    </AuthCard>
   );
 }

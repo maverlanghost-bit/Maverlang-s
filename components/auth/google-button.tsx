@@ -27,7 +27,7 @@ export function GoogleIcon({ className = "size-4 shrink-0" }: { className?: stri
 /** Separador "o" entre el formulario y las opciones alternativas. */
 export function OrDivider() {
   return (
-    <div className="mt-4 flex items-center gap-3" role="separator" aria-label="o">
+    <div className="mt-3 flex items-center gap-3" role="separator" aria-label="o">
       <span aria-hidden="true" className="h-px flex-1 bg-border" />
       <span aria-hidden="true" className="text-[13px] text-fg-muted">
         o
@@ -55,7 +55,7 @@ export function GoogleButton({
       type="button"
       variant="secondary"
       size="lg"
-      className="relative mt-4 w-full"
+      className="relative mt-3 w-full"
       disabled={disabled}
       aria-disabled={disabled || undefined}
       loading={loading}

@@ -62,7 +62,7 @@ function PreviewRow({ symbol }: { symbol: string }) {
 /** Mockup estático y recortado abajo. Decorativo: no es información de la cuenta. */
 function AppPreview() {
   return (
-    <div aria-hidden="true" className={cn(glassCard, "relative h-64 overflow-hidden px-6 pt-5 [@media(max-height:700px)]:hidden")}>
+    <div aria-hidden="true" className={cn(glassCard, "relative h-64 overflow-hidden px-6 pt-5 [@media(max-height:800px)]:hidden")}>
       <div className="flex items-center justify-between">
         <p className="label">Modo práctica</p>
         <span className="rounded-full bg-surface-2 px-2.5 py-0.5 text-[11px] text-fg-muted">Vista de ejemplo</span>
@@ -137,7 +137,7 @@ function AuthAside() {
         aria-hidden="true"
         className="pointer-events-none absolute inset-x-0 top-0 h-2/3 bg-gradient-to-b from-[#e6e6e6] via-[#e6e6e6]/70 to-transparent"
       />
-      <div className="relative z-10 mx-auto flex h-full max-w-[28rem] flex-col justify-center gap-6 px-8 py-10">
+      <div className="relative z-10 mx-auto flex h-full max-w-[28rem] flex-col justify-center gap-5 px-8 py-6">
         <div className="text-center">
           <p className="label">{site.name}</p>
           <h2
@@ -173,7 +173,7 @@ const MOBILE_CARD =
 
 export function AuthShell({ children }: { children: ReactNode }) {
   return (
-    <div className="relative isolate grid min-h-dvh bg-[#e6e6e6] lg:grid-cols-2 lg:bg-bg">
+    <div className="relative isolate grid min-h-dvh bg-[#e6e6e6] lg:h-dvh lg:grid-cols-2 lg:overflow-hidden lg:bg-bg">
       {/* Móvil: ilustración a pantalla completa, fija bajo la tarjeta. Decorativa. */}
       <div aria-hidden="true" className="pointer-events-none fixed inset-0 -z-10 bg-[#e6e6e6] lg:hidden">
         <Image
@@ -184,9 +184,12 @@ export function AuthShell({ children }: { children: ReactNode }) {
           className="object-cover object-[50%_75%]"
         />
       </div>
-      <div className={cn("flex min-h-dvh min-w-0 flex-col lg:px-12 lg:py-4", FORM_COLUMN_OVERRIDES)}>
+      <div
+        data-auth-compact=""
+        className={cn("flex min-h-dvh min-w-0 flex-col lg:h-dvh lg:min-h-0 lg:px-12 lg:py-2", FORM_COLUMN_OVERRIDES)}
+      >
         {/* Móvil: isotipo (el de la barra lateral) sobre el cielo. El h1 lo pone el formulario. */}
-        <div className="mx-auto w-full max-w-md px-5 pt-[calc(0.5rem+env(safe-area-inset-top))] pb-2 lg:hidden">
+        <div className="mx-auto w-full max-w-md px-5 pt-[calc(0.125rem+env(safe-area-inset-top))] pb-0 lg:hidden">
           <Link href="/" aria-label={site.name} className="inline-flex min-h-11 min-w-11 items-center rounded-sm">
             <BrandFavicon className="w-9" />
           </Link>
@@ -196,10 +199,11 @@ export function AuthShell({ children }: { children: ReactNode }) {
             <BrandLogoImage />
           </Link>
         </header>
-        <main className="flex flex-col lg:flex-1 lg:items-center lg:justify-center lg:py-10">
-          <div className="mx-auto w-full max-w-md px-3 pb-[max(1rem,env(safe-area-inset-bottom))] sm:px-4 lg:max-w-sm lg:px-0 lg:pb-0">
+        {/* Escritorio: centrado vertical con `m-auto`; si la altura no alcanza, la columna (no la página) se desplaza. */}
+        <main className="flex flex-col lg:min-h-0 lg:flex-1 lg:overflow-y-auto">
+          <div className="mx-auto w-full max-w-md px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-4 lg:m-auto lg:max-w-sm lg:px-0 lg:py-2 lg:pb-2">
             {/* Móvil: tarjeta blanca sólida. Escritorio: sin tarjeta. */}
-            <div className={cn(MOBILE_CARD, "rounded-[28px] p-5 sm:p-6")}>{children}</div>
+            <div className={cn(MOBILE_CARD, "rounded-[24px] p-4 sm:p-5")}>{children}</div>
           </div>
         </main>
       </div>

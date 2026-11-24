@@ -606,7 +606,7 @@ export function MarketScreen({
       <MobileBalanceCard className="lg:hidden" />
       <div className="flex min-w-0 flex-col gap-7 md:hidden">
         <MobileQuickActions showCopy={showCopy} />
-        <MobileShortcuts showCopy={showCopy} />
+        <MobileShortcuts />
         <MobilePromoCarousel />
       </div>
       {sections ? <div className="-mx-5 hidden min-w-0 px-5 md:block sm:mx-0 sm:px-0">{sections}</div> : null}

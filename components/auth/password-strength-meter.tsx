@@ -30,16 +30,11 @@ export function PasswordStrengthMeter({ password }: { password: string }) {
 
   const tone = label === "Muy corta" ? "bg-down" : label === "Aceptable" ? "bg-warn" : "bg-up";
 
-  return (
-    <div className="mt-2 rounded-lg bg-surface-2 px-3 py-2.5">
-      <div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5">
-        <span className="label-xs">Seguridad de la clave</span>
-        <span className="text-[13px] font-medium text-fg" role="status" aria-live="polite">
-          Nivel: {label}
-        </span>
-      </div>
+  const missing = checks.filter((check) => !check.met);
 
-      <div className="mt-2 grid grid-cols-3 gap-1" aria-hidden="true">
+  return (
+    <div className="mt-1.5 flex items-center gap-2 text-[13px] leading-snug">
+      <div className="grid w-14 shrink-0 grid-cols-3 gap-0.5" aria-hidden="true">
         {checks.map((check, index) => (
           <span
             key={check.label}
@@ -47,26 +42,11 @@ export function PasswordStrengthMeter({ password }: { password: string }) {
           />
         ))}
       </div>
-
-      <ul className="mt-2 flex flex-wrap gap-x-3 gap-y-0.5 text-[13px] leading-snug">
-        {checks.map((check) => (
-          <li
-            key={check.label}
-            className={`inline-flex items-start gap-1 ${check.met ? "text-fg" : "text-fg-muted"}`}
-          >
-            <span
-              aria-hidden="true"
-              className={`w-3 shrink-0 text-center font-medium ${check.met ? "text-up" : "text-fg-subtle"}`}
-            >
-              {check.met ? "✓" : "○"}
-            </span>
-            <span>
-              {check.label}
-              <span className="sr-only">{check.met ? " (cumple)" : " (falta)"}</span>
-            </span>
-          </li>
-        ))}
-      </ul>
+      <span className="min-w-0 text-fg-muted" role="status" aria-live="polite">
+        <span className="sr-only">Seguridad de la clave: </span>
+        <span className="font-medium text-fg">{label}</span>
+        {missing.length ? ` · Falta: ${missing.map((check) => check.label).join(", ")}` : ""}
+      </span>
     </div>
   );
 }

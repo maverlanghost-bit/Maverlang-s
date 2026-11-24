@@ -89,12 +89,12 @@ export function CredentialField({
   const [visible, setVisible] = useState(false);
 
   return (
-    <div className="mt-5">
+    <div className="mt-5 in-data-[auth-compact]:mt-3">
       <label htmlFor={id} className="block text-sm font-medium text-fg">
         {label}
       </label>
       {type === "password" ? (
-        <div className="relative mt-2">
+        <div className="relative mt-1.5">
           <Input
             id={id}
             type={visible ? "text" : "password"}
@@ -117,14 +117,14 @@ export function CredentialField({
         <Input
           id={id}
           type={type}
-          className={cn("mt-2", className)}
+          className={cn("mt-1.5", className)}
           aria-invalid={error ? true : undefined}
           aria-describedby={described}
           {...props}
         />
       )}
       {error ? (
-        <p id={errorId} className="mt-1.5 text-[13px] leading-snug text-pretty text-down" role="alert">
+        <p id={errorId} className="mt-1 text-[13px] leading-snug text-pretty text-down" role="alert">
           {error}
         </p>
       ) : hint ? (
@@ -138,7 +138,7 @@ export function CredentialField({
 
 export function AuthLegal() {
   return (
-    <p className="mt-5 max-w-[60ch] text-[13px] leading-relaxed text-pretty text-fg-muted">
+    <p className="mt-2 max-w-[60ch] text-center text-xs leading-snug text-pretty text-fg-muted">
       Al continuar aceptas los{" "}
       <Link
         href="/legal/terminos"

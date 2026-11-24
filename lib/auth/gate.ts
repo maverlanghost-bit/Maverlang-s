@@ -123,6 +123,7 @@ export function resolveRegion(
 function isNavigatePath(pathname: string): boolean {
   if (pathname === "/bloqueado") return true;
   if (pathname === "/app" || pathname === "/app/accion" || pathname.startsWith("/app/accion/")) return true;
+  if (pathname === "/app/herramientas" || pathname.startsWith("/app/herramientas/")) return true;
   if (pathname === "/app/cripto" || pathname.startsWith("/app/cripto/")) return true;
   return pathname !== "/app" && !pathname.startsWith("/app/");
 }

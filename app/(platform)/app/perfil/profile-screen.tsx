@@ -10,7 +10,6 @@ import { ErrorState } from "@/components/ui/error-state";
 import { IconChevron, IconGear, IconHelp, IconLogout, IconUser } from "@/components/ui/icons";
 import { LoadingState } from "@/components/ui/loading-state";
 import { AchievementsCard } from "@/components/domain/achievements-card";
-import { ResetDemoButton } from "@/components/domain/reset-demo-button";
 import { SecurityShieldCard } from "@/components/domain/security-shield-card";
 import { useSession } from "@/lib/auth";
 import { cn } from "@/lib/cn";
@@ -270,7 +269,6 @@ export function ProfileScreen({ version }: { version: string }) {
       <section aria-label={t.account.typeLabel} className="flex min-w-0 flex-col gap-3 rounded-3xl border border-border p-4 md:p-5">
         <h2 className="label">{t.account.typeLabel}</h2>
         <AccountSwitch mode={account.mode} onChange={account.select} />
-        {demo ? <div><ResetDemoButton /></div> : null}
       </section>
 
       <ProfileNav t={t} />

@@ -131,14 +131,14 @@ function MailScreen({
 
   return (
     <Shell>
-      <h1 ref={headingRef} tabIndex={-1} className={cn("mt-6", authTitleClass)}>
+      <h1 ref={headingRef} tabIndex={-1} className={authTitleClass}>
         Revisa tu correo
       </h1>
-      <p className="mt-3 text-sm leading-relaxed text-pretty text-fg-body">
+      <p className="mt-2 text-sm leading-relaxed text-pretty text-fg-body">
         Te enviamos un enlace a <span className="font-medium break-all text-fg">{email}</span>. Ábrelo para confirmar la cuenta.
       </p>
       {error ? <FormAlert>{error}</FormAlert> : null}
-      <div className="mt-6">
+      <div className="mt-4">
         <Button type="button" size="lg" className="w-full" loading={busy} disabled={left > 0} onClick={() => void resend()}>
           {left > 0 ? `Reenviar en ${left} s` : "Reenviar correo"}
         </Button>
@@ -353,12 +353,8 @@ function AltaForm({
 
   return (
     <Shell>
-      <form className="mt-6" onSubmit={(event) => void onSubmit(event)} noValidate>
+      <form onSubmit={(event) => void onSubmit(event)} noValidate>
         <h1 className={authTitleClass}>Crea tu cuenta</h1>
-        <p className="mt-3 max-w-[60ch] text-sm leading-relaxed text-pretty text-fg-body">
-          Entra con tu correo. Puedes practicar con US$10.000 ficticios; tus datos te los pedimos sólo cuando
-          quieras invertir con dinero real.
-        </p>
         <CredentialField
           id="registro-email"
           label="Correo"
@@ -386,14 +382,14 @@ function AltaForm({
           {...register("passwordConfirm")}
         />
         {formError ? <FormAlert>{formError}</FormAlert> : null}
-        <div className="mt-6">
+        <div className="mt-4">
           <Button type="submit" size="lg" className="w-full" loading={busy}>
             Crear cuenta
           </Button>
         </div>
         <OrDivider />
         <GoogleButton disabled />
-        <p className="mt-3 text-center text-[13px] leading-relaxed text-fg-muted">
+        <p className="mt-2 text-center text-xs leading-snug text-pretty text-fg-muted">
           Al crear tu cuenta aceptas los{" "}
           <Link
             href="/legal/terminos"
@@ -414,8 +410,7 @@ function AltaForm({
           </Link>
           .
         </p>
-        <p className="mt-1 text-center text-[13px] leading-relaxed text-fg-muted">Borrador. [REVISIÓN ABOGADO]</p>
-        <p className="mt-1 text-center text-[13px] leading-relaxed text-fg-muted">
+        <p className="text-center text-[13px] leading-relaxed text-fg-muted">
           <Link href={enter} className={authLinkClass}>
             Ya tengo cuenta
           </Link>

@@ -79,7 +79,7 @@ export function PositionRow({
             symbol={symbol}
             name={name}
             logoUrl={logoUrl}
-            size={36}
+            size={40}
             decorative
             loading="lazy"
             sizes="40px"

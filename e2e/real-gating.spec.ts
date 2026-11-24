@@ -122,14 +122,11 @@ test("trade quote: la demo sigue operando con el flag apagado", async ({ page })
 test("UI demo: el aviso de simulación es visible en la plataforma", async ({ page }) => {
   await entrarDemo(page);
 
-  // Insignia "Demo" en la barra superior y el aviso de la cartera.
+  // Insignia "Demo" en la cartera; el reinicio vive sólo en Ajustes.
   await page.goto("/app/cartera");
   await expect(page.getByText("Demo", { exact: true }).first()).toBeVisible();
-  await expect(
-    page.getByText("Cuenta de práctica con saldo ficticio; no es dinero real ni asesoría."),
-  ).toBeVisible();
-
-  // El botón de reinicio de la demo existe (la cuenta real no se reinicia).
+  await expect(page.getByRole("button", { name: "Reiniciar cuenta demo" })).toHaveCount(0);
+  await page.goto("/app/ajustes");
   await expect(page.getByRole("button", { name: "Reiniciar cuenta demo" })).toBeVisible();
 
   // En la pantalla de depósito, el dinero real apagado se nota.

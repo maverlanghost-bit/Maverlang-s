@@ -10,7 +10,7 @@ import { PriceText } from "@/components/domain/price-text";
 import { RealAccountEmpty } from "@/components/domain/real-account-empty";
 import { TickerLogo } from "@/components/domain/ticker-logo";
 import { MOVEMENT_HELP_HREF, WalletActivitySheet } from "@/components/domain/wallet-activity-sheet";
-import { WalletVaultHeader } from "@/components/domain/wallet-vault-header";
+import { RealAccountCta } from "@/components/domain/real-account-cta";
 import type { BadgeTone } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -26,6 +26,7 @@ import { logoPathFromSymbol } from "@/lib/catalog/logos";
 import { cn } from "@/lib/cn";
 import { formatDateTime, formatMoney, type MoneyCurrency } from "@/lib/format";
 import { useAccountMode } from "@/lib/hooks/use-account-mode";
+import { HideBalanceToggle } from "@/components/domain/hide-balance-toggle";
 import { useHideBalance } from "@/lib/hooks/use-hide-balance";
 import { useActivity, useBalances, useFx, useTickers } from "@/lib/hooks/queries";
 import { useT } from "@/lib/hooks/use-t";
@@ -259,7 +260,7 @@ export function WalletScreen() {
   const masked = hidden === true;
   const hasPositions = rows.some((row) => row.symbol !== "USDC" && row.symbol !== "SOL" && row.uiAmount > 0);
   /** Sin USDC y sin posiciones: el saldo está en cero y conviene ofrecer el depósito. */
-  const showZeroBalance = !masked && rows.length > 0 && usdcUi <= 0 && !hasPositions;
+  const showZeroBalance = mode === "real" && !masked && rows.length > 0 && usdcUi <= 0 && !hasPositions;
 
   const allActivities = activity.data ?? [];
   const selected = allActivities.find((row) => row.id === selectedId);
@@ -287,8 +288,10 @@ export function WalletScreen() {
       <h1 className="sr-only">{t.pages.wallet.title}</h1>
 
       <Card>
-        <WalletVaultHeader solUi={solUi} lowSol={lowSol} mode={mode} />
-        <p className="label">{t.wallet.usdcLabel}</p>
+        <div className="flex items-center justify-between gap-2">
+          <p className="label">{t.wallet.usdcLabel}</p>
+          <HideBalanceToggle className="-my-2 -mr-2" />
+        </div>
         <div className="mt-2 min-w-0 max-w-full" aria-live="polite">
           {masked ? (
             <Masked label={t.shell.balanceHidden} className="block text-[1.75rem] leading-none tracking-tight sm:text-[2rem]" />
@@ -306,7 +309,6 @@ export function WalletScreen() {
             <p className="mt-2 text-sm text-fg-muted">{t.detail.fxMissing}</p>
           ) : null}
         </div>
-        <p className="mt-1 text-sm text-fg-muted">{t.wallet.usdcHint}</p>
         {showZeroBalance ? (
           <p role="status" className="mt-2 text-sm text-fg-muted">
             {copy.zeroBalance}
@@ -320,19 +322,23 @@ export function WalletScreen() {
           </p>
         ) : null}
 
-        <div className="mt-5 flex flex-col gap-2">
-          <Button asChild size="lg" className="w-full">
-            <Link href={DEPOSIT_HREF}>{t.wallet.deposit}</Link>
-          </Button>
-          <div className="grid grid-cols-2 gap-2">
-            <Button asChild variant="secondary" size="lg" className="w-full">
-              <Link href={SEND_HREF}>{t.wallet.send}</Link>
+        {mode === "real" ? (
+          <div className="mt-5 flex flex-col gap-2">
+            <Button asChild size="lg" className="w-full">
+              <Link href={DEPOSIT_HREF}>{t.wallet.deposit}</Link>
             </Button>
-            <Button asChild variant="secondary" size="lg" className="w-full">
-              <Link href={RECEIVE_HREF}>{t.wallet.receive}</Link>
-            </Button>
+            <div className="grid grid-cols-2 gap-2">
+              <Button asChild variant="secondary" size="lg" className="w-full">
+                <Link href={SEND_HREF}>{t.wallet.send}</Link>
+              </Button>
+              <Button asChild variant="secondary" size="lg" className="w-full">
+                <Link href={RECEIVE_HREF}>{t.wallet.receive}</Link>
+              </Button>
+            </div>
           </div>
-        </div>
+        ) : (
+          <RealAccountCta variant="card" className="mt-5" />
+        )}
 
         <div className="mt-6 flex flex-col gap-1.5 border-t border-border pt-4">
           <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
@@ -343,7 +349,6 @@ export function WalletScreen() {
               </p>
             ) : null}
           </div>
-          <p className="max-w-xl text-sm leading-relaxed text-fg-muted">{t.wallet.solExplain}</p>
           {sol && lowSol ? (
             <p role="status" className="mt-1.5 rounded-xl bg-warn-bg px-4 py-3 text-sm leading-relaxed text-fg">
               {t.wallet.solLow}

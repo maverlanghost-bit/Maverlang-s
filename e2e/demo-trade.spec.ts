@@ -36,12 +36,14 @@ function posicionNvidia(page: import("@playwright/test").Page) {
 }
 /** Reinicia la cuenta demo desde la cartera y espera el saldo inicial. */
 async function reiniciarDemo(page: import("@playwright/test").Page) {
+  await page.goto("/app/ajustes");
+  await page.getByRole("button", { name: "Reiniciar cuenta demo" }).click();
+  await page.getByRole("button", { name: "Reiniciar", exact: true }).click();
+  await expect(page.getByText("Cuenta demo reiniciada")).toBeVisible();
   await page.goto("/app/cartera");
   const disponible = page
     .getByRole("heading", { name: "Disponible para invertir" })
     .locator("xpath=following-sibling::div");
-  await page.getByRole("button", { name: "Reiniciar cuenta demo" }).click();
-  await page.getByRole("button", { name: "Reiniciar", exact: true }).click();
   // La demo parte con US$10.000 de saldo.
   await expect.poll(() => monto(disponible)).toContain("US$10.000");
   return disponible;
@@ -180,13 +182,16 @@ test("demo: reinicio de cuenta borra posiciones y vuelve al saldo inicial", asyn
   await page.goto("/app/cartera");
   await expect(posicionNvidia(page)).toBeVisible();
 
-  // Reinicio: diálogo de confirmación con su texto claro.
+  // Reinicio (sólo en Ajustes): diálogo de confirmación con su texto claro.
+  await page.goto("/app/ajustes");
   await page.getByRole("button", { name: "Reiniciar cuenta demo" }).click();
   const dialogo = page.getByRole("dialog", { name: "Reiniciar la cuenta demo" });
   await expect(dialogo.getByText(/Tu cuenta demo vuelve a US\$10\.000/)).toBeVisible();
   await dialogo.getByRole("button", { name: "Reiniciar", exact: true }).click();
 
   // La posición desaparece y el disponible vuelve al inicial.
+  await expect(page.getByText("Cuenta demo reiniciada")).toBeVisible();
+  await page.goto("/app/cartera");
   await expect(posicionNvidia(page)).toHaveCount(0);
   const disponible = page
     .getByRole("heading", { name: "Disponible para invertir" })

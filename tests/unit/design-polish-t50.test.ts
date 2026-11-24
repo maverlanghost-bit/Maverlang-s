@@ -74,22 +74,22 @@ describe("PasswordStrengthMeter y passwordStrengthLabel", () => {
     expect(passwordStrengthLabel("CorrectaClave12")).toBe("Fuerte");
   });
 
-  it("pinta el nivel, la barra y la lista de requisitos", () => {
+  it("pinta el nivel en una línea y anuncia el estado (T103: medidor compacto)", () => {
     const markup = render(createElement(PasswordStrengthMeter, { password: "CorrectaClave12" }));
 
     expect(markup).toContain("Seguridad de la clave");
-    expect(markup).toContain("Nivel: Fuerte");
+    expect(markup).toContain("Fuerte");
     expect(markup).toContain('role="status"');
     expect(markup).toContain('aria-live="polite"');
-    // Checklist de requisitos, con el texto exacto del componente.
-    expect(markup).toContain("8+ caracteres");
-    expect(markup).toContain("Letras y números");
-    expect(markup).toContain("12+ caracteres");
+    // Clave fuerte: no falta ningún requisito.
+    expect(markup).not.toContain("Falta:");
   });
 
-  it("avisa Muy corta y no pinta nada sin clave", () => {
-    expect(render(createElement(PasswordStrengthMeter, { password: "abc" }))).toContain("Nivel: Muy corta");
-    expect(render(createElement(PasswordStrengthMeter, { password: "abcdefgh1" }))).toContain("Nivel: Aceptable");
+  it("avisa Muy corta con los requisitos que faltan y no pinta nada sin clave", () => {
+    const short = render(createElement(PasswordStrengthMeter, { password: "abc" }));
+    expect(short).toContain("Muy corta");
+    expect(short).toContain("Falta: 8+ caracteres, Letras y números, 12+ caracteres");
+    expect(render(createElement(PasswordStrengthMeter, { password: "abcdefgh1" }))).toContain("Aceptable");
     expect(render(createElement(PasswordStrengthMeter, { password: "" }))).toBe("");
   });
 });

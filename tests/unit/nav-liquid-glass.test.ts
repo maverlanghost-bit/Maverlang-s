@@ -23,22 +23,9 @@ function readRepoFile(relPath: string): string {
 }
 
 describe("barra inferior liquid glass", () => {
-  it("cinco destinos en orden, con Asistente al centro y sin Perfil ni Ajustes", () => {
-    expect(mobileTabs.map((item) => item.id)).toEqual([
-      "market",
-      "portfolio",
-      "assistant",
-      "favorites",
-      "wallet",
-    ]);
-    expect(mobileTabs.map((item) => item.href)).toEqual([
-      "/app",
-      "/app/cartera",
-      "/app/asistente",
-      "/app/favoritas",
-      "/app/billetera",
-    ]);
-    expect(mobileTabs[2]?.id).toBe("assistant");
+  it("cuatro destinos en orden (Mercado, Favoritas, Cartera, Billetera), sin Asistente, Perfil ni Ajustes", () => {
+    expect(mobileTabs.map((item) => item.id)).toEqual(["market", "favorites", "portfolio", "wallet"]);
+    expect(mobileTabs.map((item) => item.href)).toEqual(["/app", "/app/favoritas", "/app/cartera", "/app/billetera"]);
   });
 
   it("el sidebar recibe Asistente por shellNav y Perfil sigue en el arreglo", () => {
@@ -65,7 +52,8 @@ describe("barra inferior liquid glass", () => {
     expect(isShellSectionActive("/app/perfil/cuenta", "profile")).toBe(true);
     expect(isShellSectionActive("/app/ajustes", "wallet")).toBe(false);
     expect(isShellSectionActive("/app/ajustes", "profile")).toBe(false);
-    expect(activeMobileTab("/app/asistente")).toBe(2);
+    expect(activeMobileTab("/app/asistente")).toBe(-1);
+    expect(activeMobileTab("/app/cartera")).toBe(2);
     expect(activeMobileTab("/app/perfil")).toBe(-1);
     expect(activeMobileTab("/app/ajustes")).toBe(-1);
   });

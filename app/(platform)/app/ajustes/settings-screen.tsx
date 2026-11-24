@@ -2,6 +2,8 @@
 
 import { MfaSettings } from "@/components/auth/mfa-settings";
 import { PreferencesForm } from "@/components/domain/preferences-form";
+import { ResetDemoButton } from "@/components/domain/reset-demo-button";
+import { useAccountMode } from "@/lib/hooks/use-account-mode";
 import { useT } from "@/lib/hooks/use-t";
 
 import { SettingsPanel } from "../perfil/ui";
@@ -44,6 +46,7 @@ function Key({ children }: { children: string }) {
  */
 export function SettingsScreen() {
   const { t } = useT();
+  const { mode } = useAccountMode();
   return (
     <div className="flex w-full max-w-2xl min-w-0 flex-col gap-6">
       <h1 className="sr-only">{t.pages.settings.title}</h1>
@@ -53,6 +56,14 @@ export function SettingsScreen() {
       </SettingsPanel>
 
       {/* MfaSettings trae su propio borde y radio: se alinea al radio del sistema sin tocar el componente. */}
+      {mode === "demo" ? (
+        <SettingsPanel label={t.account.demo}>
+          <div className="px-4 py-3 md:px-5">
+            <ResetDemoButton />
+          </div>
+        </SettingsPanel>
+      ) : null}
+
       <div className="[&>section]:rounded-xl">
         <MfaSettings />
       </div>

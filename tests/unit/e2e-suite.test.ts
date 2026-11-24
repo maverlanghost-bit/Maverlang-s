@@ -158,7 +158,7 @@ describe("M86: cobertura de rutas y códigos por spec", () => {
     expect(source).toContain("REAL_TRADING_READY");
     // La demo sigue operando con el dinero real apagado.
     expect(source).toContain("/api/trade/quote");
-    expect(source).toMatch(/Cuenta de práctica con saldo ficticio/);
+    expect(source).toContain("/app/ajustes");
     // El apagado también se nota en la UI de depósito: cotizar falla.
     expect(source).toContain("No pudimos calcular el depósito");
   });
