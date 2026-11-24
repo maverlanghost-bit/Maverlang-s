@@ -30,7 +30,6 @@ const GlyphCrypto = (p: SvgProps) =>
   glyph(p, <><circle cx="12" cy="12" r="8" /><path d="M10 8h3a1.8 1.8 0 0 1 0 3.6h-3m0 0h3.4a1.8 1.8 0 0 1 0 3.6H10m0-7.2v7.2" /></>);
 const GlyphCopy = (p: SvgProps) =>
   glyph(p, <><circle cx="9" cy="8" r="3" /><path d="M3.5 19a5.5 5.5 0 0 1 11 0M16 5.5a3 3 0 0 1 0 5.5M17.5 14.2a5.5 5.5 0 0 1 3 4.8" /></>);
-const GlyphMix = (p: SvgProps) => glyph(p, <path d="M12 3a9 9 0 1 0 9 9h-9V3Zm3 0.5A9 9 0 0 1 20.5 9H15V3.5Z" />);
 const GlyphScreener = (p: SvgProps) => glyph(p, <path d="M4 6h16M7 12h10M10 18h4" />);
 const GlyphAssistant = (p: SvgProps) =>
   glyph(p, <path d="M5 5h14a1.5 1.5 0 0 1 1.5 1.5v8A1.5 1.5 0 0 1 19 16h-8l-4.5 3.5V16H5a1.5 1.5 0 0 1-1.5-1.5v-8A1.5 1.5 0 0 1 5 5Z" />);
@@ -49,7 +48,7 @@ export function MobileQuickActions({ showCopy = false, className }: { showCopy?:
     { id: "crypto", label: en ? "Crypto" : "Cripto", href: "/app/cripto", icon: <GlyphCrypto className="size-6" /> },
     showCopy
       ? { id: "copy", label: en ? "Copy" : "Copiar", href: "/app/copiar", icon: <GlyphCopy className="size-6" /> }
-      : { id: "mix", label: "Mix", href: "/app/mix", icon: <GlyphMix className="size-6" /> },
+      : { id: "favorites", label: en ? "Favorites" : "Favoritas", href: "/app/favoritas", icon: <IconStar className="size-6" /> },
     { id: "deposit", label: en ? "Deposit" : "Depositar", href: userId ? "/app/billetera/depositar" : gate, icon: <GlyphDeposit className="size-6" /> },
     { id: "wallet", label: en ? "Wallet" : "Billetera", href: userId ? "/app/billetera" : gate, icon: <IconWallet className="size-6" /> },
   ];
@@ -70,11 +69,10 @@ export function MobileQuickActions({ showCopy = false, className }: { showCopy?:
 export function MobileShortcuts({ showCopy = false, className }: { showCopy?: boolean; className?: string }) {
   const { language } = useT();
   const en = language === "en";
-  // Cripto y Copiar viven en los círculos; si Copiar está apagado, Mix pasa arriba y no se repite aquí.
+  // Cripto y Copiar viven en los círculos; si Copiar está apagado, Favoritas pasa arriba y no se repite aquí.
   const items = [
-    { href: "/app/favoritas", label: en ? "Favorites" : "Favoritas", icon: <IconStar className="size-7" /> },
+    ...(showCopy ? [{ href: "/app/favoritas", label: en ? "Favorites" : "Favoritas", icon: <IconStar className="size-7" /> }] : []),
     { href: "/app/cartera", label: en ? "Portfolio" : "Cartera", icon: <IconPortfolio className="size-7" /> },
-    ...(showCopy ? [{ href: "/app/mix", label: "Mix", icon: <GlyphMix className="size-7" /> }] : []),
     { href: "/app/screener", label: "Screener", icon: <GlyphScreener className="size-7" /> },
     { href: "/app/asistente", label: en ? "AI assistant" : "Asistente IA", icon: <GlyphAssistant className="size-7" /> },
     { href: "/app/comparar", label: en ? "Compare" : "Comparar", icon: <GlyphCompare className="size-7" /> },

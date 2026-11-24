@@ -9,20 +9,18 @@ function readRepoFile(relPath: string): string {
 }
 
 describe("UI Shell & Mobile Broker Header (x.ai/bot light aesthetic)", () => {
-  it("TopBar móvil es un cluster flotante Liquid Glass (avatar + buscador), sin barra ancha ni título", () => {
+  it("TopBar móvil: menú, píldora de búsqueda y campana (T100), sin logotipo ni título", () => {
     const src = readRepoFile("components/app-shell/top-bar.tsx");
     expect(src).not.toContain("<BrandMark");
-    expect(src).not.toContain("<header");
     expect(src).not.toContain("sectionTitle");
     expect(src).not.toContain("CurrencySwitch");
     expect(src).not.toContain("lg:block");
     expect(src).toContain("fixed");
     expect(src).toContain("env(safe-area-inset-top)");
-    expect(src).toContain("liquid-glass--chip");
-    expect(src).toContain('variant="chip"');
-    expect(src).toContain("StockSearchButton");
+    expect(src).toContain("openStockSearch");
     expect(src).toContain("lg:hidden");
     expect(src).toContain("/app/perfil");
+    expect(src).toContain("/app/alertas");
   });
 
   it("El chip flotante tiene estilos Liquid Glass y el perfil prescinde del selector de moneda", () => {
