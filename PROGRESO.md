@@ -1,5 +1,11 @@
 # PROGRESO — Maverlang
 
+## T99 — Pulido de portada, ingreso/registro y pie (2026-11-23)
+- Portada: texto del hero arriba (`items-start`); banda 24/7 en hora de Chile con una sola cinta semanal y cifras calculadas (32,5 h vs 168 h); sale la sección «El token es tuyo» (`ownership-section.tsx` queda sin uso).
+- Pie: wordmark gigante (`footer-wordmark.tsx`) con letras que suben ligadas al scroll; sin el bloque de avisos (token ≠ acción, marcas, «No disponible para personas de EE.UU.»): **pendiente reubicar esos avisos** en un lugar visible. Enlaces del pie subrayados sólo en hover/foco.
+- Ingreso/registro (`auth-shell.tsx`): escritorio con la ilustración `public/brand/auth/fondo-login.webp` y tarjetas de vidrio; celular con fondo ilustrado a pantalla completa, tarjeta blanca y el isotipo. Botón «Continuar con Google» (`components/auth/google-button.tsx`) deshabilitado con «Pronto» en modo Supabase: conectarlo es otra tarea (auth).
+- Verificación: `tsc` y navegador a 375 px y escritorio. El PNG original `Fondo login.png` (6,6 MB) no se commitea.
+
 ## T98 — Lista de acciones del mercado en celular (2026-11-23)
 - Bajo la tarjeta de saldo, en celular:
   - sin la línea «Mostrando 20 de 446 · Actualizado hace…» (sigue desde sm) y sin rótulos visibles sobre el buscador (quedan para lectores de pantalla);

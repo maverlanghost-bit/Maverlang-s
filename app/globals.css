@@ -245,10 +245,16 @@ input[data-bare-input].outline-none:focus-visible {
 .decoration-border {
   text-decoration-color: var(--color-fg);
 }
+/* Pie: los enlaces van en listas de navegación (no dentro de prosa), así que
+   el subrayado aparece sólo al pasar el mouse o con foco de teclado. */
 footer nav a {
   text-decoration-line: underline;
-  text-decoration-color: var(--color-fg);
+  text-decoration-color: transparent;
   text-underline-offset: 0.25em;
+}
+footer nav a:hover,
+footer nav a:focus-visible {
+  text-decoration-color: var(--color-fg);
 }
 
 /* D1: en `DisclosureList` el chevron gira cuando el <details> está abierto. */

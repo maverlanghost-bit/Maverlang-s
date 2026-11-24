@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 
 import { AuthFrame, AuthLegal, authLinkClass } from "@/components/auth/auth-frame";
 import { FormAlert } from "@/components/auth/form-alert";
+import { GoogleIcon } from "@/components/auth/google-button";
 import { Button } from "@/components/ui/button";
 import { shouldUsePrivy, useSession, type LoginMethod } from "@/lib/auth";
 import { readBrowserCookie } from "@/lib/auth/browser-cookies";
@@ -20,29 +21,6 @@ function MailIcon() {
     <svg className="size-4 shrink-0" viewBox="0 0 24 24" fill="none" aria-hidden>
       <rect x="3" y="5" width="18" height="14" rx="2" stroke="currentColor" strokeWidth="1.75" />
       <path d="M4 7l8 6 8-6" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
-function GoogleIcon() {
-  return (
-    <svg className="size-4 shrink-0" viewBox="0 0 24 24" aria-hidden>
-      <path
-        fill="currentColor"
-        d="M21.6 12.23c0-.74-.07-1.45-.19-2.13H12v4.03h5.38a4.6 4.6 0 0 1-2 3.02v2.5h3.23c1.89-1.74 2.99-4.3 2.99-7.42Z"
-      />
-      <path
-        fill="currentColor"
-        d="M12 22c2.7 0 4.96-.9 6.62-2.43l-3.23-2.5c-.9.6-2.04.96-3.39.96-2.6 0-4.81-1.76-5.6-4.12H3.06v2.58A10 10 0 0 0 12 22Z"
-      />
-      <path
-        fill="currentColor"
-        d="M6.4 13.91A6 6 0 0 1 6.08 12c0-.66.11-1.3.32-1.91V7.51H3.06A10 10 0 0 0 2 12c0 1.61.39 3.14 1.06 4.49l3.34-2.58Z"
-      />
-      <path
-        fill="currentColor"
-        d="M12 5.97c1.47 0 2.79.5 3.83 1.5l2.87-2.87C16.95 2.98 14.7 2 12 2A10 10 0 0 0 3.06 7.51l3.34 2.58C7.19 7.73 9.4 5.97 12 5.97Z"
-      />
     </svg>
   );
 }

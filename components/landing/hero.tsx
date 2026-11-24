@@ -30,9 +30,9 @@ export function Hero({ quotes, live }: { quotes: LandingQuote[]; live: boolean }
   ];
 
   return (
-    <LandingSection titleId="hero-title" className="pt-6 pb-14 sm:pt-10 md:pb-20 lg:pt-12">
-      <div className="grid items-center gap-10 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] lg:gap-12">
-        <div className="min-w-0">
+    <LandingSection titleId="hero-title" className="pt-4 pb-14 sm:pt-8 md:pb-20 lg:pt-10">
+      <div className="grid items-start gap-10 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] lg:gap-12">
+        <div className="min-w-0 lg:pt-12">
           {/* `text-display` y `text-lead-lg` van en cadenas planas: `cn` (tailwind-merge)
               los descartaría junto a una clase de color. */}
           <h1 id="hero-title" className="max-w-[13ch] text-display break-words text-balance">

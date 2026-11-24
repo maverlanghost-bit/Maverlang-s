@@ -23,6 +23,7 @@ import {
   CredentialField,
 } from "@/components/auth/auth-frame";
 import { FormAlert } from "@/components/auth/form-alert";
+import { GoogleButton, OrDivider } from "@/components/auth/google-button";
 import { PasswordStrengthMeter } from "@/components/auth/password-strength-meter";
 import { WizardProgress } from "@/components/auth/wizard-progress";
 import { Button, buttonClasses } from "@/components/ui/button";
@@ -891,7 +892,9 @@ function RegistroForm({
         ) : null}
         {step === 1 ? (
           <>
-            <p className="mt-1 text-center text-[13px] leading-relaxed text-fg-muted">
+            <OrDivider />
+            <GoogleButton disabled />
+            <p className="mt-3 text-center text-[13px] leading-relaxed text-fg-muted">
               <Link href={enter} className={authLinkClass}>
                 Ya tengo cuenta
               </Link>

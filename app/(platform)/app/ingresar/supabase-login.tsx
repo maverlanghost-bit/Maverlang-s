@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 
 import { AuthFrame, AuthLegal, authLinkClass, CredentialField } from "@/components/auth/auth-frame";
 import { FormAlert } from "@/components/auth/form-alert";
+import { GoogleButton, OrDivider } from "@/components/auth/google-button";
 import { Button } from "@/components/ui/button";
 import { loginErrorMessage, type LoginErrorCode } from "@/lib/auth/login-errors";
 import { resendConfirmation, signInWithPassword } from "@/lib/auth/login-client";
@@ -117,7 +118,8 @@ export function SupabaseLogin({
           Ingresar
         </Button>
       </form>
-      <p className="mt-3 text-[13px] leading-snug text-fg-muted">Ingreso con Google: próximamente</p>
+      <OrDivider />
+      <GoogleButton disabled />
       {alert ? <FormAlert tone={alertIsError ? "error" : "info"}>{alert}</FormAlert> : null}
       {failure === "unconfirmed" ? (
         <Button type="button" variant="ghost" size="md" className="mt-1 w-full" disabled={busy} onClick={() => void resend()}>
