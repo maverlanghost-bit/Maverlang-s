@@ -154,7 +154,7 @@ function PublicFrame({ children }: { children: ReactNode }) {
             <p className="border-t border-border pt-4 text-[13px] leading-relaxed text-fg-muted">{t.disclaimer}</p>
           </footer>
         </div>
-        <BottomTabs />
+        <BottomTabs guest />
       </StockSearchRoot>
     </div>
   );

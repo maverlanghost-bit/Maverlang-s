@@ -1,5 +1,11 @@
 # PROGRESO — Maverlang
 
+## T104 — Asistente en la barra, barra superior que se oculta y cartera/billetera en sans (2026-11-24)
+- Barra inferior móvil: Mercado, Favoritas, Asistente (centro, «AI»), Cartera, Billetera. Invitado: el Asistente abre `assistant-guest-sheet.tsx` («Crear cuenta» / «Ya tengo cuenta» con next `/app/asistente`); igual el acceso del inicio.
+- Barra superior móvil (`top-bar.tsx`): avatar + búsqueda con el mismo vidrio que la barra inferior (variables `--lg-*` en `.liquid-glass--chip`); se oculta al bajar y vuelve al subir (sin animación con `prefers-reduced-motion`).
+- Cartera/Billetera en celular: rótulos y cifras en sans `tabular-nums`, sin «Depositar» en demo, nota de simulación en una línea.
+- Verificación: `tsc`, 213 archivos de pruebas (2125/2125) y navegador a 390 px con sesión demo.
+
 ## T103 — Ingreso/registro en una pantalla, avatar flotante, Herramientas, cartera y billetera limpias (2026-11-23)
 - Ingreso/registro sin bajadas, sin «Borrador. [REVISIÓN ABOGADO]» (sigue en las páginas legales) y compactos: caben sin scroll a 375×667; en escritorio `lg:h-dvh` sin scroll de página. Medidor de clave en una línea.
 - Barra superior móvil: avatar + píldora de búsqueda flotantes de vidrio (base: la original), sin campana. Barra inferior: Mercado, Favoritas, Cartera, Billetera.

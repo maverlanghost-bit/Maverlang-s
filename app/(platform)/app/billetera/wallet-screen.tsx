@@ -176,14 +176,14 @@ function AssetRow({
         {hidden && (symbol === "USDC" || symbol === "SOL") ? (
           <Masked label={hiddenLabel} />
         ) : (
-          <span className="num max-w-full truncate text-[15px] leading-tight font-medium text-fg tabular-nums" title={amount}>
+          <span className="num max-lg:font-sans max-w-full truncate text-[15px] leading-tight font-medium text-fg tabular-nums" title={amount}>
             {amount}
           </span>
         )}
         {hidden ? null : pending ? (
           <Skeleton className="h-5 w-16" />
         ) : symbol === "USDC" && currency === "USD" ? null : (
-          <PriceText value={value} currency={currency} size="sm" className="text-fg-muted" />
+          <PriceText value={value} currency={currency} size="sm" className="text-fg-muted max-lg:font-sans max-lg:tabular-nums" />
         )}
       </span>
     </>
@@ -289,7 +289,7 @@ export function WalletScreen() {
 
       <Card>
         <div className="flex items-center justify-between gap-2">
-          <p className="label">{t.wallet.usdcLabel}</p>
+          <p className="label max-lg:font-sans max-lg:text-[14px] max-lg:font-normal max-lg:normal-case max-lg:tracking-normal">{t.wallet.usdcLabel}</p>
           <HideBalanceToggle className="-my-2 -mr-2" />
         </div>
         <div className="mt-2 min-w-0 max-w-full" aria-live="polite">
@@ -302,7 +302,7 @@ export function WalletScreen() {
               value={usdcView.amount}
               currency={usdcView.currency}
               size="lg"
-              className="max-w-full text-[1.75rem] leading-none font-medium tracking-tight tabular-nums sm:text-[2rem]"
+              className="max-w-full text-[1.75rem] leading-none font-medium tracking-tight tabular-nums max-lg:font-sans max-lg:text-[36px] max-lg:leading-[44px] max-lg:font-semibold sm:text-[2rem]"
             />
           )}
           {masked || pendingFx ? null : currency === "CLP" && !fxKnown ? (
@@ -340,11 +340,11 @@ export function WalletScreen() {
           <RealAccountCta variant="card" className="mt-5" />
         )}
 
-        <div className="mt-6 flex flex-col gap-1.5 border-t border-border pt-4">
+        <div className="mt-6 flex flex-col gap-1.5 lg:border-t lg:border-border lg:pt-4">
           <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-            <p className="label">{t.wallet.solLabel}</p>
+            <p className="label max-lg:font-sans max-lg:text-[14px] max-lg:font-normal max-lg:normal-case max-lg:tracking-normal">{t.wallet.solLabel}</p>
             {sol ? (
-              <p className="num text-[15px] leading-tight font-medium text-fg tabular-nums">
+              <p className="num text-[15px] leading-tight font-medium text-fg tabular-nums max-lg:font-sans">
                 {masked ? <Masked label={t.shell.balanceHidden} /> : formatSol(solUi)}
               </p>
             ) : null}
@@ -612,7 +612,7 @@ function ActivityList({
     <div className="mt-2 flex flex-col gap-6">
       {groups.map((group) => (
         <section key={group.key} aria-labelledby={`day-${group.key}`}>
-          <h3 id={`day-${group.key}`} className="label">
+          <h3 id={`day-${group.key}`} className="label max-lg:font-sans max-lg:text-[14px] max-lg:font-normal max-lg:normal-case max-lg:tracking-normal">
             {group.label}
           </h3>
           <ul className="min-w-0 divide-y divide-border">

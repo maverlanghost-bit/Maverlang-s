@@ -60,6 +60,9 @@ const DEPOSIT_HREF = "/app/billetera/depositar";
 const SEND_HREF = "/app/billetera/enviar";
 const MARKET_HREF = "/app";
 
+/** Rótulo de dato: mono en mayúsculas en escritorio; en celular, sans normal como el inicio. */
+const MOBILE_LABEL = "label max-lg:font-sans max-lg:text-[14px] max-lg:font-normal max-lg:normal-case max-lg:tracking-normal";
+
 /**
  * Paleta de las series de la cartera. Cada color pasa 3:1 sobre blanco (el
  * mínimo de WCAG 1.4.11 para un objeto gráfico) y mantiene el orden de
@@ -240,23 +243,26 @@ function PatrimonyHero({
   freshnessAt: string | number | undefined;
 }) {
   const { t } = useT();
+  const { mode } = useAccountMode();
   const shown = moneyView(shownUsd, currency, rate);
   const gain = perf.gainUsd === null ? null : moneyView(perf.gainUsd, currency, rate);
   const invested = perf.investedUsd === null ? null : moneyView(perf.investedUsd, currency, rate);
   const cash = moneyView(cashUsdc, currency, rate);
   const hasCash = cashUsdc > 0;
 
-  const primary = hasCash
+  const isDemo = mode === "demo";
+  const primary = hasCash || isDemo
     ? { href: MARKET_HREF, label: t.portfolio.explore }
     : { href: DEPOSIT_HREF, label: t.trade.deposit };
   const secondary = hasCash
     ? { href: DEPOSIT_HREF, label: t.trade.deposit }
     : { href: MARKET_HREF, label: t.portfolio.explore };
+  const showSecondary = !isDemo;
 
   return (
     <section aria-label={copy.summaryLabel} className="flex flex-col">
       <div className="flex items-center gap-1.5">
-        <h2 className="label">{copy.currentValue}</h2>
+        <h2 className={MOBILE_LABEL}>{copy.currentValue}</h2>
         <InfoTip label={`${copy.whatIsThis}. ${copy.summaryLabel}`} text={summaryTip} align="start" />
       </div>
 
@@ -275,7 +281,7 @@ function PatrimonyHero({
                   value={shown.amount}
                   currency={shown.currency}
                   size="lg"
-                  className="block text-[1.75rem] leading-[1.05] font-medium tracking-tight tabular-nums whitespace-nowrap sm:text-[2.25rem]"
+                  className="block text-[1.75rem] leading-[1.05] font-medium tracking-tight tabular-nums whitespace-nowrap max-lg:font-sans max-lg:text-[36px] max-lg:leading-[44px] max-lg:font-semibold sm:text-[2.25rem]"
                 />
               </span>
             )}
@@ -285,7 +291,7 @@ function PatrimonyHero({
 
         <dl className="flex flex-wrap items-end gap-x-10 gap-y-4">
           <div className="min-w-0">
-            <dt className="label">{copy.totalGain}</dt>
+            <dt className={MOBILE_LABEL}>{copy.totalGain}</dt>
             <dd className="mt-1.5 flex flex-wrap items-center gap-2">
               {gain === null ? (
                 <span className="text-sm text-fg-muted">{copy.emptyFigure}</span>
@@ -299,7 +305,7 @@ function PatrimonyHero({
                   currency={gain.currency}
                   size="sm"
                   colorBySign
-                  className="text-lg font-medium tracking-tight sm:text-xl"
+                  className="text-lg font-medium tracking-tight max-lg:font-sans max-lg:tabular-nums sm:text-xl"
                 />
               )}
               {perf.gainPct === null || masked ? null : <ChangeBadge value={perf.gainPct} />}
@@ -307,8 +313,8 @@ function PatrimonyHero({
           </div>
 
           <div className="min-w-0">
-            <dt className="label">{copy.invested}</dt>
-            <dd className="num mt-1.5 text-[15px] font-medium tracking-tight whitespace-nowrap text-fg">
+            <dt className={MOBILE_LABEL}>{copy.invested}</dt>
+            <dd className="num mt-1.5 max-lg:font-sans max-lg:tabular-nums text-[15px] font-medium tracking-tight whitespace-nowrap text-fg">
               {invested === null ? (
                 copy.emptyFigure
               ) : masked ? (
@@ -323,16 +329,16 @@ function PatrimonyHero({
         </dl>
       </div>
 
-      <div className="mt-8 flex flex-col gap-5 border-t border-border pt-5 lg:flex-row lg:items-end lg:justify-between lg:gap-10">
+      <div className="mt-8 flex flex-col gap-5 lg:border-t lg:border-border lg:pt-5 lg:flex-row lg:items-end lg:justify-between lg:gap-10">
         <div className="min-w-0">
-          <h2 className="label">{t.portfolio.available}</h2>
+          <h2 className={MOBILE_LABEL}>{t.portfolio.available}</h2>
           <div className="mt-1.5 flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
             {masked ? (
               <Masked label={hiddenLabel} className="text-xl" />
             ) : pendingFx ? (
               <Skeleton className="h-6 w-24" />
             ) : (
-              <span className="num text-xl font-medium tracking-tight tabular-nums text-fg">
+              <span className="num text-xl font-medium tracking-tight tabular-nums text-fg max-lg:font-sans">
                 {formatMoney(cash.amount, cash.currency)}
               </span>
             )}
@@ -345,9 +351,11 @@ function PatrimonyHero({
             <Button asChild size="lg" className="col-span-2 min-h-11 sm:col-span-1">
               <Link href={primary.href}>{primary.label}</Link>
             </Button>
-            <Button asChild variant="secondary" size="lg" className="min-h-11">
-              <Link href={secondary.href}>{secondary.label}</Link>
-            </Button>
+            {showSecondary ? (
+              <Button asChild variant="secondary" size="lg" className="min-h-11">
+                <Link href={secondary.href}>{secondary.label}</Link>
+              </Button>
+            ) : null}
             <Link
               href={SEND_HREF}
               className="hidden min-h-11 items-center justify-center text-[13px] font-medium text-fg-muted underline-offset-4 sm:inline-flex transition-colors hover:text-fg hover:underline sm:px-3 lg:justify-start"
@@ -604,14 +612,14 @@ export function PortfolioScreen() {
             sigue a la vista (como en main): es el primer dato de una cuenta nueva. */}
         {hasPositions ? null : (
           <section className="flex flex-col">
-            <h2 className="label">{t.portfolio.available}</h2>
+            <h2 className={MOBILE_LABEL}>{t.portfolio.available}</h2>
             <div className="mt-1.5 flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
               {masked ? (
                 <Masked label={t.shell.balanceHidden} className="text-xl" />
               ) : pendingFx ? (
                 <Skeleton className="h-6 w-24" />
               ) : (
-                <span className="num text-xl font-medium tracking-tight tabular-nums text-fg">
+                <span className="num text-xl font-medium tracking-tight tabular-nums text-fg max-lg:font-sans">
                   {formatMoney(moneyView(loaded.cashUsdc, currency, rate).amount, moneyView(loaded.cashUsdc, currency, rate).currency)}
                 </span>
               )}
@@ -629,22 +637,24 @@ export function PortfolioScreen() {
                  la billetera vacía, depositar. El otro paso queda al lado. */
               <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
                 <Button asChild size="lg" className="min-h-11 w-full whitespace-nowrap sm:w-auto">
-                  <Link href={hasCash ? MARKET_HREF : DEPOSIT_HREF}>
-                    {hasCash ? t.portfolio.explore : t.trade.deposit}
+                  <Link href={hasCash || mode === "demo" ? MARKET_HREF : DEPOSIT_HREF}>
+                    {hasCash || mode === "demo" ? t.portfolio.explore : t.trade.deposit}
                   </Link>
                 </Button>
-                <Button asChild variant="secondary" size="lg" className="min-h-11 w-full whitespace-nowrap sm:w-auto">
-                  <Link href={hasCash ? DEPOSIT_HREF : MARKET_HREF}>
-                    {hasCash ? t.trade.deposit : t.portfolio.explore}
-                  </Link>
-                </Button>
+                {mode === "demo" ? null : (
+                  <Button asChild variant="secondary" size="lg" className="min-h-11 w-full whitespace-nowrap sm:w-auto">
+                    <Link href={hasCash ? DEPOSIT_HREF : MARKET_HREF}>
+                      {hasCash ? t.trade.deposit : t.portfolio.explore}
+                    </Link>
+                  </Button>
+                )}
               </div>
             }
           />
         ) : (
           <>
             {slices.length > 0 ? (
-              <section className="border-t border-border pt-8">
+              <section className="lg:border-t lg:border-border lg:pt-8">
                 <div className="min-w-0">
                   <h2 className="text-xl font-medium tracking-tight">{t.portfolio.allocation}</h2>
                   <p className="mt-1 text-[13px] leading-relaxed text-fg-muted">{t.portfolio.allocationLabel}</p>
@@ -672,7 +682,7 @@ export function PortfolioScreen() {
               </section>
             ) : null}
 
-            <section className="border-t border-border pt-8">
+            <section className="lg:border-t lg:border-border lg:pt-8">
               <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-3">
                 <div className="flex min-w-0 items-center gap-1.5">
                   <h2 className="text-xl font-medium tracking-tight">{t.portfolio.positions}</h2>
@@ -808,7 +818,7 @@ export function PortfolioScreen() {
           </>
         )}
 
-        <section className="border-t border-border pt-8">
+        <section className="lg:border-t lg:border-border lg:pt-8">
           <h2 className="text-lg font-medium tracking-tight">{t.portfolio.history}</h2>
           <div>
             {activity.isPending ? (

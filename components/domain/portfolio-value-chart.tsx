@@ -197,7 +197,7 @@ export function PortfolioValueChart({
   return (
     <section className="flex min-w-0 flex-col" data-range={range}>
       <div className="flex items-center gap-1.5">
-        <p className="label shrink-0">{isEn ? "Change in this simulation" : "Variación de esta simulación"}</p>
+        <p className="label shrink-0 max-lg:text-[14px] max-lg:font-sans max-lg:normal-case max-lg:tracking-normal">{isEn ? "Change in this simulation" : "Variación de esta simulación"}</p>
         <span aria-hidden className="text-xs text-fg-subtle">
           ·
         </span>
@@ -205,7 +205,8 @@ export function PortfolioValueChart({
         <InfoTip label={`${copy.whatIsThis}. ${copy.period}`} text={isEn ? "Uses today’s quantities and cash at historical prices. It does not track your historical holdings, deposits or withdrawals." : "Usa las cantidades y el efectivo actuales a precios históricos. No reconstruye tus posiciones, depósitos ni retiros de cada fecha."} align="start" />
       </div>
 
-      <p className="mt-3 max-w-2xl text-xs leading-relaxed text-fg-muted">{isEn ? "Hypothetical current composition. This is not your account’s historical equity or personal investment return. The current account total stays separate." : "Simulación de la composición actual. No es el patrimonio histórico de tu cuenta ni tu rentabilidad personal. El saldo actual se muestra por separado."}</p>
+      <p className="mt-2 text-xs leading-relaxed text-fg-muted lg:hidden">{isEn ? "Simulation with your current positions; not your historical return." : "Simulación con tus posiciones actuales; no es tu rentabilidad histórica."}</p>
+      <p className="mt-3 max-w-2xl text-xs leading-relaxed text-fg-muted max-lg:hidden">{isEn ? "Hypothetical current composition. This is not your account’s historical equity or personal investment return. The current account total stays separate." : "Simulación de la composición actual. No es el patrimonio histórico de tu cuenta ni tu rentabilidad personal. El saldo actual se muestra por separado."}</p>
       {points.length >= 2 ? <p className="mt-2 text-xs text-fg-muted">{formatDateTime(new Date(points[0]!.t).toISOString())} → {formatDateTime(new Date(points.at(-1)!.t).toISOString())}</p> : null}
       <div className="mt-2 flex min-h-9 flex-wrap items-baseline gap-x-2.5 gap-y-1">
         {initialPending ? (
@@ -218,7 +219,7 @@ export function PortfolioValueChart({
           <>
             <span
               className={cn(
-                "num text-lg leading-none font-medium tracking-tight whitespace-nowrap sm:text-2xl",
+                "num text-lg leading-none font-medium tracking-tight whitespace-nowrap max-lg:font-sans max-lg:tabular-nums sm:text-2xl",
                 amountTone(period.deltaUsd),
               )}
             >

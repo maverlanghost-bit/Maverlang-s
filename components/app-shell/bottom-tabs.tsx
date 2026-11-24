@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, type CSSProperties, type RefObject } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type RefObject } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -12,6 +12,7 @@ import {
   mobileTabs,
   shellTabLabel,
 } from "@/components/app-shell/nav";
+import { AssistantGuestSheet } from "@/components/app-shell/assistant-guest-sheet";
 import { IconBack, IconStar } from "@/components/ui/icons";
 import { cn } from "@/lib/cn";
 import { useT } from "@/lib/hooks/use-t";
@@ -52,7 +53,8 @@ function useTabsHeight(ref: RefObject<HTMLElement | null>, assistantRoute: boole
  * Barra inferior fija: sin transform por scroll, sin ocultarse nunca.
  * En /app/asistente el mismo vidrio se transforma (morph) en el dock del chat.
  */
-export function BottomTabs() {
+export function BottomTabs({ guest = false }: { guest?: boolean }) {
+  const [guestSheet, setGuestSheet] = useState(false);
   const pathname = usePathname();
   const { t, language } = useT();
   const navRef = useRef<HTMLElement>(null);
@@ -98,22 +100,48 @@ export function BottomTabs() {
             const active = activeIndex >= 0 && mobileTabs[activeIndex]?.id === item.id;
             const Icon = item.icon;
             const label = shellTabLabel(language, item.id, t.nav);
+            const center = item.id === "assistant";
+            const tabClass = cn("liquid-tab", center && "liquid-tab--center");
+            const content = center ? (
+              <>
+                <span className="liquid-tab__ai" aria-hidden="true">
+                  AI
+                </span>
+                <span className="liquid-tab__label">{label}</span>
+              </>
+            ) : (
+              <>
+                {item.id === "favorites" ? (
+                  <IconStar filled={active} className="liquid-tab__icon" />
+                ) : (
+                  <Icon className="liquid-tab__icon" />
+                )}
+                <span className="liquid-tab__label">{label}</span>
+              </>
+            );
             return (
               <li key={item.id}>
-                <Link
-                  href={item.href}
-                  aria-current={active ? "page" : undefined}
-                  data-state={active ? "active" : "inactive"}
-                  tabIndex={assistantRoute ? -1 : undefined}
-                  className="liquid-tab"
-                >
-                  {item.id === "favorites" ? (
-                    <IconStar filled={active} className="liquid-tab__icon" />
-                  ) : (
-                    <Icon className="liquid-tab__icon" />
-                  )}
-                  <span className="liquid-tab__label">{label}</span>
-                </Link>
+                {center && guest ? (
+                  <button
+                    type="button"
+                    aria-haspopup="dialog"
+                    data-state="inactive"
+                    onClick={() => setGuestSheet(true)}
+                    className={tabClass}
+                  >
+                    {content}
+                  </button>
+                ) : (
+                  <Link
+                    href={item.href}
+                    aria-current={active ? "page" : undefined}
+                    data-state={active ? "active" : "inactive"}
+                    tabIndex={assistantRoute ? -1 : undefined}
+                    className={tabClass}
+                  >
+                    {content}
+                  </Link>
+                )}
               </li>
             );
           })}
@@ -130,6 +158,7 @@ export function BottomTabs() {
           <div id={AI_DOCK_SLOT_ID} className="liquid-glass__dock" />
         </div>
       </div>
+      {guest ? <AssistantGuestSheet open={guestSheet} onOpenChange={setGuestSheet} /> : null}
     </nav>
   );
 }

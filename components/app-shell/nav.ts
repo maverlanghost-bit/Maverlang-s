@@ -135,8 +135,8 @@ type DestItem = (typeof destinations)[number];
 /** Todas las rutas del shell, en orden canónico (Mercado → Perfil). */
 export const shellNav: readonly DestItem[] = destinations;
 
-/** Columnas de la barra inferior: cuatro destinos (el Asistente va en la grilla del inicio). */
-export const mobileTabs = [marketDest, favoritesDest, portfolioDest, walletDest] as const;
+/** Columnas de la barra inferior: cinco destinos, Asistente al centro. */
+export const mobileTabs = [marketDest, favoritesDest, assistantDest, portfolioDest, walletDest] as const;
 
 /** Sidebar, grupo principal: el producto y el dinero. */
 export const sidebarPrimary = [marketDest, cryptoDest, portfolioDest, walletDest] as const;
@@ -174,7 +174,7 @@ export function isShellSectionActive(pathname: string, id: string): boolean {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-/** Índice de la pestaña activa. -1 si la ruta no es una de las cuatro. */
+/** Índice de la pestaña activa. -1 si la ruta no es una de las cinco. */
 export function activeMobileTab(pathname: string): number {
   // Crypto has its own desktop destination and belongs to Market on mobile.
   if (isShellSectionActive(pathname, "crypto")) return mobileTabs.findIndex((item) => item.id === "market");

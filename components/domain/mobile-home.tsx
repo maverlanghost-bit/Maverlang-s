@@ -4,6 +4,7 @@ import { useRef, useState, type ReactNode, type SVGProps } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 
+import { AssistantGuestSheet } from "@/components/app-shell/assistant-guest-sheet";
 import { getMe } from "@/lib/api/client";
 import { IconChart, IconPortfolio, IconStar, IconWallet } from "@/components/ui/icons";
 import { cn } from "@/lib/cn";
@@ -69,6 +70,8 @@ export function MobileQuickActions({ showCopy = false, className }: { showCopy?:
 export function MobileShortcuts({ className }: { className?: string }) {
   const { language } = useT();
   const en = language === "en";
+  const { userId } = useHideBalance();
+  const [guestSheet, setGuestSheet] = useState(false);
   const items = [
     { href: "/app/cartera", label: en ? "Portfolio" : "Cartera", icon: <IconPortfolio className="size-7" /> },
     { href: "/app/herramientas", label: en ? "Tools" : "Herramientas", icon: <GlyphTools className="size-7" /> },
@@ -77,14 +80,30 @@ export function MobileShortcuts({ className }: { className?: string }) {
   ];
   return (
     <nav aria-label={en ? "Shortcuts" : "Accesos"} className={cn("grid grid-cols-4 gap-2", className)}>
-      {items.map((item) => (
-        <Link key={item.href} href={item.href} className="group flex flex-col items-center gap-1.5 outline-none">
-          <span className="grid size-[52px] place-items-center rounded-2xl bg-surface-1 text-fg transition-transform group-active:scale-95 group-focus-visible:ring-2 group-focus-visible:ring-fg">
-            {item.icon}
-          </span>
-          <span className="max-w-full truncate text-xs leading-4 text-fg-body">{item.label}</span>
-        </Link>
-      ))}
+      {items.map((item) => {
+        const inner = (
+          <>
+            <span className="grid size-[52px] place-items-center rounded-2xl bg-surface-1 text-fg transition-transform group-active:scale-95 group-focus-visible:ring-2 group-focus-visible:ring-fg">
+              {item.icon}
+            </span>
+            <span className="max-w-full truncate text-xs leading-4 text-fg-body">{item.label}</span>
+          </>
+        );
+        const cls = "group flex flex-col items-center gap-1.5 outline-none";
+        if (item.href === "/app/asistente" && !userId) {
+          return (
+            <button key={item.href} type="button" aria-haspopup="dialog" onClick={() => setGuestSheet(true)} className={cls}>
+              {inner}
+            </button>
+          );
+        }
+        return (
+          <Link key={item.href} href={item.href} className={cls}>
+            {inner}
+          </Link>
+        );
+      })}
+      {!userId ? <AssistantGuestSheet open={guestSheet} onOpenChange={setGuestSheet} /> : null}
     </nav>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useRef, useState } from "react";
 
 import { useAccountLabel } from "@/components/app-shell/account-label";
 import { CommandPalette } from "@/components/app-shell/command-palette";
@@ -33,11 +34,49 @@ export function TopBar({
   const base = account.loading ? t.shell.account : `${account.name}. ${t.shell.account}`;
   const label = accountMode === "demo" ? `${base}. ${t.account.badge}` : base;
   const searchText = language === "en" ? "Search a stock" : "Buscar una acción";
+  const clusterRef = useRef<HTMLDivElement>(null);
+  const [hidden, setHidden] = useState(false);
+
+  // Se oculta al bajar y reaparece al subir (el scroll es del documento, no de un contenedor).
+  useEffect(() => {
+    if (hideMobileCluster) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    let lastY = window.scrollY;
+    let frame = 0;
+    const update = () => {
+      frame = 0;
+      const y = Math.max(0, window.scrollY);
+      const el = clusterRef.current;
+      const busy =
+        (el?.querySelector(":focus-visible") ?? null) !== null || document.querySelector('[role="dialog"]') !== null;
+      if (y < 56 || busy) {
+        setHidden(false);
+        lastY = y;
+        return;
+      }
+      const delta = y - lastY;
+      if (Math.abs(delta) < 8) return;
+      setHidden(delta > 0);
+      lastY = y;
+    };
+    const onScroll = () => {
+      if (!frame) frame = requestAnimationFrame(update);
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      if (frame) cancelAnimationFrame(frame);
+    };
+  }, [hideMobileCluster]);
 
   return (
     <>
       {hideMobileCluster ? null : (
-        <div className="fixed inset-x-3 top-[calc(env(safe-area-inset-top)+10px)] z-30 flex items-center gap-2 lg:hidden">
+        <div
+          ref={clusterRef}
+          data-hidden={hidden}
+          className="top-cluster fixed inset-x-3 top-[calc(env(safe-area-inset-top)+10px)] z-30 flex items-center gap-2 lg:hidden"
+        >
           <Link href="/app/perfil" aria-label={label} className="liquid-glass--chip touch-manipulation">
             {account.loading ? (
               <Skeleton className="size-8 rounded-full" />
@@ -54,7 +93,7 @@ export function TopBar({
             aria-label={t.shell.search}
             aria-haspopup="dialog"
             onClick={openStockSearch}
-            className="liquid-glass--chip liquid-glass--chip-wide touch-manipulation text-base text-fg-muted"
+            className="liquid-glass--chip liquid-glass--chip-wide touch-manipulation text-base"
           >
             <IconSearch className="size-5 shrink-0" />
             <span className="min-w-0 flex-1 truncate">{searchText}</span>
