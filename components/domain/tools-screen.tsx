@@ -3,7 +3,6 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 
-import { IconPortfolio } from "@/components/ui/icons";
 import { useT } from "@/lib/hooks/use-t";
 
 /**
@@ -25,12 +24,6 @@ const TOOLS: { href: string; es: [string, string]; en: [string, string]; icon: R
     es: ["Comparar", "Pon dos o más acciones lado a lado."],
     en: ["Compare", "Put two or more stocks side by side."],
     icon: <svg viewBox="0 0 24 24" className="size-6" aria-hidden {...stroke}><path d="M8 4 4 8l4 4M4 8h13M16 20l4-4-4-4M20 16H7" /></svg>,
-  },
-  {
-    href: "/app/mix",
-    es: ["Armar Mix", "Combina varias acciones en una sola canasta."],
-    en: ["Build a mix", "Combine several stocks into one basket."],
-    icon: <IconPortfolio className="size-6" />,
   },
   {
     href: "/app/alertas",
