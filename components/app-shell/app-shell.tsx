@@ -18,7 +18,14 @@ import { StockSearchRoot } from "@/components/app-shell/stock-search";
 import { TopBar } from "@/components/app-shell/top-bar";
 import { cn } from "@/lib/cn";
 import { APP_SCROLL_ID } from "@/lib/app-shell/scroll";
-import { serializeSidebarCookie } from "@/lib/app-shell/sidebar";
+import {
+  clampSidebarWidth,
+  serializeSidebarCookie,
+  serializeSidebarWidthCookie,
+  SIDEBAR_COLLAPSE_THRESHOLD,
+  SIDEBAR_COLLAPSED_WIDTH,
+  SIDEBAR_DEFAULT_WIDTH,
+} from "@/lib/app-shell/sidebar";
 import { useAccountMode } from "@/lib/hooks/use-account-mode";
 import { useT } from "@/lib/hooks/use-t";
 import type { AccountMode } from "@/lib/account/mode";
@@ -57,12 +64,6 @@ function SyncToastOffset({ includeTabs }: { includeTabs: boolean }) {
   return null;
 }
 
-/**
- * Ancho real de la barra lateral en escritorio (debe coincidir con `w-[68px]` /
- * `w-[212px]` de sidebar.tsx). Se publica como `--app-sidebar-width` para que
- * las capas fijas —el chat de IA— sepan cuánto espacio tienen a la derecha.
- */
-const SIDEBAR_WIDTH = { collapsed: 68, expanded: 212 } as const;
 
 function SkipLink({ label }: { label: string }) {
   return (
@@ -78,14 +79,41 @@ function SkipLink({ label }: { label: string }) {
 function ShellFrame({
   children,
   sidebarCollapsed,
+  sidebarWidth,
   accountInitial,
 }: {
   children: ReactNode;
   sidebarCollapsed: boolean;
+  sidebarWidth: number;
   accountInitial: AccountMode;
 }) {
   const { t, language } = useT();
   const [collapsed, setCollapsed] = useState(sidebarCollapsed);
+  const [width, setWidth] = useState(sidebarWidth);
+  const [dragging, setDragging] = useState(false);
+  /** Espejo para escribir cookies al soltar sin depender de closures viejos. */
+  const latest = useRef({ collapsed: sidebarCollapsed, width: sidebarWidth });
+  const applyWidth = useCallback((nextCollapsed: boolean, nextWidth: number) => {
+    latest.current = { collapsed: nextCollapsed, width: nextWidth };
+    setCollapsed(nextCollapsed);
+    setWidth(nextWidth);
+  }, []);
+  const persistSidebar = useCallback(() => {
+    document.cookie = serializeSidebarCookie(latest.current.collapsed ? "collapsed" : "expanded");
+    document.cookie = serializeSidebarWidthCookie(latest.current.width);
+  }, []);
+  /** Ancho bruto arrastrado: bajo el umbral colapsa, si no acota entre mín y máx. */
+  const resizeTo = useCallback(
+    (raw: number) => {
+      if (raw < SIDEBAR_COLLAPSE_THRESHOLD) applyWidth(true, latest.current.width);
+      else applyWidth(false, clampSidebarWidth(raw));
+    },
+    [applyWidth],
+  );
+  const resetWidth = useCallback(() => {
+    applyWidth(false, SIDEBAR_DEFAULT_WIDTH);
+    persistSidebar();
+  }, [applyWidth, persistSidebar]);
   const account = useAccountMode(accountInitial);
   const pathname = usePathname();
   const assistantRoute = pathname === "/app/asistente" || pathname.startsWith("/app/asistente/");
@@ -96,19 +124,17 @@ function ShellFrame({
     if (scrollRef.current) scrollRef.current.scrollTop = 0;
   }, [pathname]);
   const toggleSidebar = useCallback(() => {
-    setCollapsed((previous) => {
-      const next = !previous;
-      document.cookie = serializeSidebarCookie(next ? "collapsed" : "expanded");
-      return next;
-    });
-  }, []);
+    applyWidth(!latest.current.collapsed, latest.current.width);
+    persistSidebar();
+  }, [applyWidth, persistSidebar]);
+  const railWidth = collapsed ? SIDEBAR_COLLAPSED_WIDTH : width;
 
   return (
     <div
       className="relative min-h-dvh bg-canvas lg:h-dvh lg:overflow-hidden"
       style={
         {
-          "--app-sidebar-width": `${collapsed ? SIDEBAR_WIDTH.collapsed : SIDEBAR_WIDTH.expanded}px`,
+          "--app-sidebar-width": `${railWidth}px`,
         } as CSSProperties
       }
     >
@@ -117,7 +143,21 @@ function ShellFrame({
       <SkipLink label={t.shell.skip} />
       <StockSearchRoot>
         <div className="min-h-dvh lg:grid lg:h-dvh lg:grid-cols-[auto_minmax(0,1fr)]">
-          <Sidebar collapsed={collapsed} onToggle={toggleSidebar} accountMode={account.mode} onAccountChange={account.select} />
+          <Sidebar
+            collapsed={collapsed}
+            width={railWidth}
+            dragging={dragging}
+            onToggle={toggleSidebar}
+            onResize={resizeTo}
+            onResizeStart={() => setDragging(true)}
+            onResizeEnd={() => {
+              setDragging(false);
+              persistSidebar();
+            }}
+            onResetWidth={resetWidth}
+            accountMode={account.mode}
+            onAccountChange={account.select}
+          />
           <div
             id={APP_SCROLL_ID}
             ref={scrollRef}
@@ -175,11 +215,13 @@ function PublicFrame({ children }: { children: ReactNode }) {
 export function AppShell({
   signedIn,
   sidebarCollapsed = false,
+  sidebarWidth = SIDEBAR_DEFAULT_WIDTH,
   accountMode = "demo",
   children,
 }: {
   signedIn: boolean;
   sidebarCollapsed?: boolean;
+  sidebarWidth?: number;
   accountMode?: AccountMode;
   children: ReactNode;
 }) {
@@ -187,7 +229,7 @@ export function AppShell({
   if (isBarePlatformPath(pathname)) return children;
   if (!signedIn) return <PublicFrame>{children}</PublicFrame>;
   return (
-    <ShellFrame sidebarCollapsed={sidebarCollapsed} accountInitial={accountMode}>
+    <ShellFrame sidebarCollapsed={sidebarCollapsed} sidebarWidth={sidebarWidth} accountInitial={accountMode}>
       {children}
     </ShellFrame>
   );

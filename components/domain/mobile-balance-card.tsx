@@ -89,13 +89,14 @@ export function MobileBalanceCard({ className, variant = "mobile" }: { className
   return (
     <section aria-label={en ? "Your balance" : "Tu saldo"} className={cn(desktop ? "" : "px-0.5 pt-1", className)}>
       <div className="flex items-center gap-2">
-        <p className="text-[15px] leading-5 text-fg-muted">{en ? "Balance" : "Saldo"}</p>
-        {mode === "demo" ? (
-          <span className="rounded-full bg-surface-2 px-2 py-0.5 text-[11px] leading-4 font-medium text-fg-muted">Demo</span>
-        ) : null}
+        <span className="rounded-full bg-surface-2 px-2 py-0.5 text-[11px] leading-4 font-medium text-fg-muted">
+          {mode === "demo" ? "Demo" : "Real"}
+        </span>
+        {desktop ? <HideBalanceToggle className="-my-3 -ml-1" /> : null}
       </div>
 
       <div className={cn("flex items-center gap-3", desktop ? "justify-start" : "justify-between")} aria-live="polite">
+        <span className="sr-only">{en ? "Balance" : "Saldo"}</span>
         {portfolio.isPending ? (
           <Skeleton className={cn("mt-1", desktop ? "h-12 w-64" : "h-10 w-48")} />
         ) : portfolio.isError || !data ? (
@@ -115,7 +116,7 @@ export function MobileBalanceCard({ className, variant = "mobile" }: { className
             {masked ? MASK : shown(data.totalUsd, shownCurrency, fxKnown ? rate : undefined)}
           </p>
         )}
-        <HideBalanceToggle className={desktop ? undefined : "-mr-2"} />
+        {desktop ? null : <HideBalanceToggle className="-mr-2" />}
       </div>
 
       {data ? (

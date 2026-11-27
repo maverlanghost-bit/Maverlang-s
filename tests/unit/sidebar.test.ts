@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 
 import {
   parseSidebarState,
+  parseSidebarWidth,
   serializeSidebarCookie,
+  serializeSidebarWidthCookie,
   shouldIgnoreSidebarShortcut,
   shouldToggleSidebarClick,
   SIDEBAR_COOKIE,
@@ -27,6 +29,21 @@ describe("serializeSidebarCookie", () => {
   it("usa la cookie mv_sidebar con path raíz y un año", () => {
     expect(serializeSidebarCookie("collapsed")).toBe(`${SIDEBAR_COOKIE}=collapsed; path=/; max-age=31536000; SameSite=Lax`);
     expect(serializeSidebarCookie("expanded")).toBe(`${SIDEBAR_COOKIE}=expanded; path=/; max-age=31536000; SameSite=Lax`);
+  });
+});
+
+describe("parseSidebarWidth", () => {
+  it("ausente o inválido -> defecto; fuera de rango se acota", () => {
+    expect(parseSidebarWidth(undefined)).toBe(200);
+    expect(parseSidebarWidth("abc")).toBe(200);
+    expect(parseSidebarWidth("-5")).toBe(200);
+    expect(parseSidebarWidth("50")).toBe(176);
+    expect(parseSidebarWidth("9999")).toBe(320);
+    expect(parseSidebarWidth("240")).toBe(240);
+  });
+
+  it("serializa acotado en su propia cookie", () => {
+    expect(serializeSidebarWidthCookie(1000)).toBe("mv_sidebar_w=320; path=/; max-age=31536000; SameSite=Lax");
   });
 });
 

@@ -6,7 +6,7 @@ import mark from "@/app/icon.png";
 import { AppShell } from "@/components/app-shell/app-shell";
 import { PwaRegister } from "@/components/pwa/register";
 import { PUBLIC_WORDMARK, PWA_THEME_COLOR } from "@/components/pwa/policy";
-import { parseSidebarState, SIDEBAR_COOKIE } from "@/lib/app-shell/sidebar";
+import { parseSidebarState, parseSidebarWidth, SIDEBAR_COOKIE, SIDEBAR_WIDTH_COOKIE } from "@/lib/app-shell/sidebar";
 import { readAccountMode } from "@/lib/account/server";
 import { readServerSession } from "@/lib/auth/server-session";
 import { site } from "@/config/site";
@@ -39,9 +39,15 @@ export default async function PlatformLayout({ children }: { children: ReactNode
   const session = await readServerSession();
   const jar = await cookies();
   const sidebarCollapsed = parseSidebarState(jar.get(SIDEBAR_COOKIE)?.value) === "collapsed";
+  const sidebarWidth = parseSidebarWidth(jar.get(SIDEBAR_WIDTH_COOKIE)?.value);
   const accountMode = await readAccountMode();
   return (
-    <AppShell signedIn={session.hasSession} sidebarCollapsed={sidebarCollapsed} accountMode={accountMode}>
+    <AppShell
+      signedIn={session.hasSession}
+      sidebarCollapsed={sidebarCollapsed}
+      sidebarWidth={sidebarWidth}
+      accountMode={accountMode}
+    >
       <PwaRegister />
       {children}
     </AppShell>

@@ -1,5 +1,11 @@
 # PROGRESO — Maverlang
 
+## T106 — Accesos compactos, saldo sólo «Demo» y barra lateral redimensionable (2026-11-27)
+- Inicio escritorio: tarjetas de acceso de 56 px en una fila; el Asistente usa «AI» (también en celular).
+- Saldo: sólo el chip «Demo»/«Real» (con «Saldo» `sr-only`); el ojo queda fijo junto al chip en escritorio y junto al título en Cartera, así no salta al ocultar.
+- Sidebar lg+: 200 px por defecto, menos relleno; manija en el borde derecho (`role="separator"`) para arrastrar entre 176 y 320 px; bajo 150 px colapsa a íconos (68 px); doble clic restaura; teclado ±16 px/Enter. Cookie `mv_sidebar_w` leída en `layout.tsx`.
+- Verificación: `tsc`, 213 archivos de pruebas (2127/2127) y navegador a 1440×900 (arrastre ensancha, colapsa, expande y restaura).
+
 ## T105 — Escritorio: lienzo gris con panel y nueva hero del inicio (2026-11-27)
 - Shell lg+ con sesión: lienzo y sidebar `bg-canvas` (#f4f5f7) sin borde; contenido en panel blanco `#app-scroll` (`rounded-2xl`, borde, margen 8 px) con scroll propio. `lib/app-shell/scroll.ts` (`getAppScroller`) para guardar/restaurar scroll del mercado; reset al cambiar de ruta. Chat del asistente ajustado al panel. Invitado y celular sin cambios.
 - Inicio `/app` lg+: saldo 48 px + 4 círculos a la izquierda, carrusel con flechas a la derecha, 4 tarjetas de acceso (Cartera, Herramientas, Asistente, Alertas) y debajo el mercado existente (Tu día, destacado, movers, tabla). md–lg: pila móvil acotada.

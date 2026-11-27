@@ -63,9 +63,9 @@ describe("UI Shell & Mobile Broker Header (x.ai/bot light aesthetic)", () => {
     expect(sidebar).toContain("StockSearchButton");
     expect(sidebar).not.toContain("PanelLeftCloseIcon");
     expect(sidebar).not.toContain("PanelLeftIcon");
-    expect(sidebar).toContain("w-[68px]");
-    expect(sidebar).toContain("w-[212px]");
-    expect(shell).toContain("collapsed: 68, expanded: 212");
+    expect(sidebar).toContain('role="separator"');
+    expect(sidebar).toContain("Cambiar ancho de la barra lateral");
+    expect(shell).toContain("--app-sidebar-width");
     expect(shell).toContain('id="contenido"');
     expect(shell).toContain("tabIndex={-1}");
   });

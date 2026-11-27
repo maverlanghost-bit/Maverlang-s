@@ -294,7 +294,7 @@ export function WalletScreen() {
         </div>
         <div className="mt-2 min-w-0 max-w-full" aria-live="polite">
           {masked ? (
-            <Masked label={t.shell.balanceHidden} className="block text-[1.75rem] leading-none tracking-tight sm:text-[2rem]" />
+            <Masked label={t.shell.balanceHidden} className="block text-[1.75rem] leading-none font-medium tracking-tight max-lg:font-sans max-lg:text-[36px] max-lg:leading-[44px] max-lg:font-semibold sm:text-[2rem]" />
           ) : pendingFx ? (
             <Skeleton className="h-8 w-44" />
           ) : (

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
+import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type RefObject } from "react";
 import Link from "next/link";
 import { BrandFavicon } from "@/components/app-shell/brand-image";
 import { usePathname } from "next/navigation";
@@ -24,7 +24,13 @@ import { Tooltip } from "@/components/ui/tooltip";
 import { AccountSwitch } from "@/components/app-shell/account-switch";
 import { StockSearchButton } from "@/components/app-shell/stock-search";
 import { site } from "@/config/site";
-import { shouldIgnoreSidebarShortcut, shouldToggleSidebarClick } from "@/lib/app-shell/sidebar";
+import {
+  shouldIgnoreSidebarShortcut,
+  shouldToggleSidebarClick,
+  SIDEBAR_COLLAPSED_WIDTH,
+  SIDEBAR_KEY_STEP,
+  SIDEBAR_MAX_WIDTH,
+} from "@/lib/app-shell/sidebar";
 import type { AccountMode } from "@/lib/account/mode";
 import { useSession } from "@/lib/auth/session-context";
 import { cn } from "@/lib/cn";
@@ -228,18 +234,124 @@ function AccountTrigger({
   );
 }
 
+/**
+ * Manija del borde derecho: ~6px invisibles que cruzan el borde. Arrastrar
+ * cambia el ancho en vivo (pointer capture); doble clic restaura el defecto.
+ * Con teclado: flechas ±16px y Enter colapsa/expande.
+ */
+function ResizeHandle({
+  collapsed,
+  width,
+  label,
+  onResize,
+  onResizeStart,
+  onResizeEnd,
+  onReset,
+  onToggle,
+}: {
+  collapsed: boolean;
+  width: number;
+  label: string;
+  onResize: (raw: number) => void;
+  onResizeStart: () => void;
+  onResizeEnd: () => void;
+  onReset: () => void;
+  onToggle: () => void;
+}) {
+  const [active, setActive] = useState(false);
+  const drag = useRef<{ startX: number; startWidth: number } | null>(null);
+
+  function finish(event: ReactPointerEvent<HTMLDivElement>) {
+    if (!drag.current) return;
+    drag.current = null;
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+    document.body.style.userSelect = "";
+    document.body.style.cursor = "";
+    setActive(false);
+    onResizeEnd();
+  }
+
+  return (
+    <div
+      role="separator"
+      aria-orientation="vertical"
+      aria-label={label}
+      aria-valuenow={width}
+      aria-valuemin={SIDEBAR_COLLAPSED_WIDTH}
+      aria-valuemax={SIDEBAR_MAX_WIDTH}
+      tabIndex={0}
+      data-sidebar-static=""
+      onClick={(event) => event.stopPropagation()}
+      onDoubleClick={onReset}
+      onPointerDown={(event) => {
+        if (event.button !== 0) return;
+        event.preventDefault();
+        event.currentTarget.setPointerCapture(event.pointerId);
+        drag.current = { startX: event.clientX, startWidth: width };
+        document.body.style.userSelect = "none";
+        document.body.style.cursor = "col-resize";
+        setActive(true);
+        onResizeStart();
+      }}
+      onPointerMove={(event) => {
+        if (!drag.current) return;
+        onResize(drag.current.startWidth + event.clientX - drag.current.startX);
+      }}
+      onPointerUp={finish}
+      onPointerCancel={finish}
+      onKeyDown={(event) => {
+        if (event.key === "Enter") {
+          event.preventDefault();
+          onToggle();
+          return;
+        }
+        if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+        event.preventDefault();
+        onResize(width + (event.key === "ArrowRight" ? SIDEBAR_KEY_STEP : -SIDEBAR_KEY_STEP));
+        onResizeEnd();
+      }}
+      className="group/handle absolute inset-y-0 -right-[3px] z-10 w-1.5 cursor-col-resize touch-none outline-none"
+    >
+      <span
+        aria-hidden
+        className={cn(
+          "absolute inset-y-0 left-1/2 w-0.5 -translate-x-1/2 rounded-full bg-fg/25 transition-opacity duration-150 group-hover/handle:opacity-100 group-focus-visible/handle:opacity-100",
+          active ? "opacity-100" : "opacity-0",
+        )}
+      />
+    </div>
+  );
+}
+
 export function Sidebar({
   collapsed,
+  width,
+  dragging = false,
   onToggle,
+  onResize,
+  onResizeStart,
+  onResizeEnd,
+  onResetWidth,
   accountMode = "demo",
   onAccountChange,
 }: {
   collapsed: boolean;
+  /** Ancho actual del riel en px (ya refleja el colapso). */
+  width: number;
+  dragging?: boolean;
   onToggle: () => void;
+  onResize: (raw: number) => void;
+  onResizeStart: () => void;
+  onResizeEnd: () => void;
+  onResetWidth: () => void;
   accountMode?: AccountMode;
   onAccountChange?: (mode: AccountMode) => void;
 }) {
   const pathname = usePathname();
+  /** Colapsado el riel mide 68px: 12 de relleno centran los slots de 44px. */
+  const padX = collapsed ? "px-3" : "px-2";
   const isAiRoute = pathname.startsWith("/app/asistente");
   const { t, language } = useT();
   /** Mismo texto que usa NavChatsHistory para estrenar conversación y buscar chats. */
@@ -387,7 +499,7 @@ export function Sidebar({
         <span
           className={cn(
             "min-w-0 flex-1 truncate transition-[opacity,padding] duration-[280ms] ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none",
-            collapsed ? "sr-only opacity-0 px-0" : "opacity-100 px-3",
+            collapsed ? "sr-only opacity-0 px-0" : "opacity-100 px-2.5",
           )}
         >
           {label}
@@ -409,15 +521,25 @@ export function Sidebar({
         if (event.target instanceof Node && !event.currentTarget.contains(event.target)) return;
         if (shouldToggleSidebarClick(event.target as Element | null)) onToggle();
       }}
+      style={{ width }}
       className={cn(
         "sticky top-0 z-30 hidden h-dvh shrink-0 cursor-ew-resize flex-col overflow-visible bg-canvas lg:flex",
-        WIDTH_ANIMATION,
-        collapsed ? "w-[68px]" : "w-[212px]",
+        !dragging || collapsed ? WIDTH_ANIMATION : null,
       )}
     >
+      <ResizeHandle
+        collapsed={collapsed}
+        width={width}
+        label={language === "en" ? "Resize sidebar" : "Cambiar ancho de la barra lateral"}
+        onResize={onResize}
+        onResizeStart={onResizeStart}
+        onResizeEnd={onResizeEnd}
+        onReset={onResetWidth}
+        onToggle={onToggle}
+      />
       {/* Marca. El slot de 44px queda centrado en los 68px del riel colapsado
           (12 + 44 + 12 = 68), así el isotipo no se mueve al colapsar. */}
-      <div className="flex h-14 shrink-0 items-center px-3 pt-3 pb-1.5">
+      <div className={cn("flex h-14 shrink-0 items-center pt-3 pb-1.5", padX)}>
         <Link
           href="/app"
           aria-label={isAiRoute ? t.detail.backToMarket : site.name}
@@ -456,7 +578,7 @@ export function Sidebar({
         </div>
       </div>
 
-      <nav aria-label={t.nav.label} className="flex-1 overflow-y-auto overscroll-contain px-3 pt-1 pb-2">
+      <nav aria-label={t.nav.label} className={cn("flex-1 overflow-y-auto overscroll-contain pt-1 pb-2", padX)}>
         {isAiRoute ? (
           <>
             <ul className="flex flex-col gap-0.5">
@@ -593,7 +715,7 @@ export function Sidebar({
         )}
       </nav>
 
-      <footer className="shrink-0 border-t border-border px-3 py-3">
+      <footer className={cn("shrink-0 border-t border-border py-3", padX)}>
         {!isAiRoute ? (
           <div
             aria-hidden={collapsed}

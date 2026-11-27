@@ -33,8 +33,11 @@ const GlyphCrypto = (p: SvgProps) =>
 const GlyphCopy = (p: SvgProps) =>
   glyph(p, <><circle cx="9" cy="8" r="3" /><path d="M3.5 19a5.5 5.5 0 0 1 11 0M16 5.5a3 3 0 0 1 0 5.5M17.5 14.2a5.5 5.5 0 0 1 3 4.8" /></>);
 const GlyphTools = (p: SvgProps) => glyph(p, <path d="M4 6h16M7 12h10M10 18h4" />);
-const GlyphAssistant = (p: SvgProps) =>
-  glyph(p, <path d="M5 5h14a1.5 1.5 0 0 1 1.5 1.5v8A1.5 1.5 0 0 1 19 16h-8l-4.5 3.5V16H5a1.5 1.5 0 0 1-1.5-1.5v-8A1.5 1.5 0 0 1 5 5Z" />);
+const AiMark = ({ className }: { className?: string }) => (
+  <span aria-hidden className={cn("font-semibold leading-none tracking-tight", className)}>
+    AI
+  </span>
+);
 const GlyphAlert = (p: SvgProps) =>
   glyph(p, <path d="M6 17V11a6 6 0 0 1 12 0v6l1.5 2h-15L6 17Zm4 4h4" />);
 const GlyphClock = (p: SvgProps) => glyph(p, <><circle cx="12" cy="12" r="8" /><path d="M12 8v4l3 2" /></>);
@@ -84,7 +87,7 @@ export function MobileShortcuts({ className }: { className?: string }) {
   const items = [
     { href: "/app/cartera", label: en ? "Portfolio" : "Cartera", icon: <IconPortfolio className="size-7" /> },
     { href: "/app/herramientas", label: en ? "Tools" : "Herramientas", icon: <GlyphTools className="size-7" /> },
-    { href: "/app/asistente", label: en ? "Assistant" : "Asistente", icon: <GlyphAssistant className="size-7" /> },
+    { href: "/app/asistente", label: en ? "Assistant" : "Asistente", icon: <AiMark className="text-[17px]" /> },
     { href: "/app/alertas", label: en ? "Alerts" : "Alertas", icon: <GlyphAlert className="size-7" /> },
   ];
   return (
@@ -124,22 +127,22 @@ export function DesktopShortcuts({ className }: { className?: string }) {
   const { userId } = useHideBalance();
   const [guestSheet, setGuestSheet] = useState(false);
   const items = [
-    { href: "/app/cartera", label: en ? "Portfolio" : "Cartera", hint: en ? "Your positions and results" : "Tus posiciones y resultado", icon: <IconPortfolio className="size-6" /> },
-    { href: "/app/herramientas", label: en ? "Tools" : "Herramientas", hint: en ? "Screener, compare and more" : "Screener, comparar y más", icon: <GlyphTools className="size-6" /> },
-    { href: "/app/asistente", label: en ? "Assistant" : "Asistente", hint: en ? "Ask about stocks and your portfolio" : "Pregunta sobre acciones y tu cartera", icon: <GlyphAssistant className="size-6" /> },
-    { href: "/app/alertas", label: en ? "Alerts" : "Alertas", hint: en ? "Price notices" : "Avisos de precio", icon: <GlyphAlert className="size-6" /> },
+    { href: "/app/cartera", label: en ? "Portfolio" : "Cartera", hint: en ? "Your positions and results" : "Tus posiciones y resultado", icon: <IconPortfolio className="size-5" /> },
+    { href: "/app/herramientas", label: en ? "Tools" : "Herramientas", hint: en ? "Screener, compare and more" : "Screener, comparar y más", icon: <GlyphTools className="size-5" /> },
+    { href: "/app/asistente", label: en ? "Assistant" : "Asistente", hint: en ? "Ask about stocks and your portfolio" : "Pregunta sobre acciones y tu cartera", icon: <AiMark className="text-[15px]" /> },
+    { href: "/app/alertas", label: en ? "Alerts" : "Alertas", hint: en ? "Price notices" : "Avisos de precio", icon: <GlyphAlert className="size-5" /> },
   ];
   const cardCls =
-    "group flex min-w-0 items-center gap-4 rounded-3xl bg-surface-1 p-4 text-left outline-none transition-colors hover:bg-surface-2 focus-visible:ring-2 focus-visible:ring-fg";
+    "group flex min-h-14 min-w-0 items-center gap-3 rounded-[14px] bg-surface-1 px-3 py-2.5 text-left outline-none transition-colors hover:bg-surface-2 focus-visible:ring-2 focus-visible:ring-fg";
   return (
-    <nav aria-label={en ? "Shortcuts" : "Accesos"} className={cn("grid grid-cols-2 gap-4 xl:grid-cols-4", className)}>
+    <nav aria-label={en ? "Shortcuts" : "Accesos"} className={cn("grid grid-cols-4 gap-3", className)}>
       {items.map((item) => {
         const inner = (
           <>
-            <span className="grid size-12 shrink-0 place-items-center rounded-2xl bg-bg text-fg">{item.icon}</span>
+            <span className="grid size-9 shrink-0 place-items-center rounded-[10px] bg-bg text-fg">{item.icon}</span>
             <span className="flex min-w-0 flex-col">
-              <span className="truncate text-[16px] leading-6 font-bold text-fg">{item.label}</span>
-              <span className="line-clamp-2 text-[13px] leading-[18px] text-fg-muted">{item.hint}</span>
+              <span className="truncate text-[14px] leading-5 font-semibold text-fg">{item.label}</span>
+              <span className="truncate text-[12px] leading-4 text-fg-muted">{item.hint}</span>
             </span>
           </>
         );

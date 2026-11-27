@@ -264,6 +264,7 @@ function PatrimonyHero({
       <div className="flex items-center gap-1.5">
         <h2 className={MOBILE_LABEL}>{copy.currentValue}</h2>
         <InfoTip label={`${copy.whatIsThis}. ${copy.summaryLabel}`} text={summaryTip} align="start" />
+        <HideBalanceToggle className="-my-3" />
       </div>
 
       <div className="mt-3 flex flex-col gap-6 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between sm:gap-x-12">
@@ -272,7 +273,7 @@ function PatrimonyHero({
         <div className="flex min-w-0 items-center gap-1">
           <div className="min-w-0">
             {masked ? (
-              <Masked label={hiddenLabel} className="num block text-[1.75rem] tracking-[0.14em] sm:text-[2.25rem]" />
+              <Masked label={hiddenLabel} className="num -ml-1 block text-[1.75rem] leading-[1.05] tracking-[0.14em] max-lg:font-sans max-lg:text-[36px] max-lg:leading-[44px] max-lg:font-semibold sm:text-[2.25rem]" />
             ) : pendingFx ? (
               <Skeleton className="h-7 w-52 max-w-full sm:h-9" />
             ) : (
@@ -286,7 +287,6 @@ function PatrimonyHero({
               </span>
             )}
           </div>
-          <HideBalanceToggle />
         </div>
 
         <dl className="flex flex-wrap items-end gap-x-10 gap-y-4">
