@@ -1,3 +1,5 @@
+import { getAppScroller } from "@/lib/app-shell/scroll";
+
 const ENTRY = "market-return-entry";
 const RESTORE = "market-return-scroll";
 const MAX_AGE = 30 * 60_000;
@@ -27,7 +29,7 @@ export function rememberMarketEntry(event: MouseEvent) {
   const params = new URLSearchParams(window.location.search);
   for (const key of [...params.keys()]) if (!KEYS.has(key)) params.delete(key);
   const search = params.toString();
-  try { sessionStorage.setItem(ENTRY, JSON.stringify({ href: `/app${search ? `?${search}` : ""}`, target: destination.pathname, scrollY: window.scrollY, capturedAt: Date.now() })); } catch { /* Storage unavailable: default link remains usable. */ }
+  try { sessionStorage.setItem(ENTRY, JSON.stringify({ href: `/app${search ? `?${search}` : ""}`, target: destination.pathname, scrollY: getAppScroller().top, capturedAt: Date.now() })); } catch { /* Storage unavailable: default link remains usable. */ }
 }
 
 export function consumeMarketEntry(target: string): MarketReturn | null {

@@ -11,7 +11,7 @@ export default function AsistenteLoading() {
       role="status"
       aria-live="polite"
       aria-busy="true"
-      className="fixed inset-0 z-20 flex min-h-0 flex-col overflow-hidden bg-bg pb-[var(--app-tabs-height)] lg:left-[var(--app-sidebar-width,0px)] lg:pb-0"
+      className="fixed inset-0 z-20 flex min-h-0 flex-col overflow-hidden bg-bg pb-[var(--app-tabs-height)] lg:top-2 lg:right-2 lg:bottom-2 lg:left-[var(--app-sidebar-width,0px)] lg:rounded-2xl lg:border lg:border-border lg:pb-0"
     >
       <span className="sr-only">Cargando el asistente</span>
 

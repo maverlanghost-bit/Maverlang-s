@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 
-import { IconEye, IconEyeOff } from "@/components/ui/icons";
+import { HideBalanceToggle } from "@/components/domain/hide-balance-toggle";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/cn";
 import { formatMoney, formatPercent } from "@/lib/format";
@@ -14,11 +14,12 @@ import { LANDING_MIN_ORDER_USD } from "@/lib/market/asset-status.shared";
 import type { Currency } from "@/lib/types";
 
 /**
- * Encabezado de saldo del Mercado en celular: rótulo, monto grande y resultado
- * total de la cartera. Sin tarjeta. El ojo oculta los montos con la misma
- * preferencia por usuario que la barra lateral (`useHideBalance`).
- * No hay serie histórica del saldo en los hooks, así que no hay mini gráfico.
- * Sólo con sesión: sin usuario no hay saldo que mostrar.
+ * Encabezado de saldo del Mercado: rótulo, monto grande y resultado total de
+ * la cartera. Sin tarjeta en la versión con sesión. El ojo oculta los montos con
+ * la misma preferencia por usuario que la barra lateral (`useHideBalance`).
+ * `variant="desktop"` agranda el monto (48px) y alinea el bloque de invitado
+ * a la izquierda, sin caja. No hay serie histórica del saldo en los hooks, así
+ * que no hay mini gráfico.
  */
 
 const MASK = "••••••";
@@ -28,38 +29,50 @@ function shown(usd: number, currency: Currency, rate: number | undefined): strin
   return formatMoney(usd, "USD");
 }
 
-export function MobileBalanceCard({ className }: { className?: string }) {
+export function MobileBalanceCard({ className, variant = "mobile" }: { className?: string; variant?: "mobile" | "desktop" }) {
+  const desktop = variant === "desktop";
   const { t, currency, language } = useT();
   const en = language === "en";
-  const { hidden, toggle, userId } = useHideBalance();
+  const { hidden, userId } = useHideBalance();
   const { mode } = useAccountMode();
   const portfolio = usePortfolio();
   const fx = useFx();
 
   if (!userId) {
     return (
-      <section aria-label={en ? "Your balance" : "Tu saldo"} className={cn("rounded-[28px] border border-border bg-surface-1 p-5", className)}>
+      <section
+        aria-label={en ? "Your balance" : "Tu saldo"}
+        className={cn(desktop ? "" : "rounded-[28px] border border-border bg-surface-1 p-5", className)}
+      >
         <p className="text-[15px] leading-5 text-fg-muted">{en ? "Your balance" : "Tu saldo"}</p>
-        <p className="mt-1 text-[28px] leading-8 font-semibold tracking-tight text-fg">
+        <p className={cn("mt-1 font-semibold tracking-tight text-fg", desktop ? "text-[40px] leading-[48px]" : "text-[28px] leading-8")}>
           {en ? "Create your free account" : "Crea tu cuenta gratis"}
         </p>
-        <p className="mt-2 text-[15px] leading-5 text-fg-body">
+        <p className={cn("mt-2 text-fg-body", desktop ? "max-w-lg text-[16px] leading-6" : "text-[15px] leading-5")}>
           {en
             ? `Practice with US$10,000 in play money or invest from US$${LANDING_MIN_ORDER_USD}.`
             : `Practica con US$10.000 ficticios o invierte desde US$${LANDING_MIN_ORDER_USD}.`}
         </p>
-        <Link
-          href="/app/registro"
-          className="mt-4 inline-flex min-h-12 w-full items-center justify-center rounded-full bg-fg px-6 text-[16px] font-semibold text-bg outline-none focus-visible:ring-2 focus-visible:ring-fg focus-visible:ring-offset-2 focus-visible:ring-offset-bg"
-        >
-          {en ? "Create account" : "Crear cuenta"}
-        </Link>
-        <Link
-          href="/app/ingresar"
-          className="mt-1 flex min-h-11 items-center justify-center text-[15px] font-medium text-fg underline underline-offset-4"
-        >
-          {en ? "I already have an account" : "Ya tengo cuenta"}
-        </Link>
+        <div className={desktop ? "mt-5 flex flex-wrap items-center gap-x-6 gap-y-1" : undefined}>
+          <Link
+            href="/app/registro"
+            className={cn(
+              "inline-flex min-h-12 items-center justify-center rounded-full bg-fg px-6 text-[16px] font-semibold text-bg outline-none focus-visible:ring-2 focus-visible:ring-fg focus-visible:ring-offset-2 focus-visible:ring-offset-bg",
+              desktop ? "px-8" : "mt-4 w-full",
+            )}
+          >
+            {en ? "Create account" : "Crear cuenta"}
+          </Link>
+          <Link
+            href="/app/ingresar"
+            className={cn(
+              "flex min-h-11 items-center justify-center text-[15px] font-medium text-fg underline underline-offset-4",
+              desktop ? undefined : "mt-1",
+            )}
+          >
+            {en ? "I already have an account" : "Ya tengo cuenta"}
+          </Link>
+        </div>
       </section>
     );
   }
@@ -74,7 +87,7 @@ export function MobileBalanceCard({ className }: { className?: string }) {
   const tone = pnlPct === null || pnlPct === 0 ? "flat" : pnlPct > 0 ? "up" : "down";
 
   return (
-    <section aria-label={en ? "Your balance" : "Tu saldo"} className={cn("px-0.5 pt-1", className)}>
+    <section aria-label={en ? "Your balance" : "Tu saldo"} className={cn(desktop ? "" : "px-0.5 pt-1", className)}>
       <div className="flex items-center gap-2">
         <p className="text-[15px] leading-5 text-fg-muted">{en ? "Balance" : "Saldo"}</p>
         {mode === "demo" ? (
@@ -82,9 +95,9 @@ export function MobileBalanceCard({ className }: { className?: string }) {
         ) : null}
       </div>
 
-      <div className="flex items-center justify-between gap-3" aria-live="polite">
+      <div className={cn("flex items-center gap-3", desktop ? "justify-start" : "justify-between")} aria-live="polite">
         {portfolio.isPending ? (
-          <Skeleton className="mt-1 h-10 w-48" />
+          <Skeleton className={cn("mt-1", desktop ? "h-12 w-64" : "h-10 w-48")} />
         ) : portfolio.isError || !data ? (
           <div className="flex items-center gap-3">
             <p className="text-[15px] text-fg-body">{en ? "Balance unavailable." : "No pudimos cargar tu saldo."}</p>
@@ -93,20 +106,16 @@ export function MobileBalanceCard({ className }: { className?: string }) {
             </button>
           </div>
         ) : (
-          <p className="tabular-nums min-w-0 truncate text-[36px] leading-[44px] font-semibold tracking-tight text-fg">
+          <p
+            className={cn(
+              "tabular-nums min-w-0 truncate font-semibold tracking-tight text-fg",
+              desktop ? "text-[48px] leading-[56px]" : "text-[36px] leading-[44px]",
+            )}
+          >
             {masked ? MASK : shown(data.totalUsd, shownCurrency, fxKnown ? rate : undefined)}
           </p>
         )}
-        <button
-          type="button"
-          onClick={toggle}
-          disabled={hidden === null}
-          aria-pressed={masked}
-          aria-label={masked ? t.shell.showBalance : t.shell.hideBalance}
-          className="-mr-2 grid size-11 shrink-0 place-items-center rounded-full text-fg-muted transition-colors hover:bg-surface-1 hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fg disabled:opacity-40"
-        >
-          {masked ? <IconEyeOff className="size-5" /> : <IconEye className="size-5" />}
-        </button>
+        <HideBalanceToggle className={desktop ? undefined : "-mr-2"} />
       </div>
 
       {data ? (

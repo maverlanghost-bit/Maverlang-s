@@ -410,7 +410,7 @@ export function Sidebar({
         if (shouldToggleSidebarClick(event.target as Element | null)) onToggle();
       }}
       className={cn(
-        "sticky top-0 z-30 hidden h-dvh shrink-0 cursor-ew-resize flex-col overflow-visible border-r border-border bg-bg lg:flex",
+        "sticky top-0 z-30 hidden h-dvh shrink-0 cursor-ew-resize flex-col overflow-visible bg-canvas lg:flex",
         WIDTH_ANIMATION,
         collapsed ? "w-[68px]" : "w-[212px]",
       )}

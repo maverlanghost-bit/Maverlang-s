@@ -11,7 +11,7 @@ import { MarketHeatmap } from "@/components/domain/market-heatmap";
 import { MarketToday } from "@/components/domain/market-today/market-today";
 import { MobileBalanceCard } from "@/components/domain/mobile-balance-card";
 import { MobileAssetRow } from "@/components/domain/mobile-asset-row";
-import { MobilePromoCarousel, MobileQuickActions, MobileShortcuts } from "@/components/domain/mobile-home";
+import { DesktopShortcuts, MobilePromoCarousel, MobileQuickActions, MobileShortcuts } from "@/components/domain/mobile-home";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { IconChevron, IconSearch } from "@/components/ui/icons";
 import { FloatingMarketOrb } from "@/components/domain/market-status-pill";
@@ -21,6 +21,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { ErrorState } from "@/components/ui/error-state";
 import { indexFromKey } from "@/components/ui/keys";
 import { Skeleton } from "@/components/ui/skeleton";
+import { getAppScroller } from "@/lib/app-shell/scroll";
 import { cn } from "@/lib/cn";
 import { formatMoney, formatPercent } from "@/lib/format";
 import { getPrices, searchMarket, type MarketSearchItem } from "@/lib/api/client";
@@ -339,8 +340,9 @@ export function MarketScreen({
     let frame = 0;
     const started = performance.now();
     const restore = () => {
-      window.scrollTo(0, target);
-      if (Math.abs(window.scrollY - target) <= 1 || performance.now() - started > 3000) returnScroll.current = null;
+      const scroller = getAppScroller();
+      scroller.to(target);
+      if (Math.abs(scroller.top - target) <= 1 || performance.now() - started > 3000) returnScroll.current = null;
       else frame = requestAnimationFrame(restore);
     };
     frame = requestAnimationFrame(restore);
@@ -604,16 +606,31 @@ export function MarketScreen({
       <h1 className="sr-only">{t.pages.market.title}</h1>
       {/* Inicio en celular: saldo, acciones principales, accesos y carrusel. */}
       <MobileBalanceCard className="lg:hidden" />
-      <div className="flex min-w-0 flex-col gap-7 md:hidden">
+      <div className="flex min-w-0 flex-col gap-7 md:max-w-xl lg:hidden">
         <MobileQuickActions showCopy={showCopy} />
         <MobileShortcuts />
         <MobilePromoCarousel />
       </div>
-      {sections ? <div className="-mx-5 hidden min-w-0 px-5 md:block sm:mx-0 sm:px-0">{sections}</div> : null}
+
+      {/* Escritorio (lg+): saldo y acciones a la izquierda, carrusel a la derecha y accesos debajo. */}
+      <div className="hidden min-w-0 flex-col gap-10 pt-2 lg:flex">
+        <div className="grid min-w-0 grid-cols-12 items-stretch gap-x-10">
+          <div className="col-span-7 flex min-w-0 flex-col justify-between gap-8">
+            <MobileBalanceCard variant="desktop" />
+            <MobileQuickActions showCopy={showCopy} align="start" />
+          </div>
+          <div className="col-span-5 min-w-0">
+            <MobilePromoCarousel desktop />
+          </div>
+        </div>
+        <DesktopShortcuts />
+      </div>
+
+      {sections ? <div className="-mx-5 hidden min-w-0 px-5 md:block sm:mx-0 sm:px-0 lg:mt-4">{sections}</div> : null}
 
       {/* «Tu día» sólo en escritorio: en celular no se monta (ni consulta datos). */}
       {!draft && filter === "all" && !isPhone ? (
-        <div className="hidden md:block">
+        <div className="hidden md:block lg:mt-2">
           <MarketToday />
         </div>
       ) : null}
@@ -625,7 +642,7 @@ export function MarketScreen({
       >
         <h2
           id={listTitleId}
-          className={cn("min-w-0 flex-1 leading-tight tracking-tight text-fg", isPhone ? "text-[26px] font-semibold" : "text-xl")}
+          className={cn("min-w-0 flex-1 leading-tight tracking-tight text-fg", isPhone ? "text-[26px] font-semibold" : "text-[28px] font-semibold")}
         >
           {isPhone ? (language === "en" ? "Stocks" : "Acciones") : t.market.list}
         </h2>

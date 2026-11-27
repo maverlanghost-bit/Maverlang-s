@@ -3,6 +3,7 @@
 import {
   useCallback,
   useEffect,
+  useRef,
   useState,
   type CSSProperties,
   type ReactNode,
@@ -16,6 +17,7 @@ import { Sidebar } from "@/components/app-shell/sidebar";
 import { StockSearchRoot } from "@/components/app-shell/stock-search";
 import { TopBar } from "@/components/app-shell/top-bar";
 import { cn } from "@/lib/cn";
+import { APP_SCROLL_ID } from "@/lib/app-shell/scroll";
 import { serializeSidebarCookie } from "@/lib/app-shell/sidebar";
 import { useAccountMode } from "@/lib/hooks/use-account-mode";
 import { useT } from "@/lib/hooks/use-t";
@@ -87,6 +89,12 @@ function ShellFrame({
   const account = useAccountMode(accountInitial);
   const pathname = usePathname();
   const assistantRoute = pathname === "/app/asistente" || pathname.startsWith("/app/asistente/");
+  const scrollRef = useRef<HTMLDivElement>(null);
+  // En lg+ el scroll es del panel, no de la ventana: al cambiar de ruta vuelve arriba (salvo anclas).
+  useEffect(() => {
+    if (window.location.hash) return;
+    if (scrollRef.current) scrollRef.current.scrollTop = 0;
+  }, [pathname]);
   const toggleSidebar = useCallback(() => {
     setCollapsed((previous) => {
       const next = !previous;
@@ -97,7 +105,7 @@ function ShellFrame({
 
   return (
     <div
-      className="relative min-h-dvh bg-canvas"
+      className="relative min-h-dvh bg-canvas lg:h-dvh lg:overflow-hidden"
       style={
         {
           "--app-sidebar-width": `${collapsed ? SIDEBAR_WIDTH.collapsed : SIDEBAR_WIDTH.expanded}px`,
@@ -108,9 +116,13 @@ function ShellFrame({
       <SyncToastOffset includeTabs />
       <SkipLink label={t.shell.skip} />
       <StockSearchRoot>
-        <div className="min-h-dvh lg:grid lg:grid-cols-[auto_minmax(0,1fr)]">
+        <div className="min-h-dvh lg:grid lg:h-dvh lg:grid-cols-[auto_minmax(0,1fr)]">
           <Sidebar collapsed={collapsed} onToggle={toggleSidebar} accountMode={account.mode} onAccountChange={account.select} />
-          <div className="flex min-h-dvh min-w-0 flex-col">
+          <div
+            id={APP_SCROLL_ID}
+            ref={scrollRef}
+            className="flex min-h-dvh min-w-0 flex-col lg:m-2 lg:ml-0 lg:h-[calc(100dvh-16px)] lg:min-h-0 lg:scroll-pt-4 lg:overflow-y-auto lg:overscroll-contain lg:rounded-2xl lg:border lg:border-border lg:bg-bg lg:shadow-sm"
+          >
             <TopBar accountMode={account.mode} hideMobileCluster={assistantRoute} />
             <div
               className={cn(

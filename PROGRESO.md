@@ -1,5 +1,11 @@
 # PROGRESO — Maverlang
 
+## T105 — Escritorio: lienzo gris con panel y nueva hero del inicio (2026-11-27)
+- Shell lg+ con sesión: lienzo y sidebar `bg-canvas` (#f4f5f7) sin borde; contenido en panel blanco `#app-scroll` (`rounded-2xl`, borde, margen 8 px) con scroll propio. `lib/app-shell/scroll.ts` (`getAppScroller`) para guardar/restaurar scroll del mercado; reset al cambiar de ruta. Chat del asistente ajustado al panel. Invitado y celular sin cambios.
+- Inicio `/app` lg+: saldo 48 px + 4 círculos a la izquierda, carrusel con flechas a la derecha, 4 tarjetas de acceso (Cartera, Herramientas, Asistente, Alertas) y debajo el mercado existente (Tu día, destacado, movers, tabla). md–lg: pila móvil acotada.
+- Pendiente: e2e `ui-market-return` y `ui-chart-*` leen `window.scrollY`; en escritorio deben leer `#app-scroll`.
+- Verificación: `tsc`, 213 archivos de pruebas (2125/2125) y navegador con sesión a 1440×900, 1280×720 y 390 px.
+
 ## T104 — Asistente en la barra, barra superior que se oculta y cartera/billetera en sans (2026-11-24)
 - Barra inferior móvil: Mercado, Favoritas, Asistente (centro, «AI»), Cartera, Billetera. Invitado: el Asistente abre `assistant-guest-sheet.tsx` («Crear cuenta» / «Ya tengo cuenta» con next `/app/asistente`); igual el acceso del inicio.
 - Barra superior móvil (`top-bar.tsx`): avatar + búsqueda con el mismo vidrio que la barra inferior (variables `--lg-*` en `.liquid-glass--chip`); se oculta al bajar y vuelve al subir (sin animación con `prefers-reduced-motion`).

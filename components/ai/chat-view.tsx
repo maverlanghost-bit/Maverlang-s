@@ -177,7 +177,7 @@ export function ChatView({
       ref={panelRef}
       data-ai-chat
       className={cn(
-        "fixed z-20 flex min-h-0 flex-col overflow-hidden bg-white lg:left-[var(--app-sidebar-width,0px)]!",
+        "fixed z-20 flex min-h-0 flex-col overflow-hidden bg-white lg:left-[var(--app-sidebar-width,0px)]! lg:rounded-2xl lg:border lg:border-border",
         "lg:transition-[left] lg:duration-[280ms] lg:ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none",
       )}
       style={{ top: 0, right: 0, left: 0, height: "100dvh" }}

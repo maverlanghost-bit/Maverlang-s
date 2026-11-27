@@ -6,7 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 
 import { AssistantGuestSheet } from "@/components/app-shell/assistant-guest-sheet";
 import { getMe } from "@/lib/api/client";
-import { IconChart, IconPortfolio, IconStar, IconWallet } from "@/components/ui/icons";
+import { IconChart, IconChevron, IconPortfolio, IconStar, IconWallet } from "@/components/ui/icons";
 import { cn } from "@/lib/cn";
 import { useHideBalance } from "@/lib/hooks/use-hide-balance";
 import { useT } from "@/lib/hooks/use-t";
@@ -39,7 +39,16 @@ const GlyphAlert = (p: SvgProps) =>
   glyph(p, <path d="M6 17V11a6 6 0 0 1 12 0v6l1.5 2h-15L6 17Zm4 4h4" />);
 const GlyphClock = (p: SvgProps) => glyph(p, <><circle cx="12" cy="12" r="8" /><path d="M12 8v4l3 2" /></>);
 
-export function MobileQuickActions({ showCopy = false, className }: { showCopy?: boolean; className?: string }) {
+export function MobileQuickActions({
+  showCopy = false,
+  className,
+  align = "grid",
+}: {
+  showCopy?: boolean;
+  className?: string;
+  /** "start": fila alineada a la izquierda con huecos fijos (escritorio). */
+  align?: "grid" | "start";
+}) {
   const { language } = useT();
   const en = language === "en";
   const { userId } = useHideBalance();
@@ -54,9 +63,9 @@ export function MobileQuickActions({ showCopy = false, className }: { showCopy?:
     { id: "wallet", label: en ? "Wallet" : "Billetera", href: userId ? "/app/billetera" : gate, icon: <IconWallet className="size-6" /> },
   ];
   return (
-    <nav aria-label={en ? "Main actions" : "Acciones principales"} className={cn("grid grid-cols-4 gap-2", className)}>
+    <nav aria-label={en ? "Main actions" : "Acciones principales"} className={cn(align === "start" ? "flex flex-wrap gap-x-8 gap-y-4" : "grid grid-cols-4 gap-2", className)}>
       {actions.map((action) => (
-        <Link key={action.id} href={action.href} className="group flex flex-col items-center gap-2 py-1 outline-none">
+        <Link key={action.id} href={action.href} className={cn("group flex flex-col items-center gap-2 py-1 outline-none", align === "start" && "min-w-16")}>
           <span className="grid size-14 place-items-center rounded-full bg-fg text-bg transition-transform group-active:scale-95 group-focus-visible:ring-2 group-focus-visible:ring-fg group-focus-visible:ring-offset-2 group-focus-visible:ring-offset-bg">
             {action.icon}
           </span>
@@ -108,9 +117,53 @@ export function MobileShortcuts({ className }: { className?: string }) {
   );
 }
 
+/** Accesos en escritorio: tarjetas horizontales con ícono, nombre y una línea de descripción. */
+export function DesktopShortcuts({ className }: { className?: string }) {
+  const { language } = useT();
+  const en = language === "en";
+  const { userId } = useHideBalance();
+  const [guestSheet, setGuestSheet] = useState(false);
+  const items = [
+    { href: "/app/cartera", label: en ? "Portfolio" : "Cartera", hint: en ? "Your positions and results" : "Tus posiciones y resultado", icon: <IconPortfolio className="size-6" /> },
+    { href: "/app/herramientas", label: en ? "Tools" : "Herramientas", hint: en ? "Screener, compare and more" : "Screener, comparar y más", icon: <GlyphTools className="size-6" /> },
+    { href: "/app/asistente", label: en ? "Assistant" : "Asistente", hint: en ? "Ask about stocks and your portfolio" : "Pregunta sobre acciones y tu cartera", icon: <GlyphAssistant className="size-6" /> },
+    { href: "/app/alertas", label: en ? "Alerts" : "Alertas", hint: en ? "Price notices" : "Avisos de precio", icon: <GlyphAlert className="size-6" /> },
+  ];
+  const cardCls =
+    "group flex min-w-0 items-center gap-4 rounded-3xl bg-surface-1 p-4 text-left outline-none transition-colors hover:bg-surface-2 focus-visible:ring-2 focus-visible:ring-fg";
+  return (
+    <nav aria-label={en ? "Shortcuts" : "Accesos"} className={cn("grid grid-cols-2 gap-4 xl:grid-cols-4", className)}>
+      {items.map((item) => {
+        const inner = (
+          <>
+            <span className="grid size-12 shrink-0 place-items-center rounded-2xl bg-bg text-fg">{item.icon}</span>
+            <span className="flex min-w-0 flex-col">
+              <span className="truncate text-[16px] leading-6 font-bold text-fg">{item.label}</span>
+              <span className="line-clamp-2 text-[13px] leading-[18px] text-fg-muted">{item.hint}</span>
+            </span>
+          </>
+        );
+        if (item.href === "/app/asistente" && !userId) {
+          return (
+            <button key={item.href} type="button" aria-haspopup="dialog" onClick={() => setGuestSheet(true)} className={cardCls}>
+              {inner}
+            </button>
+          );
+        }
+        return (
+          <Link key={item.href} href={item.href} className={cardCls}>
+            {inner}
+          </Link>
+        );
+      })}
+      {!userId ? <AssistantGuestSheet open={guestSheet} onOpenChange={setGuestSheet} /> : null}
+    </nav>
+  );
+}
+
 type Promo = { id: string; title: string; body: string; cta?: { label: string; href: string }; art: ReactNode };
 
-export function MobilePromoCarousel({ className }: { className?: string }) {
+export function MobilePromoCarousel({ className, desktop = false }: { className?: string; desktop?: boolean }) {
   const { language } = useT();
   const en = language === "en";
   const { userId } = useHideBalance();
@@ -184,21 +237,51 @@ export function MobilePromoCarousel({ className }: { className?: string }) {
     setIndex(Math.min(promos.length - 1, Math.max(0, Math.round(el.scrollLeft / el.clientWidth))));
   }
 
-  return (
-    <section aria-label={en ? "Highlights" : "Novedades"} className={cn("min-w-0", className)}>
-      <div className="mb-3 flex justify-center gap-1.5" aria-hidden>
-        {promos.map((promo, i) => (
+  function goTo(target: number) {
+    const el = scroller.current;
+    if (!el) return;
+    const next = Math.min(promos.length - 1, Math.max(0, target));
+    el.scrollTo({ left: next * el.clientWidth, behavior: "smooth" });
+    setIndex(next);
+  }
+
+  const dots = (
+    <div className={cn("flex gap-1.5", desktop ? "items-center" : "mb-3 justify-center")} aria-hidden={desktop ? undefined : true}>
+      {promos.map((promo, i) =>
+        desktop ? (
+          <button
+            key={promo.id}
+            type="button"
+            onClick={() => goTo(i)}
+            aria-label={`${i + 1} / ${promos.length}`}
+            aria-current={i === index}
+            className="grid h-6 w-8 place-items-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-fg"
+          >
+            <span className={cn("h-[3px] w-6 rounded-full transition-colors", i === index ? "bg-fg" : "bg-border-strong")} />
+          </button>
+        ) : (
           <span key={promo.id} className={cn("h-[3px] w-6 rounded-full transition-colors", i === index ? "bg-fg" : "bg-border-strong")} />
-        ))}
-      </div>
+        ),
+      )}
+    </div>
+  );
+  const arrowCls =
+    "grid size-9 place-items-center rounded-full bg-surface-1 text-fg outline-none transition-colors hover:bg-surface-2 focus-visible:ring-2 focus-visible:ring-fg disabled:opacity-40";
+
+  return (
+    <section aria-label={en ? "Highlights" : "Novedades"} className={cn("min-w-0", desktop && "flex h-full flex-col", className)}>
+      {desktop ? null : dots}
       <ul
         ref={scroller}
         onScroll={onScroll}
-        className="no-scrollbar flex snap-x snap-mandatory overflow-x-auto overscroll-x-contain pb-3 [scrollbar-width:none]"
+        className={cn(
+          "no-scrollbar flex snap-x snap-mandatory overflow-x-auto overscroll-x-contain [scrollbar-width:none]",
+          desktop ? "min-h-0 flex-1 pb-2" : "pb-3",
+        )}
       >
         {promos.map((promo) => (
-          <li key={promo.id} className="w-full shrink-0 snap-center px-0.5">
-            <div className="flex min-h-[148px] items-stretch gap-4 rounded-[28px] border border-border bg-bg p-5 shadow-sm">
+          <li key={promo.id} className={cn("w-full shrink-0 snap-center px-0.5", desktop && "flex")}>
+            <div className={cn("flex min-h-[148px] items-stretch gap-4 rounded-[28px] border border-border bg-bg p-5 shadow-sm", desktop && "flex-1")}>
               <div className="flex min-w-0 flex-1 flex-col">
                 <h3 className="text-[19px] leading-6 font-bold tracking-tight text-fg">{promo.title}</h3>
                 <p className="mt-1.5 text-[14px] leading-5 text-fg-muted">{promo.body}</p>
@@ -215,6 +298,21 @@ export function MobilePromoCarousel({ className }: { className?: string }) {
           </li>
         ))}
       </ul>
+      {desktop ? (
+        <div className="flex items-center justify-between pt-1">
+          {dots}
+          {promos.length > 1 ? (
+            <div className="flex items-center gap-2">
+              <button type="button" onClick={() => goTo(index - 1)} disabled={index === 0} aria-label={en ? "Previous" : "Anterior"} className={arrowCls}>
+                <IconChevron className="size-4 rotate-90" />
+              </button>
+              <button type="button" onClick={() => goTo(index + 1)} disabled={index >= promos.length - 1} aria-label={en ? "Next" : "Siguiente"} className={arrowCls}>
+                <IconChevron className="size-4 -rotate-90" />
+              </button>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
     </section>
   );
 }

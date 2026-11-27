@@ -4,7 +4,8 @@ import { useLayoutEffect, type RefObject } from "react";
 
 /**
  * Ocupa el área visible: bajo la barra superior, sobre las pestañas y
- * sobre el teclado (`visualViewport`). En escritorio deja la barra lateral.
+ * sobre el teclado (`visualViewport`). En escritorio deja la barra lateral y
+ * el margen de 8px del panel flotante.
  */
 export function useChatViewport(panelRef: RefObject<HTMLElement | null>) {
   useLayoutEffect(() => {
@@ -23,10 +24,12 @@ export function useChatViewport(panelRef: RefObject<HTMLElement | null>) {
       const header = 0; // sin barra superior: el chat ocupa todo el alto y deja espacio al cluster flotante
       const left = desktop ? asideWidth(panel) : 0;
       const tabs = desktop || keyboard > 80 ? 0 : tabsHeight();
-      panel.style.top = `${offsetTop}px`;
+      // Escritorio: el chat llena el panel blanco del shell (8px de margen arriba, derecha y abajo).
+      const gap = desktop ? 8 : 0;
+      panel.style.top = `${offsetTop + gap}px`;
       panel.style.left = `${left}px`;
-      panel.style.right = "0px";
-      panel.style.height = `${Math.max(0, height)}px`;
+      panel.style.right = `${gap}px`;
+      panel.style.height = `${Math.max(0, height - gap * 2)}px`;
       panel.style.paddingTop = `${header}px`;
       panel.style.paddingBottom = `${tabs}px`;
     };
